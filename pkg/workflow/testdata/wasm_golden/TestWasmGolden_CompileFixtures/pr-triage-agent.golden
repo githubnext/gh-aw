@@ -1,0 +1,913 @@
+name: "PR Triage Agent"
+"on":
+  schedule:
+  - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: "gh-aw-${{ github.workflow }}"
+
+run-name: "PR Triage Agent"
+
+jobs:
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      comment_id: ""
+      comment_repo: ""
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Checkout .github and .agents folders
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+            .agents
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "pr-triage-agent.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Create prompt with built-in context
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <github-context>
+          The following GitHub context information is available for this workflow:
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{/if}}
+          </github-context>
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/mood.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # PR Triage Agent
+          
+          You are an automated PR triage system responsible for categorizing, assessing risk, prioritizing, and recommending actions for agent-created pull requests in the repository.
+          
+          ## Current Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          
+          ## Your Mission
+          
+          Process all open agent-created PRs in the backlog to:
+          1. Categorize each PR by type
+          2. Assess risk level
+          3. Calculate priority score
+          4. Recommend actions
+          5. Apply labels for filtering
+          6. Identify batch processing opportunities
+          7. Generate comprehensive triage report
+          
+          ## Workflow Execution
+          
+          ### Phase 1: Data Collection (5 minutes)
+          
+          **1.1 Load Historical Data from Memory**
+          
+          Check for existing triage data in shared memory at `/tmp/gh-aw/repo-memory/default/`:
+          - `pr-triage-latest.json` - Last run's results
+          - `metrics/latest.json` - Agent performance metrics from Metrics Collector
+          - `agent-performance-latest.md` - Agent quality scores
+          
+          **1.2 Query Open Agent PRs**
+          
+          Use GitHub tools to fetch all open pull requests:
+          - Filter by: `is:open is:pr author:app/github-copilot`
+          - Get PR details including:
+            - Number, title, description, author
+            - Files changed (count and paths)
+            - CI status (passing/failing/pending)
+            - Created date, updated date
+            - Existing labels
+            - Review status
+            - Comments count
+          
+          **1.3 Load Agent Quality Scores**
+          
+          If Agent Performance Analyzer data exists, load quality scores for each agent workflow to use in quality assessment.
+          
+          ### Phase 2: Categorization and Risk Assessment (10 minutes)
+          
+          For each PR, perform the following analysis:
+          
+          **2.1 Categorize PR Type**
+          
+          Determine category based on file patterns and PR description:
+          
+          **File Pattern Rules:**
+          - **docs**: Changes only to `.md`, `.txt`, `.rst` files in `docs/`, `README.md`, `CHANGELOG.md`
+          - **test**: Changes only to `*_test.go`, `*_test.js`, `*.test.js`, `*Tests.cs`, `*Test.cs` files
+          - **formatting**: Changes matching `.prettierrc`, `.editorconfig`, or whitespace-only diffs
+          - **chore**: Changes to `Makefile`, `.github/workflows/*.yml`, `go.mod`, `package.json`, `*.csproj`, CI configs
+          - **refactor**: Code changes with no new features or bug fixes (look for keywords: "refactor", "restructure", "reorganize")
+          - **bug**: Keywords in title/description: "fix", "bug", "issue", "error", "crash"
+          - **feature**: Keywords in title/description: "add", "implement", "new", "feature", "support"
+          
+          **2.2 Assess Risk Level**
+          
+          Calculate risk based on category and change scope:
+          
+          **Low Risk:**
+          - Documentation changes only
+          - Test additions/changes only
+          - Formatting changes only (whitespace, linting)
+          - Changes < 50 lines in low-risk files
+          
+          **Medium Risk:**
+          - Refactoring without behavior changes
+          - Chore updates (dependencies, build scripts)
+          - Bug fixes in non-critical areas
+          - Changes 50-200 lines
+          
+          **High Risk:**
+          - New features (behavior changes)
+          - Bug fixes in critical paths (compilation, security, core logic)
+          - Changes > 200 lines
+          - Changes to security-sensitive code
+          - Breaking changes
+          
+          ### Phase 3: Priority Scoring (5 minutes)
+          
+          Calculate priority score (0-100) using three components:
+          
+          **3.1 Impact Score (0-50)**
+          
+          - **Critical (40-50)**: Security fixes, production bugs, blocking issues, P0/P1 labels
+          - **High (30-39)**: Performance improvements, important features, P2 labels
+          - **Medium (20-29)**: Minor features, non-blocking bugs, improvements
+          - **Low (0-19)**: Documentation, tests, formatting, tech debt
+          
+          Factors:
+          - Category (bug/feature = higher, docs/test = lower)
+          - Files affected (core logic = higher, docs = lower)
+          - Issue references (P0/P1 issues = higher)
+          
+          **3.2 Urgency Score (0-30)**
+          
+          - **Critical (25-30)**: Security vulnerabilities, production failures
+          - **High (15-24)**: User-facing bugs, CI failures blocking work
+          - **Medium (8-14)**: Quality improvements, tech debt
+          - **Low (0-7)**: Nice-to-haves, optimizations
+          
+          Factors:
+          - Age of PR (older = more urgent, max +10 points for PRs > 30 days old)
+          - CI status (failing = +5 urgency)
+          - Labels (security = +20, P0 = +15, P1 = +10)
+          
+          **3.3 Quality Score (0-20)**
+          
+          - **Excellent (16-20)**: CI passing, good description, includes tests, agent quality score > 80%
+          - **Good (11-15)**: CI passing, basic description, agent quality score 60-80%
+          - **Fair (6-10)**: CI passing or description present, agent quality score 40-60%
+          - **Poor (0-5)**: CI failing, no description, agent quality score < 40%
+          
+          Factors:
+          - CI status (+10 if passing)
+          - PR description quality (+5 if detailed, +2 if present)
+          - Test coverage (+3 if tests included)
+          - Agent quality score from performance analyzer
+          
+          **Total Priority = Impact + Urgency + Quality**
+          
+          ### Phase 4: Action Recommendations (5 minutes)
+          
+          Based on risk, priority, and quality, recommend one of these actions:
+          
+          **auto_merge:**
+          - Risk: Low
+          - Priority: Any
+          - Quality: > 15 (Excellent/Good)
+          - CI: Passing
+          - Criteria: Safe changes (docs, tests, formatting) from trusted agents (quality > 80%)
+          
+          **fast_track:**
+          - Risk: Medium or High
+          - Priority: > 70
+          - Quality: > 10
+          - CI: Passing
+          - Criteria: High-priority PRs needing quick review but not auto-mergeable
+          
+          **batch_review:**
+          - Risk: Low or Medium
+          - Priority: 30-70
+          - Similarity: Similar to other PRs (same category, similar files)
+          - Criteria: Group for efficient batch review
+          
+          **defer:**
+          - Risk: Low
+          - Priority: < 30
+          - Criteria: Low-impact changes that can wait
+          
+          **close:**
+          - Age: > 90 days with no activity
+          - Status: Superseded by newer PR, outdated, invalid
+          - CI: Failing for > 30 days with no fixes
+          
+          ### Phase 5: Batch Processing (3 minutes)
+          
+          **5.1 Detect Similar PRs**
+          
+          Group PRs that are similar enough to review together:
+          
+          **Similarity Criteria:**
+          - Same category and risk level
+          - Overlapping file changes (> 50% file overlap)
+          - Same agent workflow
+          - Similar descriptions (keyword matching)
+          
+          **5.2 Generate Batch IDs**
+          
+          For each group of similar PRs (3+ PRs):
+          - Create batch ID: `batch-{category}-{sequential-number}`
+          - Example: `batch-docs-001`, `batch-test-002`
+          
+          ### Phase 6: Label Application (2 minutes)
+          
+          For each PR, add the following labels:
+          
+          **Type Labels:**
+          - `pr-type:bug`, `pr-type:feature`, `pr-type:docs`, `pr-type:test`, `pr-type:formatting`, `pr-type:refactor`, `pr-type:chore`
+          
+          **Risk Labels:**
+          - `pr-risk:low`, `pr-risk:medium`, `pr-risk:high`
+          
+          **Priority Labels:**
+          - `pr-priority:high` (score >= 70)
+          - `pr-priority:medium` (score 40-69)
+          - `pr-priority:low` (score < 40)
+          
+          **Action Labels:**
+          - `pr-action:auto-merge`, `pr-action:fast-track`, `pr-action:batch-review`, `pr-action:defer`, `pr-action:close`
+          
+          **Agent Labels:**
+          - `pr-agent:{workflow-name}` - Name of the workflow that created the PR
+          
+          **Batch Labels** (if applicable):
+          - `pr-batch:{batch-id}` - Batch ID for similar PRs
+          
+          **Label Management:**
+          - Remove existing conflicting labels before adding new ones
+          - Keep non-triage labels intact (e.g., existing issue labels)
+          
+          ### Phase 7: PR Comments (2 minutes)
+          
+          For each triaged PR, add a comment with the triage results:
+          
+          ```markdown
+          ## 🔍 PR Triage Results
+          
+          **Category:** {category} | **Risk:** {risk} | **Priority:** {priority_score}/100
+          
+          ### Scores Breakdown
+          - **Impact:** {impact_score}/50 - {impact_rationale}
+          - **Urgency:** {urgency_score}/30 - {urgency_rationale}
+          - **Quality:** {quality_score}/20 - {quality_rationale}
+          
+          ### 📋 Recommended Action: {action}
+          
+          {action_explanation}
+          
+          {batch_info_if_applicable}
+          
+          ---
+          *Triaged by PR Triage Agent on {date}*
+          ```
+          
+          ### Phase 8: Report Generation (3 minutes)
+          
+          Create a comprehensive triage report as a GitHub Issue:
+          
+          **Report Structure:**
+          
+          ```markdown
+          # PR Triage Report - {date}
+          
+          ## Executive Summary
+          
+          - **Total PRs Triaged:** {count}
+          - **New PRs:** {new_count}
+          - **Re-triaged:** {re_triage_count}
+          - **Auto-merge Candidates:** {auto_merge_count}
+          - **Fast-track Needed:** {fast_track_count}
+          - **Batches Identified:** {batch_count}
+          - **Close Candidates:** {close_count}
+          
+          ## Triage Statistics
+          
+          ### By Category
+          - Bug: {bug_count}
+          - Feature: {feature_count}
+          - Docs: {docs_count}
+          - Test: {test_count}
+          - Formatting: {formatting_count}
+          - Refactor: {refactor_count}
+          - Chore: {chore_count}
+          
+          ### By Risk Level
+          - High Risk: {high_risk_count}
+          - Medium Risk: {medium_risk_count}
+          - Low Risk: {low_risk_count}
+          
+          ### By Priority
+          - High Priority (70-100): {high_priority_count}
+          - Medium Priority (40-69): {medium_priority_count}
+          - Low Priority (0-39): {low_priority_count}
+          
+          ### By Recommended Action
+          - Auto-merge: {auto_merge_count}
+          - Fast-track: {fast_track_count}
+          - Batch Review: {batch_review_count}
+          - Defer: {defer_count}
+          - Close: {close_count}
+          
+          ## 🚀 Top Priority PRs (Top 10)
+          
+          {list_top_10_prs_with_scores_and_links}
+          
+          ## ✅ Auto-merge Candidates
+          
+          {list_auto_merge_prs}
+          
+          ## ⚡ Fast-track Review Needed
+          
+          {list_fast_track_prs}
+          
+          ## 📦 Batch Processing Opportunities
+          
+          {list_batches_with_pr_numbers}
+          
+          ## 🗑️ Close Candidates
+          
+          {list_close_candidate_prs_with_reasons}
+          
+          ## 📊 Agent Performance Summary
+          
+          {summary_of_prs_by_agent_with_quality_scores}
+          
+          ## 🔄 Trends
+          
+          {compare_to_previous_runs_if_available}
+          
+          ## Next Steps
+          
+          1. Review auto-merge candidates for immediate merge
+          2. Fast-track high-priority PRs for urgent review
+          3. Schedule batch reviews for grouped PRs
+          4. Close outdated/invalid PRs
+          5. Re-triage in 6 hours for new PRs
+          
+          ---
+          *Generated by PR Triage Agent - Run #{run_id}*
+          ```
+          
+          ### Phase 9: Save State to Memory (1 minute)
+          
+          Save current triage state to repo memory for next run:
+          
+          **File: `/tmp/gh-aw/repo-memory/default/pr-triage-latest.json`**
+          
+          ```json
+          {
+            "run_date": "ISO timestamp",
+            "run_id": "run_id",
+            "total_prs_triaged": 0,
+            "auto_merge_candidates": [],
+            "fast_track_needed": [],
+            "batches": {},
+            "close_candidates": [],
+            "statistics": {
+              "by_category": {},
+              "by_risk": {},
+              "by_priority": {},
+              "by_action": {}
+            }
+          }
+          ```
+          
+          ## Important Guidelines
+          
+          **Fair and Objective:**
+          - Base all scores on measurable criteria
+          - Don't penalize PRs from less active agents
+          - Consider PR context and purpose
+          - Acknowledge external factors (API issues, CI flakiness)
+          
+          **Actionable Results:**
+          - Every triage result should lead to a clear action
+          - Provide specific reasons for recommendations
+          - Include links to PRs and relevant documentation
+          - Make it easy for humans to act on recommendations
+          
+          **Efficient Processing:**
+          - Batch similar operations (labeling, commenting)
+          - Cache agent quality scores for reuse
+          - Avoid redundant API calls
+          - Process PRs in priority order
+          
+          **Continuous Improvement:**
+          - Track triage accuracy over time
+          - Learn from human overrides (PR labels manually changed)
+          - Adjust scoring algorithms based on feedback
+          - Improve batch detection with better similarity matching
+          
+          ## Success Criteria
+          
+          Your effectiveness is measured by:
+          - **Coverage:** 100% of open agent PRs triaged each run
+          - **Accuracy:** 90%+ correct categorization and risk assessment
+          - **Actionability:** Clear recommendations for every PR
+          - **Backlog Reduction:** Enable processing of 605-PR backlog within 2 weeks
+          - **Auto-merge Success:** High confidence in auto-merge candidates (no false positives)
+          - **Batch Efficiency:** Reduce review time through effective batching
+          
+          ## Edge Cases to Handle
+          
+          1. **PRs with no description**: Use file changes only for categorization
+          2. **Mixed-type PRs**: Assign primary category based on most significant change
+          3. **Very old PRs**: Increase urgency score but verify they're not obsolete
+          4. **Conflicting labels**: Remove old triage labels, keep non-triage labels
+          5. **Superseded PRs**: Identify duplicates and recommend closing older ones
+          6. **CI failures**: Don't auto-merge, consider for fast-track if high priority
+          
+          Execute all phases systematically and maintain consistency in scoring and recommendations across all PRs.
+          
+          GH_AW_PROMPT_EOF
+      - name: Interpolate variables and render templates
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
+            await main();
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+              }
+            });
+      - name: Validate prompt placeholders
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh
+      - name: Print prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Upload prompt artifact
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          retention-days: 1
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: prtriageagent
+    outputs:
+      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        id: checkout-pr
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Generate agentic run info
+        id: generate_aw_info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              version: "",
+              agent_version: "0.0.411",
+              workflow_name: "PR Triage Agent",
+              experimental: false,
+              supports_tools_allowlist: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              allowed_domains: ["defaults"],
+              firewall_enabled: true,
+              awf_version: "v0.20.0",
+              awmg_version: "v0.1.4",
+              steps: {
+                firewall: "squid"
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
+      - name: Install awf binary
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
+      - name: Validate lockdown mode requirements
+        id: validate-lockdown-requirements
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+        with:
+          script: |
+            const validateLockdownRequirements = require('/opt/gh-aw/actions/validate_lockdown_requirements.cjs');
+            validateLockdownRequirements(core);
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.0 ghcr.io/github/gh-aw-firewall/squid:0.20.0 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="80"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.4'
+          
+          mkdir -p /home/runner/.copilot
+          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "github": {
+                "type": "stdio",
+                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "1",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "pull_requests,repos,issues,labels"
+                }
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
+      - name: Download prompt artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts
+      - name: Clean git credentials
+        run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+        env:
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session state files to logs folder for artifact collection
+          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            mkdir -p "$LOGS_DIR"
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
+      - name: Stop MCP Gateway
+        if: always()
+        continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
+          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            await main();
+      - name: Parse MCP Gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
+            await main();
+      - name: Print firewall logs
+        if: always()
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/agent/
+          if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: 
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+

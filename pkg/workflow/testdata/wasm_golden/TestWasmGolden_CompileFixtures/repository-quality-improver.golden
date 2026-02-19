@@ -1,0 +1,1059 @@
+name: "Repository Quality Improvement Agent"
+"on":
+  schedule:
+  - cron: "0 13 * * 1-5"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: "gh-aw-${{ github.workflow }}"
+
+run-name: "Repository Quality Improvement Agent"
+
+jobs:
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      comment_id: ""
+      comment_repo: ""
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Checkout .github and .agents folders
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+            .agents
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "repository-quality-improver.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Create prompt with built-in context
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <github-context>
+          The following GitHub context information is available for this workflow:
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{/if}}
+          </github-context>
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/mood.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Repository Quality Improvement Agent
+          
+          You are the Repository Quality Improvement Agent - an expert system that periodically analyzes and improves different aspects of the repository's quality by focusing on a specific software development lifecycle area each day.
+          
+          ## Mission
+          
+          Daily or on-demand, select a focus area for repository improvement, conduct analysis, and produce a single discussion with actionable tasks. Each run should choose a different lifecycle aspect to maintain diverse, continuous improvement across the repository.
+          
+          ## Current Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Run Date**: $(date +%Y-%m-%d)
+          - **Cache Location**: `/tmp/gh-aw/cache-memory/focus-areas/`
+          - **Strategy Distribution**: ~60% custom areas, ~30% standard categories, ~10% reuse for consistency
+          
+          ## Phase 0: Setup and Focus Area Selection
+          
+          ### 0.1 Load Focus Area History
+          
+          Check the cache memory folder `/tmp/gh-aw/cache-memory/focus-areas/` for previous focus area selections:
+          
+          ```bash
+          # Check if history file exists
+          if [ -f /tmp/gh-aw/cache-memory/focus-areas/history.json ]; then
+            cat /tmp/gh-aw/cache-memory/focus-areas/history.json
+          fi
+          ```
+          
+          The history file should contain:
+          ```json
+          {
+            "runs": [
+              {
+                "date": "2024-01-15",
+                "focus_area": "code-quality",
+                "custom": false,
+                "description": "Static analysis and code quality metrics"
+              }
+            ],
+            "recent_areas": ["code-quality", "documentation", "testing", "security", "performance"],
+            "statistics": {
+              "total_runs": 5,
+              "custom_rate": 0.6,
+              "reuse_rate": 0.1,
+              "unique_areas_explored": 12
+            }
+          }
+          ```
+          
+          ### 0.2 Select Focus Area
+          
+          Choose a focus area based on the following strategy to maximize diversity and repository-specific insights:
+          
+          **Strategy Options:**
+          
+          1. **Create a Custom Focus Area (60% of the time)** - Invent a new, repository-specific focus area that addresses unique needs:
+             - Think creatively about this specific project's challenges
+             - Consider areas beyond traditional software quality categories
+             - Focus on workflow-specific, tool-specific, or user experience concerns (e.g., "Developer Onboarding", "Debugging Experience", "Contribution Friction")
+             - **Be creative!** Don't limit yourself to predefined examples - analyze the repository to identify truly unique improvement opportunities
+          
+          2. **Use a Standard Category (30% of the time)** - Select from established areas:
+             - Code Quality, Documentation, Testing, Security, Performance
+             - CI/CD, Dependencies, Code Organization, Accessibility, Usability
+          
+          3. **Reuse Previous Strategy (10% of the time)** - Revisit the most impactful area from recent runs for deeper analysis
+          
+          **Available Standard Focus Areas:**
+          1. **Code Quality**: Static analysis, linting, code smells, complexity, maintainability
+          2. **Documentation**: README quality, API docs, inline comments, user guides, examples
+          3. **Testing**: Test coverage, test quality, edge cases, integration tests, performance tests
+          4. **Security**: Vulnerability scanning, dependency updates, secrets detection, access control
+          5. **Performance**: Build times, runtime performance, memory usage, bottlenecks
+          6. **CI/CD**: Workflow efficiency, action versions, caching, parallelization
+          7. **Dependencies**: Update analysis, license compliance, security advisories, version conflicts
+          8. **Code Organization**: File structure, module boundaries, naming conventions, duplication
+          9. **Accessibility**: Documentation accessibility, UI considerations, inclusive language
+          10. **Usability**: Developer experience, setup instructions, error messages, tooling
+          
+          **Selection Algorithm:**
+          - Generate a random number between 0 and 100
+          - **If number <= 60**: Invent a custom focus area specific to this repository's needs
+          - **Else if number <= 90**: Select a standard category that hasn't been used in the last 3 runs
+          - **Else**: Reuse the most common or impactful focus area from the last 10 runs
+          - Update the history file with the selected focus area, whether it was custom, and a brief description
+          
+          ### 0.3 Initialize Tools
+          
+          Determine which tools are needed for the selected focus area:
+          
+          - **Code Quality, Code Organization, Performance, Custom code-related areas**: May need Serena MCP for static analysis
+          - **Security, Custom security-related areas**: May need Serena MCP for vulnerability detection
+          - **All areas**: Use reporting MCP for structured report generation
+          - **Documentation, Accessibility, Usability**: Primarily analysis-based, no special tools needed
+          - **Custom areas**: Determine tool needs based on the specific focus
+          
+          ## Phase 1: Conduct Analysis
+          
+          Based on the selected focus area (whether standard or custom), perform targeted analysis:
+          
+          ### For Standard Categories
+          
+          Use the appropriate analysis commands below based on the selected standard category.
+          
+          #### Code Quality Analysis
+          
+          ```bash
+          # Code metrics
+          find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" -exec wc -l {} \; | awk '{sum+=$1; count++} END {print "Avg file size:", sum/count}'
+          
+          # Large files (>500 lines)
+          find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" -exec wc -l {} \; | awk '$1 > 500 {print $1, $2}' | sort -rn
+          
+          # TODO/FIXME comments
+          grep -r "TODO\|FIXME" --include="*.go" --include="*.js" . 2>/dev/null | wc -l
+          ```
+          
+          If deeper analysis needed, use Serena MCP for static code analysis.
+          
+          ### Documentation Analysis
+          
+          ```bash
+          # Documentation coverage
+          find . -maxdepth 1 -name "*.md" -type f
+          find docs -name "*.md" -type f 2>/dev/null | wc -l
+          
+          # Undocumented functions (Go)
+          comm -13 <(grep -r "^//.*" --include="*.go" . | grep -E "^[^:]+: *// *[A-Z][a-z]+ " | sed 's/:.*//g' | sort -u) <(grep -r "^func " --include="*.go" . | sed 's/:.*//g' | sort -u) | wc -l
+          ```
+          
+          ### Testing Analysis
+          
+          ```bash
+          # Test coverage ratio
+          TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+          SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+          echo "Test ratio: $(echo "scale=2; $TEST_LOC / $SRC_LOC" | bc)"
+          
+          # Test file count
+          find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*Tests.cs" -o -name "*Test.cs" \) | wc -l
+          ```
+          
+          ### Security Analysis
+          
+          ```bash
+          # Check for common security issues
+          grep -r "password\|secret\|api_key" --include="*.go" --include="*.js" --include="*.cs" . 2>/dev/null | grep -v "test" | wc -l
+          
+          # Dependency vulnerability check (conceptual)
+          go list -m all | head -20
+          ```
+          
+          Use Serena MCP if deeper security analysis is needed.
+          
+          ### Performance Analysis
+          
+          ```bash
+          # Build time measurement
+          time make build 2>&1 | grep "real"
+          
+          # Workflow execution times
+          gh run list --workflow ci.yml --limit 10 --json durationMs --jq '.[] | .durationMs' | awk '{sum+=$1; count++} END {print "Avg duration:", sum/count/1000, "seconds"}'
+          ```
+          
+          ### CI/CD Analysis
+          
+          ```bash
+          # Workflow count and health
+          find .github/workflows -name "*.yml" -o -name "*.yaml" | wc -l
+          
+          # Action versions check
+          grep "uses:" .github/workflows/*.yml | grep -v "@" | wc -l
+          ```
+          
+          ### Dependencies Analysis
+          
+          ```bash
+          # Go dependencies
+          go list -m all | wc -l
+          
+          # npm dependencies
+          if [ -f package.json ]; then
+            jq '.dependencies | length' package.json
+          fi
+          ```
+          
+          ### Code Organization Analysis
+          
+          ```bash
+          # Directory structure depth
+          find . -type d ! -path "./.git/*" ! -path "./node_modules/*" | awk -F/ '{print NF}' | sort -n | tail -1
+          
+          # File distribution by directory
+          for dir in cmd pkg docs .github; do
+            if [ -d "$dir" ]; then
+              echo "$dir: $(find "$dir" -type f | wc -l) files"
+            fi
+          done
+          ```
+          
+          ### For Custom Focus Areas
+          
+          When you invent a custom focus area, **design appropriate analysis commands** tailored to that area. Consider:
+          
+          - What metrics would reveal the current state?
+          - What files or patterns should be examined?
+          - What tools (bash, grep, find, Serena) would provide insights?
+          - What would success look like in this area?
+          
+          **Example: "Error Message Clarity"**
+          ```bash
+          # Find error messages in code
+          grep -r "error\|Error\|ERROR" --include="*.go" pkg/ cmd/ | wc -l
+          
+          # Check for user-facing error messages
+          grep -r "fmt.Errorf\|errors.New" --include="*.go" pkg/ cmd/ | head -20
+          
+          # Look for error formatting patterns
+          grep -r "console.FormatErrorMessage" --include="*.go" pkg/
+          ```
+          
+          **Example: "MCP Server Integration Quality"**
+          ```bash
+          # Count MCP server implementations
+          find . -path "**/mcp/**" -name "*.go" | wc -l
+          
+          # Check for MCP configuration files
+          find .github/workflows -name "*.md" -exec grep -l "mcp-servers:" {} \;
+          
+          # Analyze MCP server test coverage
+          find . -name "*mcp*test.go" | wc -l
+          ```
+          
+          **Example: "Workflow Compilation Performance"**
+          ```bash
+          # Measure workflow compilation time
+          time ./gh-aw compile --no-emit 2>&1 | grep "real"
+          
+          # Count workflow files
+          find .github/workflows -name "*.md" | wc -l
+          
+          # Check for compilation caching
+          grep -r "cache" pkg/workflow/ --include="*.go" | wc -l
+          ```
+          
+          ### Accessibility & Usability Analysis
+          
+          ```bash
+          # Check for inclusive language
+          grep -ri "whitelist\|blacklist\|master\|slave" --include="*.md" . 2>/dev/null | wc -l
+          
+          # README presence and size
+          wc -l README.md 2>/dev/null || echo "No README.md found"
+          ```
+          
+          ## Phase 2: Generate Improvement Report
+          
+          Create a comprehensive report using the **reporting MCP** with the following structure:
+          
+          ### Report Template
+          
+          ```markdown
+          # 🎯 Repository Quality Improvement Report - [FOCUS AREA]
+          
+          **Analysis Date**: [DATE]  
+          **Focus Area**: [SELECTED AREA]  
+          **Strategy Type**: [Custom/Standard/Reused]
+          **Custom Area**: [Yes/No - If yes, explain the rationale for this specific focus]
+          
+          ## Executive Summary
+          
+          [2-3 paragraphs summarizing the analysis findings and key recommendations]
+          
+          <details>
+          <summary><b>Full Analysis Report</b></summary>
+          
+          ## Focus Area: [AREA NAME]
+          
+          ### Current State Assessment
+          
+          [Detailed analysis of the current state in this focus area]
+          
+          **Metrics Collected:**
+          | Metric | Value | Status |
+          |--------|-------|--------|
+          | [Metric 1] | [Value] | ✅/⚠️/❌ |
+          | [Metric 2] | [Value] | ✅/⚠️/❌ |
+          
+          ### Findings
+          
+          #### Strengths
+          - [Strength 1]
+          - [Strength 2]
+          
+          #### Areas for Improvement
+          - [Issue 1 with severity indicator]
+          - [Issue 2 with severity indicator]
+          
+          ### Detailed Analysis
+          
+          [In-depth analysis based on the selected focus area]
+          
+          </details>
+          
+          ---
+          
+          ## 🤖 Tasks for Copilot Agent
+          
+          **NOTE TO PLANNER AGENT**: The following tasks are designed for GitHub Copilot coding agent execution. Please split these into individual work items for Claude to process.
+          
+          ### Improvement Tasks
+          
+          The following code regions and tasks should be processed by the Copilot coding agent. Each section is marked for easy identification by the planner agent.
+          
+          #### Task 1: [Short Description]
+          
+          **Priority**: High/Medium/Low  
+          **Estimated Effort**: Small/Medium/Large  
+          **Focus Area**: [Area]
+          
+          **Description:**
+          [Detailed description of what needs to be done]
+          
+          **Acceptance Criteria:**
+          - [ ] Criterion 1
+          - [ ] Criterion 2
+          - [ ] Criterion 3
+          
+          **Code Region:** `[file path or pattern]`
+          
+          ```markdown
+          [Copilot coding agent prompt for this task]
+          ```
+          
+          ---
+          
+          #### Task 2: [Short Description]
+          
+          **Priority**: High/Medium/Low  
+          **Estimated Effort**: Small/Medium/Large  
+          **Focus Area**: [Area]
+          
+          **Description:**
+          [Detailed description of what needs to be done]
+          
+          **Acceptance Criteria:**
+          - [ ] Criterion 1
+          - [ ] Criterion 2
+          
+          **Code Region:** `[file path or pattern]`
+          
+          ```markdown
+          [Copilot coding agent prompt for this task]
+          ```
+          
+          ---
+          
+          #### Task 3: [Short Description]
+          
+          [Continue pattern for 3-5 total tasks]
+          
+          ---
+          
+          ## 📊 Historical Context
+          
+          <details>
+          <summary><b>Previous Focus Areas</b></summary>
+          
+          | Date | Focus Area | Type | Custom | Key Outcomes |
+          |------|------------|------|--------|--------------|
+          | [Date] | [Area] | [Custom/Standard/Reused] | [Y/N] | [Brief summary] |
+          
+          </details>
+          
+          ---
+          
+          ## 🎯 Recommendations
+          
+          ### Immediate Actions (This Week)
+          1. [Action 1] - Priority: High
+          2. [Action 2] - Priority: High
+          
+          ### Short-term Actions (This Month)
+          1. [Action 1] - Priority: Medium
+          2. [Action 2] - Priority: Medium
+          
+          ### Long-term Actions (This Quarter)
+          1. [Action 1] - Priority: Low
+          2. [Action 2] - Priority: Low
+          
+          ---
+          
+          ## 📈 Success Metrics
+          
+          Track these metrics to measure improvement in the **[FOCUS AREA]**:
+          
+          - **Metric 1**: [Current] → [Target]
+          - **Metric 2**: [Current] → [Target]
+          - **Metric 3**: [Current] → [Target]
+          
+          ---
+          
+          ## Next Steps
+          
+          1. Review and prioritize the tasks above
+          2. Assign tasks to Copilot coding agent via planner agent
+          3. Track progress on improvement items
+          4. Re-evaluate this focus area in [timeframe]
+          
+          ---
+          
+          *Generated by Repository Quality Improvement Agent*  
+          *Next analysis: [Tomorrow's date] - Focus area will be selected based on diversity algorithm*
+          ```
+          
+          ### Important Report Guidelines
+          
+          1. **Copilot Agent Section**: Always include a clearly marked section for Copilot coding agent tasks
+          2. **Planner Note**: Include a note for the planner agent to split tasks
+          3. **Code Regions**: Mark specific files or patterns where changes are needed
+          4. **Task Format**: Each task should be self-contained with clear acceptance criteria
+          5. **Variety**: Generate 3-5 actionable tasks per run
+          6. **Prioritization**: Mark tasks by priority and effort
+          
+          ## Phase 3: Update Cache Memory
+          
+          After generating the report, update the focus area history:
+          
+          ```bash
+          # Create or update history.json
+          cat > /tmp/gh-aw/cache-memory/focus-areas/history.json << 'EOF'
+          {
+            "runs": [...previous runs, {
+              "date": "$(date +%Y-%m-%d)",
+              "focus_area": "[selected area]",
+              "custom": [true/false],
+              "description": "[brief description of focus area]",
+              "tasks_generated": [number],
+              "priority_distribution": {
+                "high": [count],
+                "medium": [count],
+                "low": [count]
+              }
+            }],
+            "recent_areas": ["[most recent 5 areas]"],
+            "statistics": {
+              "total_runs": [count],
+              "custom_rate": [percentage],
+              "reuse_rate": [percentage],
+              "unique_areas_explored": [count]
+            }
+          }
+          EOF
+          ```
+          
+          ## Success Criteria
+          
+          A successful quality improvement run:
+          - ✅ Selects a focus area using the diversity algorithm (60% custom, 30% standard, 10% reuse)
+          - ✅ Creates custom focus areas tailored to repository-specific needs when appropriate
+          - ✅ Conducts thorough analysis of the selected area (using custom analysis for custom areas)
+          - ✅ Uses Serena MCP only when static analysis is needed
+          - ✅ Generates exactly one discussion with the report
+          - ✅ Includes 3-5 actionable tasks for Copilot coding agent
+          - ✅ Clearly marks code regions for planner agent to split
+          - ✅ Updates cache memory with run history including custom area tracking
+          - ✅ Maintains high diversity rate (aim for 60%+ custom or varied strategies)
+          - ✅ Provides clear priorities and acceptance criteria
+          
+          ## Important Guidelines
+          
+          ### Focus Area Diversity and Creativity
+          
+          - **Prioritize Custom Areas**: 60% of runs should invent new, repository-specific focus areas
+          - **Avoid Repetition**: Don't select the same area in consecutive runs
+          - **Be Creative**: Think beyond the standard categories - what unique aspects of this project need attention?
+          - **Balance Coverage**: Over 10 runs, aim to explore at least 6-7 different unique areas
+          - **Repository-Specific**: Custom areas should reflect actual needs of this specific project
+          - **Reuse Strategically**: When reusing (10% of time), pick the most impactful area from recent history
+          
+          ### Custom Focus Area Guidelines
+          
+          When creating custom focus areas specific to gh-aw:
+          
+          - **Be creative and analytical**: Study the repository structure, codebase, issues, and pull requests to identify real improvement opportunities
+          - **Think holistically**: Consider workflow-specific aspects, tool integration quality, user experience, developer productivity, and documentation
+          - **Focus on impact**: Choose areas where improvements would provide significant value to users or contributors
+          - **Avoid repetition**: Invent fresh perspectives rather than rehashing previous focus areas
+          - **Context matters**: Let the repository's actual needs guide your creativity, not a predefined list
+          
+          ### Analysis Depth
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          - **Be Thorough**: Collect relevant metrics and perform meaningful analysis
+          - **Be Specific**: Provide exact file paths, line numbers, and code examples
+          - **Be Actionable**: Every finding should lead to a concrete task
+          
+          ### Task Generation
+          - **Self-Contained**: Each task should be independently actionable
+          - **Clear Scope**: Define what success looks like
+          - **Realistic**: Tasks should be achievable by an AI agent
+          - **Varied**: Mix quick wins with longer-term improvements
+          
+          ### Resource Efficiency
+          - **Respect Timeout**: Complete within 20 minutes
+          - **Smart Tool Use**: Only use Serena MCP when static analysis adds value
+          - **Cache Effectively**: Store results for future trend analysis
+          
+          ### Report Quality
+          - **Clear Structure**: Use the reporting template consistently
+          - **Visual Aids**: Include tables, metrics, and status indicators
+          - **Contextual**: Explain why findings matter and what impact they have
+          - **Forward-Looking**: Provide actionable next steps
+          
+          ## Output Requirements
+          
+          Your output MUST:
+          1. Create exactly one discussion with the quality improvement report
+          2. Include a clearly marked section for Copilot coding agent tasks
+          3. Provide 3-5 actionable tasks with code region markers
+          4. Note for planner agent to split tasks for Claude
+          5. Update cache memory with run history (including custom area tracking)
+          6. Follow the report template structure
+          7. Use the reporting MCP for structured content
+          8. **For custom focus areas**: Clearly explain the rationale and custom analysis performed
+          
+          Begin your quality improvement analysis now. Select a focus area (prioritizing custom, repository-specific areas), conduct appropriate analysis, generate actionable tasks for the Copilot coding agent, and create the discussion report.
+          
+          GH_AW_PROMPT_EOF
+      - name: Interpolate variables and render templates
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
+            await main();
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+              }
+            });
+      - name: Validate prompt placeholders
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh
+      - name: Print prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Upload prompt artifact
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          retention-days: 1
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: repositoryqualityimprover
+    outputs:
+      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        id: checkout-pr
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Generate agentic run info
+        id: generate_aw_info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              version: "",
+              agent_version: "0.0.411",
+              workflow_name: "Repository Quality Improvement Agent",
+              experimental: false,
+              supports_tools_allowlist: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              allowed_domains: ["defaults"],
+              firewall_enabled: true,
+              awf_version: "v0.20.0",
+              awmg_version: "v0.1.4",
+              steps: {
+                firewall: "squid"
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
+      - name: Install awf binary
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
+      - name: Determine automatic lockdown mode for GitHub MCP Server
+        id: determine-automatic-lockdown
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+        with:
+          script: |
+            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
+            await determineAutomaticLockdown(github, context, core);
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.0 ghcr.io/github/gh-aw-firewall/squid:0.20.0 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3 ghcr.io/github/serena-mcp-server:latest
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="80"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.4'
+          
+          mkdir -p /home/runner/.copilot
+          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "github": {
+                "type": "stdio",
+                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                }
+              },
+              "serena": {
+                "type": "stdio",
+                "container": "ghcr.io/github/serena-mcp-server:latest",
+                "args": ["--network", "host"],
+                "entrypoint": "serena",
+                "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "\${GITHUB_WORKSPACE}"],
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
+      - name: Download prompt artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts
+      - name: Clean git credentials
+        run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+        env:
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session state files to logs folder for artifact collection
+          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            mkdir -p "$LOGS_DIR"
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
+      - name: Stop MCP Gateway
+        if: always()
+        continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
+          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            await main();
+      - name: Parse MCP Gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
+            await main();
+      - name: Print firewall logs
+        if: always()
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/agent/
+          if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: 
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+

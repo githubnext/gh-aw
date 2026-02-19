@@ -1,0 +1,989 @@
+name: "Daily Observability Report for AWF Firewall and MCP Gateway"
+"on":
+  schedule:
+  - cron: "27 3 * * *"
+    # Friendly format: daily (scattered)
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: "gh-aw-${{ github.workflow }}"
+
+run-name: "Daily Observability Report for AWF Firewall and MCP Gateway"
+
+jobs:
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      comment_id: ""
+      comment_repo: ""
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Checkout .github and .agents folders
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+            .agents
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "daily-observability-report.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Create prompt with built-in context
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <github-context>
+          The following GitHub context information is available for this workflow:
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{/if}}
+          </github-context>
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/mood.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
+          # Daily Observability Report for AWF Firewall and MCP Gateway
+          
+          You are an expert site reliability engineer analyzing observability coverage for GitHub Agentic Workflows. Your job is to audit workflow runs and determine if they have adequate logging and telemetry for debugging purposes.
+          
+          ## 📝 Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### Executive Summary", "### Coverage Summary")
+          - Use `####` for subsections (e.g., "#### Missing Firewall Logs", "#### Gateway Log Quality")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Detailed run analysis tables
+          - Per-workflow breakdowns
+          - Complete observability coverage data
+          - Verbose telemetry quality analysis
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>Detailed Metrics</b></summary>
+          
+          [Long metrics data...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          
+          1. **Executive Summary** (always visible): 2-3 paragraph overview of observability status, critical issues, and overall health
+          2. **Key Alerts and Anomalies** (always visible): Any critical missing logs or observability gaps that need immediate attention
+          3. **Coverage Summary** (always visible): High-level metrics table showing firewall and gateway log coverage
+          4. **Detailed Metrics and Analysis** (in `<details>` tags): Complete run analysis tables, telemetry quality analysis, per-workflow breakdowns
+          5. **Recommended Actions** (always visible): Specific, actionable recommendations for improving observability
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info (summary, critical issues, recommendations) immediately visible
+          - **Exceed expectations**: Add helpful context, trends, comparisons, and insights beyond basic metrics
+          - **Create delight**: Use progressive disclosure to reduce overwhelm for detailed data
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows like audit-workflows and daily-firewall-report
+          
+          ## Mission
+          
+          Generate a comprehensive daily report analyzing workflow runs from the past week to check for proper observability coverage in:
+          1. **AWF Firewall (gh-aw-firewall)** - Network egress control with Squid proxy
+          2. **MCP Gateway** - Model Context Protocol server execution runtime
+          
+          The goal is to ensure all workflow runs have the necessary logs and telemetry to enable effective debugging when issues occur.
+          
+          ## Current Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          - **Date**: Generated daily
+          - **Analysis Window**: Last 7 days of workflow runs (see `workflow_runs_analyzed` in scratchpad/metrics-glossary.md)
+          
+          ## Phase 1: Fetch Workflow Runs
+          
+          Use the `agentic-workflows` MCP server tools to download and analyze logs from recent workflow runs.
+          
+          **⚠️ IMPORTANT**: The `status`, `logs`, and `audit` operations are MCP server tools, NOT shell commands. Call them as tools with JSON parameters, not as `gh aw` shell commands.
+          
+          ### Step 1.1: List Available Workflows
+          
+          First, get a list of all agentic workflows in the repository using the `status` MCP tool:
+          
+          **Tool**: `status`  
+          **Parameters**:
+          ```json
+          {
+            "json": true
+          }
+          ```
+          
+          ### Step 1.2: Download Logs from Recent Runs
+          
+          For each agentic workflow, download logs from the past week using the `logs` MCP tool. The tool will automatically save logs to `/tmp/gh-aw/aw-mcp/logs/`.
+          
+          **Tool**: `logs`  
+          **Parameters**:
+          ```json
+          {
+            "workflow_name": "",
+            "count": 100,
+            "start_date": "-7d",
+            "parse": true
+          }
+          ```
+          
+          **Note**: For repositories with high activity, you can increase the `count` parameter (e.g., `"count": 500`) or run multiple passes with pagination. Leave `workflow_name` empty to download logs for all workflows.
+          
+          If there are many workflows, you can also target specific workflows:
+          
+          **Tool**: `logs`  
+          **Parameters**:
+          ```json
+          {
+            "workflow_name": "workflow-name",
+            "count": 100,
+            "start_date": "-7d",
+            "parse": true
+          }
+          ```
+          
+          ### Step 1.3: Collect Run Information
+          
+          The `logs` MCP tool saves all downloaded run logs to `/tmp/gh-aw/aw-mcp/logs/`. For each downloaded run, note (see standardized metric names in scratchpad/metrics-glossary.md):
+          - Workflow name
+          - Run ID
+          - Conclusion (success, failure, cancelled)
+          - Whether firewall was enabled (`firewall_enabled_workflows`)
+          - Whether MCP gateway was used (`mcp_enabled_workflows`)
+          
+          ## Phase 2: Analyze AWF Firewall Logs
+          
+          The AWF Firewall uses Squid proxy for egress control. The key log file is `access.log`.
+          
+          ### Critical Requirement: Squid Proxy Logs
+          
+          **🔴 CRITICAL**: The `access.log` file from the Squid proxy is essential for debugging network issues. If this file is missing from a firewall-enabled run, report it as **CRITICAL**.
+          
+          For each firewall-enabled workflow run, check:
+          
+          1. **access.log existence**: Look for `access.log/` directory in the run logs
+             - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/access.log/`
+             - Contains files like `access-*.log`
+          
+          2. **access.log content quality**:
+             - Are there log entries present?
+             - Do entries follow squid format: `timestamp duration client status size method url user hierarchy type`
+             - Are both allowed and blocked requests logged?
+          
+          3. **Firewall configuration**:
+             - Check `aw_info.json` for firewall settings:
+               - `sandbox.agent` should be `awf` or contain firewall config
+               - `network.firewall` settings if present
+          
+          ### Firewall Analysis Criteria
+          
+          | Status | Condition |
+          |--------|-----------|
+          | ✅ **Healthy** | access.log present with entries, both allowed/blocked visible |
+          | ⚠️ **Warning** | access.log present but empty or minimal entries |
+          | 🔴 **Critical** | access.log missing from firewall-enabled run |
+          | ℹ️ **N/A** | Firewall not enabled for this workflow |
+          
+          ## Phase 3: Analyze MCP Gateway Logs
+          
+          The MCP Gateway logs tool execution in `gateway.jsonl` format.
+          
+          ### Key Log File: gateway.jsonl
+          
+          For each run that uses MCP servers, check:
+          
+          1. **gateway.jsonl existence**: Look for the file in run logs
+             - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/gateway.jsonl`
+          
+          2. **gateway.jsonl content quality**:
+             - Are log entries valid JSONL format?
+             - Do entries contain required fields:
+               - `timestamp`: When the event occurred
+               - `level`: Log level (debug, info, warn, error)
+               - `type`: Event type
+               - `event`: Event name (request, tool_call, rpc_call)
+               - `server_name`: MCP server identifier
+               - `tool_name` or `method`: Tool being called
+               - `duration`: Execution time in milliseconds
+               - `status`: Request status (success, error)
+          
+          3. **Metrics coverage**:
+             - Tool call counts per server
+             - Error rates
+             - Response times (min, max, avg)
+          
+          ### MCP Gateway Analysis Criteria
+          
+          | Status | Condition |
+          |--------|-----------|
+          | ✅ **Healthy** | gateway.jsonl present with proper JSONL entries and metrics |
+          | ⚠️ **Warning** | gateway.jsonl present but missing key fields or has parse errors |
+          | 🔴 **Critical** | gateway.jsonl missing from MCP-enabled run |
+          | ℹ️ **N/A** | No MCP servers configured for this workflow |
+          
+          ## Phase 4: Analyze Additional Telemetry
+          
+          Check for other observability artifacts:
+          
+          ### 4.1 Agent Logs
+          
+          - **agent-stdio.log**: Agent stdout/stderr
+          - **agent_output/**: Agent execution logs directory
+          
+          ### 4.2 Workflow Metadata
+          
+          - **aw_info.json**: Configuration metadata including:
+            - Engine type and version
+            - Tool configurations
+            - Network settings
+            - Sandbox settings
+          
+          ### 4.3 Safe Output Logs
+          
+          - **safe_output.jsonl**: Agent's structured outputs
+          
+          ## Phase 5: Generate Summary Metrics
+          
+          Calculate aggregated metrics across all analyzed runs:
+          
+          ### Coverage Metrics
+          
+          ```python
+          # Calculate coverage percentages (see scratchpad/metrics-glossary.md for definitions)
+          firewall_enabled_workflows = count_runs_with_firewall()
+          firewall_logs_present = count_runs_with_access_log()
+          firewall_coverage = (firewall_logs_present / firewall_enabled_workflows) * 100 if firewall_enabled_workflows > 0 else "N/A"
+          
+          mcp_enabled_workflows = count_runs_with_mcp()
+          gateway_logs_present = count_runs_with_gateway_jsonl()
+          gateway_coverage = (gateway_logs_present / mcp_enabled_workflows) * 100 if mcp_enabled_workflows > 0 else "N/A"
+          
+          # Calculate observability_coverage_percentage for overall health
+          runs_with_complete_logs = firewall_logs_present + gateway_logs_present
+          runs_with_missing_logs = (firewall_enabled_workflows - firewall_logs_present) + (mcp_enabled_workflows - gateway_logs_present)
+          ```
+          
+          ### Health Summary
+          
+          Create a summary table of all runs analyzed with their observability status.
+          
+          ## Phase 6: Create Discussion Report
+          
+          Create a new discussion with the comprehensive observability report.
+          
+          **Note**: Previous observability reports with the same `[observability]` prefix will be automatically closed when the new discussion is created. This is handled by the `close-older-discussions: true` setting in the safe-outputs configuration - you don't need to manually close them.
+          
+          ### Discussion Format
+          
+          **Title**: `[observability] Observability Coverage Report - YYYY-MM-DD`
+          
+          **Body Structure**:
+          
+          Follow the formatting guidelines above. Use the following structure:
+          
+          ```markdown
+          ### Executive Summary
+          
+          [2-3 paragraph overview of observability status with key findings, critical issues if any, and overall health assessment. Always visible.]
+          
+          ### Key Alerts and Anomalies
+          
+          [Critical missing logs or observability gaps that need immediate attention. If none, state "No critical issues detected." Always visible.]
+          
+          🔴 **Critical Issues:**
+          - [List any runs missing critical logs - access.log for firewall runs, gateway.jsonl for MCP runs]
+          
+          ⚠️ **Warnings:**
+          - [List runs with incomplete or low-quality logs]
+          
+          ### Coverage Summary
+          
+          | Component | Runs Analyzed | Logs Present | Coverage | Status |
+          |-----------|--------------|--------------|----------|--------|
+          | AWF Firewall (access.log) | X (`firewall_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
+          | MCP Gateway (gateway.jsonl) | X (`mcp_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
+          
+          [Always visible. Summary table showing high-level coverage metrics.]
+          
+          <details>
+          <summary><b>📋 Detailed Run Analysis</b></summary>
+          
+          #### Firewall-Enabled Runs
+          
+          | Workflow | Run ID | access.log | Entries | Allowed | Blocked | Status |
+          |----------|--------|------------|---------|---------|---------|--------|
+          | ... | ... | ✅/❌ | N | N | N | ✅/⚠️/🔴 |
+          
+          #### Missing Firewall Logs (access.log)
+          
+          | Workflow | Run ID | Date | Link |
+          |----------|--------|------|------|
+          | workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+          
+          #### MCP-Enabled Runs
+          
+          | Workflow | Run ID | gateway.jsonl | Entries | Servers | Tool Calls | Errors | Status |
+          |----------|--------|---------------|---------|---------|------------|--------|--------|
+          | ... | ... | ✅/❌ | N | N | N | N | ✅/⚠️/🔴 |
+          
+          #### Missing Gateway Logs (gateway.jsonl)
+          
+          | Workflow | Run ID | Date | Link |
+          |----------|--------|------|------|
+          | workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+          
+          </details>
+          
+          <details>
+          <summary><b>🔍 Telemetry Quality Analysis</b></summary>
+          
+          #### Firewall Log Quality
+          
+          - Total access.log entries analyzed: N
+          - Domains accessed: N unique
+          - Blocked requests: N (X%)
+          - Most accessed domains: domain1, domain2, domain3
+          
+          #### Gateway Log Quality
+          
+          - Total gateway.jsonl entries analyzed: N
+          - MCP servers used: server1, server2
+          - Total tool calls: N
+          - Error rate: X%
+          - Average response time: Xms
+          
+          #### Healthy Runs Summary
+          
+          [Summary of runs with complete observability coverage]
+          
+          </details>
+          
+          ### Recommended Actions
+          
+          1. [Specific recommendation for improving observability coverage]
+          2. [Recommendation for workflows with missing logs]
+          3. [Recommendation for improving log quality]
+          
+          [Always visible. Actionable recommendations based on the analysis.]
+          
+          <details>
+          <summary><b>📊 Historical Trends</b></summary>
+          
+          [If historical data is available, show trends in observability coverage over time]
+          
+          </details>
+          
+          </details>
+          
+          ---
+          *Report generated automatically by the Daily Observability Report workflow*
+          *Analysis window: Last 7 days | Runs analyzed: N*
+          ```
+          
+          ## Important Guidelines
+          
+          ### Data Quality
+          
+          - Handle missing files gracefully - report their absence, don't fail
+          - Validate JSON/JSONL formats before processing
+          - Count both present and missing logs accurately
+          
+          ### Severity Classification
+          
+          - **CRITICAL**: Missing logs that would prevent debugging (access.log for firewall runs, gateway.jsonl for MCP runs)
+          - **WARNING**: Logs present but with quality issues (empty, missing fields, parse errors)
+          - **HEALTHY**: Complete observability coverage with quality logs
+          
+          ### Report Quality
+          
+          - Be specific with numbers and percentages
+          - Link to actual workflow runs for context
+          - Provide actionable recommendations
+          - Highlight critical issues prominently at the top
+          
+          ## Success Criteria
+          
+          A successful run will:
+          - ✅ Download and analyze logs from the past 7 days of workflow runs
+          - ✅ Check all firewall-enabled runs for access.log presence
+          - ✅ Check all MCP-enabled runs for gateway.jsonl presence
+          - ✅ Calculate coverage percentages and identify gaps
+          - ✅ Flag any runs missing critical logs as CRITICAL
+          - ✅ Create a new discussion with comprehensive report (previous discussions automatically closed)
+          - ✅ Include actionable recommendations
+          
+          Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
+          
+          GH_AW_PROMPT_EOF
+      - name: Interpolate variables and render templates
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
+            await main();
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+              }
+            });
+      - name: Validate prompt placeholders
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh
+      - name: Print prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Upload prompt artifact
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          retention-days: 1
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      discussions: read
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-codex-${{ github.workflow }}"
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: dailyobservabilityreport
+    outputs:
+      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup Go for CLI build
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build gh-aw CLI
+        run: |
+          echo "Building gh-aw CLI for linux/amd64..."
+          mkdir -p dist
+          VERSION=$(git describe --tags --always --dirty)
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+            -ldflags "-s -w -X main.version=${VERSION}" \
+            -o dist/gh-aw-linux-amd64 \
+            ./cmd/gh-aw
+          # Copy binary to root for direct execution in user-defined steps
+          cp dist/gh-aw-linux-amd64 ./gh-aw
+          chmod +x ./gh-aw
+          echo "✓ Built gh-aw CLI successfully"
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Build gh-aw Docker image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: localhost/gh-aw:dev
+          build-args: |
+            BINARY=dist/gh-aw-linux-amd64
+      - name: Create gh-aw temp directory
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        id: checkout-pr
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Generate agentic run info
+        id: generate_aw_info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "codex",
+              engine_name: "Codex",
+              model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
+              version: "",
+              agent_version: "0.104.0",
+              workflow_name: "Daily Observability Report for AWF Firewall and MCP Gateway",
+              experimental: false,
+              supports_tools_allowlist: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              allowed_domains: ["defaults"],
+              firewall_enabled: true,
+              awf_version: "v0.20.0",
+              awmg_version: "v0.1.4",
+              steps: {
+                firewall: "squid"
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Codex
+        run: npm install -g --silent @openai/codex@0.104.0
+      - name: Install awf binary
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
+      - name: Determine automatic lockdown mode for GitHub MCP Server
+        id: determine-automatic-lockdown
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+        with:
+          script: |
+            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
+            await determineAutomaticLockdown(github, context, core);
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.0 ghcr.io/github/gh-aw-firewall/squid:0.20.0 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if gh-aw extension is already installed
+          if gh extension list | grep -q "github/gh-aw"; then
+            echo "gh-aw extension already installed, upgrading..."
+            gh extension upgrade gh-aw || true
+          else
+            echo "Installing gh-aw extension..."
+            gh extension install github/gh-aw
+          fi
+          gh aw --version
+          # Copy the gh-aw binary to /opt/gh-aw for MCP server containerization
+          mkdir -p /opt/gh-aw
+          GH_AW_BIN=$(which gh-aw 2>/dev/null || find ~/.local/share/gh/extensions/gh-aw -name 'gh-aw' -type f 2>/dev/null | head -1)
+          if [ -n "$GH_AW_BIN" ] && [ -f "$GH_AW_BIN" ]; then
+            cp "$GH_AW_BIN" /opt/gh-aw/gh-aw
+            chmod +x /opt/gh-aw/gh-aw
+            echo "Copied gh-aw binary to /opt/gh-aw/gh-aw"
+          else
+            echo "::error::Failed to find gh-aw binary for MCP server"
+            exit 1
+          fi
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="80"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="codex"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.4'
+          
+          cat > /tmp/gh-aw/mcp-config/config.toml << GH_AW_MCP_CONFIG_EOF
+          [history]
+          persistence = "none"
+          
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_TOKEN", "HOME", "OPENAI_API_KEY", "PATH"]
+          
+          [mcp_servers.agenticworkflows]
+          container = "localhost/gh-aw:dev"
+          mounts = ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"]
+          env_vars = ["DEBUG", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTOR", "GITHUB_REPOSITORY"]
+          
+          [mcp_servers.github]
+          user_agent = "daily-observability-report-for-awf-firewall-and-mcp-gateway"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          container = "ghcr.io/github/github-mcp-server:v0.30.3"
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions,actions" }
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
+          GH_AW_MCP_CONFIG_EOF
+          
+          # Generate JSON config for MCP gateway
+          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "agenticworkflows": {
+                "container": "localhost/gh-aw:dev",
+                "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
+                "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"],
+                "env": {
+                  "DEBUG": "*",
+                  "GITHUB_TOKEN": "$GITHUB_TOKEN",
+                  "GITHUB_ACTOR": "$GITHUB_ACTOR",
+                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY"
+                }
+              },
+              "github": {
+                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions,actions"
+                }
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
+      - name: Download prompt artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts
+      - name: Clean git credentials
+        run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Run Codex
+        run: |
+          set -o pipefail
+          mkdir -p "$CODEX_HOME/logs"
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains 172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && codex ${GH_AW_MODEL_DETECTION_CODEX:+-c model="$GH_AW_MODEL_DETECTION_CODEX" }exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "$INSTRUCTION"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GH_AW_MODEL_DETECTION_CODEX: ${{ vars.GH_AW_MODEL_DETECTION_CODEX || '' }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Stop MCP Gateway
+        if: always()
+        continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
+          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/mcp-config/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_codex_log.cjs');
+            await main();
+      - name: Parse MCP Gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
+            await main();
+      - name: Print firewall logs
+        if: always()
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/agent/
+          if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: 
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+

@@ -1,0 +1,803 @@
+name: "Security Compliance Campaign"
+"on":
+  workflow_dispatch:
+    inputs:
+      audit_date:
+        description: Audit deadline (YYYY-MM-DD)
+        required: true
+      max_issues:
+        default: "500"
+        description: Maximum vulnerabilities to process
+        required: false
+      severity_threshold:
+        default: high
+        description: Minimum severity to fix (critical, high, medium)
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+
+run-name: "Security Compliance Campaign"
+
+jobs:
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      body: ${{ steps.sanitized.outputs.body }}
+      comment_id: ""
+      comment_repo: ""
+      text: ${{ steps.sanitized.outputs.text }}
+      title: ${{ steps.sanitized.outputs.title }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Checkout .github and .agents folders
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+            .agents
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "security-compliance.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Compute current body text
+        id: sanitized
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
+            await main();
+      - name: Create prompt with built-in context
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE: ${{ github.event.inputs.audit_date }}
+          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD: ${{ github.event.inputs.severity_threshold }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <github-context>
+          The following GitHub context information is available for this workflow:
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{/if}}
+          </github-context>
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/mood.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Security Compliance Campaign
+          
+          **Pain Point**: Enterprise faces audit deadline with hundreds of unresolved security vulnerabilities across multiple repositories. Need coordinated remediation with executive visibility, cost tracking, and compliance documentation.
+          
+          **Campaign ID**: `security-compliance-__GH_AW_GITHUB_RUN_ID__`
+          
+          **Business Context**:
+          - Audit deadline: __GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__
+          - Compliance requirement: SOC2, GDPR, or internal security policy
+          - Executive sponsor: CISO
+          - Budget: Approved by security and finance teams
+          - Risk: Audit failure = customer trust loss, regulatory fines
+          
+          ## Campaign Goals
+          
+          1. **Identify** all critical/high vulnerabilities across organization repos
+          2. **Prioritize** by severity, exploitability, and business impact
+          3. **Remediate** vulnerabilities before audit deadline
+          4. **Document** fixes for compliance audit trail
+          5. **Report** progress to CISO and audit team weekly
+          
+          ## Success Criteria
+          
+          - ✅ 100% of critical vulnerabilities fixed
+          - ✅ 95%+ of high vulnerabilities fixed
+          - ✅ All fixes documented with CVE references
+          - ✅ Audit trail in repo-memory for compliance
+          - ✅ Final report delivered to CISO 1 week before audit
+          
+          ## Campaign Execution
+          
+          ### 1. Scan & Baseline
+          
+          **Discover vulnerabilities**:
+          - Query GitHub Security Advisories across all org repos
+          - Filter by severity: __GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD__+
+          - Identify affected repositories and dependencies
+          - Calculate total count, breakdown by severity and repo
+          
+          **Store baseline** in `memory/campaigns/security-compliance-__GH_AW_GITHUB_RUN_ID__/baseline.json`:
+          ```json
+          {
+            "campaign_id": "security-compliance-__GH_AW_GITHUB_RUN_ID__",
+            "started": "[current date]",
+            "audit_deadline": "__GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__",
+            "vulnerabilities_total": [count],
+            "breakdown": {
+              "critical": [count],
+              "high": [count],
+              "medium": [count]
+            },
+            "repos_affected": [count],
+            "estimated_effort_hours": [estimate],
+            "budget_approved": "$X",
+            "executive_sponsor": "CISO"
+          }
+          ```
+          
+          ### 2. Create Epic Tracking Issue
+          
+          **Title**: "🚨 Security Compliance Campaign - Audit __GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__"
+          
+          **Labels**: `campaign-tracker`, `security`, `compliance`, `campaign:security-compliance-__GH_AW_GITHUB_RUN_ID__`
+          
+          **Body**:
+          ```markdown
+          # Security Compliance Campaign
+          
+          **Campaign ID**: `security-compliance-__GH_AW_GITHUB_RUN_ID__`
+          **Owner**: Security Team
+          **Executive Sponsor**: CISO
+          **Audit Deadline**: __GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__
+          
+          ## 🎯 Mission
+          Fix all critical/high vulnerabilities before audit to maintain compliance certification and customer trust.
+          
+          ## 📊 Baseline (Scan Results)
+          - **Critical**: [count] vulnerabilities
+          - **High**: [count] vulnerabilities  
+          - **Medium**: [count] vulnerabilities
+          - **Repositories Affected**: [count]
+          - **Estimated Effort**: [X] engineering hours
+          
+          ## ✅ Success Criteria
+          - [x] 100% critical vulnerabilities remediated
+          - [x] 95%+ high vulnerabilities remediated
+          - [x] All fixes documented with CVE references
+          - [x] Audit trail preserved in repo-memory
+          - [x] Final compliance report delivered
+          
+          ## 📈 Progress Tracking
+          Weekly updates posted here by campaign monitor.
+          
+          **Query all campaign work**:
+          ```bash
+          # All vulnerability tasks
+          gh issue list --label "campaign:security-compliance-__GH_AW_GITHUB_RUN_ID__"
+          
+          # All fix PRs
+          gh pr list --label "campaign:security-compliance-__GH_AW_GITHUB_RUN_ID__"
+          
+          # Campaign memory
+          gh repo view --json defaultBranchRef | \
+            jq -r '.defaultBranchRef.target.tree.entries[] | select(.name=="memory")'
+          ```
+          
+          ## 🚀 Workflow
+          1. **Launcher** (this workflow): Scan, create epic, generate vulnerability tasks
+          2. **Workers** (separate workflows): Create fix PRs for each vulnerability
+          3. **Monitor** (scheduled): Daily progress reports, escalate blockers
+          4. **Completion**: Final report to CISO with compliance documentation
+          
+          ## 💰 Budget & Cost Tracking
+          - **Approved Budget**: $X
+          - **AI Costs**: Tracked daily
+          - **Engineering Hours**: Tracked per fix
+          - **ROI**: Cost of campaign vs audit failure risk
+          
+          ## 📞 Escalation
+          - **Blockers**: Tag @security-leads
+          - **Budget overrun**: Notify @finance
+          - **Timeline risk**: Escalate to @ciso
+          ```
+          
+          ### 3. Generate Vulnerability Task Issues
+          
+          For each vulnerability (up to __GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES__):
+          
+          **Title**: "🔒 [CVE-XXXX] Fix [vulnerability name] in [repo]/[package]"
+          
+          **Labels**: 
+          - `security`
+          - `campaign:security-compliance-__GH_AW_GITHUB_RUN_ID__`
+          - `severity:[critical|high|medium]`
+          - `repo:[repo-name]`
+          - `type:vulnerability`
+          
+          **Body**:
+          ```markdown
+          # Vulnerability: [Name]
+          
+          **CVE**: CVE-XXXX-XXXXX
+          **Severity**: [Critical/High/Medium]
+          **CVSS Score**: X.X
+          **Repository**: [org]/[repo]
+          **Package**: [package-name]@[version]
+          
+          ## 🎯 Campaign Context
+          Part of Security Compliance Campaign for __GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__ audit.
+          **Epic**: #[epic-issue-number]
+          
+          ## 🔍 Description
+          [Vulnerability description from advisory]
+          
+          ## 💥 Impact
+          [What this vulnerability allows attackers to do]
+          
+          ## ✅ Remediation
+          **Fix**: Update [package] from [old-version] to [new-version]+
+          **Breaking Changes**: [List any breaking changes]
+          **Testing Required**: [What to test after update]
+          
+          ## 📋 Fix Checklist
+          - [ ] Update dependency to fixed version
+          - [ ] Run tests to verify no regressions
+          - [ ] Create PR with fix
+          - [ ] Link PR to this issue
+          - [ ] Document fix in PR description
+          - [ ] Get security team approval
+          
+          ## 🤖 Automated Fix
+          A worker workflow will attempt to automatically create a fix PR.
+          If automatic fix fails, manual intervention required - tag @security-team.
+          
+          ## 📚 References
+          - Advisory: [link]
+          - CVE Details: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-XXXX-XXXXX
+          - Fix PR: [will be linked by worker]
+          
+          ---
+          **Campaign**: security-compliance-__GH_AW_GITHUB_RUN_ID__
+          **Audit Deadline**: __GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__
+          ```
+          
+          ### 4. Store Campaign Metadata
+          
+          Create `memory/campaigns/security-compliance-__GH_AW_GITHUB_RUN_ID__/metadata.json`:
+          ```json
+          {
+            "campaign_id": "security-compliance-__GH_AW_GITHUB_RUN_ID__",
+            "type": "security-compliance",
+            "owner": "security-team",
+            "executive_sponsor": "ciso@company.com",
+            "audit_deadline": "__GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__",
+            "budget_approved": true,
+            "epic_issue": [epic-issue-number],
+            "created_at": "[timestamp]",
+            "vulnerability_tasks": [
+              [list of issue numbers]
+            ],
+            "governance": {
+              "approval_status": "approved",
+              "change_control_ticket": "CHG-XXXXX",
+              "compliance_requirement": "SOC2",
+              "review_checkpoints": ["weekly", "2-weeks-before-audit"]
+            }
+          }
+          ```
+          
+          ## Next Steps (Automated)
+          
+          1. **Worker workflows** will trigger on vulnerability task creation
+             - Each worker reads vulnerability issue
+             - Creates fix PR with dependency update
+             - Links PR back to issue
+             - Updates fix status
+          
+          2. **Monitor workflow** runs daily
+             - Counts completed vs total
+             - Calculates days remaining until audit
+             - Identifies blockers (>3 days stalled)
+             - Posts progress report to epic
+             - Escalates if timeline at risk
+          
+          3. **Completion workflow** triggers when all critical/high fixed
+             - Generates final compliance report
+             - Documents all CVEs fixed
+             - Calculates ROI (cost vs audit failure risk)
+             - Delivers to CISO
+          
+          ## Output
+          
+          Campaign launched successfully:
+          - **Campaign ID**: `security-compliance-__GH_AW_GITHUB_RUN_ID__`
+          - **Epic Issue**: #[number]
+          - **Vulnerability Tasks**: [count] created
+          - **Baseline Stored**: `memory/campaigns/security-compliance-__GH_AW_GITHUB_RUN_ID__/baseline.json`
+          - **Workers**: Ready to process tasks
+          - **Monitor**: Will run daily at 9 AM
+          - **Audit Deadline**: __GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE__ ([X] days remaining)
+          
+          **For CISO Dashboard**:
+          ```bash
+          # Campaign overview
+          gh issue view [epic-issue-number]
+          
+          # Real-time progress
+          gh issue list --label "campaign:security-compliance-__GH_AW_GITHUB_RUN_ID__" --json number,title,state,labels
+          
+          # Daily metrics
+          cat memory/campaigns/security-compliance-__GH_AW_GITHUB_RUN_ID__/metrics/$(date +%Y-%m-%d).json
+          ```
+          
+          GH_AW_PROMPT_EOF
+      - name: Interpolate variables and render templates
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE: ${{ github.event.inputs.audit_date }}
+          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD: ${{ github.event.inputs.severity_threshold }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
+            await main();
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE: ${{ github.event.inputs.audit_date }}
+          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD: ${{ github.event.inputs.severity_threshold }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE: process.env.GH_AW_GITHUB_EVENT_INPUTS_AUDIT_DATE,
+                GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: process.env.GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES,
+                GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD: process.env.GH_AW_GITHUB_EVENT_INPUTS_SEVERITY_THRESHOLD,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+              }
+            });
+      - name: Validate prompt placeholders
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh
+      - name: Print prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Upload prompt artifact
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          retention-days: 1
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: securitycompliance
+    outputs:
+      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        id: checkout-pr
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Generate agentic run info
+        id: generate_aw_info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              version: "",
+              agent_version: "0.0.411",
+              workflow_name: "Security Compliance Campaign",
+              experimental: false,
+              supports_tools_allowlist: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              allowed_domains: ["defaults"],
+              firewall_enabled: true,
+              awf_version: "v0.20.0",
+              awmg_version: "v0.1.4",
+              steps: {
+                firewall: "squid"
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
+      - name: Install awf binary
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
+      - name: Determine automatic lockdown mode for GitHub MCP Server
+        id: determine-automatic-lockdown
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+        with:
+          script: |
+            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
+            await determineAutomaticLockdown(github, context, core);
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.0 ghcr.io/github/gh-aw-firewall/squid:0.20.0 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="80"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.4'
+          
+          mkdir -p /home/runner/.copilot
+          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "github": {
+                "type": "stdio",
+                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "repos,search,code_security"
+                }
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
+      - name: Download prompt artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts
+      - name: Clean git credentials
+        run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+        env:
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session state files to logs folder for artifact collection
+          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            mkdir -p "$LOGS_DIR"
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
+      - name: Stop MCP Gateway
+        if: always()
+        continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
+          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            await main();
+      - name: Parse MCP Gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
+            await main();
+      - name: Print firewall logs
+        if: always()
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/agent/
+          if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: 
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+

@@ -1,0 +1,1244 @@
+name: "Daily Syntax Error Quality Check"
+"on":
+  schedule:
+  - cron: "9 7 * * *"
+    # Friendly format: daily (scattered)
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: "gh-aw-${{ github.workflow }}"
+
+run-name: "Daily Syntax Error Quality Check"
+
+jobs:
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      comment_id: ""
+      comment_repo: ""
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Checkout .github and .agents folders
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+            .agents
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "daily-syntax-error-quality.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Create prompt with built-in context
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <github-context>
+          The following GitHub context information is available for this workflow:
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{/if}}
+          </github-context>
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/mood.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
+          # Daily Syntax Error Quality Check Agent 🔍
+          
+          You are the Daily Syntax Error Quality Check Agent - a developer experience specialist that ensures compiler error messages are clear, actionable, and help developers fix syntax errors quickly.
+          
+          ## Mission
+          
+          Test the quality of compiler error messages by:
+          1. Selecting 3 existing agentic workflows
+          2. Introducing 3 different types of syntax errors (one per workflow)
+          3. Running the compiler and capturing error output
+          4. Evaluating error message quality across multiple dimensions
+          5. Creating an issue with suggestions if improvements are needed
+          
+          ## Current Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Workspace**: __GH_AW_GITHUB_WORKSPACE__
+          - **Compiler**: ./gh-aw
+          
+          ## Phase 1: Select Test Workflows
+          
+          Select 3 diverse workflows for testing (avoid daily-* and test workflows):
+          
+          ```bash
+          # Find candidate workflows
+          find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md' | head -10
+          ```
+          
+          **Selection Criteria**:
+          - Choose workflows with different complexity levels (simple, medium, complex)
+          - Prefer workflows with different structures (different engines, tools, safe-outputs)
+          - Ensure variety in frontmatter configuration
+          
+          **Example selections**:
+          1. Simple workflow (< 100 lines, minimal config)
+          2. Medium workflow (100-300 lines, moderate config)
+          3. Complex workflow (> 300 lines, many tools/features)
+          
+          ## Phase 2: Generate Syntax Errors
+          
+          For each selected workflow, create exactly **3 test cases** with different error types:
+          
+          ### Test Case Categories (Select One Per Workflow)
+          
+          #### Category A: Frontmatter Syntax Errors
+          Examples:
+          - **Invalid YAML syntax**: Missing colon, incorrect indentation
+            ```yaml
+            engine copilot  # Missing colon
+            ```
+          - **Invalid type**: Wrong data type for field
+            ```yaml
+            engine: 123  # Should be string
+            ```
+          - **Missing required field**: Omit mandatory field
+            ```yaml
+            # Missing 'on:' field
+            ```
+          
+          #### Category B: Configuration Errors
+          Examples:
+          - **Invalid engine name**: Typo in engine name
+            ```yaml
+            engine: copiilot  # Typo: should be "copilot"
+            ```
+          - **Invalid tool configuration**: Malformed tool config
+            ```yaml
+            tools:
+              github: "invalid-string"  # Should be object with toolsets
+            ```
+          - **Invalid permissions**: Wrong permission scope
+            ```yaml
+            permissions:
+              unknown-scope: read  # Invalid scope
+            ```
+          
+          #### Category C: Semantic Errors
+          Examples:
+          - **Conflicting configuration**: Incompatible settings
+            ```yaml
+            tools:
+              github:
+                mode: lockdown
+                toolsets: [default]  # Conflicting with lockdown mode
+            ```
+          - **Invalid value**: Out-of-range or invalid enum value
+            ```yaml
+            timeout-minutes: -10  # Negative timeout
+            ```
+          - **Missing dependency**: Reference to undefined element
+            ```yaml
+            safe-outputs:
+              create-issue:
+                target-repo: undefined-variable  # Invalid reference
+            ```
+          
+          ### Implementation Steps
+          
+          For each workflow:
+          
+          1. **Copy workflow to /tmp** for testing:
+             ```bash
+             mkdir -p /tmp/syntax-error-tests
+             cp .github/workflows/selected-workflow.md /tmp/syntax-error-tests/test-1.md
+             ```
+          
+          2. **Introduce ONE error** from a different category:
+             - Workflow 1: Category A error (frontmatter syntax)
+             - Workflow 2: Category B error (configuration)
+             - Workflow 3: Category C error (semantic)
+          
+          3. **Document the error** for later evaluation:
+             ```json
+             {
+               "test_id": "test-1",
+               "workflow": "selected-workflow.md",
+               "error_type": "Invalid YAML syntax",
+               "error_location": "Line 5: 'engine copilot' missing colon",
+               "expected_behavior": "Compiler should report YAML syntax error with line number and suggestion"
+             }
+             ```
+          
+          ## Phase 3: Run Compiler and Capture Output
+          
+          For each test case:
+          
+          1. **Attempt to compile** the modified workflow:
+             ```bash
+             cd /tmp/syntax-error-tests
+             ./gh-aw compile test-1.md 2>&1 | tee test-1-output.txt
+             ```
+          
+          2. **Capture the full output** including:
+             - Error messages
+             - Stack traces (if any)
+             - Exit code
+          
+          3. **Extract key elements** from error output:
+             - File location (file:line:column)
+             - Error type (error/warning)
+             - Error message text
+             - Suggestions or hints (if provided)
+             - Examples (if provided)
+          
+          ## Phase 4: Evaluate Error Message Quality
+          
+          For each error output, score across these dimensions:
+          
+          ### 1. Clarity (25 points)
+          **Score 20-25**: Error message is crystal clear
+          - Immediately obvious what went wrong
+          - Uses plain, non-technical language where possible
+          - Error type and location are prominent
+          
+          **Score 15-19**: Generally clear
+          - Understandable with minor confusion
+          - May use some technical jargon
+          - Location is provided but not prominent
+          
+          **Score 10-14**: Somewhat unclear
+          - Requires reading multiple times to understand
+          - Heavy technical terminology
+          - Location is vague
+          
+          **Score 0-9**: Confusing or misleading
+          - Error message doesn't match the actual problem
+          - Technical jargon without explanation
+          - Missing or incorrect location
+          
+          ### 2. Actionability (25 points)
+          **Score 20-25**: Highly actionable
+          - Clear steps to fix the error
+          - Specific suggestions (e.g., "Change X to Y")
+          - Points to relevant documentation
+          
+          **Score 15-19**: Moderately actionable
+          - General guidance provided
+          - Some specific suggestions
+          - Hints at solution
+          
+          **Score 10-14**: Minimally actionable
+          - Vague suggestions
+          - No specific guidance
+          - User must research solution
+          
+          **Score 0-9**: Not actionable
+          - No suggestions or hints
+          - Generic "fix this" without guidance
+          - Leaves user completely confused
+          
+          ### 3. Context (20 points)
+          **Score 16-20**: Excellent context
+          - Shows the problematic code
+          - Highlights exact error location
+          - Provides surrounding context
+          
+          **Score 11-15**: Good context
+          - Shows file and line number
+          - Some code context
+          - Error location is clear
+          
+          **Score 6-10**: Limited context
+          - Only file name or line number
+          - No code shown
+          - Vague location
+          
+          **Score 0-5**: No context
+          - Missing file/line information
+          - No code or context
+          - User must hunt for the error
+          
+          ### 4. Examples (15 points)
+          **Score 13-15**: Excellent examples
+          - Provides multiple examples
+          - Shows both incorrect and correct usage
+          - Examples are relevant to the specific error
+          
+          **Score 9-12**: Good examples
+          - Provides at least one example
+          - Shows correct usage
+          - Generally relevant
+          
+          **Score 5-8**: Minimal examples
+          - Brief example or reference
+          - May not be directly relevant
+          - Generic example
+          
+          **Score 0-4**: No examples
+          - No examples provided
+          - No reference to documentation
+          - User must search for examples
+          
+          ### 5. Consistency (15 points)
+          **Score 13-15**: Highly consistent
+          - Error format matches established patterns
+          - Terminology is consistent with other errors
+          - Follows IDE-parseable format (file:line:column:)
+          
+          **Score 9-12**: Generally consistent
+          - Mostly follows patterns
+          - Minor deviations in format
+          - Terminology mostly consistent
+          
+          **Score 5-8**: Inconsistent
+          - Format varies from other errors
+          - Inconsistent terminology
+          - Not IDE-parseable
+          
+          **Score 0-4**: Very inconsistent
+          - Completely different format
+          - Confusing terminology
+          - No standard structure
+          
+          ### Scoring Summary
+          
+          - **Total Score**: 100 points
+          - **Excellent**: 85-100 (Error messages are exemplary)
+          - **Good**: 70-84 (Error messages are helpful)
+          - **Acceptable**: 55-69 (Error messages need improvement)
+          - **Poor**: 40-54 (Error messages are confusing)
+          - **Critical**: 0-39 (Error messages are harmful)
+          
+          **Quality Threshold**: Average score ≥ 70 across all test cases
+          
+          ## Phase 5: Generate Evaluation Report
+          
+          Create a detailed evaluation for each test case:
+          
+          ```json
+          {
+            "test_id": "test-1",
+            "workflow": "selected-workflow.md",
+            "error_type": "Invalid YAML syntax",
+            "error_introduced": "Line 5: 'engine copilot' missing colon",
+            "compiler_output": "...(full error output)...",
+            "scores": {
+              "clarity": 22,
+              "actionability": 18,
+              "context": 16,
+              "examples": 12,
+              "consistency": 14
+            },
+            "total_score": 82,
+            "rating": "Good",
+            "strengths": [
+              "Error location is clearly shown (file:line:column)",
+              "Message clearly states 'invalid YAML syntax'",
+              "Provides actionable hint about missing colon"
+            ],
+            "weaknesses": [
+              "No example of correct YAML syntax provided",
+              "Could show the problematic line with ^ pointer",
+              "Doesn't mention YAML specification for reference"
+            ],
+            "improvement_suggestions": [
+              "Add visual pointer (^) to exact error location in source",
+              "Include example of correct syntax: 'engine: copilot'",
+              "Reference YAML specification or workflow documentation"
+            ]
+          }
+          ```
+          
+          ## Phase 6: Create Issue with Suggestions
+          
+          ## 📝 Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The issue or discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### Executive Summary", "### Key Metrics")
+          - Use `####` for subsections (e.g., "#### Detailed Analysis", "#### Recommendations")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Detailed analysis and verbose data
+          - Per-item breakdowns when there are many items
+          - Complete logs, traces, or raw data
+          - Secondary information and extra context
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>View Detailed Analysis</b></summary>
+          
+          [Long detailed content here...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          
+          1. **Brief Summary** (always visible): 1-2 paragraph overview of key findings
+          2. **Key Metrics/Highlights** (always visible): Critical information and important statistics
+          3. **Detailed Analysis** (in `<details>` tags): In-depth breakdowns, verbose data, complete lists
+          4. **Recommendations** (always visible): Actionable next steps and suggestions
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info immediately visible
+          - **Exceed expectations**: Add helpful context, trends, comparisons
+          - **Create delight**: Use progressive disclosure to reduce overwhelm
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows
+          
+          **Only create an issue if**:
+          - Average score < 70 across all test cases, OR
+          - Any individual test case scores < 55, OR
+          - Critical pattern issues are identified
+          
+          ### Issue Structure
+          
+          **Note**: The template below demonstrates the complete structure and formatting for the issue report.
+          
+          ```markdown
+          ### 📊 Error Message Quality Analysis
+          
+          **Analysis Date**: Use current date in YYYY-MM-DD format  
+          **Test Cases**: 3  
+          **Average Score**: XX/100  
+          **Status**: [✅ Good | ⚠️ Needs Improvement | ❌ Critical Issues]
+          
+          ---
+          
+          ### Executive Summary
+          
+          [2-3 sentences summarizing the findings and overall quality assessment]
+          
+          **Key Findings**:
+          - **Strengths**: [List 2-3 strengths observed across test cases]
+          - **Weaknesses**: [List 2-3 common weaknesses]
+          - **Critical Issues**: [List any critical issues that severely impact DX]
+          
+          ---
+          
+          ### Test Case Results
+          
+          <details>
+          <summary><b>Test Case 1: Invalid YAML Syntax</b> - Score: 82/100 ✅</summary>
+          
+          #### Test Configuration
+          
+          **Workflow**: `selected-workflow.md`  
+          **Error Type**: Invalid YAML syntax  
+          **Error Introduced**: Line 5: `engine copilot` (missing colon)
+          
+          #### Compiler Output
+          
+          ```
+          .github/workflows/selected-workflow.md:5:1: error: invalid YAML syntax: mapping values are not allowed in this context
+          ```
+          
+          #### Evaluation Scores
+          
+          | Dimension | Score | Rating |
+          |-----------|-------|--------|
+          | Clarity | 22/25 | Excellent |
+          | Actionability | 18/25 | Good |
+          | Context | 16/20 | Good |
+          | Examples | 12/15 | Good |
+          | Consistency | 14/15 | Excellent |
+          | **Total** | **82/100** | **Good** |
+          
+          #### Strengths
+          - ✅ Clear file:line:column format for IDE integration
+          - ✅ Error message directly identifies the problem
+          - ✅ Consistent format with other compiler errors
+          
+          #### Weaknesses
+          - ⚠️ No visual indicator (^) showing exact error location
+          - ⚠️ No example of correct syntax
+          - ⚠️ YAML error message is technical (comes from parser)
+          
+          #### Improvement Suggestions
+          
+          1. **Add visual pointer to error location**:
+             ```
+             5 | engine copilot
+               |       ^ expected ':' after key
+             ```
+          
+          2. **Include corrected syntax example**:
+             ```
+             Correct usage:
+             engine: copilot
+             ```
+          
+          3. **Simplify technical YAML error messages**:
+             - Current: "mapping values are not allowed in this context"
+             - Better: "Missing colon (:) after 'engine' key"
+          
+          </details>
+          
+          <details>
+          <summary><b>Test Case 2: Invalid Engine Name</b> - Score: 68/100 ⚠️</summary>
+          
+          [Similar detailed analysis...]
+          
+          </details>
+          
+          <details>
+          <summary><b>Test Case 3: Conflicting Configuration</b> - Score: 74/100 ✅</summary>
+          
+          [Similar detailed analysis...]
+          
+          </details>
+          
+          ---
+          
+          ### Overall Statistics
+          
+          | Metric | Value |
+          |--------|-------|
+          | Tests Run | 3 |
+          | Average Score | 74.7/100 |
+          | Excellent (85+) | 0 |
+          | Good (70-84) | 2 |
+          | Acceptable (55-69) | 1 |
+          | Poor (<55) | 0 |
+          
+          **Quality Assessment**: ✅ **Good** (Average score: 74.7/100, above threshold of 70. One test case scored in Acceptable range but above critical threshold of 55. No issue creation required.)
+          
+          **Note**: This example demonstrates a scenario where **no issue would be created** because:
+          - Average score (74.7) ≥ 70 ✓
+          - All individual scores ≥ 55 ✓
+          - No critical patterns identified ✓
+          
+          To see an example that **would trigger issue creation**, the average score would need to be < 70 or any individual test would need to score < 55.
+          
+          ---
+          
+          ### Priority Improvement Recommendations
+          
+          #### 🔴 High Priority (Critical for DX)
+          
+          1. **Add visual error pointers in compiler output**
+             - Problem: Users must manually locate the exact error position
+             - Solution: Add `^` or `~~~` under problematic code
+             - Impact: Reduces time to identify and fix errors by ~50%
+             - Example:
+               ```
+               5 | engine copilot
+                 |       ^ missing ':'
+               ```
+          
+          2. **Include corrected syntax examples in all errors**
+             - Problem: Error messages tell what's wrong but not what's right
+             - Solution: Add "Correct usage:" section with example
+             - Impact: Reduces back-and-forth, enables self-service fixes
+             - Example:
+               ```
+               Correct usage:
+               engine: copilot
+               ```
+          
+          #### 🟡 Medium Priority (Enhance DX)
+          
+          3. **Simplify technical YAML parser errors**
+             - Problem: Raw YAML parser errors are too technical
+             - Solution: Translate common YAML errors to plain language
+             - Impact: Makes errors accessible to non-YAML-experts
+             - Examples:
+               - "mapping values are not allowed" → "Missing colon (:) after key"
+               - "did not find expected key" → "Incorrect indentation or missing key"
+          
+          4. **Add context lines around error location**
+             - Problem: Single line doesn't show surrounding context
+             - Solution: Show 2 lines before and after error
+             - Impact: Helps users understand what section has the issue
+          
+          #### 🟢 Low Priority (Nice to Have)
+          
+          5. **Link to relevant documentation**
+             - Add links to workflow syntax documentation
+             - Reference section of AGENTS.md for common patterns
+             - Link to examples in .github/workflows/
+          
+          6. **Group related errors**
+             - If multiple errors exist, group them by type
+             - Show most critical errors first
+             - Provide "fix all" suggestions
+          
+          ---
+          
+          ### Implementation Guide
+          
+          For developers implementing these improvements:
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          #### 1. Enhance `formatCompilerError` Function
+          
+          Location: `pkg/workflow/compiler.go`
+          
+          **Current code**:
+          ```go
+          func formatCompilerError(filePath string, errType string, message string) error {
+              formattedErr := console.FormatError(console.CompilerError{
+                  Position: console.ErrorPosition{
+                      File:   filePath,
+                      Line:   1,
+                      Column: 1,
+                  },
+                  Type:    errType,
+                  Message: message,
+              })
+              return errors.New(formattedErr)
+          }
+          ```
+          
+          **Suggested enhancement**:
+          - Add `Context` field with source code lines
+          - Add `Hint` field with correction suggestions
+          - Parse line/column from error message if available
+          
+          #### 2. Add Source Context in Console Formatting
+          
+          Location: `pkg/console/console.go` (FormatError function)
+          
+          **Enhancements**:
+          - Read source file and extract context lines
+          - Add visual pointer (^) at error column
+          - Include "Correct usage:" section with example
+          
+          #### 3. Create Error Message Translation Map
+          
+          **For YAML errors**:
+          ```go
+          var yamlErrorTranslations = map[string]string{
+              "mapping values are not allowed": "Missing colon (:) after key",
+              "did not find expected key": "Incorrect indentation",
+              // Add more translations...
+          }
+          ```
+          
+          #### 4. Add Examples Database
+          
+          Create a structured examples database for common errors:
+          ```go
+          var errorExamples = map[string]ErrorExample{
+              "invalid-engine": {
+                  Incorrect: "engine: copiilot",
+                  Correct:   "engine: copilot",
+                  Note:      "Valid engines: copilot, claude, codex, custom",
+              },
+              // Add more examples...
+          }
+          ```
+          
+          ---
+          
+          ### Success Metrics
+          
+          Track these metrics to measure improvement:
+          
+          1. **Error Resolution Time**: Time from error to fix (target: <2 min)
+          2. **Documentation Lookups**: Number of times users search docs for errors (target: reduce by 50%)
+          3. **User Feedback**: Survey responses on error helpfulness (target: 4+/5)
+          4. **Repeat Errors**: Frequency of same errors being made (target: reduce by 30%)
+          
+          ---
+          
+          ### Related Issues
+          
+          - [Link to related DX issues]
+          - [Link to error message improvement PRs]
+          
+          ---
+          
+          *Generated by Daily Syntax Error Quality Check workflow*  
+          *Next check: Runs daily (see workflow schedule)*
+          ```
+          
+          ## Important Guidelines
+          
+          ### Error Testing Best Practices
+          
+          1. **Realistic Errors**: Introduce errors that developers actually make
+          2. **Diverse Coverage**: Test different error categories and workflows
+          3. **No False Positives**: Ensure the error we introduce is actually invalid
+          4. **Clean Workspace**: Use /tmp for test files, don't modify actual workflows
+          
+          ### Evaluation Guidelines
+          
+          1. **Be Objective**: Score based on criteria, not personal preference
+          2. **Be Specific**: Reference exact line numbers and error text
+          3. **Be Fair**: Consider that some errors are inherently harder to explain
+          4. **Be Constructive**: Focus on actionable improvements
+          
+          ### Issue Creation Guidelines
+          
+          1. **Only Create When Needed**: Don't create issues if quality is good (≥70)
+          2. **Actionable Recommendations**: Provide specific, implementable suggestions
+          3. **Prioritize Improvements**: Focus on high-impact, feasible changes
+          4. **Include Examples**: Show both current and improved error messages
+          
+          ## Example Error Output Analysis
+          
+          ### ✅ Example of Good Error Output
+          
+          ```
+          .github/workflows/test-workflow.md:5:8: error: invalid engine 'copiilot'
+          
+          Valid engines: copilot, claude, codex, custom
+          
+          Did you mean: copilot?
+          
+          Correct usage:
+            engine: copilot
+          
+          For custom engines, see: https://github.com/github/gh-aw#custom-engines
+          ```
+          
+          **Why it's good**:
+          - Clear location (file:line:column)
+          - Lists valid options
+          - Suggests correction (did you mean)
+          - Shows example of correct usage
+          - Links to documentation
+          
+          ### ❌ Example of Poor Error Output
+          
+          ```
+          Error: invalid engine
+          ```
+          
+          **Why it's poor**:
+          - No file/line information
+          - No context about what's invalid
+          - No suggestions or examples
+          - User must hunt for the error location
+          - No guidance on how to fix
+          
+          ---
+          
+          ## Success Criteria
+          
+          A successful analysis run:
+          - ✅ Tests 3 different workflows with diverse complexity
+          - ✅ Introduces 3 different error types (one per category)
+          - ✅ Captures complete compiler output for each test
+          - ✅ Provides detailed quality scores across all dimensions
+          - ✅ Generates specific, actionable improvement suggestions
+          - ✅ Creates issue only when quality is below threshold
+          - ✅ Cleans up temporary test files
+          
+          ---
+          
+          Begin your analysis now. Focus on evaluating error messages from a developer experience perspective - imagine you're a developer encountering this error for the first time and ask: "Would this help me fix the problem quickly?"
+          
+          GH_AW_PROMPT_EOF
+      - name: Interpolate variables and render templates
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
+            await main();
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+              }
+            });
+      - name: Validate prompt placeholders
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh
+      - name: Print prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Upload prompt artifact
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          retention-days: 1
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: dailysyntaxerrorquality
+    outputs:
+      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Build gh-aw
+        run: |
+          make build
+      - name: Verify gh-aw installation
+        run: |-
+          ./gh-aw --version
+          echo "gh-aw binary is ready at ./gh-aw"
+
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        id: checkout-pr
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Generate agentic run info
+        id: generate_aw_info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              version: "",
+              agent_version: "0.0.411",
+              workflow_name: "Daily Syntax Error Quality Check",
+              experimental: false,
+              supports_tools_allowlist: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              allowed_domains: ["defaults"],
+              firewall_enabled: true,
+              awf_version: "v0.20.0",
+              awmg_version: "v0.1.4",
+              steps: {
+                firewall: "squid"
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
+      - name: Install awf binary
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.0 ghcr.io/github/gh-aw-firewall/squid:0.20.0 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="80"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.4'
+          
+          mkdir -p /home/runner/.copilot
+          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "github": {
+                "type": "stdio",
+                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                }
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
+      - name: Download prompt artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts
+      - name: Clean git credentials
+        run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
+        # --allow-tool shell(./gh-aw compile)
+        # --allow-tool shell(cat .github/workflows/*.md)
+        # --allow-tool shell(cat /tmp/*.md)
+        # --allow-tool shell(cat)
+        # --allow-tool shell(cp .github/workflows/*.md /tmp/*.md)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md')
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head -n * .github/workflows/*.md)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
+        # --allow-tool write
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool '\''shell(./gh-aw compile)'\'' --allow-tool '\''shell(cat .github/workflows/*.md)'\'' --allow-tool '\''shell(cat /tmp/*.md)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(cp .github/workflows/*.md /tmp/*.md)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find .github/workflows -name '\''\'\'''\''*.md'\''\'\'''\'' -type f ! -name '\''\'\'''\''daily-*.md'\''\'\'''\'' ! -name '\''\'\'''\''*-test.md'\''\'\'''\'')'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head -n * .github/workflows/*.md)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+        env:
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session state files to logs folder for artifact collection
+          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            mkdir -p "$LOGS_DIR"
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
+      - name: Stop MCP Gateway
+        if: always()
+        continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
+          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
+            await main();
+      - name: Parse MCP Gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
+            await main();
+      - name: Print firewall logs
+        if: always()
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/agent/
+          if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: 
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+

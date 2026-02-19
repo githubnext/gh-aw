@@ -1,0 +1,1080 @@
+name: "Copilot Session Insights"
+"on":
+  schedule:
+  - cron: "24 20 * * *"
+    # Friendly format: daily (scattered)
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: "gh-aw-${{ github.workflow }}"
+
+run-name: "Copilot Session Insights"
+
+jobs:
+  activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      comment_id: ""
+      comment_repo: ""
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Checkout .github and .agents folders
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            .github
+            .agents
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "copilot-session-insights.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Create prompt with built-in context
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKFLOW: ${{ github.workflow }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          bash /opt/gh-aw/actions/create_prompt_first.sh
+          cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <github-context>
+          The following GitHub context information is available for this workflow:
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
+          {{/if}}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
+          {{/if}}
+          </github-context>
+          
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/mood.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/jqschema.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/copilot-session-data-fetch.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/session-analysis-charts.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/session-analysis-strategies.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          {{#runtime-import shared/python-dataviz.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
+          # Copilot coding agent Session Analysis
+          
+          You are an AI analytics agent specializing in analyzing Copilot coding agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
+          
+          ## Mission
+          
+          Analyze approximately 50 Copilot coding agent sessions to identify:
+          - Behavioral patterns and inefficiencies
+          - Success factors and failure signals
+          - Prompt quality indicators
+          - Opportunities for improvement
+          
+          **NEW**: This workflow now has access to actual agent conversation transcripts (not just infrastructure logs), enabling true behavioral analysis through the agent's internal monologue and reasoning process.
+          
+          Create a comprehensive report and publish it as a GitHub Discussion for team review.
+          
+          ## Current Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Analysis Period**: Most recent ~50 agent sessions
+          - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
+          - **Pre-fetched Data**: Available at `/tmp/gh-aw/session-data/`
+          - **Conversation Logs**: Now available with agent's internal monologue and reasoning
+          
+          ## Task Overview
+          
+          ### Phase 0: Setup and Prerequisites
+          
+          **Pre-fetched Data Available**: Session data has been fetched by the `copilot-session-data-fetch` shared module:
+          - `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
+          - `/tmp/gh-aw/session-data/logs/` - **Conversation transcript files** (new!)
+            - `{session_number}-conversation.txt` - Agent's internal monologue, reasoning, and tool usage
+            - `{session_number}/` - GitHub Actions logs (fallback only)
+          
+          **What's in the Conversation Logs**:
+          - Agent's step-by-step reasoning and planning
+          - Internal monologue showing decision-making process
+          - Tool calls and their outputs
+          - Code changes and validation attempts
+          - Error handling and recovery strategies
+          
+          **Verify Setup**:
+          1. Confirm session data was downloaded successfully
+          2. Check that conversation logs are available (primary source)
+          3. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
+          4. Load historical analysis data if available
+          
+          ### Phase 1: Session Analysis
+          
+          For each downloaded session in `/tmp/gh-aw/session-data/`:
+          
+          1. **Load Conversation Logs**: Read the agent's conversation transcript from `{session_number}-conversation.txt` files. These contain:
+             - Agent's internal reasoning and planning
+             - Tool usage and results
+             - Code changes and validation steps
+             - Error recovery attempts
+          
+          2. **Load Historical Context**: Check cache memory for previous analysis results, known strategies, and identified patterns (see `session-analysis-strategies` shared module)
+          
+          3. **Apply Analysis Strategies**: Use the standard and experimental strategies defined in the imported `session-analysis-strategies` module
+          
+          4. **Extract Behavioral Insights**: From the conversation logs, identify:
+             - **Reasoning patterns**: How does the agent approach problems?
+             - **Tool usage effectiveness**: Which tools are used and how successful are they?
+             - **Error recovery**: How does the agent handle and recover from errors?
+             - **Planning quality**: Does the agent plan before acting or iterate randomly?
+             - **Prompt understanding**: Does the agent correctly interpret the user's request?
+          
+          5. **Collect Session Metrics**: Gather metrics for each session:
+             - Session duration and completion status
+             - Number of tool calls and types
+             - Error count and recovery success
+             - Code quality indicators from the conversation
+             - Prompt clarity assessment based on agent's understanding
+          
+          ### Phase 2: Generate Trend Charts
+          
+          Follow the chart generation process defined in the `session-analysis-charts` shared module to create:
+          - Session completion trends chart
+          - Session duration & efficiency chart
+          
+          Upload charts and collect URLs for embedding in the report.
+          
+          ### Phase 3: Insight Synthesis
+          
+          Aggregate observations across all analyzed sessions using the synthesis patterns from the `session-analysis-strategies` module:
+          - Identify success factors
+          - Identify failure signals
+          - Analyze prompt quality indicators
+          - Generate actionable recommendations
+          
+          ### Phase 4: Cache Memory Management
+          
+          Update cache memory with today's analysis following the cache management patterns in the `session-analysis-strategies` shared module.
+          
+          ### Phase 5: Create Analysis Discussion
+          
+          ## 📝 Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The issue or discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### Executive Summary", "### Key Metrics")
+          - Use `####` for subsections (e.g., "#### Detailed Analysis", "#### Recommendations")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Detailed analysis and verbose data
+          - Per-item breakdowns when there are many items
+          - Complete logs, traces, or raw data
+          - Secondary information and extra context
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>View Detailed Analysis</b></summary>
+          
+          [Long detailed content here...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          
+          1. **Brief Summary** (always visible): 1-2 paragraph overview of key findings
+          2. **Key Metrics/Highlights** (always visible): Critical information and important statistics
+          3. **Detailed Analysis** (in `<details>` tags): In-depth breakdowns, verbose data, complete lists
+          4. **Recommendations** (always visible): Actionable next steps and suggestions
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info immediately visible
+          - **Exceed expectations**: Add helpful context, trends, comparisons
+          - **Create delight**: Use progressive disclosure to reduce overwhelm
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows
+          
+          Generate a human-readable Markdown report and create a discussion.
+          
+          **Discussion Title Format**:
+          ```
+          Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
+          ```
+          
+          **Discussion Template**:
+          
+          ```markdown
+          # 🤖 Copilot Agent Session Analysis — [DATE]
+          
+          ## Executive Summary
+          
+          - **Sessions Analyzed**: [NUMBER]
+          - **Analysis Period**: [DATE RANGE]
+          - **Completion Rate**: [PERCENTAGE]%
+          - **Average Duration**: [TIME]
+          - **Experimental Strategy**: [STRATEGY NAME] (if applicable)
+          
+          ## Key Metrics
+          
+          | Metric | Value | Trend |
+          |--------|-------|-------|
+          | Total Sessions | [N] | [↑↓→] |
+          | Successful Completions | [N] ([%]) | [↑↓→] |
+          | Failed/Abandoned | [N] ([%]) | [↑↓→] |
+          | Average Duration | [TIME] | [↑↓→] |
+          | Loop Detection Rate | [N] ([%]) | [↑↓→] |
+          | Context Issues | [N] ([%]) | [↑↓→] |
+          
+          ## Success Factors ✅
+          
+          Patterns associated with successful task completion:
+          
+          1. **[Pattern Name]**: [Description]
+             - Success rate: [%]
+             - Example: [Brief example]
+          
+          2. **[Pattern Name]**: [Description]
+             - Success rate: [%]
+             - Example: [Brief example]
+          
+          [Include 3-5 key success patterns]
+          
+          ## Failure Signals ⚠️
+          
+          Common indicators of inefficiency or failure:
+          
+          1. **[Issue Name]**: [Description]
+             - Failure rate: [%]
+             - Example: [Brief example]
+          
+          2. **[Issue Name]**: [Description]
+             - Failure rate: [%]
+             - Example: [Brief example]
+          
+          [Include 3-5 key failure patterns]
+          
+          ## Prompt Quality Analysis 📝
+          
+          ### High-Quality Prompt Characteristics
+          
+          - [Characteristic 1]: Found in [%] of successful sessions
+          - [Characteristic 2]: Found in [%] of successful sessions
+          - [Characteristic 3]: Found in [%] of successful sessions
+          
+          **Example High-Quality Prompt**:
+          ```
+          [Example of an effective task description]
+          ```
+          
+          ### Low-Quality Prompt Characteristics
+          
+          - [Characteristic 1]: Found in [%] of failed sessions
+          - [Characteristic 2]: Found in [%] of failed sessions
+          
+          **Example Low-Quality Prompt**:
+          ```
+          [Example of an ineffective task description]
+          ```
+          
+          ## Notable Observations
+          
+          ### Loop Detection
+          - **Sessions with loops**: [N] ([%])
+          - **Average loop count**: [NUMBER]
+          - **Common loop patterns**: [Description]
+          
+          ### Tool Usage
+          - **Most used tools**: [List]
+          - **Tool success rates**: [Statistics]
+          - **Missing tools**: [List of requested but unavailable tools]
+          
+          ### Context Issues
+          - **Sessions with confusion**: [N] ([%])
+          - **Common confusion points**: [List]
+          - **Clarification requests**: [N]
+          
+          ## Experimental Analysis
+          
+          **This run included experimental strategy**: [STRATEGY NAME]
+          
+          [If experimental run, describe the novel approach tested]
+          
+          **Findings**:
+          - [Finding 1]
+          - [Finding 2]
+          - [Finding 3]
+          
+          **Effectiveness**: [High/Medium/Low]
+          **Recommendation**: [Keep/Refine/Discard]
+          
+          [If not experimental, include note: "Standard analysis only - no experimental strategy this run"]
+          
+          ## Actionable Recommendations
+          
+          ### For Users Writing Task Descriptions
+          
+          1. **[Recommendation 1]**: [Specific guidance]
+             - Example: [Before/After example]
+          
+          2. **[Recommendation 2]**: [Specific guidance]
+             - Example: [Before/After example]
+          
+          3. **[Recommendation 3]**: [Specific guidance]
+             - Example: [Before/After example]
+          
+          ### For System Improvements
+          
+          1. **[Improvement Area]**: [Description]
+             - Potential impact: [High/Medium/Low]
+          
+          2. **[Improvement Area]**: [Description]
+             - Potential impact: [High/Medium/Low]
+          
+          ### For Tool Development
+          
+          1. **[Missing Tool/Capability]**: [Description]
+             - Frequency of need: [NUMBER] sessions
+             - Use case: [Description]
+          
+          ## Trends Over Time
+          
+          [Compare with historical data from cache memory if available]
+          
+          - **Completion rate trend**: [Description]
+          - **Average duration trend**: [Description]
+          - **Quality improvement**: [Description]
+          
+          ## Statistical Summary
+          
+          ```
+          Total Sessions Analyzed:     [N]
+          Successful Completions:      [N] ([%])
+          Failed Sessions:            [N] ([%])
+          Abandoned Sessions:         [N] ([%])
+          In-Progress Sessions:       [N] ([%])
+          
+          Average Session Duration:   [TIME]
+          Median Session Duration:    [TIME]
+          Longest Session:           [TIME]
+          Shortest Session:          [TIME]
+          
+          Loop Detection:            [N] sessions ([%])
+          Context Issues:            [N] sessions ([%])
+          Tool Failures:             [N] occurrences
+          
+          High-Quality Prompts:      [N] ([%])
+          Medium-Quality Prompts:    [N] ([%])
+          Low-Quality Prompts:       [N] ([%])
+          ```
+          
+          ## Next Steps
+          
+          - [ ] Review recommendations with team
+          - [ ] Implement high-priority prompt improvements
+          - [ ] Consider system enhancements for recurring issues
+          - [ ] Schedule follow-up analysis in [TIMEFRAME]
+          
+          ---
+          
+          _Analysis generated automatically on [DATE] at [TIME]_  
+          _Run ID: __GH_AW_GITHUB_RUN_ID___  
+          _Workflow: __GH_AW_GITHUB_WORKFLOW___
+          ```
+          
+          ## Important Guidelines
+          
+          ### Security and Data Handling
+          
+          - **Privacy**: Do not expose sensitive session data, API keys, or personal information
+          - **Sanitization**: Redact any sensitive information from examples
+          - **Validation**: Verify all data before analysis
+          - **Safe Processing**: Never execute code from sessions
+          - **Conversation Log Analysis**: Analyze the agent's reasoning and tool usage patterns, but always sanitize examples before including in reports
+          
+          ### Working with Conversation Logs
+          
+          **Accessing Logs**:
+          ```bash
+          # List available conversation logs
+          find /tmp/gh-aw/session-data/logs -type f -name "*-conversation.txt"
+          
+          # Read a specific conversation log
+          cat /tmp/gh-aw/session-data/logs/123-conversation.txt
+          
+          # Count conversation logs
+          find /tmp/gh-aw/session-data/logs -type f -name "*-conversation.txt" | wc -l
+          ```
+          
+          **What to Look For in Conversation Logs**:
+          1. **Agent's Planning**: Does the agent plan before acting?
+          2. **Tool Selection**: Which tools does the agent choose and why?
+          3. **Error Handling**: How does the agent respond to errors?
+          4. **Code Quality**: Does the agent validate its changes?
+          5. **Prompt Understanding**: Does the agent correctly interpret the task?
+          6. **Iteration Patterns**: Does the agent get stuck in loops?
+          
+          **Analysis Patterns**:
+          - Look for repeated phrases indicating confusion or loops
+          - Identify successful tool usage patterns
+          - Track error recovery strategies
+          - Measure clarity of agent's reasoning
+          - Assess quality of code changes from the log commentary
+          
+          ### Analysis Quality
+          
+          - **Objectivity**: Report facts without bias
+          - **Accuracy**: Verify calculations and statistics
+          - **Completeness**: Don't skip sessions or data points
+          - **Consistency**: Use same metrics across runs for comparability
+          
+          ### Experimental Strategy
+          
+          - **30% Probability**: Approximately 1 in 3 runs should be experimental
+          - **Rotation**: Try different novel approaches over time
+          - **Documentation**: Clearly document what was tried
+          - **Evaluation**: Assess effectiveness of experimental strategies
+          - **Learning**: Build on successful experiments
+          
+          ### Cache Memory Management
+          
+          - **Organization**: Keep data well-structured in JSON
+          - **Retention**: Keep 90 days of historical data
+          - **Graceful Degradation**: Handle missing or corrupted cache
+          - **Incremental Updates**: Add to existing data, don't replace
+          
+          ### Report Quality
+          
+          - **Actionable**: Every insight should lead to potential action
+          - **Clear**: Use simple language and concrete examples
+          - **Concise**: Focus on key findings, not exhaustive details
+          - **Visual**: Use tables and formatting for readability
+          
+          ## Edge Cases
+          
+          ### No Sessions Available
+          
+          If no sessions were downloaded:
+          - Create minimal discussion noting no data
+          - Don't update historical metrics
+          - Note in cache that this date had no sessions
+          
+          ### Incomplete Session Data
+          
+          If some sessions have missing logs:
+          - Note the count of incomplete sessions
+          - Analyze available data only
+          - Report data quality issues
+          
+          ### Cache Corruption
+          
+          If cache memory is corrupted or invalid:
+          - Log the issue clearly
+          - Reinitialize cache with current data
+          - Continue with analysis
+          
+          ### Analysis Timeout
+          
+          If approaching timeout:
+          - Complete current phase
+          - Save partial results to cache
+          - Create discussion with available insights
+          - Note incomplete analysis in report
+          
+          ## Success Criteria
+          
+          A successful analysis includes:
+          
+          - ✅ Analyzed ~50 Copilot coding agent sessions
+          - ✅ Calculated key metrics (completion rate, duration, quality)
+          - ✅ Identified success factors and failure signals
+          - ✅ Generated actionable recommendations
+          - ✅ Updated cache memory with findings
+          - ✅ Created comprehensive GitHub Discussion
+          - ✅ Included experimental strategy (if 30% probability triggered)
+          - ✅ Provided clear, data-driven insights
+          
+          ## Notes
+          
+          - **Non-intrusive**: Never execute or replay session commands
+          - **Observational**: Analyze logs without modifying them
+          - **Cumulative Learning**: Build knowledge over time via cache
+          - **Adaptive**: Adjust strategies based on discoveries
+          - **Transparent**: Clearly document methodology
+          
+          ---
+          
+          Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
+          
+          GH_AW_PROMPT_EOF
+      - name: Interpolate variables and render templates
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKFLOW: ${{ github.workflow }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/interpolate_prompt.cjs');
+            await main();
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKFLOW: ${{ github.workflow }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
+            const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKFLOW: process.env.GH_AW_GITHUB_WORKFLOW,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+              }
+            });
+      - name: Validate prompt placeholders
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh
+      - name: Print prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Upload prompt artifact
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          retention-days: 1
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: copilotsessioninsights
+    outputs:
+      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Create gh-aw temp directory
+        run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Setup jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Fetch Copilot session data
+        run: "# Create output directories\nmkdir -p /tmp/gh-aw/session-data\nmkdir -p /tmp/gh-aw/session-data/logs\nmkdir -p /tmp/gh-aw/cache-memory\n\n# Get today's date for cache identification\nTODAY=$(date '+%Y-%m-%d')\nCACHE_DIR=\"/tmp/gh-aw/cache-memory\"\n\n# Check if cached data exists from today\nif [ -f \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ] && [ -s \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" ]; then\n  echo \"✓ Found cached session data from ${TODAY}\"\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}.json\" /tmp/gh-aw/session-data/sessions-list.json\n  \n  # Regenerate schema if missing\n  if [ ! -f \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" ]; then\n    /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  fi\n  cp \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\" /tmp/gh-aw/session-data/sessions-schema.json\n  \n  # Restore cached log files if they exist\n  if [ -d \"$CACHE_DIR/session-logs-${TODAY}\" ]; then\n    echo \"✓ Found cached session logs from ${TODAY}\"\n    cp -r \"$CACHE_DIR/session-logs-${TODAY}\"/* /tmp/gh-aw/session-data/logs/ 2>/dev/null || true\n    echo \"Restored $(find /tmp/gh-aw/session-data/logs -type f | wc -l) session log files from cache\"\n  fi\n  \n  echo \"Using cached data from ${TODAY}\"\n  echo \"Total sessions in cache: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nelse\n  echo \"⬇ Downloading fresh session data...\"\n  \n  # Calculate date 30 days ago\n  DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n  # Search for workflow runs from copilot/* branches\n  # This fetches GitHub Copilot coding agent task runs by searching for workflow runs on copilot/* branches\n  echo \"Fetching Copilot coding agent workflow runs from the last 30 days...\"\n  \n  # Get workflow runs from copilot/* branches\n  gh api \"repos/${{ github.repository }}/actions/runs\" \\\n    --paginate \\\n    --jq \".workflow_runs[] | select(.head_branch | startswith(\\\"copilot/\\\")) | select(.created_at >= \\\"${DATE_30_DAYS_AGO}\\\") | {id, name, head_branch, created_at, updated_at, status, conclusion, html_url}\" \\\n    | jq -s '.[0:50]' \\\n    > /tmp/gh-aw/session-data/sessions-list.json\n\n  # Generate schema for reference\n  /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > /tmp/gh-aw/session-data/sessions-schema.json\n\n  # Download conversation logs using gh agent-task command (limit to first 50)\n  SESSION_COUNT=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\n  echo \"Downloading conversation logs for $SESSION_COUNT sessions...\"\n  \n  # Use gh agent-task to fetch session logs with conversation transcripts\n  # Extract session numbers from head_branch (format: copilot/issue-123 or copilot/task-456)\n  # The number is the issue/task/PR number that the gh agent-task command uses\n  jq -r '.[].head_branch' /tmp/gh-aw/session-data/sessions-list.json | while read -r branch; do\n    if [ -n \"$branch\" ]; then\n      # Extract number from branch name (e.g., copilot/issue-123 -> 123)\n      # This is the session identifier used by gh agent-task\n      session_number=$(echo \"$branch\" | sed 's/copilot\\///' | sed 's/[^0-9]//g')\n      \n      if [ -n \"$session_number\" ]; then\n        echo \"Downloading conversation log for session #$session_number (branch: $branch)\"\n        \n        # Use gh agent-task view --log to get conversation transcript\n        # This contains the agent's internal monologue, tool calls, and reasoning\n        gh agent-task view --repo \"${{ github.repository }}\" \"$session_number\" --log \\\n          > \"/tmp/gh-aw/session-data/logs/${session_number}-conversation.txt\" 2>&1 || {\n          echo \"Warning: Could not fetch conversation log for session #$session_number\"\n          # If gh agent-task fails, fall back to downloading GitHub Actions logs\n          # This ensures we have some data even if agent-task command is unavailable\n          run_id=$(jq -r \".[] | select(.head_branch == \\\"$branch\\\") | .id\" /tmp/gh-aw/session-data/sessions-list.json)\n          if [ -n \"$run_id\" ]; then\n            echo \"Falling back to GitHub Actions logs for run ID: $run_id\"\n            gh api \"repos/${{ github.repository }}/actions/runs/${run_id}/logs\" \\\n              > \"/tmp/gh-aw/session-data/logs/${session_number}-actions.zip\" 2>&1 || true\n            \n            if [ -f \"/tmp/gh-aw/session-data/logs/${session_number}-actions.zip\" ] && [ -s \"/tmp/gh-aw/session-data/logs/${session_number}-actions.zip\" ]; then\n              unzip -q \"/tmp/gh-aw/session-data/logs/${session_number}-actions.zip\" -d \"/tmp/gh-aw/session-data/logs/${session_number}/\" 2>/dev/null || true\n              rm \"/tmp/gh-aw/session-data/logs/${session_number}-actions.zip\"\n            fi\n          fi\n        }\n      fi\n    fi\n  done\n  \n  LOG_COUNT=$(find /tmp/gh-aw/session-data/logs/ -type f -name \"*-conversation.txt\" | wc -l)\n  echo \"Conversation logs downloaded: $LOG_COUNT session logs\"\n  \n  FALLBACK_COUNT=$(find /tmp/gh-aw/session-data/logs/ -type d -mindepth 1 | wc -l)\n  if [ \"$FALLBACK_COUNT\" -gt 0 ]; then\n    echo \"Fallback GitHub Actions logs: $FALLBACK_COUNT sessions\"\n  fi\n\n  # Store in cache with today's date\n  cp /tmp/gh-aw/session-data/sessions-list.json \"$CACHE_DIR/copilot-sessions-${TODAY}.json\"\n  cp /tmp/gh-aw/session-data/sessions-schema.json \"$CACHE_DIR/copilot-sessions-${TODAY}-schema.json\"\n  \n  # Cache the log files\n  mkdir -p \"$CACHE_DIR/session-logs-${TODAY}\"\n  cp -r /tmp/gh-aw/session-data/logs/* \"$CACHE_DIR/session-logs-${TODAY}/\" 2>/dev/null || true\n\n  echo \"✓ Session data saved to cache: copilot-sessions-${TODAY}.json\"\n  echo \"Total sessions found: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\"\nfi\n\n# Always ensure data is available at expected locations for backward compatibility\necho \"Session data available at: /tmp/gh-aw/session-data/sessions-list.json\"\necho \"Schema available at: /tmp/gh-aw/session-data/sessions-schema.json\"\necho \"Logs available at: /tmp/gh-aw/session-data/logs/\"\n\n# Set outputs for downstream use\necho \"sessions_count=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)\" >> \"$GITHUB_OUTPUT\""
+      - name: Setup Python environment
+        run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
+      - name: Install Python scientific libraries
+        run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+      - if: always()
+        name: Upload generated charts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          if-no-files-found: warn
+          name: data-charts
+          path: /tmp/gh-aw/python/charts/*.png
+          retention-days: 30
+      - if: always()
+        name: Upload source files and data
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          if-no-files-found: warn
+          name: python-source-and-data
+          path: |
+            /tmp/gh-aw/python/*.py
+            /tmp/gh-aw/python/data/*
+          retention-days: 30
+
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        id: checkout-pr
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
+      - name: Generate agentic run info
+        id: generate_aw_info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "claude",
+              engine_name: "Claude Code",
+              model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
+              version: "",
+              agent_version: "2.1.45",
+              workflow_name: "Copilot Session Insights",
+              experimental: false,
+              supports_tools_allowlist: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              staged: false,
+              allowed_domains: ["defaults","github","python"],
+              firewall_enabled: true,
+              awf_version: "v0.20.0",
+              awmg_version: "v0.1.4",
+              steps: {
+                firewall: "squid"
+              },
+              created_at: new Date().toISOString()
+            };
+            
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
+            console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install awf binary
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
+      - name: Install Claude Code CLI
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.45
+      - name: Determine automatic lockdown mode for GitHub MCP Server
+        id: determine-automatic-lockdown
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+        with:
+          script: |
+            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
+            await determineAutomaticLockdown(github, context, core);
+      - name: Download container images
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.0 ghcr.io/github/gh-aw-firewall/squid:0.20.0 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/gh-aw/mcp-config
+          
+          # Export gateway environment variables for MCP config and gateway script
+          export MCP_GATEWAY_PORT="80"
+          export MCP_GATEWAY_DOMAIN="host.docker.internal"
+          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
+          export MCP_GATEWAY_API_KEY
+          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
+          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
+          export DEBUG="*"
+          
+          export GH_AW_ENGINE="claude"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.4'
+          
+          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
+          {
+            "mcpServers": {
+              "github": {
+                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "env": {
+                  "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_READ_ONLY": "1",
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                }
+              }
+            },
+            "gateway": {
+              "port": $MCP_GATEWAY_PORT,
+              "domain": "${MCP_GATEWAY_DOMAIN}",
+              "apiKey": "${MCP_GATEWAY_API_KEY}",
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
+      - name: Generate workflow overview
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
+      - name: Download prompt artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: prompt
+          path: /tmp/gh-aw/aw-prompts
+      - name: Clean git credentials
+        run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Execute Claude Code CLI
+        id: agentic_execution
+        # Allowed tools (sorted):
+        # - Bash
+        # - BashOutput
+        # - Edit
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - KillBash
+        # - LS
+        # - MultiEdit
+        # - NotebookEdit
+        # - NotebookRead
+        # - Read
+        # - Task
+        # - TodoWrite
+        # - Write
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__issue_read
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          sudo -E awf --tty --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains '*.githubusercontent.com,*.pythonhosted.org,anaconda.org,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,cdn.playwright.dev,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && claude --print --disable-slash-commands --no-chrome --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug-file /tmp/gh-aw/agent-stdio.log --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASH_DEFAULT_TIMEOUT_MS: 60000
+          BASH_MAX_TIMEOUT_MS: 60000
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DISABLE_BUG_COMMAND: 1
+          DISABLE_ERROR_REPORTING: 1
+          DISABLE_TELEMETRY: 1
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || '' }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          MCP_TIMEOUT: 120000
+          MCP_TOOL_TIMEOUT: 60000
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Stop MCP Gateway
+        if: always()
+        continue-on-error: true
+        env:
+          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
+          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
+          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
+        run: |
+          bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_claude_log.cjs');
+            await main();
+      - name: Parse MCP Gateway logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
+            await main();
+      - name: Print firewall logs
+        if: always()
+        continue-on-error: true
+        env:
+          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
+        run: |
+          # Fix permissions on firewall logs so they can be uploaded as artifacts
+          # AWF runs with sudo, creating files owned by root
+          sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
+      - name: Upload agent artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent-artifacts
+          path: |
+            /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/aw_info.json
+            /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/agent/
+          if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: 
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
+
