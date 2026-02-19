@@ -97,7 +97,6 @@ var ClaudeDefaultDomains = []string{
 	"statsig.anthropic.com",
 	"ts-crl.ws.symantec.com",
 	"ts-ocsp.ws.symantec.com",
-	"ubuntu.com",
 }
 
 // GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation

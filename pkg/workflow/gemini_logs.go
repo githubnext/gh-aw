@@ -15,7 +15,9 @@ type GeminiResponse struct {
 	Stats    map[string]interface{} `json:"stats"`
 }
 
-// ParseLogMetrics parses Gemini CLI log output and extracts metrics
+// ParseLogMetrics parses Gemini CLI log output and extracts metrics.
+// Gemini CLI outputs a single JSON response when using --output-format json.
+// We parse the last valid JSON line (most complete response) and aggregate stats.
 func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	geminiLogsLog.Printf("Parsing Gemini log metrics: log_size=%d bytes, verbose=%v", len(logContent), verbose)
 
@@ -24,6 +26,9 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		TokenUsage: 0,
 		ToolCalls:  []ToolCallInfo{},
 	}
+
+	// Aggregate tool calls in a map to deduplicate across multiple JSON lines
+	toolCallCounts := make(map[string]int)
 
 	// Try to parse the JSON response from Gemini
 	lines := strings.Split(logContent, "\n")
@@ -35,40 +40,47 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 		// Try to parse as JSON
 		var response GeminiResponse
-		if err := json.Unmarshal([]byte(line), &response); err == nil {
-			// Successfully parsed JSON response
-			if response.Response != "" {
-				metrics.Turns = 1 // At least one turn if we got a response
-			}
+		if err := json.Unmarshal([]byte(line), &response); err != nil {
+			continue
+		}
 
-			// Extract token usage from stats if available
-			if response.Stats != nil {
-				if models, ok := response.Stats["models"].(map[string]interface{}); ok {
-					for _, modelStats := range models {
-						if stats, ok := modelStats.(map[string]interface{}); ok {
-							if inputTokens, ok := stats["input_tokens"].(float64); ok {
-								metrics.TokenUsage += int(inputTokens)
-							}
-							if outputTokens, ok := stats["output_tokens"].(float64); ok {
-								metrics.TokenUsage += int(outputTokens)
-							}
+		// Successfully parsed JSON response - use the last valid response for turn count
+		if response.Response != "" {
+			metrics.Turns = 1 // At least one turn if we got a response
+		}
+
+		// Extract token usage from stats if available
+		if response.Stats != nil {
+			if models, ok := response.Stats["models"].(map[string]interface{}); ok {
+				for _, modelStats := range models {
+					if stats, ok := modelStats.(map[string]interface{}); ok {
+						if inputTokens, ok := stats["input_tokens"].(float64); ok {
+							metrics.TokenUsage += int(inputTokens)
+						}
+						if outputTokens, ok := stats["output_tokens"].(float64); ok {
+							metrics.TokenUsage += int(outputTokens)
 						}
 					}
 				}
-
-				// Count tool calls if available
-				if tools, ok := response.Stats["tools"].(map[string]interface{}); ok {
-					for toolName := range tools {
-						metrics.ToolCalls = append(metrics.ToolCalls, ToolCallInfo{
-							Name:      toolName,
-							CallCount: 1,
-						})
-					}
-				}
 			}
 
-			geminiLogsLog.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
+			// Aggregate tool calls using a map to avoid duplicates
+			if tools, ok := response.Stats["tools"].(map[string]interface{}); ok {
+				for toolName := range tools {
+					toolCallCounts[toolName]++
+				}
+			}
 		}
+
+		geminiLogsLog.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
+	}
+
+	// Convert tool call map to slice
+	for toolName, count := range toolCallCounts {
+		metrics.ToolCalls = append(metrics.ToolCalls, ToolCallInfo{
+			Name:      toolName,
+			CallCount: count,
+		})
 	}
 
 	geminiLogsLog.Printf("Parsed metrics: turns=%d, token_usage=%d, tool_calls=%d",
