@@ -126,8 +126,8 @@ html, body {
 </head>
 <body class="color-bg-default color-fg-default">
 <div class="d-flex flex-column" style="height: 100vh; width: 100vw;" id="app">
-  <!-- Loading Overlay -->
-  <div class="loading-overlay" id="loadingOverlay">
+  <!-- Loading Overlay (hidden by default — editor is shown immediately) -->
+  <div class="loading-overlay hidden" id="loadingOverlay">
     <div class="loading-spinner"></div>
     <div class="f4 color-fg-muted mb-1">Loading gh-aw compiler...</div>
     <div class="f6 color-fg-subtle">Downloading WebAssembly module (~17 MB)</div>
