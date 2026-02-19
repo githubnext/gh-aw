@@ -130,6 +130,7 @@ const panels = $('panels');
 // ---------------------------------------------------------------
 // State
 // ---------------------------------------------------------------
+const STORAGE_KEY = 'gh-aw-playground-content';
 let compiler = null;
 let isReady = false;
 let isCompiling = false;
@@ -175,8 +176,11 @@ function setTheme(theme) {
 // ---------------------------------------------------------------
 // CodeMirror: Input Editor (Markdown with YAML frontmatter)
 // ---------------------------------------------------------------
+const savedContent = localStorage.getItem(STORAGE_KEY);
+const initialContent = savedContent || DEFAULT_CONTENT;
+
 const editorView = new EditorView({
-  doc: DEFAULT_CONTENT,
+  doc: initialContent,
   extensions: [
     basicSetup,
     markdown(),
@@ -189,6 +193,8 @@ const editorView = new EditorView({
     }]),
     EditorView.updateListener.of(update => {
       if (update.docChanged) {
+        try { localStorage.setItem(STORAGE_KEY, update.state.doc.toString()); }
+        catch (_) { /* localStorage full or unavailable */ }
         if (isReady) {
           scheduleCompile();
         } else {
@@ -199,6 +205,11 @@ const editorView = new EditorView({
   ],
   parent: editorMount,
 });
+
+// If restoring saved content, clear the dropdown since it may not match any sample
+if (savedContent) {
+  sampleSelect.value = '';
+}
 
 // ---------------------------------------------------------------
 // CodeMirror: Output View (YAML, read-only)
