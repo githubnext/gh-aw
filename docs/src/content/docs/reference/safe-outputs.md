@@ -267,25 +267,47 @@ safe-outputs:
 
 ### Add Labels (`add-labels:`)
 
-Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels.
+Adds labels to issues or PRs. Specify `allowed` to restrict to specific labels, or `blocked` to deny specific label patterns regardless of the allow list.
 
 ```yaml wrap
 safe-outputs:
   add-labels:
     allowed: [bug, enhancement]  # restrict to specific labels
+    blocked: ["~*", "*[bot]"]   # deny labels matching these glob patterns
     max: 3                       # max labels (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
 ```
 
+#### Blocked Label Patterns
+
+The `blocked` field accepts glob patterns that are evaluated before the `allowed` list. Any label matching a blocked pattern is rejected, even if it also appears in the allowed list. This provides infrastructure-level protection against prompt injection attacks in repositories with many labels where maintaining an exhaustive allowlist is impractical.
+
+Common patterns:
+
+| Pattern | Effect |
+|---------|--------|
+| `~*` | Denies all labels starting with `~` (often used as workflow triggers) |
+| `*[bot]` | Denies all labels ending with `[bot]` (administrative bot labels) |
+| `stale` | Denies the exact `stale` label |
+
+```yaml wrap
+safe-outputs:
+  add-labels:
+    blocked: ["~*", "*[bot]"]    # Blocked patterns evaluated first
+    allowed: [bug, enhancement]  # Allowed list applied after blocked check
+    max: 5
+```
+
 ### Remove Labels (`remove-labels:`)
 
-Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed. If a label is not present on the item, it will be silently skipped.
+Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed, or `blocked` to prevent removal of specific label patterns. If a label is not present on the item, it will be silently skipped.
 
 ```yaml wrap
 safe-outputs:
   remove-labels:
     allowed: [automated, stale]  # restrict to specific labels (optional)
+    blocked: ["~*"]              # deny removal of labels matching these glob patterns
     max: 3                       # max operations (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
@@ -293,7 +315,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
 
-When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels only, providing control over which labels agents can manipulate.
+When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels only, providing control over which labels agents can manipulate. The `blocked` field takes precedence over `allowed`.
 
 **Example use case**: Label lifecycle management where agents add temporary labels during triage and remove them once processed.
 
@@ -1150,6 +1172,18 @@ safe-outputs:
 ```
 
 ## Global Configuration Options
+
+### Group Reports (`group-reports:`)
+
+Controls whether failed workflow runs are grouped under a parent "[agentics] Failed runs" issue. This is opt-in and defaults to `false`.
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+  group-reports: true   # Enable parent issue grouping for failed runs (default: false)
+```
+
+When enabled, individual failed run reports are linked as sub-issues under a shared parent issue, making it easier to track recurring failures across workflow runs. When disabled (the default), each failure is reported independently.
 
 ### Custom GitHub Token (`github-token:`)
 

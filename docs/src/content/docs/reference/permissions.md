@@ -45,7 +45,9 @@ Key permissions include `contents` (code access), `issues` (issue management), `
 
 #### Special Permission: `id-token`
 
-The `id-token: write` permission is a special case that is explicitly allowed in workflows, including strict mode. This permission enables [OpenID Connect (OIDC) authentication](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) for cloud provider authentication (AWS, GCP, Azure) without storing long-lived credentials.
+The `id-token` permission controls access to GitHub's OIDC token service for [OpenID Connect (OIDC) authentication](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) with cloud providers (AWS, GCP, Azure).
+
+The only valid values are `write` and `none`. `id-token: read` is not a valid permission and will be rejected at compile time.
 
 Unlike other write permissions, `id-token: write` does not grant any ability to modify repository content. It only allows the workflow to request a short-lived OIDC token from GitHub's token service for authentication with external cloud providers.
 
