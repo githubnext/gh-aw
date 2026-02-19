@@ -64,7 +64,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 
 	// Add description comment if provided
 	if data.Description != "" {
-		cleanDescription := stringutil.StripANSIEscapeCodes(data.Description)
+		cleanDescription := stringutil.StripANSI(data.Description)
 		// Split description into lines and prefix each with "# "
 		descriptionLines := strings.Split(strings.TrimSpace(cleanDescription), "\n")
 		for _, line := range descriptionLines {
@@ -75,7 +75,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")
-		cleanSource := stringutil.StripANSIEscapeCodes(data.Source)
+		cleanSource := stringutil.StripANSI(data.Source)
 		// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 		cleanSource = filepath.ToSlash(cleanSource)
 		fmt.Fprintf(yaml, "# Source: %s\n", cleanSource)
@@ -89,7 +89,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		if len(data.ImportedFiles) > 0 {
 			yaml.WriteString("#   Imports:\n")
 			for _, file := range data.ImportedFiles {
-				cleanFile := stringutil.StripANSIEscapeCodes(file)
+				cleanFile := stringutil.StripANSI(file)
 				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 				cleanFile = filepath.ToSlash(cleanFile)
 				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
@@ -99,7 +99,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		if len(data.IncludedFiles) > 0 {
 			yaml.WriteString("#   Includes:\n")
 			for _, file := range data.IncludedFiles {
-				cleanFile := stringutil.StripANSIEscapeCodes(file)
+				cleanFile := stringutil.StripANSI(file)
 				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 				cleanFile = filepath.ToSlash(cleanFile)
 				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
@@ -124,14 +124,14 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Add stop-time comment if configured
 	if data.StopTime != "" {
 		yaml.WriteString("#\n")
-		cleanStopTime := stringutil.StripANSIEscapeCodes(data.StopTime)
+		cleanStopTime := stringutil.StripANSI(data.StopTime)
 		fmt.Fprintf(yaml, "# Effective stop-time: %s\n", cleanStopTime)
 	}
 
 	// Add manual-approval comment if configured
 	if data.ManualApproval != "" {
 		yaml.WriteString("#\n")
-		cleanManualApproval := stringutil.StripANSIEscapeCodes(data.ManualApproval)
+		cleanManualApproval := stringutil.StripANSI(data.ManualApproval)
 		fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
 	}
 

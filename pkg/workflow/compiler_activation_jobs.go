@@ -112,7 +112,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		// Strip ANSI escape codes from stop-time value
-		cleanStopTime := stringutil.StripANSIEscapeCodes(data.StopTime)
+		cleanStopTime := stringutil.StripANSI(data.StopTime)
 		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", cleanStopTime))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
@@ -701,7 +701,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	var environment string
 	if data.ManualApproval != "" {
 		// Strip ANSI escape codes from manual-approval environment name
-		cleanManualApproval := stringutil.StripANSIEscapeCodes(data.ManualApproval)
+		cleanManualApproval := stringutil.StripANSI(data.ManualApproval)
 		environment = fmt.Sprintf("environment: %s", cleanManualApproval)
 	}
 

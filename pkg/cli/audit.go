@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/github/gh-aw/pkg/cli/fileutil"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/timeutil"
