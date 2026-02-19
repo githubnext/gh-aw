@@ -88,6 +88,15 @@ fi
 cp "$WASM_EXEC_SRC" dist/wasm_exec.js
 echo "Bundled wasm_exec.js from $WASM_EXEC_SRC"
 
+# Create WASM bundle archive
+echo "Creating WASM bundle archive..."
+tar -czf "dist/gh-aw-wasm-${VERSION}.tar.gz" -C dist gh-aw.wasm wasm_exec.js
+
+# Remove individual WASM files from dist (they're now in the archive)
+rm dist/gh-aw.wasm dist/wasm_exec.js
+
+echo "✓ Created dist/gh-aw-wasm-${VERSION}.tar.gz"
+
 echo ""
 echo "Build complete. Binaries:"
 ls -lh dist/
