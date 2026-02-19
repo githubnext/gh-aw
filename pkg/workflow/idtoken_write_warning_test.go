@@ -16,9 +16,10 @@ import (
 // TestIdTokenWriteWarning tests that id-token: write permission emits a warning
 func TestIdTokenWriteWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name              string
+		content           string
+		expectWarning     bool
+		expectCompileFail bool
 	}{
 		{
 			name: "id-token write produces warning",
@@ -35,7 +36,7 @@ permissions:
 			expectWarning: true,
 		},
 		{
-			name: "id-token read does not produce warning",
+			name: "id-token read is invalid and compilation fails",
 			content: `---
 on: workflow_dispatch
 engine: copilot
@@ -46,7 +47,8 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
+			expectWarning:     false,
+			expectCompileFail: true,
 		},
 		{
 			name: "no id-token does not produce warning",
@@ -128,6 +130,14 @@ engine: copilot
 			var buf bytes.Buffer
 			io.Copy(&buf, r)
 			stderrOutput := buf.String()
+
+			// Handle cases where compilation is expected to fail
+			if tt.expectCompileFail {
+				if err == nil {
+					t.Errorf("Expected compilation to fail but it succeeded")
+				}
+				return
+			}
 
 			if err != nil {
 				t.Errorf("Expected compilation to succeed but it failed: %v", err)
