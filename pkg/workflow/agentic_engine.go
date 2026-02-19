@@ -460,10 +460,10 @@ func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
 	return engines
 }
 
-// GetCopilotAgentPlaywrightTools returns the list of playwright tools available in the copilot agent
+// GetPlaywrightTools returns the list of playwright tools available in the copilot agent
 // This matches the tools available in the copilot agent MCP server configuration
 // This is a shared function used by all engines for consistent playwright tool configuration
-func GetCopilotAgentPlaywrightTools() []any {
+func GetPlaywrightTools() []any {
 	tools := []string{
 		"browser_click",
 		"browser_close",

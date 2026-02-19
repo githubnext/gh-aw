@@ -168,7 +168,6 @@ tools:
 
 Configure cache directory early (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for faster operations. Prefer symbol-level operations (`replace_symbol_body`) over file-level edits. For Go projects, explicitly set `go-mod-file` location. Combine Serena with other tools like `github`, `edit`, and `bash` for complete workflows. For large codebases, start with targeted analysis of specific packages before expanding scope.
 
-
 ## Troubleshooting
 
 **Language server not found:** Install required dependencies (e.g., `go install golang.org/x/tools/gopls@latest` for Go).
@@ -178,7 +177,6 @@ Configure cache directory early (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for 
 **Go module path not found:** Explicitly configure `go-mod-file: "path/to/go.mod"` in language settings.
 
 **Slow initial analysis:** Expected behavior as language servers build indexes. Subsequent runs use cached data. Enable cache-memory for persistence or run on schedule to maintain warm cache.
-
 
 ## Related Documentation
 

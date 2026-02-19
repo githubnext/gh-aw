@@ -394,9 +394,7 @@ Handle the issue and notify via Slack and Jira.
 
 Jobs with duplicate names cause compilation errors - rename to resolve conflicts.
 
-## Best Practices
-
-### Error Handling
+## Error Handling
 
 Use `core.setFailed()` for errors and validate required inputs:
 
@@ -418,11 +416,11 @@ try {
 }
 ```
 
-### Security
+## Security
 
 Store secrets in GitHub Secrets and pass via environment variables. Limit job permissions to minimum required and validate all inputs.
 
-### Staged Mode Support
+## Staged Mode Support
 
 Check `GH_AW_SAFE_OUTPUTS_STAGED` to preview operations without executing:
 
@@ -433,94 +431,6 @@ if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true') {
   return;
 }
 // Actually send the notification
-```
-
-## Common Mistakes
-
-### ❌ Using `${{ inputs.* }}` Syntax
-
-**This does NOT work:**
-
-```yaml
-steps:
-  - name: Wrong approach
-    env:
-      MESSAGE: "${{ inputs.message }}"  # ❌ This will be empty!
-    run: |
-      echo "$MESSAGE"  # Empty - inputs.* is not available
-```
-
-**✅ Correct approach:**
-
-```yaml
-steps:
-  - name: Correct approach
-    run: |
-      if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
-        MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "my_job") | .message')
-        echo "$MESSAGE"
-      fi
-```
-
-### ❌ Wrong Job Type Name
-
-**This does NOT work:**
-
-```yaml
-safe-outputs:
-  jobs:
-    notify-user:  # Job name with dashes
-      # ...
-      steps:
-        - run: |
-            # Wrong: using dashes in type filter
-            jq '.items[] | select(.type == "notify-user")'  # ❌ Won't match!
-```
-
-**Why it fails**: Job names with dashes are converted to underscores in the `type` field.
-
-**✅ Correct approach:**
-
-```yaml
-safe-outputs:
-  jobs:
-    notify-user:  # Job name with dashes
-      # ...
-      steps:
-        - run: |
-            # Correct: use underscores in type filter
-            jq '.items[] | select(.type == "notify_user")'  # ✅ Matches!
-```
-
-### ❌ Not Checking for Agent Output
-
-**This does NOT work:**
-
-```yaml
-steps:
-  - run: |
-      # ❌ Assumes file exists without checking
-      MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[0].message')
-```
-
-**Why it fails**: If the agent doesn't call your tool, the file might not exist or be empty, causing errors.
-
-**✅ Correct approach:**
-
-```yaml
-steps:
-  - run: |
-      if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
-        ITEMS=$(cat "$GH_AW_AGENT_OUTPUT" | jq '.items[] | select(.type == "my_job")')
-        if [ -z "$ITEMS" ]; then
-          echo "No items found for this job"
-          exit 0
-        fi
-        # Process items...
-      else
-        echo "No agent output file found"
-        exit 1
-      fi
 ```
 
 ## Troubleshooting

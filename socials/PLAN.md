@@ -76,7 +76,6 @@ Remaining posts (shifted later due to daily Meet the Workflows roll-out):
 - 2026-02-13 -> `24-imports-sharing.md`
 - 2026-02-14 -> `25-security-lessons.md`
 - 2026-02-15 -> `26-how-workflows-work.md`
-- 2026-02-16 -> `27-authoring-workflows.md`
 
 ### Content Format
 

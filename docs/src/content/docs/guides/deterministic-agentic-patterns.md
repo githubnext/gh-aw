@@ -180,12 +180,6 @@ steps:
 
 Reference in prompts: "Analyze issues in `/tmp/gh-aw/agent/issues.json` and PRs in `/tmp/gh-aw/agent/pulls.json`."
 
-## Best Practices
-
-**Data sharing**: Store data in `/tmp/gh-aw/agent/` for automatic artifact upload, or pass via environment variables (`echo "KEY=value" >> "$GITHUB_ENV"`).
-
-**Job dependencies**: Use `needs: [job-name]` to define execution order between jobs.
-
 ## Related Documentation
 
 - [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) - Custom post-processing jobs

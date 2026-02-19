@@ -51,10 +51,9 @@ gh aw compile
 
 ## Editing Workflows
 
-> [!TIP]
-> The **markdown body** is loaded at runtime and can be edited directly on GitHub.com without recompilation. Only **frontmatter changes** require recompilation.
+The **markdown body** is loaded at runtime and can be edited directly on GitHub.com without recompilation. Only **frontmatter changes** require recompilation.
 
-See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when recompilation is needed.
+See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when and how to recompile workflows.
 
 ## Best Practices
 

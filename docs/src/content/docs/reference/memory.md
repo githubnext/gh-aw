@@ -11,7 +11,7 @@ Agentic workflows maintain persistent memory through **cache-memory** (GitHub Ac
 
 Provides persistent file storage across workflow runs via GitHub Actions cache. The compiler automatically configures the cache directory, restore/save operations, and progressive fallback keys at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/` (additional caches).
 
-## Enabling Cache Memory
+### Enabling Cache Memory
 
 ```aw wrap
 ---
@@ -22,7 +22,7 @@ tools:
 
 Stores files at `/tmp/gh-aw/cache-memory/` using default key `memory-${{ github.workflow }}-${{ github.run_id }}`. Use standard file operations to store/retrieve JSON/YAML, text files, or subdirectories.
 
-## Advanced Configuration
+### Advanced Configuration
 
 ```aw wrap
 ---
@@ -34,7 +34,7 @@ tools:
 ---
 ```
 
-### File Type Restrictions
+#### File Type Restrictions
 
 The `allowed-extensions` field restricts which file types can be written to cache-memory. By default, all file types are allowed (empty array). When specified, only files with listed extensions can be stored.
 
@@ -48,7 +48,7 @@ tools:
 
 If files with disallowed extensions are found, the workflow will report validation failures.
 
-## Multiple Cache Configurations
+### Multiple Configurations
 
 ```aw wrap
 ---
@@ -65,7 +65,7 @@ tools:
 
 Mounts at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/`. The `id` determines folder name; `key` defaults to `memory-{id}-${{ github.workflow }}-${{ github.run_id }}`.
 
-## Cache Merging from Shared Workflows
+### Merging from Shared Workflows
 
 ```aw wrap
 ---
@@ -78,37 +78,21 @@ tools:
 
 Merge rules: **Single→Single** (local overrides), **Single→Multiple** (local converts to array), **Multiple→Multiple** (merge by `id`, local wins).
 
-## Cache Behavior
+### Behavior
 
 GitHub Actions cache: 7-day retention, 10GB per repo, LRU eviction. Add `retention-days` to upload artifacts (1-90 days) for extended access.
 
 Caches accessible across branches with unique per-run keys. Custom keys auto-append `-${{ github.run_id }}`. Progressive restore splits on dashes: `custom-memory-project-v1-${{ github.run_id }}` tries `custom-memory-project-v1-`, `custom-memory-project-`, `custom-memory-`, `custom-`.
 
-## Best Practices
+### Best Practices
 
 Use descriptive file/directory names, hierarchical cache keys (`project-${{ github.repository_owner }}-${{ github.workflow }}`), and appropriate scope (workflow-specific default or repository/user-wide). Monitor growth within 10GB limit.
 
-## Troubleshooting
-
-**Files not persisting**: Check cache key consistency and logs for restore/save messages.
-**File access issues**: Create subdirectories first, verify permissions, use absolute paths.
-**Cache size issues**: Track growth, clear periodically, or use time-based keys for auto-expiration.
-
-## Security
-
-Don't store sensitive data. Cache follows repository permissions, logs access. With [threat detection](/gh-aw/reference/threat-detection/), cache saves only after validation succeeds (restore→modify→upload artifact→validate→save).
-
-## Examples
-
-See [Grumpy Code Reviewer](https://github.com/github/gh-aw/blob/main/.github/workflows/grumpy-reviewer.md) for tracking PR review history.
-
----
-
-# Repo Memory
+## Repo Memory
 
 Persistent file storage via Git branches with unlimited retention. The compiler auto-configures branch cloning/creation, file access at `/tmp/gh-aw/repo-memory-{id}/`, commits/pushes, and merge conflict resolution (your changes win).
 
-## Enabling Repo Memory
+### Enabling Repo Memory
 
 ```aw wrap
 ---
@@ -119,7 +103,7 @@ tools:
 
 Creates branch `memory/default` at `/tmp/gh-aw/repo-memory-default/`. Files are stored within the branch at the branch name path (`memory/default/`). Files auto-commit/push after workflow completion.
 
-## Advanced Configuration
+### Advanced Configuration
 
 ```aw wrap
 ---
@@ -143,7 +127,7 @@ tools:
 
 **Note**: File glob patterns must include the full branch path structure. For branch `memory/custom-agent-for-aw`, use patterns like `memory/custom-agent-for-aw/*.json` to match files stored at that path within the branch.
 
-## Multiple Repo Memory Configurations
+### Multiple Configurations
 
 ```aw wrap
 ---
@@ -160,13 +144,9 @@ tools:
 
 Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `{branch-prefix}/{id}` (where `branch-prefix` defaults to `memory`). Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns must include the full branch path.**
 
-## Behavior
+### Behavior
 
 Branches auto-create as orphans (default) or clone with `--depth 1`. Changes auto-commit after validation (`file-glob`, `max-file-size`, `max-file-count`), pull with `-X ours` (your changes win), and push when changes detected and threat detection passes. Auto-adds `contents: write` permission.
-
-## Best Practices
-
-Use descriptive names, hierarchical branches (`memory/insights`), appropriate scope (workflow-specific, shared, or `target-repo` for cross-repository), and constraints to prevent abuse. Monitor branch size, clean periodically.
 
 ## Comparison
 
@@ -181,21 +161,33 @@ Use descriptive names, hierarchical branches (`memory/insights`), appropriate sc
 
 ## Troubleshooting
 
-**Branch not created**: Ensure `create-orphan: true` or create manually.
-**Permission denied**: Compiler auto-adds `contents: write`.
-**Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default) and `max-file-count` (100 default).
-**Changes not persisting**: Check directory path, workflow completion, push errors in logs.
-**Merge conflicts**: Uses `-X ours` (your changes win). Read before writing to preserve data.
+### Cache Memory Problems
+
+- **Files not persisting**: Check cache key consistency and logs for restore/save messages.
+- **File access issues**: Create subdirectories first, verify permissions, use absolute paths.
+- **Cache size issues**: Track growth, clear periodically, or use time-based keys for auto-expiration.
+
+### Repo Memory Problems
+
+- **Branch not created**: Ensure `create-orphan: true` or create manually.
+- **Permission denied**: Compiler auto-adds `contents: write`.
+- **Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default) and `max-file-count` (100 default).
+- **Changes not persisting**: Check directory path, workflow completion, push errors in logs.
+- **Merge conflicts**: Uses `-X ours` (your changes win). Read before writing to preserve data.
 
 ## Security
 
-Memory branches follow repository permissions. Use private repos for sensitive data, avoid storing secrets, set constraints (`file-glob`, `max-file-size`, `max-file-count`), consider branch protection, use `target-repo` to isolate.
+Don't store sensitive data in either memory type. Both follow repository permissions.
+
+**Cache Memory**: Logs access. With [threat detection](/gh-aw/reference/threat-detection/), cache saves only after validation succeeds (restore→modify→upload artifact→validate→save).
+
+**Repo Memory**: Use private repos for sensitive data, avoid storing secrets, set constraints (`file-glob`, `max-file-size`, `max-file-count`), consider branch protection, use `target-repo` to isolate.
 
 ## Examples
 
-See [Deep Report](https://github.com/github/gh-aw/blob/main/.github/workflows/deep-report.md) and [Daily Firewall Report](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-firewall-report.md) for long-term insights and historical data tracking.
+**Cache Memory**: See [Grumpy Code Reviewer](https://github.com/github/gh-aw/blob/main/.github/workflows/grumpy-reviewer.md) for tracking PR review history.
 
----
+**Repo Memory**: See [Deep Report](https://github.com/github/gh-aw/blob/main/.github/workflows/deep-report.md) and [Daily Firewall Report](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-firewall-report.md) for long-term insights and historical data tracking.
 
 ## Related Documentation
 

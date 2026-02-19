@@ -76,7 +76,7 @@ func TestCodexEnginePlaywrightToolsExpansion(t *testing.T) {
 				}
 
 				// Verify that all expected copilot agent tools are present
-				expectedTools := GetCopilotAgentPlaywrightTools()
+				expectedTools := GetPlaywrightTools()
 				if len(allowedSlice) != len(expectedTools) {
 					t.Errorf("Expected %d tools to match copilot agent tools, got %d", len(expectedTools), len(allowedSlice))
 				}

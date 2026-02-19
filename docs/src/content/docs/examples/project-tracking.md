@@ -277,15 +277,6 @@ Determine the team that should handle this issue:
 Update the project item with the team field.
 ```
 
-## Best Practices
-
-1. **Use specific project URLs** - Reference the exact project board to avoid ambiguity
-2. **Set reasonable limits** - Use `max-updates` to prevent runaway operations
-3. **Secure tokens properly** - Store project tokens as repository/organization secrets
-4. **Enable do-not-downgrade** - Prevent accidental status regression on completed items
-5. **Test with dry runs** - Use `staged: true` in safe-outputs to preview changes
-6. **Document field mappings** - Comment your workflow to explain project field choices
-
 ## Troubleshooting
 
 ### Items Not Added to Project

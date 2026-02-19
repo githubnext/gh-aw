@@ -26,7 +26,7 @@ func TestTaskJobGenerationFix(t *testing.T) {
 		// 2. Even with safe events and roles: all, we still want the timestamp check
 		workflowContent := `---
 on:
-  workflow_dispatch: null
+  workflow_dispatch:
   roles: all
 ---
 
@@ -129,7 +129,7 @@ Do some work.`
 		workflowContent := `---
 on:
   workflow_dispatch:
-roles: all
+  roles: all
 if: ${{ github.ref == 'refs/heads/main' }}
 ---
 

@@ -267,16 +267,6 @@ gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
 
 For enhanced security, use GitHub App installation tokens. See [GitHub App for Safe Outputs](/gh-aw/reference/auth/#github-app-for-safe-outputs) for complete configuration including repository scoping options.
 
-## Best Practices
-
-**Change Detection**: Use path filters to avoid unnecessary runs, check for meaningful changes (not just whitespace), group related changes into single PRs, and track sync history to avoid duplicates.
-
-**PR Management**: Create draft PRs for syncs requiring review, use consistent labels, add appropriate reviewers, and include comprehensive descriptions linking to source commits.
-
-**Error Handling**: Handle merge conflicts with clear documentation, validate target repo structure before creating PRs, provide rollback instructions, and monitor for failed syncs.
-
-**Testing**: Test sync workflows on public repos first, verify path mappings, check for breaking changes, and validate in staging before production.
-
 ## Related Documentation
 
 - [MultiRepoOps Design Pattern](/gh-aw/patterns/multirepoops/) - Complete multi-repo overview

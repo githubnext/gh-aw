@@ -609,7 +609,7 @@ func TestExtractAdditionalConfigurations(t *testing.T) {
 
 	testContent := `---
 on:
-  push: null
+  workflow_dispatch:
   roles:
     - admin
   bots:

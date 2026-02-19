@@ -11,7 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
+func TestCopilotCodingAgentDetector_IsGitHubCopilotCodingAgent(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupFunc      func(string) error
@@ -111,13 +111,13 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 			}
 
 			// Run detector with workflow path if provided
-			var detector *CopilotAgentDetector
+			var detector *CopilotCodingAgentDetector
 			if tt.workflowPath != "" {
-				detector = NewCopilotAgentDetectorWithPath(tmpDir, false, tt.workflowPath)
+				detector = NewCopilotCodingAgentDetectorWithPath(tmpDir, false, tt.workflowPath)
 			} else {
-				detector = NewCopilotAgentDetector(tmpDir, false)
+				detector = NewCopilotCodingAgentDetector(tmpDir, false)
 			}
-			result := detector.IsGitHubCopilotAgent()
+			result := detector.IsGitHubCopilotCodingAgent()
 
 			if result != tt.expectedResult {
 				t.Errorf("Expected %v, got %v", tt.expectedResult, result)
@@ -126,7 +126,7 @@ func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
 	}
 }
 
-func TestParseCopilotAgentLogMetrics(t *testing.T) {
+func TestParseCopilotCodingAgentLogMetrics(t *testing.T) {
 	tests := []struct {
 		name           string
 		logContent     string
@@ -189,7 +189,7 @@ Task step 1 complete
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics := ParseCopilotAgentLogMetrics(tt.logContent, false)
+			metrics := ParseCopilotCodingAgentLogMetrics(tt.logContent, false)
 
 			if tt.expectedTurns > 0 && metrics.Turns != tt.expectedTurns {
 				t.Errorf("Expected %d turns, got %d", tt.expectedTurns, metrics.Turns)
@@ -288,7 +288,7 @@ func TestExtractErrorMessage(t *testing.T) {
 	}
 }
 
-func TestIntegration_CopilotAgentWithAudit(t *testing.T) {
+func TestIntegration_CopilotCodingAgentWithAudit(t *testing.T) {
 	// Create a temporary directory that simulates a GitHub Copilot coding agent run
 	// NOTE: GitHub Copilot coding agent runs do NOT have aw_info.json (that's for agentic workflows)
 	tmpDir, err := os.MkdirTemp("", "copilot-agent-integration-*")
@@ -314,8 +314,8 @@ Tool call: github_create_pr
 	}
 
 	// Verify detector recognizes this as a GitHub Copilot coding agent run (no aw_info.json)
-	detector := NewCopilotAgentDetector(tmpDir, false)
-	if !detector.IsGitHubCopilotAgent() {
+	detector := NewCopilotCodingAgentDetector(tmpDir, false)
+	if !detector.IsGitHubCopilotCodingAgent() {
 		t.Error("Expected GitHub Copilot coding agent to be detected from log patterns")
 	}
 
@@ -372,7 +372,7 @@ Task iteration 1
 Tool call: github
 ERROR: Test error
 `
-	metrics := ParseCopilotAgentLogMetrics(logContent, false)
+	metrics := ParseCopilotCodingAgentLogMetrics(logContent, false)
 
 	// Verify the returned type is workflow.LogMetrics
 	var _ = metrics

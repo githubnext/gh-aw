@@ -102,7 +102,7 @@ engine:
 
 The `agent` field value should match the agent file name without the `.agent.md` extension. For example, `agent: technical-doc-writer` references `.github/agents/technical-doc-writer.agent.md`.
 
-See [Copilot Custom Agents](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
+See [Copilot Agent Filess](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
 
 ### Engine Environment Variables
 
