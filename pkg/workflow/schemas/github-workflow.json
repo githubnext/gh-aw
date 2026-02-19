@@ -180,7 +180,7 @@
         "discussions": {
           "$ref": "#/definitions/permissions-level"
         },
-        "models": {
+        "id-token": {
           "type": "string",
           "enum": ["write", "none"]
         },
