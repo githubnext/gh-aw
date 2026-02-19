@@ -153,9 +153,10 @@ The YAML frontmatter supports these fields:
   - Each plugin repo must use `org/repo` format
   - Plugins install after engine CLI setup but before workflow execution
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
-- **`roles:`** - Repository access roles that can trigger workflow (array or "all")
+- **`on.roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
+  - **Note**: The top-level `roles:` field is deprecated. Use `on.roles:` instead. Run `gh aw fix --write` to migrate.
 - **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array)
   - Example: `bots: [dependabot[bot], renovate[bot], github-actions[bot]]`
   - Bot must be active (installed) on repository to trigger workflow
@@ -198,6 +199,7 @@ The YAML frontmatter supports these fields:
     - `version:` - Runtime version as string or number (e.g., '22', '3.12', 'latest', 22, 3.12)
     - `action-repo:` - GitHub Actions repository for setup (e.g., 'actions/setup-node')
     - `action-version:` - Version of the setup action (e.g., 'v4', 'v5')
+    - `if:` - Optional GitHub Actions condition to control when runtime setup runs (e.g., `"hashFiles('go.mod') != ''"`)
   - Example:
     ```yaml
     runtimes:
@@ -207,6 +209,9 @@ The YAML frontmatter supports these fields:
         version: "3.12"
         action-repo: "actions/setup-python"
         action-version: "v5"
+      go:
+        version: "1.22"
+        if: "hashFiles('go.mod') != ''"   # Only install Go when go.mod exists
     ```
 
 - **`jobs:`** - Groups together all the jobs that run in the workflow (object)
@@ -225,12 +230,11 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"custom"` (user-defined steps)
-  - ⚠️ **Experimental engines**: `"claude"` and `"codex"` are available but experimental
+  - String format: `"copilot"` (default, recommended), `"claude"`, or `"codex"`
   - Object format for extended configuration:
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, custom, or experimental: claude, codex)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, or codex)
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
@@ -244,38 +248,6 @@ The YAML frontmatter supports these fields:
           level_group: 1
     ```
   - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
-  - **Custom engine format** (⚠️ experimental):
-    ```yaml
-    engine:
-      id: custom                        # Required: custom engine identifier
-      max-turns: 10                     # Optional: maximum iterations (for consistency)
-      max-concurrency: 5                # Optional: max concurrent workflows (for consistency)
-      steps:                            # Required: array of custom GitHub Actions steps
-        - name: Run tests
-          run: npm test
-    ```
-    The `custom` engine allows you to define your own GitHub Actions steps instead of using an AI processor. Each step in the `steps` array follows standard GitHub Actions step syntax with `name`, `uses`/`run`, `with`, `env`, etc. This is useful for deterministic workflows that don't require AI processing.
-
-    **Environment Variables Available to Custom Engines:**
-    
-    Custom engine steps have access to the following environment variables:
-    
-    - **`$GH_AW_PROMPT`**: Path to the generated prompt file (`/tmp/gh-aw/aw-prompts/prompt.txt`) containing the markdown content from the workflow. This file contains the natural language instructions that would normally be sent to an AI processor. Custom engines can read this file to access the workflow's markdown content programmatically.
-    - **`$GH_AW_SAFE_OUTPUTS`**: Path to the safe outputs file (when safe-outputs are configured). Used for writing structured output that gets processed automatically.
-    - **`$GH_AW_MAX_TURNS`**: Maximum number of turns/iterations (when max-turns is configured in engine config).
-    
-    Example of accessing the prompt content:
-    ```bash
-    # Read the workflow prompt content
-    cat $GH_AW_PROMPT
-    
-    # Process the prompt content in a custom step
-    - name: Process workflow instructions
-      run: |
-        echo "Workflow instructions:"
-        cat $GH_AW_PROMPT
-        # Add your custom processing logic here
-    ```
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)
@@ -391,7 +363,9 @@ The YAML frontmatter supports these fields:
         labels: [automation, agentic]    # Optional: labels to attach to issues
         assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
         max: 5                          # Optional: maximum number of issues (default: 1)
-        expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y)
+        expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
+        group: true                     # Optional: group as sub-issues under a parent issue (default: false)
+        close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -808,15 +782,19 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       assign-to-user:
         assignees: [user1, user2]       # Optional: restrict to specific users
+        blocked: [copilot, "*[bot]"]    # Optional: deny specific users or glob patterns
         max: 3                          # Optional: max assignments (default: 3)
         target: "*"                     # Optional: "triggering" (default), "*", or number
         target-repo: "owner/repo"       # Optional: cross-repository
+        unassign-first: true            # Optional: unassign all current assignees first (default: false)
     ```
     When using `safe-outputs.assign-to-user`, the main job does **not** need `issues: write` or `pull-requests: write` permission since user assignment is handled by a separate job with appropriate permissions.
   - `unassign-from-user:` - Remove user assignments from issues or PRs
     ```yaml
     safe-outputs:
       unassign-from-user:
+        allowed: [user1, user2]         # Optional: restrict to specific users
+        blocked: [copilot, "*[bot]"]    # Optional: deny specific users or glob patterns
         max: 1                          # Optional: max unassignments (default: 1)
         target: "*"                     # Optional: "triggering" (default), "*", or number
         target-repo: "owner/repo"       # Optional: cross-repository
@@ -1950,6 +1928,8 @@ Agentic workflows compile to GitHub Actions YAML:
 
 ### Breaking Configuration Changes
 
+- **`custom` engine removed** (v0.46.1) - The `custom` engine type is no longer supported. Workflows using `engine: custom` must migrate to `copilot`, `claude`, or `codex`.
+- **`copilot-sdk` engine removed** (v0.46.1) - The `copilot-sdk` engine has been removed. Update any workflows referencing this engine.
 - **Status Comments**: Status comments must now be explicitly enabled with `status-comment: true`. Previously coupled with `reaction`, now independently configured.
 - **Temporary ID Format**: Changed from `aw_` + 12 hex chars to `aw_` + 3-8 alphanumeric chars. Update references in existing workflows accordingly.
 
@@ -1984,7 +1964,7 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 
 - **Invalid field names** - Only fields in the schema are allowed
 - **Wrong field types** - e.g., `timeout-minutes` must be integer
-- **Invalid enum values** - e.g., `engine` must be "copilot", "custom", or experimental: "claude", "codex"
+- **Invalid enum values** - e.g., `engine` must be "copilot", "claude", or "codex"
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.
