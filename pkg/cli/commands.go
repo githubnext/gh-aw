@@ -43,18 +43,21 @@ func GetVersion() string {
 	return version
 }
 
+// isRelease returns true if the current version is a release build
+// (i.e. starts with "v", contains a dot, and is not dirty).
+func isRelease() bool {
+	v := GetVersion()
+	return strings.HasPrefix(v, "v") && strings.Contains(v, ".") && !strings.Contains(v, "dirty")
+}
+
 // downloadAgentFileFromGitHub downloads the agentic-workflows.agent.md file from GitHub
 func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 	commandsLog.Print("Downloading agentic-workflows.agent.md from GitHub")
 
 	// Determine the ref to use (tag for releases, main for dev builds)
 	ref := "main"
-	currentVersion := GetVersion()
-
-	// If version looks like a release tag (starts with v and contains dots), use it
-	isRelease := strings.HasPrefix(currentVersion, "v") && strings.Contains(currentVersion, ".") && !strings.Contains(currentVersion, "dirty")
-	if isRelease {
-		ref = currentVersion
+	if isRelease() {
+		ref = GetVersion()
 		commandsLog.Printf("Using release tag: %s", ref)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using release version: %s", ref)))
