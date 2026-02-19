@@ -63,15 +63,17 @@ describe("safe_output_manifest", () => {
       expect(entry.repo).toBe("owner/repo");
       expect(entry.temporaryId).toBe("aw_abc123");
       expect(entry.timestamp).toBeDefined();
-      // timestamp should be a valid ISO 8601 string
-      expect(() => new Date(entry.timestamp)).not.toThrow();
+      // timestamp should be a valid ISO 8601 string (Date.parse returns NaN for invalid dates)
+      expect(Date.parse(entry.timestamp)).not.toBeNaN();
     });
 
     it("should skip items without a url", () => {
       const log = createManifestLogger(testManifestFile);
       log({ type: "create_issue", url: undefined });
 
-      expect(fs.existsSync(testManifestFile)).toBe(false);
+      // File is created by createManifestLogger() immediately, but should be empty
+      expect(fs.existsSync(testManifestFile)).toBe(true);
+      expect(fs.readFileSync(testManifestFile, "utf8")).toBe("");
     });
 
     it("should skip null/undefined items", () => {
@@ -79,7 +81,9 @@ describe("safe_output_manifest", () => {
       log(null);
       log(undefined);
 
-      expect(fs.existsSync(testManifestFile)).toBe(false);
+      // File is created by createManifestLogger() immediately, but should be empty
+      expect(fs.existsSync(testManifestFile)).toBe(true);
+      expect(fs.readFileSync(testManifestFile, "utf8")).toBe("");
     });
 
     it("should omit optional fields when not provided", () => {

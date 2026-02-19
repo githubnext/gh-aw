@@ -972,12 +972,12 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
  * @returns {Promise<void>}
  */
 async function main() {
+  // Detect staged mode before try/finally so it's accessible in the finally block.
+  // In staged mode no real items are created in GitHub so no manifest should be emitted.
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
   try {
     core.info("=== Starting Unified Safe Output Handler Manager ===");
-
-    // Detect staged mode — in staged mode no real items are created in GitHub
-    // so we must not emit the manifest
-    const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
     // Reset create_issue handler's global state to ensure clean state for this run
     // This prevents stale data accumulation if the module is reused
@@ -1151,11 +1151,23 @@ async function main() {
 
     // Ensure the manifest file always exists for artifact upload (even if no items were created).
     // Skip in staged mode — no real items were created so no manifest should be emitted.
+    // Note: createManifestLogger() also calls ensureManifestExists() when the logger is created,
+    // so this is a safety net for cases where we never reached the logger creation.
     if (!isStaged) ensureManifestExists();
 
     core.info("=== Unified Safe Output Handler Manager Completed ===");
   } catch (error) {
     core.setFailed(`Handler manager failed: ${getErrorMessage(error)}`);
+  } finally {
+    // Guarantee the manifest file exists for artifact upload even when the handler fails.
+    // This is a no-op if the file was already created by createManifestLogger().
+    if (!isStaged) {
+      try {
+        ensureManifestExists();
+      } catch (_e) {
+        // Ignore errors here — we must not mask the original failure
+      }
+    }
   }
 }
 

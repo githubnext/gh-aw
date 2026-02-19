@@ -429,6 +429,10 @@ func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
 		items = append(items, item)
 	}
 
+	if err := scanner.Err(); err != nil {
+		auditReportLog.Printf("Error reading manifest file: %v", err)
+	}
+
 	auditReportLog.Printf("Extracted %d created item(s) from manifest", len(items))
 	return items
 }

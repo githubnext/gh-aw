@@ -48,6 +48,10 @@ const CREATE_ITEM_TYPES = new Set([
  * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string}) => void} Logger function
  */
 function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
+  // Touch the file immediately so it exists for artifact upload
+  // even if no items are created during this run.
+  ensureManifestExists(manifestFile);
+
   /**
    * Log a created item to the manifest file.
    * Items without a URL are silently skipped.
