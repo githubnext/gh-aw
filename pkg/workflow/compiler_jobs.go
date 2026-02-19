@@ -125,10 +125,18 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
 
-	// Try to read frontmatter to determine event types for safe events check
+	// Try to read frontmatter to determine event types for safe events check.
+	// Use contentOverride first (set by ParseWorkflowString for wasm/string API mode),
+	// then fall back to reading from disk.
 	var frontmatter map[string]any
-	if content, err := os.ReadFile(markdownPath); err == nil {
-		if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
+	var rawContent string
+	if c.contentOverride != "" {
+		rawContent = c.contentOverride
+	} else if diskContent, err := os.ReadFile(markdownPath); err == nil {
+		rawContent = string(diskContent)
+	}
+	if rawContent != "" {
+		if result, err := parser.ExtractFrontmatterFromContent(rawContent); err == nil {
 			frontmatter = result.Frontmatter
 		}
 	}
