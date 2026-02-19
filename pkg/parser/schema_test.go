@@ -1412,6 +1412,39 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// id-token permission validation - id-token only supports "write" and "none", not "read"
+		// See: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs#defining-access-for-the-github_token-scopes
+		{
+			name: "invalid: id-token: read is not allowed (only write and none)",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"permissions": map[string]any{
+					"id-token": "read",
+				},
+			},
+			wantErr:     true,
+			errContains: "id-token",
+		},
+		{
+			name: "valid: id-token: write is allowed",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"permissions": map[string]any{
+					"id-token": "write",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: id-token: none is allowed",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"permissions": map[string]any{
+					"id-token": "none",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
