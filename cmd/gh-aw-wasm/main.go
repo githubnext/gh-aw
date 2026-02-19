@@ -3,6 +3,7 @@
 package main
 
 import (
+	"strings"
 	"syscall/js"
 
 	"github.com/github/gh-aw/pkg/parser"
@@ -87,9 +88,13 @@ func doCompile(markdown string, files map[string][]byte, filename string) (js.Va
 		defer parser.ClearVirtualFiles()
 	}
 
+	// Derive workflow identifier from filename for fuzzy cron schedule scattering
+	identifier := strings.TrimSuffix(filename, ".md")
+
 	compiler := workflow.NewCompiler(
 		workflow.WithNoEmit(true),
 		workflow.WithSkipValidation(true),
+		workflow.WithWorkflowIdentifier(identifier),
 	)
 
 	// Parse directly from string — no temp files needed

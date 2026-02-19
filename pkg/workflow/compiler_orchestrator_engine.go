@@ -130,7 +130,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 			fmt.Fprintf(os.Stderr, "WARNING: Skipping security scan for unresolvable import '%s': %v\n", importedFile, resolveErr)
 			continue
 		}
-		importContent, readErr := os.ReadFile(fullPath)
+		importContent, readErr := parser.ReadFile(fullPath)
 		if readErr != nil {
 			orchestratorEngineLog.Printf("Skipping security scan for unreadable import: %s: %v", fullPath, readErr)
 			fmt.Fprintf(os.Stderr, "WARNING: Skipping security scan for unreadable import '%s' (resolved path: %s): %v\n", importedFile, fullPath, readErr)

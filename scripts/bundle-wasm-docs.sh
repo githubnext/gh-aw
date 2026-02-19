@@ -35,6 +35,19 @@ if [ ! -f "${WASM_EXEC_SRC}" ]; then
 fi
 cp "${WASM_EXEC_SRC}" "${DEST_DIR}/wasm_exec.js"
 
+# Generate brotli-compressed version for smaller transfers
+# GitHub Pages serves .br files automatically when Accept-Encoding: br is present
+if command -v brotli &> /dev/null; then
+  echo "==> Compressing WASM with brotli..."
+  brotli -k -q 11 "${DEST_DIR}/gh-aw.wasm"
+  echo "Compressed: $(du -h "${DEST_DIR}/gh-aw.wasm.br" | cut -f1) (from $(du -h "${DEST_DIR}/gh-aw.wasm" | cut -f1))"
+else
+  echo "Warning: brotli not found. Install with: apt-get install brotli (or brew install brotli)"
+  echo "Falling back to gzip compression..."
+  gzip -k -9 "${DEST_DIR}/gh-aw.wasm"
+  echo "Compressed: $(du -h "${DEST_DIR}/gh-aw.wasm.gz" | cut -f1) (from $(du -h "${DEST_DIR}/gh-aw.wasm" | cut -f1))"
+fi
+
 echo ""
 echo "Done. Files in ${DEST_DIR}:"
 ls -lh "${DEST_DIR}/gh-aw.wasm" "${DEST_DIR}/wasm_exec.js"

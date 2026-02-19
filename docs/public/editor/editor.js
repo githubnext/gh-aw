@@ -12,33 +12,107 @@ import { oneDark } from 'https://esm.sh/@codemirror/theme-one-dark@6.1.3';
 import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
 
 // ---------------------------------------------------------------
-// Default workflow content
+// Sample workflow registry (fetched from GitHub on demand)
 // ---------------------------------------------------------------
-const DEFAULT_CONTENT = [
-  '---',
-  'name: hello-world',
-  'description: A simple hello world workflow',
-  'on:',
-  '  workflow_dispatch:',
-  'engine: copilot',
-  '---',
-  '',
-  '# Mission',
-  '',
-  'Say hello to the world! Check the current date and time, and greet the user warmly.',
-  ''
-].join('\n');
+const AGENTICS_RAW = 'https://raw.githubusercontent.com/githubnext/agentics/main/workflows';
+
+const SAMPLES = {
+  'hello-world': {
+    label: 'Hello World',
+    content: `---
+name: hello-world
+description: A simple hello world workflow
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+# Mission
+
+Say hello to the world! Check the current date and time, and greet the user warmly.
+`,
+  },
+  'issue-triage': {
+    label: 'Issue Triage',
+    url: `${AGENTICS_RAW}/issue-triage.md`,
+  },
+  'ci-doctor': {
+    label: 'CI Doctor',
+    url: `${AGENTICS_RAW}/ci-doctor.md`,
+  },
+  'contribution-check': {
+    label: 'Contribution Guidelines Checker',
+    url: `${AGENTICS_RAW}/contribution-guidelines-checker.md`,
+  },
+  'daily-repo-status': {
+    label: 'Daily Repo Status',
+    url: `${AGENTICS_RAW}/daily-repo-status.md`,
+  },
+};
+
+// Cache for fetched content (keyed by URL)
+const contentCache = new Map();
+
+const DEFAULT_CONTENT = SAMPLES['hello-world'].content;
+
+// ---------------------------------------------------------------
+// GitHub URL helpers
+// ---------------------------------------------------------------
+
+/** Convert github.com blob/tree URLs to raw.githubusercontent.com */
+function toRawGitHubUrl(url) {
+  // https://github.com/{owner}/{repo}/blob/{ref}/{path}
+  const blobMatch = url.match(
+    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/
+  );
+  if (blobMatch) {
+    const [, owner, repo, ref, path] = blobMatch;
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
+  }
+  return url;
+}
+
+/** Fetch markdown content from a URL (with cache) */
+async function fetchContent(url) {
+  const rawUrl = toRawGitHubUrl(url);
+  if (contentCache.has(rawUrl)) return contentCache.get(rawUrl);
+  const resp = await fetch(rawUrl);
+  if (!resp.ok) throw new Error(`Failed to fetch ${rawUrl}: ${resp.status}`);
+  const text = await resp.text();
+  contentCache.set(rawUrl, text);
+  return text;
+}
+
+// ---------------------------------------------------------------
+// Hash-based deep linking
+//
+// Supported formats:
+//   #hello-world              — built-in sample key
+//   #issue-triage             — built-in sample key
+//   #https://raw.github...    — arbitrary raw URL
+//   #https://github.com/o/r/blob/main/file.md — auto-converted
+// ---------------------------------------------------------------
+
+function getHashValue() {
+  const h = location.hash.slice(1); // strip leading #
+  return decodeURIComponent(h).trim();
+}
+
+function setHashQuietly(value) {
+  // Replace state so we don't spam the history
+  history.replaceState(null, '', '#' + encodeURIComponent(value));
+}
 
 // ---------------------------------------------------------------
 // DOM Elements
 // ---------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 
+const sampleSelect = $('sampleSelect');
 const editorMount = $('editorMount');
 const outputPlaceholder = $('outputPlaceholder');
 const outputMount = $('outputMount');
 const outputContainer = $('outputContainer');
-const compileBtn = $('compileBtn');
 const statusBadge = $('statusBadge');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
@@ -48,7 +122,6 @@ const errorText = $('errorText');
 const warningBanner = $('warningBanner');
 const warningText = $('warningText');
 const themeToggle = $('themeToggle');
-const toggleTrack = $('toggleTrack');
 const divider = $('divider');
 const panelEditor = $('panelEditor');
 const panelOutput = $('panelOutput');
@@ -60,9 +133,9 @@ const panels = $('panels');
 let compiler = null;
 let isReady = false;
 let isCompiling = false;
-let autoCompile = true;
 let compileTimer = null;
 let currentYaml = '';
+let pendingCompile = false;
 
 // ---------------------------------------------------------------
 // Theme (uses Primer's data-color-mode)
@@ -115,8 +188,12 @@ const editorView = new EditorView({
       run: () => { doCompile(); return true; }
     }]),
     EditorView.updateListener.of(update => {
-      if (update.docChanged && autoCompile && isReady) {
-        scheduleCompile();
+      if (update.docChanged) {
+        if (isReady) {
+          scheduleCompile();
+        } else {
+          pendingCompile = true;
+        }
       }
     }),
   ],
@@ -156,11 +233,92 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 });
 
 // ---------------------------------------------------------------
-// Keyboard shortcut hint (Mac vs other)
+// Sample selector + deep-link loading
 // ---------------------------------------------------------------
-const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-document.querySelectorAll('.kbd-hint-mac').forEach(el => el.style.display = isMac ? 'inline' : 'none');
-document.querySelectorAll('.kbd-hint-other').forEach(el => el.style.display = isMac ? 'none' : 'inline');
+
+/** Replace editor content and trigger compile */
+function setEditorContent(text) {
+  editorView.dispatch({
+    changes: { from: 0, to: editorView.state.doc.length, insert: text }
+  });
+}
+
+/** Load a built-in sample by key */
+async function loadSample(key) {
+  const sample = SAMPLES[key];
+  if (!sample) return;
+
+  // Sync dropdown
+  sampleSelect.value = key;
+  setHashQuietly(key);
+
+  if (sample.content) {
+    setEditorContent(sample.content);
+    return;
+  }
+
+  // Fetch from URL
+  setStatus('compiling', 'Fetching...');
+  try {
+    const text = await fetchContent(sample.url);
+    sample.content = text; // cache on the sample object too
+    setEditorContent(text);
+  } catch (err) {
+    setStatus('error', 'Fetch failed');
+    errorText.textContent = err.message;
+    errorBanner.classList.remove('d-none');
+  }
+}
+
+/** Load content from an arbitrary URL (deep-link) */
+async function loadFromUrl(url) {
+  // Set dropdown to show it's a custom URL
+  if (!sampleSelect.querySelector('option[value="__url"]')) {
+    const opt = document.createElement('option');
+    opt.value = '__url';
+    opt.textContent = 'Custom URL';
+    sampleSelect.appendChild(opt);
+  }
+  sampleSelect.value = '__url';
+  setHashQuietly(url);
+
+  setStatus('compiling', 'Fetching...');
+  try {
+    const text = await fetchContent(url);
+    setEditorContent(text);
+  } catch (err) {
+    setStatus('error', 'Fetch failed');
+    errorText.textContent = err.message;
+    errorBanner.classList.remove('d-none');
+  }
+}
+
+/** Parse the current hash and load accordingly */
+async function loadFromHash() {
+  const hash = getHashValue();
+  if (!hash) return false;
+
+  if (SAMPLES[hash]) {
+    await loadSample(hash);
+    return true;
+  }
+
+  // Treat as URL if it starts with http
+  if (hash.startsWith('http://') || hash.startsWith('https://')) {
+    await loadFromUrl(hash);
+    return true;
+  }
+
+  return false;
+}
+
+sampleSelect.addEventListener('change', () => {
+  const key = sampleSelect.value;
+  if (key === '__url') return;
+  loadSample(key);
+});
+
+window.addEventListener('hashchange', () => loadFromHash());
 
 // ---------------------------------------------------------------
 // Status (uses Primer Label component)
@@ -186,18 +344,6 @@ function setStatus(status, text) {
     statusDot.style.animation = '';
   }
 }
-
-// ---------------------------------------------------------------
-// Auto-compile toggle
-// ---------------------------------------------------------------
-$('autoCompileToggle').addEventListener('click', () => {
-  autoCompile = !autoCompile;
-  if (autoCompile) {
-    toggleTrack.classList.add('active');
-  } else {
-    toggleTrack.classList.remove('active');
-  }
-});
 
 // ---------------------------------------------------------------
 // Compile
@@ -226,7 +372,6 @@ async function doCompile() {
 
   isCompiling = true;
   setStatus('compiling', 'Compiling...');
-  compileBtn.disabled = true;
 
   // Hide old banners
   errorBanner.classList.add('d-none');
@@ -262,11 +407,8 @@ async function doCompile() {
     errorBanner.classList.remove('d-none');
   } finally {
     isCompiling = false;
-    compileBtn.disabled = !isReady;
   }
 }
-
-compileBtn.addEventListener('click', doCompile);
 
 // ---------------------------------------------------------------
 // Banner close
@@ -351,6 +493,18 @@ document.addEventListener('touchend', () => {
 // Initialize compiler
 // ---------------------------------------------------------------
 async function init() {
+  // Hide the loading overlay immediately — the editor is already visible
+  loadingOverlay.classList.add('hidden');
+
+  // Show compiler-loading status in the header badge
+  setStatus('loading', 'Loading compiler...');
+
+  // Show a helpful placeholder in the output panel while WASM downloads
+  outputPlaceholder.textContent = 'Compiler loading... You can start editing!';
+
+  // Kick off deep-link / sample loading (works before WASM is ready)
+  loadFromHash();
+
   try {
     compiler = createWorkerCompiler({
       workerUrl: '/gh-aw/wasm/compiler-worker.js'
@@ -359,18 +513,12 @@ async function init() {
     await compiler.ready;
     isReady = true;
     setStatus('ready', 'Ready');
-    compileBtn.disabled = false;
-    loadingOverlay.classList.add('hidden');
 
-    // Auto-compile the default content
-    if (autoCompile) {
-      doCompile();
-    }
+    // Compile whatever the user has typed (or the default/deep-linked content)
+    doCompile();
   } catch (err) {
     setStatus('error', 'Failed to load');
-    loadingOverlay.querySelector('.f4').textContent = 'Failed to load compiler';
-    loadingOverlay.querySelector('.f6').textContent = err.message;
-    loadingOverlay.querySelector('.loading-spinner').style.display = 'none';
+    outputPlaceholder.textContent = `Failed to load compiler: ${err.message}`;
   }
 }
 

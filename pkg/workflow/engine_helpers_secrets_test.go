@@ -172,10 +172,9 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 
 		secrets := engine.GetRequiredSecretNames(workflowData)
 
-		// Should include ANTHROPIC_API_KEY and CLAUDE_CODE_OAUTH_TOKEN
-		require.Len(t, secrets, 2)
+		// Should only include ANTHROPIC_API_KEY
+		require.Len(t, secrets, 1)
 		assert.Contains(t, secrets, "ANTHROPIC_API_KEY")
-		assert.Contains(t, secrets, "CLAUDE_CODE_OAUTH_TOKEN")
 	})
 
 	t.Run("includes MCP gateway API key when MCP servers present", func(t *testing.T) {
@@ -190,9 +189,8 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 
 		secrets := engine.GetRequiredSecretNames(workflowData)
 
-		// Should include Claude secrets and MCP_GATEWAY_API_KEY
+		// Should include ANTHROPIC_API_KEY and MCP_GATEWAY_API_KEY
 		assert.Contains(t, secrets, "ANTHROPIC_API_KEY")
-		assert.Contains(t, secrets, "CLAUDE_CODE_OAUTH_TOKEN")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY")
 	})
 }

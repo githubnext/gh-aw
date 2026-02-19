@@ -350,4 +350,138 @@ describe("update_handler_factory.cjs", () => {
       expect(result4.error).toContain("Max count of 3 reached");
     });
   });
+
+  describe("createStandardResolveNumber", () => {
+    it("should create a resolve function that uses resolveTarget helper", async () => {
+      const resolveNumber = factoryModule.createStandardResolveNumber({
+        itemType: "update_issue",
+        itemNumberField: "issue_number",
+        supportsPR: false,
+        supportsIssue: true,
+      });
+
+      const item = { issue_number: 42 };
+      const updateTarget = "triggering";
+      const context = mockContext;
+
+      const result = resolveNumber(item, updateTarget, context);
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(42);
+    });
+
+    it("should handle different item number fields", async () => {
+      const resolveNumber = factoryModule.createStandardResolveNumber({
+        itemType: "update_pull_request",
+        itemNumberField: "pull_request_number",
+        supportsPR: false,
+        supportsIssue: false,
+      });
+
+      const item = { pull_request_number: 123 };
+      const updateTarget = "triggering";
+      // Create a context with PR payload instead of issue
+      const prContext = {
+        ...mockContext,
+        eventName: "pull_request",
+        payload: {
+          pull_request: {
+            number: 123,
+          },
+        },
+      };
+
+      const result = resolveNumber(item, updateTarget, prContext);
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(123);
+    });
+
+    it("should return error when resolveTarget fails", async () => {
+      const resolveNumber = factoryModule.createStandardResolveNumber({
+        itemType: "update_issue",
+        itemNumberField: "issue_number",
+        supportsPR: false,
+        supportsIssue: true,
+      });
+
+      // No issue number in item or context
+      const item = {};
+      const updateTarget = "triggering";
+      const context = { ...mockContext, payload: {} };
+
+      const result = resolveNumber(item, updateTarget, context);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+  });
+
+  describe("createStandardFormatResult", () => {
+    it("should format result with standard fields (issue pattern)", async () => {
+      const formatResult = factoryModule.createStandardFormatResult({
+        numberField: "number",
+        urlField: "url",
+        urlSource: "html_url",
+      });
+
+      const updatedItem = {
+        html_url: "https://github.com/owner/repo/issues/42",
+        title: "Test Issue",
+      };
+
+      const result = formatResult(42, updatedItem);
+
+      expect(result).toEqual({
+        success: true,
+        number: 42,
+        url: "https://github.com/owner/repo/issues/42",
+        title: "Test Issue",
+      });
+    });
+
+    it("should format result with PR-specific fields", async () => {
+      const formatResult = factoryModule.createStandardFormatResult({
+        numberField: "pull_request_number",
+        urlField: "pull_request_url",
+        urlSource: "html_url",
+      });
+
+      const updatedItem = {
+        html_url: "https://github.com/owner/repo/pull/123",
+        title: "Test PR",
+      };
+
+      const result = formatResult(123, updatedItem);
+
+      expect(result).toEqual({
+        success: true,
+        pull_request_number: 123,
+        pull_request_url: "https://github.com/owner/repo/pull/123",
+        title: "Test PR",
+      });
+    });
+
+    it("should format result with discussion-specific fields", async () => {
+      const formatResult = factoryModule.createStandardFormatResult({
+        numberField: "number",
+        urlField: "url",
+        urlSource: "url",
+      });
+
+      const updatedItem = {
+        url: "https://github.com/owner/repo/discussions/456",
+        title: "Test Discussion",
+      };
+
+      const result = formatResult(456, updatedItem);
+
+      expect(result).toEqual({
+        success: true,
+        number: 456,
+        url: "https://github.com/owner/repo/discussions/456",
+        title: "Test Discussion",
+      });
+    });
+  });
 });

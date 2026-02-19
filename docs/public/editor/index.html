@@ -115,56 +115,26 @@ html, body {
   50% { opacity: 0.35; }
 }
 
-/* Toggle switch (no Primer equivalent in CSS-only) */
-.toggle-track {
-  position: relative;
-  width: 34px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--bgColor-neutral-muted, var(--color-neutral-muted, #afb8c1));
-  transition: background 180ms ease;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.toggle-track.active {
-  background: var(--fgColor-accent, var(--color-accent-fg));
-}
-.toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform 180ms ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-.toggle-track.active .toggle-knob {
-  transform: translateX(14px);
-}
-
 /* Responsive */
 @media (max-width: 767px) {
   .panels-container { flex-direction: column !important; }
   .divider { width: 100%; height: 4px; cursor: row-resize; }
   .header-bar { gap: 8px !important; padding: 8px 12px !important; flex-wrap: wrap; height: auto !important; min-height: 48px !important; }
   .header-separator { display: none !important; }
-  .auto-compile-label-text { display: none; }
 }
 </style>
 </head>
 <body class="color-bg-default color-fg-default">
 <div class="d-flex flex-column" style="height: 100vh; width: 100vw;" id="app">
-  <!-- Loading Overlay -->
-  <div class="loading-overlay" id="loadingOverlay">
+  <!-- Loading Overlay (hidden by default — editor is shown immediately) -->
+  <div class="loading-overlay hidden" id="loadingOverlay">
     <div class="loading-spinner"></div>
     <div class="f4 color-fg-muted mb-1">Loading gh-aw compiler...</div>
-    <div class="f6 color-fg-subtle">Downloading WebAssembly module (~17 MB)</div>
+    <div class="f6 color-fg-subtle">Downloading WebAssembly module (~5 MB compressed)</div>
   </div>
 
   <!-- Header -->
-  <header class="header-bar d-flex flex-items-center gap-2 px-3 color-bg-default border-bottom position-relative" style="height: 52px; min-height: 52px; z-index: 10;">
+  <header class="header-bar d-flex flex-items-center gap-3 px-3 color-bg-default border-bottom position-relative" style="height: 52px; min-height: 52px; z-index: 10;">
     <a class="d-flex flex-items-center gap-2 text-bold f5 color-fg-default no-underline flex-shrink-0" href="/gh-aw/" title="Back to docs">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
         <polyline points="4 17 10 11 4 5"></polyline>
@@ -175,26 +145,22 @@ html, body {
 
     <div class="header-separator flex-shrink-0" style="width: 1px; height: 24px; background: var(--borderColor-default, var(--color-border-default));"></div>
 
+    <select class="form-select select-sm color-bg-subtle" id="sampleSelect" style="max-width: 220px; font-size: 12px;">
+      <option value="hello-world">Hello World</option>
+      <option value="issue-triage">Issue Triage</option>
+      <option value="ci-doctor">CI Doctor</option>
+      <option value="contribution-check">Contribution Guidelines Checker</option>
+      <option value="daily-repo-status">Daily Repo Status</option>
+    </select>
+
+    <div class="header-separator flex-shrink-0" style="width: 1px; height: 24px; background: var(--borderColor-default, var(--color-border-default));"></div>
+
     <span class="Label Label--accent d-inline-flex flex-items-center gap-1" id="statusBadge" data-status="loading">
       <span class="status-dot" id="statusDot"></span>
       <span id="statusText">Loading...</span>
     </span>
 
     <div class="d-flex flex-items-center gap-3 ml-auto">
-      <label class="d-flex flex-items-center gap-1 f6 color-fg-muted cursor-pointer" style="white-space: nowrap; user-select: none;" id="autoCompileToggle" title="Auto-compile on change">
-        <div class="toggle-track active" id="toggleTrack">
-          <div class="toggle-knob"></div>
-        </div>
-        <span class="auto-compile-label-text">Auto</span>
-      </label>
-
-      <button class="btn btn-primary btn-sm" id="compileBtn" disabled title="Compile workflow">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="flex-shrink-0">
-          <path d="M4 2a1 1 0 011.5-.87l8.5 5a1 1 0 010 1.74l-8.5 5A1 1 0 014 12V2z"/>
-        </svg>
-        Compile
-      </button>
-
       <button class="btn-octicon" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sun icon (shown in dark mode) -->
         <svg class="icon-sun octicon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="display:none">
@@ -235,10 +201,6 @@ html, body {
           </svg>
           Workflow (.md)
         </span>
-        <kbd class="color-bg-subtle color-fg-muted text-mono" style="padding: 1px 5px; font-size: 11px; border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 3px; line-height: 1.4;" title="Press to compile">
-          <span class="kbd-hint-mac" style="display:none">&#8984;&#9166;</span>
-          <span class="kbd-hint-other">Ctrl+Enter</span>
-        </kbd>
       </div>
       <div class="flex-1" style="min-height: 0; overflow: hidden;" id="editorMount"></div>
     </div>

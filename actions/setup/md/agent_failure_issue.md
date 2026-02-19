@@ -8,6 +8,12 @@
 
 ### Action Required
 
+**Option 1: Assign this issue to agent using agentic-workflows**
+
+Assign this issue to the `agentic-workflows` agent to automatically debug and fix the workflow failure.
+
+**Option 2: Manually invoke the agent**
+
 Debug this workflow failure using the `agentic-workflows` agent:
 
 ```

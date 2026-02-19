@@ -292,12 +292,29 @@ function marshalSorted(data) {
 
 /**
  * Extract hash from lock file content
+ * Supports both formats:
+ * - New JSON format: # gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"..."}
+ * - Old format: # frontmatter-hash: ...
  * @param {string} lockFileContent - Content of the .lock.yml file
  * @returns {string} The extracted hash or empty string if not found
  */
 function extractHashFromLockFile(lockFileContent) {
   const lines = lockFileContent.split("\n");
   for (const line of lines) {
+    // Try new JSON metadata format first
+    const metadataMatch = line.match(/^#\s*gh-aw-metadata:\s*(\{.+\})/);
+    if (metadataMatch) {
+      try {
+        const metadata = JSON.parse(metadataMatch[1]);
+        if (metadata.frontmatter_hash) {
+          return metadata.frontmatter_hash;
+        }
+      } catch (err) {
+        // Invalid JSON, continue to check old format
+      }
+    }
+
+    // Fall back to old format for backward compatibility
     if (line.startsWith("# frontmatter-hash: ")) {
       return line.substring(20).trim();
     }
