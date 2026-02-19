@@ -407,7 +407,7 @@ jobs:
           path: /tmp/gh-aw/aw-prompts
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
-      - name: Run Codex
+      - name: Execute Codex
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs"

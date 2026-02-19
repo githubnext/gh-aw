@@ -89,7 +89,7 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{
-		StepName:                   "Assign To Agent",
+		StepName:                   "Assign to agent",
 		StepID:                     "assign_to_agent",
 		ScriptName:                 "assign_to_agent",
 		Script:                     getAssignToAgentScript(),

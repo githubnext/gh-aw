@@ -775,7 +775,7 @@ jobs:
           path: /tmp/gh-aw/aw-prompts
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
-      - name: Run Codex
+      - name: Execute Codex
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs"
@@ -1047,7 +1047,7 @@ jobs:
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent output types
+      - name: Print agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |

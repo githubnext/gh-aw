@@ -30,7 +30,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0de1f0aac847f2beec40813bebbfb9838730eb23e30f47920ab7ed3b489cfe3e"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7a74321b22eae8f487bc1a8a11c442b27eb59a58c5933ae6c2494ff9fd608a19"}
 
 name: "Stale Repository Identifier"
 "on":
@@ -367,7 +367,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
-        name: Run stale_repos tool
+        name: Run stale-repos tool
         uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3.0.2
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
@@ -953,7 +953,7 @@ jobs:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
       # Upload safe-outputs assets for upload_assets job
-      - name: Upload safe-outputs assets
+      - name: Upload Safe Outputs assets
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -1114,7 +1114,7 @@ jobs:
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent output types
+      - name: Print agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |

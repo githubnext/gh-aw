@@ -938,7 +938,7 @@ jobs:
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent output types
+      - name: Print agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |

@@ -58,7 +58,7 @@ steps:
     with:
       go-version-file: go.mod
       cache: true
-  - name: Dev dependencies
+  - name: Install dev dependencies
     run: make deps-dev
 strict: true
 imports:

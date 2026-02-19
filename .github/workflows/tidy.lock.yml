@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"10f5767aeb615529e66a7fb66dd07ef0fee4392bcd3fa804f3684a331544e229"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"aa7fce20f46c91d13365971033a86852d56ae8a3114035cb19c7bb0e038ad05d"}
 
 name: "Tidy"
 "on":
@@ -329,7 +329,7 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
-      - name: Dev dependencies
+      - name: Install dev dependencies
         run: make deps-dev
 
       - name: Configure Git credentials
@@ -1090,7 +1090,7 @@ jobs:
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent output types
+      - name: Print agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |

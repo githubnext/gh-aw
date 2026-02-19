@@ -1107,7 +1107,7 @@ jobs:
           path: /tmp/gh-aw/aw-prompts
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
-      - name: Run Codex
+      - name: Execute Codex
         run: |
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs"
@@ -1208,7 +1208,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_codex_log.cjs');
             await main();
-      - name: Parse safe-inputs logs for step summary
+      - name: Parse Safe Inputs logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -1419,7 +1419,7 @@ jobs:
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent output types
+      - name: Print agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
@@ -1453,7 +1453,7 @@ jobs:
           package-manager-cache: false
       - name: Install Codex
         run: npm install -g --silent @openai/codex@0.104.0
-      - name: Run Codex
+      - name: Execute Codex
         run: |
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"

@@ -836,7 +836,7 @@ jobs:
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
       # Upload safe-outputs assets for upload_assets job
-      - name: Upload safe-outputs assets
+      - name: Upload Safe Outputs assets
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -998,7 +998,7 @@ jobs:
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent output types
+      - name: Print agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |

@@ -338,7 +338,7 @@ func TestCodexEngineArgsInjection(t *testing.T) {
 		var executionStep GitHubActionStep
 		for _, step := range steps {
 			stepStr := strings.Join(step, "\n")
-			if strings.Contains(stepStr, "Run Codex") {
+			if strings.Contains(stepStr, "Execute Codex") {
 				executionStep = step
 				break
 			}
@@ -384,7 +384,7 @@ func TestCodexEngineArgsInjection(t *testing.T) {
 		var executionStep GitHubActionStep
 		for _, step := range steps {
 			stepStr := strings.Join(step, "\n")
-			if strings.Contains(stepStr, "Run Codex") {
+			if strings.Contains(stepStr, "Execute Codex") {
 				executionStep = step
 				break
 			}

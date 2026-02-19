@@ -315,7 +315,7 @@ mkdir -p "$CODEX_HOME/logs"
 	}
 
 	// Generate the step for Codex execution
-	stepName := "Run Codex"
+	stepName := "Execute Codex"
 	var stepLines []string
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))

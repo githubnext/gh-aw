@@ -65,7 +65,7 @@ env:
   ORGANIZATION: ${{ github.event.inputs.organization || 'github' }}
 
 steps:
-  - name: Run stale_repos tool
+  - name: Run stale-repos tool
     id: stale-repos
     uses: github/stale-repos@v3.0.2
     env:
