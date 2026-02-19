@@ -225,14 +225,19 @@ describe("NUMERIC_CONTEXT_PATHS", () => {
     });
   });
 
-  it("should have 31 context paths", () => {
-    expect(NUMERIC_CONTEXT_PATHS.length).toBe(31);
+  it("should have 30 context paths", () => {
+    expect(NUMERIC_CONTEXT_PATHS.length).toBe(30);
   });
 
   it("should not include duplicate names", () => {
     const names = NUMERIC_CONTEXT_PATHS.map(p => p.name);
     const uniqueNames = [...new Set(names)];
     expect(uniqueNames.length).toBe(NUMERIC_CONTEXT_PATHS.length);
+  });
+
+  it("should not include github.event.head_commit.id (Git SHA, not numeric)", () => {
+    const found = NUMERIC_CONTEXT_PATHS.find(p => p.name === "github.event.head_commit.id");
+    expect(found).toBeUndefined();
   });
 });
 
@@ -297,5 +302,18 @@ describe("main", () => {
     await main();
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should not validate github.event.head_commit.id (Git SHA)", async () => {
+    // Add a Git commit SHA to the context
+    mockContext.payload.head_commit = {
+      id: "046ee07d682351acd49209ca43ba340931001c1a",
+    };
+
+    await main();
+
+    // Should pass because head_commit.id is not validated as numeric
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ All context variables validated successfully"));
   });
 });

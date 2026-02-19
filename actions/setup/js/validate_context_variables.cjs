@@ -21,7 +21,6 @@
  * - github.event.comment.id
  * - github.event.deployment.id
  * - github.event.deployment_status.id
- * - github.event.head_commit.id
  * - github.event.installation.id
  * - github.event.workflow_job.run_id
  * - github.event.label.id
@@ -61,7 +60,6 @@ const NUMERIC_CONTEXT_PATHS = [
   { path: ["payload", "comment", "id"], name: "github.event.comment.id" },
   { path: ["payload", "deployment", "id"], name: "github.event.deployment.id" },
   { path: ["payload", "deployment_status", "id"], name: "github.event.deployment_status.id" },
-  { path: ["payload", "head_commit", "id"], name: "github.event.head_commit.id" },
   { path: ["payload", "installation", "id"], name: "github.event.installation.id" },
   { path: ["payload", "workflow_job", "run_id"], name: "github.event.workflow_job.run_id" },
   { path: ["payload", "label", "id"], name: "github.event.label.id" },
