@@ -145,6 +145,16 @@ html, body {
 
     <div class="header-separator flex-shrink-0" style="width: 1px; height: 24px; background: var(--borderColor-default, var(--color-border-default));"></div>
 
+    <select class="form-select select-sm color-bg-subtle" id="sampleSelect" style="max-width: 220px; font-size: 12px;">
+      <option value="hello-world">Hello World</option>
+      <option value="issue-triage">Issue Triage</option>
+      <option value="ci-doctor">CI Doctor</option>
+      <option value="contribution-check">Contribution Guidelines Checker</option>
+      <option value="daily-repo-status">Daily Repo Status</option>
+    </select>
+
+    <div class="header-separator flex-shrink-0" style="width: 1px; height: 24px; background: var(--borderColor-default, var(--color-border-default));"></div>
+
     <span class="Label Label--accent d-inline-flex flex-items-center gap-1" id="statusBadge" data-status="loading">
       <span class="status-dot" id="statusDot"></span>
       <span id="statusText">Loading...</span>
