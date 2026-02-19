@@ -38,7 +38,6 @@ const editorMount = $('editorMount');
 const outputPlaceholder = $('outputPlaceholder');
 const outputMount = $('outputMount');
 const outputContainer = $('outputContainer');
-const compileBtn = $('compileBtn');
 const statusBadge = $('statusBadge');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
@@ -48,7 +47,6 @@ const errorText = $('errorText');
 const warningBanner = $('warningBanner');
 const warningText = $('warningText');
 const themeToggle = $('themeToggle');
-const toggleTrack = $('toggleTrack');
 const divider = $('divider');
 const panelEditor = $('panelEditor');
 const panelOutput = $('panelOutput');
@@ -60,7 +58,6 @@ const panels = $('panels');
 let compiler = null;
 let isReady = false;
 let isCompiling = false;
-let autoCompile = true;
 let compileTimer = null;
 let currentYaml = '';
 
@@ -115,7 +112,7 @@ const editorView = new EditorView({
       run: () => { doCompile(); return true; }
     }]),
     EditorView.updateListener.of(update => {
-      if (update.docChanged && autoCompile && isReady) {
+      if (update.docChanged && isReady) {
         scheduleCompile();
       }
     }),
@@ -156,13 +153,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 });
 
 // ---------------------------------------------------------------
-// Keyboard shortcut hint (Mac vs other)
-// ---------------------------------------------------------------
-const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-document.querySelectorAll('.kbd-hint-mac').forEach(el => el.style.display = isMac ? 'inline' : 'none');
-document.querySelectorAll('.kbd-hint-other').forEach(el => el.style.display = isMac ? 'none' : 'inline');
-
-// ---------------------------------------------------------------
 // Status (uses Primer Label component)
 // ---------------------------------------------------------------
 const STATUS_LABEL_MAP = {
@@ -186,18 +176,6 @@ function setStatus(status, text) {
     statusDot.style.animation = '';
   }
 }
-
-// ---------------------------------------------------------------
-// Auto-compile toggle
-// ---------------------------------------------------------------
-$('autoCompileToggle').addEventListener('click', () => {
-  autoCompile = !autoCompile;
-  if (autoCompile) {
-    toggleTrack.classList.add('active');
-  } else {
-    toggleTrack.classList.remove('active');
-  }
-});
 
 // ---------------------------------------------------------------
 // Compile
@@ -226,7 +204,6 @@ async function doCompile() {
 
   isCompiling = true;
   setStatus('compiling', 'Compiling...');
-  compileBtn.disabled = true;
 
   // Hide old banners
   errorBanner.classList.add('d-none');
@@ -262,11 +239,8 @@ async function doCompile() {
     errorBanner.classList.remove('d-none');
   } finally {
     isCompiling = false;
-    compileBtn.disabled = !isReady;
   }
 }
-
-compileBtn.addEventListener('click', doCompile);
 
 // ---------------------------------------------------------------
 // Banner close
@@ -359,13 +333,10 @@ async function init() {
     await compiler.ready;
     isReady = true;
     setStatus('ready', 'Ready');
-    compileBtn.disabled = false;
     loadingOverlay.classList.add('hidden');
 
-    // Auto-compile the default content
-    if (autoCompile) {
-      doCompile();
-    }
+    // Compile the default content
+    doCompile();
   } catch (err) {
     setStatus('error', 'Failed to load');
     loadingOverlay.querySelector('.f4').textContent = 'Failed to load compiler';

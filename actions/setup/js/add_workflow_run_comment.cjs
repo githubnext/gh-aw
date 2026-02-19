@@ -7,6 +7,53 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
+ * Event type descriptions for comment messages
+ */
+const EVENT_TYPE_DESCRIPTIONS = {
+  issues: "issue",
+  pull_request: "pull request",
+  issue_comment: "issue comment",
+  pull_request_review_comment: "pull request review comment",
+  discussion: "discussion",
+  discussion_comment: "discussion comment",
+};
+
+/**
+ * Helper function to get discussion node ID via GraphQL
+ * @param {number} discussionNumber - The discussion number
+ * @returns {Promise<string>} The discussion node ID
+ */
+async function getDiscussionNodeId(discussionNumber) {
+  const { repository } = await github.graphql(
+    `
+    query($owner: String!, $repo: String!, $num: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $num) { 
+          id 
+        }
+      }
+    }`,
+    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+  );
+  return repository.discussion.id;
+}
+
+/**
+ * Helper function to set comment outputs
+ * @param {string|number} commentId - The comment ID
+ * @param {string} commentUrl - The comment URL
+ */
+function setCommentOutputs(commentId, commentUrl) {
+  core.info(`Successfully created comment with workflow link`);
+  core.info(`Comment ID: ${commentId}`);
+  core.info(`Comment URL: ${commentUrl}`);
+  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+  core.setOutput("comment-id", commentId.toString());
+  core.setOutput("comment-url", commentUrl);
+  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+}
+
+/**
  * Add a comment with a workflow run link to the triggering item.
  * This script ONLY creates comments - it does NOT add reactions.
  * Use add_reaction.cjs in the pre-activation job to add reactions first for immediate feedback.
@@ -27,7 +74,7 @@ async function main() {
 
   try {
     switch (eventName) {
-      case "issues":
+      case "issues": {
         const issueNumber = context.payload?.issue?.number;
         if (!issueNumber) {
           core.setFailed("Issue number not found in event payload");
@@ -35,8 +82,9 @@ async function main() {
         }
         commentEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
         break;
+      }
 
-      case "issue_comment":
+      case "issue_comment": {
         const issueNumberForComment = context.payload?.issue?.number;
         if (!issueNumberForComment) {
           core.setFailed("Issue number not found in event payload");
@@ -45,8 +93,9 @@ async function main() {
         // Create new comment on the issue itself, not on the comment
         commentEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
         break;
+      }
 
-      case "pull_request":
+      case "pull_request": {
         const prNumber = context.payload?.pull_request?.number;
         if (!prNumber) {
           core.setFailed("Pull request number not found in event payload");
@@ -54,8 +103,9 @@ async function main() {
         }
         commentEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
         break;
+      }
 
-      case "pull_request_review_comment":
+      case "pull_request_review_comment": {
         const prNumberForReviewComment = context.payload?.pull_request?.number;
         if (!prNumberForReviewComment) {
           core.setFailed("Pull request number not found in event payload");
@@ -64,8 +114,9 @@ async function main() {
         // Create new comment on the PR itself (using issues endpoint since PRs are issues)
         commentEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
         break;
+      }
 
-      case "discussion":
+      case "discussion": {
         const discussionNumber = context.payload?.discussion?.number;
         if (!discussionNumber) {
           core.setFailed("Discussion number not found in event payload");
@@ -73,8 +124,9 @@ async function main() {
         }
         commentEndpoint = `discussion:${discussionNumber}`; // Special format to indicate discussion
         break;
+      }
 
-      case "discussion_comment":
+      case "discussion_comment": {
         const discussionCommentNumber = context.payload?.discussion?.number;
         const discussionCommentId = context.payload?.comment?.id;
         if (!discussionCommentNumber || !discussionCommentId) {
@@ -83,6 +135,7 @@ async function main() {
         }
         commentEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; // Special format
         break;
+      }
 
       default:
         core.setFailed(`Unsupported event type: ${eventName}`);
@@ -109,30 +162,8 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   // Get workflow name from environment variable
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
 
-  // Determine the event type description
-  let eventTypeDescription;
-  switch (eventName) {
-    case "issues":
-      eventTypeDescription = "issue";
-      break;
-    case "pull_request":
-      eventTypeDescription = "pull request";
-      break;
-    case "issue_comment":
-      eventTypeDescription = "issue comment";
-      break;
-    case "pull_request_review_comment":
-      eventTypeDescription = "pull request review comment";
-      break;
-    case "discussion":
-      eventTypeDescription = "discussion";
-      break;
-    case "discussion_comment":
-      eventTypeDescription = "discussion comment";
-      break;
-    default:
-      eventTypeDescription = "event";
-  }
+  // Determine the event type description using lookup object
+  const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
 
   // Use getRunStartedMessage for the workflow link text (supports custom messages)
   const workflowLinkText = getRunStartedMessage({
@@ -174,20 +205,8 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     // Parse discussion number from special format: "discussion:NUMBER"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
 
-    // Create a new comment on the discussion using GraphQL
-    const { repository } = await github.graphql(
-      `
-      query($owner: String!, $repo: String!, $num: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $num) { 
-            id 
-          }
-        }
-      }`,
-      { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-    );
-
-    const discussionId = repository.discussion.id;
+    // Get discussion node ID using helper function
+    const discussionId = await getDiscussionNodeId(discussionNumber);
 
     const result = await github.graphql(
       `
@@ -203,32 +222,14 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     );
 
     const comment = result.addDiscussionComment.comment;
-    core.info(`Successfully created discussion comment with workflow link`);
-    core.info(`Comment ID: ${comment.id}`);
-    core.info(`Comment URL: ${comment.url}`);
-    core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-    core.setOutput("comment-id", comment.id);
-    core.setOutput("comment-url", comment.url);
-    core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+    setCommentOutputs(comment.id, comment.url);
     return;
   } else if (eventName === "discussion_comment") {
     // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
 
-    // Create a new comment on the discussion using GraphQL
-    const { repository } = await github.graphql(
-      `
-      query($owner: String!, $repo: String!, $num: Int!) {
-        repository(owner: $owner, name: $repo) {
-          discussion(number: $num) { 
-            id 
-          }
-        }
-      }`,
-      { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-    );
-
-    const discussionId = repository.discussion.id;
+    // Get discussion node ID using helper function
+    const discussionId = await getDiscussionNodeId(discussionNumber);
 
     // Get the comment node ID to use as the parent for threading
     const commentNodeId = context.payload?.comment?.node_id;
@@ -247,13 +248,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     );
 
     const comment = result.addDiscussionComment.comment;
-    core.info(`Successfully created discussion comment with workflow link`);
-    core.info(`Comment ID: ${comment.id}`);
-    core.info(`Comment URL: ${comment.url}`);
-    core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-    core.setOutput("comment-id", comment.id);
-    core.setOutput("comment-url", comment.url);
-    core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+    setCommentOutputs(comment.id, comment.url);
     return;
   }
 
@@ -265,13 +260,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     },
   });
 
-  core.info(`Successfully created comment with workflow link`);
-  core.info(`Comment ID: ${createResponse.data.id}`);
-  core.info(`Comment URL: ${createResponse.data.html_url}`);
-  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-  core.setOutput("comment-id", createResponse.data.id.toString());
-  core.setOutput("comment-url", createResponse.data.html_url);
-  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+  setCommentOutputs(createResponse.data.id, createResponse.data.html_url);
 }
 
-module.exports = { main };
+module.exports = { main, addCommentWithWorkflowLink };

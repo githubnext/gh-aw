@@ -14,6 +14,8 @@ import (
 func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string) (string, error) {
 	c.markdownPath = markdownPath
 	c.skipHeader = true
+	// Clear contentOverride after compilation (set by ParseWorkflowString)
+	defer func() { c.contentOverride = "" }()
 
 	startTime := time.Now()
 	defer func() {
@@ -51,9 +53,9 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 
 	cleanPath := filepath.Clean(virtualPath)
 
-	// Store content so downstream code can use it instead of reading from disk
+	// Store content so downstream code can use it instead of reading from disk.
+	// Cleared in CompileToYAML after compilation completes.
 	c.contentOverride = content
-	defer func() { c.contentOverride = "" }()
 
 	// Enable inline prompt mode for string-based compilation (Wasm/browser)
 	// since runtime-import macros cannot resolve without filesystem access
