@@ -211,8 +211,8 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 	}
 
 	// Verify that the Codex execution step is still present
-	if !strings.Contains(lockContent, "- name: Run Codex") {
-		t.Error("Expected 'Run Codex' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Execute Codex") {
+		t.Error("Expected 'Execute Codex' step to be in generated workflow")
 	}
 
 	t.Log("Codex workflow correctly includes both GH_AW_SAFE_OUTPUTS functionality and engine output collection")

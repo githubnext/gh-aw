@@ -1,13 +1,33 @@
 ---
-title: Packaging & Distribution
-description: How to add, share, update, and import workflows from external repositories using workflow specifications and import directives.
+title: Reusing Workflows
+description: How to reuse, add, share, update, and distribute workflows.
 sidebar:
   order: 2
 ---
 
 ## Adding Workflows
 
-Install workflows from external repositories with optional versioning:
+You can add any existing workflow you have access to from external repositories.
+
+Use the `gh aw add-wizard` command to add a workflow with interactive guidance:
+
+```bash wrap
+gh aw add-wizard <workflow-url>
+```
+
+For example, to add the `daily-repo-status` workflow from the `githubnext/agentics` repository:
+
+```bash wrap
+# Full GitHub URL
+gh aw add-wizard https://github.com/githubnext/agentics/blob/main/workflows/daily-repo-status.md
+
+# Short form (for workflows in top-level workflows/ directory)
+gh aw add-wizard githubnext/agentics/daily-repo-status
+```
+
+This checks requirements, adds the workflow markdown file to your repository, and generates the corresponding YAML workflow. After adding, commit and push the changes to your repository.
+
+For non-interactive installation, use `gh aw add` with optional versioning. By default this looks in the `workflows/` directory, but you can specify an explicit path if needed:
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor              # short form
@@ -16,6 +36,9 @@ gh aw add githubnext/agentics/workflows/ci-doctor.md # explicit path
 ```
 
 Use `--name`, `--pr`, `--force`, `--engine`, or `--verbose` flags to customize installation. The `source` field is automatically added to workflow frontmatter for tracking origin and enabling updates.
+
+> [!NOTE]
+> Check carefully that the workflow comes from a trusted source and is appropriate for your use in your repository. Review the workflow's content and understand what it does before adding it to your repository.
 
 ## Updating Workflows
 
@@ -119,7 +142,7 @@ See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
 
 ## Importing Agent Files
 
-Agent files provide specialized AI instructions and behavior. See [Importing Copilot Custom Agent Files](/gh-aw/reference/copilot-custom-agents/) for details on creating and importing agent files from external repositories.
+Agent files provide specialized AI instructions and behavior. See [Importing Copilot Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) for details on creating and importing agent files from external repositories.
 
 ## Example: Modular Workflow with Imports
 
@@ -178,4 +201,4 @@ Workflow and import specifications require minimum 3 parts (owner/repo/path) for
 
 Use semantic versioning for stable workflows and agent files, branches for development, and commit SHAs for immutability. Organize reusable components in `shared/` directories and agent files in `.github/agents/` with descriptive names. Review updates with `--verbose` before applying, test on branches, and keep local modifications minimal to reduce merge conflicts.
 
-**Related:** [CLI Commands](/gh-aw/setup/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/) | [Custom Agent Files](/gh-aw/reference/copilot-custom-agents/)
+**Related:** [CLI Commands](/gh-aw/setup/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/) | [Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/)

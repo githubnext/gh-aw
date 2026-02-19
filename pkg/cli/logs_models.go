@@ -58,6 +58,7 @@ type WorkflowRun struct {
 	MissingToolCount int
 	MissingDataCount int
 	NoopCount        int
+	SafeItemsCount   int
 	LogsPath         string
 }
 

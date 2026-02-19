@@ -67,7 +67,7 @@ imports:
 Analyze incoming issues using imported tools and configurations.
 ```
 
-Version references support semantic tags (`@v1.0.0`), branch names (`@main`, `@develop`), or commit SHAs for immutable references. See [Packaging & Distribution](/gh-aw/guides/packaging-imports/) for installation and update workflows.
+Version references support semantic tags (`@v1.0.0`), branch names (`@main`, `@develop`), or commit SHAs for immutable references. See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for installation and update workflows.
 
 ## Import Cache
 

@@ -1,0 +1,36 @@
+name: Vet OSS Components
+
+on:
+  schedule:
+    # Daily scan at 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  vet:
+    name: Vet OSS Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run vet
+        id: vet
+        uses: safedep/vet-action@v1
+        with:
+          policy: .github/vet/policy.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: ${{ steps.vet.outputs.report != '' }}
+        with:
+          sarif_file: ${{ steps.vet.outputs.report }}
+          category: vet

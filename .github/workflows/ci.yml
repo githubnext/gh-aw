@@ -203,13 +203,13 @@ jobs:
           - name: "CLI Audit & Inspect"
             packages: "./pkg/cli"
             pattern: "^TestAudit|^TestInspect"
-          - name: "CLI Docker Build"  # Isolate slow Docker build test (~38s)
+          - name: "CLI Docker Build"  # Isolate slow Docker tests (~43s)
             packages: "./pkg/cli"
-            pattern: "TestDockerBuild"
+            pattern: "TestDockerBuild|TestDockerImage"
           - name: "CLI Completion & Other"  # Remaining catch-all (reduced from original)
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
-            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild"
+            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild|TestDockerImage"
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"

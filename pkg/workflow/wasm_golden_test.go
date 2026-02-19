@@ -257,7 +257,7 @@ func TestWasmGolden_NativeVsStringAPI(t *testing.T) {
 	}
 }
 
-// TestWasmGolden_AllEngines verifies that all three engine types compile correctly
+// TestWasmGolden_AllEngines verifies that all engine types compile correctly
 // via the string API and produce valid YAML output.
 func TestWasmGolden_AllEngines(t *testing.T) {
 	engines := []struct {
@@ -268,6 +268,7 @@ func TestWasmGolden_AllEngines(t *testing.T) {
 		{"copilot", "copilot", ""},
 		{"claude", "claude", "network:\n  allowed:\n    - defaults"},
 		{"codex", "codex", "network:\n  allowed:\n    - defaults"},
+		{"gemini", "gemini", "network:\n  allowed:\n    - defaults"},
 	}
 
 	for _, eng := range engines {

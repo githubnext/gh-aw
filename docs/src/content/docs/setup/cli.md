@@ -583,7 +583,7 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 
 - [Quick Start](/gh-aw/setup/quick-start/) - Get your first workflow running
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options
-- [Packaging & Distribution](/gh-aw/guides/packaging-imports/) - Adding and updating workflows
+- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Adding and updating workflows
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices
 - [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/) - MCP server configuration
 - [Agent Factory](/gh-aw/agent-factory-status/) - Agent factory status

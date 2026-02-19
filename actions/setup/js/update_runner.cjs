@@ -197,7 +197,7 @@ async function runUpdateWorkflow(config) {
 
   core.info(`Found ${updateItems.length} ${itemType} item(s)`);
 
-  // If in staged mode, emit step summary instead of updating
+  // If in staged mode, emit 🎭 Staged Mode Preview via generateStagedPreview
   if (isStaged) {
     await generateStagedPreview({
       title: `Update ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}`,

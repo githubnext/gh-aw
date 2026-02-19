@@ -27,12 +27,16 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var copilotEngineToolsLog = logger.New("workflow:copilot_engine_tools")
 
 // computeCopilotToolArguments computes the --allow-tool arguments for Copilot CLI based on tool configurations.
 // It handles bash/shell tools, edit tools, safe outputs, safe inputs, and MCP server tools.
 // Returns a sorted list of arguments ready to be passed to the Copilot CLI.
 func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData) []string {
+	copilotEngineToolsLog.Printf("Computing tool arguments: tools=%d", len(tools))
 	if tools == nil {
 		tools = make(map[string]any)
 	}
@@ -47,6 +51,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 				if cmdStr, ok := cmd.(string); ok {
 					if cmdStr == ":*" || cmdStr == "*" {
 						// Use --allow-all-tools flag instead of individual tool permissions
+						copilotEngineToolsLog.Print("Bash wildcard detected, using --allow-all-tools")
 						return []string{"--allow-all-tools"}
 					}
 				}
@@ -181,6 +186,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = newArgs
 	}
 
+	copilotEngineToolsLog.Printf("Computed %d tool arguments", len(args)/2)
 	return args
 }
 

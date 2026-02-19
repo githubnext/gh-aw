@@ -33,7 +33,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	logsDisplayLog.Printf("Displaying logs overview: runs=%d, verbose=%v", len(processedRuns), verbose)
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing Tools", "Missing Data", "Noops", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing Tools", "Missing Data", "Noops", "Safe Items", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int
@@ -45,6 +45,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	var totalMissingTools int
 	var totalMissingData int
 	var totalNoops int
+	var totalSafeItems int
 
 	for _, pr := range processedRuns {
 		run := pr.Run
@@ -145,6 +146,10 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		}
 		totalNoops += run.NoopCount
 
+		// Format safe items count
+		safeItemsStr := fmt.Sprintf("%d", run.SafeItemsCount)
+		totalSafeItems += run.SafeItemsCount
+
 		// Truncate workflow name if too long
 		workflowName := run.WorkflowName
 		if len(workflowName) > 20 {
@@ -173,6 +178,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 			missingToolsStr,
 			missingDataStr,
 			noopsStr,
+			safeItemsStr,
 			run.CreatedAt.Format("2006-01-02"),
 			relPath,
 		}
@@ -193,6 +199,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		fmt.Sprintf("%d", totalMissingTools),
 		fmt.Sprintf("%d", totalMissingData),
 		fmt.Sprintf("%d", totalNoops),
+		fmt.Sprintf("%d", totalSafeItems),
 		"",
 		"",
 	}

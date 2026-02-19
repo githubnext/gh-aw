@@ -99,6 +99,23 @@ var ClaudeDefaultDomains = []string{
 	"ts-ocsp.ws.symantec.com",
 }
 
+// GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation
+var GeminiDefaultDomains = []string{
+	"*.googleapis.com",
+	"generativelanguage.googleapis.com",
+	"github.com",
+	"host.docker.internal",
+	"raw.githubusercontent.com",
+	"registry.npmjs.org",
+}
+
+// PlaywrightDomains are the domains required for Playwright browser downloads
+// These domains are needed when Playwright MCP server initializes in the Docker container
+var PlaywrightDomains = []string{
+	"cdn.playwright.dev",
+	"playwright.download.prss.microsoft.com",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
@@ -349,6 +366,23 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	return domains
 }
 
+// extractPlaywrightDomains returns Playwright domains when Playwright tool is configured
+// Returns a slice of domain names required for Playwright browser downloads
+// These domains are needed when Playwright MCP server initializes in the Docker container
+func extractPlaywrightDomains(tools map[string]any) []string {
+	if tools == nil {
+		return []string{}
+	}
+
+	// Check if Playwright tool is configured
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		domainsLog.Printf("Detected Playwright tool, adding %d domains for browser downloads", len(PlaywrightDomains))
+		return PlaywrightDomains
+	}
+
+	return []string{}
+}
+
 // mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
@@ -384,6 +418,15 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	if tools != nil {
 		mcpDomains := extractHTTPMCPDomains(tools)
 		for _, domain := range mcpDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Add Playwright ecosystem domains (if Playwright tool is specified)
+	// This ensures browser binaries can be downloaded when Playwright initializes
+	if tools != nil {
+		playwrightDomains := extractPlaywrightDomains(tools)
+		for _, domain := range playwrightDomains {
 			domainMap[domain] = true
 		}
 	}
@@ -475,6 +518,12 @@ func GetClaudeAllowedDomainsWithTools(network *NetworkPermissions, tools map[str
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetClaudeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return mergeDomainsWithNetworkToolsAndRuntimes(ClaudeDefaultDomains, network, tools, runtimes)
+}
+
+// GetGeminiAllowedDomainsWithToolsAndRuntimes merges Gemini default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetGeminiAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(GeminiDefaultDomains, network, tools, runtimes)
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions

@@ -9,8 +9,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var trialSupportLog = logger.New("cli:trial_support")
 
 // TrialArtifacts represents all artifacts downloaded from a workflow run
 type TrialArtifacts struct {
@@ -22,6 +25,7 @@ type TrialArtifacts struct {
 
 // downloadAllArtifacts downloads and parses all available artifacts from a workflow run
 func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtifacts, error) {
+	trialSupportLog.Printf("Downloading artifacts: repo=%s, runID=%s", hostRepoSlug, runID)
 	// Use the repository slug directly (should already be in user/repo format)
 	repoSlug := hostRepoSlug
 
@@ -73,12 +77,14 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 		switch {
 		case strings.HasSuffix(path, constants.AgentOutputFilename):
 			// Parse safe outputs
+			trialSupportLog.Printf("Processing safe outputs artifact: %s", relPath)
 			if safeOutputs := parseJSONArtifact(path, verbose); safeOutputs != nil {
 				artifacts.SafeOutputs = safeOutputs
 			}
 
 		case strings.HasSuffix(path, "aw_info.json"):
 			// Parse agentic run information
+			trialSupportLog.Printf("Processing agentic run info artifact: %s", relPath)
 			if runInfo := parseJSONArtifact(path, verbose); runInfo != nil {
 				artifacts.AgenticRunInfo = runInfo
 			}
@@ -116,6 +122,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 
 // parseJSONArtifact parses a JSON artifact file and returns the parsed content
 func parseJSONArtifact(filePath string, verbose bool) map[string]any {
+	trialSupportLog.Printf("Parsing JSON artifact: %s", filePath)
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		if verbose {

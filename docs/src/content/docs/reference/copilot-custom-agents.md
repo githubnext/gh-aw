@@ -134,5 +134,5 @@ Perform detailed security analysis using specialized agent files and tools.
 ## Related Documentation
 
 - [Imports Reference](/gh-aw/reference/imports/) - Complete import system documentation
-- [Packaging & Distribution](/gh-aw/guides/packaging-imports/) - Managing workflow imports
+- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Managing workflow imports
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference

@@ -233,8 +233,8 @@ Analyze issue and break down into implementation tasks
 ## Multiple AI providers supported
 
 - **GitHub Copilot** (default, recommended)
-- **Claude Code** (experimental)
-- **Codex** (experimental)
+- **Claude Code**
+- **Codex**
 
 ```yaml
 engine: copilot  # sensible defaults
@@ -250,7 +250,7 @@ engine: copilot  # sensible defaults
 # GitHub MCP (recommended: use toolsets)
 tools:
   github:
-    toolsets: [default]  # repos, issues, pull_requests
+    toolsets: [default]  # context, repos, issues, pull_requests
 
 # Custom MCP servers
 mcp-servers:

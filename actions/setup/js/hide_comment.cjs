@@ -6,6 +6,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Type constant for handler identification
@@ -110,7 +111,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would hide comment ${commentId}`);
+        logStagedPreviewInfo(`Would hide comment ${commentId}`);
         return {
           success: true,
           staged: true,

@@ -59,6 +59,7 @@ type LogsSummary struct {
 	TotalWarnings     int     `json:"total_warnings" console:"header:Total Warnings"`
 	TotalMissingTools int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
 	TotalMissingData  int     `json:"total_missing_data" console:"header:Total Missing Data"`
+	TotalSafeItems    int     `json:"total_safe_items" console:"header:Total Safe Items"`
 }
 
 // RunData contains information about a single workflow run
@@ -78,6 +79,7 @@ type RunData struct {
 	WarningCount     int       `json:"warning_count" console:"header:Warnings"`
 	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing Tools"`
 	MissingDataCount int       `json:"missing_data_count" console:"header:Missing Data"`
+	SafeItemsCount   int       `json:"safe_items_count,omitempty" console:"header:Safe Items,omitempty"`
 	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
 	StartedAt        time.Time `json:"started_at,omitempty" console:"-"`
 	UpdatedAt        time.Time `json:"updated_at,omitempty" console:"-"`
@@ -142,6 +144,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalWarnings int
 	var totalMissingTools int
 	var totalMissingData int
+	var totalSafeItems int
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
@@ -159,6 +162,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalWarnings += run.WarningCount
 		totalMissingTools += run.MissingToolCount
 		totalMissingData += run.MissingDataCount
+		totalSafeItems += run.SafeItemsCount
 
 		// Extract agent/engine ID from aw_info.json
 		agentID := ""
@@ -182,6 +186,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			WarningCount:     run.WarningCount,
 			MissingToolCount: run.MissingToolCount,
 			MissingDataCount: run.MissingDataCount,
+			SafeItemsCount:   run.SafeItemsCount,
 			CreatedAt:        run.CreatedAt,
 			StartedAt:        run.StartedAt,
 			UpdatedAt:        run.UpdatedAt,
@@ -206,6 +211,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalWarnings:     totalWarnings,
 		TotalMissingTools: totalMissingTools,
 		TotalMissingData:  totalMissingData,
+		TotalSafeItems:    totalSafeItems,
 	}
 
 	// Build tool usage summary

@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Type constant for handler identification
@@ -150,7 +151,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would resolve review thread ${threadId}`);
+        logStagedPreviewInfo(`Would resolve review thread ${threadId}`);
         return {
           success: true,
           staged: true,

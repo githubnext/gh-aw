@@ -25,6 +25,7 @@ const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { sortSafeOutputMessages } = require("./safe_output_topological_sort.cjs");
 const { loadCustomSafeOutputJobTypes } = require("./safe_output_helpers.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
 
 /**
  * Handler map configuration for regular handlers
@@ -335,9 +336,10 @@ function collectMissingMessages(messages) {
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
  * @param {Object} projectOctokit - Separate Octokit instance for project handlers (optional)
+ * @param {((item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string}) => void)|null} onItemCreated - Optional callback invoked after each successful create operation (for manifest logging)
  * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>, missings: Object}>}
  */
-async function processMessages(messageHandlers, messages, projectOctokit = null) {
+async function processMessages(messageHandlers, messages, projectOctokit = null, onItemCreated = null) {
   const results = [];
 
   // Collect missing_tool and missing_data messages first
@@ -562,6 +564,20 @@ async function processMessages(messageHandlers, messages, projectOctokit = null)
         result,
       });
 
+      // Log to manifest if this was a create operation
+      if (onItemCreated) {
+        if (Array.isArray(result)) {
+          // Handle array results (e.g., batch add_comment)
+          for (const item of result) {
+            const createdItem = extractCreatedItemFromResult(messageType, item);
+            if (createdItem) onItemCreated(createdItem);
+          }
+        } else {
+          const createdItem = extractCreatedItemFromResult(messageType, result);
+          if (createdItem) onItemCreated(createdItem);
+        }
+      }
+
       core.info(`✓ Message ${i + 1} (${messageType}) completed successfully`);
     } catch (error) {
       core.error(`✗ Message ${i + 1} (${messageType}) failed: ${getErrorMessage(error)}`);
@@ -656,6 +672,12 @@ async function processMessages(messageHandlers, messages, projectOctokit = null)
             results[resultIndex].success = true;
             results[resultIndex].deferred = false;
             results[resultIndex].result = result;
+          }
+
+          // Log to manifest if this was a create operation
+          if (onItemCreated) {
+            const createdItem = extractCreatedItemFromResult(deferred.type, result);
+            if (createdItem) onItemCreated(createdItem);
           }
         }
       } catch (error) {
@@ -950,6 +972,10 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
  * @returns {Promise<void>}
  */
 async function main() {
+  // Detect staged mode before try/finally so it's accessible in the finally block.
+  // In staged mode (🎭 Staged Mode Preview) no real items are created in GitHub so no manifest should be emitted.
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
   try {
     core.info("=== Starting Unified Safe Output Handler Manager ===");
 
@@ -976,6 +1002,8 @@ async function main() {
     const agentOutput = loadAgentOutput();
     if (!agentOutput.success) {
       core.info("No agent output available - nothing to process");
+      // Ensure manifest file exists even when there is no agent output (skip in staged mode)
+      if (!isStaged) ensureManifestExists();
       // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", 0);
@@ -1006,15 +1034,21 @@ async function main() {
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
+      // Ensure manifest file exists even when no handlers are loaded (skip in staged mode)
+      if (!isStaged) ensureManifestExists();
       // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", 0);
       return;
     }
 
+    // Create manifest logger for recording created items.
+    // In staged mode, pass null so no items are logged (nothing is actually created).
+    const logCreatedItem = isStaged ? null : createManifestLogger();
+
     // Process all messages in order of appearance
     // Pass the projectOctokit so project handlers can use it
-    const processingResult = await processMessages(messageHandlers, agentOutput.items, projectOctokit);
+    const processingResult = await processMessages(messageHandlers, agentOutput.items, projectOctokit, logCreatedItem);
 
     // Finalize buffered PR review — submit when comments or metadata exist
     if (prReviewBuffer.hasBufferedComments() || prReviewBuffer.hasReviewMetadata()) {
@@ -1115,9 +1149,25 @@ async function main() {
       core.setOutput("issues_to_assign_copilot", "");
     }
 
+    // Ensure the manifest file always exists for artifact upload (even if no items were created).
+    // Skip in staged mode — no real items were created so no manifest should be emitted.
+    // Note: createManifestLogger() also calls ensureManifestExists() when the logger is created,
+    // so this is a safety net for cases where we never reached the logger creation.
+    if (!isStaged) ensureManifestExists();
+
     core.info("=== Unified Safe Output Handler Manager Completed ===");
   } catch (error) {
     core.setFailed(`Handler manager failed: ${getErrorMessage(error)}`);
+  } finally {
+    // Guarantee the manifest file exists for artifact upload even when the handler fails.
+    // This is a no-op if the file was already created by createManifestLogger().
+    if (!isStaged) {
+      try {
+        ensureManifestExists();
+      } catch (_e) {
+        // Ignore errors here — we must not mask the original failure
+      }
+    }
   }
 }
 

@@ -58,7 +58,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
 	compilerYamlLog.Print("Generating safe-inputs log parsing step")
 
-	yaml.WriteString("      - name: Parse safe-inputs logs for step summary\n")
+	yaml.WriteString("      - name: Parse Safe Inputs logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")

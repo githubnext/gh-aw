@@ -12,6 +12,7 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Maximum limits for label parameters to prevent resource exhaustion.
@@ -146,7 +147,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the labels without adding them
     if (isStaged) {
-      core.info(`Staged mode: Would add ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+      logStagedPreviewInfo(`Would add ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         staged: true,

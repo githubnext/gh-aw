@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -1263,4 +1264,65 @@ func TestDescribeFileAdditionalPatterns(t *testing.T) {
 				"File description should match expected value")
 		})
 	}
+}
+
+func TestExtractCreatedItemsFromManifest(t *testing.T) {
+	t.Run("returns nil for empty logsPath", func(t *testing.T) {
+		items := extractCreatedItemsFromManifest("")
+		assert.Nil(t, items, "should return nil for empty logsPath")
+	})
+
+	t.Run("returns nil when manifest file does not exist", func(t *testing.T) {
+		dir := t.TempDir()
+		items := extractCreatedItemsFromManifest(dir)
+		assert.Nil(t, items, "should return nil when file does not exist")
+	})
+
+	t.Run("parses valid JSONL manifest", func(t *testing.T) {
+		dir := t.TempDir()
+		content := `{"type":"create_issue","url":"https://github.com/owner/repo/issues/1","number":1,"repo":"owner/repo","timestamp":"2024-01-01T00:00:00Z"}
+{"type":"add_comment","url":"https://github.com/owner/repo/issues/1#issuecomment-999","timestamp":"2024-01-01T00:01:00Z"}
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0600))
+
+		items := extractCreatedItemsFromManifest(dir)
+		require.Len(t, items, 2, "should parse 2 items from manifest")
+		assert.Equal(t, "create_issue", items[0].Type)
+		assert.Equal(t, "https://github.com/owner/repo/issues/1", items[0].URL)
+		assert.Equal(t, 1, items[0].Number)
+		assert.Equal(t, "owner/repo", items[0].Repo)
+		assert.Equal(t, "add_comment", items[1].Type)
+	})
+
+	t.Run("skips entries without URL", func(t *testing.T) {
+		dir := t.TempDir()
+		content := `{"type":"create_issue","url":"","timestamp":"2024-01-01T00:00:00Z"}
+{"type":"create_issue","url":"https://github.com/owner/repo/issues/2","timestamp":"2024-01-01T00:01:00Z"}
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0600))
+
+		items := extractCreatedItemsFromManifest(dir)
+		require.Len(t, items, 1, "should skip entry with empty URL")
+		assert.Equal(t, "https://github.com/owner/repo/issues/2", items[0].URL)
+	})
+
+	t.Run("skips invalid JSON lines", func(t *testing.T) {
+		dir := t.TempDir()
+		content := `{"type":"create_issue","url":"https://github.com/owner/repo/issues/1","timestamp":"2024-01-01T00:00:00Z"}
+not-valid-json
+{"type":"add_comment","url":"https://github.com/owner/repo/issues/1#issuecomment-1","timestamp":"2024-01-01T00:02:00Z"}
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0600))
+
+		items := extractCreatedItemsFromManifest(dir)
+		require.Len(t, items, 2, "should skip invalid JSON lines and parse 2 valid ones")
+	})
+
+	t.Run("returns nil for empty manifest file", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(""), 0600))
+
+		items := extractCreatedItemsFromManifest(dir)
+		assert.Nil(t, items, "should return nil for empty manifest")
+	})
 }

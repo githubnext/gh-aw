@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/cli/fileutil"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

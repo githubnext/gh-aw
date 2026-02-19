@@ -175,7 +175,7 @@ func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *Wor
 	publishAssetsLog.Print("Generating safe-outputs assets artifact upload step")
 
 	builder.WriteString("      # Upload safe-outputs assets for upload_assets job\n")
-	builder.WriteString("      - name: Upload safe-outputs assets\n")
+	builder.WriteString("      - name: Upload Safe Outputs assets\n")
 	builder.WriteString("        if: always()\n")
 	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	builder.WriteString("        with:\n")

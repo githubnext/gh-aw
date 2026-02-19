@@ -228,7 +228,7 @@ func TestBuildEchoAgentOutputsStep_GeneratesCorrectOutput(t *testing.T) {
 			name:        "default agent job name",
 			mainJobName: "agent",
 			checkOutput: func(t *testing.T, output string) {
-				assert.Contains(t, output, "Echo agent output types", "should have descriptive step name")
+				assert.Contains(t, output, "Print agent output types", "should have descriptive step name")
 				assert.Contains(t, output, "AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}", "should reference agent job outputs")
 				assert.Contains(t, output, "echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"", "should echo the output types")
 			},

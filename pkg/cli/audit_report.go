@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bufio"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +36,7 @@ type AuditData struct {
 	Warnings                []ErrorInfo              `json:"warnings,omitempty"`
 	ToolUsage               []ToolUsageInfo          `json:"tool_usage,omitempty"`
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`
+	CreatedItems            []CreatedItemReport      `json:"created_items,omitempty"`
 }
 
 // Finding represents a key insight discovered during audit
@@ -108,6 +111,16 @@ type FileInfo struct {
 	Path        string `json:"path"`
 	Size        int64  `json:"size"`
 	Description string `json:"description"`
+}
+
+// CreatedItemReport represents a single item created in GitHub by a safe output handler
+type CreatedItemReport struct {
+	Type        string `json:"type" console:"header:Type"`
+	URL         string `json:"url" console:"header:URL"`
+	Number      int    `json:"number,omitempty" console:"header:Number,omitempty"`
+	Repo        string `json:"repo,omitempty" console:"header:Repo,omitempty"`
+	TemporaryID string `json:"temporaryId,omitempty" console:"header:Temp ID,omitempty"`
+	Timestamp   string `json:"timestamp" console:"header:Timestamp"`
 }
 
 // ErrorInfo contains detailed error information
@@ -323,6 +336,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Warnings:                warnings,
 		ToolUsage:               toolUsage,
 		MCPToolUsage:            mcpToolUsage,
+		CreatedItems:            extractCreatedItemsFromManifest(run.LogsPath),
 	}
 }
 
@@ -377,18 +391,65 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 	return files
 }
 
+// safeOutputItemsManifestFilename is the name of the manifest artifact file containing
+// all items created in GitHub by safe output handlers.
+const safeOutputItemsManifestFilename = "safe-output-items.jsonl"
+
+// extractCreatedItemsFromManifest reads the safe output items manifest from the run
+// output directory and returns the list of created items. Returns nil if the file
+// does not exist or cannot be parsed.
+func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
+	if logsPath == "" {
+		return nil
+	}
+
+	manifestPath := filepath.Join(logsPath, safeOutputItemsManifestFilename)
+	f, err := os.Open(manifestPath)
+	if err != nil {
+		// File not present is expected for runs without safe outputs
+		return nil
+	}
+	defer f.Close()
+
+	var items []CreatedItemReport
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var item CreatedItemReport
+		if err := json.Unmarshal([]byte(line), &item); err != nil {
+			auditReportLog.Printf("Skipping invalid manifest line: %v", err)
+			continue
+		}
+		if item.URL == "" {
+			continue
+		}
+		items = append(items, item)
+	}
+
+	if err := scanner.Err(); err != nil {
+		auditReportLog.Printf("Error reading manifest file: %v", err)
+	}
+
+	auditReportLog.Printf("Extracted %d created item(s) from manifest", len(items))
+	return items
+}
+
 // describeFile provides a short description for known artifact files
 func describeFile(filename string) string {
 	descriptions := map[string]string{
-		"aw_info.json":                "Engine configuration and workflow metadata",
-		"safe_output.jsonl":           "Safe outputs from workflow execution",
-		constants.AgentOutputFilename: "Validated safe outputs",
-		"aw.patch":                    "Git patch of changes made during execution",
-		"agent-stdio.log":             "Agent standard output/error logs",
-		"log.md":                      "Human-readable agent session summary",
-		"firewall.md":                 "Firewall log analysis report",
-		"run_summary.json":            "Cached summary of workflow run analysis",
-		"prompt.txt":                  "Input prompt for AI agent",
+		"aw_info.json":                  "Engine configuration and workflow metadata",
+		"safe_output.jsonl":             "Safe outputs from workflow execution",
+		safeOutputItemsManifestFilename: "Created items manifest (audit trail)",
+		constants.AgentOutputFilename:   "Validated safe outputs",
+		"aw.patch":                      "Git patch of changes made during execution",
+		"agent-stdio.log":               "Agent standard output/error logs",
+		"log.md":                        "Human-readable agent session summary",
+		"firewall.md":                   "Firewall log analysis report",
+		"run_summary.json":              "Cached summary of workflow run analysis",
+		"prompt.txt":                    "Input prompt for AI agent",
 	}
 
 	if desc, ok := descriptions[filename]; ok {

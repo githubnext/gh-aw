@@ -70,8 +70,8 @@ func TestCodexEngine(t *testing.T) {
 	// Check the execution step
 	stepContent := strings.Join([]string(execSteps[0]), "\n")
 
-	if !strings.Contains(stepContent, "name: Run Codex") {
-		t.Errorf("Expected step name 'Run Codex' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "name: Execute Codex") {
+		t.Errorf("Expected step name 'Execute Codex' in step content:\n%s", stepContent)
 	}
 
 	if strings.Contains(stepContent, "uses:") {

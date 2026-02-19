@@ -8,6 +8,7 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPullRequestNumber } = require("./pr_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -87,7 +88,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      core.info(`Staged mode: Would add reviewers to PR #${prNumber}`);
+      logStagedPreviewInfo(`Would add reviewers to PR #${prNumber}`);
       return {
         success: true,
         staged: true,

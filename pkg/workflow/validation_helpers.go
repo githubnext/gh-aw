@@ -13,13 +13,11 @@
 //   - ValidateInList() - Validates that a value is in an allowed list
 //   - ValidatePositiveInt() - Validates that a value is a positive integer
 //   - ValidateNonNegativeInt() - Validates that a value is a non-negative integer
-//   - fileExists() - Checks if a file exists at the given path
 //   - isEmptyOrNil() - Checks if a value is empty, nil, or zero (Phase 2)
 //   - getMapFieldAsString() - Safely extracts a string field from a map[string]any (Phase 2)
 //   - getMapFieldAsMap() - Safely extracts a nested map from a map[string]any (Phase 2)
 //   - getMapFieldAsBool() - Safely extracts a boolean field from a map[string]any (Phase 2)
 //   - getMapFieldAsInt() - Safely extracts an integer field from a map[string]any (Phase 2)
-//   - dirExists() - Checks if a directory exists at the given path (Phase 2)
 //
 // # Design Rationale
 //
@@ -36,7 +34,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -153,31 +150,6 @@ func ValidateNonNegativeInt(field string, value int) error {
 		)
 	}
 	return nil
-}
-
-// fileExists checks if a file exists at the given path.
-// Returns true if the file exists and is accessible, false otherwise.
-//
-// This helper consolidates common file existence checking patterns.
-//
-// Example:
-//
-//	if !fileExists(agentPath) {
-//	    return NewValidationError("agent.file", agentPath, "file does not exist", "...")
-//	}
-func fileExists(path string) bool {
-	if path == "" {
-		validationHelpersLog.Print("File existence check failed: empty path")
-		return false
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		validationHelpersLog.Printf("File existence check failed: path=%s, error=%v", path, err)
-		return false
-	}
-
-	return !info.IsDir()
 }
 
 // isEmptyOrNil evaluates whether a value represents an empty or absent state.
@@ -396,36 +368,4 @@ func getMapFieldAsInt(source map[string]any, fieldKey string, fallback int) int 
 	}
 
 	return convertedInt
-}
-
-// dirExists verifies that a filesystem path exists and represents a directory.
-// This consolidates directory existence checking patterns used throughout validation code.
-// Returns false for empty paths, non-existent paths, or paths that reference files.
-//
-// Example usage:
-//
-//	if !dirExists(workflowDirectory) {
-//	    return NewValidationError("directory", workflowDirectory, "directory not found", "create the directory")
-//	}
-func dirExists(targetPath string) bool {
-	// Reject empty paths immediately
-	if len(targetPath) == 0 {
-		validationHelpersLog.Print("Directory check received empty path")
-		return false
-	}
-
-	// Stat the path to check existence and type
-	pathInfo, statError := os.Stat(targetPath)
-	if statError != nil {
-		validationHelpersLog.Printf("Directory check failed for %q: %v", targetPath, statError)
-		return false
-	}
-
-	// Verify it's actually a directory
-	isDirectory := pathInfo.IsDir()
-	if !isDirectory {
-		validationHelpersLog.Printf("Path %q exists but is not a directory", targetPath)
-	}
-
-	return isDirectory
 }

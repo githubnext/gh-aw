@@ -137,6 +137,7 @@ let isCompiling = false;
 let compileTimer = null;
 let currentYaml = '';
 let pendingCompile = false;
+let isDragging = false;
 
 // ---------------------------------------------------------------
 // Theme — follows browser's prefers-color-scheme automatically.
@@ -405,8 +406,6 @@ $('warningClose').addEventListener('click', () => warningBanner.classList.add('d
 // ---------------------------------------------------------------
 // Draggable divider
 // ---------------------------------------------------------------
-let isDragging = false;
-
 divider.addEventListener('mousedown', (e) => {
   isDragging = true;
   divider.classList.add('dragging');

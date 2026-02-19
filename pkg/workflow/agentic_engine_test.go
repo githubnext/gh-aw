@@ -9,10 +9,21 @@ import (
 func TestEngineRegistry(t *testing.T) {
 	registry := NewEngineRegistry()
 
-	// Test that built-in engines are registered
+	// Test that built-in engines are registered - check for specific IDs rather than exact count
+	// to avoid brittleness when new engines are added
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 3 {
-		t.Errorf("Expected 3 supported engines, got %d", len(supportedEngines))
+	expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini"}
+	for _, engineID := range expectedEngineIDs {
+		found := false
+		for _, id := range supportedEngines {
+			if id == engineID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected engine '%s' to be registered", engineID)
+		}
 	}
 
 	// Test getting engines by ID

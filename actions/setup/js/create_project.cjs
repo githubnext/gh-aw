@@ -4,6 +4,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeTemporaryId, isTemporaryId, generateTemporaryId, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Log detailed GraphQL error information
@@ -415,7 +416,7 @@ async function main(config = {}, githubClient = null) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would create project "${title}"`);
+        logStagedPreviewInfo(`Would create project "${title}"`);
         return {
           success: true,
           staged: true,

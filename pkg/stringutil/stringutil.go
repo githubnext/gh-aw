@@ -3,7 +3,6 @@ package stringutil
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -83,11 +82,6 @@ func IsPositiveInteger(s string) bool {
 	return err == nil && num > 0
 }
 
-// ansiEscapePattern matches ANSI escape sequences
-// Pattern matches: ESC [ <optional params> <command letter>
-// Examples: \x1b[0m, \x1b[31m, \x1b[1;32m
-var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
-
 // StripANSIEscapeCodes removes ANSI escape sequences from a string.
 // This prevents terminal color codes and other control sequences from
 // being accidentally included in generated files (e.g., YAML workflows).
@@ -106,6 +100,8 @@ var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 //   - Workflow descriptions copied from terminal output
 //   - Comments in generated YAML files
 //   - Any text that should be plain ASCII
+//
+// Deprecated: Use StripANSI instead, which handles a broader range of terminal sequences.
 func StripANSIEscapeCodes(s string) string {
-	return ansiEscapePattern.ReplaceAllString(s, "")
+	return StripANSI(s)
 }

@@ -671,7 +671,7 @@ func TestEchoAgentOutputsStep(t *testing.T) {
 
 	// Verify key components of the echo step - now only echoing output types to avoid CLI overflow
 	expectedComponents := []string{
-		"name: Echo agent output types",
+		"name: Print agent output types",
 		"env:",
 		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
 		"run: |",
@@ -716,8 +716,8 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 	stepsString := strings.Join(steps, "")
 
 	// Verify that the echo step is included
-	if !strings.Contains(stepsString, "Echo agent output types") {
-		t.Error("Expected threat detection steps to include echo agent output types step")
+	if !strings.Contains(stepsString, "Print agent output types") {
+		t.Error("Expected threat detection steps to include print agent output types step")
 	}
 
 	// Verify it doesn't echo the full output to avoid CLI overflow

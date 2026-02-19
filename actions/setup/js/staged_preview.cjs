@@ -32,4 +32,14 @@ async function generateStagedPreview(options) {
   }
 }
 
-module.exports = { generateStagedPreview };
+/**
+ * Log a staged mode preview message using the canonical format.
+ * Use in handlers that detect staged mode inline rather than via generateStagedPreview.
+ *
+ * @param {string} message - Description of what would happen if staged mode was disabled
+ */
+function logStagedPreviewInfo(message) {
+  core.info(`🎭 Staged Mode Preview — ${message}`);
+}
+
+module.exports = { generateStagedPreview, logStagedPreviewInfo };

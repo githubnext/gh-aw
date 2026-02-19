@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var updateGitLog = logger.New("cli:update_git")
 
 // hasGitChanges checks if there are any uncommitted changes
 func hasGitChanges() (bool, error) {
@@ -19,7 +22,9 @@ func hasGitChanges() (bool, error) {
 		return false, fmt.Errorf("failed to check git status: %w", err)
 	}
 
-	return len(strings.TrimSpace(string(output))) > 0, nil
+	hasChanges := len(strings.TrimSpace(string(output))) > 0
+	updateGitLog.Printf("Git changes detected: %t", hasChanges)
+	return hasChanges, nil
 }
 
 // runGitCommand runs a git command with the specified arguments
@@ -33,6 +38,7 @@ func runGitCommand(args ...string) error {
 
 // createUpdatePR creates a pull request with the workflow changes
 func createUpdatePR(verbose bool) error {
+	updateGitLog.Print("Creating update PR for workflow changes")
 	// Check if GitHub CLI is available
 	if !isGHCLIAvailable() {
 		return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not found in PATH")
@@ -45,6 +51,7 @@ func createUpdatePR(verbose bool) error {
 	}
 
 	if !hasChanges {
+		updateGitLog.Print("No git changes found, skipping PR creation")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to create PR for"))
 		return nil
 	}
@@ -56,6 +63,7 @@ func createUpdatePR(verbose bool) error {
 	// Create a branch name with timestamp
 	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
 	branchName := fmt.Sprintf("update-workflows-%d", randomNum)
+	updateGitLog.Printf("Creating branch: %s", branchName)
 
 	// Create and checkout new branch
 	if err := runGitCommand("checkout", "-b", branchName); err != nil {
