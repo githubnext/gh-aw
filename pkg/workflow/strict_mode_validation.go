@@ -41,8 +41,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -344,9 +346,9 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
 	}
 
-	// In strict mode, ALL engines must use ecosystem identifiers for domains that belong to known ecosystems
+	// In strict mode, suggest using ecosystem identifiers for domains that belong to known ecosystems
 	// This applies regardless of LLM gateway support
-	// Truly custom domains (domains not part of any known ecosystem) are allowed
+	// Both ecosystem domains and truly custom domains are allowed, but we warn about ecosystem domains
 	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
 		strictModeValidationLog.Printf("Validating network domains in strict mode for all engines")
 
@@ -378,7 +380,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 			if ecosystem != "" {
 				// This domain belongs to a known ecosystem but was not specified as an ecosystem identifier
-				// In strict mode, we require ecosystem identifiers for ecosystem domains
+				// In strict mode, we suggest using ecosystem identifiers instead
 				ecosystemDomainsNotAsIdentifiers = append(ecosystemDomainsNotAsIdentifiers, domainSuggestion{domain: domain, ecosystem: ecosystem})
 			} else {
 				// This is a truly custom domain (not part of any known ecosystem) - allowed in strict mode
@@ -387,24 +389,19 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		}
 
 		if len(ecosystemDomainsNotAsIdentifiers) > 0 {
-			strictModeValidationLog.Printf("Engine '%s' has ecosystem domains not specified as identifiers in strict mode, failing validation", engineID)
+			strictModeValidationLog.Printf("Engine '%s' has ecosystem domains not specified as identifiers in strict mode, emitting warning", engineID)
 
-			// Build error message with ecosystem suggestions
-			errorMsg := "strict mode: domains that belong to known ecosystems must be specified using ecosystem identifiers (e.g., 'python', 'node') instead of individual domain names for security and maintainability."
-
-			// Add suggestions for domains that belong to known ecosystems
+			// Build warning message with ecosystem suggestions
 			var suggestions []string
 			for _, ds := range ecosystemDomainsNotAsIdentifiers {
-				suggestions = append(suggestions, fmt.Sprintf("'%s' belongs to ecosystem '%s'", ds.domain, ds.ecosystem))
+				suggestions = append(suggestions, fmt.Sprintf("'%s' → '%s'", ds.domain, ds.ecosystem))
 			}
 
-			if len(suggestions) > 0 {
-				errorMsg += " Did you mean: " + strings.Join(suggestions, ", ") + "?"
-			}
+			warningMsg := fmt.Sprintf("strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: %s", strings.Join(suggestions, ", "))
 
-			errorMsg += " Truly custom domains (not part of known ecosystems) are allowed. See: https://github.github.com/gh-aw/reference/network/"
-
-			return fmt.Errorf("%s", errorMsg)
+			// Print warning message and increment warning count
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			c.IncrementWarningCount()
 		}
 	}
 

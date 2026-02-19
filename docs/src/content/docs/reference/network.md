@@ -201,30 +201,30 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 
 ## Strict Mode Validation
 
-When [strict mode](/gh-aw/reference/frontmatter/#strict-mode-strict) is enabled (default), network configuration is validated to ensure security best practices. Strict mode enforces the use of ecosystem identifiers instead of individual domains for all engines.
+When [strict mode](/gh-aw/reference/frontmatter/#strict-mode-strict) is enabled (default), network configuration is validated to ensure security best practices. Strict mode recommends using ecosystem identifiers instead of individual domains for better maintainability.
 
-### Ecosystem Identifier Requirement
+### Ecosystem Identifier Recommendation
 
-Strict mode requires ecosystem identifiers (e.g., `python`, `node`) instead of individual ecosystem member domains (e.g., `pypi.org`, `npmjs.org`). This applies to all engines, including those with LLM gateway support.
+Strict mode allows but warns about individual ecosystem member domains (e.g., `pypi.org`, `npmjs.org`), recommending ecosystem identifiers (e.g., `python`, `node`) instead. This applies to all engines, including those with LLM gateway support.
 
 ````yaml wrap
-# ❌ Rejected in strict mode (all engines)
+# ⚠ Allowed with warning in strict mode (all engines)
 strict: true
 network:
   allowed:
     - defaults
-    - "pypi.org"        # Individual domain rejected
-    - "npmjs.org"       # Individual domain rejected
+    - "pypi.org"        # Allowed but warns: recommend using 'python'
+    - "npmjs.org"       # Allowed but warns: recommend using 'node'
 
-# ✅ Accepted in strict mode
+# ✅ Recommended in strict mode (no warnings)
 strict: true
 network:
   allowed:
     - defaults
-    - python           # Ecosystem identifier
-    - node             # Ecosystem identifier
+    - python           # Ecosystem identifier (recommended)
+    - node             # Ecosystem identifier (recommended)
 
-# ✅ Custom domains still allowed in strict mode
+# ✅ Custom domains allowed in strict mode (no warnings)
 strict: true
 network:
   allowed:
@@ -233,28 +233,15 @@ network:
     - "api.example.com"  # Custom domain (not part of known ecosystem)
 ````
 
-### Helpful Error Messages
+### Warning Messages
 
-When strict mode rejects an individual ecosystem domain, the error message suggests the appropriate ecosystem identifier:
+When strict mode encounters an individual ecosystem domain, it emits a warning suggesting the appropriate ecosystem identifier:
 
 ````text
-error: strict mode: domains that belong to known ecosystems must be specified using ecosystem identifiers (e.g., 'python', 'node') instead of individual domain names for security and maintainability. Did you mean: 'pypi.org' belongs to ecosystem 'python', 'npmjs.org' belongs to ecosystem 'node'? Truly custom domains (not part of known ecosystems) are allowed.
+warning: strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
 ````
 
-### Bypassing Strict Mode
-
-To use individual ecosystem domains (rather than ecosystem identifiers) for development or testing, disable strict mode:
-
-````yaml wrap
-strict: false
-network:
-  allowed:
-    - defaults
-    - "pypi.org"        # Individual ecosystem domain allowed when strict: false
-    - "api.example.com" # Custom domain (also works in strict mode)
-````
-
-**Note**: Custom domains that are not part of any known ecosystem (e.g., `api.example.com`, `cdn.myservice.io`) are allowed in strict mode. You only need to disable strict mode if you want to use individual ecosystem domains instead of ecosystem identifiers.
+The workflow will compile successfully, but the warning helps maintain best practices.
 
 ## Implementation
 
