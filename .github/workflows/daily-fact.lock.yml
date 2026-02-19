@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e6b7befeee92e59a65fad768672f3717fc7f9824814c87c56f035b11b6c5050c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"425dcc69c8efb65234bbd88b64f3e34b3b27a8fdb63006bb869c96f654705bbd"}
 
 name: "Daily Fact About gh-aw"
 "on":
@@ -52,7 +52,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@c4e091835c7a94dc7d3acb8ed3ae145afb4995f3 # c4e091835c7a94dc7d3acb8ed3ae145afb4995f3
+        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
         with:
           destination: /opt/gh-aw/actions
       - name: Validate context variables
@@ -254,7 +254,7 @@ jobs:
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@c4e091835c7a94dc7d3acb8ed3ae145afb4995f3 # c4e091835c7a94dc7d3acb8ed3ae145afb4995f3
+        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
         with:
           destination: /opt/gh-aw/actions
       - name: Checkout repository
@@ -795,7 +795,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@c4e091835c7a94dc7d3acb8ed3ae145afb4995f3 # c4e091835c7a94dc7d3acb8ed3ae145afb4995f3
+        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
@@ -890,7 +890,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@c4e091835c7a94dc7d3acb8ed3ae145afb4995f3 # c4e091835c7a94dc7d3acb8ed3ae145afb4995f3
+        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent artifacts
@@ -995,7 +995,7 @@ jobs:
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@c4e091835c7a94dc7d3acb8ed3ae145afb4995f3 # c4e091835c7a94dc7d3acb8ed3ae145afb4995f3
+        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
