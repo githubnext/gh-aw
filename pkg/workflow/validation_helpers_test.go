@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -715,33 +716,33 @@ func TestGetMapFieldAsInt(t *testing.T) {
 	}
 }
 
-// TestDirExists tests the dirExists helper function
+// TestDirExists tests the fileutil.DirExists helper function
 func TestDirExists(t *testing.T) {
 	t.Run("empty path returns false", func(t *testing.T) {
-		result := dirExists("")
+		result := fileutil.DirExists("")
 		assert.False(t, result, "empty path should return false")
 	})
 
 	t.Run("non-existent path returns false", func(t *testing.T) {
-		result := dirExists("/nonexistent/path/to/directory")
+		result := fileutil.DirExists("/nonexistent/path/to/directory")
 		assert.False(t, result, "non-existent path should return false")
 	})
 
 	t.Run("file path returns false", func(t *testing.T) {
 		// validation_helpers.go should exist and be a file, not a directory
-		result := dirExists("validation_helpers.go")
+		result := fileutil.DirExists("validation_helpers.go")
 		assert.False(t, result, "file path should return false")
 	})
 
 	t.Run("directory path returns true", func(t *testing.T) {
 		// Current directory should exist
-		result := dirExists(".")
+		result := fileutil.DirExists(".")
 		assert.True(t, result, "current directory should return true")
 	})
 
 	t.Run("parent directory returns true", func(t *testing.T) {
 		// Parent directory should exist
-		result := dirExists("..")
+		result := fileutil.DirExists("..")
 		assert.True(t, result, "parent directory should return true")
 	})
 }
