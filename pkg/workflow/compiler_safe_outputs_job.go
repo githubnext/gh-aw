@@ -282,6 +282,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
+	// Always upload the safe output items manifest as an artifact.
+	// This step runs even if previous steps fail, ensuring the audit trail
+	// is always available for the audit command to display.
+	steps = append(steps, buildSafeOutputItemsManifestUploadStep()...)
+
 	// Build the job condition
 	// The job should run if agent job completed (not skipped) AND detection passed (if enabled)
 	agentNotSkipped := BuildAnd(
@@ -406,4 +411,19 @@ func buildDetectionSuccessCondition() ConditionNode {
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
 		BuildStringLiteral("true"),
 	)
+}
+
+// buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
+// items manifest as a GitHub Actions artifact. The step always runs (if: always()) so
+// the manifest is available to the audit command even if some safe output steps fail.
+func buildSafeOutputItemsManifestUploadStep() []string {
+	return []string{
+		"      - name: Upload safe output items manifest\n",
+		"        if: always()\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+		"        with:\n",
+		"          name: safe-output-items\n",
+		"          path: /tmp/safe-output-items.jsonl\n",
+		"          if-no-files-found: warn\n",
+	}
 }

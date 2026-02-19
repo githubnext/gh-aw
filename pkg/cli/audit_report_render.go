@@ -102,6 +102,13 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr)
 	}
 
+	// Created Items Section - items created in GitHub by safe output handlers
+	if len(data.CreatedItems) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Created Items"))
+		fmt.Fprintln(os.Stderr)
+		renderCreatedItemsTable(data.CreatedItems)
+	}
+
 	// MCP Failures Section
 	if len(data.MCPFailures) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Failures"))
@@ -389,6 +396,35 @@ func renderRedactedDomainsAnalysis(analysis *RedactedDomainsAnalysis) {
 		}
 		fmt.Fprintln(os.Stderr)
 	}
+}
+
+// renderCreatedItemsTable renders the list of items created in GitHub by safe output handlers
+// as a table with clickable URLs for easy auditing.
+func renderCreatedItemsTable(items []CreatedItemReport) {
+	auditReportLog.Printf("Rendering created items table with %d item(s)", len(items))
+	config := console.TableConfig{
+		Headers: []string{"Type", "Repo", "Number", "Temp ID", "URL"},
+		Rows:    make([][]string, 0, len(items)),
+	}
+
+	for _, item := range items {
+		numberStr := ""
+		if item.Number > 0 {
+			numberStr = fmt.Sprintf("%d", item.Number)
+		}
+
+		row := []string{
+			item.Type,
+			item.Repo,
+			numberStr,
+			item.TemporaryID,
+			item.URL,
+		}
+		config.Rows = append(config.Rows, row)
+	}
+
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
+	fmt.Fprintln(os.Stderr)
 }
 
 // renderKeyFindings renders key findings with colored severity indicators
