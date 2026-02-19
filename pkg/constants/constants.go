@@ -303,6 +303,9 @@ const (
 
 	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway
 	CopilotLLMGatewayPort = 10002
+
+	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
+	GeminiLLMGatewayPort = 10003
 )
 
 // DefaultMCPRegistryURL is the default MCP registry URL.
@@ -339,12 +342,16 @@ const (
 	EnvVarModelAgentCodex = "GH_AW_MODEL_AGENT_CODEX"
 	// EnvVarModelAgentCustom configures the default Custom model for agent execution
 	EnvVarModelAgentCustom = "GH_AW_MODEL_AGENT_CUSTOM"
+	// EnvVarModelAgentGemini configures the default Gemini model for agent execution
+	EnvVarModelAgentGemini = "GH_AW_MODEL_AGENT_GEMINI"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
 	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
 	// EnvVarModelDetectionCodex configures the default Codex model for detection
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
+	// EnvVarModelDetectionGemini configures the default Gemini model for detection
+	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
 
 	// Common environment variable names used across all engines
 
@@ -372,6 +379,9 @@ const (
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.104.0"
+
+// DefaultGeminiVersion is the default version of the Google Gemini CLI
+const DefaultGeminiVersion Version = "0.29.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.30.3"

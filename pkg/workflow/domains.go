@@ -97,6 +97,17 @@ var ClaudeDefaultDomains = []string{
 	"statsig.anthropic.com",
 	"ts-crl.ws.symantec.com",
 	"ts-ocsp.ws.symantec.com",
+	"ubuntu.com",
+}
+
+// GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation
+var GeminiDefaultDomains = []string{
+	"*.googleapis.com",
+	"generativelanguage.googleapis.com",
+	"github.com",
+	"host.docker.internal",
+	"raw.githubusercontent.com",
+	"registry.npmjs.org",
 }
 
 // PlaywrightDomains are the domains required for Playwright browser downloads
@@ -508,6 +519,12 @@ func GetClaudeAllowedDomainsWithTools(network *NetworkPermissions, tools map[str
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetClaudeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return mergeDomainsWithNetworkToolsAndRuntimes(ClaudeDefaultDomains, network, tools, runtimes)
+}
+
+// GetGeminiAllowedDomainsWithToolsAndRuntimes merges Gemini default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetGeminiAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(GeminiDefaultDomains, network, tools, runtimes)
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions

@@ -325,6 +325,7 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewClaudeEngine())
 	registry.Register(NewCodexEngine())
 	registry.Register(NewCopilotEngine())
+	registry.Register(NewGeminiEngine())
 
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
 	return registry
