@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -763,4 +764,170 @@ imports:
 			t.Errorf("GetAffectedWorkflows() = %v, want [%s]", affected, topWorkflow)
 		}
 	})
+}
+
+// TestDependencyGraph_TopologicalConsistencyContract is the cross-path contract test.
+//
+// It verifies that for the same set of fixture files the DependencyGraph import
+// relationships (extracted via extractImportsFromFrontmatter) are consistent with
+// the topological ordering produced by the import processor
+// (parser.ProcessImportsFromFrontmatterWithManifest).
+//
+// Concretely: every dependency captured by the DependencyGraph must appear at a
+// lower index in the import processor result than the file that depends on it.
+// A regression to lexical sorting in the import processor would violate this
+// contract for fixtures where dependency order conflicts with lexical filename order.
+func TestDependencyGraph_TopologicalConsistencyContract(t *testing.T) {
+	tests := []struct {
+		name string
+		// files maps filename to frontmatter+content written into a temp dir.
+		files      map[string]string
+		topImports []string // imports listed in the top-level workflow
+	}{
+		{
+			// Lexical order (a < z) is the reverse of dependency order (z imports a).
+			name: "lexical order inverted: z-parent must follow a-child",
+			files: map[string]string{
+				"z-parent.md": `---
+imports:
+  - a-child.md
+tools:
+  tool-z: {}
+---`,
+				"a-child.md": `---
+tools:
+  tool-a: {}
+---`,
+			},
+			topImports: []string{"z-parent.md"},
+		},
+		{
+			// Three-level chain where lexical order (a < b < c) is the reverse of
+			// topological order (c depends on b depends on a -> emit a, b, c).
+			name: "three-level chain: deepest leaf first",
+			files: map[string]string{
+				"c-root.md": `---
+imports:
+  - b-mid.md
+tools:
+  tool-c: {}
+---`,
+				"b-mid.md": `---
+imports:
+  - a-leaf.md
+tools:
+  tool-b: {}
+---`,
+				"a-leaf.md": `---
+tools:
+  tool-a: {}
+---`,
+			},
+			topImports: []string{"c-root.md"},
+		},
+		{
+			// Diamond: two files both depend on a shared leaf. The shared leaf must
+			// appear before both dependents regardless of lexical order.
+			name: "diamond: shared leaf before both dependents",
+			files: map[string]string{
+				"z-left.md": `---
+imports:
+  - a-shared.md
+tools:
+  tool-z: {}
+---`,
+				"y-right.md": `---
+imports:
+  - a-shared.md
+tools:
+  tool-y: {}
+---`,
+				"a-shared.md": `---
+tools:
+  tool-shared: {}
+---`,
+			},
+			topImports: []string{"z-left.md", "y-right.md"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+			if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			// Write fixture files.
+			for name, content := range tt.files {
+				if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0600); err != nil {
+					t.Fatalf("writing fixture %s: %v", name, err)
+				}
+			}
+
+			// --- Path 1: dependency graph ---
+			// Build the graph and collect the import relationships it captures.
+			graph := NewDependencyGraph(workflowsDir)
+			compiler := workflow.NewCompiler()
+			if err := graph.BuildGraph(compiler); err != nil {
+				t.Fatalf("BuildGraph() error = %v", err)
+			}
+
+			// Gather absolute-path dependencies from the graph nodes.
+			absDepMap := make(map[string][]string, len(graph.nodes))
+			for absPath, node := range graph.nodes {
+				absDepMap[absPath] = node.Imports
+			}
+
+			// --- Path 2: import processor ---
+			// Run the import processor on the same top-level import list and collect
+			// the topologically sorted ImportedFiles (relative paths).
+			fm := map[string]any{"imports": tt.topImports}
+			result, err := parser.ProcessImportsFromFrontmatterWithManifest(fm, workflowsDir, nil)
+			if err != nil {
+				t.Fatalf("ProcessImportsFromFrontmatterWithManifest() error = %v", err)
+			}
+			importedFiles := result.ImportedFiles // relative paths
+
+			// Build a position map for the import processor result.
+			pos := make(map[string]int, len(importedFiles))
+			for i, f := range importedFiles {
+				pos[f] = i
+			}
+
+			// --- Cross-path contract ---
+			// For every dependency relationship captured by the DependencyGraph,
+			// verify that the import processor result honours the topological
+			// constraint: the dependency must appear at a lower index than its importer.
+			for absImporter, absDeps := range absDepMap {
+				relImporter, err := filepath.Rel(workflowsDir, absImporter)
+				if err != nil {
+					continue
+				}
+				importerIdx, ok := pos[relImporter]
+				if !ok {
+					continue // file not in the import processor result; skip
+				}
+				for _, absDep := range absDeps {
+					relDep, err := filepath.Rel(workflowsDir, absDep)
+					if err != nil {
+						continue
+					}
+					depIdx, ok2 := pos[relDep]
+					if !ok2 {
+						continue
+					}
+					if depIdx >= importerIdx {
+						t.Errorf("cross-path contract violated: dependency graph says %q imports %q, "+
+							"but import processor placed %q (pos %d) after %q (pos %d); "+
+							"full order: %v",
+							relImporter, relDep,
+							relDep, depIdx, relImporter, importerIdx,
+							importedFiles)
+					}
+				}
+			}
+		})
+	}
 }
