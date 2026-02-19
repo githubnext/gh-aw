@@ -41,8 +41,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -246,6 +248,59 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 	return nil
 }
 
+// validateEnvSecrets detects secrets in the env section and raises an error in strict mode
+// or a warning in non-strict mode. Secrets in env will be leaked to the agent container.
+func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
+	// Check if env section exists
+	envValue, exists := frontmatter["env"]
+	if !exists {
+		strictModeValidationLog.Printf("No env section found, validation passed")
+		return nil
+	}
+
+	// Parse env as map[string]string
+	envMap, ok := envValue.(map[string]any)
+	if !ok {
+		strictModeValidationLog.Printf("Env section is not a map, skipping validation")
+		return nil
+	}
+
+	// Convert to map[string]string for secret extraction
+	envStrings := make(map[string]string)
+	for key, value := range envMap {
+		if strValue, ok := value.(string); ok {
+			envStrings[key] = strValue
+		}
+	}
+
+	// Extract secrets from env values
+	secrets := ExtractSecretsFromMap(envStrings)
+	if len(secrets) == 0 {
+		strictModeValidationLog.Printf("No secrets found in env section")
+		return nil
+	}
+
+	// Build list of secret references found
+	var secretRefs []string
+	for _, secretExpr := range secrets {
+		secretRefs = append(secretRefs, secretExpr)
+	}
+
+	strictModeValidationLog.Printf("Found %d secret(s) in env section: %v", len(secrets), secretRefs)
+
+	// In strict mode, this is an error
+	if c.strictMode {
+		return fmt.Errorf("strict mode: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", strings.Join(secretRefs, ", "))
+	}
+
+	// In non-strict mode, emit a warning
+	warningMsg := fmt.Sprintf("Warning: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", strings.Join(secretRefs, ", "))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	c.IncrementWarningCount()
+
+	return nil
+}
+
 // validateStrictMode performs strict mode validations on the workflow
 //
 // This is the main orchestrator that calls individual validation functions.
@@ -255,6 +310,9 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 //  3. validateStrictMCPNetwork() - Requires top-level network config for container-based MCP servers
 //  4. validateStrictTools() - Validates tools configuration (e.g., serena local mode)
 //  5. validateStrictDeprecatedFields() - Refuses deprecated fields
+//
+// Note: Env secrets validation (validateEnvSecrets) is called separately outside of strict mode
+// to emit warnings in non-strict mode and errors in strict mode.
 //
 // Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
 // When zizmor is enabled with --zizmor flag, strict mode will treat any security
