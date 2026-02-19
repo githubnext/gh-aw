@@ -35,7 +35,7 @@ Before upgrading, ensure you have GitHub CLI (`gh`) v2.0.0+, the latest gh-aw ex
 
 ## Step 1: Upgrade the Extension
 
-Upgrade the `gh-aw` extension to get the latest features and codemods:
+Upgrade the `gh aw` extension to get the latest features and codemods:
 
 ```bash wrap
 gh extension upgrade gh-aw

@@ -26,6 +26,7 @@ safe-outputs:
     expires: 2d
     title-prefix: "[ca] "
     labels: [automation, dependencies, cookie]
+    close-older-issues: true
 timeout-minutes: 45
 ---
 

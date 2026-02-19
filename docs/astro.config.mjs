@@ -171,6 +171,7 @@ export default defineConfig({
 					label: 'Guides',
 					items: [
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
+						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },

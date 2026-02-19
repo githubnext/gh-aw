@@ -14,6 +14,14 @@ You can author new agentic workflows using a coding agent or other AI chat syste
 
 In this guide, we show you how to create agentic workflows in the GitHub web interface (github.com), your coding agent, or in VS Code Agent Mode.
 
+
+## GitHub Web Interface
+
+**If you have access to GitHub Copilot**, you can create and edit Agentic Workflows directly 
+from the Web Interface. This technique is slow and non-interactive 
+but it is incredibly useful to turn an idea to reality in a couple minutes. 
+For a more fine grained, interactive experience we recommend using a coding agent (see next section).
+
 <Video
    src="/gh-aw/videos/create-workflow-on-github.mp4"
    caption="Create an agentic workflow from the GitHub web interface"
@@ -21,16 +29,19 @@ In this guide, we show you how to create agentic workflows in the GitHub web int
    thumbnail="/gh-aw/videos/create-workflow-on-github.png"
 />
 
-## Creating Agentic Workflows using a Coding Agent
+> [!TIP]
+> On the first run in a new repository, the workflow will surely fail because the secrets are not configured.
+> The agentic workflow should detect the missing tokens and create an issue with instructions on how to configure them.
 
-Follow these steps to create an agentic workflow using VSCode or your coding agent.
+## VSCode/Claude/Codex/Copilot
+
+Follow these steps to create an agentic workflow using VSCode or your coding CLI agent.
 
 1. **Start your coding agent**.
 
    Choose your preferred coding agent and start it in the context of your repository. For example, you can:
    - Start [VSCode Agent Mode](https://code.visualstudio.com/docs/copilot/agents/overview)
    - Start your CLI coding agent in your repository
-   - Go to the "Agents" tab for your repository on https://github.com
 
 2. **Create an agentic workflow**.
 
@@ -54,59 +65,18 @@ After merging the pull request, you can run the workflow to see it in action. Ei
 - trigger runs manually from the Actions tab in GitHub.com, or
 - use [the `gh aw run` command](/gh-aw/setup/cli/#run) to trigger runs from your terminal.
 
-## Creating Agentic Workflows with an AI Chatbot
+> [!TIP]
+> If you plan to keep using this way of editing workflows, run our `init` command to configure your repository
+> to make the agent more effective.
+> ```
+> gh aw init
+> ```
+> or run this prompt
+> ```
+> Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+> ```
 
-If you prefer to use an AI chatbot to author agentic workflow, you can use the [agentic-chat instructions](https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/agentic-chat.md) with any conversational AI application to create clear, actionable task descriptions. Use the button below to copy the full instructions: <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/agentic-chat.md" label="Copy agentic-chat instructions" />.
-
-The agentic-chat assistant helps you:
-- Break down complex problems into clear, actionable phases
-- Structure task descriptions for AI coding agents
-- Write specifications without implementation details
-- Follow best practices for agentic workflow task descriptions
-
-To use the agentic-chat instructions:
-
-1. Copy the full instructions using the button above
-2. Paste them into your AI chat interface
-3. Describe your workflow goal or problem
-4. The assistant will ask clarifying questions and generate a structured task description
-5. Copy the generated task description (wrapped in 5 backticks) and use it in your workflow
-
-The assistant uses a neutral, technical tone and focuses on what needs to be done rather than how to implement it, making it ideal for creating specifications that AI coding agents can execute.
-
-## Dictating Agentic Workflows
-
-When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/github/gh-aw/main/skills/dictation/SKILL.md) or <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/skills/dictation/SKILL.md" label="Copy full instructions" />.
-
-This prompt helps rephrase text captured through speech-to-text recognition by:
-- Correcting project-specific terminology (e.g., "ghaw" → "gh-aw", "work flow" → "workflow")
-- Transforming casual dictated sentences into clear, imperative task descriptions
-- Removing filler words and improving technical tone
-- Adding necessary context that might be implicit in spoken requests
-
-Load the dictation prompt into your AI assistant before or after dictating your workflow instructions to improve accuracy and clarity.
-
-### Migrating Workflows Between Repositories
-
-When you need to adapt an existing workflow from another repository, use the `create-agentic-agent` to perform AI-assisted migration. The agent analyzes the source workflow, identifies dependencies, adapts configuration for your repository, and validates the result. This is useful for forking workflows as starting points or one-time migrations requiring substantial changes. For synchronized updates across repositories, use [Packaging & Distribution](/gh-aw/guides/packaging-imports/) with `gh aw add` instead.
-
-Example prompt for migration:
-```text wrap
-Migrate the release.md workflow from github/gh-aw to this repository.
-Adapt permissions and repository-specific references for our structure.
-```
-
-### Remixing Existing Workflows
-
-You can also remix existing workflows from other repositories by prompting your coding agent to modify or enhance them. For example, you might want to add new features, improve efficiency, or adjust to new requirements. Use prompts like:
-
-```text wrap
-Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
-
-Remix the issue-triage.md workflow from github/gh-aw to add automatic labeling based on issue content and priority.
-```
-
-## Creating Agentic Workflows manually
+## Manual Editing
 
 If you prefer to create workflows manually, you can
 
@@ -178,18 +148,6 @@ You can add any existing workflow you have access to.
 
 You can now trigger runs of the workflow either from the Actions tab in GitHub.com or using the `gh aw run` command from your terminal.
 
-## Adding Further Supporting Files for Agentic Workflows
+## Learn More About Agentic Authoring
 
-Optionally, you can also add additional developer support for agentic workflows:
-
-```text wrap
-Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
-```
-
-This will
-1. Install the gh-aw CLI extension
-2. Add settings and prompts for VSCode, Copilot and general workflow management
-3. Commit the changes and make a pull request
-
-Alternatively you can run `gh aw init` from your terminal after installing the `gh-aw` extension.
-
+The [Agentic Authoring](/gh-aw/guides/agentic-authoring) contains additional techniques to leverage agents to help build better agentic workflows.

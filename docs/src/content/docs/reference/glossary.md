@@ -185,7 +185,7 @@ A GitHub Personal Access Token with granular permission control, specifying exac
 
 ### CLI (Command Line Interface)
 
-The `gh-aw` extension for GitHub CLI providing commands for managing agentic workflows: compile, run, status, logs, add, and project management.
+The `gh aw` extension for GitHub CLI providing commands for managing agentic workflows: compile, run, status, logs, add, and project management.
 
 ### Playground
 

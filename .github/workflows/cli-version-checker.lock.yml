@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1b10358b8d2f4999ed67f66a35cc17a28187f23df86e9ee09c277566cf9802fb"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"46d71b0390aed3a0c598541e801f158c1842b35bf50bdd247a1422d66d3acaac"}
 
 name: "CLI Version Checker"
 "on":
@@ -1183,7 +1183,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":48,\"labels\":[\"automation\",\"dependencies\",\"cookie\"],\"max\":1,\"title_prefix\":\"[ca] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"close_older_issues\":true,\"expires\":48,\"labels\":[\"automation\",\"dependencies\",\"cookie\"],\"max\":1,\"title_prefix\":\"[ca] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
