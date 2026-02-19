@@ -349,6 +349,27 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	return domains
 }
 
+// extractPlaywrightDomains extracts ecosystem domains needed for Playwright tool to download browsers
+// Returns a slice of domain names required for Playwright browser downloads
+// These domains are needed when Playwright MCP server initializes in the Docker container
+func extractPlaywrightDomains(tools map[string]any) []string {
+	if tools == nil {
+		return []string{}
+	}
+
+	// Check if Playwright tool is configured
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// Get domains from the playwright ecosystem
+		playwrightDomains := getEcosystemDomains("playwright")
+		if len(playwrightDomains) > 0 {
+			domainsLog.Printf("Detected Playwright tool, adding %d ecosystem domains for browser downloads", len(playwrightDomains))
+			return playwrightDomains
+		}
+	}
+
+	return []string{}
+}
+
 // mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
@@ -384,6 +405,15 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	if tools != nil {
 		mcpDomains := extractHTTPMCPDomains(tools)
 		for _, domain := range mcpDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Add Playwright ecosystem domains (if Playwright tool is specified)
+	// This ensures browser binaries can be downloaded when Playwright initializes
+	if tools != nil {
+		playwrightDomains := extractPlaywrightDomains(tools)
+		for _, domain := range playwrightDomains {
 			domainMap[domain] = true
 		}
 	}
