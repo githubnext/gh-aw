@@ -219,9 +219,7 @@
         "roles": {
           "type": "string|array",
           "desc": "Repository access roles required to trigger agentic workflows.",
-          "enum": [
-            "all"
-          ],
+          "enum": ["all"],
           "leaf": true,
           "array": true
         },
@@ -238,26 +236,13 @@
         "reaction": {
           "type": "string|integer",
           "desc": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none).",
-          "enum": [
-            "+1",
-            "-1",
-            "laugh",
-            "confused",
-            "heart",
-            "hooray",
-            "rocket",
-            "eyes",
-            "none"
-          ],
+          "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"],
           "leaf": true
         },
         "status-comment": {
           "type": "boolean",
           "desc": "Whether to post status comments (started/completed) on the triggering item.",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         }
       }
@@ -265,165 +250,102 @@
     "permissions": {
       "type": "string|object",
       "desc": "GitHub token permissions for the workflow.",
-      "enum": [
-        "read-all",
-        "write-all"
-      ],
+      "enum": ["read-all", "write-all"],
       "children": {
         "actions": {
           "type": "string",
           "desc": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "attestations": {
           "type": "string",
           "desc": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "checks": {
           "type": "string",
           "desc": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "contents": {
           "type": "string",
           "desc": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "deployments": {
           "type": "string",
           "desc": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "discussions": {
           "type": "string",
           "desc": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "id-token": {
           "type": "string",
           "desc": "Permission level for OIDC token requests (write/none only - read is not supported).",
-          "enum": [
-            "write",
-            "none"
-          ],
+          "enum": ["write", "none"],
           "leaf": true
         },
         "issues": {
           "type": "string",
           "desc": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "models": {
           "type": "string",
           "desc": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)",
-          "enum": [
-            "read",
-            "none"
-          ],
+          "enum": ["read", "none"],
           "leaf": true
         },
         "metadata": {
           "type": "string",
           "desc": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no ac...",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "packages": {
           "type": "string",
           "desc": "Permission level for GitHub Packages (read/write/none).",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "pages": {
           "type": "string",
           "desc": "Permission level for GitHub Pages (read/write/none).",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "pull-requests": {
           "type": "string",
           "desc": "Permission level for pull requests (read/write/none).",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "security-events": {
           "type": "string",
           "desc": "Permission level for security events (read/write/none).",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "statuses": {
           "type": "string",
           "desc": "Permission level for commit statuses (read/write/none).",
-          "enum": [
-            "read",
-            "write",
-            "none"
-          ],
+          "enum": ["read", "write", "none"],
           "leaf": true
         },
         "all": {
           "type": "string",
           "desc": "Permission shorthand that applies read access to all permission scopes.",
-          "enum": [
-            "read"
-          ],
+          "enum": ["read"],
           "leaf": true
         }
       }
@@ -471,10 +393,7 @@
         "cancel-in-progress": {
           "type": "boolean",
           "desc": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts.",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         }
       }
@@ -491,19 +410,13 @@
     "infer": {
       "type": "boolean",
       "desc": "DEPRECATED: Use 'disable-model-invocation' instead.",
-      "enum": [
-        true,
-        false
-      ],
+      "enum": [true, false],
       "leaf": true
     },
     "disable-model-invocation": {
       "type": "boolean",
       "desc": "Controls whether the custom agent should disable model invocation.",
-      "enum": [
-        true,
-        false
-      ],
+      "enum": [true, false],
       "leaf": true
     },
     "secrets": {
@@ -579,9 +492,7 @@
     "network": {
       "type": "string|object",
       "desc": "Network access control for AI engines using ecosystem identifiers and domain allowlists.",
-      "enum": [
-        "defaults"
-      ],
+      "enum": ["defaults"],
       "children": {
         "allowed": {
           "type": "array",
@@ -596,9 +507,7 @@
         "firewall": {
           "type": "null|boolean|string|object",
           "desc": "AWF (Agent Workflow Firewall) configuration for network egress control.",
-          "enum": [
-            "disable"
-          ],
+          "enum": ["disable"],
           "children": {
             "args": {
               "type": "array",
@@ -613,21 +522,13 @@
             "log-level": {
               "type": "string",
               "desc": "AWF log level (default: info).",
-              "enum": [
-                "debug",
-                "info",
-                "warn",
-                "error"
-              ],
+              "enum": ["debug", "info", "warn", "error"],
               "leaf": true
             },
             "ssl-bump": {
               "type": "boolean",
               "desc": "Enable SSL Bump for HTTPS content inspection.",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             },
             "allow-urls": {
@@ -642,41 +543,29 @@
     "sandbox": {
       "type": "string|object",
       "desc": "Sandbox configuration for AI engines.",
-      "enum": [
-        "default",
-        "awf"
-      ],
+      "enum": ["default", "awf"],
       "children": {
         "type": {
           "type": "string",
           "desc": "Legacy sandbox type field (use agent instead).",
-          "enum": [
-            "default",
-            "awf"
-          ],
+          "enum": ["default", "awf"],
           "leaf": true
         },
         "agent": {
           "type": "boolean|string|object",
           "desc": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to disable agent sandbox.",
-          "enum": [
-            "awf"
-          ],
+          "enum": ["awf"],
           "children": {
             "id": {
               "type": "string",
               "desc": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall",
-              "enum": [
-                "awf"
-              ],
+              "enum": ["awf"],
               "leaf": true
             },
             "type": {
               "type": "string",
               "desc": "Legacy: Sandbox type to use (use 'id' instead)",
-              "enum": [
-                "awf"
-              ],
+              "enum": ["awf"],
               "leaf": true
             },
             "command": {
@@ -713,10 +602,7 @@
                 "enableWeakerNestedSandbox": {
                   "type": "boolean",
                   "desc": "Enable weaker nested sandbox mode (recommended: true for Docker access)",
-                  "enum": [
-                    true,
-                    false
-                  ],
+                  "enum": [true, false],
                   "leaf": true
                 }
               }
@@ -755,10 +641,7 @@
             "enableWeakerNestedSandbox": {
               "type": "boolean",
               "desc": "When true, allows nested sandbox processes to run with relaxed restrictions.",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             }
           }
@@ -814,10 +697,7 @@
             "domain": {
               "type": "string",
               "desc": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)",
-              "enum": [
-                "localhost",
-                "host.docker.internal"
-              ],
+              "enum": ["localhost", "host.docker.internal"],
               "leaf": true
             }
           }
@@ -859,20 +739,12 @@
     "engine": {
       "type": "string|object",
       "desc": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow.",
-      "enum": [
-        "claude",
-        "codex",
-        "copilot"
-      ],
+      "enum": ["claude", "codex", "copilot"],
       "children": {
         "id": {
           "type": "string",
           "desc": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), or 'copilot' (GitHub Copilot CLI)",
-          "enum": [
-            "claude",
-            "codex",
-            "copilot"
-          ],
+          "enum": ["claude", "codex", "copilot"],
           "leaf": true
         },
         "version": {
@@ -902,10 +774,7 @@
             "cancel-in-progress": {
               "type": "boolean",
               "desc": "Whether to cancel in-progress runs of the same concurrency group.",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             }
           }
@@ -971,10 +840,7 @@
             "mode": {
               "type": "string",
               "desc": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)",
-              "enum": [
-                "local",
-                "remote"
-              ],
+              "enum": ["local", "remote"],
               "leaf": true
             },
             "version": {
@@ -990,19 +856,13 @@
             "read-only": {
               "type": "boolean",
               "desc": "Enable read-only mode to restrict GitHub MCP server to read-only operations only",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             },
             "lockdown": {
               "type": "boolean",
               "desc": "Enable lockdown mode to limit content surfaced from public repositories (only items authored by users with push access).",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             },
             "github-token": {
@@ -1123,19 +983,13 @@
             "restore-only": {
               "type": "boolean",
               "desc": "If true, only restore the cache without saving it back.",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             },
             "scope": {
               "type": "string",
               "desc": "Cache restore key scope: 'workflow' (default, only restores from same workflow) or 'repo' (restores from any workflow...",
-              "enum": [
-                "workflow",
-                "repo"
-              ],
+              "enum": ["workflow", "repo"],
               "leaf": true
             },
             "allowed-extensions": {
@@ -1168,10 +1022,7 @@
             "mode": {
               "type": "string",
               "desc": "Serena execution mode: 'docker' (default, runs in container) or 'local' (runs locally with uvx and HTTP transport)",
-              "enum": [
-                "docker",
-                "local"
-              ],
+              "enum": ["docker", "local"],
               "leaf": true
             },
             "args": {
@@ -1261,10 +1112,7 @@
             "create-orphan": {
               "type": "boolean",
               "desc": "Create orphaned branch if it doesn't exist (default: true)",
-              "enum": [
-                true,
-                false
-              ],
+              "enum": [true, false],
               "leaf": true
             },
             "allowed-extensions": {
@@ -1311,19 +1159,13 @@
         "fail-on-cache-miss": {
           "type": "boolean",
           "desc": "Fail the workflow if cache entry is not found",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         },
         "lookup-only": {
           "type": "boolean",
           "desc": "If true, only checks if cache entry exists and skips download",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         }
       },
@@ -1536,10 +1378,7 @@
         "staged": {
           "type": "boolean",
           "desc": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         },
         "env": {
@@ -1581,19 +1420,13 @@
         "footer": {
           "type": "boolean",
           "desc": "Global footer control for all safe outputs.",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         },
         "group-reports": {
           "type": "boolean",
           "desc": "When true, creates a parent '[agentics] Failed runs' issue that tracks all workflow failures as sub-issues.",
-          "enum": [
-            true,
-            false
-          ],
+          "enum": [true, false],
           "leaf": true
         },
         "runs-on": {
@@ -1648,10 +1481,7 @@
     "strict": {
       "type": "boolean",
       "desc": "Enable strict mode validation for enhanced security and compliance.",
-      "enum": [
-        true,
-        false
-      ],
+      "enum": [true, false],
       "leaf": true
     },
     "safe-inputs": {
