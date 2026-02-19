@@ -89,7 +89,7 @@ async function processSafeOutput(config, stagedPreviewOptions, handlerConfig = n
     }
   }
 
-  // Step 3: Handle staged mode
+  // Step 3: Handle 🎭 Staged Mode Preview — output preview via generateStagedPreview, skip real writes
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     await generateStagedPreview({
       title: stagedPreviewOptions.title,

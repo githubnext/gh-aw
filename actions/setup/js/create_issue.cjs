@@ -40,6 +40,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { closeOlderIssues } = require("./close_older_issues.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -480,7 +481,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the issue without creating it
     if (isStaged) {
-      core.info(`Staged mode: Would create issue in ${qualifiedItemRepo} with title: ${title}`);
+      logStagedPreviewInfo(`Would create issue in ${qualifiedItemRepo} with title: ${title}`);
       // Return success with staged flag and preview info
       return {
         success: true,

@@ -18,6 +18,7 @@ const { createExpirationLine, generateFooterWithExpiration } = require("./epheme
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Maximum limits for discussion parameters to prevent resource exhaustion.
@@ -552,7 +553,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the discussion without creating it
     if (isStaged) {
-      core.info(`Staged mode: Would create discussion in ${qualifiedItemRepo}`);
+      logStagedPreviewInfo(`Would create discussion in ${qualifiedItemRepo}`);
       return {
         success: true,
         staged: true,

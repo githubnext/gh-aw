@@ -9,6 +9,7 @@ const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "unassign_from_user";
@@ -112,7 +113,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      core.info(`Staged mode: Would unassign users from issue #${issueNumber} in ${targetRepo}`);
+      logStagedPreviewInfo(`Would unassign users from issue #${issueNumber} in ${targetRepo}`);
       return {
         success: true,
         staged: true,

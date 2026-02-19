@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -250,7 +251,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview the close without executing it
       if (isStaged) {
-        core.info(`Staged mode: Would close discussion #${discussionNumber}`);
+        logStagedPreviewInfo(`Would close discussion #${discussionNumber}`);
         return {
           success: true,
           staged: true,

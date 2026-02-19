@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -21,7 +22,7 @@ async function main(config = {}) {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Add code scanning autofix configuration: max=${maxCount}`);
-  core.info(`Staged mode: ${isStaged}`);
+  if (isStaged) logStagedPreviewInfo("no changes will be written");
 
   // Track how many items we've processed for max limit
   let processedCount = 0;

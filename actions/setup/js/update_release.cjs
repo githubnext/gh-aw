@@ -10,6 +10,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 // Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
@@ -36,7 +37,7 @@ async function main(config = {}) {
   return async function handleUpdateRelease(message, resolvedTemporaryIds = {}) {
     // In staged mode, skip actual processing (preview is handled elsewhere)
     if (isStaged) {
-      core.info(`Staged mode: Would update release with tag ${message.tag || "(inferred)"}`);
+      logStagedPreviewInfo(`Would update release with tag ${message.tag || "(inferred)"}`);
       return { skipped: true, reason: "staged_mode" };
     }
 

@@ -10,6 +10,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Type constant for handler identification
@@ -147,7 +148,7 @@ async function main(config = {}) {
 
       // In staged mode, skip the API call and return a preview result
       if (isStaged) {
-        core.info(`Staged mode: Would reply to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);
+        logStagedPreviewInfo(`Would reply to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);
         return { skipped: true, reason: "staged_mode" };
       }
 

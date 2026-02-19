@@ -233,7 +233,7 @@ check_staged_mode() {
         # Check if handler has staged mode
         if grep -q "staged.*true\|isStaged\|GH_AW_SAFE_OUTPUTS_STAGED" "$handler"; then
             # Check for emoji in preview
-            if ! grep -q "🎭\|Staged Mode.*Preview" "$handler"; then
+            if ! grep -q "🎭\|Staged Mode.*Preview\|logStagedPreviewInfo\|generateStagedPreview" "$handler"; then
                 log_low "USE-003: $handler has staged mode but missing 🎭 emoji"
                 failed=1
             fi

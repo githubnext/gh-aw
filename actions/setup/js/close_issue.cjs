@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Get issue details using REST API
@@ -232,7 +233,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview the close without executing it
       if (isStaged) {
-        core.info(`Staged mode: Would close issue #${issueNumber} in ${itemRepo}`);
+        logStagedPreviewInfo(`Would close issue #${issueNumber} in ${itemRepo}`);
         return {
           success: true,
           staged: true,
