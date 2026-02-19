@@ -6,7 +6,7 @@
  */
 
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
-const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
+const { createUpdateHandlerFactory, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 
 /**
@@ -142,18 +142,13 @@ function buildDiscussionUpdateData(item, config) {
 
 /**
  * Format success result for discussion update
- * @param {number} discussionNumber - Discussion number
- * @param {Object} updatedDiscussion - Updated discussion object
- * @returns {Object} Formatted success result
+ * Uses the standard format helper for consistency across update handlers
  */
-function formatDiscussionSuccessResult(discussionNumber, updatedDiscussion) {
-  return {
-    success: true,
-    number: discussionNumber,
-    url: updatedDiscussion.url,
-    title: updatedDiscussion.title,
-  };
-}
+const formatDiscussionSuccessResult = createStandardFormatResult({
+  numberField: "number",
+  urlField: "url",
+  urlSource: "url",
+});
 
 /**
  * Main handler factory for update_discussion
