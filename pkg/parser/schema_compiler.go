@@ -276,7 +276,8 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				}
 
 				// Rewrite "additional properties not allowed" errors to be more friendly
-				message := rewriteAdditionalPropertiesError(primaryPath.Message)
+				// Also clean up oneOf jargon (e.g., "got string, want object") to plain English
+				message := rewriteAdditionalPropertiesError(cleanOneOfMessage(primaryPath.Message))
 
 				// Add schema-based suggestions
 				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path)
