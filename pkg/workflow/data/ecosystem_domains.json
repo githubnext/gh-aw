@@ -92,7 +92,11 @@
     "archive.apache.org",
     "download.java.net",
     "api.foojay.io",
-    "cdn.azul.com"
+    "cdn.azul.com",
+    "central.sonatype.com",
+    "maven.google.com",
+    "dl.google.com",
+    "repo.gradle.org"
   ],
   "linux-distros": [
     "deb.debian.org",
@@ -133,7 +137,11 @@
     "deno.land",
     "jsr.io",
     "*.jsr.io",
-    "registry.bower.io"
+    "registry.bower.io",
+    "esm.sh",
+    "googleapis.deno.dev",
+    "googlechromelabs.github.io",
+    "cdn.jsdelivr.net"
   ],
   "node-cdns": ["cdn.jsdelivr.net"],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
@@ -151,7 +159,10 @@
     "binstar.org",
     "anaconda.org",
     "repo.continuum.io",
-    "repo.anaconda.com"
+    "repo.anaconda.com",
+    "crates.io",
+    "index.crates.io",
+    "static.crates.io"
   ],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],

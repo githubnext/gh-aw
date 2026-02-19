@@ -38,6 +38,9 @@ func mcpErrorData(v any) json.RawMessage {
 	return data
 }
 
+// boolPtr returns a pointer to the given bool value, used for optional *bool fields.
+func boolPtr(b bool) *bool { return &b }
+
 // getRepository retrieves the current repository name (owner/repo format).
 // Results are cached for 1 hour to avoid repeated queries.
 // Checks GITHUB_REPOSITORY environment variable first, then falls back to gh repo view.
@@ -447,6 +450,11 @@ func createMCPServer(cmdPath string, actor string, validateActor bool) *mcp.Serv
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "status",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(false),
+		},
 		Description: `Show status of agentic workflow files and workflows.
 
 Returns a JSON array where each element has the following structure:
@@ -524,6 +532,11 @@ Returns a JSON array where each element has the following structure:
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "compile",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint:  true,
+			DestructiveHint: boolPtr(false),
+			OpenWorldHint:   boolPtr(false),
+		},
 		Description: `Compile Markdown workflows to GitHub Actions YAML with optional static analysis tools.
 
 ⚠️  IMPORTANT: Any change to .github/workflows/*.md files MUST be compiled using this tool.
@@ -684,6 +697,11 @@ Returns JSON array with validation results for each workflow:
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "logs",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
 		Description: `Download and analyze workflow logs.
 
 Returns JSON with workflow run data and metrics. If the command times out before fetching all available logs, 
@@ -851,6 +869,11 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "audit",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
 		Description: `Investigate a workflow run, job, or specific step and generate a concise report.
 
 Accepts multiple input formats:
@@ -957,6 +980,11 @@ Returns JSON with the following structure:
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "mcp-inspect",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
 		Description: `Inspect MCP servers used by a workflow and list available tools, resources, and roots.
 
 This tool starts each MCP server configured in the workflow, queries its capabilities,
@@ -1036,7 +1064,10 @@ Returns formatted text output showing:
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "add",
+		Name: "add",
+		Annotations: &mcp.ToolAnnotations{
+			OpenWorldHint: boolPtr(true),
+		},
 		Description: "Add workflows from remote repositories to .github/workflows",
 		Icons: []mcp.Icon{
 			{Source: "➕"},
@@ -1104,6 +1135,9 @@ Returns formatted text output showing:
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "update",
+		Annotations: &mcp.ToolAnnotations{
+			OpenWorldHint: boolPtr(true),
+		},
 		Description: `Update workflows from their source repositories and check for gh-aw updates.
 
 The command:
@@ -1177,6 +1211,11 @@ Returns formatted text output showing:
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "fix",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint:  true,
+			DestructiveHint: boolPtr(false),
+			OpenWorldHint:   boolPtr(false),
+		},
 		Description: `Apply automatic codemod-style fixes to agentic workflow files.
 
 This command applies a registry of codemods that automatically update deprecated fields

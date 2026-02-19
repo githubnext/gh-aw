@@ -115,6 +115,29 @@ func TestGetDomainEcosystem(t *testing.T) {
 	}
 }
 
+// TestGetDomainEcosystem_Determinism verifies that GetDomainEcosystem returns the same result
+// across repeated calls for domains that exist in multiple ecosystems (e.g. cdn.jsdelivr.net
+// is in both "node" and "node-cdns" and must always resolve to "node-cdns").
+func TestGetDomainEcosystem_Determinism(t *testing.T) {
+	cases := []struct {
+		domain   string
+		expected string
+	}{
+		{"cdn.jsdelivr.net", "node-cdns"},
+		{"crates.io", "rust"}, // also appears in python ecosystem
+		{"index.crates.io", "rust"},
+		{"static.crates.io", "rust"},
+	}
+	for _, c := range cases {
+		for i := 0; i < 20; i++ {
+			got := GetDomainEcosystem(c.domain)
+			if got != c.expected {
+				t.Errorf("call %d: GetDomainEcosystem(%q) = %q, want %q", i, c.domain, got, c.expected)
+			}
+		}
+	}
+}
+
 func TestMatchesDomain(t *testing.T) {
 	tests := []struct {
 		name     string

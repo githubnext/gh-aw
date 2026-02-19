@@ -215,29 +215,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 
 	// Note: Roots are not directly available via MCP protocol in the current spec,
 	// so we'll keep an empty list or try to infer from resources
-	for _, resource := range info.Resources {
-		// Simple heuristic: extract root URIs from resources
-		if strings.Contains(resource.URI, "://") {
-			parts := strings.SplitN(resource.URI, "://", 2)
-			if len(parts) == 2 {
-				rootURI := parts[0] + "://"
-				// Check if we already have this root
-				found := false
-				for _, root := range info.Roots {
-					if root.URI == rootURI {
-						found = true
-						break
-					}
-				}
-				if !found {
-					info.Roots = append(info.Roots, &mcp.Root{
-						URI:  rootURI,
-						Name: parts[0],
-					})
-				}
-			}
-		}
-	}
+	info.Roots = extractRootsFromResources(info.Resources)
 
 	return info, nil
 }
@@ -253,9 +231,12 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 		Logger: logger.NewSlogLoggerWithHandler(mcpInspectServerLog),
 	})
 
-	// Create streamable client transport for HTTP
+	// Create streamable client transport for HTTP.
+	// DisableStandaloneSSE reduces resource usage: the inspector only queries
+	// capabilities and never needs to receive server-initiated messages.
 	transport := &mcp.StreamableClientTransport{
-		Endpoint: config.URL,
+		Endpoint:             config.URL,
+		DisableStandaloneSSE: true,
 	}
 
 	// Add custom headers if provided
@@ -324,21 +305,30 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	}
 
 	// Extract root URIs from resources (simple heuristic)
-	for _, resource := range info.Resources {
+	info.Roots = extractRootsFromResources(info.Resources)
+
+	return info, nil
+}
+
+// extractRootsFromResources infers root URIs from a list of resources by extracting
+// the scheme portion (e.g. "file://") of each resource URI.
+func extractRootsFromResources(resources []*mcp.Resource) []*mcp.Root {
+	var roots []*mcp.Root
+	for _, resource := range resources {
 		if strings.Contains(resource.URI, "://") {
 			parts := strings.SplitN(resource.URI, "://", 2)
 			if len(parts) == 2 {
 				rootURI := parts[0] + "://"
 				// Check if we already have this root
 				found := false
-				for _, root := range info.Roots {
+				for _, root := range roots {
 					if root.URI == rootURI {
 						found = true
 						break
 					}
 				}
 				if !found {
-					info.Roots = append(info.Roots, &mcp.Root{
+					roots = append(roots, &mcp.Root{
 						URI:  rootURI,
 						Name: parts[0],
 					})
@@ -346,8 +336,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 			}
 		}
 	}
-
-	return info, nil
+	return roots
 }
 
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables

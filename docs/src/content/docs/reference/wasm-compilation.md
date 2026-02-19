@@ -32,7 +32,7 @@ This produces two artifacts:
 
 | File | Description |
 |------|-------------|
-| `gh-aw.wasm` | The compiled WebAssembly module (~17 MB) |
+| `gh-aw.wasm` | The compiled WebAssembly module (~17 MB uncompressed) |
 | `$(go env GOROOT)/misc/wasm/wasm_exec.js` | Go's Wasm runtime (ships with your Go installation) |
 
 Copy both files to your project:
@@ -41,6 +41,17 @@ Copy both files to your project:
 cp gh-aw.wasm your-project/
 cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" your-project/
 ```
+
+## Compression
+
+The raw `.wasm` binary is ~17 MB. The build pipeline pre-compresses it with [brotli](https://github.com/google/brotli) at maximum quality (`-q 11`), producing a `gh-aw.wasm.br` file of ~5 MB — a ~70% reduction. GitHub Pages serves the `.br` file automatically when the browser sends `Accept-Encoding: br`.
+
+```bash
+# Manual compression (if not using the bundle script)
+brotli -k -q 11 gh-aw.wasm    # produces gh-aw.wasm.br (~5 MB)
+```
+
+The docs site bundle script (`scripts/bundle-wasm-docs.sh`) handles this automatically. If `brotli` is not installed, it falls back to gzip (`-9`), which achieves ~6 MB.
 
 ## JavaScript API
 

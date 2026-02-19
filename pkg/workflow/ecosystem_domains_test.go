@@ -180,13 +180,19 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 
 		expectedDomains := []string{
 			"repo.maven.apache.org",
+			"repo1.maven.org",
 			"services.gradle.org",
+			"plugins.gradle.org",
 			"download.oracle.com",
 			"dlcdn.apache.org",
 			"archive.apache.org",
 			"download.java.net",
 			"api.foojay.io",
 			"cdn.azul.com",
+			"central.sonatype.com",
+			"maven.google.com",
+			"dl.google.com",
+			"repo.gradle.org",
 		}
 
 		for _, expectedDomain := range expectedDomains {
@@ -218,6 +224,10 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"deno.land",
 			"jsr.io",
 			"*.jsr.io",
+			"esm.sh",
+			"googleapis.deno.dev",
+			"googlechromelabs.github.io",
+			"cdn.jsdelivr.net",
 		}
 
 		for _, expectedDomain := range expectedDomains {
@@ -230,6 +240,34 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			}
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in node ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
+	t.Run("python ecosystem includes Rust FFI domains for native packages", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"python"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"pypi.org",
+			"pip.pypa.io",
+			"crates.io",
+			"index.crates.io",
+			"static.crates.io",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := false
+			for _, domain := range domains {
+				if domain == expectedDomain {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in python ecosystem, but it was not found", expectedDomain)
 			}
 		}
 	})
