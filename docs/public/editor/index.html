@@ -15,50 +15,22 @@ html, body {
   overflow: hidden;
 }
 
-/* Editor textarea sizing & behavior */
-.editor-textarea {
-  flex: 1;
-  width: 100%;
+/* CodeMirror editor sizing */
+.cm-editor {
   height: 100%;
-  padding: 12px 16px 12px 60px;
   font-size: 13px;
-  line-height: 1.6;
-  border: none;
-  resize: none;
-  outline: none;
-  tab-size: 2;
-  -moz-tab-size: 2;
+}
+.cm-editor .cm-scroller {
   overflow: auto;
-  background: var(--bgColor-default, var(--color-canvas-default));
-  color: var(--fgColor-default, var(--color-fg-default));
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  line-height: 1.6;
 }
-.editor-textarea::placeholder {
-  color: var(--fgColor-muted, var(--color-fg-muted));
-}
-
-/* Line numbers gutter */
-.line-numbers {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 48px;
-  height: 100%;
-  overflow: hidden;
-  z-index: 2;
-  background: var(--bgColor-muted, var(--color-canvas-subtle));
-  border-right: 1px solid var(--borderColor-default, var(--color-border-default));
-}
-.line-numbers-inner {
-  padding: 12px 0;
+.cm-editor .cm-gutters {
   font-size: 13px;
   line-height: 1.6;
-  text-align: right;
-  user-select: none;
-  color: var(--fgColor-muted, var(--color-fg-muted));
 }
-.line-numbers-inner div {
-  padding-right: 12px;
-  height: 20.8px;
+.cm-editor.cm-focused {
+  outline: none;
 }
 
 /* Draggable divider */
@@ -99,16 +71,6 @@ html, body {
 .divider:hover,
 .divider.dragging {
   background: var(--fgColor-accent, var(--color-accent-fg));
-}
-
-/* Output pre sizing */
-.output-pre {
-  margin: 0;
-  padding: 12px 16px;
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre;
-  min-height: 100%;
 }
 
 /* Loading overlay & spinner */
@@ -278,20 +240,7 @@ html, body {
           <span class="kbd-hint-other">Ctrl+Enter</span>
         </kbd>
       </div>
-      <div class="flex-1 d-flex position-relative" style="min-height: 0; overflow: hidden;">
-        <div class="line-numbers" id="lineNumbers">
-          <div class="line-numbers-inner text-mono" id="lineNumbersInner"></div>
-        </div>
-        <textarea
-          class="editor-textarea text-mono"
-          id="editor"
-          spellcheck="false"
-          autocapitalize="off"
-          autocomplete="off"
-          autocorrect="off"
-          placeholder="Write your agentic workflow here..."
-        ></textarea>
-      </div>
+      <div class="flex-1" style="min-height: 0; overflow: hidden;" id="editorMount"></div>
     </div>
 
     <div class="divider" id="divider"></div>
@@ -306,11 +255,11 @@ html, body {
           Compiled Output (.lock.yml)
         </span>
       </div>
-      <div class="flex-1 overflow-auto color-bg-subtle" style="min-height: 0;" id="outputContainer">
+      <div class="flex-1" style="min-height: 0; overflow: hidden;" id="outputContainer">
         <div class="d-flex flex-items-center flex-justify-center color-fg-muted f5 p-4 text-center" style="height: 100%;" id="outputPlaceholder">
           Compiled YAML will appear here
         </div>
-        <pre class="output-pre text-mono color-fg-default d-none" id="outputPre"></pre>
+        <div id="outputMount" style="height: 100%; display: none;"></div>
       </div>
     </div>
   </div>

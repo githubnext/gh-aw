@@ -2,6 +2,13 @@
 // gh-aw Playground - Application Logic
 // ================================================================
 
+import { EditorView, basicSetup } from 'https://esm.sh/codemirror@6.0.2';
+import { EditorState, Compartment } from 'https://esm.sh/@codemirror/state@6.5.4';
+import { keymap } from 'https://esm.sh/@codemirror/view@6.39.14';
+import { yaml } from 'https://esm.sh/@codemirror/lang-yaml@6.1.2';
+import { markdown } from 'https://esm.sh/@codemirror/lang-markdown@6.5.0';
+import { indentUnit } from 'https://esm.sh/@codemirror/language@6.12.1';
+import { oneDark } from 'https://esm.sh/@codemirror/theme-one-dark@6.1.3';
 import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
 
 // ---------------------------------------------------------------
@@ -27,9 +34,9 @@ const DEFAULT_CONTENT = [
 // ---------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 
-const editor = $('editor');
-const outputPre = $('outputPre');
+const editorMount = $('editorMount');
 const outputPlaceholder = $('outputPlaceholder');
+const outputMount = $('outputMount');
 const outputContainer = $('outputContainer');
 const compileBtn = $('compileBtn');
 const statusBadge = $('statusBadge');
@@ -40,7 +47,6 @@ const errorBanner = $('errorBanner');
 const errorText = $('errorText');
 const warningBanner = $('warningBanner');
 const warningText = $('warningText');
-const lineNumbersInner = $('lineNumbersInner');
 const themeToggle = $('themeToggle');
 const toggleTrack = $('toggleTrack');
 const divider = $('divider');
@@ -61,10 +67,17 @@ let currentYaml = '';
 // ---------------------------------------------------------------
 // Theme (uses Primer's data-color-mode)
 // ---------------------------------------------------------------
+const editorThemeConfig = new Compartment();
+const outputThemeConfig = new Compartment();
+
 function getPreferredTheme() {
   const saved = localStorage.getItem('gh-aw-playground-theme');
   if (saved) return saved;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function cmThemeFor(theme) {
+  return theme === 'dark' ? oneDark : [];
 }
 
 function setTheme(theme) {
@@ -79,8 +92,55 @@ function setTheme(theme) {
     sunIcon.style.display = 'none';
     moonIcon.style.display = 'block';
   }
+
+  // Update CodeMirror themes
+  const cmTheme = cmThemeFor(theme);
+  editorView.dispatch({ effects: editorThemeConfig.reconfigure(cmTheme) });
+  outputView.dispatch({ effects: outputThemeConfig.reconfigure(cmTheme) });
 }
 
+// ---------------------------------------------------------------
+// CodeMirror: Input Editor (Markdown with YAML frontmatter)
+// ---------------------------------------------------------------
+const editorView = new EditorView({
+  doc: DEFAULT_CONTENT,
+  extensions: [
+    basicSetup,
+    markdown(),
+    EditorState.tabSize.of(2),
+    indentUnit.of('  '),
+    editorThemeConfig.of(cmThemeFor(getPreferredTheme())),
+    keymap.of([{
+      key: 'Mod-Enter',
+      run: () => { doCompile(); return true; }
+    }]),
+    EditorView.updateListener.of(update => {
+      if (update.docChanged && autoCompile && isReady) {
+        scheduleCompile();
+      }
+    }),
+  ],
+  parent: editorMount,
+});
+
+// ---------------------------------------------------------------
+// CodeMirror: Output View (YAML, read-only)
+// ---------------------------------------------------------------
+const outputView = new EditorView({
+  doc: '',
+  extensions: [
+    basicSetup,
+    yaml(),
+    EditorState.readOnly.of(true),
+    EditorView.editable.of(false),
+    outputThemeConfig.of(cmThemeFor(getPreferredTheme())),
+  ],
+  parent: outputMount,
+});
+
+// ---------------------------------------------------------------
+// Apply initial theme + listen for changes
+// ---------------------------------------------------------------
 setTheme(getPreferredTheme());
 
 themeToggle.addEventListener('click', () => {
@@ -128,57 +188,6 @@ function setStatus(status, text) {
 }
 
 // ---------------------------------------------------------------
-// Line numbers
-// ---------------------------------------------------------------
-function updateLineNumbers() {
-  const lines = editor.value.split('\n').length;
-  let html = '';
-  for (let i = 1; i <= lines; i++) {
-    html += '<div>' + i + '</div>';
-  }
-  lineNumbersInner.innerHTML = html;
-}
-
-function syncLineNumberScroll() {
-  const lineNumbers = $('lineNumbers');
-  lineNumbers.scrollTop = editor.scrollTop;
-}
-
-// ---------------------------------------------------------------
-// Editor setup
-// ---------------------------------------------------------------
-editor.value = DEFAULT_CONTENT;
-updateLineNumbers();
-
-editor.addEventListener('input', () => {
-  updateLineNumbers();
-  if (autoCompile && isReady) {
-    scheduleCompile();
-  }
-});
-
-editor.addEventListener('scroll', syncLineNumberScroll);
-
-// Tab key inserts 2 spaces
-editor.addEventListener('keydown', (e) => {
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const val = editor.value;
-    editor.value = val.substring(0, start) + '  ' + val.substring(end);
-    editor.selectionStart = editor.selectionEnd = start + 2;
-    editor.dispatchEvent(new Event('input'));
-  }
-
-  // Ctrl+Enter or Cmd+Enter to compile
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    doCompile();
-  }
-});
-
-// ---------------------------------------------------------------
 // Auto-compile toggle
 // ---------------------------------------------------------------
 $('autoCompileToggle').addEventListener('click', () => {
@@ -205,10 +214,10 @@ async function doCompile() {
     compileTimer = null;
   }
 
-  const md = editor.value;
+  const md = editorView.state.doc.toString();
   if (!md.trim()) {
-    outputPre.classList.add('d-none');
-    outputPlaceholder.classList.remove('d-none');
+    outputMount.style.display = 'none';
+    outputPlaceholder.style.display = 'flex';
     outputPlaceholder.textContent = 'Compiled YAML will appear here';
     currentYaml = '';
     return;
@@ -232,9 +241,13 @@ async function doCompile() {
     } else {
       setStatus('ready', 'Ready');
       currentYaml = result.yaml;
-      outputPre.textContent = result.yaml;
-      outputPre.classList.remove('d-none');
-      outputPlaceholder.classList.add('d-none');
+
+      // Update output CodeMirror view
+      outputView.dispatch({
+        changes: { from: 0, to: outputView.state.doc.length, insert: result.yaml }
+      });
+      outputMount.style.display = 'block';
+      outputPlaceholder.style.display = 'none';
 
       if (result.warnings && result.warnings.length > 0) {
         warningText.textContent = result.warnings.join('\n');
