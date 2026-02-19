@@ -1048,6 +1048,7 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
+          GH_AW_REPORTS_PARENT_ISSUES: "false"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

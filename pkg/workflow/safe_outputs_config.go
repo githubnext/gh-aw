@@ -428,11 +428,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Handle reports-parent-issues flag
-			if reportsParentIssues, exists := outputMap["reports-parent-issues"]; exists {
-				if reportsParentIssuesBool, ok := reportsParentIssues.(bool); ok {
-					config.ReportsParentIssues = reportsParentIssuesBool
-					safeOutputsConfigLog.Printf("Reports parent issues control: %t", reportsParentIssuesBool)
+			// Handle group-reports flag
+			if groupReports, exists := outputMap["group-reports"]; exists {
+				if groupReportsBool, ok := groupReports.(bool); ok {
+					config.GroupReports = groupReportsBool
+					safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
 				}
 			}
 

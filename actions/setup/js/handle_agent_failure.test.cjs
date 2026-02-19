@@ -105,7 +105,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
   describe("when agent job failed", () => {
     it("should create parent issue and link sub-issue when creating new failure issue", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock no existing parent issue - will create it
       mockGithub.rest.search.issuesAndPullRequests
@@ -201,7 +201,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
 
     it("should reuse existing parent issue when it exists", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock existing parent issue
       mockGithub.rest.search.issuesAndPullRequests
@@ -281,7 +281,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
 
     it("should handle sub-issue API not available gracefully", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock searches
       mockGithub.rest.search.issuesAndPullRequests
@@ -322,7 +322,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
 
     it("should continue if parent issue creation fails", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock searches
       mockGithub.rest.search.issuesAndPullRequests
@@ -833,7 +833,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
   describe("parent issue sub-issue limit", () => {
     it("should create new parent issue when existing parent reaches 64 sub-issues", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock searches: PR search, parent issue search, failure issue search
       mockGithub.rest.search.issuesAndPullRequests
@@ -940,7 +940,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
 
     it("should reuse parent issue when sub-issue count is below 64", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock searches
       mockGithub.rest.search.issuesAndPullRequests
@@ -1018,7 +1018,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
 
     it("should continue if sub-issue count check fails", async () => {
       // Enable parent issue creation for this test
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock searches
       mockGithub.rest.search.issuesAndPullRequests
@@ -1339,9 +1339,9 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
     });
   });
 
-  describe("reports-parent-issues flag", () => {
-    it("should not create parent issue when GH_AW_REPORTS_PARENT_ISSUES is false", async () => {
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "false";
+  describe("group-reports flag", () => {
+    it("should not create parent issue when GH_AW_GROUP_REPORTS is false", async () => {
+      process.env.GH_AW_GROUP_REPORTS = "false";
 
       // Initialize graphql mock (even though it shouldn't be called)
       mockGithub.graphql = vi.fn();
@@ -1382,11 +1382,11 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
       expect(mockGithub.graphql).not.toHaveBeenCalled();
 
       // Verify info message was logged
-      expect(mockCore.info).toHaveBeenCalledWith("Parent issue creation is disabled (reports-parent-issues: false)");
+      expect(mockCore.info).toHaveBeenCalledWith("Parent issue creation is disabled (group-reports: false)");
     });
 
-    it("should create parent issue when GH_AW_REPORTS_PARENT_ISSUES is true", async () => {
-      process.env.GH_AW_REPORTS_PARENT_ISSUES = "true";
+    it("should create parent issue when GH_AW_GROUP_REPORTS is true", async () => {
+      process.env.GH_AW_GROUP_REPORTS = "true";
 
       // Mock PR search (no PR found)
       mockGithub.rest.search.issuesAndPullRequests
@@ -1455,9 +1455,9 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
       });
     });
 
-    it("should default to false when GH_AW_REPORTS_PARENT_ISSUES is not set", async () => {
+    it("should default to false when GH_AW_GROUP_REPORTS is not set", async () => {
       // Don't set the env var - let it default
-      delete process.env.GH_AW_REPORTS_PARENT_ISSUES;
+      delete process.env.GH_AW_GROUP_REPORTS;
 
       // Initialize graphql mock (even though it shouldn't be called)
       mockGithub.graphql = vi.fn();
@@ -1486,7 +1486,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
       // Verify parent issue was NOT created (default is false)
       expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
       expect(mockGithub.graphql).not.toHaveBeenCalled();
-      expect(mockCore.info).toHaveBeenCalledWith("Parent issue creation is disabled (reports-parent-issues: false)");
+      expect(mockCore.info).toHaveBeenCalledWith("Parent issue creation is disabled (group-reports: false)");
     });
   });
 });

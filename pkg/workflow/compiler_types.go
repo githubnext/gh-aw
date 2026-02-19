@@ -521,7 +521,7 @@ type SafeOutputsConfig struct {
 	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                  // Custom message templates for footer and notifications
 	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`                  // Configuration for @mention filtering in safe outputs
 	Footer                          *bool                                  `yaml:"footer,omitempty"`                    // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
-	ReportsParentIssues             bool                                   `yaml:"reports-parent-issues,omitempty"`     // If true, create parent "Failed runs" issue for agent failures (default: false)
+	GroupReports                    bool                                   `yaml:"group-reports,omitempty"`             // If true, create parent "Failed runs" issue for agent failures (default: false)
 }
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages

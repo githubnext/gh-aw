@@ -417,11 +417,11 @@ async function main() {
     const pullRequest = await findPullRequestForCurrentBranch();
 
     // Check if parent issue creation is enabled (defaults to false)
-    const reportsParentIssues = process.env.GH_AW_REPORTS_PARENT_ISSUES === "true";
+    const groupReports = process.env.GH_AW_GROUP_REPORTS === "true";
 
     // Ensure parent issue exists first (only if enabled)
     let parentIssue;
-    if (reportsParentIssues) {
+    if (groupReports) {
       try {
         parentIssue = await ensureParentIssue();
       } catch (error) {
@@ -429,7 +429,7 @@ async function main() {
         // Continue without parent issue
       }
     } else {
-      core.info("Parent issue creation is disabled (reports-parent-issues: false)");
+      core.info("Parent issue creation is disabled (group-reports: false)");
     }
 
     // Sanitize workflow name for title

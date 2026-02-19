@@ -177,11 +177,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 
-	// Pass reports-parent-issues configuration flag (defaults to false if not specified)
-	if data.SafeOutputs != nil && data.SafeOutputs.ReportsParentIssues {
-		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_REPORTS_PARENT_ISSUES: \"true\"\n")
+	// Pass group-reports configuration flag (defaults to false if not specified)
+	if data.SafeOutputs != nil && data.SafeOutputs.GroupReports {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"true\"\n")
 	} else {
-		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_REPORTS_PARENT_ISSUES: \"false\"\n")
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"false\"\n")
 	}
 
 	// Build the agent failure handling step

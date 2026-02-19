@@ -901,6 +901,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔧 *Tool validation by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools...\",\"runSuccess\":\"✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready.\",\"runFailure\":\"❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}\"}"
+          GH_AW_REPORTS_PARENT_ISSUES: "false"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

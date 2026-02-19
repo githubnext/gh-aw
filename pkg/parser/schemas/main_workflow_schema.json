@@ -6422,7 +6422,7 @@
           "default": true,
           "examples": [false, true]
         },
-        "reports-parent-issues": {
+        "group-reports": {
           "type": "boolean",
           "description": "When true, creates a parent '[agentics] Failed runs' issue that tracks all workflow failures as sub-issues. Helps organize failure tracking but may be unnecessary in smaller repositories. Defaults to false.",
           "default": false,
