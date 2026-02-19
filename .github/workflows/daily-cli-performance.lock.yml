@@ -1080,7 +1080,6 @@ jobs:
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1361,7 +1360,6 @@ jobs:
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
