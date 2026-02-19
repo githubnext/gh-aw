@@ -115,42 +115,12 @@ html, body {
   50% { opacity: 0.35; }
 }
 
-/* Toggle switch (no Primer equivalent in CSS-only) */
-.toggle-track {
-  position: relative;
-  width: 34px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--bgColor-neutral-muted, var(--color-neutral-muted, #afb8c1));
-  transition: background 180ms ease;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.toggle-track.active {
-  background: var(--fgColor-accent, var(--color-accent-fg));
-}
-.toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform 180ms ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-.toggle-track.active .toggle-knob {
-  transform: translateX(14px);
-}
-
 /* Responsive */
 @media (max-width: 767px) {
   .panels-container { flex-direction: column !important; }
   .divider { width: 100%; height: 4px; cursor: row-resize; }
   .header-bar { gap: 8px !important; padding: 8px 12px !important; flex-wrap: wrap; height: auto !important; min-height: 48px !important; }
   .header-separator { display: none !important; }
-  .auto-compile-label-text { display: none; }
 }
 </style>
 </head>
@@ -181,20 +151,6 @@ html, body {
     </span>
 
     <div class="d-flex flex-items-center gap-3 ml-auto">
-      <label class="d-flex flex-items-center gap-1 f6 color-fg-muted cursor-pointer" style="white-space: nowrap; user-select: none;" id="autoCompileToggle" title="Auto-compile on change">
-        <div class="toggle-track active" id="toggleTrack">
-          <div class="toggle-knob"></div>
-        </div>
-        <span class="auto-compile-label-text">Auto</span>
-      </label>
-
-      <button class="btn btn-primary btn-sm" id="compileBtn" disabled title="Compile workflow">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="flex-shrink-0">
-          <path d="M4 2a1 1 0 011.5-.87l8.5 5a1 1 0 010 1.74l-8.5 5A1 1 0 014 12V2z"/>
-        </svg>
-        Compile
-      </button>
-
       <button class="btn-octicon" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sun icon (shown in dark mode) -->
         <svg class="icon-sun octicon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="display:none">
@@ -235,10 +191,6 @@ html, body {
           </svg>
           Workflow (.md)
         </span>
-        <kbd class="color-bg-subtle color-fg-muted text-mono" style="padding: 1px 5px; font-size: 11px; border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 3px; line-height: 1.4;" title="Press to compile">
-          <span class="kbd-hint-mac" style="display:none">&#8984;&#9166;</span>
-          <span class="kbd-hint-other">Ctrl+Enter</span>
-        </kbd>
       </div>
       <div class="flex-1" style="min-height: 0; overflow: hidden;" id="editorMount"></div>
     </div>
