@@ -15,50 +15,22 @@ html, body {
   overflow: hidden;
 }
 
-/* Editor textarea sizing & behavior */
-.editor-textarea {
-  flex: 1;
-  width: 100%;
+/* CodeMirror editor sizing */
+.cm-editor {
   height: 100%;
-  padding: 12px 16px 12px 60px;
   font-size: 13px;
-  line-height: 1.6;
-  border: none;
-  resize: none;
-  outline: none;
-  tab-size: 2;
-  -moz-tab-size: 2;
+}
+.cm-editor .cm-scroller {
   overflow: auto;
-  background: var(--bgColor-default, var(--color-canvas-default));
-  color: var(--fgColor-default, var(--color-fg-default));
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  line-height: 1.6;
 }
-.editor-textarea::placeholder {
-  color: var(--fgColor-muted, var(--color-fg-muted));
-}
-
-/* Line numbers gutter */
-.line-numbers {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 48px;
-  height: 100%;
-  overflow: hidden;
-  z-index: 2;
-  background: var(--bgColor-muted, var(--color-canvas-subtle));
-  border-right: 1px solid var(--borderColor-default, var(--color-border-default));
-}
-.line-numbers-inner {
-  padding: 12px 0;
+.cm-editor .cm-gutters {
   font-size: 13px;
   line-height: 1.6;
-  text-align: right;
-  user-select: none;
-  color: var(--fgColor-muted, var(--color-fg-muted));
 }
-.line-numbers-inner div {
-  padding-right: 12px;
-  height: 20.8px;
+.cm-editor.cm-focused {
+  outline: none;
 }
 
 /* Draggable divider */
@@ -99,16 +71,6 @@ html, body {
 .divider:hover,
 .divider.dragging {
   background: var(--fgColor-accent, var(--color-accent-fg));
-}
-
-/* Output pre sizing */
-.output-pre {
-  margin: 0;
-  padding: 12px 16px;
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre;
-  min-height: 100%;
 }
 
 /* Loading overlay & spinner */
@@ -278,20 +240,7 @@ html, body {
           <span class="kbd-hint-other">Ctrl+Enter</span>
         </kbd>
       </div>
-      <div class="flex-1 d-flex position-relative" style="min-height: 0; overflow: hidden;">
-        <div class="line-numbers" id="lineNumbers">
-          <div class="line-numbers-inner text-mono" id="lineNumbersInner"></div>
-        </div>
-        <textarea
-          class="editor-textarea text-mono"
-          id="editor"
-          spellcheck="false"
-          autocapitalize="off"
-          autocomplete="off"
-          autocorrect="off"
-          placeholder="Write your agentic workflow here..."
-        ></textarea>
-      </div>
+      <div class="flex-1" style="min-height: 0; overflow: hidden;" id="editorMount"></div>
     </div>
 
     <div class="divider" id="divider"></div>
@@ -306,11 +255,11 @@ html, body {
           Compiled Output (.lock.yml)
         </span>
       </div>
-      <div class="flex-1 overflow-auto color-bg-subtle" style="min-height: 0;" id="outputContainer">
+      <div class="flex-1" style="min-height: 0; overflow: hidden;" id="outputContainer">
         <div class="d-flex flex-items-center flex-justify-center color-fg-muted f5 p-4 text-center" style="height: 100%;" id="outputPlaceholder">
           Compiled YAML will appear here
         </div>
-        <pre class="output-pre text-mono color-fg-default d-none" id="outputPre"></pre>
+        <div id="outputMount" style="height: 100%; display: none;"></div>
       </div>
     </div>
   </div>
@@ -342,6 +291,12 @@ html, body {
 // gh-aw Playground - Application Logic
 // ================================================================
 
+import { EditorView, basicSetup } from 'https://esm.sh/codemirror@6';
+import { EditorState, Compartment } from 'https://esm.sh/@codemirror/state@6';
+import { keymap } from 'https://esm.sh/@codemirror/view@6';
+import { yaml } from 'https://esm.sh/@codemirror/lang-yaml@6';
+import { markdown } from 'https://esm.sh/@codemirror/lang-markdown@6';
+import { oneDark } from 'https://esm.sh/@codemirror/theme-one-dark@6';
 import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
 
 // ---------------------------------------------------------------
@@ -367,9 +322,8 @@ const DEFAULT_CONTENT = [
 // ---------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 
-const editor = $('editor');
-const outputPre = $('outputPre');
 const outputPlaceholder = $('outputPlaceholder');
+const outputMount = $('outputMount');
 const outputContainer = $('outputContainer');
 const compileBtn = $('compileBtn');
 const statusBadge = $('statusBadge');
@@ -380,7 +334,6 @@ const errorBanner = $('errorBanner');
 const errorText = $('errorText');
 const warningBanner = $('warningBanner');
 const warningText = $('warningText');
-const lineNumbersInner = $('lineNumbersInner');
 const themeToggle = $('themeToggle');
 const toggleTrack = $('toggleTrack');
 const divider = $('divider');
@@ -401,10 +354,17 @@ let currentYaml = '';
 // ---------------------------------------------------------------
 // Theme (uses Primer's data-color-mode)
 // ---------------------------------------------------------------
+const editorThemeConfig = new Compartment();
+const outputThemeConfig = new Compartment();
+
 function getPreferredTheme() {
   const saved = localStorage.getItem('gh-aw-playground-theme');
   if (saved) return saved;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function cmThemeFor(theme) {
+  return theme === 'dark' ? oneDark : [];
 }
 
 function setTheme(theme) {
@@ -419,8 +379,53 @@ function setTheme(theme) {
     sunIcon.style.display = 'none';
     moonIcon.style.display = 'block';
   }
+
+  // Update CodeMirror themes
+  const cmTheme = cmThemeFor(theme);
+  editorView.dispatch({ effects: editorThemeConfig.reconfigure(cmTheme) });
+  outputView.dispatch({ effects: outputThemeConfig.reconfigure(cmTheme) });
 }
 
+// ---------------------------------------------------------------
+// CodeMirror: Input Editor (Markdown with YAML frontmatter)
+// ---------------------------------------------------------------
+const editorView = new EditorView({
+  doc: DEFAULT_CONTENT,
+  extensions: [
+    basicSetup,
+    markdown(),
+    editorThemeConfig.of(cmThemeFor(getPreferredTheme())),
+    keymap.of([{
+      key: 'Mod-Enter',
+      run: () => { doCompile(); return true; }
+    }]),
+    EditorView.updateListener.of(update => {
+      if (update.docChanged && autoCompile && isReady) {
+        scheduleCompile();
+      }
+    }),
+  ],
+  parent: $('editorMount'),
+});
+
+// ---------------------------------------------------------------
+// CodeMirror: Output View (YAML, read-only)
+// ---------------------------------------------------------------
+const outputView = new EditorView({
+  doc: '',
+  extensions: [
+    basicSetup,
+    yaml(),
+    EditorState.readOnly.of(true),
+    EditorView.editable.of(false),
+    outputThemeConfig.of(cmThemeFor(getPreferredTheme())),
+  ],
+  parent: outputMount,
+});
+
+// ---------------------------------------------------------------
+// Apply initial theme + listen for changes
+// ---------------------------------------------------------------
 setTheme(getPreferredTheme());
 
 themeToggle.addEventListener('click', () => {
@@ -468,57 +473,6 @@ function setStatus(status, text) {
 }
 
 // ---------------------------------------------------------------
-// Line numbers
-// ---------------------------------------------------------------
-function updateLineNumbers() {
-  const lines = editor.value.split('\n').length;
-  let html = '';
-  for (let i = 1; i <= lines; i++) {
-    html += '<div>' + i + '</div>';
-  }
-  lineNumbersInner.innerHTML = html;
-}
-
-function syncLineNumberScroll() {
-  const lineNumbers = $('lineNumbers');
-  lineNumbers.scrollTop = editor.scrollTop;
-}
-
-// ---------------------------------------------------------------
-// Editor setup
-// ---------------------------------------------------------------
-editor.value = DEFAULT_CONTENT;
-updateLineNumbers();
-
-editor.addEventListener('input', () => {
-  updateLineNumbers();
-  if (autoCompile && isReady) {
-    scheduleCompile();
-  }
-});
-
-editor.addEventListener('scroll', syncLineNumberScroll);
-
-// Tab key inserts 2 spaces
-editor.addEventListener('keydown', (e) => {
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const val = editor.value;
-    editor.value = val.substring(0, start) + '  ' + val.substring(end);
-    editor.selectionStart = editor.selectionEnd = start + 2;
-    editor.dispatchEvent(new Event('input'));
-  }
-
-  // Ctrl+Enter or Cmd+Enter to compile
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    doCompile();
-  }
-});
-
-// ---------------------------------------------------------------
 // Auto-compile toggle
 // ---------------------------------------------------------------
 $('autoCompileToggle').addEventListener('click', () => {
@@ -545,10 +499,10 @@ async function doCompile() {
     compileTimer = null;
   }
 
-  const md = editor.value;
+  const md = editorView.state.doc.toString();
   if (!md.trim()) {
-    outputPre.classList.add('d-none');
-    outputPlaceholder.classList.remove('d-none');
+    outputMount.style.display = 'none';
+    outputPlaceholder.style.display = 'flex';
     outputPlaceholder.textContent = 'Compiled YAML will appear here';
     currentYaml = '';
     return;
@@ -572,9 +526,13 @@ async function doCompile() {
     } else {
       setStatus('ready', 'Ready');
       currentYaml = result.yaml;
-      outputPre.textContent = result.yaml;
-      outputPre.classList.remove('d-none');
-      outputPlaceholder.classList.add('d-none');
+
+      // Update output CodeMirror view
+      outputView.dispatch({
+        changes: { from: 0, to: outputView.state.doc.length, insert: result.yaml }
+      });
+      outputMount.style.display = 'block';
+      outputPlaceholder.style.display = 'none';
 
       if (result.warnings && result.warnings.length > 0) {
         warningText.textContent = result.warnings.join('\n');
