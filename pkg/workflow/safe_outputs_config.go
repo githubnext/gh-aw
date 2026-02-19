@@ -428,6 +428,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle reports-parent-issues flag
+			if reportsParentIssues, exists := outputMap["reports-parent-issues"]; exists {
+				if reportsParentIssuesBool, ok := reportsParentIssues.(bool); ok {
+					config.ReportsParentIssues = reportsParentIssuesBool
+					safeOutputsConfigLog.Printf("Reports parent issues control: %t", reportsParentIssuesBool)
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
