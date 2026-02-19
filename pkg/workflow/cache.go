@@ -717,13 +717,30 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Download artifact step
 		var downloadStep strings.Builder
+		// Generate a safe step ID from cache ID (replace hyphens with underscores)
+		downloadStepID := strings.ReplaceAll(fmt.Sprintf("download_cache_%s", cache.ID), "-", "_")
 		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
+		fmt.Fprintf(&downloadStep, "        id: %s\n", downloadStepID)
 		fmt.Fprintf(&downloadStep, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		downloadStep.WriteString("        continue-on-error: true\n")
 		downloadStep.WriteString("        with:\n")
 		fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
 		fmt.Fprintf(&downloadStep, "          path: %s\n", cacheDir)
 		steps = append(steps, downloadStep.String())
+
+		// Check if cache folder exists and is not empty
+		var checkStep strings.Builder
+		checkStepID := strings.ReplaceAll(fmt.Sprintf("check_cache_%s", cache.ID), "-", "_")
+		fmt.Fprintf(&checkStep, "      - name: Check if cache-memory folder has content (%s)\n", cache.ID)
+		fmt.Fprintf(&checkStep, "        id: %s\n", checkStepID)
+		checkStep.WriteString("        shell: bash\n")
+		checkStep.WriteString("        run: |\n")
+		fmt.Fprintf(&checkStep, "          if [ -d \"%s\" ] && [ \"$(ls -A %s 2>/dev/null)\" ]; then\n", cacheDir, cacheDir)
+		checkStep.WriteString("            echo \"has_content=true\" >> $GITHUB_OUTPUT\n")
+		checkStep.WriteString("          else\n")
+		checkStep.WriteString("            echo \"has_content=false\" >> $GITHUB_OUTPUT\n")
+		checkStep.WriteString("          fi\n")
+		steps = append(steps, checkStep.String())
 
 		// Skip validation step if allowed extensions is empty (means all files are allowed)
 		if len(cache.AllowedExtensions) == 0 {
@@ -743,9 +760,10 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			fmt.Fprintf(&validationScript, "              core.setFailed(`File type validation failed: Found ${result.invalidFiles.length} file(s) with invalid extensions. Only %s are allowed.`);\n", strings.Join(cache.AllowedExtensions, ", "))
 			validationScript.WriteString("            }\n")
 
-			// Generate validation step using helper
+			// Generate validation step using helper with condition to only run if cache has content
 			stepName := fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
-			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), ""))
+			condition := fmt.Sprintf("steps.%s.outputs.has_content == 'true'", checkStepID)
+			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition))
 		}
 
 		// Generate cache key (same logic as in generateCacheMemorySteps)
@@ -764,9 +782,10 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			cacheKey = cacheKey + runIdSuffix
 		}
 
-		// Save to cache step
+		// Save to cache step - only run if cache has content
 		var saveStep strings.Builder
 		fmt.Fprintf(&saveStep, "      - name: Save cache-memory to cache (%s)\n", cache.ID)
+		fmt.Fprintf(&saveStep, "        if: steps.%s.outputs.has_content == 'true'\n", checkStepID)
 		fmt.Fprintf(&saveStep, "        uses: %s\n", GetActionPin("actions/cache/save"))
 		saveStep.WriteString("        with:\n")
 		fmt.Fprintf(&saveStep, "          key: %s\n", cacheKey)
