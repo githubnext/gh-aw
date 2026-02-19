@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
@@ -289,9 +290,9 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	result.mdPath = mdPath
 	result.lockPath = lockPath
 	result.ymlPath = ymlPath
-	result.mdExists = fileExists(mdPath)
-	result.lockExists = fileExists(lockPath)
-	result.ymlExists = fileExists(ymlPath)
+	result.mdExists = fileutil.FileExists(mdPath)
+	result.lockExists = fileutil.FileExists(lockPath)
+	result.ymlExists = fileutil.FileExists(ymlPath)
 
 	return result, nil
 }

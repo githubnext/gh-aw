@@ -638,3 +638,42 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// This allows the substitution to happen AFTER runtime-import processing
 	return allExpressionMappings
 }
+
+var promptStepHelperLog = logger.New("workflow:prompt_step_helper")
+
+// generateStaticPromptStep is a helper function that generates a workflow step
+// for appending static prompt text to the prompt file. It encapsulates the common
+// pattern used across multiple prompt generators (XPIA, temp folder, playwright, edit tool, etc.)
+// to reduce code duplication and ensure consistency.
+//
+// Parameters:
+//   - yaml: The string builder to write the YAML to
+//   - description: The name of the workflow step (e.g., "Append XPIA security instructions to prompt")
+//   - promptText: The static text content to append to the prompt (used for backward compatibility)
+//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
+//
+// Example usage:
+//
+//	generateStaticPromptStep(yaml,
+//	    "Append XPIA security instructions to prompt",
+//	    xpiaPromptText,
+//	    data.SafetyPrompt)
+//
+// Deprecated: This function is kept for backward compatibility with inline prompts.
+// Use generateStaticPromptStepFromFile for new code.
+func generateStaticPromptStep(yaml *strings.Builder, description string, promptText string, shouldInclude bool) {
+	promptStepHelperLog.Printf("Generating static prompt step: description=%s, shouldInclude=%t", description, shouldInclude)
+	// Skip generation if guard condition is false
+	if !shouldInclude {
+		return
+	}
+
+	// Use the existing appendPromptStep helper with a renderer that writes the prompt text
+	appendPromptStep(yaml,
+		description,
+		func(y *strings.Builder, indent string) {
+			WritePromptTextToYAML(y, promptText, indent)
+		},
+		"", // no condition
+		"          ")
+}

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/github/gh-aw/pkg/cli/fileutil"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
