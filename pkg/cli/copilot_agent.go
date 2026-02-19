@@ -12,69 +12,69 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-var copilotAgentLog = logger.New("cli:copilot_agent")
+var copilotCodingAgentLog = logger.New("cli:copilot_agent")
 
-// CopilotAgentDetector contains heuristics to detect if a workflow run was executed by GitHub Copilot coding agent
-type CopilotAgentDetector struct {
+// CopilotCodingAgentDetector contains heuristics to detect if a workflow run was executed by GitHub Copilot coding agent
+type CopilotCodingAgentDetector struct {
 	runDir       string
 	verbose      bool
 	workflowPath string // Optional: workflow file path from GitHub API (e.g., .github/workflows/copilot-swe-agent.yml)
 }
 
-// NewCopilotAgentDetector creates a new detector for GitHub Copilot coding agent runs
-func NewCopilotAgentDetector(runDir string, verbose bool) *CopilotAgentDetector {
-	return &CopilotAgentDetector{
+// NewCopilotCodingAgentDetector creates a new detector for GitHub Copilot coding agent runs
+func NewCopilotCodingAgentDetector(runDir string, verbose bool) *CopilotCodingAgentDetector {
+	return &CopilotCodingAgentDetector{
 		runDir:  runDir,
 		verbose: verbose,
 	}
 }
 
-// NewCopilotAgentDetectorWithPath creates a detector with workflow path hint
-func NewCopilotAgentDetectorWithPath(runDir string, verbose bool, workflowPath string) *CopilotAgentDetector {
-	return &CopilotAgentDetector{
+// NewCopilotCodingAgentDetectorWithPath creates a detector with workflow path hint
+func NewCopilotCodingAgentDetectorWithPath(runDir string, verbose bool, workflowPath string) *CopilotCodingAgentDetector {
+	return &CopilotCodingAgentDetector{
 		runDir:       runDir,
 		verbose:      verbose,
 		workflowPath: workflowPath,
 	}
 }
 
-// IsGitHubCopilotAgent uses heuristics to determine if this run was executed by GitHub Copilot coding agent
+// IsGitHubCopilotCodingAgent uses heuristics to determine if this run was executed by GitHub Copilot coding agent
 // (not the Copilot CLI engine or agentic workflows)
-func (d *CopilotAgentDetector) IsGitHubCopilotAgent() bool {
-	copilotAgentLog.Printf("Detecting if run is GitHub Copilot coding agent: %s", d.runDir)
+func (d *CopilotCodingAgentDetector) IsGitHubCopilotCodingAgent() bool {
+	copilotCodingAgentLog.Printf("Detecting if run is GitHub Copilot coding agent: %s", d.runDir)
 
 	// If aw_info.json exists, this is an agentic workflow, NOT a GitHub Copilot coding agent run
 	awInfoPath := filepath.Join(d.runDir, "aw_info.json")
 	if _, err := os.Stat(awInfoPath); err == nil {
-		copilotAgentLog.Print("Found aw_info.json - this is an agentic workflow, not a GitHub Copilot coding agent")
+		copilotCodingAgentLog.Print("Found aw_info.json - this is an agentic workflow, not a GitHub Copilot coding agent")
 		return false
 	}
 
 	// Heuristic 1: Check workflow path if provided (most reliable hint from GitHub API)
 	if d.hasAgentWorkflowPath() {
-		copilotAgentLog.Print("Detected copilot-swe-agent in workflow path")
+		copilotCodingAgentLog.Print("Detected copilot-swe-agent in workflow path")
 		return true
 	}
 
 	// Heuristic 2: Check for agent-specific log patterns
 	if d.hasAgentLogPatterns() {
-		copilotAgentLog.Print("Detected agent log patterns")
+		copilotCodingAgentLog.Print("Detected agent log patterns")
 		return true
 	}
 
 	// Heuristic 3: Check for agent-specific artifacts
 	if d.hasAgentArtifacts() {
-		copilotAgentLog.Print("Detected agent artifacts")
+		copilotCodingAgentLog.Print("Detected agent artifacts")
 		return true
 	}
 
-	copilotAgentLog.Print("No GitHub Copilot coding agent indicators found")
+	copilotCodingAgentLog.Print("No GitHub Copilot coding agent indicators found")
 	return false
 }
 
 // hasAgentWorkflowPath checks if the workflow path indicates a Copilot coding agent run
 // The workflow ID is always "copilot-swe-agent" for GitHub Copilot coding agent runs
-func (d *CopilotAgentDetector) hasAgentWorkflowPath() bool {
+func (d *CopilotCodingAgentDetector) hasAgentWorkflowPath() bool {
 	if d.workflowPath == "" {
 		return false
 	}
@@ -97,7 +97,7 @@ func (d *CopilotAgentDetector) hasAgentWorkflowPath() bool {
 }
 
 // hasAgentLogPatterns checks log files for patterns specific to GitHub Copilot coding agent
-func (d *CopilotAgentDetector) hasAgentLogPatterns() bool {
+func (d *CopilotCodingAgentDetector) hasAgentLogPatterns() bool {
 	// Patterns that indicate GitHub Copilot coding agent (not Copilot CLI)
 	agentPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`(?i)github.*copilot.*agent`),
@@ -141,7 +141,7 @@ func (d *CopilotAgentDetector) hasAgentLogPatterns() bool {
 }
 
 // hasAgentArtifacts checks for artifacts specific to GitHub Copilot coding agent runs
-func (d *CopilotAgentDetector) hasAgentArtifacts() bool {
+func (d *CopilotCodingAgentDetector) hasAgentArtifacts() bool {
 	// Check for agent-specific artifact patterns
 	agentArtifacts := []string{
 		"copilot-agent-output",
@@ -180,10 +180,10 @@ func readLogHeader(path string, maxBytes int) (string, error) {
 	return string(buffer[:n]), nil
 }
 
-// ParseCopilotAgentLogMetrics extracts metrics from GitHub Copilot coding agent logs
+// ParseCopilotCodingAgentLogMetrics extracts metrics from GitHub Copilot coding agent logs
 // This is different from Copilot CLI logs and requires specialized parsing
-func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMetrics {
-	copilotAgentLog.Printf("Parsing GitHub Copilot coding agent log metrics: %d bytes", len(logContent))
+func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow.LogMetrics {
+	copilotCodingAgentLog.Printf("Parsing GitHub Copilot coding agent log metrics: %d bytes", len(logContent))
 
 	var metrics workflow.LogMetrics
 	var maxTokenUsage int
@@ -231,7 +231,7 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 				currentSequence = append(currentSequence, toolName)
 
 				if verbose {
-					copilotAgentLog.Printf("Found tool call: %s", toolName)
+					copilotCodingAgentLog.Printf("Found tool call: %s", toolName)
 				}
 			}
 		}
@@ -261,7 +261,7 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 	metrics.TokenUsage = maxTokenUsage
 	metrics.Turns = turns
 
-	copilotAgentLog.Printf("Parsed metrics: tokens=%d, cost=$%.4f, turns=%d",
+	copilotCodingAgentLog.Printf("Parsed metrics: tokens=%d, cost=$%.4f, turns=%d",
 		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 
 	return metrics

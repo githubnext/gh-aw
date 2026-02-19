@@ -286,16 +286,6 @@ Reasons:
 
 If the detection process itself fails (e.g., network issues, tool errors), the workflow stops and safe outputs are not applied. This fail-safe approach prevents potentially malicious content from being processed.
 
-## Best Practices
-
-**Use AI-based detection** for analyzing natural language content, detecting sophisticated prompt injection, understanding context-specific risks, and identifying intent-based threats.
-
-**Add custom steps** for integrating specialized security tools (Semgrep, Snyk, TruffleHog), enforcing organization policies, scanning domain-specific vulnerabilities, and meeting compliance requirements.
-
-**Performance:** AI analysis typically completes in 10-30 seconds. Custom tools vary (LlamaGuard: 5-15 minutes with model download). Set appropriate `timeout-minutes` and truncate large patches if needed.
-
-**Security:** Use defense-in-depth with both AI and custom detection for critical workflows. Keep tools updated, validate with known malicious samples, monitor false positives, and document detection rationale.
-
 ## Troubleshooting
 
 | Issue | Solution |

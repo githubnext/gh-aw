@@ -228,6 +228,85 @@ describe("safe_output_validator.cjs", () => {
       expect(result.valid).toBe(false);
       expect(result.error).toContain("No valid labels found");
     });
+
+    it("should filter out labels matching blocked patterns", () => {
+      const result = validator.validateLabels(["bug", "~stale", "~archived", "enhancement"], undefined, 10, ["~*"]);
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toContain("bug");
+      expect(result.value).toContain("enhancement");
+      expect(result.value).not.toContain("~stale");
+      expect(result.value).not.toContain("~archived");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Filtered out 2 blocked labels"));
+    });
+
+    it("should apply blocked filter before allowed filter", () => {
+      const result = validator.validateLabels(
+        ["bug", "~stale", "enhancement", "custom"],
+        ["bug", "~stale", "enhancement"], // ~stale is in allowed list
+        10,
+        ["~*"] // but blocked by pattern
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toContain("bug");
+      expect(result.value).toContain("enhancement");
+      expect(result.value).not.toContain("~stale"); // blocked despite being in allowed list
+      expect(result.value).not.toContain("custom");
+    });
+
+    it("should handle exact match blocking", () => {
+      const result = validator.validateLabels(
+        ["bug", "stale", "enhancement"],
+        undefined,
+        10,
+        ["stale"] // exact match, no pattern
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toContain("bug");
+      expect(result.value).toContain("enhancement");
+      expect(result.value).not.toContain("stale");
+    });
+
+    it("should handle empty blocked patterns", () => {
+      const result = validator.validateLabels(["bug", "~stale"], undefined, 10, []);
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toContain("bug");
+      expect(result.value).toContain("~stale");
+    });
+
+    it("should handle undefined blocked patterns", () => {
+      const result = validator.validateLabels(["bug", "~stale"], undefined, 10, undefined);
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toContain("bug");
+      expect(result.value).toContain("~stale");
+    });
+
+    it("should reject when all labels are blocked", () => {
+      const result = validator.validateLabels(["~stale", "~archived"], undefined, 10, ["~*"]);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("No valid labels found");
+    });
+
+    it("should handle bot pattern blocking", () => {
+      const result = validator.validateLabels(["bug", "dependabot[bot]", "github-actions[bot]", "enhancement"], undefined, 10, ["*[bot]"]);
+
+      expect(result.valid).toBe(true);
+      expect(result.value).toHaveLength(2);
+      expect(result.value).toContain("bug");
+      expect(result.value).toContain("enhancement");
+      expect(result.value).not.toContain("dependabot[bot]");
+      expect(result.value).not.toContain("github-actions[bot]");
+    });
   });
 
   describe("validateMaxCount", () => {

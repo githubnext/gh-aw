@@ -267,15 +267,14 @@ fi
 
 ## Security Considerations
 
-> [!NOTE]
-> **Sensitive Data**
->
-> Memory stores are visible to anyone with repository access:
-> - **Never store**: Credentials, API tokens, PII, secrets
-> - **Store only**: Aggregate statistics, anonymized data
-> - Consider encryption for sensitive but non-secret data
+Memory stores are visible to anyone with repository access:
+
+- **Never store**: Credentials, API tokens, PII, secrets
+- **Store only**: Aggregate statistics, anonymized data
+- Consider encryption for sensitive but non-secret data
 
 **Safe practices**:
+
 ```bash
 # ✅ GOOD - Aggregate statistics
 echo '{"open_issues": 42}' > metrics.json

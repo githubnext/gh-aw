@@ -212,6 +212,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		config := newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
+			AddStringSlice("blocked", c.Blocked).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -233,7 +234,70 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
+			AddStringSlice("blocked", c.Blocked).
 			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"add_reviewer": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AddReviewer == nil {
+			return nil
+		}
+		c := cfg.AddReviewer
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed", c.Reviewers).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"assign_milestone": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AssignMilestone == nil {
+			return nil
+		}
+		c := cfg.AssignMilestone
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"mark_pull_request_as_ready_for_review": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.MarkPullRequestAsReadyForReview == nil {
+			return nil
+		}
+		c := cfg.MarkPullRequestAsReadyForReview
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"create_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateCodeScanningAlerts == nil {
+			return nil
+		}
+		c := cfg.CreateCodeScanningAlerts
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("driver", c.Driver).
+			Build()
+	},
+	"create_agent_session": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateAgentSessions == nil {
+			return nil
+		}
+		c := cfg.CreateAgentSessions
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("base", c.Base).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			Build()

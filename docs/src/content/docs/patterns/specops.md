@@ -154,19 +154,10 @@ See the [`w3c-specification-writer` agent](https://github.com/github/gh-aw/blob/
 - **Minor (0.Y.0)** - New features, backward-compatible
 - **Patch (0.0.Z)** - Bug fixes, clarifications
 
-## Best Practices
-
-**Write Testable Requirements** - Create specifications with clear pass/fail criteria.
-
-**Follow Version Discipline** - Use semantic versioning strictly for breaking changes.
-
-**Track Consumers** - Maintain a list of repositories implementing the specification.
-
-**Automate Compliance** - Run automated tests to verify conformance regularly.
-
 ## Example: MCP Gateway
 
 The [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/) demonstrates SpecOps:
+
 - **Specification**: Formal W3C document with RFC 2119 keywords
 - **Implementation**: [gh-aw-mcpg](https://github.com/github/gh-aw-mcpg) repository
 - **Maintenance**: Automated pattern extraction via `layout-spec-maintainer` workflow

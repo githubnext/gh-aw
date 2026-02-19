@@ -1111,13 +1111,12 @@ Use `assign-to-agent` when you need to programmatically assign agents to **exist
 
 ### Assign to User (`assign-to-user:`)
 
-Assigns users to issues. Restrict with `allowed` list or deny with `blocked` patterns. Target: `"triggering"` (issue event), `"*"` (any), or number. Supports single or multiple assignees.
+Assigns users to issues. Restrict with `allowed` list. Target: `"triggering"` (issue event), `"*"` (any), or number. Supports single or multiple assignees.
 
 ```yaml wrap
 safe-outputs:
   assign-to-user:
-    allowed: [user1, user2]    # restrict to specific users (optional)
-    blocked: [copilot, "*[bot]"]  # deny specific users or patterns (optional)
+    allowed: [user1, user2]    # restrict to specific users
     max: 3                     # max assignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
@@ -1125,17 +1124,14 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-**Blocked Patterns**: Supports exact matches (e.g., `copilot`) and glob patterns (e.g., `*[bot]` to block all bot accounts). Blocked filtering is applied after allowed filtering, providing defense-in-depth against prompt injection attacks.
-
 ### Unassign from User (`unassign-from-user:`)
 
-Removes user assignments from issues or pull requests. Restrict with `allowed` list or deny with `blocked` patterns to control which users can be unassigned. Target: `"triggering"` (issue/PR event), `"*"` (any), or number.
+Removes user assignments from issues or pull requests. Restrict with `allowed` list to control which users can be unassigned. Target: `"triggering"` (issue/PR event), `"*"` (any), or number.
 
 ```yaml wrap
 safe-outputs:
   unassign-from-user:
-    allowed: [user1, user2]    # restrict to specific users (optional)
-    blocked: [copilot, "*[bot]"]  # deny specific users or patterns (optional)
+    allowed: [user1, user2]    # restrict to specific users
     max: 1                     # max unassignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository

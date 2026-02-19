@@ -37,8 +37,6 @@ Focus on competitor analysis, emerging AI development trends, and community feed
 Create a structured report with executive summary, key findings by area, and recommended actions.
 ```
 
-### Best Practices
-
 Use action-oriented language with clear verbs (analyze, create, update, triage) and specify expected outcomes. Help agents make consistent decisions by providing criteria and examples:
 
 ```aw wrap
@@ -46,22 +44,9 @@ Use action-oriented language with clear verbs (analyze, create, update, triage) 
 Apply labels: `bug` (incorrect behavior with repro steps), `enhancement` (new features), `question` (help requests), `documentation` (docs/examples). Priority: `high-priority` (security/critical bugs), `medium-priority` (features/non-critical bugs), `low-priority` (nice-to-have improvements).
 ```
 
-#### Reference Context Securely
-Use `needs.activation.outputs.text` instead of raw context fields like `github.event.issue.body`. Sanitized context automatically removes @mentions, bot triggers, XML tags, malicious URIs, and control characters while preventing prompt injection attacks and DoS through size limits.
-
-```aw wrap
-# RECOMMENDED: Use sanitized context text
-Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
-The content: "${{ needs.activation.outputs.text }}"
-
-# DISCOURAGED: Raw context (security risks)
-The issue body is: "${{ github.event.issue.body }}"
-```
-
-#### Handle Edge Cases
 Anticipate unusual situations and error conditions. If a workflow fails, document the failure in an issue with error messages and context, tag it with 'workflow-failure', and exit gracefully without partial changes.
 
-### Content Organization
+## Content Organization
 
 Use numbered lists for multi-step processes, conditional statements for decision-making, and templates for consistent output:
 
@@ -83,7 +68,7 @@ Otherwise: label 'question'/'discussion', provide resources
 ## Next Week: [planned priorities]
 ```
 
-### Common Pitfalls
+## Common Pitfalls
 
 Avoid over-complexity (keep instructions focused), assuming knowledge (explain project conventions), inconsistent formatting, missing error handling, and vague success criteria. Before deploying, read instructions aloud to check clarity, review examples for accuracy, and consider edge cases.
 
@@ -93,12 +78,9 @@ Agentic markdown supports GitHub Actions expression substitutions and conditiona
 
 ## Editing and Iteration
 
-> [!TIP]
-> The markdown body is loaded at runtime from the original `.md` file. You can edit instructions directly on GitHub.com and changes take effect immediately without recompiling the workflow.
+See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when recompilation is needed versus when you can edit directly.
 
-This design enables rapid iteration on AI instructions while maintaining strict compilation requirements for security-sensitive frontmatter configuration. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance on when recompilation is needed versus when you can edit directly.
-
-## Security Scanning
+## Markdown Scanning
 
 The markdown body of workflows (excluding frontmatter) is automatically scanned for malicious content when added via `gh aw add`, during trial mode, and at compile time for imported files. The scanner rejects workflows containing: Unicode abuse (zero-width characters, bidirectional overrides), hidden content (suspicious HTML comments, CSS-hidden elements), obfuscated links (data URIs, `javascript:` URLs, IP-based URLs, URL shorteners), dangerous HTML tags (`<script>`, `<iframe>`, `<object>`, `<form>`, event handlers), embedded executable content (SVG scripts, executable MIME data URIs), and social engineering patterns (prompt injection, base64-encoded commands, pipe-to-shell patterns). These checks cannot be overridden.
 

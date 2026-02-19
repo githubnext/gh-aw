@@ -10,9 +10,6 @@ draft: true
 prev:
   link: /gh-aw/blog/2026-02-02-security-lessons/
   label: Security Lessons
-next:
-  link: /gh-aw/blog/2026-02-08-authoring-workflows/
-  label: Authoring Workflows
 ---
 
 [Previous Article](/gh-aw/blog/2026-02-02-security-lessons/)
@@ -236,10 +233,6 @@ When workflows fail, detailed logs capture job, step, tool invocation, and error
 Typical workflows run in 2-6 minutes (30-60s setup, 1-5m agent execution, 10-30s safe outputs). Costs include GitHub Actions compute, AI engine API calls, MCP server usage, and artifact storage. Optimize by caching queries, batching operations, using concise prompts, and requesting only needed permissions.
 
 ## What's Next?
-
-Now that you understand how workflows work under the hood, you're ready to start authoring your own agents for Peli's Agent Factory.
-
-In our next article, we'll provide a practical guide to creating effective agentic workflows, with examples and best practices from the factory.
 
 _More articles in this series coming soon._
 

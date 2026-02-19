@@ -296,10 +296,6 @@ gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
 
 For enhanced security, use GitHub App installation tokens. See [GitHub App for Safe Outputs](/gh-aw/reference/auth/#github-app-for-safe-outputs) for complete configuration including repository scoping options.
 
-## Best Practices
-
-Use consistent title prefixes and component labels for organization. Automate status synchronization when component issues change, including closures and reopens. Implement a consistent tagging strategy and document conventions for discoverability. For scaling, space out tracking issue creation to avoid rate limits, batch updates when possible, and archive old trackers periodically.
-
 ## Related Documentation
 
 - [MultiRepoOps Design Pattern](/gh-aw/patterns/multirepoops/) - Complete multi-repo overview

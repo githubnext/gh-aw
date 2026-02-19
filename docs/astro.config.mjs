@@ -204,7 +204,7 @@ export default defineConfig({
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
-						{ label: 'Copilot Custom Agents', link: '/reference/copilot-custom-agents/' },
+						{ label: 'Copilot Agent Files', link: '/reference/copilot-custom-agents/' },
 						{ label: 'Custom Engines', link: '/reference/custom-engines/' },
 						{ label: 'Custom Safe Outputs', link: '/reference/custom-safe-outputs/' },
 						{ label: 'Environment Variables', link: '/reference/environment-variables/' },

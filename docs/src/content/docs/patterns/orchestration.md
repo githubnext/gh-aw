@@ -22,19 +22,12 @@ safe-outputs:
     max: 10
 ```
 
-During compilation, gh-aw validates the target workflows exist and support `workflow_dispatch`, then generates MCP tools the agent can call.
+During compilation, gh-aw validates the target workflows exist and support `workflow_dispatch`.
 
-Reference: [/reference/safe-outputs/#workflow-dispatch-dispatch-workflow](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow)
+See [`dispatch-workflow` safe output](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow).
 
 ## Passing correlation IDs
 
 If your workers need shared context, pass an explicit input such as `tracker_id` (string) and include it in worker outputs (e.g., writing it into a Project custom field).
 
-## Best practices
-
-- Keep worker workflows **single-purpose** and easy to retry.
-- Make orchestration **idempotent** (safe to re-run).
-- Set conservative `max` limits on dispatch to prevent accidental fan-out.
-- Prefer Projects + status updates for **monitoring** over ad-hoc labels.
-
-See also: [/patterns/monitoring/](/gh-aw/patterns/monitoring/)
+See also: [Monitoring](/gh-aw/patterns/monitoring/)

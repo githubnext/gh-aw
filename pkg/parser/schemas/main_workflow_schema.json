@@ -1534,8 +1534,8 @@
             },
             "id-token": {
               "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission level for OIDC token requests (read/write/none). Allows workflows to request JWT tokens for cloud provider authentication."
+              "enum": ["write", "none"],
+              "description": "Permission level for OIDC token requests (write/none only - read is not supported). Allows workflows to request JWT tokens for cloud provider authentication."
             },
             "issues": {
               "type": "string",
@@ -5232,6 +5232,15 @@
                   "minItems": 1,
                   "maxItems": 50
                 },
+                "blocked": {
+                  "type": "array",
+                  "description": "Optional list of blocked label patterns (supports glob patterns like '~*', '*[bot]'). Labels matching these patterns will be rejected. Applied before allowed list filtering for security.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of labels to add (default: 3)",
@@ -5275,6 +5284,15 @@
                 "allowed": {
                   "type": "array",
                   "description": "Optional list of allowed labels that can be removed. If omitted, any labels can be removed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "blocked": {
+                  "type": "array",
+                  "description": "Optional list of blocked label patterns (supports glob patterns like '~*', '*[bot]'). Labels matching these patterns will be rejected. Applied before allowed list filtering for security.",
                   "items": {
                     "type": "string"
                   },
