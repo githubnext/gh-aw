@@ -164,7 +164,7 @@ html, body {
   </div>
 
   <!-- Header -->
-  <header class="header-bar d-flex flex-items-center gap-2 px-3 color-bg-default border-bottom position-relative" style="height: 52px; min-height: 52px; z-index: 10;">
+  <header class="header-bar d-flex flex-items-center gap-3 px-3 color-bg-default border-bottom position-relative" style="height: 52px; min-height: 52px; z-index: 10;">
     <a class="d-flex flex-items-center gap-2 text-bold f5 color-fg-default no-underline flex-shrink-0" href="/gh-aw/" title="Back to docs">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
         <polyline points="4 17 10 11 4 5"></polyline>
@@ -180,7 +180,7 @@ html, body {
       <span id="statusText">Loading...</span>
     </span>
 
-    <div class="d-flex flex-items-center gap-3 ml-auto">
+    <div class="d-flex flex-items-center gap-4 ml-auto">
       <label class="d-flex flex-items-center gap-1 f6 color-fg-muted cursor-pointer" style="white-space: nowrap; user-select: none;" id="autoCompileToggle" title="Auto-compile on change">
         <div class="toggle-track active" id="toggleTrack">
           <div class="toggle-knob"></div>
@@ -194,6 +194,8 @@ html, body {
         </svg>
         Compile
       </button>
+
+      <div class="flex-shrink-0" style="width: 1px; height: 20px; background: var(--borderColor-default, var(--color-border-default));"></div>
 
       <button class="btn-octicon" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sun icon (shown in dark mode) -->
