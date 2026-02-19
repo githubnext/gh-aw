@@ -417,3 +417,40 @@ tools:
 	assert.Equal(t, "m-root.md", result.ImportedFiles[1])
 	assert.Equal(t, "z-root.md", result.ImportedFiles[2])
 }
+
+// TestImportTopologicalSortBeatsLexicalParentOrdering ensures that dependency
+// edges always win over lexical filename order when both conflict.
+func TestImportTopologicalSortBeatsLexicalParentOrdering(t *testing.T) {
+	tempDir := testutil.TempDir(t, "import-topo-contract-*")
+
+	files := map[string]string{
+		"z-parent.md": `---
+imports:
+  - a-dependency.md
+tools:
+  parent-tool: {}
+---`,
+		"a-dependency.md": `---
+tools:
+  dependency-tool: {}
+---`,
+	}
+
+	for filename, content := range files {
+		filePath := filepath.Join(tempDir, filename)
+		err := os.WriteFile(filePath, []byte(content), 0644)
+		require.NoError(t, err, "Failed to create test file %s", filename)
+	}
+
+	frontmatter := map[string]any{
+		"imports": []string{"z-parent.md"},
+	}
+
+	result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+	require.NoError(t, err, "ProcessImportsFromFrontmatterWithManifest should not fail")
+	assert.Len(t, result.ImportedFiles, 2)
+
+	// The dependency must precede the parent even though its name is lexically earlier.
+	assert.Equal(t, "a-dependency.md", result.ImportedFiles[0])
+	assert.Equal(t, "z-parent.md", result.ImportedFiles[1])
+}
