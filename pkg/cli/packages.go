@@ -9,8 +9,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var packagesLog = logger.New("cli:packages")
 
 // Pre-compiled regexes for package processing (performance optimization)
 var (
@@ -58,6 +61,7 @@ func isValidWorkflowFile(filePath string) bool {
 
 // collectLocalIncludeDependencies collects dependencies for package-based workflows
 func collectLocalIncludeDependencies(content, packagePath string, verbose bool) ([]IncludeDependency, error) {
+	packagesLog.Printf("Collecting include dependencies: packagePath=%s, content_size=%d", packagePath, len(content))
 	var dependencies []IncludeDependency
 	seen := make(map[string]bool)
 
@@ -66,6 +70,7 @@ func collectLocalIncludeDependencies(content, packagePath string, verbose bool) 
 	}
 
 	err := collectLocalIncludeDependenciesRecursive(content, packagePath, &dependencies, seen, verbose)
+	packagesLog.Printf("Collected %d include dependencies from %s", len(dependencies), packagePath)
 	return dependencies, err
 }
 
@@ -141,6 +146,7 @@ func collectLocalIncludeDependenciesRecursive(content, baseDir string, dependenc
 
 // copyIncludeDependenciesFromPackageWithForce copies include dependencies from package filesystem with force option
 func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, verbose bool, force bool, tracker *FileTracker) error {
+	packagesLog.Printf("Copying %d include dependencies to %s (force=%t)", len(dependencies), githubWorkflowsDir, force)
 	for _, dep := range dependencies {
 		// Create the target path in .github/workflows
 		targetPath := filepath.Join(githubWorkflowsDir, dep.TargetPath)
@@ -244,12 +250,14 @@ func ExtractWorkflowEngine(content string) string {
 	if engine, ok := result.Frontmatter["engine"]; ok {
 		// Handle string format: engine: copilot
 		if engineStr, ok := engine.(string); ok {
+			packagesLog.Printf("Extracted engine (string format): %s", engineStr)
 			return engineStr
 		}
 		// Handle nested format: engine: { id: copilot }
 		if engineMap, ok := engine.(map[string]any); ok {
 			if id, ok := engineMap["id"]; ok {
 				if idStr, ok := id.(string); ok {
+					packagesLog.Printf("Extracted engine (nested format): %s", idStr)
 					return idStr
 				}
 			}
