@@ -187,6 +187,10 @@ A GitHub Personal Access Token with granular permission control, specifying exac
 
 The `gh-aw` extension for GitHub CLI providing commands for managing agentic workflows: compile, run, status, logs, add, and project management.
 
+### Playground
+
+An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
+
 ### Validation
 
 Checking workflow files for errors, security issues, and best practices. Occurs during compilation and can be enhanced with strict mode and security scanners.

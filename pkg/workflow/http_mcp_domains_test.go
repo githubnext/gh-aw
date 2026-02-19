@@ -232,3 +232,107 @@ func TestGetClaudeAllowedDomainsWithTools(t *testing.T) {
 	require.Contains(t, result, "anthropic.com", "Should include Claude defaults")
 	require.Contains(t, result, "registry.npmjs.org", "Should include Node ecosystem")
 }
+
+// TestExtractPlaywrightDomains tests extraction of Playwright ecosystem domains when Playwright tool is configured
+func TestExtractPlaywrightDomains(t *testing.T) {
+	tests := []struct {
+		name     string
+		tools    map[string]any
+		expected []string
+	}{
+		{
+			name: "playwright tool configured",
+			tools: map[string]any{
+				"playwright": map[string]any{
+					"allowed_domains": []string{"github.com"},
+				},
+			},
+			expected: []string{"playwright.download.prss.microsoft.com", "cdn.playwright.dev"},
+		},
+		{
+			name: "playwright tool with empty config",
+			tools: map[string]any{
+				"playwright": map[string]any{},
+			},
+			expected: []string{"playwright.download.prss.microsoft.com", "cdn.playwright.dev"},
+		},
+		{
+			name: "playwright tool with null config",
+			tools: map[string]any{
+				"playwright": nil,
+			},
+			expected: []string{"playwright.download.prss.microsoft.com", "cdn.playwright.dev"},
+		},
+		{
+			name: "no playwright tool",
+			tools: map[string]any{
+				"github": map[string]any{
+					"mode": "local",
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			expected: []string{},
+		},
+		{
+			name:     "nil tools",
+			tools:    nil,
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractPlaywrightDomains(tt.tools)
+
+			// Sort both slices for comparison
+			SortStrings(result)
+			SortStrings(tt.expected)
+
+			assert.Equal(t, tt.expected, result, "Extracted Playwright domains should match expected")
+		})
+	}
+}
+
+// TestGetCopilotAllowedDomainsWithPlaywright tests that Playwright domains are automatically included for Copilot engine
+func TestGetCopilotAllowedDomainsWithPlaywright(t *testing.T) {
+	network := &NetworkPermissions{
+		Allowed: []string{"defaults"},
+	}
+
+	tools := map[string]any{
+		"playwright": map[string]any{
+			"allowed_domains": []string{"github.com"},
+		},
+	}
+
+	result := GetCopilotAllowedDomainsWithTools(network, tools)
+
+	// Should include Copilot defaults and Playwright ecosystem domains
+	require.Contains(t, result, "playwright.download.prss.microsoft.com", "Should include Playwright download domain")
+	require.Contains(t, result, "cdn.playwright.dev", "Should include Playwright CDN domain")
+	require.Contains(t, result, "api.githubcopilot.com", "Should include Copilot defaults")
+}
+
+// TestGetCodexAllowedDomainsWithPlaywright tests that Playwright domains are automatically included for Codex engine
+func TestGetCodexAllowedDomainsWithPlaywright(t *testing.T) {
+	network := &NetworkPermissions{
+		Allowed: []string{"defaults"},
+	}
+
+	tools := map[string]any{
+		"playwright": map[string]any{
+			"allowed_domains": []string{"example.com"},
+		},
+	}
+
+	result := GetCodexAllowedDomainsWithTools(network, tools)
+
+	// Should include Codex defaults and Playwright ecosystem domains
+	require.Contains(t, result, "playwright.download.prss.microsoft.com", "Should include Playwright download domain")
+	require.Contains(t, result, "cdn.playwright.dev", "Should include Playwright CDN domain")
+	require.Contains(t, result, "api.openai.com", "Should include Codex defaults")
+}

@@ -165,31 +165,6 @@
       "version": "v3",
       "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
     },
-    "github/stale-repos@v3.0.2": {
-      "repo": "github/stale-repos",
-      "version": "v3.0.2",
-      "sha": "a21e55567b83cf3c3f3f9085d3038dc6cee02598"
-    },
-    "haskell-actions/setup@v2.10.3": {
-      "repo": "haskell-actions/setup",
-      "version": "v2.10.3",
-      "sha": "9cd1b7bf3f36d5a3c3b17abc3545bfb5481912ea"
-    },
-    "oven-sh/setup-bun@v2.1.2": {
-      "repo": "oven-sh/setup-bun",
-      "version": "v2.1.2",
-      "sha": "3d267786b128fe76c2f16a390aa2448b815359f3"
-    },
-    "ruby/setup-ruby@v1.288.0": {
-      "repo": "ruby/setup-ruby",
-      "version": "v1.288.0",
-      "sha": "09a7688d3b55cf0e976497ff046b70949eeaccfd"
-    },
-    "super-linter/super-linter@v8.2.1": {
-      "repo": "super-linter/super-linter",
-      "version": "v8.2.1",
-      "sha": "2bdd90ed3262e023ac84bf8fe35dc480721fc1f2"
-    },
     "super-linter/super-linter@v8.5.0": {
       "repo": "super-linter/super-linter",
       "version": "v8.5.0",

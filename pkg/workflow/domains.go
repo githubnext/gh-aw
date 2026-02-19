@@ -99,6 +99,13 @@ var ClaudeDefaultDomains = []string{
 	"ts-ocsp.ws.symantec.com",
 }
 
+// PlaywrightDomains are the domains required for Playwright browser downloads
+// These domains are needed when Playwright MCP server initializes in the Docker container
+var PlaywrightDomains = []string{
+	"cdn.playwright.dev",
+	"playwright.download.prss.microsoft.com",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
@@ -349,6 +356,23 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	return domains
 }
 
+// extractPlaywrightDomains returns Playwright domains when Playwright tool is configured
+// Returns a slice of domain names required for Playwright browser downloads
+// These domains are needed when Playwright MCP server initializes in the Docker container
+func extractPlaywrightDomains(tools map[string]any) []string {
+	if tools == nil {
+		return []string{}
+	}
+
+	// Check if Playwright tool is configured
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		domainsLog.Printf("Detected Playwright tool, adding %d domains for browser downloads", len(PlaywrightDomains))
+		return PlaywrightDomains
+	}
+
+	return []string{}
+}
+
 // mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
@@ -384,6 +408,15 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	if tools != nil {
 		mcpDomains := extractHTTPMCPDomains(tools)
 		for _, domain := range mcpDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Add Playwright ecosystem domains (if Playwright tool is specified)
+	// This ensures browser binaries can be downloaded when Playwright initializes
+	if tools != nil {
+		playwrightDomains := extractPlaywrightDomains(tools)
+		for _, domain := range playwrightDomains {
 			domainMap[domain] = true
 		}
 	}
