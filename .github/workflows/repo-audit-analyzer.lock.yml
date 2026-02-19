@@ -1139,12 +1139,23 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Download cache-memory artifact (repo-audits)
+        id: download_cache_repo_audits
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         continue-on-error: true
         with:
           name: cache-memory-repo-audits
           path: /tmp/gh-aw/cache-memory-repo-audits
+      - name: Check if cache-memory folder has content (repo-audits)
+        id: check_cache_repo_audits
+        shell: bash
+        run: |
+          if [ -d "/tmp/gh-aw/cache-memory-repo-audits" ] && [ "$(ls -A /tmp/gh-aw/cache-memory-repo-audits 2>/dev/null)" ]; then
+            echo "has_content=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_content=false" >> $GITHUB_OUTPUT
+          fi
       - name: Save cache-memory to cache (repo-audits)
+        if: steps.check_cache_repo_audits.outputs.has_content == 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: repo-audits-${{ github.workflow }}-${{ github.run_id }}

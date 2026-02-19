@@ -1137,12 +1137,23 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Download cache-memory artifact (focus-areas)
+        id: download_cache_focus_areas
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         continue-on-error: true
         with:
           name: cache-memory-focus-areas
           path: /tmp/gh-aw/cache-memory-focus-areas
+      - name: Check if cache-memory folder has content (focus-areas)
+        id: check_cache_focus_areas
+        shell: bash
+        run: |
+          if [ -d "/tmp/gh-aw/cache-memory-focus-areas" ] && [ "$(ls -A /tmp/gh-aw/cache-memory-focus-areas 2>/dev/null)" ]; then
+            echo "has_content=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_content=false" >> $GITHUB_OUTPUT
+          fi
       - name: Save cache-memory to cache (focus-areas)
+        if: steps.check_cache_focus_areas.outputs.has_content == 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: quality-focus-${{ github.workflow }}-${{ github.run_id }}

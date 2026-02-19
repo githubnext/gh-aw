@@ -1612,12 +1612,23 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Download cache-memory artifact (default)
+        id: download_cache_default
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         continue-on-error: true
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
+      - name: Check if cache-memory folder has content (default)
+        id: check_cache_default
+        shell: bash
+        run: |
+          if [ -d "/tmp/gh-aw/cache-memory" ] && [ "$(ls -A /tmp/gh-aw/cache-memory 2>/dev/null)" ]; then
+            echo "has_content=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_content=false" >> $GITHUB_OUTPUT
+          fi
       - name: Save cache-memory to cache (default)
+        if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
