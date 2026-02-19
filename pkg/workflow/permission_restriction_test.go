@@ -67,7 +67,7 @@ Test workflow content.`,
 on:
   push:
     branches: [main]
-roles: all
+  roles: all
 tools:
   github:
     allowed: [list_issues]
@@ -85,7 +85,7 @@ Test workflow content.`,
 on:
   pull_request:
     types: [opened]
-roles: [admin, maintainer, write]
+  roles: [admin, maintainer, write]
 tools:
   github:
     allowed: [list_issues]
@@ -101,8 +101,8 @@ Test workflow content.`,
 			name: "workflow with workflow_dispatch only should NOT include permission check (safe event)",
 			frontmatter: `---
 on:
-  workflow_dispatch:
-roles: [admin, maintainer, write]
+  workflow_dispatch: null
+  roles: [admin, maintainer, write]
 tools:
   github:
     allowed: [list_issues]
@@ -118,8 +118,8 @@ Test workflow content.`,
 			name: "workflow with workflow_dispatch without write role should include permission check",
 			frontmatter: `---
 on:
-  workflow_dispatch:
-roles: [admin, maintainer]
+  workflow_dispatch: null
+  roles: [admin, maintainer]
 tools:
   github:
     allowed: [list_issues]
@@ -190,8 +190,8 @@ Test workflow content.`,
 on:
   command:
     name: scout
-  workflow_dispatch:
-roles: [admin, maintainer, write]
+  workflow_dispatch: null
+  roles: [admin, maintainer, write]
 tools:
   github:
     allowed: [list_issues]

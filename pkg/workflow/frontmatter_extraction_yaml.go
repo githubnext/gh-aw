@@ -157,6 +157,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	inSkipIfNoMatch := false
 	inSkipRolesArray := false
 	inSkipBotsArray := false
+	inRolesArray := false
+	inBotsArray := false
 	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
 
 	for _, line := range lines {
@@ -238,6 +240,18 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			inSkipBotsArray = true
 		}
 
+		// Check if we're entering roles field
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "roles:") {
+			// Check if this is an array (next line will be "- ") or inline value
+			inRolesArray = true
+		}
+
+		// Check if we're entering bots array
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "bots:") {
+			// Check if this is an array (next line will be "- ") or inline value
+			inBotsArray = true
+		}
+
 		// Check if we're entering skip-if-match object
 		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfMatch {
 			// Check both uncommented and commented forms
@@ -315,6 +329,28 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		}
 
+		// Check if we're leaving the roles array by encountering another top-level field
+		if inRolesArray && strings.TrimSpace(line) != "" {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+			// If this is a non-dash line at the same level as roles (2 spaces), we're out of the array
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "roles:") && !strings.HasPrefix(trimmedLine, "#") {
+				inRolesArray = false
+			}
+		}
+
+		// Check if we're leaving the bots array by encountering another top-level field
+		if inBotsArray && strings.TrimSpace(line) != "" {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+			// If this is a non-dash line at the same level as bots (2 spaces), we're out of the array
+			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "bots:") && !strings.HasPrefix(trimmedLine, "#") {
+				inBotsArray = false
+			}
+		}
+
 		// Determine if we should comment out this line
 		shouldComment := false
 		var commentReason string
@@ -355,6 +391,20 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				// Comment out array items in skip-bots
 				shouldComment = true
 				commentReason = " # Skip-bots processed as bot check in pre-activation job"
+			} else if strings.HasPrefix(trimmedLine, "roles:") {
+				shouldComment = true
+				commentReason = " # Roles processed as role check in pre-activation job"
+			} else if inRolesArray && strings.HasPrefix(trimmedLine, "-") {
+				// Comment out array items in roles
+				shouldComment = true
+				commentReason = " # Roles processed as role check in pre-activation job"
+			} else if strings.HasPrefix(trimmedLine, "bots:") {
+				shouldComment = true
+				commentReason = " # Bots processed as bot check in pre-activation job"
+			} else if inBotsArray && strings.HasPrefix(trimmedLine, "-") {
+				// Comment out array items in bots
+				shouldComment = true
+				commentReason = " # Bots processed as bot check in pre-activation job"
 			} else if strings.HasPrefix(trimmedLine, "reaction:") {
 				shouldComment = true
 				commentReason = " # Reaction processed as activation job step"

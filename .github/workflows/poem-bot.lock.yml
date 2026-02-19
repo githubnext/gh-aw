@@ -37,9 +37,9 @@ name: "Poem Bot - A Creative Agentic Workflow"
     - opened
     - edited
     - reopened
-  roles:
-  - admin
-  - maintainer
+  # roles: # Roles processed as role check in pre-activation job
+  # - admin # Roles processed as role check in pre-activation job
+  # - maintainer # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
       poem_theme:

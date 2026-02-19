@@ -22,9 +22,9 @@ func TestPreActivationJob(t *testing.T) {
 	t.Run("pre_activation_job_created_with_stop_after", func(t *testing.T) {
 		workflowContent := `---
 on:
-  workflow_dispatch:
+  workflow_dispatch: null
   stop-after: "+48h"
-roles: [admin, maintainer]
+  roles: [admin, maintainer]
 engine: claude
 ---
 
@@ -105,9 +105,9 @@ This workflow has a stop-after configuration.
 	t.Run("no_pre_activation_job_without_stop_after_or_roles", func(t *testing.T) {
 		workflowContent := `---
 on:
-  workflow_dispatch:
+  workflow_dispatch: null
+  roles: all
 engine: claude
-roles: all
 ---
 
 # Normal Workflow

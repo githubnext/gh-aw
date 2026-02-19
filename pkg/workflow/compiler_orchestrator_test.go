@@ -608,12 +608,13 @@ func TestExtractAdditionalConfigurations(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "additional-configs")
 
 	testContent := `---
-on: push
+on:
+  workflow_dispatch:
+  roles:
+    - admin
+  bots:
+    - copilot
 engine: copilot
-roles:
-  - admin
-bots:
-  - copilot
 ---
 
 # Test Workflow

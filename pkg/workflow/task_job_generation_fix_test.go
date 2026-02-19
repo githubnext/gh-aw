@@ -27,7 +27,7 @@ func TestTaskJobGenerationFix(t *testing.T) {
 		workflowContent := `---
 on:
   workflow_dispatch:
-roles: all
+  roles: all
 ---
 
 # Simple Workflow
@@ -129,7 +129,7 @@ Do some work.`
 		workflowContent := `---
 on:
   workflow_dispatch:
-roles: all
+  roles: all
 if: ${{ github.ref == 'refs/heads/main' }}
 ---
 

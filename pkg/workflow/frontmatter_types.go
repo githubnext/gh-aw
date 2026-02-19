@@ -151,9 +151,7 @@ type FrontmatterConfig struct {
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
 
-	// Command/bot configuration
-	Roles     []string         `json:"roles,omitempty"`
-	Bots      []string         `json:"bots,omitempty"`
+	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
 }
 
@@ -666,12 +664,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 	if fc.SecretMasking != nil {
 		result["secret-masking"] = fc.SecretMasking
-	}
-	if fc.Roles != nil {
-		result["roles"] = fc.Roles
-	}
-	if fc.Bots != nil {
-		result["bots"] = fc.Bots
 	}
 
 	return result

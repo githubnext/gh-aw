@@ -288,8 +288,9 @@ func BenchmarkProcessRoles(b *testing.B) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
-on: issues
-roles: [admin, maintainer, write, read]
+on:
+  issues: null
+  roles: [admin, maintainer, write, read]
 permissions:
   contents: read
   issues: write

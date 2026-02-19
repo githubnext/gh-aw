@@ -92,10 +92,10 @@ This workflow has a skip-if-no-match configuration.
 	t.Run("pre_activation_job_with_multiple_checks", func(t *testing.T) {
 		workflowContent := `---
 on:
-  workflow_dispatch:
+  workflow_dispatch: null
   stop-after: "+48h"
   skip-if-no-match: "is:pr is:open label:urgent"
-roles: [admin, maintainer]
+  roles: [admin, maintainer]
 engine: claude
 ---
 

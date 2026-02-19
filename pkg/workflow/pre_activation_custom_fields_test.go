@@ -22,10 +22,10 @@ func TestPreActivationCustomSteps(t *testing.T) {
 	t.Run("custom_steps_imported", func(t *testing.T) {
 		workflowContent := `---
 on:
-  workflow_dispatch:
+  workflow_dispatch: null
   stop-after: "+48h"
+  roles: [admin, maintainer]
 engine: claude
-roles: [admin, maintainer]
 jobs:
   pre-activation:
     steps:
@@ -74,10 +74,10 @@ Test workflow with custom pre-activation steps
 	t.Run("custom_outputs_imported", func(t *testing.T) {
 		workflowContent := `---
 on:
-  workflow_dispatch:
+  workflow_dispatch: null
   stop-after: "+48h"
+  roles: [admin, maintainer]
 engine: claude
-roles: [admin, maintainer]
 jobs:
   pre-activation:
     outputs:
@@ -121,8 +121,8 @@ Test workflow with custom pre-activation outputs
 on:
   workflow_dispatch:
   stop-after: "+48h"
+  roles: [admin, maintainer]
 engine: claude
-roles: [admin, maintainer]
 jobs:
   pre-activation:
     steps:
@@ -168,8 +168,8 @@ Test workflow with both custom steps and outputs
 on:
   workflow_dispatch:
   stop-after: "+48h"
+  roles: [admin, maintainer]
 engine: claude
-roles: [admin, maintainer]
 jobs:
   pre-activation:
     runs-on: ubuntu-latest
@@ -201,8 +201,8 @@ Test workflow with unsupported field in pre-activation
 on:
   workflow_dispatch:
   stop-after: "+48h"
+  roles: [admin, maintainer]
 engine: claude
-roles: [admin, maintainer]
 jobs:
   pre-activation:
     steps:
@@ -255,8 +255,8 @@ Test that pre-activation is not added as a custom job
 on:
   workflow_dispatch:
   stop-after: "+48h"
+  roles: [admin, maintainer]
 engine: claude
-roles: [admin, maintainer]
 jobs:
   pre-activation:
     steps:

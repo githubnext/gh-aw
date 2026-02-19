@@ -675,8 +675,10 @@ func TestExtractAdditionalConfigurations_BasicConfig(t *testing.T) {
 	compiler := NewCompiler()
 
 	frontmatter := map[string]any{
-		"roles": []any{"admin", "contributor"},
-		"bots":  []any{"copilot", "dependabot"},
+		"on": map[string]any{
+			"roles": []any{"admin", "contributor"},
+			"bots":  []any{"copilot", "dependabot"},
+		},
 	}
 
 	tools := map[string]any{
@@ -1092,63 +1094,54 @@ func TestParseWorkflowFile_CompleteWorkflowWithAllSections(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "complete-workflow")
 
 	testContent := `---
+name: Complete Workflow
+description: Test all sections
+source: complete-test
 on:
   push:
     branches: [main]
   pull_request:
     types: [opened, synchronize]
     draft: false
-engine: copilot
-name: Complete Workflow
-description: Test all sections
-source: complete-test
-timeout-minutes: 60
-strict: false
-features:
-  dangerous-permissions-write: true
+  roles:
+    - admin
+    - maintainer
+  bots:
+    - copilot
+    - dependabot
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
 network:
   allowed:
-    - github.com
-    - api.example.com
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-run-name: Test Run ${{ github.run_id }}
+    - defaults
+concurrency: test-concurrency
+run-name: Test Run
 env:
-  NODE_ENV: production
-  DEBUG: "true"
-if: github.event_name == 'push'
+  TEST_VAR: value
+features:
+  test-feature: true
+if: github.actor != 'bot'
+timeout-minutes: 30
 runs-on: ubuntu-latest
 environment: production
-container: node:18
+container:
+  image: node:18
 cache:
-  - key: ${{ runner.os }}-node
-    path: node_modules
-tools:
-  bash: ["echo", "ls", "cat"]
-  github:
-    allowed: [list_issues, create_issue]
-roles:
-  - admin
-  - maintainer
-bots:
-  - copilot
-  - dependabot
+  key: test-cache
+  path: ~/.npm
+services:
+  postgres:
+    image: postgres:14
+    env:
+      POSTGRES_PASSWORD: postgres
+engine: copilot
 steps:
   - name: Custom step
     run: echo "test"
 post-steps:
   - name: Cleanup
     run: echo "cleanup"
-services:
-  postgres:
-    image: postgres:14
-    env:
-      POSTGRES_PASSWORD: postgres
 jobs:
   custom-job:
     runs-on: ubuntu-latest
