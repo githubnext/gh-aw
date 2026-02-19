@@ -31,10 +31,16 @@ describe("frontmatter_hash (API)", () => {
   });
 
   describe("extractHashFromLockFile", () => {
-    it("should extract hash from lock file", () => {
+    it("should extract hash from old format lock file", () => {
       const content = "# frontmatter-hash: abc123\n\nname: Test";
       const hash = extractHashFromLockFile(content);
       expect(hash).toBe("abc123");
+    });
+
+    it("should extract hash from new JSON metadata format", () => {
+      const content = '# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"abc123def"}\n\nname: Test';
+      const hash = extractHashFromLockFile(content);
+      expect(hash).toBe("abc123def");
     });
 
     it("should return empty string if no hash", () => {
