@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
@@ -24,7 +26,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "stdio"`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.31.0"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
@@ -37,7 +39,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "stdio"`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.31.0"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 			},
 			unexpectedContent: []string{},
@@ -51,7 +53,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "stdio"`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.31.0"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 			},
 			unexpectedContent: []string{},
