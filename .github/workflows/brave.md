@@ -11,7 +11,6 @@ permissions:
 engine: copilot
 strict: true
 imports:
-  - shared/mood.md
   - shared/mcp/brave.md
 safe-outputs:
   add-comment:

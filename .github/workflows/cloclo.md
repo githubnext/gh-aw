@@ -18,7 +18,6 @@ engine:
   id: claude
   max-turns: 100
 imports:
-  - shared/mood.md
   - shared/jqschema.md
 tools:
   agentic-workflows:

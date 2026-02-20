@@ -9,6 +9,7 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { loadTemporaryIdMap, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
+const { resolvePullRequestRepo, buildBranchInstruction } = require("./pr_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -84,6 +85,12 @@ async function main() {
     core.info(`Default custom instructions: ${defaultCustomInstructions}`);
   }
 
+  // Get base branch configuration for PR creation in target repo
+  const configuredBaseBranch = process.env.GH_AW_AGENT_BASE_BRANCH?.trim();
+  if (configuredBaseBranch) {
+    core.info(`Configured base branch: ${configuredBaseBranch}`);
+  }
+
   // Get target configuration (defaults to "triggering")
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
   core.info(`Target configuration: ${targetConfig}`);
@@ -157,6 +164,10 @@ async function main() {
   let pullRequestOwner = null;
   let pullRequestRepo = null;
   let pullRequestRepoId = null;
+  // Effective base branch: explicit config > fetched default branch from PR repo
+  let effectiveBaseBranch = configuredBaseBranch || null;
+  // Resolved default branch fetched from the target PR repo (used in NOT clause of branch instructions)
+  let resolvedDefaultBranch = null;
 
   // Get allowed PR repos configuration for cross-repo validation
   const allowedPullRequestReposEnv = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim();
@@ -178,18 +189,16 @@ async function main() {
       pullRequestRepo = parts[1];
       core.info(`Using pull request repository: ${pullRequestOwner}/${pullRequestRepo}`);
 
-      // Fetch the repository ID for the PR repo (needed for GraphQL agentAssignment)
+      // Fetch the repository ID and default branch for the PR repo
       try {
-        const pullRequestRepoQuery = `
-          query($owner: String!, $name: String!) {
-            repository(owner: $owner, name: $name) {
-              id
-            }
-          }
-        `;
-        const pullRequestRepoResponse = await github.graphql(pullRequestRepoQuery, { owner: pullRequestOwner, name: pullRequestRepo });
-        pullRequestRepoId = pullRequestRepoResponse.repository.id;
+        const resolved = await resolvePullRequestRepo(github, pullRequestOwner, pullRequestRepo, configuredBaseBranch);
+        pullRequestRepoId = resolved.repoId;
+        effectiveBaseBranch = resolved.effectiveBaseBranch;
+        resolvedDefaultBranch = resolved.resolvedDefaultBranch;
         core.info(`Pull request repository ID: ${pullRequestRepoId}`);
+        if (!configuredBaseBranch && effectiveBaseBranch) {
+          core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
+        }
       } catch (error) {
         core.setFailed(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
         return;
@@ -211,7 +220,12 @@ async function main() {
     // They are NOT available as per-item overrides in the tool call
     const model = defaultModel;
     const customAgent = defaultCustomAgent;
-    const customInstructions = defaultCustomInstructions;
+    // Build effective custom instructions: prepend base-branch instruction when needed
+    let customInstructions = defaultCustomInstructions;
+    if (effectiveBaseBranch) {
+      const branchInstruction = buildBranchInstruction(effectiveBaseBranch, resolvedDefaultBranch);
+      customInstructions = customInstructions ? `${branchInstruction}\n\n${customInstructions}` : branchInstruction;
+    }
 
     // Use these variables to allow temporary IDs to override target repo per-item.
     // Default to the configured target repo.

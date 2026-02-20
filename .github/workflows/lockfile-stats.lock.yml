@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e7c02728269fcba4c4f71c4bfbbc8862e65bca98e381597bf3364acd6bc05399"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"df088f95c7fb764646a25cba7c15b97c423d4387c022b6369221d4b9ebead6f0"}
 
 name: "Lockfile Statistics Analysis Agent"
 "on":
@@ -170,9 +169,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

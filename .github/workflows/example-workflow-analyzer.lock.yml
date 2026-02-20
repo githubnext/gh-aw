@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3aaa27f1007e0f3516fcd49080a0996d71beaf51056e5eeb29429146abfbe24a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"13121497d2da10ef2d7d6f201ed43ae01a75ad1e4577b1c0da6e36d6d1536795"}
 
 name: "Weekly Workflow Analysis"
 "on":
@@ -169,9 +168,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

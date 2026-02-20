@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ee30c910ce1c713101cf700f424b233d4322abfc21dbeb53ef87f6780b7cdb2c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"34459ba98cad0356b507423708958b0455022e2797d063650cc338a06efe8309"}
 
 name: "Daily Safe Output Tool Optimizer"
 "on":
@@ -174,9 +173,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

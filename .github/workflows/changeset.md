@@ -35,7 +35,6 @@ tools:
     - "*"
   edit:
 imports:
-  - shared/mood.md
   - shared/changeset-format.md
   - shared/jqschema.md
   - shared/safe-output-app.md

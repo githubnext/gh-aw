@@ -25,9 +25,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"927fd739563c18d6d8775a4314032aa403e28eab12e6e688ae1c2c059b27373e"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0b8eaee22834d6b3e9e86eb0b40c98d401bcbc52de0305ceaaa385dd25a6cbd9"}
 
 name: "/cloclo"
 "on":
@@ -236,9 +235,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

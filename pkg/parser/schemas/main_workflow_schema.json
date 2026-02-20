@@ -5470,6 +5470,10 @@
                   "description": "If true, the workflow continues gracefully when agent assignment fails (e.g., due to missing token or insufficient permissions), logging a warning instead of failing. Default is false. Useful for workflows that should not fail when agent assignment is optional.",
                   "default": false
                 },
+                "base-branch": {
+                  "type": "string",
+                  "description": "Base branch for pull request creation in the target repository. Defaults to the target repo's default branch. Only relevant when pull-request-repo is configured."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -6373,6 +6377,16 @@
               "type": "string",
               "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
               "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
+            },
+            "agent-failure-issue": {
+              "type": "string",
+              "description": "Custom footer template for agent failure tracking issues. Available placeholders: {workflow_name}, {run_url}. Default: '> Agent failure tracked by [{workflow_name}]({run_url})'",
+              "examples": ["> Agent failure tracked by [{workflow_name}]({run_url})", "> Failure report from [{workflow_name}]({run_url})"]
+            },
+            "agent-failure-comment": {
+              "type": "string",
+              "description": "Custom footer template for comments on agent failure tracking issues. Available placeholders: {workflow_name}, {run_url}. Default: '> Agent failure update from [{workflow_name}]({run_url})'",
+              "examples": ["> Agent failure update from [{workflow_name}]({run_url})", "> Update from [{workflow_name}]({run_url})"]
             },
             "append-only-comments": {
               "type": "boolean",

@@ -25,7 +25,6 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 30
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 

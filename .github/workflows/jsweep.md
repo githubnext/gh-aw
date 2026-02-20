@@ -33,8 +33,6 @@ safe-outputs:
     if-no-changes: "ignore"
 timeout-minutes: 20
 strict: true
-imports:
-  - shared/mood.md
 ---
 
 # jsweep - JavaScript Unbloater

@@ -18,8 +18,6 @@ safe-outputs:
   create-issue:
     expires: 7d
     title-prefix: "[Daily Report] "
-imports:
-  - shared/mood.md
 ---
 
 # Daily Status Report

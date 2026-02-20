@@ -2243,12 +2243,14 @@ jobs:
           DISABLE_BUG_COMMAND: 1
           DISABLE_ERROR_REPORTING: 1
           DISABLE_TELEMETRY: 1
+          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_MAX_TURNS: 100
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_MODEL_AGENT_CLAUDE: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_DEBUG: 1
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           MCP_TIMEOUT: 120000
           MCP_TOOL_TIMEOUT: 60000

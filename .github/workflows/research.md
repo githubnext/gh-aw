@@ -23,7 +23,6 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
-  - shared/mood.md
   - shared/mcp/tavily.md
   - shared/reporting.md
 

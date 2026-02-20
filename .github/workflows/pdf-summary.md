@@ -28,7 +28,6 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/mood.md
   - shared/mcp/markitdown.md
 
 tools:

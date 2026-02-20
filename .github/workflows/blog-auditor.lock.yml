@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b0219ce41905931f588f883bdb616563bb357cc3a07dbf00c33e85729ac1a307"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"58779154a8d932ebe96c1f75b0815f357a607c25ffe37821778a7c19ca5ddee6"}
 
 name: "Blog Auditor"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

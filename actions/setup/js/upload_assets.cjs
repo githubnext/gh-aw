@@ -95,8 +95,8 @@ async function main() {
   try {
     // Check if orphaned branch already exists, if not create it
     try {
-      await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
-      await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+      await exec.exec("git", ["rev-parse", "--verify", `origin/${normalizedBranchName}`]);
+      await exec.exec("git", ["checkout", "-B", normalizedBranchName, `origin/${normalizedBranchName}`]);
       core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
     } catch (originError) {
       // Validate that branch starts with "assets/" prefix before creating orphaned branch
@@ -111,9 +111,9 @@ async function main() {
 
       // Branch doesn't exist on origin and has valid prefix, create orphaned branch
       core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
-      await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
-      await exec.exec(`git rm -rf .`);
-      await exec.exec(`git clean -fdx`);
+      await exec.exec("git", ["checkout", "--orphan", normalizedBranchName]);
+      await exec.exec("git", ["rm", "-rf", "."]);
+      await exec.exec("git", ["clean", "-fdx"]);
     }
 
     // Process each asset
@@ -171,7 +171,7 @@ async function main() {
       if (isStaged) {
         core.summary.addRaw("## 🎭 Staged Mode: Asset Publication Preview");
       } else {
-        await exec.exec(`git push origin ${normalizedBranchName}`);
+        await exec.exec("git", ["push", "origin", normalizedBranchName]);
         core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
       }

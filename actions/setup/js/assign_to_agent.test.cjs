@@ -58,6 +58,7 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_TEMPORARY_ID_MAP;
     delete process.env.GH_AW_AGENT_PULL_REQUEST_REPO;
     delete process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS;
+    delete process.env.GH_AW_AGENT_BASE_BRANCH;
 
     // Reset context to default
     mockContext.eventName = "issues";
@@ -1163,10 +1164,11 @@ describe("assign_to_agent", () => {
 
     // Mock GraphQL responses
     mockGithub.graphql
-      // Get PR repository ID
+      // Get PR repository ID and default branch
       .mockResolvedValueOnce({
         repository: {
           id: "pull-request-repo-id",
+          defaultBranchRef: { name: "main" },
         },
       })
       // Find agent
@@ -1224,10 +1226,11 @@ describe("assign_to_agent", () => {
 
     // Mock GraphQL responses
     mockGithub.graphql
-      // Get global PR repository ID (for default-pr-repo)
+      // Get global PR repository ID and default branch (for default-pr-repo)
       .mockResolvedValueOnce({
         repository: {
           id: "default-pr-repo-id",
+          defaultBranchRef: { name: "main" },
         },
       })
       // Get item PR repository ID
@@ -1286,10 +1289,11 @@ describe("assign_to_agent", () => {
 
     // Mock GraphQL responses
     mockGithub.graphql
-      // Get PR repository ID
+      // Get PR repository ID and default branch
       .mockResolvedValueOnce({
         repository: {
           id: "auto-allowed-repo-id",
+          defaultBranchRef: { name: "main" },
         },
       })
       // Find agent
@@ -1321,5 +1325,90 @@ describe("assign_to_agent", () => {
     // Should succeed - pull-request-repo is automatically allowed
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using pull request repository: test-owner/auto-allowed-repo"));
+  });
+
+  it("should use explicit base-branch when GH_AW_AGENT_BASE_BRANCH is set", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code-repo";
+    process.env.GH_AW_AGENT_BASE_BRANCH = "develop";
+    setAgentOutput({
+      items: [{ type: "assign_to_agent", issue_number: 42, agent: "copilot" }],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      // Get PR repo ID and default branch
+      .mockResolvedValueOnce({ repository: { id: "code-repo-id", defaultBranchRef: { name: "main" } } })
+      // Find agent
+      .mockResolvedValueOnce({ repository: { suggestedActors: { nodes: [{ login: "copilot-swe-agent", id: "agent-id" }] } } })
+      // Get issue details
+      .mockResolvedValueOnce({ repository: { issue: { id: "issue-id", assignees: { nodes: [] } } } })
+      // Assign agent
+      .mockResolvedValueOnce({ replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" } });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    // Verify the mutation was called with custom instructions containing the branch instruction
+    const lastCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastCall[0]).toContain("customInstructions");
+    expect(lastCall[1].customInstructions).toContain("develop");
+    // NOT clause should reference the resolved default branch, not hardcoded 'main'
+    expect(lastCall[1].customInstructions).toContain("NOT from 'main'");
+  });
+
+  it("should auto-resolve non-main default branch from pull-request-repo and pass as instruction", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code-repo";
+    // No GH_AW_AGENT_BASE_BRANCH set - should use repo's default branch
+    setAgentOutput({
+      items: [{ type: "assign_to_agent", issue_number: 42, agent: "copilot" }],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      // Get PR repo ID and default branch (non-main)
+      .mockResolvedValueOnce({ repository: { id: "code-repo-id", defaultBranchRef: { name: "develop" } } })
+      // Find agent
+      .mockResolvedValueOnce({ repository: { suggestedActors: { nodes: [{ login: "copilot-swe-agent", id: "agent-id" }] } } })
+      // Get issue details
+      .mockResolvedValueOnce({ repository: { issue: { id: "issue-id", assignees: { nodes: [] } } } })
+      // Assign agent
+      .mockResolvedValueOnce({ replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" } });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved pull request repository default branch: develop"));
+    // Verify the mutation was called with custom instructions containing branch info
+    const lastCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastCall[0]).toContain("customInstructions");
+    expect(lastCall[1].customInstructions).toContain("develop");
+  });
+
+  it("should inject branch instruction even when pull-request-repo default branch is main (no explicit base-branch)", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code-repo";
+    // No GH_AW_AGENT_BASE_BRANCH set; repo default is main
+    setAgentOutput({
+      items: [{ type: "assign_to_agent", issue_number: 42, agent: "copilot" }],
+      errors: [],
+    });
+
+    mockGithub.graphql
+      // Get PR repo ID and default branch (main)
+      .mockResolvedValueOnce({ repository: { id: "code-repo-id", defaultBranchRef: { name: "main" } } })
+      // Find agent
+      .mockResolvedValueOnce({ repository: { suggestedActors: { nodes: [{ login: "copilot-swe-agent", id: "agent-id" }] } } })
+      // Get issue details
+      .mockResolvedValueOnce({ repository: { issue: { id: "issue-id", assignees: { nodes: [] } } } })
+      // Assign agent
+      .mockResolvedValueOnce({ replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" } });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    // Instruction is injected with the resolved default branch name (no NOT clause since it matches)
+    const lastCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastCall[0]).toContain("customInstructions");
+    expect(lastCall[1].customInstructions).toContain("main");
+    expect(lastCall[1].customInstructions).not.toContain("NOT from");
   });
 });

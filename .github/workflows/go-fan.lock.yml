@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"22e9487ceb9c0505dbd86b1f3b35cd59f51340fc93935de92cbc4aa5f2f83992"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c8e6787ba640d5cf589fdb8a17fa85610c921860ab4187551edc4928d6b99b7c"}
 
 name: "Go Fan"
 "on":
@@ -169,9 +168,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ad8dbc71ec8a8756cc9161024dcf04c143f81797b44acfff063bdfd95d63fb8b"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ce9d29e665a115371b7e33d2c13db09f212568596ce5ea194132eb07eb63968d"}
 
 name: "Safe Output Health Monitor"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

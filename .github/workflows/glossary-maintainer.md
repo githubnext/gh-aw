@@ -23,7 +23,6 @@ network:
     - github
 
 imports:
-  - shared/mood.md
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
 

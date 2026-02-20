@@ -302,6 +302,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.Max > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be assigned to agent.", config.Max))
 			}
+			if config.BaseBranch != "" {
+				constraints = append(constraints, fmt.Sprintf("Pull requests will target the %q branch.", config.BaseBranch))
+			}
 		}
 
 	case "update_project":

@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8bb55e253e13e36b811ff2cfde52d97a0e6c058e4b2ec25fbfba2539f19a17d4"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b0ab337f015529d0c8d054d500d7d7700c72e7db0de19749ab0af0c8bb45ca62"}
 
 name: "Typist - Go Type Analysis"
 "on":
@@ -168,9 +167,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

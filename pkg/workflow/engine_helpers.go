@@ -247,22 +247,29 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 	return stepLines
 }
 
-// FilterEnvForSecrets filters environment variables to only include allowed secrets
-// This is a security measure to ensure that only necessary secrets are passed to the execution step
+// FilterEnvForSecrets filters environment variables to only include allowed secrets.
+// This is a security measure to ensure that only necessary secrets are passed to the execution step.
+//
+// An env var carrying a secret reference is kept when either:
+//   - The referenced secret name (e.g. "COPILOT_GITHUB_TOKEN") is in allowedNamesAndKeys, OR
+//   - The env var key itself (e.g. "COPILOT_GITHUB_TOKEN") is in allowedNamesAndKeys.
+//
+// The second rule allows users to override an engine's required env var with a
+// differently-named secret, e.g. COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_TOKEN }}.
 //
 // Parameters:
 //   - env: Map of all environment variables
-//   - allowedSecrets: List of secret names that are allowed to be passed
+//   - allowedNamesAndKeys: List of secret names and/or env var keys that are permitted
 //
 // Returns:
 //   - map[string]string: Filtered environment variables with only allowed secrets
-func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[string]string {
-	engineHelpersLog.Printf("Filtering environment variables: total=%d, allowed_secrets=%d", len(env), len(allowedSecrets))
+func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) map[string]string {
+	engineHelpersLog.Printf("Filtering environment variables: total=%d, allowed=%d", len(env), len(allowedNamesAndKeys))
 
-	// Create a set of allowed secret names for fast lookup
+	// Create a set for fast lookup — entries may be secret names or env var keys.
 	allowedSet := make(map[string]bool)
-	for _, secret := range allowedSecrets {
-		allowedSet[secret] = true
+	for _, entry := range allowedNamesAndKeys {
+		allowedSet[entry] = true
 	}
 
 	filtered := make(map[string]string)
@@ -274,7 +281,8 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 			// Extract the secret name from the expression
 			// Format: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || ... }}
 			secretName := ExtractSecretName(value)
-			if secretName != "" && !allowedSet[secretName] {
+			// Allow the secret if the secret name OR the env var key is in the allowed set.
+			if secretName != "" && !allowedSet[secretName] && !allowedSet[key] {
 				engineHelpersLog.Printf("Removing unauthorized secret from env: %s (secret: %s)", key, secretName)
 				secretsRemoved++
 				continue

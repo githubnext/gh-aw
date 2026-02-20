@@ -17,8 +17,6 @@ safe-outputs:
     target: "*"
   add-comment:
     target: "*"
-imports:
-  - shared/mood.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

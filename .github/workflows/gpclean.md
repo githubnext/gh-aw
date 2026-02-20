@@ -36,9 +36,6 @@ tools:
 
 strict: false
 
-imports:
-  - shared/mood.md
-
 # Pre-download SBOM to get accurate dependency information
 steps:
   - name: Download SBOM from GitHub Dependency Graph API

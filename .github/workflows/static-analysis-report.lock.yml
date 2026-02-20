@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"63f49f3b848018a7d00297f11333e23ceb641474c6285b58c2b5bb3e36fc1746"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d70a71faa80407c16ab34ec005ca74b970540182badde0dfdee8828632071d0d"}
 
 name: "Static Analysis Report"
 "on":
@@ -170,9 +169,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

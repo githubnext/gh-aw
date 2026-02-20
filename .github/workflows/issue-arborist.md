@@ -14,7 +14,6 @@ network:
     - defaults
     - github
 imports:
-  - shared/mood.md
   - shared/jqschema.md
 tools:
   github:

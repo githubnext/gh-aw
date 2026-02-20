@@ -26,11 +26,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ec5f80ed35d36217ef602a57a7a7c5b79beb42045b888888ddc0d8e9dea1deb9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a6d0e46b1953d18e70a4029c7369fb96273432fdd02f2f5ca890a750bcfeb2b1"}
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":
@@ -200,9 +199,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

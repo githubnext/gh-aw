@@ -27,12 +27,11 @@
 #   Imports:
 #     - shared/issues-data-fetch.md
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7765f4f5067a411b0061ff0719af32709f6fb36c4617e0d3fb127b356e1afae9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f0ca94ea48450390cc8b205d8fae969d173115bd7a39870ecea13fe3e43d3615"}
 
 name: "Daily Issues Report Generator"
 "on":
@@ -176,9 +175,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}
