@@ -283,6 +283,37 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"GIT_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
 			},
 		},
+		{
+			name: "default checkout ref uses github.ref_name",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkContains: []string{
+				"ref: ${{ github.ref_name }}",
+			},
+		},
+		{
+			name: "checkout ref uses custom base-branch",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseBranch: "develop",
+				},
+			},
+			checkContains: []string{
+				"ref: develop",
+			},
+		},
+		{
+			name: "checkout ref with release branch base-branch",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseBranch: "release/v2.0",
+				},
+			},
+			checkContains: []string{
+				"ref: release/v2.0",
+			},
+		},
 	}
 
 	for _, tt := range tests {

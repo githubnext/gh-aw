@@ -55,6 +55,15 @@ This is a test workflow with empty frontmatter.`,
 			content: "---\ntitle: Test\nno closing delimiter",
 			wantErr: true,
 		},
+		{
+			name:    "no-break whitespace in values",
+			content: "---\ntitle:\u00A0Test\u00A0Workflow\nengine:\u00A0copilot\n---\n\n# Content",
+			wantYAML: map[string]any{
+				"title":  "Test Workflow",
+				"engine": "copilot",
+			},
+			wantMarkdown: "# Content",
+		},
 	}
 
 	for _, tt := range tests {
