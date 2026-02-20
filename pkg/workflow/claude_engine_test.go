@@ -276,9 +276,12 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 		t.Errorf("Expected claude command in step content:\n%s", stepContent)
 	}
 
-	// Check that model is set in CLI args
-	if !strings.Contains(stepContent, "--model claude-3-5-sonnet-20241022") {
-		t.Errorf("Expected model 'claude-3-5-sonnet-20241022' in CLI args:\n%s", stepContent)
+	// Check that model is set via ANTHROPIC_MODEL env var (not as --model flag)
+	if !strings.Contains(stepContent, "ANTHROPIC_MODEL: claude-3-5-sonnet-20241022") {
+		t.Errorf("Expected ANTHROPIC_MODEL env var for model 'claude-3-5-sonnet-20241022' in step content:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "--model claude-3-5-sonnet-20241022") {
+		t.Errorf("Model should not be embedded as --model flag in step content:\n%s", stepContent)
 	}
 }
 

@@ -325,7 +325,7 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 	// Always call GenerateMaintenanceWorkflow even with empty list
 	// This allows it to delete existing maintenance workflow if no workflows have expires
 	initLog.Printf("Generating maintenance workflow for %d workflows", len(workflowDataList))
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), verbose); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose); err != nil {
 		return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 	}
 

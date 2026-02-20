@@ -182,6 +182,16 @@ type SecurityProvider interface {
 	GetRequiredSecretNames(workflowData *WorkflowData) []string
 }
 
+// ModelEnvVarProvider is implemented by engines whose CLIs natively read a specific
+// environment variable for model selection (e.g., COPILOT_MODEL, ANTHROPIC_MODEL).
+// The default implementation in BaseEngine returns "" (no native env var).
+type ModelEnvVarProvider interface {
+	// GetModelEnvVarName returns the name of the native environment variable the CLI
+	// uses for model selection (e.g., "COPILOT_MODEL", "ANTHROPIC_MODEL", "GEMINI_MODEL").
+	// Returns an empty string if the engine does not support a native model env var.
+	GetModelEnvVarName() string
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
@@ -192,6 +202,7 @@ type CodingAgentEngine interface {
 	MCPConfigProvider
 	LogParser
 	SecurityProvider
+	ModelEnvVarProvider
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -263,6 +274,13 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 // GetDefaultDetectionModel returns empty string by default (no default model)
 // Engines can override this to provide a cost-effective default for detection jobs
 func (e *BaseEngine) GetDefaultDetectionModel() string {
+	return ""
+}
+
+// GetModelEnvVarName returns empty string by default (no native model env var).
+// Engines whose CLI natively supports a model env var (e.g. COPILOT_MODEL, ANTHROPIC_MODEL)
+// should override this to return that variable name.
+func (e *BaseEngine) GetModelEnvVarName() string {
 	return ""
 }
 

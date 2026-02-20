@@ -55,6 +55,12 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return string(constants.DefaultCopilotDetectionModel)
 }
 
+// GetModelEnvVarName returns the native environment variable name that the Copilot CLI uses
+// for model selection. Setting COPILOT_MODEL is equivalent to passing --model to the CLI.
+func (e *CopilotEngine) GetModelEnvVarName() string {
+	return constants.CopilotCLIModelEnvVar
+}
+
 // SupportsLLMGateway returns the LLM gateway port for Copilot engine
 func (e *CopilotEngine) SupportsLLMGateway() int {
 	return constants.CopilotLLMGatewayPort
