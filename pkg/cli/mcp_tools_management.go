@@ -4,9 +4,12 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var mcpToolsManagementLog = logger.New("cli:mcp_tools_management")
 
 // registerAddTool registers the add tool with the MCP server.
 func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
@@ -45,6 +48,8 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 				Data:    nil,
 			}
 		}
+
+		mcpToolsManagementLog.Printf("add tool invoked: workflows=%d, number=%d, name=%q", len(args.Workflows), args.Number, args.Name)
 
 		// Build command arguments
 		cmdArgs := []string{"add"}
@@ -123,6 +128,8 @@ Returns formatted text output showing:
 			}
 		default:
 		}
+
+		mcpToolsManagementLog.Printf("update tool invoked: workflows=%d, major=%v, force=%v", len(args.Workflows), args.Major, args.Force)
 
 		// Build command arguments
 		cmdArgs := []string{"update"}
@@ -210,6 +217,8 @@ Returns formatted text output showing:
 			}
 		default:
 		}
+
+		mcpToolsManagementLog.Printf("fix tool invoked: workflows=%d, write=%v, list_codemods=%v", len(args.Workflows), args.Write, args.ListCodemods)
 
 		// Build command arguments
 		cmdArgs := []string{"fix"}

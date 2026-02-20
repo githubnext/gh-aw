@@ -6,8 +6,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var mcpInspectListLog = logger.New("cli:mcp_inspect_list")
 
 // filterOutSafeOutputs removes safe-outputs MCP servers from the list since they are
 // handled by the workflow compiler and not actual MCP servers that can be inspected
@@ -23,6 +26,8 @@ func filterOutSafeOutputs(configs []parser.MCPServerConfig) []parser.MCPServerCo
 
 // listWorkflowsWithMCP shows available workflow files that contain MCP configurations
 func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
+	mcpInspectListLog.Printf("Listing workflows with MCP servers: dir=%s, verbose=%v", workflowsDir, verbose)
+
 	// Scan workflows for MCP configurations
 	results, err := ScanWorkflowsForMCP(workflowsDir, "", verbose)
 	if err != nil {
@@ -33,6 +38,8 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 		}
 		return err
 	}
+
+	mcpInspectListLog.Printf("Scanned %d workflows for MCP configurations", len(results))
 
 	// Filter out safe-outputs MCP servers for inspection
 	var workflowsWithMCP []string
@@ -48,6 +55,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 		return nil
 	}
 
+	mcpInspectListLog.Printf("Found %d workflows with MCP servers", len(workflowsWithMCP))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflows with MCP servers:"))
 	for _, workflow := range workflowsWithMCP {
 		fmt.Fprintf(os.Stderr, "  • %s\n", workflow)
