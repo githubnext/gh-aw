@@ -118,6 +118,17 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
+	inlinedImports := resolveInlinedImports(result.Frontmatter)
+
+	// When inlined-imports is true, agent file content is already inlined via ImportPaths → step 1b.
+	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
+	agentFile := importsResult.AgentFile
+	agentImportSpec := importsResult.AgentImportSpec
+	if inlinedImports {
+		agentFile = ""
+		agentImportSpec = ""
+	}
+
 	return &WorkflowData{
 		Name:                  toolsResult.workflowName,
 		FrontmatterName:       toolsResult.frontmatterName,
@@ -138,8 +149,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,
-		AgentFile:             importsResult.AgentFile,
-		AgentImportSpec:       importsResult.AgentImportSpec,
+		AgentFile:             agentFile,
+		AgentImportSpec:       agentImportSpec,
 		RepositoryImports:     importsResult.RepositoryImports,
 		NetworkPermissions:    engineSetup.networkPermissions,
 		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
@@ -151,9 +162,18 @@ func (c *Compiler) buildInitialWorkflowData(
 		StrictMode:            c.strictMode,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
+		RawFrontmatter:        result.Frontmatter,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
+		InlinedImports:        inlinedImports,
 	}
+}
+
+// resolveInlinedImports returns true if inlined-imports is enabled.
+// It reads the value directly from the raw (pre-parsed) frontmatter map, which is always
+// populated regardless of whether ParseFrontmatterConfig succeeded.
+func resolveInlinedImports(rawFrontmatter map[string]any) bool {
+	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter

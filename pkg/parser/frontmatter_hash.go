@@ -17,6 +17,19 @@ import (
 
 var frontmatterHashLog = logger.New("parser:frontmatter_hash")
 
+// parseBoolFromFrontmatter extracts a boolean value from a frontmatter map.
+// Returns false if the key is absent, the map is nil, or the value is not a bool.
+func parseBoolFromFrontmatter(m map[string]any, key string) bool {
+	if m == nil {
+		return false
+	}
+	if v, ok := m[key]; ok {
+		b, _ := v.(bool)
+		return b
+	}
+	return false
+}
+
 // FileReader is a function type that reads file content
 // This abstraction allows for different file reading strategies (disk, GitHub API, in-memory, etc.)
 type FileReader func(filePath string) ([]byte, error)
@@ -261,8 +274,24 @@ func ComputeFrontmatterHashFromFile(filePath string, cache *ImportCache) (string
 	return ComputeFrontmatterHashFromFileWithReader(filePath, cache, DefaultFileReader)
 }
 
+// ComputeFrontmatterHashFromFileWithParsedFrontmatter computes the frontmatter hash using
+// a pre-parsed frontmatter map. The parsedFrontmatter must not be nil; callers are responsible
+// for parsing the frontmatter before calling this function.
+func ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath string, parsedFrontmatter map[string]any, cache *ImportCache, fileReader FileReader) (string, error) {
+	frontmatterHashLog.Printf("Computing hash for file: %s", filePath)
+
+	// Read file content using the provided file reader
+	content, err := fileReader(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return computeFrontmatterHashFromContent(string(content), parsedFrontmatter, filePath, cache, fileReader)
+}
+
 // ComputeFrontmatterHashFromFileWithReader computes the frontmatter hash for a workflow file
 // using a custom file reader function (e.g., for GitHub API, in-memory file system, etc.)
+// It parses the frontmatter once from the file content, then delegates to the core logic.
 func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCache, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Printf("Computing hash for file: %s", filePath)
 
@@ -272,8 +301,20 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
+	// Parse frontmatter once from content; treat inlined-imports as false if parsing fails
+	var parsedFrontmatter map[string]any
+	if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
+		parsedFrontmatter = parsed.Frontmatter
+	}
+
+	return computeFrontmatterHashFromContent(string(content), parsedFrontmatter, filePath, cache, fileReader)
+}
+
+// computeFrontmatterHashFromContent is the shared core that computes the hash given the
+// already-read file content and pre-parsed frontmatter map (may be nil).
+func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[string]any, filePath string, cache *ImportCache, fileReader FileReader) (string, error) {
 	// Extract frontmatter and markdown as text (no YAML parsing)
-	frontmatterText, markdown, err := extractFrontmatterAndBodyText(string(content))
+	frontmatterText, markdown, err := extractFrontmatterAndBodyText(content)
 	if err != nil {
 		return "", fmt.Errorf("failed to extract frontmatter: %w", err)
 	}
@@ -281,11 +322,23 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 	// Get base directory for resolving imports
 	baseDir := filepath.Dir(filePath)
 
-	// Extract relevant template expressions from markdown body
-	relevantExpressions := extractRelevantTemplateExpressions(markdown)
+	// Detect inlined-imports from the pre-parsed frontmatter map.
+	// If nil (parsing failed or not provided), inlined-imports is treated as false.
+	inlinedImports := parseBoolFromFrontmatter(parsedFrontmatter, "inlined-imports")
+
+	// When inlined-imports is enabled, the entire markdown body is compiled into the lock
+	// file, so any change to the body must invalidate the hash. Include the full body text.
+	// Otherwise, only extract the relevant template expressions (env./vars. references).
+	var relevantExpressions []string
+	var fullBody string
+	if inlinedImports {
+		fullBody = normalizeFrontmatterText(markdown)
+	} else {
+		relevantExpressions = extractRelevantTemplateExpressions(markdown)
+	}
 
 	// Compute hash using text-based approach with custom file reader
-	return computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir, cache, relevantExpressions, fileReader)
+	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, cache, relevantExpressions, fileReader)
 }
 
 // ComputeFrontmatterHashWithExpressions computes the hash including template expressions
@@ -517,7 +570,9 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 	return importedFiles, importedFrontmatterTexts, nil
 }
 
-// computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader
+// computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader.
+// When markdown is non-empty, it is included as the full body text in the canonical data (used for
+// inlined-imports mode where the entire body is compiled into the lock file).
 func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir string, cache *ImportCache, expressions []string, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Print("Computing frontmatter hash using text-based approach")
 
@@ -553,8 +608,11 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 		canonical["imported-frontmatters"] = strings.Join(normalizedTexts, "\n---\n")
 	}
 
-	// Add template expressions if present
-	if len(expressions) > 0 {
+	// When inlined-imports is enabled, include the full markdown body so any content
+	// change invalidates the hash. Otherwise, include only relevant template expressions.
+	if markdown != "" {
+		canonical["body-text"] = markdown
+	} else if len(expressions) > 0 {
 		canonical["template-expressions"] = expressions
 	}
 

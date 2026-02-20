@@ -20,6 +20,7 @@ engine:
   id: claude
   max-turns: 100
 strict: true
+inlined-imports: true
 imports:
   - shared/mcp-pagination.md
   - shared/gh.md

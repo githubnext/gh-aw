@@ -120,6 +120,12 @@
         ]
       ]
     },
+    "inlined-imports": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, inline all imports (including those without inputs) at compilation time in the generated lock.yml instead of using runtime-import macros. When enabled, the frontmatter hash covers the entire markdown body so any change to the content will invalidate the hash.",
+      "examples": [true, false]
+    },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "examples": [
