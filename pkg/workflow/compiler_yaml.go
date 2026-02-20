@@ -179,20 +179,6 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
-	// Enable inlined-imports mode from WorkflowData (parsed during buildInitialWorkflowData).
-	// Save previous compiler state and restore it with defer so that reusing the same
-	// Compiler instance for a subsequent workflow without inlined-imports works correctly.
-	if data.InlinedImports {
-		prevInlinePrompt := c.inlinePrompt
-		prevInlinedImports := c.inlinedImports
-		c.inlinePrompt = true
-		c.inlinedImports = true
-		defer func() {
-			c.inlinePrompt = prevInlinePrompt
-			c.inlinedImports = prevInlinedImports
-		}()
-	}
-
 	// Build all jobs and validate dependencies
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
 		return "", fmt.Errorf("failed to build and validate jobs: %w", err)
@@ -305,7 +291,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// - inlinedImports mode (inlined-imports: true frontmatter): read and inline content at compile time
 	// - normal mode: generate runtime-import macros (loaded at runtime)
 	if len(data.ImportPaths) > 0 {
-		if c.inlinedImports && c.markdownPath != "" {
+		if data.InlinedImports && c.markdownPath != "" {
 			// inlinedImports mode: read import file content from disk and embed directly
 			compilerYamlLog.Printf("Inlining %d imports without inputs at compile time", len(data.ImportPaths))
 			workspaceRoot := resolveWorkspaceRoot(c.markdownPath)
@@ -344,7 +330,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// available at compile time for the substitute placeholders step
 	// Use MainWorkflowMarkdown (not MarkdownContent) to avoid extracting from imported content
 	// Skip this step when inlinePrompt is true because expression extraction happens in Step 2
-	if !c.inlinePrompt && data.MainWorkflowMarkdown != "" {
+	if !c.inlinePrompt && !data.InlinedImports && data.MainWorkflowMarkdown != "" {
 		compilerYamlLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
 
 		// Create a new extractor for main workflow markdown
@@ -358,7 +344,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	}
 
 	// Step 2: Add main workflow markdown content to the prompt
-	if c.inlinePrompt {
+	if c.inlinePrompt || data.InlinedImports {
 		// Inline mode (Wasm/browser): embed the markdown content directly in the YAML
 		// since runtime-import macros cannot resolve without filesystem access
 		if data.MainWorkflowMarkdown != "" {
