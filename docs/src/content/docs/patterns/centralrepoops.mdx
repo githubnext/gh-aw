@@ -109,6 +109,124 @@ safe-outputs:
     title-prefix: '[dependabot-config] '
     max: 1
 ---
+
+# Intelligent Dependabot Configuration
+
+You are creating a **customized** Dependabot configuration based on analyzing this specific repository.
+
+**Target Repository**: ${{ github.event.inputs.target_repo }}
+
+## Why AI is Required
+
+You must analyze the repository structure and create an intelligent, customized configuration - not a generic template.
+
+## Step 1: Analyze Repository
+
+**Check for conflicts:**
+
+- Does `.github/dependabot.yml` already exist? → Stop, create issue explaining it exists
+- Does `.github/renovate.json` or `renovate.json` exist? → Create issue about migrating from Renovate
+- Are there custom dependency update scripts? → Create issue suggesting Dependabot alternative
+
+**Analyze package manager complexity:**
+
+For **npm** (if package.json exists):
+
+- Count total dependencies (dependencies + devDependencies)
+- Check for monorepo: Are there multiple package.json files in subdirectories?
+- Simple: <20 dependencies, single package.json
+- Complex: >100 dependencies OR monorepo structure
+
+For **Python** (requirements.txt, setup.py, pyproject.toml):
+
+- Count dependencies
+- Check for multiple requirement files
+
+For **Go** (go.mod):
+
+- Note if present
+
+For **GitHub Actions** (.github/workflows/*.yml):
+
+- Count workflow files
+
+**Security context:**
+
+- Use GitHub tools to check for open security alerts
+- If critical alerts exist, prioritize security updates
+
+## Step 2: Create Customized Configuration
+
+Based on your analysis, create an appropriate config:
+
+### Simple Repository (<20 npm deps, no monorepo)
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"  # Low complexity = more frequent
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+```
+
+### Complex Repository (>100 deps OR security alerts)
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"  # High complexity = less frequent
+    groups:
+      production:
+        patterns: ["*"]
+        exclude-patterns: ["@types/*", "@jest/*"]
+      dev-dependencies:
+        patterns: ["@types/*", "@jest/*", "eslint*"]
+```
+
+### Monorepo (multiple package.json)
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/packages/frontend"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/packages/backend"
+    schedule:
+      interval: "weekly"
+```
+
+## Step 3: Deliver Configuration
+
+**If config is straightforward (no Renovate conflict):**
+
+- Create `.github/dependabot.yml` with your customized config
+- Create pull request with:
+  - Title: "[dependabot] Add customized Dependabot configuration"
+  - Body explaining: dependency count, why weekly vs daily, grouping strategy, etc.
+
+**If Renovate detected:**
+
+- Create issue explaining migration benefits and proposed config
+- Include generated config in issue body
+
+**If no package managers found:**
+
+- Create issue: "No supported package managers detected"
+
+## Key: Explain Your Reasoning
+
+In the PR/issue body, explain **why** you chose this specific configuration (not a generic template).
 ```
 Compile this workflow to generate the lock file: `gh aw compile`.
 Create a fine-grained PAT `ORG_REPO_CHECKOUT_TOKEN` with the organization as an owner,
