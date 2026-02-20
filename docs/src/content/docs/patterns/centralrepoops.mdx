@@ -15,7 +15,7 @@ Below are the key benefits of this pattern for enterprise use cases:
 - **Consistency at scale** - Same rollout logic and policy gates across all repositories
 - **Risk reduction** - Controlled fan-out (`max`), phased prioritization, and explicit rationale
 - **Auditability** - One orchestrator run provides a full decision trail of selection and outcomes
-- **Operational efficiency** - Teams avoid copy-pasting workflows into every repository
+- **Operational agility** - Update workflows in one central repository without pushing `main` changes across dozens or hundreds of repositories
 - **Security posture** - Prioritize exposed or vulnerable repositories first
 
 
@@ -45,12 +45,6 @@ Navigate to your central repository and create a workflow file `.github/workflow
 on:
   schedule:
     - cron: '0 9 * * 1'
-  workflow_dispatch:
-    inputs:
-      target_repos:
-        description: 'List of repos (owner/repo1, owner/repo2)'
-        required: false
-        type: string
 
 tools:
   github:
@@ -60,14 +54,14 @@ tools:
 safe-outputs:
   dispatch-workflow:
     workflows: [dependabot-rollout]
-    max: 50
+    max: 5
 ---
 
 # Dependabot Rollout Orchestrator
 
 Categorize and orchestrate Dependabot rollout across repositories.
 
-**Target repos**: ${{ github.event.inputs.target_repos }}
+**Target repos**: All repos in the organization
 
 ## Task
 
@@ -81,7 +75,7 @@ Categorize and orchestrate Dependabot rollout across repositories.
 
 3. **Prioritize** - Order repos by rollout preference: simple → security → complex → conflicting
 
-4. **Dispatch** - Dispatch `dependabot-rollout` worker for every prioritized repo with `target_repo` input
+4. **Dispatch** - Dispatch `dependabot-rollout` worker for every prioritized repository
 
 5. **Summarize** - Report total candidates, categorization breakdown, selected repos with rationale
 ```
@@ -105,14 +99,12 @@ on:
         required: true
         type: string
 
-engine:
-  id: copilot
-  steps:
-    - name: Checkout target repository
-      uses: actions/checkout@v5
-      with:
-        token: ${{ secrets.ORG_REPO_CHECKOUT_TOKEN }}
-        repository: ${{ github.event.inputs.target_repo }}
+steps:
+  - name: Checkout target repository
+    uses: actions/checkout@v5
+    with:
+      token: ${{ secrets.ORG_REPO_CHECKOUT_TOKEN }}
+      repository: ${{ github.event.inputs.target_repo }}
 
 permissions:
   contents: read
@@ -132,7 +124,6 @@ safe-outputs:
     max: 1
   create-issue:
     target-repo: ${{ github.event.inputs.target_repo }}
-    title-prefix: '[dependabot-config] '
     title-prefix: '[dependabot-config] '
     max: 1
 ---
