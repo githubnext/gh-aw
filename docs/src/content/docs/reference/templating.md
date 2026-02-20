@@ -171,33 +171,18 @@ Analyze issue #${{ github.event.issue.number }}.
 
 ### URL Imports
 
-The macro syntax supports HTTP/HTTPS URLs. Fetched content is **cached for 1 hour** to reduce network requests. URLs are **not restricted to `.github` folder** - you can fetch any public URL.
-
-**Macro syntax:**
+The macro syntax supports HTTP/HTTPS URLs. URLs are **not restricted to `.github` folder** and content is cached for 1 hour.
 
 ```aw wrap
 {{#runtime-import https://raw.githubusercontent.com/org/repo/main/checklist.md}}
-```
-
-**URL with line range:**
-
-```aw wrap
 {{#runtime-import https://example.com/standards.md:10-50}}
 ```
 
 ### Security Features
 
-All runtime imports include automatic security protections:
+All runtime imports include automatic security protections.
 
-**Content Sanitization:**
-- YAML front matter is automatically removed
-- HTML/XML comments are stripped
-- GitHub Actions expressions (`${{ ... }}`) are **rejected with error**
-
-This prevents:
-- Template injection attacks
-- Unintended variable expansion
-- Security vulnerabilities from imported content
+**Content Sanitization:** YAML front matter and HTML/XML comments are automatically stripped. GitHub Actions expressions (`${{ ... }}`) are **rejected with error** to prevent template injection and unintended variable expansion.
 
 **Path Validation:**
 
@@ -215,27 +200,19 @@ File paths are **restricted to the `.github` folder** to prevent access to arbit
 
 ### Caching
 
-**URL caching** reduces network overhead:
-- Cache location: `/tmp/gh-aw/url-cache/`
-- Cache duration: 1 hour
-- Cache key: SHA256 hash of URL
-- Cache scope: Per workflow run (ephemeral)
-
-First URL fetch adds latency (~500ms-2s), subsequent accesses use cached content.
+Fetched URLs are cached for 1 hour per workflow run at `/tmp/gh-aw/url-cache/` (keyed by SHA256 hash). The first fetch adds ~500ms–2s latency; subsequent accesses use cached content.
 
 ### Processing Order
 
-Runtime imports are processed as part of the overall templating pipeline:
+Runtime imports are processed before other substitutions:
 
-```
-1. {{#runtime-import}} macros processed (files and URLs)
-2. ${GH_AW_EXPR_*} variable interpolation
-3. {{#if}} template conditionals rendered
-```
+1. `{{#runtime-import}}` macros processed (files and URLs)
+2. `${GH_AW_EXPR_*}` variable interpolation
+3. `{{#if}}` template conditionals rendered
 
 ### Common Use Cases
 
-**1. Shared coding standards:**
+**Shared instructions from a file:**
 
 ```aw wrap
 # Code Review Agent
@@ -246,7 +223,7 @@ Runtime imports are processed as part of the overall templating pipeline:
 Review the pull request changes.
 ```
 
-**2. External security checklists:**
+**External content from a URL, with line range:**
 
 ```aw wrap
 # Security Audit
@@ -254,30 +231,9 @@ Review the pull request changes.
 Follow this checklist:
 
 {{#runtime-import https://company.com/security/api-checklist.md}}
-<!-- URLs are not restricted to .github folder -->
-```
 
-**3. Code context for analysis:**
-
-```aw wrap
-# Refactoring Assistant
-
-Current implementation (from .github/docs/engine.go):
-
+Reference implementation (lines 100-150):
 {{#runtime-import docs/engine.go:100-150}}
-
-Suggested improvements needed.
-```
-
-**4. License attribution:**
-
-```aw wrap
-# Generated Report
-
-## License
-
-{{#runtime-import docs/LICENSE:1-10}}
-<!-- Loads .github/docs/LICENSE -->
 ```
 
 ### Limitations
@@ -290,41 +246,13 @@ Suggested improvements needed.
 
 ### Error Handling
 
-**File not found:**
-
-```
-Failed to process runtime import for missing.txt: 
-Runtime import file not found: missing.txt
-```
-
-**Invalid line range:**
-
-```
-Invalid start line 100 for file docs/main.go (total lines: 50)
-```
-
-**Path security violations:**
-
-```
-# Relative traversal
-Security: Path ../src/main.go must be within .github folder (resolves to: ../src/main.go)
-
-# Absolute path
-Security: Path /etc/passwd must be within .github folder (resolves to: /etc/passwd)
-```
-
-**GitHub Actions macros detected:**
-
-```
-File template.md contains GitHub Actions macros (${{ ... }}) 
-which are not allowed in runtime imports
-```
-
-**URL fetch failure:**
-
-```
-Failed to fetch URL https://example.com/file.txt: HTTP 404
-```
+| Error | Message |
+|-------|---------|
+| File not found | `Runtime import file not found: missing.txt` |
+| Invalid line range | `Invalid start line 100 for file docs/main.go (total lines: 50)` |
+| Path traversal | `Security: Path ../src/main.go must be within .github folder` |
+| GitHub Actions macros | `File template.md contains GitHub Actions macros (${{ ... }}) which are not allowed in runtime imports` |
+| URL fetch failure | `Failed to fetch URL https://example.com/file.txt: HTTP 404` |
 
 ## Related Documentation
 
