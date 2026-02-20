@@ -606,6 +606,10 @@ jobs:
                   "required": true,
                   "type": "string"
                 },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
                 "side": {
                   "type": "string",
                   "enum": [
@@ -618,6 +622,31 @@ jobs:
                 }
               },
               "customValidation": "startLineLessOrEqualLine"
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                }
+              }
             },
             "missing_tool": {
               "defaultMax": 20,
