@@ -122,8 +122,11 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	// When model is a GitHub Actions expression (e.g. ${{ inputs.model }}), it must be passed
+	// via an environment variable to avoid template injection validation failures.
+	modelIsExpression := modelConfigured && strings.Contains(workflowData.EngineConfig.Model, "${{")
 	model := ""
-	if modelConfigured {
+	if modelConfigured && !modelIsExpression {
 		model = workflowData.EngineConfig.Model
 	}
 	firewallEnabled := isFirewallEnabled(workflowData)
@@ -132,10 +135,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	var steps []GitHubActionStep
 
-	// Build model parameter only if specified in engineConfig
+	// Build model parameter only if specified in engineConfig (and not an expression)
 	// Otherwise, model can be set via GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX environment variable
 	var modelParam string
-	if modelConfigured {
+	if modelConfigured && !modelIsExpression {
 		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
 	} else {
 		// Check if this is a detection job (has no SafeOutputs config)
@@ -271,13 +274,21 @@ mkdir -p "$CODEX_HOME/logs"
 		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
 	}
 
-	// Add model environment variable if model is not explicitly configured
+	// Add model environment variable if model is not explicitly configured (or is a GitHub Actions expression)
 	// This allows users to configure the default model via GitHub Actions variables
 	// Use different env vars for agent vs detection jobs
-	if !modelConfigured {
+	if !modelConfigured || modelIsExpression {
 		// Check if this is a detection job (has no SafeOutputs config)
 		isDetectionJob := workflowData.SafeOutputs == nil
-		if isDetectionJob {
+		if modelIsExpression {
+			// Model is a GitHub Actions expression (e.g. ${{ inputs.model }}) - set it as env var
+			// so it is not embedded directly in the shell command (which would fail template injection validation)
+			if isDetectionJob {
+				env[constants.EnvVarModelDetectionCodex] = workflowData.EngineConfig.Model
+			} else {
+				env[constants.EnvVarModelAgentCodex] = workflowData.EngineConfig.Model
+			}
+		} else if isDetectionJob {
 			// For detection, use detection-specific env var (no default fallback for Codex)
 			env[constants.EnvVarModelDetectionCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCodex)
 		} else {

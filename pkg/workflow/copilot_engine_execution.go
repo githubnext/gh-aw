@@ -74,7 +74,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// 1. Explicit model in workflow config (highest priority)
 	// 2. GH_AW_MODEL_AGENT_COPILOT environment variable (set via GitHub Actions variables)
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if modelConfigured {
+	// When model is a GitHub Actions expression (e.g. ${{ inputs.model }}), it must be passed
+	// via an environment variable to avoid template injection validation failures.
+	modelIsExpression := modelConfigured && strings.Contains(workflowData.EngineConfig.Model, "${{")
+	if modelConfigured && !modelIsExpression {
 		copilotExecLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
@@ -147,7 +150,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	var copilotCommand string
 
 	// Determine if we need to conditionally add --model flag based on environment variable
-	needsModelFlag := !modelConfigured
+	needsModelFlag := !modelConfigured || modelIsExpression
 	// Check if this is a detection job (has no SafeOutputs config)
 	isDetectionJob := workflowData.SafeOutputs == nil
 	var modelEnvVar string
@@ -283,7 +286,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	}
 
-	// Add model environment variable if model is not explicitly configured
+	// Add model environment variable if model is not explicitly configured (or is a GitHub Actions expression)
 	// This allows users to configure the default model via GitHub Actions variables
 	// Use different env vars for agent vs detection jobs
 	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
@@ -295,6 +298,15 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		} else {
 			// For agent execution, use agent-specific env var
 			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
+		}
+	} else if modelIsExpression {
+		// Model is a GitHub Actions expression (e.g. ${{ inputs.model }}) - set it as env var
+		// so it is not embedded directly in the shell command (which would fail template injection validation)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		if isDetectionJob {
+			env[constants.EnvVarModelDetectionCopilot] = workflowData.EngineConfig.Model
+		} else {
+			env[constants.EnvVarModelAgentCopilot] = workflowData.EngineConfig.Model
 		}
 	}
 

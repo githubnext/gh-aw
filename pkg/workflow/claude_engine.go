@@ -161,7 +161,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// 1. Explicit model in workflow config (highest priority)
 	// 2. GH_AW_MODEL_AGENT_CLAUDE environment variable (set via GitHub Actions variables)
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if modelConfigured {
+	// When model is a GitHub Actions expression (e.g. ${{ inputs.model }}), it must be passed
+	// via an environment variable to avoid template injection validation failures.
+	modelIsExpression := modelConfigured && strings.Contains(workflowData.EngineConfig.Model, "${{")
+	if modelConfigured && !modelIsExpression {
 		claudeLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
 		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
 	}
@@ -255,7 +258,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentClaude
 	}
-	if !modelConfigured {
+	if !modelConfigured || modelIsExpression {
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
 	}
 
@@ -360,7 +363,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	}
 
-	// Add model environment variable if model is not explicitly configured
+	// Add model environment variable if model is not explicitly configured (or is a GitHub Actions expression)
 	// This allows users to configure the default model via GitHub Actions variables
 	// Use different env vars for agent vs detection jobs
 	if !modelConfigured {
@@ -370,6 +373,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		} else {
 			// For agent execution, use agent-specific env var
 			env[constants.EnvVarModelAgentClaude] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentClaude)
+		}
+	} else if modelIsExpression {
+		// Model is a GitHub Actions expression (e.g. ${{ inputs.model }}) - set it as env var
+		// so it is not embedded directly in the shell command (which would fail template injection validation)
+		if isDetectionJob {
+			env[constants.EnvVarModelDetectionClaude] = workflowData.EngineConfig.Model
+		} else {
+			env[constants.EnvVarModelAgentClaude] = workflowData.EngineConfig.Model
 		}
 	}
 

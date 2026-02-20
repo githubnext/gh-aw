@@ -215,3 +215,139 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 		t.Errorf("Explicit model 'gpt-4' not found in command:\n%s", stepsContent)
 	}
 }
+
+// TestExpressionModelUsesEnvVar tests that when model is a GitHub Actions expression,
+// it is set as an environment variable rather than embedded directly in the shell command.
+// This prevents template injection validation failures.
+func TestExpressionModelUsesEnvVar(t *testing.T) {
+	tests := []struct {
+		name           string
+		engine         string
+		model          string
+		expectedEnvVar string
+		expectedEnvVal string
+	}{
+		{
+			name:           "Copilot agent with inputs.model expression",
+			engine:         "copilot",
+			model:          "${{ inputs.model }}",
+			expectedEnvVar: constants.EnvVarModelAgentCopilot,
+			expectedEnvVal: "${{ inputs.model }}",
+		},
+		{
+			name:           "Copilot agent with vars.model expression",
+			engine:         "copilot",
+			model:          "${{ vars.MY_MODEL }}",
+			expectedEnvVar: constants.EnvVarModelAgentCopilot,
+			expectedEnvVal: "${{ vars.MY_MODEL }}",
+		},
+		{
+			name:           "Claude agent with inputs.model expression",
+			engine:         "claude",
+			model:          "${{ inputs.model }}",
+			expectedEnvVar: constants.EnvVarModelAgentClaude,
+			expectedEnvVal: "${{ inputs.model }}",
+		},
+		{
+			name:           "Codex agent with inputs.model expression",
+			engine:         "codex",
+			model:          "${{ inputs.model }}",
+			expectedEnvVar: constants.EnvVarModelAgentCodex,
+			expectedEnvVal: "${{ inputs.model }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-expression-model",
+				AI:   tt.engine,
+				EngineConfig: &EngineConfig{
+					ID:    tt.engine,
+					Model: tt.model,
+				},
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: &SafeOutputsConfig{},
+			}
+
+			engine, err := GetGlobalEngineRegistry().GetEngine(tt.engine)
+			if err != nil {
+				t.Fatalf("Failed to get engine: %v", err)
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+			var stepsStr strings.Builder
+			for _, step := range steps {
+				for _, line := range step {
+					stepsStr.WriteString(line)
+					stepsStr.WriteString("\n")
+				}
+			}
+			stepsContent := stepsStr.String()
+
+			// The expression must NOT appear directly in the shell command run: block
+			// (it should be in the env: block only)
+			if strings.Contains(stepsContent, "--model ${{") || strings.Contains(stepsContent, "--model \"${{") {
+				t.Errorf("Model expression should not be embedded directly in shell command in steps:\n%s", stepsContent)
+			}
+
+			// The env var must be set to the expression value
+			expectedEnvLine := tt.expectedEnvVar + ": " + tt.expectedEnvVal
+			if !strings.Contains(stepsContent, expectedEnvLine) {
+				t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+			}
+
+			// The command must use the env var conditionally
+			if !strings.Contains(stepsContent, "${"+tt.expectedEnvVar+":+") {
+				t.Errorf("Expected conditional env var usage '${%s:+' not found in steps:\n%s", tt.expectedEnvVar, stepsContent)
+			}
+		})
+	}
+}
+
+// TestExpressionModelDetectionJobUsesEnvVar tests that detection jobs with expression model
+// use the detection-specific environment variable.
+func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-detection-expression-model",
+		AI:   "copilot",
+		EngineConfig: &EngineConfig{
+			ID:    "copilot",
+			Model: "${{ inputs.model }}",
+		},
+		Tools: map[string]any{
+			"bash": []any{"cat", "grep"},
+		},
+		SafeOutputs: nil, // detection job
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/detection.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// Detection job should use detection-specific env var
+	expectedEnvLine := constants.EnvVarModelDetectionCopilot + ": ${{ inputs.model }}"
+	if !strings.Contains(stepsContent, expectedEnvLine) {
+		t.Errorf("Expected detection env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+	}
+
+	// Must not embed expression directly in shell command
+	if strings.Contains(stepsContent, "--model ${{") {
+		t.Errorf("Model expression should not be embedded directly in shell command:\n%s", stepsContent)
+	}
+}

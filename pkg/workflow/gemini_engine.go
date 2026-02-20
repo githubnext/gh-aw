@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -167,7 +168,11 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	var geminiArgs []string
 
 	// Add model if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	// When model is a GitHub Actions expression (e.g. ${{ inputs.model }}), it must be passed
+	// via an environment variable to avoid template injection validation failures.
+	modelIsExpression := modelConfigured && strings.Contains(workflowData.EngineConfig.Model, "${{")
+	if modelConfigured && !modelIsExpression {
 		geminiArgs = append(geminiArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
@@ -235,14 +240,22 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
 
-	// Add model env var if not explicitly configured
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	// Add model env var if not explicitly configured (or is a GitHub Actions expression)
 	if !modelConfigured {
 		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
 			env[constants.EnvVarModelDetectionGemini] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionGemini)
 		} else {
 			env[constants.EnvVarModelAgentGemini] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentGemini)
+		}
+	} else if modelIsExpression {
+		// Model is a GitHub Actions expression (e.g. ${{ inputs.model }}) - set it as env var
+		// so it is not embedded directly in the shell command (which would fail template injection validation)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		if isDetectionJob {
+			env[constants.EnvVarModelDetectionGemini] = workflowData.EngineConfig.Model
+		} else {
+			env[constants.EnvVarModelAgentGemini] = workflowData.EngineConfig.Model
 		}
 	}
 
