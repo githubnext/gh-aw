@@ -20,31 +20,18 @@ imports:
   - shared/gh.md
   - shared/reporting.md
   - shared/github-queries-safe-input.md
-network:
-  allowed:
-    - defaults
-    - node
-    - github
-    - playwright
 tools:
   cache-memory: true
   edit:
   bash:
     - "*"
-  github:
-  playwright:
-    allowed_domains:
-      - github.com
-  serena:
-    languages:
-      go: {}
   web-fetch:
 runtimes:
   go:
     version: "1.25"
 sandbox:
-  mcp:
-    container: "ghcr.io/github/gh-aw-mcpg"
+  agent: false
+strict: false
 safe-outputs:
     add-comment:
       allowed-repos: ["github/gh-aw"]
@@ -107,57 +94,41 @@ safe-outputs:
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
-strict: true
 ---
 
-# Smoke Test: macOS ARM64 Container Validation
+# Smoke Test: macOS ARM64 Agent Validation
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
-**PURPOSE**: This smoke test validates that ARM64 container images (firewall, MCP gateway, API proxy) work correctly on macOS ARM64 (Apple Silicon) runners. This is critical for ensuring multi-architecture support.
+**PURPOSE**: This smoke test validates that the Copilot CLI agent works correctly on macOS ARM64 (Apple Silicon) runners. The agent runs directly on the host without network firewall or containerized MCP servers, since Docker is not available on macOS GHA runners.
 
 ## Test Requirements
 
 1. **Architecture Verification**: Run `uname -m` and `uname -s` to confirm you are running on an ARM64 macOS host. Report the architecture and OS.
-2. **Docker Availability**: Verify Docker is available by running `docker info` and `docker version`. Report the Docker engine version and architecture.
-3. **ARM64 Container Image Pull Test**: Pull the following container images and verify they are ARM64 architecture:
-   - `ghcr.io/github/gh-aw-firewall/agent:v0.20.0`
-   - `ghcr.io/github/gh-aw-firewall/squid:v0.20.0`
-   - `ghcr.io/github/gh-aw-firewall/api-proxy:v0.20.0`
-   - `ghcr.io/github/gh-aw-mcpg:v0.1.4`
-   For each image, run `docker inspect --format '{{.Architecture}}' <image>` and verify it reports `arm64`.
-4. **Container Startup Test**: For each pulled image, attempt to start a container and verify it runs without crash:
-   - For `agent`: `docker run --rm ghcr.io/github/gh-aw-firewall/agent:v0.20.0 echo "agent OK"`
-   - For `squid`: `docker run --rm -d --name smoke-squid ghcr.io/github/gh-aw-firewall/squid:v0.20.0` then check it's running with `docker ps`, then `docker stop smoke-squid`
-   - For `api-proxy`: `docker run --rm ghcr.io/github/gh-aw-firewall/api-proxy:v0.20.0 --help` (or similar basic invocation)
-   - For `mcpg`: `docker run --rm ghcr.io/github/gh-aw-mcpg:v0.1.4 --help` (or similar basic invocation)
-5. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-6. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
-7. **Serena MCP Testing**:
-   - Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
-   - After initialization, use the `find_symbol` tool to search for symbols (find which tool to call) and verify that at least 3 symbols are found in the results
-8. **Playwright Testing**: Use the playwright tools to navigate to <https://github.com> and verify the page title contains "GitHub" (do NOT try to install playwright - use the provided MCP tools)
-9. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-macos-arm64-${{ github.run_id }}.txt` with content "Smoke test passed for macOS ARM64 at $(date)" (create the directory if it doesn't exist)
-10. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-11. **Discussion Interaction Testing**:
+2. **Environment Check**: Run `sw_vers` to report the macOS version. Run `go version` to confirm Go is available.
+3. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}. Report the PR numbers and titles.
+4. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
+5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-macos-arm64-${{ github.run_id }}.txt` with content "Smoke test passed for macOS ARM64 at $(date)" (create the directory if it doesn't exist)
+6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+7. **Discussion Interaction Testing**:
     - Use the `github-discussion-query` safe-input tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
     - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
     - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, playful comment stating that the macOS ARM64 smoke test agent was here
-12. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
-13. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "macos-arm64 was here" with the label "ai-generated"
-14. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about ARM64 containers or Apple Silicon.
-15. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`.
+8. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
+9. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "macos-arm64 was here" with the label "ai-generated"
+10. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about Apple Silicon.
+11. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`.
+12. **Web Fetch Testing**: Use the `web-fetch` tool to fetch https://api.github.com and verify the response contains valid JSON with a `current_user_url` field.
 
 ## Output
 
 1. **Create an issue** with a summary of the smoke test run:
    - Title: "Smoke Test: macOS ARM64 - ${{ github.run_id }}"
    - Body should include:
-     - Host architecture and OS info
-     - Docker engine version and architecture
-     - ARM64 container image pull results (✅ or ❌ for each image)
-     - Container startup results (✅ or ❌ for each container)
+     - Host architecture and OS info (ARM64/macOS version)
+     - Go version
      - Test results (✅ or ❌ for each test)
+     - Note: Docker/containers are not tested (not available on macOS GHA runners)
      - Overall status: PASS or FAIL
      - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
      - Timestamp
@@ -165,13 +136,11 @@ strict: true
 
 2. Add a **very brief** comment (max 5-10 lines) to the current pull request with:
    - Host arch confirmation (ARM64/macOS)
-   - Container image status (✅ or ❌ for each)
-   - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-3. Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 11) - be playful and entertaining in your comment
+3. Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 7) - be playful and entertaining in your comment
 
 4. Use the `send_slack_message` tool to send a brief summary message (e.g., "macOS ARM64 smoke test ${{ github.run_id }}: All tests passed! ✅")
 
