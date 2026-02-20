@@ -205,14 +205,20 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	}
 	stepsContent := stepsStr.String()
 
-	// When model is explicitly configured, the env var should NOT be present
+	// When model is explicitly configured, the GH_AW_ fallback env var should NOT be present
 	if strings.Contains(stepsContent, constants.EnvVarModelAgentCopilot+":") {
-		t.Errorf("Environment variable %s should not be present when model is explicitly configured", constants.EnvVarModelAgentCopilot)
+		t.Errorf("Fallback env var %s should not be present when model is explicitly configured", constants.EnvVarModelAgentCopilot)
 	}
 
-	// The explicit model should be in the command
-	if !strings.Contains(stepsContent, "--model gpt-4") {
-		t.Errorf("Explicit model 'gpt-4' not found in command:\n%s", stepsContent)
+	// The model should be passed via the native COPILOT_MODEL env var (not via --model flag)
+	expectedEnvLine := constants.CopilotCLIModelEnvVar + ": gpt-4"
+	if !strings.Contains(stepsContent, expectedEnvLine) {
+		t.Errorf("Expected native env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+	}
+
+	// The --model flag should NOT appear in the shell command (model is via env var)
+	if strings.Contains(stepsContent, "--model gpt-4") {
+		t.Errorf("--model flag should not be in command when model is set via native env var:\n%s", stepsContent)
 	}
 }
 
@@ -245,12 +251,12 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			expectShellExpansion: false,
 		},
 		{
-			name:                 "Claude agent with inputs.model expression",
+			name:                 "Claude agent with inputs.model expression uses native ANTHROPIC_MODEL",
 			engine:               "claude",
 			model:                "${{ inputs.model }}",
-			expectedEnvVar:       constants.EnvVarModelAgentClaude,
+			expectedEnvVar:       constants.ClaudeCLIModelEnvVar,
 			expectedEnvVal:       "${{ inputs.model }}",
-			expectShellExpansion: true,
+			expectShellExpansion: false, // Claude reads ANTHROPIC_MODEL natively, no shell expansion needed
 		},
 		{
 			name:                 "Codex agent with inputs.model expression",
@@ -258,7 +264,7 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			model:                "${{ inputs.model }}",
 			expectedEnvVar:       constants.EnvVarModelAgentCodex,
 			expectedEnvVal:       "${{ inputs.model }}",
-			expectShellExpansion: true,
+			expectShellExpansion: true, // Codex has no native model env var, uses shell expansion
 		},
 	}
 
@@ -358,5 +364,34 @@ func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
 	// Must not embed expression directly in shell command
 	if strings.Contains(stepsContent, "--model ${{") {
 		t.Errorf("Model expression should not be embedded directly in shell command:\n%s", stepsContent)
+	}
+}
+
+// TestGetModelEnvVarName tests that engines return the correct native model env var name.
+func TestGetModelEnvVarName(t *testing.T) {
+	tests := []struct {
+		engine   string
+		expected string
+	}{
+		{"copilot", constants.CopilotCLIModelEnvVar}, // "COPILOT_MODEL"
+		{"claude", constants.ClaudeCLIModelEnvVar},   // "ANTHROPIC_MODEL"
+		{"codex", ""}, // no native model env var
+		{"gemini", constants.GeminiCLIModelEnvVar}, // "GEMINI_MODEL"
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.engine, func(t *testing.T) {
+			eng, err := GetGlobalEngineRegistry().GetEngine(tt.engine)
+			if err != nil {
+				t.Fatalf("Failed to get engine %s: %v", tt.engine, err)
+			}
+			provider, ok := eng.(ModelEnvVarProvider)
+			if !ok {
+				t.Fatalf("Engine %s does not implement ModelEnvVarProvider", tt.engine)
+			}
+			if got := provider.GetModelEnvVarName(); got != tt.expected {
+				t.Errorf("Engine %s: GetModelEnvVarName() = %q, want %q", tt.engine, got, tt.expected)
+			}
+		})
 	}
 }
