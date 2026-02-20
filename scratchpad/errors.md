@@ -142,7 +142,7 @@ enhanced := workflow.EnhanceError(
 
 **Use when:**
 - Adding context to errors from external libraries
-- Providing user-friendly explanations
+- Providing clear explanations for end users
 - Adding suggestions without changing error structure
 
 #### WrapErrorWithContext

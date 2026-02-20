@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 2.4
-**Last Updated**: 2026-02-17
+**Version**: 2.5
+**Last Updated**: 2026-02-19
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1448,6 +1448,37 @@ func LoadMCPConfig(path string) (*MCPConfig, error) {
 }
 ```
 
+### Engine-Specific MCP Config Delivery
+
+Some AI engine CLIs do not support a `--mcp-config` flag and instead read MCP server configuration from engine-native config files. When implementing `RenderMCPConfig()` for such engines, write configuration to the engine's expected location rather than passing it via CLI flag.
+
+**Pattern: Standard CLI flag** (Claude, Copilot, Codex):
+```go
+// Engine reads MCP config from --mcp-config flag
+args = append(args, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
+```
+
+**Pattern: Engine-native config file** (Gemini):
+```bash
+# Gemini CLI does not support --mcp-config flag
+# Use a conversion script to write to .gemini/settings.json instead
+actions/setup/sh/convert_gateway_config_gemini.sh
+# Writes MCP server configuration to .gemini/settings.json (project-level)
+```
+
+**Implementation**: Use a shell script in `actions/setup/sh/` to convert the MCP gateway config to the engine's native format. Route the engine to this script via `start_mcp_gateway.sh`.
+
+```mermaid
+graph LR
+    GW[MCP Gateway Config] --> Script[convert_gateway_config_<engine>.sh]
+    Script --> NativeConfig[Engine-native config file]
+    NativeConfig --> Engine[AI Engine CLI]
+```
+
+When adding a new engine, check the engine CLI's documentation to determine whether it supports `--mcp-config` or requires an alternative config delivery method.
+
+---
+
 ### MCP Logs Guardrail
 
 **Purpose**: Prevent sensitive information leakage in MCP logs
@@ -1745,6 +1776,7 @@ type Everything interface {
 ---
 
 **Document History**:
+- v2.5 (2026-02-19): Fixed 6 tone issues in engine review docs, added Engine-Specific MCP Config Delivery section (Gemini pattern), analyzed 61 files
 - v2.4 (2026-02-17): Quality verification - analyzed 4 new files, zero tone issues found across all 61 files
 - v2.3 (2026-02-16): Quality verification - zero tone issues, all formatting standards maintained
 - v2.2 (2026-02-15): Quality verification with metadata update
