@@ -10,8 +10,8 @@ const main = createEngineLogParser({
 });
 
 /**
- * Parse Gemini CLI JSON log output and format as markdown.
- * Gemini CLI outputs a single JSON object per line when using --output-format json.
+ * Parse Gemini CLI streaming JSON log output and format as markdown.
+ * Gemini CLI outputs one JSON object per line when using --output-format stream-json (JSONL).
  * @param {string} logContent - The raw log content to parse
  * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
  */

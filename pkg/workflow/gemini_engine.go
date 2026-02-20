@@ -179,8 +179,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
 	geminiArgs = append(geminiArgs, "--yolo")
 
-	// Add headless mode with JSON output
-	geminiArgs = append(geminiArgs, "--output-format", "json")
+	// Add streaming JSON output (JSONL format, compatible with the log parser)
+	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
 
 	// Add prompt argument
 	geminiArgs = append(geminiArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -221,7 +221,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
-%s 2>&1 | tee %s`, geminiCommand, logFile)
+%s 2>&1 | tee -a %s`, geminiCommand, logFile)
 	}
 
 	// Build environment variables
