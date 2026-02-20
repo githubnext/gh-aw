@@ -76,9 +76,9 @@ Create a fine-grained PAT `ORG_GITHUB_MCP_SERVER_TOKEN` with the organization as
 select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read-only`.
 Add this into your Actions repository secrets. This gives the orchestrator read access to all candidate repositories.
 
-### Worker (repo-local execution)
+### Worker (cross-repository execution)
 
-Next, create the worker workflow `.github/workflows/dependabot-rollout.md` that will run in each target repository:
+Next, create the worker workflow `.github/workflows/dependabot-rollout.md` in your central repository that will operate on each target repository via checkout:
 
 ```aw wrap
 ---
