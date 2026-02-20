@@ -159,6 +159,29 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Creating a Pull Request Review Comment, Submitting a Pull Request Review, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Creating a Pull Request Review Comment**
+          
+          To create a pull request review comment, use the create_pull_request_review_comment tool from safeoutputs.
+          
+          **Submitting a Pull Request Review**
+          
+          To submit a pull request review (APPROVE, REQUEST_CHANGES, or COMMENT), use the submit_pull_request_review tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>

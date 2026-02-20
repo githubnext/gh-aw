@@ -18,7 +18,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 	}
 
 	yaml.WriteString("          \n")
-	yaml.WriteString("          ---\n")
+	yaml.WriteString("          <repo-memory>\n")
 	yaml.WriteString("          \n")
 
 	// Check if there's only one memory with ID "default" to use singular form
@@ -72,6 +72,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		fmt.Fprintf(yaml, "          - `%shistory/` - organized history files in subdirectories (with allowed file types)\n", memoryDir)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks, using only the allowed file types.\n")
+		yaml.WriteString("          </repo-memory>\n")
 	} else {
 		// Multiple memories or non-default single memory
 		repoMemoryPromptLog.Printf("Generating multiple repo memory prompts: count=%d", len(config.Memories))
@@ -144,5 +145,6 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		fmt.Fprintf(yaml, "          - `%s/history/` - organized history files (with allowed file types)\n", memoryDir)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks, using only the allowed file types.\n")
+		yaml.WriteString("          </repo-memory>\n")
 	}
 }

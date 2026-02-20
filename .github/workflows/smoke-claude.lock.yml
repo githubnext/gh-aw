@@ -184,6 +184,64 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Closing a Pull Request, Updating a Pull Request, Creating a Pull Request Review Comment, Submitting a Pull Request Review, Resolving a Pull Request Review Thread, Adding Labels to Issues or Pull Requests, Adding a Reviewer to a Pull Request, Pushing Changes to Branch, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Adding a Comment to an Issue or Pull Request**
+          
+          To add a comment to an issue or pull request, use the add_comment tool from safeoutputs.
+          
+          **Creating an Issue**
+          
+          To create an issue, use the create_issue tool from safeoutputs.
+          
+          **Closing a Pull Request**
+          
+          To close a pull request, use the close_pull_request tool from safeoutputs.
+          
+          **Updating a Pull Request**
+          
+          To update a pull request title or body, use the update_pull_request tool from safeoutputs.
+          
+          **Creating a Pull Request Review Comment**
+          
+          To create a pull request review comment, use the create_pull_request_review_comment tool from safeoutputs.
+          
+          **Submitting a Pull Request Review**
+          
+          To submit a pull request review (APPROVE, REQUEST_CHANGES, or COMMENT), use the submit_pull_request_review tool from safeoutputs.
+          
+          **Resolving a Pull Request Review Thread**
+          
+          To resolve a review thread on a pull request, use the resolve_pull_request_review_thread tool from safeoutputs.
+          
+          **Adding Labels to Issues or Pull Requests**
+          
+          To add labels to an issue or pull request, use the add_labels tool from safeoutputs.
+          
+          **Adding a Reviewer to a Pull Request**
+          
+          To add a reviewer to a pull request, use the add_reviewer tool from safeoutputs.
+          
+          **Pushing Changes to a Pull Request Branch**
+          
+          To push changes to the branch of a pull request:
+          1. Make any file changes directly in the working directory.
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and verify you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push_to_pull_request_branch tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>

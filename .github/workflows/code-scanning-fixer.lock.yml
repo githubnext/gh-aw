@@ -107,7 +107,7 @@ jobs:
           cat "/opt/gh-aw/prompts/cache_memory_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           
-          ---
+          <repo-memory>
           
           ## Repo Memory Locations Available
           
@@ -131,6 +131,7 @@ jobs:
           - `/tmp/gh-aw/repo-memory/history/` - organized history files (with allowed file types)
           
           Feel free to create, read, update, and organize files in these folders as needed for your tasks, using only the allowed file types.
+          </repo-memory>
           
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -158,6 +159,34 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Creating a Pull Request, Adding Labels to Issues or Pull Requests, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Creating a Pull Request**
+          
+          To create a pull request:
+          1. Make any file changes directly in the working directory.
+          2. If you haven't done so already, create a local branch using an appropriate unique name.
+          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Verify you haven't deleted or changed any files you didn't intend to.
+          4. Do not push your changes. That will be done by the tool.
+          5. Create the pull request with the create_pull_request tool from safeoutputs.
+          
+          **Adding Labels to Issues or Pull Requests**
+          
+          To add labels to an issue or pull request, use the add_labels tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>

@@ -55,6 +55,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Tasks will be created in repository %q.", config.TargetRepoSlug))
 			}
+			if len(config.AllowedRepos) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Sessions can target these repositories: %v.", config.AllowedRepos))
+			}
 		}
 
 	case "create_discussion":
@@ -304,6 +307,12 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.BaseBranch != "" {
 				constraints = append(constraints, fmt.Sprintf("Pull requests will target the %q branch.", config.BaseBranch))
+			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Issues will be assigned to agent in repository %q.", config.TargetRepoSlug))
+			}
+			if len(config.AllowedRepos) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Agent assignment can target these repositories: %v.", config.AllowedRepos))
 			}
 		}
 

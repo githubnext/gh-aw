@@ -164,6 +164,32 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Updating a Pull Request, Pushing Changes to Branch, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Updating a Pull Request**
+          
+          To update a pull request title or body, use the update_pull_request tool from safeoutputs.
+          
+          **Pushing Changes to a Pull Request Branch**
+          
+          To push changes to the branch of a pull request:
+          1. Make any file changes directly in the working directory.
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and verify you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push_to_pull_request_branch tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>

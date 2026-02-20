@@ -107,7 +107,7 @@ jobs:
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           
-          ---
+          <repo-memory>
           
           ## Repo Memory Available
           
@@ -134,6 +134,7 @@ jobs:
           - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories (with allowed file types)
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks, using only the allowed file types.
+          </repo-memory>
           
           <github-context>
           The following GitHub context information is available for this workflow:

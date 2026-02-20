@@ -53,7 +53,8 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_AGENT_MAX_COUNT;
     delete process.env.GH_AW_AGENT_TARGET;
     delete process.env.GH_AW_AGENT_ALLOWED;
-    delete process.env.GH_AW_TARGET_REPO;
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
+    delete process.env.GH_AW_ALLOWED_REPOS;
     delete process.env.GH_AW_AGENT_IGNORE_IF_ERROR;
     delete process.env.GH_AW_TEMPORARY_ID_MAP;
     delete process.env.GH_AW_AGENT_PULL_REQUEST_REPO;
@@ -491,8 +492,8 @@ describe("assign_to_agent", () => {
   }, 15000); // Increase timeout to 15 seconds to account for the delay
 
   it("should use target repository when configured", async () => {
-    process.env.GH_AW_TARGET_REPO = "other-owner/other-repo";
-    process.env.GH_AW_AGENT_ALLOWED_REPOS = "other-owner/other-repo"; // Add to allowlist
+    process.env.GH_AW_TARGET_REPO_SLUG = "other-owner/other-repo";
+    process.env.GH_AW_ALLOWED_REPOS = "other-owner/other-repo"; // Add to allowlist
     setAgentOutput({
       items: [
         {
@@ -515,7 +516,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Using target repository: other-owner/other-repo");
+    expect(mockCore.info).toHaveBeenCalledWith("Default target repo: other-owner/other-repo");
   });
 
   it("should handle invalid max count configuration", async () => {
@@ -1040,8 +1041,7 @@ describe("assign_to_agent", () => {
 
   describe("Cross-repository allowlist validation", () => {
     it("should reject target repository not in allowlist", async () => {
-      process.env.GH_AW_TARGET_REPO = "other-owner/other-repo";
-      process.env.GH_AW_AGENT_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+      process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
 
       setAgentOutput({
         items: [
@@ -1049,6 +1049,7 @@ describe("assign_to_agent", () => {
             type: "assign_to_agent",
             issue_number: 42,
             agent: "copilot",
+            repo: "not-allowed/other-repo",
           },
         ],
         errors: [],
@@ -1056,13 +1057,12 @@ describe("assign_to_agent", () => {
 
       await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E004:"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
     });
 
     it("should allow target repository in allowlist", async () => {
-      process.env.GH_AW_TARGET_REPO = "allowed-owner/allowed-repo";
-      process.env.GH_AW_AGENT_ALLOWED_REPOS = "allowed-owner/allowed-repo,other-owner/other-repo";
+      process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo,other-owner/other-repo";
 
       setAgentOutput({
         items: [
@@ -1070,6 +1070,7 @@ describe("assign_to_agent", () => {
             type: "assign_to_agent",
             issue_number: 42,
             agent: "copilot",
+            repo: "allowed-owner/allowed-repo",
           },
         ],
         errors: [],
@@ -1099,15 +1100,12 @@ describe("assign_to_agent", () => {
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       // Check that the target repository was used and assignment proceeded
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target repository: allowed-owner/allowed-repo"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Looking for copilot coding agent"));
     }, 20000);
 
     it("should allow default repository even without allowlist", async () => {
       // Default repo is test-owner/test-repo (from mockContext)
-      process.env.GH_AW_TARGET_REPO = "test-owner/test-repo";
-      // Empty or no allowlist
-
+      // No GH_AW_TARGET_REPO_SLUG set, no GH_AW_ALLOWED_REPOS set
       setAgentOutput({
         items: [
           {
@@ -1143,7 +1141,7 @@ describe("assign_to_agent", () => {
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       // Check that assignment proceeded without errors
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target repository: test-owner/test-repo"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Default target repo: test-owner/test-repo"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Looking for copilot coding agent"));
     }, 20000);
   });
