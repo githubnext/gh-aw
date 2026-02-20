@@ -1384,7 +1384,7 @@ describe("assign_to_agent", () => {
     expect(lastCall[1].customInstructions).toContain("develop");
   });
 
-  it("should not add branch instruction when pull-request-repo default branch is main and no explicit base-branch", async () => {
+  it("should inject branch instruction even when pull-request-repo default branch is main (no explicit base-branch)", async () => {
     process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code-repo";
     // No GH_AW_AGENT_BASE_BRANCH set; repo default is main
     setAgentOutput({
@@ -1399,14 +1399,16 @@ describe("assign_to_agent", () => {
       .mockResolvedValueOnce({ repository: { suggestedActors: { nodes: [{ login: "copilot-swe-agent", id: "agent-id" }] } } })
       // Get issue details
       .mockResolvedValueOnce({ repository: { issue: { id: "issue-id", assignees: { nodes: [] } } } })
-      // Assign agent (no custom instructions since default is main)
+      // Assign agent
       .mockResolvedValueOnce({ replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" } });
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
-    // Mutation should NOT include customInstructions for branch when default is main
+    // Instruction is injected with the resolved default branch name (no NOT clause since it matches)
     const lastCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
-    expect(lastCall[1].customInstructions).toBeUndefined();
+    expect(lastCall[0]).toContain("customInstructions");
+    expect(lastCall[1].customInstructions).toContain("main");
+    expect(lastCall[1].customInstructions).not.toContain("NOT from");
   });
 });

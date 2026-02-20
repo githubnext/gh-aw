@@ -234,7 +234,7 @@ async function main() {
     const customAgent = defaultCustomAgent;
     // Build effective custom instructions: prepend base-branch instruction when needed
     let customInstructions = defaultCustomInstructions;
-    if (configuredBaseBranch || (effectiveBaseBranch && effectiveBaseBranch !== "main")) {
+    if (effectiveBaseBranch) {
       const branch = effectiveBaseBranch;
       const notClause = resolvedDefaultBranch && resolvedDefaultBranch !== branch ? `, NOT from '${resolvedDefaultBranch}'` : "";
       const branchInstruction = `IMPORTANT: Create your branch from the '${branch}' branch${notClause}.`;
