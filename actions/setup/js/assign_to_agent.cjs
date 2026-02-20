@@ -162,6 +162,8 @@ async function main() {
   let pullRequestRepoId = null;
   // Effective base branch: explicit config > fetched default branch from PR repo
   let effectiveBaseBranch = configuredBaseBranch || null;
+  // Resolved default branch fetched from the target PR repo (used in NOT clause of branch instructions)
+  let resolvedDefaultBranch = null;
 
   // Get allowed PR repos configuration for cross-repo validation
   const allowedPullRequestReposEnv = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim();
@@ -199,9 +201,12 @@ async function main() {
 
         // Determine effective base branch: explicit config wins, otherwise use repo's default branch
         const repoBranchDefault = pullRequestRepoResponse.repository.defaultBranchRef?.name;
-        if (!effectiveBaseBranch && repoBranchDefault) {
-          effectiveBaseBranch = repoBranchDefault;
-          core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
+        if (repoBranchDefault) {
+          resolvedDefaultBranch = repoBranchDefault;
+          if (!effectiveBaseBranch) {
+            effectiveBaseBranch = repoBranchDefault;
+            core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
+          }
         }
       } catch (error) {
         core.setFailed(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
@@ -228,7 +233,8 @@ async function main() {
     let customInstructions = defaultCustomInstructions;
     if (configuredBaseBranch || (effectiveBaseBranch && effectiveBaseBranch !== "main")) {
       const branch = effectiveBaseBranch || configuredBaseBranch;
-      const branchInstruction = `IMPORTANT: Create your branch from the '${branch}' branch.`;
+      const notClause = resolvedDefaultBranch && resolvedDefaultBranch !== branch ? `, NOT from '${resolvedDefaultBranch}'` : "";
+      const branchInstruction = `IMPORTANT: Create your branch from the '${branch}' branch${notClause}.`;
       customInstructions = customInstructions ? `${branchInstruction}\n\n${customInstructions}` : branchInstruction;
     }
 

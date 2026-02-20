@@ -1352,6 +1352,8 @@ describe("assign_to_agent", () => {
     const lastCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
     expect(lastCall[0]).toContain("customInstructions");
     expect(lastCall[1].customInstructions).toContain("develop");
+    // NOT clause should reference the resolved default branch, not hardcoded 'main'
+    expect(lastCall[1].customInstructions).toContain("NOT from 'main'");
   });
 
   it("should auto-resolve non-main default branch from pull-request-repo and pass as instruction", async () => {
