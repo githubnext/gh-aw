@@ -492,6 +492,39 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "engine.env overriding COPILOT_GITHUB_TOKEN with custom secret is allowed in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						// Override the engine's own token with an org-specific secret – allowed.
+						"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with non-engine secret alongside engine var override still fails",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						// Override for engine var – allowed.
+						"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+						// Non-engine var with a secret – should still fail.
+						"SOME_OTHER_KEY": "${{ secrets.SOME_OTHER_SECRET }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section",
+		},
+		{
 			name: "engine.env with single secret in strict mode fails",
 			frontmatter: map[string]any{
 				"on": "push",

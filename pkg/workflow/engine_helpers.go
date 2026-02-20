@@ -274,7 +274,10 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 			// Extract the secret name from the expression
 			// Format: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || ... }}
 			secretName := ExtractSecretName(value)
-			if secretName != "" && !allowedSet[secretName] {
+			// Allow the secret if the secret name OR the env var key is in the allowed set.
+			// Checking the key allows overriding engine env vars with a differently-named secret,
+			// e.g. COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_TOKEN }}.
+			if secretName != "" && !allowedSet[secretName] && !allowedSet[key] {
 				engineHelpersLog.Printf("Removing unauthorized secret from env: %s (secret: %s)", key, secretName)
 				secretsRemoved++
 				continue
