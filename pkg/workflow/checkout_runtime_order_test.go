@@ -27,6 +27,8 @@ engine: copilot
 steps:
   - name: Checkout code
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
   - name: Use Node
     run: node --version
 ---

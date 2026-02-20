@@ -1251,6 +1251,8 @@ engine: copilot
 steps:
   - uses: actions/checkout@v3
     name: Checkout
+    with:
+      persist-credentials: false
 ---
 
 # Test Workflow
