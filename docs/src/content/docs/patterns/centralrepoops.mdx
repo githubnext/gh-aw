@@ -60,15 +60,30 @@ tools:
 safe-outputs:
   dispatch-workflow:
     workflows: [dependabot-rollout]
-    max: 5
+    max: 50
 ---
 
 # Dependabot Rollout Orchestrator
 
-1. Filter repos that already have `.github/dependabot.yml`
-2. Categorize candidates (simple, security, complex, conflicting)
-3. Prioritize and select top repos
-4. Dispatch `dependabot-rollout` worker per selected repo
+Categorize and orchestrate Dependabot rollout across repositories.
+
+**Target repos**: ${{ github.event.inputs.target_repos }}
+
+## Task
+
+1. **Filter** - Parse repos (from input or variable), check each for existing `.github/dependabot.yml`, keep only repos without it
+
+2. **Categorize** - Read repo contents to assess complexity:
+   - Simple: Single package.json, <50 dependencies, standard structure
+   - Complex: Multiple package.json files, >100 deps, or multiple ecosystems
+   - Conflicting: Has Renovate config or custom update scripts
+   - Security: Open security alerts or public with dependencies
+
+3. **Prioritize** - Order repos by rollout preference: simple → security → complex → conflicting
+
+4. **Dispatch** - Dispatch `dependabot-rollout` worker for every prioritized repo with `target_repo` input
+
+5. **Summarize** - Report total candidates, categorization breakdown, selected repos with rationale
 ```
 
 Compile this workflow to generate the lock file: `gh aw compile`.
@@ -99,6 +114,20 @@ engine:
         token: ${{ secrets.ORG_REPO_CHECKOUT_TOKEN }}
         repository: ${{ github.event.inputs.target_repo }}
 
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: gh-aw-${{ github.workflow }}-${{ github.event.inputs.target_repo || github.run_id }}
+  cancel-in-progress: false
+
+tools:
+  github:
+    github-token: ${{ secrets.ORG_GITHUB_MCP_SERVER_TOKEN }}
+    toolsets: [repos]
+
 safe-outputs:
   github-token: ${{ secrets.REPO_SAFE_OUTPUTS_TOKEN }}
   create-pull-request:
@@ -107,6 +136,7 @@ safe-outputs:
     max: 1
   create-issue:
     target-repo: ${{ github.event.inputs.target_repo }}
+    title-prefix: '[dependabot-config] '
     title-prefix: '[dependabot-config] '
     max: 1
 ---
