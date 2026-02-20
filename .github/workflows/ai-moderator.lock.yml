@@ -583,6 +583,59 @@ jobs:
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
+            "hide_comment": {
+              "defaultMax": 5,
+              "fields": {
+                "comment_id": {
+                  "required": true,
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "SPAM",
+                    "ABUSE",
+                    "OFF_TOPIC",
+                    "OUTDATED",
+                    "RESOLVED"
+                  ]
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
                 }
               }
             },

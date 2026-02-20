@@ -1126,6 +1126,10 @@ jobs:
                     "description": "Pull request body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this is added with a separator.",
                     "type": "string"
                   },
+                  "draft": {
+                    "description": "Whether the PR should be a draft (true) or ready for review (false). Use to convert between draft and ready states.",
+                    "type": "boolean"
+                  },
                   "operation": {
                     "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced.",
                     "enum": [
@@ -1263,6 +1267,10 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 }
               }
             },
@@ -1278,6 +1286,10 @@ jobs:
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 }
               }
             },
@@ -1286,6 +1298,10 @@ jobs:
               "fields": {
                 "pull_request_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "reviewers": {
                   "required": true,
@@ -1346,6 +1362,10 @@ jobs:
                   "required": true,
                   "type": "string"
                 },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
                 "side": {
                   "type": "string",
                   "enum": [
@@ -1358,6 +1378,31 @@ jobs:
                 }
               },
               "customValidation": "startLineLessOrEqualLine"
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                }
+              }
             },
             "missing_tool": {
               "defaultMax": 20,
@@ -1446,6 +1491,9 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
+                "draft": {
+                  "type": "boolean"
+                },
                 "operation": {
                   "type": "string",
                   "enum": [
@@ -1456,6 +1504,10 @@ jobs:
                 },
                 "pull_request_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "title": {
                   "type": "string",
