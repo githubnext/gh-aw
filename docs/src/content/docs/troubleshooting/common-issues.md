@@ -260,6 +260,33 @@ Verify compilation succeeded. Compiled workflows include CLI installation steps.
 
 Use default (`engine: copilot`) or specify available model (`engine: {id: copilot, model: gpt-4}`).
 
+### Copilot License or Inference Access Issues
+
+If your workflow fails during the Copilot inference step even though the `COPILOT_GITHUB_TOKEN` secret is configured correctly, the PAT owner's account may not have the necessary Copilot license or inference access.
+
+**Symptoms**: The workflow fails with authentication or quota errors when the Copilot CLI tries to generate a response.
+
+**Diagnosis**: Verify that the account associated with the `COPILOT_GITHUB_TOKEN` can successfully run inference by testing it locally.
+
+1. Install the Copilot CLI locally by following the [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli).
+
+2. Export the token as an environment variable:
+
+   ```bash
+   export COPILOT_GITHUB_TOKEN="<your-github-pat>"
+   ```
+
+3. Run a simple inference test:
+
+   ```bash
+   copilot -p "write a haiku"
+   ```
+
+If this command fails, the account associated with the token does not have a valid Copilot license or inference access. Contact your organization administrator to verify that the token owner has an active Copilot subscription with inference enabled.
+
+> [!NOTE]
+> The `COPILOT_GITHUB_TOKEN` must belong to a user account with an active GitHub Copilot subscription. Organization-managed Copilot licenses may have additional restrictions on programmatic API access.
+
 ## Context Expression Issues
 
 ### Unauthorized Expression
