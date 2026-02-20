@@ -68,8 +68,6 @@ function getPullRequestNumber(messageItem, context) {
   return { prNumber: contextPR, error: null };
 }
 
-module.exports = { detectForkPR, getPullRequestNumber };
-
 /**
  * Resolves the pull request repository ID and effective base branch.
  * Fetches `id` and `defaultBranchRef.name` from the GitHub API.
