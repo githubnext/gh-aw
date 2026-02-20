@@ -255,6 +255,18 @@ func marshalSorted(data any) string {
 	}
 }
 
+// isInlineImportsEnabled checks if inline-imports is set to true in the frontmatter text.
+// This uses simple text-based parsing to avoid YAML dependency in the hash module.
+func isInlineImportsEnabled(frontmatterText string) bool {
+	for _, line := range strings.Split(frontmatterText, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "inline-imports: true" {
+			return true
+		}
+	}
+	return false
+}
+
 // ComputeFrontmatterHashFromFile computes the frontmatter hash for a workflow file
 // using text-based approach (no YAML parsing) to match JavaScript implementation
 func ComputeFrontmatterHashFromFile(filePath string, cache *ImportCache) (string, error) {
@@ -281,11 +293,19 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 	// Get base directory for resolving imports
 	baseDir := filepath.Dir(filePath)
 
-	// Extract relevant template expressions from markdown body
-	relevantExpressions := extractRelevantTemplateExpressions(markdown)
+	// When inline-imports is enabled, the entire markdown body is compiled into the lock
+	// file, so any change to the body must invalidate the hash. Include the full body text.
+	// Otherwise, only extract the relevant template expressions (env./vars. references).
+	var relevantExpressions []string
+	var fullBody string
+	if isInlineImportsEnabled(frontmatterText) {
+		fullBody = normalizeFrontmatterText(markdown)
+	} else {
+		relevantExpressions = extractRelevantTemplateExpressions(markdown)
+	}
 
 	// Compute hash using text-based approach with custom file reader
-	return computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir, cache, relevantExpressions, fileReader)
+	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, cache, relevantExpressions, fileReader)
 }
 
 // ComputeFrontmatterHashWithExpressions computes the hash including template expressions
@@ -517,7 +537,9 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 	return importedFiles, importedFrontmatterTexts, nil
 }
 
-// computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader
+// computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader.
+// When markdown is non-empty, it is included as the full body text in the canonical data (used for
+// inline-imports mode where the entire body is compiled into the lock file).
 func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir string, cache *ImportCache, expressions []string, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Print("Computing frontmatter hash using text-based approach")
 
@@ -553,8 +575,11 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 		canonical["imported-frontmatters"] = strings.Join(normalizedTexts, "\n---\n")
 	}
 
-	// Add template expressions if present
-	if len(expressions) > 0 {
+	// When inline-imports is enabled, include the full markdown body so any content
+	// change invalidates the hash. Otherwise, include only relevant template expressions.
+	if markdown != "" {
+		canonical["body-text"] = markdown
+	} else if len(expressions) > 0 {
 		canonical["template-expressions"] = expressions
 	}
 

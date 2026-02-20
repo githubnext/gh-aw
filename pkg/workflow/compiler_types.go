@@ -141,6 +141,7 @@ type Compiler struct {
 	contentOverride         string              // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 	skipHeader              bool                // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
+	inlineImports           bool                // If true, inline imports-without-inputs at compile time (activated by inline-imports: true frontmatter field)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
