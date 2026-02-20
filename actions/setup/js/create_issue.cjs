@@ -31,7 +31,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
@@ -208,8 +208,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix ?? "";
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max ?? 10;
-  const allowedRepos = parseAllowedRepos(config.allowed_repos);
-  const defaultTargetRepo = getDefaultTargetRepo(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const groupEnabled = config.group === true || config.group === "true";
   const closeOlderIssuesEnabled = config.close_older_issues === true || config.close_older_issues === "true";
   const includeFooter = config.footer !== false; // Default to true (include footer)
@@ -289,37 +288,16 @@ async function main(config = {}) {
       }
     }
 
-    // Determine target repository for this issue
-    const itemRepo = message.repo ? String(message.repo).trim() : defaultTargetRepo;
-
-    // Validate the repository is allowed
-    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-    if (!repoValidation.valid) {
-      // When valid is false, error is guaranteed to be non-null
-      const errorMessage = repoValidation.error;
-      if (!errorMessage) {
-        throw new Error("Internal error: repoValidation.error should not be null when valid is false");
-      }
-      core.warning(`Skipping issue: ${errorMessage}`);
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "issue");
+    if (!repoResult.success) {
+      core.warning(`Skipping issue: ${repoResult.error}`);
       return {
         success: false,
-        error: errorMessage,
+        error: repoResult.error,
       };
     }
-
-    // Use the qualified repo from validation (handles bare names like "gh-aw" -> "github/gh-aw")
-    const qualifiedItemRepo = repoValidation.qualifiedRepo;
-
-    // Parse the repository slug
-    const repoParts = parseRepoSlug(qualifiedItemRepo);
-    if (!repoParts) {
-      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
-      core.warning(`Skipping issue: ${error}`);
-      return {
-        success: false,
-        error,
-      };
-    }
+    const { repo: qualifiedItemRepo, repoParts } = repoResult;
 
     // Get or generate the temporary ID for this issue
     const tempIdResult = getOrGenerateTemporaryId(message, "issue");

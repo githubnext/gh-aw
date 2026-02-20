@@ -99,6 +99,43 @@ describe("repo_helpers", () => {
     });
   });
 
+  describe("isRepoAllowed", () => {
+    it("should return true for exact match", async () => {
+      const { isRepoAllowed } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["org/repo-a"]);
+      expect(isRepoAllowed("org/repo-a", allowedRepos)).toBe(true);
+    });
+
+    it('should return true when "*" is in the set', async () => {
+      const { isRepoAllowed } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["*"]);
+      expect(isRepoAllowed("any-org/any-repo", allowedRepos)).toBe(true);
+    });
+
+    it('should return true for org wildcard "github/*"', async () => {
+      const { isRepoAllowed } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["github/*"]);
+      expect(isRepoAllowed("github/gh-aw", allowedRepos)).toBe(true);
+    });
+
+    it("should return false when repo does not match org wildcard", async () => {
+      const { isRepoAllowed } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["github/*"]);
+      expect(isRepoAllowed("other-org/gh-aw", allowedRepos)).toBe(false);
+    });
+
+    it("should return false for empty set", async () => {
+      const { isRepoAllowed } = await import("./repo_helpers.cjs");
+      expect(isRepoAllowed("org/repo", new Set())).toBe(false);
+    });
+
+    it("should return false when no pattern matches", async () => {
+      const { isRepoAllowed } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["org/repo-a", "org/repo-b"]);
+      expect(isRepoAllowed("org/repo-c", allowedRepos)).toBe(false);
+    });
+  });
+
   describe("validateRepo", () => {
     it("should allow default repo", async () => {
       const { validateRepo } = await import("./repo_helpers.cjs");
@@ -159,6 +196,54 @@ describe("repo_helpers", () => {
       const { validateRepo } = await import("./repo_helpers.cjs");
       const allowedRepos = new Set(["github/gh-aw"]);
       const result = validateRepo("other-org/gh-aw", "github/default-repo", allowedRepos);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+
+    it('should allow any repo when "*" is in allowed list', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["*"]);
+      const result = validateRepo("any-org/any-repo", "default/repo", allowedRepos);
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it('should allow org-scoped wildcard "github/*"', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["github/*"]);
+      const result = validateRepo("github/gh-aw", "default/repo", allowedRepos);
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it('should reject repo not matching org-scoped wildcard "github/*"', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["github/*"]);
+      const result = validateRepo("other-org/gh-aw", "default/repo", allowedRepos);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+
+    it('should allow repo-scoped wildcard "*/gh-aw"', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["*/gh-aw"]);
+      const result = validateRepo("any-org/gh-aw", "default/repo", allowedRepos);
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it('should allow prefix wildcard "github/gh-*"', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["github/gh-*"]);
+      const result = validateRepo("github/gh-aw", "default/repo", allowedRepos);
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it('should reject repo not matching prefix wildcard "github/gh-*"', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const allowedRepos = new Set(["github/gh-*"]);
+      const result = validateRepo("github/other-repo", "default/repo", allowedRepos);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("not in the allowed-repos list");
     });
