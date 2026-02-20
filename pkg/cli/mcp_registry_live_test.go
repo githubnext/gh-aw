@@ -138,6 +138,13 @@ func TestMCPRegistryClient_LiveGetServer(t *testing.T) {
 		// Now test GetServer with that name
 		server, err := client.GetServer(serverName)
 		if err != nil {
+			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
+				strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") ||
+				strings.Contains(err.Error(), "503") || strings.Contains(err.Error(), "502") ||
+				strings.Contains(err.Error(), "upstream") || strings.Contains(err.Error(), "reset") {
+				t.Skipf("Skipping due to registry unavailability: %v", err)
+				return
+			}
 			t.Fatalf("GetServer failed for '%s': %v", serverName, err)
 		}
 
@@ -313,6 +320,8 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 		t.Logf("✓ GitHub MCP registry is accessible and returned 200 OK")
 	case http.StatusForbidden:
 		t.Logf("✓ GitHub MCP registry is reachable but returned 403 (expected due to network restrictions)")
+	case http.StatusServiceUnavailable, http.StatusBadGateway, http.StatusGatewayTimeout:
+		t.Skipf("GitHub MCP registry returned %d (service temporarily unavailable)", resp.StatusCode)
 	default:
 		t.Errorf("GitHub MCP registry returned unexpected status: %d", resp.StatusCode)
 	}
