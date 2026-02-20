@@ -80,7 +80,7 @@ Add this into your Actions repository secrets. This gives the orchestrator read 
 
 Next, create the worker workflow `.github/workflows/dependabot-rollout.md` in your central repository that will operate on each target repository via checkout:
 
-```aw wrap
+````aw wrap
 ---
 on:
   workflow_dispatch:
@@ -104,6 +104,7 @@ safe-outputs:
   create-pull-request:
     target-repo: ${{ github.event.inputs.target_repo }}
     title-prefix: '[dependabot] '
+    max: 1
   create-issue:
     target-repo: ${{ github.event.inputs.target_repo }}
     title-prefix: '[dependabot-config] '
@@ -227,7 +228,8 @@ updates:
 ## Key: Explain Your Reasoning
 
 In the PR/issue body, explain **why** you chose this specific configuration (not a generic template).
-```
+````
+
 Compile this workflow to generate the lock file: `gh aw compile`.
 Create a fine-grained PAT `ORG_REPO_CHECKOUT_TOKEN` with the organization as an owner,
 select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read & write`, `Actions: Read & write`.
