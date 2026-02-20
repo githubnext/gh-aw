@@ -209,6 +209,49 @@ func TestSanitizeErrorMessage_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestSanitizeErrorMessage_GhAwVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  string
+		expected string
+	}{
+		{
+			name:     "GH_AW_SKIP_NPX_VALIDATION not redacted",
+			message:  "Alternatively, disable validation by setting GH_AW_SKIP_NPX_VALIDATION=true",
+			expected: "Alternatively, disable validation by setting GH_AW_SKIP_NPX_VALIDATION=true",
+		},
+		{
+			name:     "GH_AW_SKIP_UV_VALIDATION not redacted",
+			message:  "Alternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
+			expected: "Alternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
+		},
+		{
+			name:     "GH_AW_SKIP_PIP_VALIDATION not redacted",
+			message:  "Alternatively, disable validation by setting GH_AW_SKIP_PIP_VALIDATION=true",
+			expected: "Alternatively, disable validation by setting GH_AW_SKIP_PIP_VALIDATION=true",
+		},
+		{
+			name:     "generic GH_AW prefix not redacted",
+			message:  "Set GH_AW_SOME_OPTION to configure this feature",
+			expected: "Set GH_AW_SOME_OPTION to configure this feature",
+		},
+		{
+			name:     "non-GH_AW still redacted",
+			message:  "Error accessing MY_SECRET_KEY",
+			expected: "Error accessing [REDACTED]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeErrorMessage(tt.message)
+			if result != tt.expected {
+				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
 	tests := []struct {
 		name     string

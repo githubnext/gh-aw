@@ -212,6 +212,12 @@ When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot R
 
 The executing agentic workflow uses your nominated coding agent (defaulting to GitHub Copilot CLI), a GitHub Actions VM with NodeJS, pinned Actions from [github/gh-aw](https://github.com/github/gh-aw) releases, and an Agent Workflow Firewall container for network control (optional but default). The exact YAML workflow can be inspected in the compiled `.lock.yml` file - there's no hidden configuration.
 
+### Why are macOS runners not supported?
+
+macOS runners (`macos-*`) are not currently supported in agentic workflows. Agentic workflows rely on containers to build a secure execution sandbox - specifically the [Agent Workflow Firewall](/gh-aw/reference/sandbox/) that provides network egress control and process isolation. GitHub-hosted macOS runners do not support container jobs, which is a hard requirement for this security architecture.
+
+Use `ubuntu-latest` (the default) or another Linux-based runner instead. For tasks that genuinely require macOS-specific tooling, consider running those steps in a regular GitHub Actions job that coordinates with your agentic workflow.
+
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
 If you want to use a coding agent that isn't currently supported (Copilot, Claude, or Codex), you can contribute support to the [gh-aw repository](https://github.com/github/gh-aw), or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
