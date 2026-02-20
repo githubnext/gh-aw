@@ -8,7 +8,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { loadTemporaryIdMap, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { sleep } = require("./error_recovery.cjs");
-const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
+const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolvePullRequestRepo, buildBranchInstruction } = require("./pr_helpers.cjs");
 
 async function main() {
@@ -128,32 +128,13 @@ async function main() {
     core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
   }
 
-  // Get target repository configuration
-  const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
-  let targetOwner = context.repo.owner;
-  let targetRepo = context.repo.repo;
-
-  // Get allowed repos configuration for cross-repo validation
-  const allowedReposEnv = process.env.GH_AW_AGENT_ALLOWED_REPOS?.trim();
-  const allowedRepos = parseAllowedRepos(allowedReposEnv);
-  const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
-
-  if (targetRepoEnv) {
-    const parts = targetRepoEnv.split("/");
-    if (parts.length === 2) {
-      // Validate target repository against allowlist
-      const repoValidation = validateRepo(targetRepoEnv, defaultRepo, allowedRepos);
-      if (!repoValidation.valid) {
-        core.setFailed(`E004: ${repoValidation.error}`);
-        return;
-      }
-
-      targetOwner = parts[0];
-      targetRepo = parts[1];
-      core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
-    } else {
-      core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
-    }
+  // Get default target repository and allowed repos using standardized helpers
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig({
+    allowed_repos: process.env.GH_AW_ALLOWED_REPOS,
+  });
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
   }
 
   // The github-token is set at the step level, so the built-in github object is authenticated
@@ -228,9 +209,9 @@ async function main() {
     }
 
     // Use these variables to allow temporary IDs to override target repo per-item.
-    // Default to the configured target repo.
-    let effectiveOwner = targetOwner;
-    let effectiveRepo = targetRepo;
+    // Default to the per-item resolved repo (from item.repo or defaultTargetRepo).
+    let effectiveOwner;
+    let effectiveRepo;
 
     // Use a copy for target resolution so we never mutate the original item.
     let itemForTarget = item;
@@ -248,11 +229,28 @@ async function main() {
       continue;
     }
 
+    // Resolve and validate target repository for this item using the standardized helper.
+    // item.repo field (if present) overrides the default target repo.
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue/PR");
+    if (!repoResult.success) {
+      core.error(`E004: ${repoResult.error}`);
+      results.push({
+        issue_number: item.issue_number || null,
+        pull_number: item.pull_number || null,
+        agent: agentName,
+        success: false,
+        error: repoResult.error,
+      });
+      continue;
+    }
+    effectiveOwner = repoResult.repoParts.owner;
+    effectiveRepo = repoResult.repoParts.repo;
+
     // If issue_number is a temporary ID (aw_...), resolve it to a real issue number before calling resolveTarget.
     // resolveTarget parses issue_number as a number, so we must resolve temporary IDs first.
     // Note: We only support temporary IDs for issues, not PRs.
     if (item.issue_number != null) {
-      const resolvedTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, targetOwner, targetRepo);
+      const resolvedTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, effectiveOwner, effectiveRepo);
       if (!resolvedTarget.resolved) {
         core.error(resolvedTarget.errorMessage || `Failed to resolve issue target: ${item.issue_number}`);
         results.push({
@@ -289,7 +287,7 @@ async function main() {
         // Validate PR repository against allowlist
         // The global pull-request-repo (if set) is treated as the default (always allowed)
         // allowed-pull-request-repos contains additional allowed repositories
-        const defaultPullRequestRepo = pullRequestRepoEnv || defaultRepo;
+        const defaultPullRequestRepo = pullRequestRepoEnv || defaultTargetRepo;
         const pullRequestRepoValidation = validateRepo(itemPullRequestRepo, defaultPullRequestRepo, allowedPullRequestRepos);
         if (!pullRequestRepoValidation.valid) {
           core.error(`E004: ${pullRequestRepoValidation.error}`);
@@ -509,7 +507,7 @@ async function main() {
       if (errorMessage.includes("coding agent is not available for this repository")) {
         // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {
-          const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+          const available = await getAvailableAgentLogins(effectiveOwner, effectiveRepo);
           if (available.length > 0) {
             errorMessage += ` (available agents: ${available.join(", ")})`;
           }
