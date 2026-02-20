@@ -21,7 +21,7 @@ VERSION="${1:-}"
 INSTALLER_URL="https://raw.githubusercontent.com/github/copilot-cli/main/install.sh"
 INSTALLER_TEMP="/tmp/copilot-install.sh"
 MAX_ATTEMPTS=3
-COPILOT_DIR="/home/runner/.copilot"
+COPILOT_DIR="${HOME}/.copilot"
 
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
@@ -30,7 +30,7 @@ COPILOT_DIR="/home/runner/.copilot"
 # trying to create subdirectories. See: https://github.com/github/gh-aw/issues/12066
 echo "Ensuring correct ownership of $COPILOT_DIR..."
 mkdir -p "$COPILOT_DIR"
-sudo chown -R runner:runner "$COPILOT_DIR"
+sudo chown -R "$(whoami)" "$COPILOT_DIR"
 
 # Function to download installer with retry logic
 download_installer_with_retry() {
