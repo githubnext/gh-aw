@@ -134,6 +134,95 @@ func TestAddRepoParameterIfNeededNoAllowedRepos(t *testing.T) {
 	assert.False(t, hasRepo, "repo property should NOT be added when no allowed_repos")
 }
 
+// TestAddRepoParameterIfNeededWildcardTargetRepo tests that repo param is added for update_issue
+// when target-repo is "*" (wildcard), even without allowed-repos.
+func TestAddRepoParameterIfNeededWildcardTargetRepo(t *testing.T) {
+	tool := map[string]any{
+		"name": "update_issue",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"title": map[string]any{"type": "string"},
+			},
+		},
+	}
+
+	safeOutputs := &SafeOutputsConfig{
+		UpdateIssues: &UpdateIssuesConfig{
+			UpdateEntityConfig: UpdateEntityConfig{
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					TargetRepoSlug: "*",
+				},
+			},
+		},
+	}
+
+	addRepoParameterIfNeeded(tool, "update_issue", safeOutputs)
+
+	inputSchema := tool["inputSchema"].(map[string]any)
+	properties := inputSchema["properties"].(map[string]any)
+
+	repoProp, ok := properties["repo"].(map[string]any)
+	require.True(t, ok, "repo property should be added when target-repo is wildcard")
+	assert.Equal(t, "string", repoProp["type"], "repo type should be string")
+	assert.Contains(t, repoProp["description"].(string), "Any repository can be targeted", "description should indicate any repo allowed")
+}
+
+// TestGenerateFilteredToolsJSONUpdateIssueWithWildcardTargetRepo tests that update_issue tool
+// is generated in tools.json when target-repo is "*" (wildcard).
+func TestGenerateFilteredToolsJSONUpdateIssueWithWildcardTargetRepo(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			UpdateIssues: &UpdateIssuesConfig{
+				UpdateEntityConfig: UpdateEntityConfig{
+					SafeOutputTargetConfig: SafeOutputTargetConfig{
+						TargetRepoSlug: "*",
+					},
+				},
+			},
+		},
+	}
+
+	result, err := generateFilteredToolsJSON(data, ".github/workflows/test.md")
+	require.NoError(t, err, "generateFilteredToolsJSON should not error")
+
+	var tools []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &tools), "Result should be valid JSON")
+
+	// Find update_issue tool
+	var updateIssueTool map[string]any
+	for _, tool := range tools {
+		if tool["name"] == "update_issue" {
+			updateIssueTool = tool
+			break
+		}
+	}
+	require.NotNil(t, updateIssueTool, "update_issue tool should be present when target-repo is wildcard")
+
+	// Verify repo parameter is in the schema
+	inputSchema, ok := updateIssueTool["inputSchema"].(map[string]any)
+	require.True(t, ok, "inputSchema should be present")
+	properties, ok := inputSchema["properties"].(map[string]any)
+	require.True(t, ok, "properties should be present")
+	_, hasRepo := properties["repo"]
+	assert.True(t, hasRepo, "repo parameter should be added to update_issue when target-repo is wildcard")
+}
+
+// TestParseUpdateIssuesConfigWithWildcardTargetRepo tests that parseUpdateIssuesConfig
+// returns a non-nil config when target-repo is "*".
+func TestParseUpdateIssuesConfigWithWildcardTargetRepo(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"update-issue": map[string]any{
+			"target-repo": "*",
+		},
+	}
+
+	result := compiler.parseUpdateIssuesConfig(outputMap)
+	require.NotNil(t, result, "parseUpdateIssuesConfig should return non-nil for wildcard target-repo")
+	assert.Equal(t, "*", result.TargetRepoSlug, "TargetRepoSlug should be '*'")
+}
+
 // TestGenerateDispatchWorkflowToolBasic tests basic dispatch workflow tool generation.
 func TestGenerateDispatchWorkflowToolBasic(t *testing.T) {
 	workflowInputs := map[string]any{

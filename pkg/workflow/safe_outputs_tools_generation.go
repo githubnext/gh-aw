@@ -484,8 +484,8 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 		}
 	}
 
-	// Only add repo parameter if allowed-repos has entries
-	if !hasAllowedRepos {
+	// Only add repo parameter if allowed-repos has entries or target-repo is wildcard ("*")
+	if !hasAllowedRepos && targetRepoSlug != "*" {
 		return
 	}
 
@@ -501,9 +501,13 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 	}
 
 	// Build repo parameter description
-	repoDescription := "Target repository for this operation in 'owner/repo' format. Must be the target-repo or in the allowed-repos list."
-	if targetRepoSlug != "" {
+	var repoDescription string
+	if targetRepoSlug == "*" {
+		repoDescription = "Target repository for this operation in 'owner/repo' format. Any repository can be targeted."
+	} else if targetRepoSlug != "" {
 		repoDescription = fmt.Sprintf("Target repository for this operation in 'owner/repo' format. Default is %q. Must be the target-repo or in the allowed-repos list.", targetRepoSlug)
+	} else {
+		repoDescription = "Target repository for this operation in 'owner/repo' format. Must be the target-repo or in the allowed-repos list."
 	}
 
 	// Add repo parameter to properties
@@ -512,7 +516,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 		"description": repoDescription,
 	}
 
-	safeOutputsConfigLog.Printf("Added repo parameter to tool: %s (has allowed-repos)", toolName)
+	safeOutputsConfigLog.Printf("Added repo parameter to tool: %s (has allowed-repos or wildcard target-repo)", toolName)
 }
 
 // generateDispatchWorkflowTool generates an MCP tool definition for a specific workflow
