@@ -13,6 +13,15 @@ var safeOutputMessagesLog = logger.New("workflow:safe_outputs_config_messages")
 // Safe Output Messages Configuration
 // ========================================
 
+// setStringFromMap reads m[key] and assigns its string value to *dest if found.
+func setStringFromMap(m map[string]any, key string, dest *string) {
+	if val, exists := m[key]; exists {
+		if str, ok := val.(string); ok {
+			*dest = str
+		}
+	}
+}
+
 // parseMessagesConfig parses the messages configuration from safe-outputs frontmatter
 func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	safeOutputMessagesLog.Printf("Parsing messages configuration with %d fields", len(messagesMap))
@@ -25,77 +34,18 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
-	if footer, exists := messagesMap["footer"]; exists {
-		if footerStr, ok := footer.(string); ok {
-			config.Footer = footerStr
-		}
-	}
-
-	if footerInstall, exists := messagesMap["footer-install"]; exists {
-		if footerInstallStr, ok := footerInstall.(string); ok {
-			config.FooterInstall = footerInstallStr
-		}
-	}
-
-	if footerWorkflowRecompile, exists := messagesMap["footer-workflow-recompile"]; exists {
-		if footerWorkflowRecompileStr, ok := footerWorkflowRecompile.(string); ok {
-			config.FooterWorkflowRecompile = footerWorkflowRecompileStr
-		}
-	}
-
-	if footerWorkflowRecompileComment, exists := messagesMap["footer-workflow-recompile-comment"]; exists {
-		if footerWorkflowRecompileCommentStr, ok := footerWorkflowRecompileComment.(string); ok {
-			config.FooterWorkflowRecompileComment = footerWorkflowRecompileCommentStr
-		}
-	}
-
-	if stagedTitle, exists := messagesMap["staged-title"]; exists {
-		if stagedTitleStr, ok := stagedTitle.(string); ok {
-			config.StagedTitle = stagedTitleStr
-		}
-	}
-
-	if stagedDescription, exists := messagesMap["staged-description"]; exists {
-		if stagedDescriptionStr, ok := stagedDescription.(string); ok {
-			config.StagedDescription = stagedDescriptionStr
-		}
-	}
-
-	if runStarted, exists := messagesMap["run-started"]; exists {
-		if runStartedStr, ok := runStarted.(string); ok {
-			config.RunStarted = runStartedStr
-		}
-	}
-
-	if runSuccess, exists := messagesMap["run-success"]; exists {
-		if runSuccessStr, ok := runSuccess.(string); ok {
-			config.RunSuccess = runSuccessStr
-		}
-	}
-
-	if runFailure, exists := messagesMap["run-failure"]; exists {
-		if runFailureStr, ok := runFailure.(string); ok {
-			config.RunFailure = runFailureStr
-		}
-	}
-
-	if detectionFailure, exists := messagesMap["detection-failure"]; exists {
-		if detectionFailureStr, ok := detectionFailure.(string); ok {
-			config.DetectionFailure = detectionFailureStr
-		}
-	}
-
-	if agentFailureIssue, exists := messagesMap["agent-failure-issue"]; exists {
-		if agentFailureIssueStr, ok := agentFailureIssue.(string); ok {
-			config.AgentFailureIssue = agentFailureIssueStr
-		}
-	}
-
-	if agentFailureComment, exists := messagesMap["agent-failure-comment"]; exists {
-		if agentFailureCommentStr, ok := agentFailureComment.(string); ok {
-			config.AgentFailureComment = agentFailureCommentStr
-		}
-	}
+	setStringFromMap(messagesMap, "footer", &config.Footer)
+	setStringFromMap(messagesMap, "footer-install", &config.FooterInstall)
+	setStringFromMap(messagesMap, "footer-workflow-recompile", &config.FooterWorkflowRecompile)
+	setStringFromMap(messagesMap, "footer-workflow-recompile-comment", &config.FooterWorkflowRecompileComment)
+	setStringFromMap(messagesMap, "staged-title", &config.StagedTitle)
+	setStringFromMap(messagesMap, "staged-description", &config.StagedDescription)
+	setStringFromMap(messagesMap, "run-started", &config.RunStarted)
+	setStringFromMap(messagesMap, "run-success", &config.RunSuccess)
+	setStringFromMap(messagesMap, "run-failure", &config.RunFailure)
+	setStringFromMap(messagesMap, "detection-failure", &config.DetectionFailure)
+	setStringFromMap(messagesMap, "agent-failure-issue", &config.AgentFailureIssue)
+	setStringFromMap(messagesMap, "agent-failure-comment", &config.AgentFailureComment)
 
 	return config
 }
