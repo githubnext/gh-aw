@@ -159,6 +159,29 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Updating Issues, Assigning to an Agent, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Updating an Issue**
+          
+          To update an issue, use the update_issue tool from safeoutputs.
+          
+          **Assigning to an Agent**
+          
+          To assign an issue or pull request to a GitHub Copilot agent, use the assign_to_agent tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>
