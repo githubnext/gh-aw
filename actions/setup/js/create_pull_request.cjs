@@ -656,9 +656,9 @@ To apply the patch locally:
 # (Use GitHub MCP tools if gh CLI is not available)
 gh run download ${runId} -n agent-artifacts
 
-# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
+# The patch file will be at agent-artifacts/aw.patch after download
 # Apply the patch
-git am agent-artifacts/tmp/gh-aw/aw.patch
+git am agent-artifacts/aw.patch
 \`\`\`
 ${patchPreview}`;
 
