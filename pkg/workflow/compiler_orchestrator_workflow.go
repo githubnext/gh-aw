@@ -118,7 +118,7 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
-	inlinedImports := resolveInlinedImports(toolsResult.parsedFrontmatter, strings.Join(result.FrontmatterLines, "\n"))
+	inlinedImports := resolveInlinedImports(result.Frontmatter)
 
 	// When inlined-imports is true, agent file content is already inlined via ImportPaths → step 1b.
 	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
@@ -170,33 +170,14 @@ func (c *Compiler) buildInitialWorkflowData(
 }
 
 // resolveInlinedImports returns true if inlined-imports is enabled.
-// ParsedFrontmatter may be nil when ParseFrontmatterConfig fails (e.g. engine is an object),
-// so fall back to a tolerant text scan of the raw frontmatter YAML.
-// A line matches when it starts with "inlined-imports:" followed by "true" (optional trailing comments allowed).
-func resolveInlinedImports(parsedFrontmatter *FrontmatterConfig, frontmatterYAML string) bool {
-	if parsedFrontmatter != nil && parsedFrontmatter.InlinedImports {
-		return true
-	}
-	for _, line := range strings.Split(frontmatterYAML, "\n") {
-		if isInlinedImportsLine(strings.TrimSpace(line)) {
-			return true
-		}
+// It reads the value directly from the raw (pre-parsed) frontmatter map, which is always
+// populated regardless of whether ParseFrontmatterConfig succeeded.
+func resolveInlinedImports(rawFrontmatter map[string]any) bool {
+	if v, ok := rawFrontmatter["inlined-imports"]; ok {
+		b, _ := v.(bool)
+		return b
 	}
 	return false
-}
-
-// isInlinedImportsLine returns true if the YAML line declares inlined-imports: true.
-// Trailing YAML comments (e.g. "# ...") are stripped before matching.
-func isInlinedImportsLine(line string) bool {
-	// Strip trailing comment
-	if idx := strings.Index(line, " #"); idx != -1 {
-		line = strings.TrimSpace(line[:idx])
-	}
-	const prefix = "inlined-imports:"
-	if !strings.HasPrefix(line, prefix) {
-		return false
-	}
-	return strings.TrimSpace(line[len(prefix):]) == "true"
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter
