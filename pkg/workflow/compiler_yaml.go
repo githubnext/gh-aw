@@ -108,6 +108,12 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		}
 	}
 
+	// Add inlined-imports comment to indicate the field was used at compile time
+	if data.InlinedImports {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# inlined-imports: true\n")
+	}
+
 	// Add lock metadata (schema version + frontmatter hash + stop time) as JSON
 	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
