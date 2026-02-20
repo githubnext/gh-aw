@@ -69,7 +69,7 @@ func generateMaintenanceWorkflowWrapper(
 ) error {
 	compilePostProcessingLog.Print("Generating maintenance workflow")
 
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), verbose); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 		}
