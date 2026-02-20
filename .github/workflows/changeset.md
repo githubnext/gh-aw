@@ -63,7 +63,23 @@ Your task is to:
 
 1. **Analyze the Pull Request**: Review the pull request title and description above to understand what has been modified.
 
-2. **Determine if a Changeset is Needed**:
+2. **Gather change information**: Use bash to examine the PR changes:
+
+   ```bash
+   # List changed files, excluding .lock.yml files
+   git diff --name-only origin/${{ github.event.repository.default_branch }}...HEAD -- ':!*.lock.yml'
+   ```
+
+   If the diff is too large (over ~200 changed files or the patch itself is very large), fall back to commit messages only:
+
+   ```bash
+   # Get commit messages for this PR
+   git log --oneline origin/${{ github.event.repository.default_branch }}..HEAD
+   ```
+
+   Use the commit messages as your primary source of truth in that case — do not attempt to read the full diff.
+
+3. **Determine if a Changeset is Needed**:
    
    **If the PR does NOT require a changeset** (see criteria below), call the `noop` tool with a reason message and **stop immediately**:
    
@@ -80,6 +96,7 @@ Your task is to:
    - Development tooling changes (Makefile, scripts/, build configs)
    - Changes to repository metadata (.gitignore, LICENSE, etc.)
    - Internal refactoring with no user-facing impact
+   - Changes only to `.lock.yml` files (compiled workflow lock files, auto-generated)
    
    **PRs that DO require a changeset**:
    - Bug fixes affecting users
@@ -90,21 +107,21 @@ Your task is to:
    
    If a changeset is needed, proceed with the steps below.
 
-3. **Use the repository name as the package identifier** (gh-aw)
+4. **Use the repository name as the package identifier** (gh-aw)
 
-4. **Determine the Change Type**:
+5. **Determine the Change Type**:
    - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**
    - **minor**: Breaking changes in the CLI (0.X.0) - indicated by "BREAKING CHANGE" or major API changes
    - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)
    
    **Important**: Internal changes, tooling, and documentation are always "patch" level.
 
-5. **Generate the Changeset File**:
+6. **Generate the Changeset File**:
    - Create the `.changeset/` directory if it doesn't exist: `mkdir -p .changeset`
    - Use format from the changeset format reference above
    - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
 
-6. **Commit and Push Changes**:
+7. **Commit and Push Changes**:
    - Add and commit the changeset file using git commands:
      ```bash
      git add .changeset/<filename> && git commit -m "Add changeset"
@@ -119,7 +136,7 @@ Your task is to:
    - This tool call is REQUIRED for your changes to be pushed to the pull request
    - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
 
-7. **Append Changeset to PR Description**:
+8. **Append Changeset to PR Description**:
    - After pushing the changeset file, append a summary to the pull request description
    - Use the `update_pull_request` tool:
      ```javascript
