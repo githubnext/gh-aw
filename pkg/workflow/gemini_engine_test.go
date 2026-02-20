@@ -273,6 +273,8 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		// Should use AWF command
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
+		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
+		assert.Contains(t, stepContent, "GEMINI_API_BASE_URL: http://host.docker.internal:10003", "Should set GEMINI_API_BASE_URL to LLM gateway URL")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {
@@ -293,5 +295,6 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		// Should use simple command without AWF
 		assert.Contains(t, stepContent, "set -o pipefail", "Should use simple command with pipefail")
 		assert.NotContains(t, stepContent, "awf", "Should not use AWF when firewall is disabled")
+		assert.NotContains(t, stepContent, "GEMINI_API_BASE_URL", "Should not set GEMINI_API_BASE_URL when firewall is disabled")
 	})
 }

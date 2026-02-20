@@ -236,6 +236,12 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.gemini/settings.json"
 	}
 
+	// When the firewall (AWF) is enabled with --enable-api-proxy, point Gemini CLI at the
+	// LLM gateway sidecar instead of the real googleapis.com endpoint.
+	if firewallEnabled {
+		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
+	}
+
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
 
