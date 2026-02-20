@@ -67,6 +67,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate GitHub tool configuration
+	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Use shared action cache and resolver from the compiler
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.ActionCache = actionCache
