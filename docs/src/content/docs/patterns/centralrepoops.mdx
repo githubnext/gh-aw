@@ -119,10 +119,6 @@ permissions:
   issues: read
   pull-requests: read
 
-concurrency:
-  group: gh-aw-${{ github.workflow }}-${{ github.event.inputs.target_repo || github.run_id }}
-  cancel-in-progress: false
-
 tools:
   github:
     github-token: ${{ secrets.ORG_GITHUB_MCP_SERVER_TOKEN }}
