@@ -248,20 +248,40 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 	return nil
 }
 
-// validateEnvSecrets detects secrets in the env section and raises an error in strict mode
-// or a warning in non-strict mode. Secrets in env will be leaked to the agent container.
+// validateEnvSecrets detects secrets in the top-level env section and the engine.env section,
+// raising an error in strict mode or a warning in non-strict mode. Secrets in env will be
+// leaked to the agent container.
 func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
-	// Check if env section exists
-	envValue, exists := frontmatter["env"]
+	// Check top-level env section
+	if err := c.validateEnvSecretsSection(frontmatter, "env"); err != nil {
+		return err
+	}
+
+	// Check engine.env section when engine is in object format
+	if engineValue, exists := frontmatter["engine"]; exists {
+		if engineObj, ok := engineValue.(map[string]any); ok {
+			if err := c.validateEnvSecretsSection(engineObj, "engine.env"); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateEnvSecretsSection checks a single config map's "env" key for secrets.
+// sectionName is used in log and error messages (e.g. "env" or "engine.env").
+func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName string) error {
+	envValue, exists := config["env"]
 	if !exists {
-		strictModeValidationLog.Printf("No env section found, validation passed")
+		strictModeValidationLog.Printf("No %s section found, validation passed", sectionName)
 		return nil
 	}
 
-	// Parse env as map[string]string
+	// Check if env is a map[string]any
 	envMap, ok := envValue.(map[string]any)
 	if !ok {
-		strictModeValidationLog.Printf("Env section is not a map, skipping validation")
+		strictModeValidationLog.Printf("%s section is not a map, skipping validation", sectionName)
 		return nil
 	}
 
@@ -276,7 +296,7 @@ func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
 	// Extract secrets from env values
 	secrets := ExtractSecretsFromMap(envStrings)
 	if len(secrets) == 0 {
-		strictModeValidationLog.Printf("No secrets found in env section")
+		strictModeValidationLog.Printf("No secrets found in %s section", sectionName)
 		return nil
 	}
 
@@ -286,15 +306,15 @@ func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
 		secretRefs = append(secretRefs, secretExpr)
 	}
 
-	strictModeValidationLog.Printf("Found %d secret(s) in env section: %v", len(secrets), secretRefs)
+	strictModeValidationLog.Printf("Found %d secret(s) in %s section: %v", len(secrets), sectionName, secretRefs)
 
 	// In strict mode, this is an error
 	if c.strictMode {
-		return fmt.Errorf("strict mode: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", strings.Join(secretRefs, ", "))
+		return fmt.Errorf("strict mode: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", sectionName, strings.Join(secretRefs, ", "))
 	}
 
 	// In non-strict mode, emit a warning
-	warningMsg := fmt.Sprintf("Warning: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", strings.Join(secretRefs, ", "))
+	warningMsg := fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 
