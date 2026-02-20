@@ -165,9 +165,9 @@ engine:
   id: codex
   env:
     MODEL_VERSION: "gpt-4"
-  steps:
-    - name: Codex step
-      run: echo "test"
+steps:
+  - name: Codex step
+    run: echo "test"
 ---
 
 # Shared Engine Configuration

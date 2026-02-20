@@ -111,11 +111,16 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 			}
 
 			// Find existing top-level steps block (if any)
+			// Only treat as existing steps if it's actually a sequence
 			topLevelStepsEndIdx := -1
 			hasTopLevelSteps := false
-			if _, exists := frontmatter["steps"]; exists {
-				hasTopLevelSteps = true
-				engineStepsCodemodLog.Print("Found existing top-level 'steps'")
+			if stepsVal, exists := frontmatter["steps"]; exists {
+				if _, isSlice := stepsVal.([]any); isSlice {
+					hasTopLevelSteps = true
+					engineStepsCodemodLog.Print("Found existing top-level 'steps'")
+				} else {
+					engineStepsCodemodLog.Print("Top-level 'steps' exists but is not a sequence; treating as absent")
+				}
 			}
 
 			if hasTopLevelSteps {
@@ -151,6 +156,72 @@ func getEngineStepsToTopLevelCodemod() Codemod {
 					continue
 				}
 				withoutEngineSteps = append(withoutEngineSteps, line)
+			}
+
+			// Pass 1b: if the engine block is now empty (only blank lines or id: key),
+			// check whether any non-steps content remains under engine:
+			engineBlockIsEmpty := func() bool {
+				inEngine := false
+				engineIndentLen := 0
+				for _, line := range withoutEngineSteps {
+					trimmed := strings.TrimSpace(line)
+					if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
+						inEngine = true
+						engineIndentLen = len(getIndentation(line))
+						// Check for inline value (e.g., "engine: claude")
+						val := strings.TrimPrefix(trimmed, "engine:")
+						if strings.TrimSpace(val) != "" {
+							return false
+						}
+						continue
+					}
+					if inEngine {
+						if len(trimmed) == 0 {
+							continue
+						}
+						lineIndentLen := len(getIndentation(line))
+						if lineIndentLen <= engineIndentLen {
+							// Exited engine block with no content found
+							return true
+						}
+						// There is content under engine (e.g., id:, model:, env:)
+						return false
+					}
+				}
+				return inEngine // if we're still in engine at EOF, it's empty
+			}()
+
+			if engineBlockIsEmpty {
+				engineStepsCodemodLog.Print("Engine block is empty after removing 'steps', removing it")
+				// Remove the engine block (the engine: line and any blank lines around it)
+				cleaned := make([]string, 0, len(withoutEngineSteps))
+				engineIndentLen := 0
+				inEngine := false
+				for i, line := range withoutEngineSteps {
+					trimmed := strings.TrimSpace(line)
+					if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
+						inEngine = true
+						engineIndentLen = len(getIndentation(line))
+						// Remove trailing blank lines already added
+						for len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "" {
+							cleaned = cleaned[:len(cleaned)-1]
+						}
+						_ = i
+						continue
+					}
+					if inEngine {
+						if len(trimmed) == 0 {
+							continue
+						}
+						if len(getIndentation(line)) <= engineIndentLen {
+							inEngine = false
+						} else {
+							continue
+						}
+					}
+					cleaned = append(cleaned, line)
+				}
+				withoutEngineSteps = cleaned
 			}
 
 			// Pass 2: insert engine steps at top level

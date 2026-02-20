@@ -599,3 +599,79 @@ Review this PR`,
 		})
 	}
 }
+
+// TestEngineStepsToTopLevelCodemod_EmptyEngineBlockRemoved tests that a dangling
+// engine: block (containing only steps) is removed after migration
+func TestEngineStepsToTopLevelCodemod_EmptyEngineBlockRemoved(t *testing.T) {
+	codemod := getEngineStepsToTopLevelCodemod()
+
+	content := `---
+on: push
+engine:
+  steps:
+    - name: Only step
+      run: echo "only"
+---
+
+# Test workflow`
+
+	frontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"steps": []any{
+				map[string]any{"name": "Only step", "run": `echo "only"`},
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+
+	// Step should be at top level
+	assert.Contains(t, result, "name: Only step")
+
+	// The empty engine block should be removed (it only contained steps)
+	assert.NotContains(t, result, "engine:")
+}
+
+// TestEngineStepsToTopLevelCodemod_NonSequenceTopLevelSteps tests that when
+// top-level steps exists but is not a sequence, a fresh steps block is inserted
+func TestEngineStepsToTopLevelCodemod_NonSequenceTopLevelSteps(t *testing.T) {
+	codemod := getEngineStepsToTopLevelCodemod()
+
+	content := `---
+on: push
+engine:
+  id: codex
+  steps:
+    - name: Engine Step
+      run: echo "engine"
+steps: invalid-scalar
+---
+
+# Test workflow`
+
+	frontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "codex",
+			"steps": []any{
+				map[string]any{"name": "Engine Step", "run": `echo "engine"`},
+			},
+		},
+		// steps is a scalar, not a slice
+		"steps": "invalid-scalar",
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+
+	// Engine step should be present as a new top-level block
+	assert.Contains(t, result, "name: Engine Step")
+	// Engine block should not have steps any more
+	assert.NotContains(t, result, "  steps:")
+}
