@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -19,14 +20,33 @@ const (
 	maxExampleFields  = 3  // Maximum number of fields to include in example JSON
 )
 
-// generateSchemaBasedSuggestions generates helpful suggestions based on the schema and error type
-func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath string) string {
+// generateSchemaBasedSuggestions generates helpful suggestions based on the schema and error type.
+// frontmatterContent is the raw YAML frontmatter text, used to extract the user's typed value for enum suggestions.
+func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmatterContent string) string {
 	schemaSuggestionsLog.Printf("Generating schema suggestions: path=%s, schema_size=%d bytes", jsonPath, len(schemaJSON))
 	// Parse the schema to extract information for suggestions
 	var schemaDoc any
 	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
 		schemaSuggestionsLog.Printf("Failed to parse schema JSON: %v", err)
 		return "" // Can't parse schema, no suggestions
+	}
+
+	// Check if this is an enum constraint violation ("value must be one of")
+	if strings.Contains(strings.ToLower(errorMessage), "value must be one of") {
+		schemaSuggestionsLog.Print("Detected enum constraint violation")
+		enumValues := extractEnumValuesFromError(errorMessage)
+		userValue := extractYAMLValueAtPath(frontmatterContent, jsonPath)
+		if userValue != "" && len(enumValues) > 0 {
+			closest := FindClosestMatches(userValue, enumValues, maxClosestMatches)
+			if len(closest) == 1 {
+				return fmt.Sprintf("Did you mean '%s'?", closest[0])
+			} else if len(closest) > 1 {
+				return fmt.Sprintf("Did you mean: %s?", strings.Join(closest, ", "))
+			}
+		}
+		// No close matches or no user value — no additional suggestion needed since
+		// the valid values are already listed in the error message itself
+		return ""
 	}
 
 	// Check if this is an additional properties error
@@ -398,4 +418,52 @@ func generateExampleFromSchema(schema map[string]any) any {
 	}
 
 	return nil
+}
+
+// enumValuePattern matches single-quoted values in enum error messages like "value must be one of 'a', 'b', 'c'"
+var enumValuePattern = regexp.MustCompile(`'([^']+)'`)
+
+// extractEnumValuesFromError extracts the list of valid enum values from an error message
+// like "value must be one of 'claude', 'codex', 'copilot', 'gemini'".
+func extractEnumValuesFromError(errorMessage string) []string {
+	matches := enumValuePattern.FindAllStringSubmatch(errorMessage, -1)
+	var values []string
+	for _, match := range matches {
+		if len(match) >= 2 {
+			values = append(values, match[1])
+		}
+	}
+	return values
+}
+
+// extractYAMLValueAtPath extracts the scalar value at a simple top-level JSON path
+// (e.g., "/engine") from raw YAML frontmatter content.
+// Only top-level paths are supported; nested paths return an empty string.
+func extractYAMLValueAtPath(yamlContent, jsonPath string) string {
+	if yamlContent == "" || jsonPath == "" {
+		return ""
+	}
+	// Only handle simple top-level paths like "/engine" (one slash, one segment)
+	if strings.Count(jsonPath, "/") != 1 {
+		return ""
+	}
+	fieldName := strings.TrimPrefix(jsonPath, "/")
+	escapedField := regexp.QuoteMeta(fieldName)
+
+	// Try single-quoted value: field: 'value'
+	reSingle := regexp.MustCompile(`(?m)^\s*` + escapedField + `\s*:\s*'([^'\n]+)'`)
+	if match := reSingle.FindStringSubmatch(yamlContent); len(match) >= 2 {
+		return strings.TrimSpace(match[1])
+	}
+	// Try double-quoted value: field: "value"
+	reDouble := regexp.MustCompile(`(?m)^\s*` + escapedField + `\s*:\s*"([^"\n]+)"`)
+	if match := reDouble.FindStringSubmatch(yamlContent); len(match) >= 2 {
+		return strings.TrimSpace(match[1])
+	}
+	// Try unquoted value: field: value
+	reUnquoted := regexp.MustCompile(`(?m)^\s*` + escapedField + `\s*:\s*([^'"\n#][^\n#]*?)(?:\s*#.*)?$`)
+	if match := reUnquoted.FindStringSubmatch(yamlContent); len(match) >= 2 {
+		return strings.TrimSpace(match[1])
+	}
+	return ""
 }
