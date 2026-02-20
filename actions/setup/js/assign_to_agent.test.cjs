@@ -1412,3 +1412,59 @@ describe("assign_to_agent", () => {
     expect(lastCall[1].customInstructions).not.toContain("NOT from");
   });
 });
+
+describe("resolvePullRequestRepo", () => {
+  const { resolvePullRequestRepo } = require("./assign_to_agent.cjs");
+
+  it("returns repoId, effectiveBaseBranch from explicit config, and resolvedDefaultBranch", async () => {
+    const fakeGithub = {
+      graphql: vi.fn().mockResolvedValue({ repository: { id: "repo-id", defaultBranchRef: { name: "develop" } } }),
+    };
+    const result = await resolvePullRequestRepo(fakeGithub, "owner", "repo", "feature");
+    expect(result.repoId).toBe("repo-id");
+    expect(result.resolvedDefaultBranch).toBe("develop");
+    // explicit config wins over fetched default
+    expect(result.effectiveBaseBranch).toBe("feature");
+  });
+
+  it("falls back to repo default branch when no explicit base branch configured", async () => {
+    const fakeGithub = {
+      graphql: vi.fn().mockResolvedValue({ repository: { id: "repo-id", defaultBranchRef: { name: "trunk" } } }),
+    };
+    const result = await resolvePullRequestRepo(fakeGithub, "owner", "repo", undefined);
+    expect(result.repoId).toBe("repo-id");
+    expect(result.resolvedDefaultBranch).toBe("trunk");
+    expect(result.effectiveBaseBranch).toBe("trunk");
+  });
+
+  it("handles missing defaultBranchRef gracefully", async () => {
+    const fakeGithub = {
+      graphql: vi.fn().mockResolvedValue({ repository: { id: "repo-id", defaultBranchRef: null } }),
+    };
+    const result = await resolvePullRequestRepo(fakeGithub, "owner", "repo", undefined);
+    expect(result.repoId).toBe("repo-id");
+    expect(result.resolvedDefaultBranch).toBeNull();
+    expect(result.effectiveBaseBranch).toBeNull();
+  });
+});
+
+describe("buildBranchInstruction", () => {
+  const { buildBranchInstruction } = require("./assign_to_agent.cjs");
+
+  it("produces a plain instruction when effective branch equals resolved default", () => {
+    const instruction = buildBranchInstruction("main", "main");
+    expect(instruction).toBe("IMPORTANT: Create your branch from the 'main' branch.");
+    expect(instruction).not.toContain("NOT from");
+  });
+
+  it("includes NOT clause when effective branch differs from resolved default", () => {
+    const instruction = buildBranchInstruction("feature", "develop");
+    expect(instruction).toBe("IMPORTANT: Create your branch from the 'feature' branch, NOT from 'develop'.");
+  });
+
+  it("omits NOT clause when resolvedDefaultBranch is null", () => {
+    const instruction = buildBranchInstruction("feature", null);
+    expect(instruction).toBe("IMPORTANT: Create your branch from the 'feature' branch.");
+    expect(instruction).not.toContain("NOT from");
+  });
+});

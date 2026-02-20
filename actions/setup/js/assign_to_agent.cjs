@@ -10,6 +10,48 @@ const { loadTemporaryIdMap, resolveRepoIssueTarget } = require("./temporary_id.c
 const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 
+/**
+ * Resolves the pull request repository ID and effective base branch.
+ * Fetches `id` and `defaultBranchRef.name` from the GitHub API.
+ * The effective base branch is the explicitly configured branch (if any),
+ * falling back to the repository's actual default branch.
+ *
+ * @param {import("@actions/github-script").AsyncFunctionArguments["github"]} github
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string|undefined} configuredBaseBranch - explicitly configured base branch (may be undefined)
+ * @returns {Promise<{repoId: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
+ */
+async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch) {
+  const query = `
+    query($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        id
+        defaultBranchRef { name }
+      }
+    }
+  `;
+  const response = await github.graphql(query, { owner, name: repo });
+  const repoId = response.repository.id;
+  const resolvedDefaultBranch = response.repository.defaultBranchRef?.name ?? null;
+  const effectiveBaseBranch = configuredBaseBranch || resolvedDefaultBranch;
+  return { repoId, effectiveBaseBranch, resolvedDefaultBranch };
+}
+
+/**
+ * Builds a branch instruction string to prepend to custom instructions.
+ * Tells the agent which branch to create its work branch from, with an
+ * optional NOT clause when the effective branch differs from the repo default.
+ *
+ * @param {string} effectiveBaseBranch - the branch the agent should branch from
+ * @param {string|null} resolvedDefaultBranch - the repo's actual default branch (used in NOT clause)
+ * @returns {string}
+ */
+function buildBranchInstruction(effectiveBaseBranch, resolvedDefaultBranch) {
+  const notClause = resolvedDefaultBranch && resolvedDefaultBranch !== effectiveBaseBranch ? `, NOT from '${resolvedDefaultBranch}'` : "";
+  return `IMPORTANT: Create your branch from the '${effectiveBaseBranch}' branch${notClause}.`;
+}
+
 async function main() {
   const result = loadAgentOutput();
   if (!result.success) {
@@ -190,26 +232,13 @@ async function main() {
 
       // Fetch the repository ID and default branch for the PR repo
       try {
-        const pullRequestRepoQuery = `
-          query($owner: String!, $name: String!) {
-            repository(owner: $owner, name: $name) {
-              id
-              defaultBranchRef { name }
-            }
-          }
-        `;
-        const pullRequestRepoResponse = await github.graphql(pullRequestRepoQuery, { owner: pullRequestOwner, name: pullRequestRepo });
-        pullRequestRepoId = pullRequestRepoResponse.repository.id;
+        const resolved = await resolvePullRequestRepo(github, pullRequestOwner, pullRequestRepo, configuredBaseBranch);
+        pullRequestRepoId = resolved.repoId;
+        effectiveBaseBranch = resolved.effectiveBaseBranch;
+        resolvedDefaultBranch = resolved.resolvedDefaultBranch;
         core.info(`Pull request repository ID: ${pullRequestRepoId}`);
-
-        // Determine effective base branch: explicit config wins, otherwise use repo's default branch
-        const repoBranchDefault = pullRequestRepoResponse.repository.defaultBranchRef?.name;
-        if (repoBranchDefault) {
-          resolvedDefaultBranch = repoBranchDefault;
-          if (!effectiveBaseBranch) {
-            effectiveBaseBranch = repoBranchDefault;
-            core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
-          }
+        if (!configuredBaseBranch && effectiveBaseBranch) {
+          core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
         }
       } catch (error) {
         core.setFailed(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
@@ -235,9 +264,7 @@ async function main() {
     // Build effective custom instructions: prepend base-branch instruction when needed
     let customInstructions = defaultCustomInstructions;
     if (effectiveBaseBranch) {
-      const branch = effectiveBaseBranch;
-      const notClause = resolvedDefaultBranch && resolvedDefaultBranch !== branch ? `, NOT from '${resolvedDefaultBranch}'` : "";
-      const branchInstruction = `IMPORTANT: Create your branch from the '${branch}' branch${notClause}.`;
+      const branchInstruction = buildBranchInstruction(effectiveBaseBranch, resolvedDefaultBranch);
       customInstructions = customInstructions ? `${branchInstruction}\n\n${customInstructions}` : branchInstruction;
     }
 
@@ -630,4 +657,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, resolvePullRequestRepo, buildBranchInstruction };
