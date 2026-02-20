@@ -146,14 +146,14 @@ mcp-servers:
 			},
 		},
 		{
-			name: "no auto-detection for workflows without runtime commands in engine steps",
+			name: "no auto-detection for workflows without runtime commands in steps",
 			workflowMarkdown: `---
 on: push
 engine:
   id: claude
-  steps:
-    - name: Echo
-      run: echo "Hello"
+steps:
+  - name: Echo
+    run: echo "Hello"
 ---
 
 # Test workflow`,

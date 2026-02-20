@@ -201,39 +201,6 @@ func BuildStandardNpmEngineInstallSteps(
 	)
 }
 
-// InjectCustomEngineSteps processes custom steps from engine config and converts them to GitHubActionSteps.
-// This shared function extracts the common pattern used by Copilot, Codex, and Claude engines.
-//
-// Parameters:
-//   - workflowData: The workflow data containing engine configuration
-//   - convertStepFunc: A function that converts a step map to YAML string (engine-specific)
-//
-// Returns:
-//   - []GitHubActionStep: Array of custom steps ready to be included in the execution pipeline
-func InjectCustomEngineSteps(
-	workflowData *WorkflowData,
-	convertStepFunc func(map[string]any) (string, error),
-) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		engineHelpersLog.Printf("Injecting %d custom engine steps", len(workflowData.EngineConfig.Steps))
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := convertStepFunc(step)
-			if err != nil {
-				engineHelpersLog.Printf("Failed to convert custom step: %v", err)
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-		engineHelpersLog.Printf("Successfully injected %d custom engine steps", len(steps))
-	}
-
-	return steps
-}
-
 // RenderCustomMCPToolConfigHandler is a function type that engines must provide to render their specific MCP config
 // FormatStepWithCommandAndEnv formats a GitHub Actions step with command and environment variables.
 // This shared function extracts the common pattern used by Copilot and Codex engines.

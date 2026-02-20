@@ -6922,14 +6922,6 @@
                 "type": "string"
               }
             },
-            "steps": {
-              "type": "array",
-              "description": "Custom GitHub Actions steps for 'custom' engine. Define your own deterministic workflow steps instead of using AI processing.",
-              "items": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
             "error_patterns": {
               "type": "array",
               "description": "Custom error patterns for validating agent logs",

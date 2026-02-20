@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -76,95 +77,6 @@ func TestCollectPackagesFromWorkflow_CustomSteps(t *testing.T) {
 			}
 
 			packages := collectPackagesFromWorkflow(workflowData, tt.extractor, tt.toolCommand)
-
-			if len(packages) != len(tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, packages)
-				return
-			}
-			if len(packages) > 0 && !reflect.DeepEqual(packages, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, packages)
-			}
-		})
-	}
-}
-
-// TestCollectPackagesFromWorkflow_EngineSteps tests package extraction from engine steps
-func TestCollectPackagesFromWorkflow_EngineSteps(t *testing.T) {
-	tests := []struct {
-		name        string
-		engineSteps []map[string]any
-		extractor   func(string) []string
-		expected    []string
-	}{
-		{
-			name: "Single run step with package",
-			engineSteps: []map[string]any{
-				{"run": "pip install requests"},
-			},
-			extractor: func(s string) []string {
-				return []string{"requests"}
-			},
-			expected: []string{"requests"},
-		},
-		{
-			name: "Multiple run steps with packages",
-			engineSteps: []map[string]any{
-				{"run": "pip install requests"},
-				{"run": "pip install flask"},
-			},
-			extractor: func(s string) []string {
-				if s == "pip install requests" {
-					return []string{"requests"}
-				}
-				return []string{"flask"}
-			},
-			expected: []string{"requests", "flask"},
-		},
-		{
-			name: "Step without run command",
-			engineSteps: []map[string]any{
-				{"name": "Setup"},
-			},
-			extractor: func(s string) []string {
-				return []string{}
-			},
-			expected: []string{},
-		},
-		{
-			name: "Run command with non-string value",
-			engineSteps: []map[string]any{
-				{"run": 123},
-			},
-			extractor: func(s string) []string {
-				return []string{"package"}
-			},
-			expected: []string{},
-		},
-		{
-			name: "Duplicate packages across steps",
-			engineSteps: []map[string]any{
-				{"run": "pip install requests"},
-				{"run": "pip install requests flask"},
-			},
-			extractor: func(s string) []string {
-				if s == "pip install requests" {
-					return []string{"requests"}
-				}
-				return []string{"requests", "flask"}
-			},
-			expected: []string{"requests", "flask"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			workflowData := &WorkflowData{
-				EngineConfig: &EngineConfig{
-					Steps: tt.engineSteps,
-				},
-			}
-
-			packages := collectPackagesFromWorkflow(workflowData, tt.extractor, "")
 
 			if len(packages) != len(tt.expected) {
 				t.Errorf("Expected %v, got %v", tt.expected, packages)
@@ -326,12 +238,7 @@ func TestCollectPackagesFromWorkflow_Combined(t *testing.T) {
 		{
 			name: "Packages from all sources with deduplication",
 			workflowData: &WorkflowData{
-				CustomSteps: "npm install axios",
-				EngineConfig: &EngineConfig{
-					Steps: []map[string]any{
-						{"run": "npm install lodash"},
-					},
-				},
+				CustomSteps: "npm install axios\nnpm install lodash",
 				Tools: map[string]any{
 					"server1": map[string]any{
 						"command": "npx",
@@ -340,13 +247,14 @@ func TestCollectPackagesFromWorkflow_Combined(t *testing.T) {
 				},
 			},
 			extractor: func(s string) []string {
-				if s == "npm install axios" {
-					return []string{"axios"}
+				var result []string
+				if strings.Contains(s, "npm install axios") {
+					result = append(result, "axios")
 				}
-				if s == "npm install lodash" {
-					return []string{"lodash"}
+				if strings.Contains(s, "npm install lodash") {
+					result = append(result, "lodash")
 				}
-				return []string{}
+				return result
 			},
 			toolCommand: "npx",
 			expected:    []string{"axios", "lodash"},
@@ -355,10 +263,7 @@ func TestCollectPackagesFromWorkflow_Combined(t *testing.T) {
 			name: "Empty sources",
 			workflowData: &WorkflowData{
 				CustomSteps: "",
-				EngineConfig: &EngineConfig{
-					Steps: []map[string]any{},
-				},
-				Tools: map[string]any{},
+				Tools:       map[string]any{},
 			},
 			extractor: func(s string) []string {
 				return []string{}

@@ -24,11 +24,6 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 
-	// Detect from engine requirements
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		detectFromEngineSteps(workflowData.EngineConfig.Steps, requirements)
-	}
-
 	// Apply runtime overrides from frontmatter
 	if workflowData.Runtimes != nil {
 		applyRuntimeOverrides(workflowData.Runtimes, requirements)
@@ -158,17 +153,6 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 		if tool.Command != "" {
 			if runtime, found := commandToRuntime[tool.Command]; found {
 				updateRequiredRuntime(runtime, "", requirements)
-			}
-		}
-	}
-}
-
-// detectFromEngineSteps scans engine steps for runtime commands
-func detectFromEngineSteps(steps []map[string]any, requirements map[string]*RuntimeRequirement) {
-	for _, step := range steps {
-		if run, hasRun := step["run"]; hasRun {
-			if runStr, ok := run.(string); ok {
-				detectRuntimeFromCommand(runStr, requirements)
 			}
 		}
 	}

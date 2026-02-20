@@ -161,8 +161,7 @@ func (e *GeminiEngine) GetDeclaredOutputFiles() []string {
 func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	geminiLog.Printf("Generating execution steps for Gemini engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
 	// Build gemini CLI arguments based on configuration
 	var geminiArgs []string
@@ -262,9 +261,4 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 	return steps
-}
-
-// convertStepToYAML converts a single step to YAML format
-func (e *GeminiEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
 }

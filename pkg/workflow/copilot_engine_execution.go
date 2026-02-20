@@ -36,8 +36,7 @@ var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	copilotExecLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string

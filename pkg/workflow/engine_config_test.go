@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -251,27 +250,6 @@ func TestExtractEngineConfig(t *testing.T) {
 					}
 				}
 
-				if len(config.Steps) != len(test.expectedConfig.Steps) {
-					t.Errorf("Expected config.Steps length %d, got %d", len(test.expectedConfig.Steps), len(config.Steps))
-				} else {
-					for i, expectedStep := range test.expectedConfig.Steps {
-						if i >= len(config.Steps) {
-							t.Errorf("Expected step at index %d", i)
-							continue
-						}
-						actualStep := config.Steps[i]
-						for key, expectedValue := range expectedStep {
-							if actualValue, exists := actualStep[key]; !exists {
-								t.Errorf("Expected step[%d] to contain key '%s'", i, key)
-							} else {
-								// For nested maps, do a simple string comparison for now
-								if fmt.Sprintf("%v", actualValue) != fmt.Sprintf("%v", expectedValue) {
-									t.Errorf("Expected step[%d]['%s'] = '%v', got '%v'", i, key, expectedValue, actualValue)
-								}
-							}
-						}
-					}
-				}
 			}
 		})
 	}

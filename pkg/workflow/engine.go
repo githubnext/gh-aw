@@ -20,7 +20,6 @@ type EngineConfig struct {
 	UserAgent   string
 	Command     string // Custom executable path (when set, skip installation steps)
 	Env         map[string]string
-	Steps       []map[string]any
 	Config      string
 	Args        []string
 	Firewall    *FirewallConfig // AWF firewall configuration
@@ -163,18 +162,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					for key, value := range envMap {
 						if valueStr, ok := value.(string); ok {
 							config.Env[key] = valueStr
-						}
-					}
-				}
-			}
-
-			// Extract optional 'steps' field (array of step objects)
-			if steps, hasSteps := engineObj["steps"]; hasSteps {
-				if stepsArray, ok := steps.([]any); ok {
-					config.Steps = make([]map[string]any, 0, len(stepsArray))
-					for _, step := range stepsArray {
-						if stepMap, ok := step.(map[string]any); ok {
-							config.Steps = append(config.Steps, stepMap)
 						}
 					}
 				}

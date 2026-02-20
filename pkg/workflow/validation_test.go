@@ -326,31 +326,6 @@ func TestCollectPackagesFromWorkflow(t *testing.T) {
 			expected:    []string{"pkg1", "pkg2"},
 		},
 		{
-			name: "extract from engine steps only",
-			workflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{
-					Steps: []map[string]any{
-						{"run": "command1"},
-					},
-				},
-			},
-			toolCommand: "",
-			expected:    []string{"pkg1", "pkg2"},
-		},
-		{
-			name: "deduplicate across custom and engine steps",
-			workflowData: &WorkflowData{
-				CustomSteps: "command1",
-				EngineConfig: &EngineConfig{
-					Steps: []map[string]any{
-						{"run": "command2"},
-					},
-				},
-			},
-			toolCommand: "",
-			expected:    []string{"pkg1", "pkg2", "pkg3"},
-		},
-		{
 			name: "extract from MCP tools when toolCommand provided",
 			workflowData: &WorkflowData{
 				Tools: map[string]any{
@@ -377,14 +352,9 @@ func TestCollectPackagesFromWorkflow(t *testing.T) {
 			expected:    []string{},
 		},
 		{
-			name: "deduplicate across all sources",
+			name: "deduplicate across custom steps and MCP tools",
 			workflowData: &WorkflowData{
 				CustomSteps: "command1",
-				EngineConfig: &EngineConfig{
-					Steps: []map[string]any{
-						{"run": "command1"}, // Same packages as custom steps
-					},
-				},
 				Tools: map[string]any{
 					"test-tool": map[string]any{
 						"command": "test-cmd",

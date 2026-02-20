@@ -142,8 +142,7 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
