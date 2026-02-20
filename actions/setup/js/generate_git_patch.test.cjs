@@ -60,7 +60,8 @@ describe("generateGitPatch", () => {
     const result = generateGitPatch("test-branch");
 
     expect(result).toHaveProperty("patchPath");
-    expect(result.patchPath).toBe("/tmp/gh-aw/aw.patch");
+    // Patch path includes sanitized branch name
+    expect(result.patchPath).toBe("/tmp/gh-aw/aw-test-branch.patch");
   });
 
   it("should return patch info structure", async () => {

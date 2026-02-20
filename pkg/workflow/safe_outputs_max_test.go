@@ -63,7 +63,7 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 					"max": 5,
 				},
 				"create-pull-request": map[string]any{
-					// max parameter is ignored for pull requests
+					// max parameter is now configurable for pull requests
 					"max": 2,
 				},
 				"update-issue": map[string]any{
@@ -94,8 +94,8 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreatePullRequests == nil {
 			t.Fatal("Expected CreatePullRequests to be parsed")
 		}
-		if config.CreatePullRequests.Max != 1 {
-			t.Errorf("Expected CreatePullRequests.Max to be 1 (max ignored for pull requests), got %d", config.CreatePullRequests.Max)
+		if config.CreatePullRequests.Max != 2 {
+			t.Errorf("Expected CreatePullRequests.Max to be 2, got %d", config.CreatePullRequests.Max)
 		}
 
 		if config.UpdateIssues == nil {

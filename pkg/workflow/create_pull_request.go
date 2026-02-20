@@ -270,8 +270,11 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
 	}
 
-	// Log max if configured (defaults to 1 if not specified)
-	if config.Max > 0 {
+	// Set default max if not explicitly configured (default is 1)
+	if config.Max == 0 {
+		config.Max = 1
+		createPRLog.Print("Using default max count: 1")
+	} else {
 		createPRLog.Printf("Pull request max count configured: %d", config.Max)
 	}
 
