@@ -102,6 +102,36 @@ func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) m
 	return tool
 }
 
+// checkAllEnabledToolsPresent verifies that every tool in enabledTools has a matching entry
+// in filteredTools. This is a compiler error check: if a safe-output type is registered in
+// Go code but its definition is missing from safe-output-tools.json, it will not appear in
+// filteredTools and this function returns an error.
+//
+// Dispatch-workflow and custom-job tools are intentionally excluded from this check because
+// they are generated dynamically and are never part of the static tools JSON.
+func checkAllEnabledToolsPresent(enabledTools map[string]bool, filteredTools []map[string]any) error {
+	presentTools := make(map[string]bool, len(filteredTools))
+	for _, tool := range filteredTools {
+		if name, ok := tool["name"].(string); ok {
+			presentTools[name] = true
+		}
+	}
+
+	var missingTools []string
+	for toolName := range enabledTools {
+		if !presentTools[toolName] {
+			missingTools = append(missingTools, toolName)
+		}
+	}
+
+	if len(missingTools) == 0 {
+		return nil
+	}
+
+	sort.Strings(missingTools)
+	return fmt.Errorf("compiler error: safe-output tool(s) %v are registered but missing from safe-output-tools.json; please report this issue to the developer", missingTools)
+}
+
 // generateFilteredToolsJSON filters the ALL_TOOLS array based on enabled safe outputs
 // Returns a JSON string containing only the tools that are enabled in the workflow
 func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string, error) {
@@ -260,6 +290,12 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 
 			filteredTools = append(filteredTools, enhancedTool)
 		}
+	}
+
+	// Verify all registered safe-outputs are present in the static tools JSON.
+	// Dispatch-workflow and custom-job tools are excluded because they are generated dynamically.
+	if err := checkAllEnabledToolsPresent(enabledTools, filteredTools); err != nil {
+		return "", err
 	}
 
 	// Add custom job tools from SafeOutputs.Jobs
