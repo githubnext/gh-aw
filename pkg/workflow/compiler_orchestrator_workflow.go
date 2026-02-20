@@ -51,6 +51,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Store a stable workflow identifier derived from the file name.
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
+	// Validate that inlined-imports is not used with agent file imports.
+	// Agent files require runtime access and cannot be resolved without sources.
+	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
+		return nil, formatCompilerError(cleanPath, "error",
+			fmt.Sprintf("inlined-imports cannot be used with agent file imports: '%s'. "+
+				"Agent files require runtime access and will not be resolved without sources. "+
+				"Remove 'inlined-imports: true' or do not import agent files.",
+				engineSetup.importsResult.AgentFile), nil)
+	}
+
 	// Validate bash tool configuration BEFORE applying defaults
 	// This must happen before applyDefaults() which converts nil bash to default commands
 	if err := validateBashToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {

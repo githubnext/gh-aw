@@ -293,9 +293,55 @@ Do something useful.
 	assert.Contains(t, yamlContent, "Do something useful", "main workflow body should be inlined")
 }
 
-// TestInlinedImports_AgentFileCleared verifies that when inlined-imports: true, the AgentFile
-// field is cleared in WorkflowData so the engine doesn't read it from disk separately
-// (the agent content is already inlined via ImportPaths → step 1b).
+// TestInlinedImports_AgentFileError verifies that when inlined-imports: true and a custom agent
+// file is imported, ParseWorkflowFile returns a compilation error.
+// Agent files require runtime access and will not be resolved without sources.
+func TestInlinedImports_AgentFileError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create the .github/agents directory and agent file
+	agentsDir := filepath.Join(tmpDir, ".github", "agents")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755))
+	agentFile := filepath.Join(agentsDir, "my-agent.md")
+	require.NoError(t, os.WriteFile(agentFile, []byte("# Agent\nDo things.\n"), 0o644))
+
+	// Create the workflow file with inlined-imports: true importing the agent file
+	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowDir, 0o755))
+	workflowFile := filepath.Join(workflowDir, "test-workflow.md")
+	workflowContent := `---
+name: inlined-agent-test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+inlined-imports: true
+imports:
+  - ../../.github/agents/my-agent.md
+---
+
+# Main Workflow
+
+Do something.
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0o644))
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowFile(workflowFile)
+	require.Error(t, err, "should return an error when inlined-imports is used with an agent file")
+	assert.Contains(t, err.Error(), "inlined-imports cannot be used with agent file imports",
+		"error message should explain the conflict")
+	assert.Contains(t, err.Error(), "my-agent.md",
+		"error message should include the agent file path")
+}
+
+// TestInlinedImports_AgentFileCleared verifies that buildInitialWorkflowData clears the AgentFile
+// field when inlined-imports is true. Note: ParseWorkflowFile will error before this state is used.
 func TestInlinedImports_AgentFileCleared(t *testing.T) {
 	compiler := NewCompiler()
 

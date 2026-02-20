@@ -235,7 +235,7 @@ async function main() {
     // Build effective custom instructions: prepend base-branch instruction when needed
     let customInstructions = defaultCustomInstructions;
     if (configuredBaseBranch || (effectiveBaseBranch && effectiveBaseBranch !== "main")) {
-      const branch = effectiveBaseBranch || configuredBaseBranch;
+      const branch = effectiveBaseBranch;
       const notClause = resolvedDefaultBranch && resolvedDefaultBranch !== branch ? `, NOT from '${resolvedDefaultBranch}'` : "";
       const branchInstruction = `IMPORTANT: Create your branch from the '${branch}' branch${notClause}.`;
       customInstructions = customInstructions ? `${branchInstruction}\n\n${customInstructions}` : branchInstruction;
