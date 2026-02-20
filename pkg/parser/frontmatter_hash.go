@@ -416,6 +416,10 @@ func extractRelevantTemplateExpressions(markdown string) []string {
 // extractFrontmatterAndBodyText extracts frontmatter as raw text without parsing YAML
 // Returns: frontmatterText, markdownBody, error
 func extractFrontmatterAndBodyText(content string) (string, string, error) {
+	// Normalize CRLF to LF so that files with Windows line-endings produce the
+	// same frontmatter text (and therefore the same hash) as equivalent LF files.
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+
 	lines := strings.Split(content, "\n")
 
 	// Check if content starts with frontmatter delimiter

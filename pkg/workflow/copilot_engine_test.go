@@ -722,7 +722,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			expectedStrs: []string{
 				`"github": {`,
 				`"type": "stdio",`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.31.0"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 				`},`,
@@ -752,7 +752,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			expectedStrs: []string{
 				`"github": {`,
 				`"type": "stdio",`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.31.0"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 				`}`,
 			},

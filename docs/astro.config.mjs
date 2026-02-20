@@ -202,7 +202,7 @@ export default defineConfig({
 					items: [
 						{ label: 'AI Engines', link: '/reference/engines/' },
 						{ label: 'Authorization', link: '/reference/auth/' },
-						{ label: 'Cache & Memory', link: '/reference/memory/' },
+						{ label: 'Cache Memory', link: '/reference/cache-memory/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
@@ -224,6 +224,7 @@ export default defineConfig({
 						{ label: 'Network Access', link: '/reference/network/' },
 						{ label: 'Permissions', link: '/reference/permissions/' },
 						{ label: 'Rate Limiting Controls', link: '/reference/rate-limiting-controls/' },
+						{ label: 'Repo Memory', link: '/reference/repo-memory/' },
 						{ label: 'Safe Inputs', link: '/reference/safe-inputs/' },
 						{ label: 'Safe Inputs (Spec)', link: '/reference/safe-inputs-specification/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
