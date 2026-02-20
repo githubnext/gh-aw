@@ -418,7 +418,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called, providing immediate error feedback if no changes are present.
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw.patch")
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
 	}
 
 	// Add post-steps (if any) after AI execution

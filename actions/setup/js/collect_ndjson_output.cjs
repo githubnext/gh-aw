@@ -309,10 +309,29 @@ async function main() {
     core.info(`output_types: ${outputTypes.join(", ")}`);
     core.setOutput("output_types", outputTypes.join(","));
 
-    // Check if patch file exists for detection job conditional
-    const patchPath = "/tmp/gh-aw/aw.patch";
-    const hasPatch = fs.existsSync(patchPath);
-    core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
+    // Check if any patch files exist for detection job conditional
+    // Patches are now named aw-{branch}.patch (one per branch)
+    const patchDir = "/tmp/gh-aw";
+    let hasPatch = false;
+    const patchFiles = [];
+    try {
+      if (fs.existsSync(patchDir)) {
+        const dirEntries = fs.readdirSync(patchDir);
+        for (const entry of dirEntries) {
+          if (/^aw-.+\.patch$/.test(entry)) {
+            patchFiles.push(entry);
+            hasPatch = true;
+          }
+        }
+      }
+    } catch {
+      // If we can't read the directory, assume no patch
+    }
+    if (hasPatch) {
+      core.info(`Found ${patchFiles.length} patch file(s): ${patchFiles.join(", ")}`);
+    } else {
+      core.info(`No patch files found in: ${patchDir}`);
+    }
 
     // Check if allow-empty is enabled for create_pull_request (reuse already loaded config)
     let allowEmptyPR = false;

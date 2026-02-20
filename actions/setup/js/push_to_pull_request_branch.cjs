@@ -70,8 +70,12 @@ async function main(config = {}) {
 
     processedCount++;
 
+    // Determine the patch file path from the message (set by the MCP server handler)
+    const patchFilePath = message.patch_path;
+    core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
+
     // Check if patch file exists and has valid content
-    if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    if (!patchFilePath || !fs.existsSync(patchFilePath)) {
       const msg = "No patch file found - cannot push without changes";
 
       switch (ifNoChanges) {
@@ -86,13 +90,13 @@ async function main(config = {}) {
       }
     }
 
-    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    const patchContent = fs.readFileSync(patchFilePath, "utf8");
 
     // Check for actual error conditions
     if (patchContent.includes("Failed to generate patch")) {
       const msg = "Patch file contains error message - cannot push without changes";
       core.error("Patch file generation failed");
-      core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
+      core.error(`Patch file location: ${patchFilePath}`);
       core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
       const previewLength = Math.min(500, patchContent.length);
       core.error(`Patch file preview (first ${previewLength} characters):`);
@@ -147,8 +151,8 @@ async function main(config = {}) {
             content += `**Commit Message:** ${item.commit_message}\n\n`;
           }
 
-          if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-            const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+          if (patchFilePath && fs.existsSync(patchFilePath)) {
+            const patchStats = fs.readFileSync(patchFilePath, "utf8");
             if (patchStats.trim()) {
               content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
               content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -285,18 +289,18 @@ async function main(config = {}) {
           core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
 
           // Read the patch file
-          let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+          let patchContent = fs.readFileSync(patchFilePath, "utf8");
 
           // Modify Subject lines in the patch to append the suffix
           patchContent = patchContent.replace(/^Subject: (?:\[PATCH\] )?(.*)$/gm, (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`);
 
           // Write the modified patch back
-          fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
+          fs.writeFileSync(patchFilePath, patchContent, "utf8");
           core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
         }
 
         // Log first 100 lines of patch for debugging
-        const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+        const finalPatchContent = fs.readFileSync(patchFilePath, "utf8");
         const patchLines = finalPatchContent.split("\n");
         const previewLineCount = Math.min(100, patchLines.length);
         core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
@@ -305,7 +309,7 @@ async function main(config = {}) {
         }
 
         // Apply patch
-        await exec.exec("git am /tmp/gh-aw/aw.patch");
+        await exec.exec(`git am ${patchFilePath}`);
         core.info("Patch applied successfully");
 
         // Push the applied commits to the branch

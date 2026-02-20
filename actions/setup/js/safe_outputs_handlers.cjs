@@ -255,6 +255,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
+    // Store the patch path in the entry so consumers know which file to use
+    entry.patch_path = patchResult.patchPath;
+
     appendSafeOutput(entry);
     return {
       content: [
@@ -324,6 +327,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+
+    // Store the patch path in the entry so consumers know which file to use
+    entry.patch_path = patchResult.patchPath;
 
     appendSafeOutput(entry);
     return {

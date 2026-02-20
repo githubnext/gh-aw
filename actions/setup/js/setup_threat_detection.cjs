@@ -49,23 +49,40 @@ async function main() {
     return;
   }
 
-  // Check if patch file exists
-  // The patch file is part of the agent-artifacts artifact
-  // So /tmp/gh-aw/aw.patch becomes /tmp/gh-aw/threat-detection/aw.patch
-  const patchPath = path.join(threatDetectionDir, "aw.patch");
+  // Check if patch file(s) exist
+  // Patches are now named aw-{branch}.patch (one per branch)
+  // The agent-artifacts artifact is downloaded to /tmp/gh-aw/threat-detection/
   const hasPatch = process.env.HAS_PATCH === "true";
-  if (!checkFileExists(patchPath, threatDetectionDir, "Patch file", hasPatch)) {
-    if (hasPatch) {
-      return;
+  const patchFiles = [];
+  try {
+    const dirEntries = fs.readdirSync(threatDetectionDir);
+    for (const entry of dirEntries) {
+      if (/^aw-.+\.patch$/.test(entry)) {
+        patchFiles.push(path.join(threatDetectionDir, entry));
+      }
     }
+  } catch {
+    // Directory may not exist or be readable
+  }
+
+  if (patchFiles.length === 0 && hasPatch) {
+    core.setFailed(`Patch file(s) expected but not found in: ${threatDetectionDir}`);
+    return;
   }
 
   // Get file info for template replacement
   const promptFileInfo = promptPath + " (" + fs.statSync(promptPath).size + " bytes)";
   const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
+
+  // Build patch file info for template replacement
   let patchFileInfo = "No patch file found";
-  if (fs.existsSync(patchPath)) {
-    patchFileInfo = patchPath + " (" + fs.statSync(patchPath).size + " bytes)";
+  if (patchFiles.length > 0) {
+    patchFileInfo = patchFiles
+      .map(p => {
+        const size = fs.existsSync(p) ? fs.statSync(p).size : 0;
+        return `${p} (${size} bytes)`;
+      })
+      .join("\n");
   }
 
   // Create threat detection prompt with embedded template

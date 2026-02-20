@@ -107,9 +107,9 @@ Please do the following tasks:
 		t.Error("Expected upload-artifact action to be used for unified artifact upload step")
 	}
 
-	// Verify the patch path is included in the unified upload
-	if !strings.Contains(lockContent, "/tmp/gh-aw/aw.patch") {
-		t.Error("Expected artifact path '/tmp/gh-aw/aw.patch' in unified upload")
+	// Verify the patch path is included in the unified upload (glob pattern for multiple patches)
+	if !strings.Contains(lockContent, "/tmp/gh-aw/aw-*.patch") {
+		t.Error("Expected artifact path '/tmp/gh-aw/aw-*.patch' in unified upload")
 	}
 
 	// Verify the upload step has ignore for missing files

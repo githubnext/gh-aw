@@ -40,7 +40,8 @@ Downloaded artifacts include:
 - safe_output.jsonl: Agent's final output content (available when non-empty)
 - agent_output/: Agent logs directory (if the workflow produced logs)
 - agent-stdio.log: Agent standard output/error logs
-- aw.patch: Git patch of changes made during execution
+- aw.patch: Git patch of changes made during execution (legacy; see aw-{branch}.patch)
+- aw-{branch}.patch: Git patch of changes for each branch (one file per PR/push)
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
 

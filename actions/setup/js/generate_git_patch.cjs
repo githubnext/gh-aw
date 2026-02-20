@@ -9,12 +9,37 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
 
 /**
+ * Sanitize a branch name for use as a patch filename
+ * Replaces path separators and special characters with dashes
+ * @param {string} branchName - The branch name to sanitize
+ * @returns {string} The sanitized branch name safe for use in a filename
+ */
+function sanitizeBranchNameForPatch(branchName) {
+  if (!branchName) return "unknown";
+  return branchName
+    .replace(/[/\\:*?"<>|]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Get the patch file path for a given branch name
+ * @param {string} branchName - The branch name
+ * @returns {string} The full patch file path
+ */
+function getPatchPath(branchName) {
+  const sanitized = sanitizeBranchNameForPatch(branchName);
+  return `/tmp/gh-aw/aw-${sanitized}.patch`;
+}
+
+/**
  * Generates a git patch file for the current changes
  * @param {string} branchName - The branch name to generate patch for
  * @returns {Object} Object with patch info or error
  */
 function generateGitPatch(branchName) {
-  const patchPath = "/tmp/gh-aw/aw.patch";
+  const patchPath = getPatchPath(branchName);
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
   const githubSha = process.env.GITHUB_SHA;
@@ -133,4 +158,6 @@ function generateGitPatch(branchName) {
 
 module.exports = {
   generateGitPatch,
+  getPatchPath,
+  sanitizeBranchNameForPatch,
 };

@@ -204,6 +204,10 @@ async function main(config = {}) {
 
     core.info(`Processing create_pull_request: title=${pullRequestItem.title || "No title"}, bodyLength=${pullRequestItem.body?.length || 0}`);
 
+    // Determine the patch file path from the message (set by the MCP server handler)
+    const patchFilePath = pullRequestItem.patch_path;
+    core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
+
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(pullRequestItem, defaultTargetRepo, allowedRepos, "pull request");
     if (!repoResult.success) {
@@ -217,7 +221,7 @@ async function main(config = {}) {
     core.info(`Target repository: ${itemRepo}`);
 
     // Check if patch file exists and has valid content
-    if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    if (!patchFilePath || !fs.existsSync(patchFilePath)) {
       // If allow-empty is enabled, we can proceed without a patch file
       if (allowEmpty) {
         core.info("No patch file found, but allow-empty is enabled - will create empty PR");
@@ -256,8 +260,8 @@ async function main(config = {}) {
     let patchContent = "";
     let isEmpty = true;
 
-    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    if (patchFilePath && fs.existsSync(patchFilePath)) {
+      patchContent = fs.readFileSync(patchFilePath, "utf8");
       isEmpty = !patchContent || !patchContent.trim();
     }
 
@@ -378,8 +382,8 @@ async function main(config = {}) {
         summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
       }
 
-      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-        const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      if (patchFilePath && fs.existsSync(patchFilePath)) {
+        const patchStats = fs.readFileSync(patchFilePath, "utf8");
         if (patchStats.trim()) {
           summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
           summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -560,7 +564,7 @@ async function main(config = {}) {
 
       // Patches are created with git format-patch, so use git am to apply them
       try {
-        await exec.exec("git am /tmp/gh-aw/aw.patch");
+        await exec.exec(`git am ${patchFilePath}`);
         core.info("Patch applied successfully");
       } catch (patchError) {
         core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
@@ -633,11 +637,12 @@ async function main(config = {}) {
 
         // Read patch content for preview
         let patchPreview = "";
-        if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-          const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+        if (patchFilePath && fs.existsSync(patchFilePath)) {
+          const patchContent = fs.readFileSync(patchFilePath, "utf8");
           patchPreview = generatePatchPreview(patchContent);
         }
 
+        const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
         const fallbackBody = `${body}
 
 ---
@@ -656,9 +661,9 @@ To apply the patch locally:
 # (Use GitHub MCP tools if gh CLI is not available)
 gh run download ${runId} -n agent-artifacts
 
-# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
+# The patch file will be at agent-artifacts/tmp/gh-aw/${patchFileName} after download
 # Apply the patch
-git am agent-artifacts/tmp/gh-aw/aw.patch
+git am agent-artifacts/tmp/gh-aw/${patchFileName}
 \`\`\`
 ${patchPreview}`;
 
@@ -879,8 +884,8 @@ ${patchPreview}`;
 
       // Read patch content for preview
       let patchPreview = "";
-      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-        const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      if (patchFilePath && fs.existsSync(patchFilePath)) {
+        const patchContent = fs.readFileSync(patchFilePath, "utf8");
         patchPreview = generatePatchPreview(patchContent);
       }
 

@@ -93,14 +93,17 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		}
 	}
 
-	// Check for aw.patch artifact file
-	awPatchPath := filepath.Join(logDir, "aw.patch")
-	if _, err := os.Stat(awPatchPath); err == nil {
-		if verbose {
-			// Report that the git patch file was found
-			fileInfo, statErr := os.Stat(awPatchPath)
-			if statErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", console.FormatFileSize(fileInfo.Size()))))
+	// Check for aw-*.patch artifact files (branch-named patches)
+	if dirEntries, err := os.ReadDir(logDir); err == nil {
+		for _, entry := range dirEntries {
+			name := entry.Name()
+			if matched, _ := filepath.Match("aw-*.patch", name); matched {
+				if verbose {
+					patchPath := filepath.Join(logDir, name)
+					if fileInfo, statErr := os.Stat(patchPath); statErr == nil {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found git patch file: %s (%s)", name, console.FormatFileSize(fileInfo.Size()))))
+					}
+				}
 			}
 		}
 	}

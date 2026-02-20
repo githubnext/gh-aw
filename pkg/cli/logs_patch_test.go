@@ -38,7 +38,7 @@ func TestLogsPatchArtifactHandling(t *testing.T) {
 		t.Fatalf("Failed to write safe_output.jsonl: %v", err)
 	}
 
-	awPatchFile := filepath.Join(logDir, "aw.patch")
+	awPatchFile := filepath.Join(logDir, "aw-feature-branch.patch")
 	awPatchContent := `diff --git a/test.txt b/test.txt
 new file mode 100644
 index 0000000..9daeafb
@@ -48,7 +48,7 @@ index 0000000..9daeafb
 +test
 `
 	if err := os.WriteFile(awPatchFile, []byte(awPatchContent), 0644); err != nil {
-		t.Fatalf("Failed to write aw.patch: %v", err)
+		t.Fatalf("Failed to write aw-feature-branch.patch: %v", err)
 	}
 
 	// Test extractLogMetrics function with verbose output to capture messages
@@ -75,9 +75,9 @@ func TestLogsCommandHelp(t *testing.T) {
 	cmd := NewLogsCommand()
 	helpText := cmd.Long
 
-	// Verify that the help text mentions the git patch
-	if !strings.Contains(helpText, "aw.patch") {
-		t.Error("Expected logs command help to mention 'aw.patch' artifact")
+	// Verify that the help text mentions the git patch (new naming convention)
+	if !strings.Contains(helpText, "aw-{branch}.patch") {
+		t.Error("Expected logs command help to mention 'aw-{branch}.patch' artifact")
 	}
 
 	if !strings.Contains(helpText, "Git patch of changes made during execution") {
@@ -88,7 +88,7 @@ func TestLogsCommandHelp(t *testing.T) {
 	expectedArtifacts := []string{
 		"aw_info.json",
 		"safe_output.jsonl",
-		"aw.patch",
+		"aw-{branch}.patch",
 	}
 
 	for _, artifact := range expectedArtifacts {

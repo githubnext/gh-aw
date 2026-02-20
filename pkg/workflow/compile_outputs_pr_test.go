@@ -454,7 +454,7 @@ This workflow tests the default if-no-changes behavior.
 }
 
 // TestCreatePullRequestPatchArtifactDownload verifies that when create-pull-request
-// is enabled, the safe_outputs job includes a step to download the aw.patch artifact
+// is enabled, the safe_outputs job includes a step to download the aw-*.patch artifact
 func TestCreatePullRequestPatchArtifactDownload(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -471,7 +471,7 @@ safe-outputs:
 
 # Test Create Pull Request Patch Download
 
-This test verifies that the aw.patch artifact is downloaded in the safe_outputs job.
+This test verifies that the aw-*.patch artifact is downloaded in the safe_outputs job.
 `
 
 	// Write the test file
