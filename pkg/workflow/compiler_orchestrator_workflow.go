@@ -162,6 +162,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		StrictMode:            c.strictMode,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
+		RawFrontmatter:        result.Frontmatter,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
 		InlineImports:         inlineImports,

@@ -288,9 +288,10 @@ func ComputeFrontmatterHashFromFile(filePath string, cache *ImportCache) (string
 	return ComputeFrontmatterHashFromFileWithReader(filePath, cache, DefaultFileReader)
 }
 
-// ComputeFrontmatterHashFromFileWithReader computes the frontmatter hash for a workflow file
-// using a custom file reader function (e.g., for GitHub API, in-memory file system, etc.)
-func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCache, fileReader FileReader) (string, error) {
+// ComputeFrontmatterHashFromFileWithParsedFrontmatter computes the frontmatter hash accepting
+// a pre-parsed frontmatter map to avoid redundant YAML parsing. When parsedFrontmatter is nil,
+// the function parses the file itself.
+func ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath string, parsedFrontmatter map[string]any, cache *ImportCache, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Printf("Computing hash for file: %s", filePath)
 
 	// Read file content using the provided file reader
@@ -308,10 +309,14 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 	// Get base directory for resolving imports
 	baseDir := filepath.Dir(filePath)
 
-	// Detect inline-imports using the parsed frontmatter object for accuracy.
-	// Fall back to text-based detection when YAML parsing fails (e.g. engine is an object).
+	// Detect inline-imports from the provided parsed frontmatter map.
+	// If not provided, parse it from the file content (with text-based fallback on failure).
 	inlineImports := false
-	if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
+	if parsedFrontmatter != nil {
+		if v, ok := parsedFrontmatter["inline-imports"]; ok {
+			inlineImports, _ = v.(bool)
+		}
+	} else if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
 		if v, ok := parsed.Frontmatter["inline-imports"]; ok {
 			inlineImports, _ = v.(bool)
 		}
@@ -333,6 +338,12 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 
 	// Compute hash using text-based approach with custom file reader
 	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, cache, relevantExpressions, fileReader)
+}
+
+// ComputeFrontmatterHashFromFileWithReader computes the frontmatter hash for a workflow file
+// using a custom file reader function (e.g., for GitHub API, in-memory file system, etc.)
+func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCache, fileReader FileReader) (string, error) {
+	return ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath, nil, cache, fileReader)
 }
 
 // ComputeFrontmatterHashWithExpressions computes the hash including template expressions

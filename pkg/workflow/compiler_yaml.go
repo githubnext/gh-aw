@@ -197,7 +197,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
 		cache := parser.NewImportCache(baseDir)
-		hash, err := parser.ComputeFrontmatterHashFromFile(markdownPath, cache)
+		hash, err := parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
 		if err != nil {
 			compilerYamlLog.Printf("Warning: failed to compute frontmatter hash: %v", err)
 			// Continue without hash - non-fatal error
