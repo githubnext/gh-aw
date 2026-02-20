@@ -221,39 +221,44 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 // This prevents template injection validation failures.
 func TestExpressionModelUsesEnvVar(t *testing.T) {
 	tests := []struct {
-		name           string
-		engine         string
-		model          string
-		expectedEnvVar string
-		expectedEnvVal string
+		name                 string
+		engine               string
+		model                string
+		expectedEnvVar       string
+		expectedEnvVal       string
+		expectShellExpansion bool // whether command should use ${VAR:+ --model "$VAR"}
 	}{
 		{
-			name:           "Copilot agent with inputs.model expression",
-			engine:         "copilot",
-			model:          "${{ inputs.model }}",
-			expectedEnvVar: constants.EnvVarModelAgentCopilot,
-			expectedEnvVal: "${{ inputs.model }}",
+			name:                 "Copilot agent with inputs.model expression uses native COPILOT_MODEL",
+			engine:               "copilot",
+			model:                "${{ inputs.model }}",
+			expectedEnvVar:       constants.CopilotCLIModelEnvVar,
+			expectedEnvVal:       "${{ inputs.model }}",
+			expectShellExpansion: false, // Copilot reads COPILOT_MODEL natively, no shell expansion needed
 		},
 		{
-			name:           "Copilot agent with vars.model expression",
-			engine:         "copilot",
-			model:          "${{ vars.MY_MODEL }}",
-			expectedEnvVar: constants.EnvVarModelAgentCopilot,
-			expectedEnvVal: "${{ vars.MY_MODEL }}",
+			name:                 "Copilot agent with vars.model expression uses native COPILOT_MODEL",
+			engine:               "copilot",
+			model:                "${{ vars.MY_MODEL }}",
+			expectedEnvVar:       constants.CopilotCLIModelEnvVar,
+			expectedEnvVal:       "${{ vars.MY_MODEL }}",
+			expectShellExpansion: false,
 		},
 		{
-			name:           "Claude agent with inputs.model expression",
-			engine:         "claude",
-			model:          "${{ inputs.model }}",
-			expectedEnvVar: constants.EnvVarModelAgentClaude,
-			expectedEnvVal: "${{ inputs.model }}",
+			name:                 "Claude agent with inputs.model expression",
+			engine:               "claude",
+			model:                "${{ inputs.model }}",
+			expectedEnvVar:       constants.EnvVarModelAgentClaude,
+			expectedEnvVal:       "${{ inputs.model }}",
+			expectShellExpansion: true,
 		},
 		{
-			name:           "Codex agent with inputs.model expression",
-			engine:         "codex",
-			model:          "${{ inputs.model }}",
-			expectedEnvVar: constants.EnvVarModelAgentCodex,
-			expectedEnvVal: "${{ inputs.model }}",
+			name:                 "Codex agent with inputs.model expression",
+			engine:               "codex",
+			model:                "${{ inputs.model }}",
+			expectedEnvVar:       constants.EnvVarModelAgentCodex,
+			expectedEnvVal:       "${{ inputs.model }}",
+			expectShellExpansion: true,
 		},
 	}
 
@@ -300,16 +305,20 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 				t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 			}
 
-			// The command must use the env var conditionally
-			if !strings.Contains(stepsContent, "${"+tt.expectedEnvVar+":+") {
+			// Check shell expansion expectation
+			shellExpansionPattern := "${" + tt.expectedEnvVar + ":+"
+			hasShellExpansion := strings.Contains(stepsContent, shellExpansionPattern)
+			if tt.expectShellExpansion && !hasShellExpansion {
 				t.Errorf("Expected conditional env var usage '${%s:+' not found in steps:\n%s", tt.expectedEnvVar, stepsContent)
+			} else if !tt.expectShellExpansion && hasShellExpansion {
+				t.Errorf("Unexpected conditional env var usage '${%s:+' found in steps (should use native env var):\n%s", tt.expectedEnvVar, stepsContent)
 			}
 		})
 	}
 }
 
 // TestExpressionModelDetectionJobUsesEnvVar tests that detection jobs with expression model
-// use the detection-specific environment variable.
+// for Copilot use the native COPILOT_MODEL environment variable.
 func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-detection-expression-model",
@@ -340,10 +349,10 @@ func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
 	}
 	stepsContent := stepsStr.String()
 
-	// Detection job should use detection-specific env var
-	expectedEnvLine := constants.EnvVarModelDetectionCopilot + ": ${{ inputs.model }}"
+	// Detection job for Copilot should use COPILOT_MODEL (native CLI env var)
+	expectedEnvLine := constants.CopilotCLIModelEnvVar + ": ${{ inputs.model }}"
 	if !strings.Contains(stepsContent, expectedEnvLine) {
-		t.Errorf("Expected detection env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+		t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 	}
 
 	// Must not embed expression directly in shell command

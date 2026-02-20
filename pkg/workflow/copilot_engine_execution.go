@@ -149,8 +149,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build the copilot command
 	var copilotCommand string
 
-	// Determine if we need to conditionally add --model flag based on environment variable
-	needsModelFlag := !modelConfigured || modelIsExpression
+	// Determine if we need to conditionally add --model flag based on the GH_AW_MODEL_* env var.
+	// - model not configured: use GH_AW_MODEL_AGENT_COPILOT via shell expansion (${VAR:+ --model "$VAR"})
+	// - model is a static string: already added to copilotArgs above as --model <value>
+	// - model is a GitHub Actions expression: set COPILOT_MODEL env var; Copilot CLI reads it
+	//   natively without needing a --model flag in the shell command
+	needsModelFlag := !modelConfigured && !modelIsExpression
 	// Check if this is a detection job (has no SafeOutputs config)
 	isDetectionJob := workflowData.SafeOutputs == nil
 	var modelEnvVar string
@@ -300,14 +304,11 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
 		}
 	} else if modelIsExpression {
-		// Model is a GitHub Actions expression (e.g. ${{ inputs.model }}) - set it as env var
-		// so it is not embedded directly in the shell command (which would fail template injection validation)
-		isDetectionJob := workflowData.SafeOutputs == nil
-		if isDetectionJob {
-			env[constants.EnvVarModelDetectionCopilot] = workflowData.EngineConfig.Model
-		} else {
-			env[constants.EnvVarModelAgentCopilot] = workflowData.EngineConfig.Model
-		}
+		// Model is a GitHub Actions expression (e.g. ${{ inputs.model }}) - use the Copilot CLI's
+		// native COPILOT_MODEL env var so the expression value is resolved by GitHub Actions
+		// without being embedded in the shell command (which would fail template injection validation)
+		copilotExecLog.Printf("Model is a GitHub Actions expression, setting %s env var", constants.CopilotCLIModelEnvVar)
+		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	}
 
 	// Add custom environment variables from engine config

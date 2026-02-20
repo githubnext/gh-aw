@@ -353,6 +353,11 @@ const (
 	// EnvVarModelDetectionGemini configures the default Gemini model for detection
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
 
+	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
+	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
+	// Used when the model value is a GitHub Actions expression to avoid template injection.
+	CopilotCLIModelEnvVar = "COPILOT_MODEL"
+
 	// Common environment variable names used across all engines
 
 	// EnvVarPrompt is the path to the workflow prompt file
