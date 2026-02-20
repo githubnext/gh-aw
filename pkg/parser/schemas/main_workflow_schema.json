@@ -6378,6 +6378,16 @@
               "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
               "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
+            "agent-failure-issue": {
+              "type": "string",
+              "description": "Custom footer template for agent failure tracking issues. Available placeholders: {workflow_name}, {run_url}. Default: '> Agent failure tracked by [{workflow_name}]({run_url})'",
+              "examples": ["> Agent failure tracked by [{workflow_name}]({run_url})", "> Failure report from [{workflow_name}]({run_url})"]
+            },
+            "agent-failure-comment": {
+              "type": "string",
+              "description": "Custom footer template for comments on agent failure tracking issues. Available placeholders: {workflow_name}, {run_url}. Default: '> Agent failure update from [{workflow_name}]({run_url})'",
+              "examples": ["> Agent failure update from [{workflow_name}]({run_url})", "> Update from [{workflow_name}]({run_url})"]
+            },
             "append-only-comments": {
               "type": "boolean",
               "description": "When enabled, workflow completion notifier creates a new comment instead of editing the activation comment. Creates an append-only timeline of workflow runs. Default: false",

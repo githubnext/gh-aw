@@ -79,6 +79,24 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
+	if detectionFailure, exists := messagesMap["detection-failure"]; exists {
+		if detectionFailureStr, ok := detectionFailure.(string); ok {
+			config.DetectionFailure = detectionFailureStr
+		}
+	}
+
+	if agentFailureIssue, exists := messagesMap["agent-failure-issue"]; exists {
+		if agentFailureIssueStr, ok := agentFailureIssue.(string); ok {
+			config.AgentFailureIssue = agentFailureIssueStr
+		}
+	}
+
+	if agentFailureComment, exists := messagesMap["agent-failure-comment"]; exists {
+		if agentFailureCommentStr, ok := agentFailureComment.(string); ok {
+			config.AgentFailureComment = agentFailureCommentStr
+		}
+	}
+
 	return config
 }
 
