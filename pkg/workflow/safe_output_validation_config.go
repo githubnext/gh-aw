@@ -58,6 +58,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"body": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"repo": {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"add_comment": {
@@ -65,6 +66,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":        {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"item_number": {IssueOrPRNumber: true},
+			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"create_pull_request": {
@@ -74,6 +76,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"branch": {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
 			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"draft":  {Type: "boolean"},
+			"repo":   {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"add_labels": {
@@ -81,6 +85,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"labels":      {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"item_number": {IssueOrPRNumber: true},
+			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"add_reviewer": {
@@ -88,6 +93,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"reviewers":           {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
 			"pull_request_number": {IssueOrPRNumber: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"assign_milestone": {
@@ -95,15 +101,18 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"issue_number":     {IssueOrPRNumber: true},
 			"milestone_number": {Required: true, PositiveInteger: true},
+			"repo":             {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"assign_to_agent": {
 		DefaultMax:       1,
 		CustomValidation: "requiresOneOf:issue_number,pull_number",
 		Fields: map[string]FieldValidation{
-			"issue_number": {IssueNumberOrTemporaryID: true},
-			"pull_number":  {OptionalPositiveInteger: true},
-			"agent":        {Type: "string", Sanitize: true, MaxLength: 128},
+			"issue_number":      {IssueNumberOrTemporaryID: true},
+			"pull_number":       {OptionalPositiveInteger: true},
+			"agent":             {Type: "string", Sanitize: true, MaxLength: 128},
+			"pull_request_repo": {Type: "string", MaxLength: 256}, // Optional: repository where the PR should be created
+			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"assign_to_user": {
@@ -112,6 +121,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"issue_number": {IssueOrPRNumber: true},
 			"assignees":    {Type: "[]string", Sanitize: true, MaxLength: 39}, // GitHub username max length is 39
 			"assignee":     {Type: "string", Sanitize: true, MaxLength: 39},   // Single assignee alternative
+			"repo":         {Type: "string", MaxLength: 256},                  // Optional: target repository in format "owner/repo"
 		},
 	},
 	"update_issue": {
@@ -121,7 +131,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"status":       {Type: "string", Enum: []string{"open", "closed"}},
 			"title":        {Type: "string", Sanitize: true, MaxLength: 128},
 			"body":         {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"operation":    {Type: "string", Enum: []string{"replace", "append", "prepend", "replace-island"}},
+			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"assignees":    {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
+			"milestone":    {OptionalPositiveInteger: true},
 			"issue_number": {IssueOrPRNumber: true},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"update_pull_request": {
@@ -131,7 +146,9 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend"}},
+			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"push_to_pull_request_branch": {
@@ -151,6 +168,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"body":       {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"start_line": {OptionalPositiveInteger: true},
 			"side":       {Type: "string", Enum: []string{"LEFT", "RIGHT"}},
+			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"submit_pull_request_review": {
@@ -166,6 +184,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"comment_id":          {Required: true, PositiveInteger: true},
 			"body":                {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"pull_request_number": {OptionalPositiveInteger: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"resolve_pull_request_review_thread": {
@@ -189,6 +208,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"body":              {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"reason":            {Type: "string", Enum: []string{"RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"}},
 			"discussion_number": {OptionalPositiveInteger: true},
+			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"close_issue": {
@@ -196,6 +216,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"issue_number": {OptionalPositiveInteger: true},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"close_pull_request": {
@@ -203,6 +224,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":                {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"pull_request_number": {OptionalPositiveInteger: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"missing_tool": {
@@ -250,6 +272,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"parent_issue_number": {Required: true, IssueNumberOrTemporaryID: true},
 			"sub_issue_number":    {Required: true, IssueNumberOrTemporaryID: true},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"update_project": {
@@ -282,6 +305,66 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"status":      {Type: "string", Enum: []string{"INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"}},
 			"start_date":  {Type: "string", Pattern: "^\\d{4}-\\d{2}-\\d{2}$", PatternError: "must be in YYYY-MM-DD format"},
 			"target_date": {Type: "string", Pattern: "^\\d{4}-\\d{2}-\\d{2}$", PatternError: "must be in YYYY-MM-DD format"},
+		},
+	},
+	"update_discussion": {
+		DefaultMax:       1,
+		CustomValidation: "requiresOneOf:title,body",
+		Fields: map[string]FieldValidation{
+			"title":             {Type: "string", Sanitize: true, MaxLength: 128},
+			"body":              {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"discussion_number": {IssueOrPRNumber: true},
+			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
+	"remove_labels": {
+		DefaultMax: 5,
+		Fields: map[string]FieldValidation{
+			"labels":      {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"item_number": {IssueOrPRNumber: true},
+			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
+	"unassign_from_user": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"issue_number": {IssueOrPRNumber: true},
+			"assignees":    {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
+			"assignee":     {Type: "string", Sanitize: true, MaxLength: MaxGitHubUsernameLength},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
+	"hide_comment": {
+		DefaultMax: 5,
+		Fields: map[string]FieldValidation{
+			"comment_id": {Required: true, Type: "string", MaxLength: 256},
+			"reason":     {Type: "string", Enum: []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"}},
+			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
+	"missing_data": {
+		DefaultMax: 20,
+		Fields: map[string]FieldValidation{
+			"data_type":    {Type: "string", Sanitize: true, MaxLength: 128},
+			"reason":       {Type: "string", Sanitize: true, MaxLength: 256},
+			"context":      {Type: "string", Sanitize: true, MaxLength: 256},
+			"alternatives": {Type: "string", Sanitize: true, MaxLength: 256},
+		},
+	},
+	"autofix_code_scanning_alert": {
+		DefaultMax: 10,
+		Fields: map[string]FieldValidation{
+			"alert_number":    {PositiveInteger: true},
+			"fix_description": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"fix_code":        {Required: true, Type: "string", MaxLength: MaxBodyLength},
+		},
+	},
+	"mark_pull_request_as_ready_for_review": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"pull_request_number": {IssueOrPRNumber: true},
+			"reason":              {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 }

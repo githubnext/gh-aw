@@ -47,6 +47,13 @@ func TestGetValidationConfigJSON(t *testing.T) {
 		"noop",
 		"create_code_scanning_alert",
 		"link_sub_issue",
+		"update_discussion",
+		"remove_labels",
+		"unassign_from_user",
+		"hide_comment",
+		"missing_data",
+		"autofix_code_scanning_alert",
+		"mark_pull_request_as_ready_for_review",
 	}
 
 	for _, typeName := range expectedTypes {
@@ -135,7 +142,7 @@ func TestGetValidationConfigForType(t *testing.T) {
 			typeName:   "create_issue",
 			wantFound:  true,
 			wantMax:    1,
-			wantFields: []string{"title", "body", "labels", "parent", "temporary_id"},
+			wantFields: []string{"title", "body", "labels", "parent", "temporary_id", "repo"},
 		},
 		{
 			name:       "link_sub_issue type",
@@ -179,8 +186,15 @@ func TestGetDefaultMaxForType(t *testing.T) {
 		{"create_issue", 1},
 		{"add_labels", 5},
 		{"missing_tool", 20},
+		{"missing_data", 20},
 		{"create_code_scanning_alert", 40},
+		{"autofix_code_scanning_alert", 10},
 		{"link_sub_issue", 5},
+		{"hide_comment", 5},
+		{"remove_labels", 5},
+		{"update_discussion", 1},
+		{"unassign_from_user", 1},
+		{"mark_pull_request_as_ready_for_review", 1},
 		{"unknown_type", 1}, // Default fallback
 	}
 
