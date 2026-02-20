@@ -86,6 +86,9 @@ async function main() {
 
   // Get base branch configuration for PR creation in target repo
   const configuredBaseBranch = process.env.GH_AW_AGENT_BASE_BRANCH?.trim();
+  if (configuredBaseBranch) {
+    core.info(`Configured base branch: ${configuredBaseBranch}`);
+  }
 
   // Get target configuration (defaults to "triggering")
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";

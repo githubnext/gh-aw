@@ -43,8 +43,8 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 		config.Max = 1
 	}
 
-	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%d, pull_request_repo=%s",
-		config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, config.Max, config.PullRequestRepoSlug)
+	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%d, pull_request_repo=%s, base_branch=%s",
+		config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, config.Max, config.PullRequestRepoSlug, config.BaseBranch)
 
 	return &config
 }
