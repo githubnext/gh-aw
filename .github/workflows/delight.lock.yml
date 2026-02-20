@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5d3fa85ee78d735768e3eed71ff9938099cf307d5ce63783fccaaafc79cde722"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bce047af498a070c3b3b50a675481a96f4932dfda873f7869f177afa7119aa97"}
 
 name: "Delight"
 "on":
@@ -199,9 +198,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

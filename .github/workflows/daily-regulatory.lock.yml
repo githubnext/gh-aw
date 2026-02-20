@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/github-queries-safe-input.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6bc7064192101134f213231bc2126aa30b3211cd5bbdc6bef2cafe81b22aa250"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4981509a6079c94c5b8fd172d8812c9c5bab1f192cba2eae4352305af61e06c0"}
 
 name: "Daily Regulatory Report Generator"
 "on":
@@ -170,9 +169,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/github-queries-safe-input.md}}

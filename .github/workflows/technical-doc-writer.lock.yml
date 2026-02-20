@@ -27,9 +27,8 @@
 #   Imports:
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b05af1a6909bac94686311648f15c297edc97293271f28e107ab0b16b3846ed3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"41fe7e00a5eab6c9e52e791d6b9e373a6d9f236a58f2f770997eab47ea4b374e"}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -174,9 +173,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/skills/documentation/SKILL.md}}

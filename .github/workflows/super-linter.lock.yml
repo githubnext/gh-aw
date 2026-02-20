@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"658bec814a532760ef7ef68405abfe89dc1288fedc59b11ae7d0610c8e84f3de"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9478bb2a1b6bc6a3985225850de425cd0cffc1974ed94a4ef9f84f438d8cb6b4"}
 
 name: "Super Linter Report"
 "on":
@@ -170,9 +169,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

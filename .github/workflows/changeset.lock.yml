@@ -27,10 +27,9 @@
 #   Imports:
 #     - shared/changeset-format.md
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bd7e980e642e393d5eac39ee0e8725f55831fe46639d839ecd5df22fb3a10fa5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"30ae52017856bedddf21f6ea82fde8c336122be8d203aea1514f1cb2b3ce4268"}
 
 name: "Changeset Generator"
 "on":
@@ -198,9 +197,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/changeset-format.md}}

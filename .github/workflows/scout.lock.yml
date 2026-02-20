@@ -31,10 +31,9 @@
 #     - shared/mcp/markitdown.md
 #     - shared/mcp/microsoft-docs.md
 #     - shared/mcp/tavily.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f4dcca3eea6547e9841ec07c4248de1cf7d8c54ad12cf47c63edca5a5fd3b472"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3ecc8e8ef5dd3dc2f232da0e4c2254673b255194cf825d28901ba12ce9c41aab"}
 
 name: "Scout"
 "on":
@@ -245,9 +244,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

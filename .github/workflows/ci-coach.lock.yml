@@ -28,10 +28,9 @@
 #     - shared/ci-optimization-strategies.md
 #     - shared/jqschema.md
 #     - shared/ci-data-analysis.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"db7f1b6d87e68f8ccd4c7ece4c4b77d401c56eafe9cf91763ae92ed9fe09277a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"29b3fce5427256f61967b1138f36911eae577db5804ba97f87c1e07966db2795"}
 
 name: "CI Optimization Coach"
 "on":
@@ -173,9 +172,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/ci-data-analysis.md}}

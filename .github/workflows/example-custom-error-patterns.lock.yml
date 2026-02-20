@@ -22,11 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5fb42e71fdea5fafa3ea342aac01e6373a703bf85c191fe80ab16d873ee25131"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d346711b55a6782acac7f07daabdbeddaedd717059ab4c11a239f7b9ececd1f3"}
 
 name: "Example: Custom Error Patterns"
 "on":
@@ -151,9 +147,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/example-custom-error-patterns.md}}

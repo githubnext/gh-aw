@@ -39,10 +39,9 @@
 #     - shared/mcp/server-memory.md
 #     - shared/mcp/slack.md
 #     - shared/mcp/tavily.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0b3a36033c9a5a9f012dcaaadda443842af75df8d790b2999c8be7eb89bdfae6"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f6608cc95ba652703dfc5a6a7ab56c6007b9e70cbe40674c204ecdb17468b974"}
 
 name: "MCP Inspector Agent"
 "on":
@@ -184,9 +183,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/mcp/arxiv.md}}

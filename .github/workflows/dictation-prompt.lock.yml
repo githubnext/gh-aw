@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c48c689e901f5b88b8fdce48b4a6c3a9435c122fd21b42bda9d1477e59983be5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4517862ef9c459a1e93740300e4a3ea247d94a8960487fe60ff5f7bc3433c4b8"}
 
 name: "Dictation Prompt Generator"
 "on":
@@ -168,9 +167,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

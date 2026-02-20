@@ -26,11 +26,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/github-queries-safe-input.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1c376005f6b463470be7e5ed4579c6a8974d5eaf114564c88bd35f498f20e883"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4e0ed5b542e18b21cc107dd54b9e332d04524f77fb33ac7e450135a173837396"}
 
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
@@ -172,9 +171,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/github-queries-safe-input.md}}

@@ -25,12 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d21247582c90694ba02e48d0848e944097f89cee7bb36bbae2ab756246b38218"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e36560279c2dcc261d870057c666efc678cb1efcc99af4166d0e911df4b33b62"}
 
 name: "The Daily Repository Chronicle"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

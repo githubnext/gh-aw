@@ -22,11 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"16b742b68d92065e06d1612cf35998e5deadcd8b624ab48e2912fd1ca04cefaa"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"37e75cd6eef2db3d45e4efb6e4ac75f7b6b75a288b70906dee75cbb03d8c61e7"}
 
 name: "Auto-Assign Issue"
 "on":
@@ -167,9 +163,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/daily-assign-issue-to-user.md}}

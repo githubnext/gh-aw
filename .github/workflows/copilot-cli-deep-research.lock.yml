@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f9cef995cc8f830332724217641a080a5063963a70684a8f180332f4adc728c5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"389fa8cdf93a616fb456884377b9c30877f8d61f566cee35d6612aad3c710369"}
 
 name: "Copilot CLI Deep Research Agent"
 "on":
@@ -198,9 +197,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

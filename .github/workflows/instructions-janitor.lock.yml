@@ -23,11 +23,7 @@
 #
 # Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e2e438a39d00b81ff1620cdf156a2ac8bc069c0f48cce484f54df2b0889cb57a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2b58ac826f62d19d5c8c1a4e00a7fcb7716118e1f6a7035bb9a05f66507246d3"}
 
 name: "Instructions Janitor"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/instructions-janitor.md}}

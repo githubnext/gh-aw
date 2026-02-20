@@ -23,11 +23,7 @@
 #
 # Collects daily performance metrics for the agent ecosystem and stores them in repo-memory
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"646580bd53fc97f9fedd2b71ac1a9cc10d11ad2c6d9baff423d9fff5c28a0efd"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b5f384f27d5b48e0c6e4600f71718bafab6244d85c1bf0e04afeadeef6c76147"}
 
 name: "Metrics Collector - Infrastructure Agent"
 "on":
@@ -170,9 +166,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/metrics-collector.md}}

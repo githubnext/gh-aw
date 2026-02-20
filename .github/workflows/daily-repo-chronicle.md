@@ -37,7 +37,6 @@ safe-outputs:
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
-  - shared/mood.md
   - shared/reporting.md
   - shared/trends.md
 ---

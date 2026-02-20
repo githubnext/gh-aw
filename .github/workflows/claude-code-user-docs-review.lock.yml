@@ -23,11 +23,7 @@
 #
 # Reviews project documentation from the perspective of a Claude Code user who does not use GitHub Copilot or Copilot CLI
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f42b78e415f58f3f758a94ec1548efee0840966cf12abd6ca76690bf46d0bd28"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3e07cdd9367fe005cb3036aef51b9bc1eff6012ff77e7e3e62525cecba2d67ea"}
 
 name: "Claude Code User Documentation Review"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/claude-code-user-docs-review.md}}

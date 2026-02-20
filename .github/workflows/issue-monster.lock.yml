@@ -23,11 +23,7 @@
 #
 # The Cookie Monster of issues - assigns issues to Copilot coding agent one at a time
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"dc34e052a20e5b53d141cd9277e9497b52ffebc098737e1b728e4ed3bf5a71bc"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d412096e32d3063c5bd537ff9f6978f59d9e529955396ccfa768eb96635593dc"}
 
 name: "Issue Monster"
 "on":
@@ -179,9 +175,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/issue-monster.md}}

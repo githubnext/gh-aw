@@ -23,11 +23,7 @@
 #
 # Inspects the gh-aw CLI to identify inconsistencies, typos, bugs, or documentation gaps by running commands and analyzing output
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8a1f53691b774ea3860e020e3178886bf3a66ba36e1f4fba919df4245ccd1187"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c3d6bb455d0f6568b9ca4b8255b2e282e2f7c64221e23b6b9394a05d32c91a7d"}
 
 name: "CLI Consistency Checker"
 "on":
@@ -167,9 +163,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/cli-consistency-checker.md}}

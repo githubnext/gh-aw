@@ -333,7 +333,7 @@ func TestProcessImportsWithWorkflowSpec_ThreePartPath(t *testing.T) {
 engine: copilot
 imports:
   - shared/mcp/arxiv.md
-  - shared/mood.md
+  - shared/reporting.md
   - shared/mcp/brave.md
 ---
 
@@ -360,7 +360,7 @@ Test content.
 	// All imports should be converted to workflowspecs with the commit SHA
 	expectedImports := []string{
 		"github/gh-aw/.github/workflows/shared/mcp/arxiv.md@abc123def456",
-		"github/gh-aw/.github/workflows/shared/mood.md@abc123def456",
+		"github/gh-aw/.github/workflows/shared/reporting.md@abc123def456",
 		"github/gh-aw/.github/workflows/shared/mcp/brave.md@abc123def456",
 	}
 
@@ -373,7 +373,7 @@ Test content.
 	// The original paths should NOT appear unchanged
 	unchangedPaths := []string{
 		"- shared/mcp/arxiv.md",
-		"- shared/mood.md",
+		"- shared/reporting.md",
 		"- shared/mcp/brave.md",
 	}
 

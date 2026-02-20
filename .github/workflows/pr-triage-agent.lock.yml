@@ -23,11 +23,7 @@
 #
 # Automates PR categorization, risk assessment, and prioritization for agent-created pull requests
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6bffeabbdd66874bb410dc01865464d03144d69bdcb1b9eac3e87ded92ae0cb0"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"94a5ac625c0b7b109a6b1fbcbd0f959c3b8b63a5bbd1db2a0bae2cacb3ef9d24"}
 
 name: "PR Triage Agent"
 "on":
@@ -196,9 +192,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/pr-triage-agent.md}}

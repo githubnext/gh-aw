@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"33baab9b91d7c71d598eae14625757ab0a0ac2be40cb8786bd1c866eeb497d5d"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d69d5c45e603c822b7a706a9b56adafa773ec5a95dd8ccaacc958dae408b099a"}
 
 name: "Breaking Change Checker"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ce74c3e032f512ff328c2bc23406066e1a3e88028d8bd201952252c43d45aa61"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c9f371e2c9f855df56da69aa6fa020ab7f3762c68248c087fdbb48e2615c6bc2"}
 
 name: "Functional Pragmatist"
 "on":
@@ -168,9 +167,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

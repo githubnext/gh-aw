@@ -23,11 +23,7 @@
 #
 # Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7ed05f87d4291aa66da0c27f6ecb72eefa9cbe3a4653046c50372a2b1d08693b"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"89b6c4fe1498ad945536eaa86140de2974414d1c9942926af9b2833c11eef069"}
 
 name: "Security Review Agent 🔒"
 "on":
@@ -199,9 +195,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/security-review.md}}

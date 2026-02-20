@@ -26,11 +26,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7a74321b22eae8f487bc1a8a11c442b27eb59a58c5933ae6c2494ff9fd608a19"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"beb6c434ca33dfce2b0061d8e45b416998cb09b1e5042a7b5ab3cbc771974a6d"}
 
 name: "Stale Repository Identifier"
 "on":
@@ -181,9 +180,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}

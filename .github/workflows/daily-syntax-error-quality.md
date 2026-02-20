@@ -47,7 +47,6 @@ steps:
       ./gh-aw --version
       echo "gh-aw binary is ready at ./gh-aw"
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 

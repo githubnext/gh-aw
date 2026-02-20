@@ -25,11 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2d110214c824bb89e0a9a8dbad995e7197afb37fd85f3096ef910aeb4e97b17b"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7d8e53e9fb651ca8ed59f03635300d5be979b8a42ffc4a3a78bce5e8d641bb6d"}
 
 name: "Daily Testify Uber Super Expert"
 "on":
@@ -202,9 +201,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

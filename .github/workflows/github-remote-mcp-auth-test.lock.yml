@@ -23,11 +23,7 @@
 #
 # Daily test of GitHub remote MCP authentication with GitHub Actions token
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f3b0bd24cb8b3e173ae390adff62e130c6defb4d3868cb491d97cfb032c7f1ab"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"789146eb83886f75b2c5090eb54b6110874a7ab72021936a013a9b6395d7c8ca"}
 
 name: "GitHub Remote MCP Authentication Test"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/github-remote-mcp-auth-test.md}}

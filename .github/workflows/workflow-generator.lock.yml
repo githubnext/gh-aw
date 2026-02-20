@@ -23,11 +23,7 @@
 #
 # Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"43b3ac4dc74d732a6ae6dfd8e6577f9b1783197374933e17e0cfc71c9baa12a4"}
 
 name: "Workflow Generator"
 "on":
@@ -196,9 +192,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/workflow-generator.md}}

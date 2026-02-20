@@ -23,11 +23,7 @@
 #
 # Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"16b65f0e91dbbc230a48657381e9955e83742a9972b9f6a66209b9496390fac3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0674b5f3a9b7000e93d30da1d654746f76943b2f0c29071b5a8f749887a677a3"}
 
 name: "Layout Specification Maintainer"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/layout-spec-maintainer.md}}

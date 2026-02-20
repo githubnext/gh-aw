@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c9406b0651f40a2050732c9e0410d97db0ab7d7aa8be8419f1378124ea468162"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"df8ee8e4d6ff58de0774bef7fbf88c90b0aab97064e3fe92662c062977bfdb32"}
 
 name: "Agent Persona Explorer"
 "on":
@@ -172,9 +171,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

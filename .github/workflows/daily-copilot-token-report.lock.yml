@@ -26,11 +26,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - copilot-setup-steps.yml
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"66d27b9f72933e3a142adc3ee1f31a28d3ef69785a7d91c622d40b2080c494de"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"80c0f8732124f20258ad23e0c7d3abcaa105de5012234a39336f17b9474a3484"}
 
 name: "Daily Copilot Token Consumption Report"
 "on":
@@ -200,9 +199,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

@@ -26,7 +26,6 @@ safe-outputs:
     max: 10
 timeout-minutes: 20
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 

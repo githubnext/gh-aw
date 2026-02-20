@@ -12,7 +12,6 @@ tools:
   agentic-workflows:
   edit:
 imports:
-  - shared/mood.md
   - shared/charts-with-trending.md
 safe-outputs:
   upload-asset:

@@ -25,11 +25,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f6f3ed85b8cc88a34b75b6b25dc64109e56e188dcafc2b09d8b578783c7cadc5","stop_time":"2026-03-03 16:27:58"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"adf670f292e2b7e7be4e924c320b701211f75c0738f3e90180e61cb557dc8447","stop_time":"2026-03-03 16:27:58"}
 #
 # Effective stop-time: 2026-03-03 16:27:58
 
@@ -189,9 +185,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/ci-doctor.md}}

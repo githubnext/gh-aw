@@ -23,11 +23,7 @@
 #
 # Daily JavaScript unbloater that cleans one .cjs file per day, prioritizing files with @ts-nocheck to enable type checking
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"82e16b7b3a0ce0b39dfee5117a7c00bc1872067efe3ea45cd0114ff2165f04d5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3b152ad44091be5971f16c1244a76cc06b0bdc61a021b3b7027b743cf6b09a88"}
 
 name: "jsweep - JavaScript Unbloater"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/jsweep.md}}

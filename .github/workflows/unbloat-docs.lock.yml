@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/docs-server-lifecycle.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3a033f6c1d3cb3b98f326f5cbef7bd65bf5c65496c593df323570deaf055c140"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bb2aae4e487311cc80f8cd9db35b06a07b8271fdd8a7ff61694c5e1876a09be3"}
 
 name: "Documentation Unbloat"
 "on":
@@ -196,9 +195,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

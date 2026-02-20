@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c113a8ec4b090c3eb66c6bb5b95add3ebc696fc7230fa2573f959b46d8baf0f4"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"abc155ec179a472c59336d2af94cc0384bf42c896ffc1d7145216e411c99dc0b"}
 
 name: "Sergo - Serena Go Expert"
 "on":
@@ -170,9 +169,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

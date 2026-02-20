@@ -23,11 +23,7 @@
 #
 # Automated cleanup policy for stale draft pull requests to reduce clutter and improve triage efficiency
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3eb180640f80ddff447563d5c635ca11913c2cd790726258e0f4f6449c2f6ba1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fe61f2690e11dd5437126effa9913e0fe5fb800129cec7f82147f8277cdd0cad"}
 
 name: "Draft PR Cleanup"
 "on":
@@ -168,9 +164,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/draft-pr-cleanup.md}}

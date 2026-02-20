@@ -23,11 +23,7 @@
 #
 # Automatically merges the main branch into pull request branches when invoked with /mergefest command
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"946dbc3d5e53e272910bb2afeb49edbe63b3a9afe24498ff1534dbb1cd64fc84"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b84af66674cb25eda1cd571181ea003462abb952f5a68c60deb0f5d7cd7e3dbc"}
 
 name: "Mergefest"
 "on":
@@ -194,9 +190,6 @@ jobs:
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/mergefest.md}}
           GH_AW_PROMPT_EOF
       - name: Interpolate variables and render templates
@@ -309,7 +302,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Setup Git configuration
-        run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF\n"
+        run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF"
 
       - name: Configure Git credentials
         env:

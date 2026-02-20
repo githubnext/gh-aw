@@ -25,8 +25,6 @@ safe-outputs:
     labels: [automation, cli, documentation, cookie]
     max: 1
 timeout-minutes: 20
-imports:
-  - shared/mood.md
 ---
 
 # CLI Consistency Checker

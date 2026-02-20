@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"535bced70452811a20772466537cce848374d7c8ea20be88e7e042c00d521a61"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"11e6c7ed90a73f162cf0848295059c41060db7b92676b2e98e3239f7ac86414e"}
 
 name: "Repository Tree Map Generator"
 "on":
@@ -169,9 +168,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

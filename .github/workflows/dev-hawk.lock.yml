@@ -23,11 +23,7 @@
 #
 # Monitors development workflow activities and provides real-time alerts and insights on pull requests and CI status
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"26fbe593cfc5a0684979a0dc435a2235bcf8162ae42bd42b0cc9abd00308c37c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"74f1cd53b2598499d4830d3ed0c87c97b5ce569e396d1c4badf9f7cfce358362"}
 
 name: "Dev Hawk"
 "on":
@@ -184,9 +180,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/dev-hawk.md}}

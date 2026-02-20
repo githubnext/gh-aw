@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9c6fbb9920281fff3373c0db01b6a5e5fe93b637d2902977763c0634733725be"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7fd11a57219b3b949ee1e6c17ada094870ae66c838830a2e0e282a7110ee0e5b"}
 
 name: "Auto-Triage Issues"
 "on":
@@ -187,9 +186,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

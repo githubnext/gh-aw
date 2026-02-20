@@ -23,11 +23,7 @@
 #
 # Fix critical vulnerabilities before audit deadline with full tracking and reporting
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"82ae4b3cf4a5010cb86430929678ad39a60cea0067dfe56ff65e4a45a0e6cdf2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"01738ba16ae7253d0909165ffb3f971ef84f616ce8f131598481ca66c9c0827f"}
 
 name: "Security Compliance Campaign"
 "on":
@@ -221,9 +217,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/security-compliance.md}}

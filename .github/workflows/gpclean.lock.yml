@@ -23,11 +23,7 @@
 #
 # Reviews go.mod dependencies daily to detect and remove GPL-licensed transitive dependencies
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"323dca9e8e64355be221b4a90b7cbe1c0f431a3b02f32eb67ec2d7643e28830e"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f1f3400034da3b5add3e5f4fc685db480ccc0fe3435b78acc5a6f002785e931c"}
 
 name: "GPL Dependency Cleaner (gpclean)"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/gpclean.md}}

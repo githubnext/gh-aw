@@ -27,12 +27,11 @@
 #   Imports:
 #     - shared/jqschema.md
 #     - shared/mcp/tavily.md
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b12090b88210cf494f0bc14ed1a1af85125d11f351283cc58ac390f156909e05"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c43322cfc2de7afacb76171471420ff8d8416b9ae60f650ba05bbbd2e6dbd1a9"}
 
 name: "Daily News"
 "on":
@@ -202,9 +201,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/mcp/tavily.md}}

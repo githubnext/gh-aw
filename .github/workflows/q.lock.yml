@@ -23,11 +23,7 @@
 #
 # Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d7ffc854b27bffb4edd06d2b7b04a3a8a1a94f914dad44da5d7f379733d6bed6"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"390a5b87bb8b3381e4de70dac11de15aa56ad7567daf9d1754ceed8bd56865c0"}
 
 name: "Q"
 "on":
@@ -232,9 +228,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/q.md}}

@@ -23,11 +23,7 @@
 #
 # Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5ca7d98654eda20f8127f62bff3547e10253af296a8ca719f146f41cc44007ad"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ca707f3cb9152f02cb85c9df3d1460542d8790c63497ba41d5ae6f5554d1da5b"}
 
 name: "Grumpy Code Reviewer 🔥"
 "on":
@@ -199,9 +195,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/grumpy-reviewer.md}}

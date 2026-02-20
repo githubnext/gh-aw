@@ -22,11 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7e28df1a5884fe8ab7987791066296378c3d879a1c3674706d645017734ec3de"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c1289924ef5c241c6bf7aede9e9822e6fe5e48cd5d6242834bb75725a19e6fd8"}
 
 name: "Test Workflow"
 "on":
@@ -140,9 +136,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/test-workflow.md}}

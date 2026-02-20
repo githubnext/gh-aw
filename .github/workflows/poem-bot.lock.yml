@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"81547dd4016c398ec096fdae259f7510c7cedd738270ca04908bfbed2afa1434"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"76fe0883eb1f0528b086872389af9d2593c7b59e07b257361a54825bbe170de7"}
 
 name: "Poem Bot - A Creative Agentic Workflow"
 "on":
@@ -207,9 +206,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

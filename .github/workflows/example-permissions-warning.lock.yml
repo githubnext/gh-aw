@@ -23,11 +23,7 @@
 #
 # Example workflow demonstrating proper permission provisioning and security best practices
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7885ee82ff0bf979506525a90d1f509fafeac200be62ed4d79552baa077a33ee"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"94ffd5b85d76a2be5b3602a2babffa5a24d9e2bf59e74b4a81355902bdf06e01"}
 
 name: "Example: Properly Provisioned Permissions"
 "on":
@@ -136,9 +132,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/example-permissions-warning.md}}

@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"997e53e86e214684b33e8b1740a0c16512c093059ab844db0ccce3e932b2151c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e57f726190e6837e1238544a90f9ac53c4cde1865b1c4a805432f8f157de5fce"}
 
 name: "PR Nitpick Reviewer 🔍"
 "on":
@@ -224,9 +223,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

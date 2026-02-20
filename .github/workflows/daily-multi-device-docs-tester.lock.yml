@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/docs-server-lifecycle.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9e6110edfa7c964892ed77f2dc67f6ea1fc0d608c64f7bed5820fd1abd7c14a3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8f84bb2f90e6a52e64d8b619fa2b429f3d8bc1150ab7268f650c93dca9c16473"}
 
 name: "Multi-Device Docs Tester"
 "on":
@@ -177,9 +176,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/docs-server-lifecycle.md}}

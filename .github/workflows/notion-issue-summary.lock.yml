@@ -26,9 +26,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/notion.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"88169c6119cdb607ce1030d8324a45bde076facaa8a5ca819e90fcb9e2c5e18e"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"92dea2779599cc352b88f4ecc85cd97c218fdb3693e7d906216308624b4aab66"}
 
 name: "Issue Summary to Notion"
 "on":
@@ -172,9 +171,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/mcp/notion.md}}

@@ -25,12 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"90cdc96a45c8d61adb30503e3d00a4cd026b94d383b6f24c9727afd0a2358d48"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2093093330961528c7a428449d17d960ede3238c3029308021c5b6d9fe04047c"}
 
 name: "Daily Code Metrics and Trend Tracking Agent"
 "on":
@@ -201,9 +200,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

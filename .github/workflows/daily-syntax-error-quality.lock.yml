@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"52a5d98da5b733b46e5cc163ea30944825a3fff0dab605b38d74485d6b61b2a5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"43648c2639a5507ae65ca3f85c20e8cca36e03f22c9270cba75533d2cf9f4b30"}
 
 name: "Daily Syntax Error Quality Check"
 "on":
@@ -169,9 +168,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

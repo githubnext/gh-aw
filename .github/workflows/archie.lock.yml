@@ -23,11 +23,7 @@
 #
 # Generates Mermaid diagrams to visualize issue and pull request relationships when invoked with the /archie command
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3b036ef86d73babb36b6cd24527393fd6a9d42d517dd1862b814d4c192ab4cbc"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"64ffad2e62d589ff586ce1a944a8fd0e9e5a71edd9eea661b55657df350b6930"}
 
 name: "Archie"
 "on":
@@ -208,9 +204,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/archie.md}}

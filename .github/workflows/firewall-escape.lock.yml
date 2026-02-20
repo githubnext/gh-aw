@@ -23,11 +23,7 @@
 #
 # Security testing to find escape paths in the AWF (Agent Workflow Firewall)
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fe3a2df8fd1997bea5ed310c527762f76c1e696a8aa649c51e6437865f20e570"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"45c40ad663418749f58caddf5c3397cd9a5952095edf17b03e29bdab56a24411"}
 
 name: "The Great Escapi"
 "on":
@@ -219,9 +215,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/firewall-escape.md}}
@@ -1126,7 +1119,7 @@ jobs:
       - name: Create issue on test failure
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
-          script: |
+          script: |-
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,

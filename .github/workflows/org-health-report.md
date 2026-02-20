@@ -36,7 +36,6 @@ network:
     - defaults
     - python
 imports:
-  - shared/mood.md
   - shared/python-dataviz.md
   - shared/jqschema.md
   - shared/reporting.md

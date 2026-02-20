@@ -27,9 +27,8 @@
 #   Imports:
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6be00c3b09c8b878bc763fb4b2d95a59f1458420d6c2d07c3c0b87b7186032f2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d2dbd57349dcb88bac2d2b508acf33e76616d86086e44554d7d6805c3b0887a0"}
 
 name: "Glossary Maintainer"
 "on":
@@ -170,9 +169,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/skills/documentation/SKILL.md}}

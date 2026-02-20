@@ -23,11 +23,7 @@
 #
 # Identifies duplicate code patterns across the codebase and suggests refactoring opportunities
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c5be1cf2be142247a13c39ee11de63cdc913ae5a3d2d9ab9fb9394c2ae9cb7b4"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e13c6df501076c50e55eacfb19d3f2cf4d16f9764ec57af5993a2a7479148bbe"}
 
 name: "Duplicate Code Detector"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/duplicate-code-detector.md}}

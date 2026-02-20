@@ -25,11 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1163f4663b60a8977df68ac8f5e1f1e52a651fa202f7d075c0cbabd43a292816"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1db6829e4b4673fefe8e99ead16c3a286883352129d9b6249562a8180590d3b7"}
 
 name: "Daily Firewall Logs Collector and Reporter"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

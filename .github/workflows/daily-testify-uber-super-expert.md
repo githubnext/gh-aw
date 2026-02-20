@@ -15,7 +15,6 @@ tracker-id: daily-testify-uber-super-expert
 engine: copilot
 
 imports:
-  - shared/mood.md
   - shared/reporting.md
   - shared/safe-output-app.md
 

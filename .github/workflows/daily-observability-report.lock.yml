@@ -25,10 +25,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ea05a2ec77bd0021834069b2684bd9be4e7dc558c53eabb7b6d3f3e5c1ce2ffd"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"57d943dc614a1300ac3a4e91c1515e029ccdc78e85a29ef78ba43867f1e85500"}
 
 name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

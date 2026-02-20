@@ -23,11 +23,7 @@
 #
 # Scans step names in .lock.yml files and aligns them with step intent and project glossary
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f309fe23c13debe9a3441258ac96fbe446d207aabeb50ecd7e0543a20786d79a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f3709d61fe0cc0c6bf246d73a899b74f43b4e79a87a9d28494002e568df3c44c"}
 
 name: "Step Name Alignment"
 "on":
@@ -169,9 +165,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/step-name-alignment.md}}

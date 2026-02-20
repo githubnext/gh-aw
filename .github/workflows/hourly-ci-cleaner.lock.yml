@@ -26,9 +26,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a357047a49d2c10cfbbaab657ff9b46b83d17cbe04a033659d38cc572be8b382"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5cac230b2f0f2fcc27828a9aaf4154331f9127efa96c20c52258a51dc5502be5"}
 
 name: "CI Cleaner"
 "on":
@@ -171,9 +170,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/agents/ci-cleaner.agent.md}}

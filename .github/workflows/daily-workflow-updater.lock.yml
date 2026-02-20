@@ -23,11 +23,7 @@
 #
 # Automatically updates GitHub Actions versions and creates a PR if changes are detected
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"527962da38b97338dbf8aed74bf7eea3ffb9efb28344bcd77c5e41d83fd67a6e"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e193ba96f3f7b1e7090fa6a913e3f63615b525a0d11e0fc7496d2e63b7b178b9"}
 
 name: "Daily Workflow Updater"
 "on":
@@ -168,9 +164,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/daily-workflow-updater.md}}

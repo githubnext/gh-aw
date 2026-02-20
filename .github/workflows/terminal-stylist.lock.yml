@@ -23,11 +23,7 @@
 #
 # Analyzes and improves console output styling and formatting in the codebase
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c99a64c4ce143d7bf55240d81d76c63f88ead024ce63d0b64301207de70b1b44"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"dba3a4b40ed5b76f1d048af43217a92a7673cc44d5ed7f954c00df5aa1a5a11b"}
 
 name: "Terminal Stylist"
 "on":
@@ -168,9 +164,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/terminal-stylist.md}}

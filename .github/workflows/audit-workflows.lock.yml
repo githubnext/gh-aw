@@ -26,11 +26,10 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4d50f091b80261759bdbabc83490e5ed25d3ff07b5bf4a9c989d643f4c5a1a72"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"244119508a70dc04f680b417a85ee75f39c6a79cf47cc2bedba8ace519d48c16"}
 
 name: "Agentic Workflow Audit Agent"
 "on":
@@ -201,9 +200,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

@@ -26,9 +26,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/ast-grep.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"423971fb3b0a7665efe1f8dc67b1370def0ca46f83b64630387f4ce67599cdb8"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b97f1fea9e98decc6a42563d2e324c065d494f9a2cf336f4743dc4818be0c610"}
 
 name: "Go Pattern Detector"
 "on":
@@ -169,9 +168,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/mcp/ast-grep.md}}

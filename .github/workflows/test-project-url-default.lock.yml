@@ -22,11 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4b8eb1036171f89a3f37409cafdf433cf2dab9a4199718beb62624953b63c1a5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"919aa9db316c03def96f98fa19bea30f29ce46d039263de87340d928180c4ab8"}
 
 name: "Test Project URL Explicit Requirement"
 "on":
@@ -164,9 +160,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/test-project-url-default.md}}

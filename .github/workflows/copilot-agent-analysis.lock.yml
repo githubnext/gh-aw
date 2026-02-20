@@ -27,10 +27,9 @@
 #   Imports:
 #     - shared/copilot-pr-data-fetch.md
 #     - shared/jqschema.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"49e233a6fddc68b01bfb552844d10705384860956cebc90df11ae53e16d11dc9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2e17ac02db5e5b1550d6766f1b01f6a90d45f878e21272dd1388c245cc64b510"}
 
 name: "Copilot Agent PR Analysis"
 "on":
@@ -201,9 +200,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

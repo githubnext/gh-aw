@@ -25,9 +25,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/chroma.md
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"220671e8cf1bf8b27b0d78691d637c2c7f012db6effdd8def4d7940072a79ad2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"dbc1d32a392c06506e26b62a1ca05966a17d9f802ce08e8f9fcad9e93603737f"}
 
 name: "Chroma Issue Indexer"
 "on":
@@ -139,9 +138,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/mcp/chroma.md}}

@@ -26,10 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/go-make.md
-#     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"185e8e9fea9c9af8fff8ab7305985b79a14fcf173b44bccb604bb9cef76117b9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6a7627dbf91cb157295287e0e2083f26fdda22959240f171b8a7e7cdfe0e390b"}
 
 name: "Daily CLI Performance Agent"
 "on":
@@ -200,9 +199,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

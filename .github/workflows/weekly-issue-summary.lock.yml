@@ -25,12 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8fa081d6f6a77d6b13ab6d803c03b43ddb3cedcacc697fe6db5cf6a2726f1cc2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8c733299a8092972b54c0ed3b0a951f1840da7a19861b249e6156a0ffa7193d5"}
 
 name: "Weekly Issue Summary"
 "on":
@@ -163,9 +162,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/reporting.md}}

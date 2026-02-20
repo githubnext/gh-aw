@@ -32,9 +32,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
-#     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ef044b98d76b213b48ff227e6f13f1a9b57a623dcfab759b1ea5d762b637efd2","stop_time":"2026-02-09 04:24:39"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"82fb3f9c3eb862ab47afa2a88e6e9e2c5e45692e2c7234e98c1a7149b9f1f25e","stop_time":"2026-02-09 04:24:39"}
 #
 # Effective stop-time: 2026-02-09 04:24:39
 
@@ -178,9 +177,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/aw/imports/githubnext/agentics/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows_shared_reporting.md}}

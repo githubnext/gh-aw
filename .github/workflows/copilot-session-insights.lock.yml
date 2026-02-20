@@ -27,13 +27,12 @@
 #   Imports:
 #     - shared/jqschema.md
 #     - shared/copilot-session-data-fetch.md
-#     - shared/mood.md
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"750804c6a2a89dc635b4c6e1216950672e3620fb95c1202f3aa34b1d798cfcca"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e7f6ed9cf42602b4c91a70b7d35d20cc5690dd12fba569a2ed36b422fdab5988"}
 
 name: "Copilot Session Insights"
 "on":
@@ -205,9 +204,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/shared/jqschema.md}}

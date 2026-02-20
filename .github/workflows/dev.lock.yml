@@ -23,11 +23,7 @@
 #
 # Daily status report for gh-aw project
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d1c2843f04957800681bf9f176ca8c8f87c0e51f6e69f9328ea661d9e086fee5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"86b1644f2b8b1d81ee12d988946f3354799537ff8eea267670b3613c4363a2f7"}
 
 name: "Dev"
 "on":
@@ -167,9 +163,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/dev.md}}

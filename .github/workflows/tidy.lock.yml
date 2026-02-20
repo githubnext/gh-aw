@@ -23,11 +23,7 @@
 #
 # Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"aa7fce20f46c91d13365971033a86852d56ae8a3114035cb19c7bb0e038ad05d"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2808846f8bc82fccb0f29bd33f47aedcfd87f781bd89eb80af5ce458dfc407fe"}
 
 name: "Tidy"
 "on":
@@ -205,9 +201,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/tidy.md}}
