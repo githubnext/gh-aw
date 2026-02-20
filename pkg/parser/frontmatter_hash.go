@@ -255,33 +255,6 @@ func marshalSorted(data any) string {
 	}
 }
 
-// isInlineImportsLineEnabled returns true if a single YAML line declares
-// inline-imports: true, tolerating optional trailing YAML comments.
-// For example: "inline-imports: true" and "inline-imports: true # comment" both match.
-func isInlineImportsLineEnabled(line string) bool {
-	// Strip trailing comment (everything from " #" onwards)
-	if idx := strings.Index(line, " #"); idx != -1 {
-		line = strings.TrimSpace(line[:idx])
-	}
-	// Match "inline-imports:" followed by optional whitespace and "true"
-	const prefix = "inline-imports:"
-	if !strings.HasPrefix(line, prefix) {
-		return false
-	}
-	return strings.TrimSpace(line[len(prefix):]) == "true"
-}
-
-// isInlineImportsEnabled checks if inline-imports is set to true in the frontmatter text.
-// This uses simple text-based parsing to avoid YAML dependency in the hash module.
-func isInlineImportsEnabled(frontmatterText string) bool {
-	for _, line := range strings.Split(frontmatterText, "\n") {
-		if isInlineImportsLineEnabled(strings.TrimSpace(line)) {
-			return true
-		}
-	}
-	return false
-}
-
 // ComputeFrontmatterHashFromFile computes the frontmatter hash for a workflow file
 // using text-based approach (no YAML parsing) to match JavaScript implementation
 func ComputeFrontmatterHashFromFile(filePath string, cache *ImportCache) (string, error) {
@@ -290,7 +263,7 @@ func ComputeFrontmatterHashFromFile(filePath string, cache *ImportCache) (string
 
 // ComputeFrontmatterHashFromFileWithParsedFrontmatter computes the frontmatter hash accepting
 // a pre-parsed frontmatter map to avoid redundant YAML parsing. When parsedFrontmatter is nil,
-// the function parses the file itself.
+// the function parses the file itself. If parsing fails, inline-imports is treated as false.
 func ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath string, parsedFrontmatter map[string]any, cache *ImportCache, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Printf("Computing hash for file: %s", filePath)
 
@@ -310,19 +283,19 @@ func ComputeFrontmatterHashFromFileWithParsedFrontmatter(filePath string, parsed
 	baseDir := filepath.Dir(filePath)
 
 	// Detect inline-imports from the provided parsed frontmatter map.
-	// If not provided, parse it from the file content (with text-based fallback on failure).
+	// If not provided, parse it from the file content.
+	// If parsing fails, inline-imports is treated as false — no text-based fallback.
 	inlineImports := false
-	if parsedFrontmatter != nil {
-		if v, ok := parsedFrontmatter["inline-imports"]; ok {
+	fm := parsedFrontmatter
+	if fm == nil {
+		if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
+			fm = parsed.Frontmatter
+		}
+	}
+	if fm != nil {
+		if v, ok := fm["inline-imports"]; ok {
 			inlineImports, _ = v.(bool)
 		}
-	} else if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
-		if v, ok := parsed.Frontmatter["inline-imports"]; ok {
-			inlineImports, _ = v.(bool)
-		}
-	} else {
-		// YAML parse failed – fall back to tolerant text scan
-		inlineImports = isInlineImportsEnabled(frontmatterText)
 	}
 
 	// When inline-imports is enabled, the entire markdown body is compiled into the lock
