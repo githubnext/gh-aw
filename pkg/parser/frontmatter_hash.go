@@ -308,12 +308,24 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 	// Get base directory for resolving imports
 	baseDir := filepath.Dir(filePath)
 
+	// Detect inline-imports using the parsed frontmatter object for accuracy.
+	// Fall back to text-based detection when YAML parsing fails (e.g. engine is an object).
+	inlineImports := false
+	if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
+		if v, ok := parsed.Frontmatter["inline-imports"]; ok {
+			inlineImports, _ = v.(bool)
+		}
+	} else {
+		// YAML parse failed – fall back to tolerant text scan
+		inlineImports = isInlineImportsEnabled(frontmatterText)
+	}
+
 	// When inline-imports is enabled, the entire markdown body is compiled into the lock
 	// file, so any change to the body must invalidate the hash. Include the full body text.
 	// Otherwise, only extract the relevant template expressions (env./vars. references).
 	var relevantExpressions []string
 	var fullBody string
-	if isInlineImportsEnabled(frontmatterText) {
+	if inlineImports {
 		fullBody = normalizeFrontmatterText(markdown)
 	} else {
 		relevantExpressions = extractRelevantTemplateExpressions(markdown)
