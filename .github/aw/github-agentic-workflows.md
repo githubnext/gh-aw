@@ -733,7 +733,6 @@ The YAML frontmatter supports these fields:
         max-size: 10240                 # Optional: max file size in KB (default: 10MB)
         allowed-exts: [.png, .jpg, .pdf] # Optional: allowed file extensions
         max: 10                         # Optional: max assets (default: 10)
-        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB).
   - `dispatch-workflow:` - Trigger other workflows with inputs
@@ -781,7 +780,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       assign-to-user:
-        assignees: [user1, user2]       # Optional: restrict to specific users
+        allowed: [user1, user2]         # Optional: restrict to specific users
         blocked: [copilot, "*[bot]"]    # Optional: deny specific users or glob patterns
         max: 3                          # Optional: max assignments (default: 3)
         target: "*"                     # Optional: "triggering" (default), "*", or number
@@ -1553,7 +1552,7 @@ Create an issue with your final analysis.
 
 ### Automatic Pull Request Creation
 
-Use the `safe-outputs.pull-request` configuration to automatically create pull requests from coding agent output:
+Use the `safe-outputs.create-pull-request` configuration to automatically create pull requests from coding agent output:
 
 ```aw
 ---

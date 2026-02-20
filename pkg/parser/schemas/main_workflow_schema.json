@@ -1753,6 +1753,7 @@
           },
           "timeout-minutes": {
             "type": "integer",
+            "minimum": 1,
             "description": "Job timeout in minutes"
           },
           "strategy": {
@@ -1863,6 +1864,7 @@
     },
     "timeout-minutes": {
       "type": "integer",
+      "minimum": 1,
       "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
       "examples": [5, 10, 30]
     },

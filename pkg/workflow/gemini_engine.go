@@ -186,8 +186,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
 	geminiArgs = append(geminiArgs, "--yolo")
 
-	// Add headless mode with JSON output
-	geminiArgs = append(geminiArgs, "--output-format", "json")
+	// Add streaming JSON output (JSONL format, compatible with the log parser)
+	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
 
 	// Add prompt argument
 	geminiArgs = append(geminiArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -213,18 +213,22 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
 
+		// Enable API proxy sidecar if this engine supports LLM gateway
+		llmGatewayPort := e.SupportsLLMGateway()
+		usesAPIProxy := llmGatewayPort > 0
+
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "gemini",
 			EngineCommand:  geminiCommandWithPath,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
-			UsesAPIProxy:   false,
+			UsesAPIProxy:   usesAPIProxy,
 			AllowedDomains: allowedDomains,
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
-%s 2>&1 | tee %s`, geminiCommand, logFile)
+%s 2>&1 | tee -a %s`, geminiCommand, logFile)
 	}
 
 	// Build environment variables
@@ -237,6 +241,12 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
 	if HasMCPServers(workflowData) {
 		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.gemini/settings.json"
+	}
+
+	// When the firewall (AWF) is enabled with --enable-api-proxy, point Gemini CLI at the
+	// LLM gateway sidecar instead of the real googleapis.com endpoint.
+	if firewallEnabled {
+		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
 	}
 
 	// Add safe outputs env

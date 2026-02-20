@@ -170,7 +170,8 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--proxy-logs-dir", string(constants.AWFProxyLogsDir))
 
 	// Add --enable-host-access when MCP servers are configured (gateway is used)
-	if HasMCPServers(config.WorkflowData) {
+	// OR when the API proxy sidecar is enabled (needs to reach host.docker.internal:<port>)
+	if HasMCPServers(config.WorkflowData) || config.UsesAPIProxy {
 		awfArgs = append(awfArgs, "--enable-host-access")
 		awfHelpersLog.Print("Added --enable-host-access for MCP gateway communication")
 	}

@@ -45,6 +45,13 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	if !strings.Contains(output, "safeoutputs MCP server") {
 		t.Error("Expected prompt to mention safeoutputs MCP server")
 	}
+	// Verify per-tool instructions are included for create_issue
+	if !strings.Contains(output, "create_issue") {
+		t.Error("Expected prompt to include create_issue tool name")
+	}
+	if !strings.Contains(output, "Creating an Issue") {
+		t.Error("Expected prompt to include 'Creating an Issue' heading")
+	}
 }
 
 func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
@@ -72,10 +79,9 @@ func TestSafeOutputsPromptText_FollowsXMLFormat(t *testing.T) {
 	t.Skip("Safe outputs prompt is now generated dynamically based on enabled tools")
 }
 
-func TestSafeOutputsPrompt_NeverListsToolNames(t *testing.T) {
-	// CRITICAL: This test ensures tool names are NEVER listed in the safe outputs prompt.
-	// The agent must query the MCP server to discover available tools - listing them
-	// directly causes the agent to try accessing them before MCP setup is complete.
+func TestSafeOutputsPrompt_IncludesPerToolInstructions(t *testing.T) {
+	// Test that per-tool instructions are included in the safe outputs prompt
+	// for each enabled tool, helping the agent understand how to use them.
 	compiler := &Compiler{}
 	var yaml strings.Builder
 
@@ -100,27 +106,30 @@ func TestSafeOutputsPrompt_NeverListsToolNames(t *testing.T) {
 		t.Fatal("Expected safe outputs section in generated prompt")
 	}
 
-	// CRITICAL: Ensure tool names are NEVER listed in the prompt
-	forbiddenToolNames := []string{
-		"create_issue",
-		"add_comment",
-		"create_discussion",
-		"update_issue",
-		"update_pull_request",
-		"close_issue",
-		"close_pull_request",
-		"create_pull_request",
-		"add_labels",
-		"remove_labels",
+	// Verify per-tool instructions are present for each enabled tool
+	toolTests := []struct {
+		toolName    string
+		heading     string
+		description string
+	}{
+		{"create_issue", "Creating an Issue", "To create an issue, use the create_issue tool"},
+		{"add_comment", "Adding a Comment", "To add a comment to an issue or pull request, use the add_comment tool"},
+		{"create_discussion", "Creating a Discussion", "To create a discussion, use the create_discussion tool"},
+		{"update_issue", "Updating an Issue", "To update an issue, use the update_issue tool"},
 	}
 
-	for _, toolName := range forbiddenToolNames {
-		if strings.Contains(output, toolName) {
-			t.Errorf("CRITICAL: Safe outputs prompt must NOT list tool name %q. Agent should discover tools via MCP server query.", toolName)
-		}
+	for _, tt := range toolTests {
+		t.Run(tt.toolName, func(t *testing.T) {
+			if !strings.Contains(output, tt.toolName) {
+				t.Errorf("Expected per-tool instruction to include tool name %q", tt.toolName)
+			}
+			if !strings.Contains(output, tt.heading) {
+				t.Errorf("Expected per-tool instruction heading %q", tt.heading)
+			}
+		})
 	}
 
-	// Verify the correct instruction is present
+	// Verify the MCP server discovery instruction is also present
 	if !strings.Contains(output, "Discover available tools from the safeoutputs MCP server") {
 		t.Error("Expected prompt to instruct agent to query MCP server for tools")
 	}

@@ -10,12 +10,12 @@ console.log('hello');
 ````
 </correct>
 <incorrect>
-```markdown
+````markdown
 # Example
 ```javascript
 console.log('hello');
 ```
-```
+````
 </incorrect>
 </example>
 </markdown-generation>

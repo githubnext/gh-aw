@@ -18,8 +18,8 @@ describe("create_agent_session.cjs", () => {
         delete process.env.GH_AW_AGENT_OUTPUT,
         delete process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED,
         delete process.env.GITHUB_AW_AGENT_SESSION_BASE,
-        delete process.env.GITHUB_AW_TARGET_REPO,
-        delete process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS,
+        delete process.env.GH_AW_TARGET_REPO_SLUG,
+        delete process.env.GH_AW_ALLOWED_REPOS,
         delete process.env.GITHUB_REPOSITORY,
         fs.existsSync(testOutputFile) && fs.unlinkSync(testOutputFile));
     }));
@@ -77,7 +77,7 @@ describe("create_agent_session.cjs", () => {
           expect(summaryCall[0]).toContain("Implement feature X"),
           expect(summaryCall[0]).toContain("Fix bug Y"),
           expect(summaryCall[0]).toContain("**Base Branch:** main"),
-          expect(summaryCall[0]).toContain("**Target Repository:** owner/repo"),
+          expect(summaryCall[0]).toContain("**Target Repository:** test-owner/test-repo"),
           expect(mockCore.summary.write).toHaveBeenCalled());
       }),
       it("should handle task without body in staged mode", async () => {
@@ -86,7 +86,7 @@ describe("create_agent_session.cjs", () => {
         expect(summaryCall[0]).toContain("No description provided");
       }),
       it("should use target repo when specified", async () => {
-        ((process.env.GITHUB_AW_TARGET_REPO = "org/target-repo"), createAgentOutput([{ type: "create_agent_session", body: "Test task" }]), await runScript());
+        ((process.env.GH_AW_TARGET_REPO_SLUG = "org/target-repo"), createAgentOutput([{ type: "create_agent_session", body: "Test task" }]), await runScript());
         const summaryCall = mockCore.summary.addRaw.mock.calls[0];
         expect(summaryCall[0]).toContain("**Target Repository:** org/target-repo");
       }));
@@ -139,22 +139,20 @@ describe("create_agent_session.cjs", () => {
   })),
     describe("Cross-repository allowlist validation", () => {
       it("should reject target repository not in allowlist", async () => {
-        process.env.GITHUB_AW_TARGET_REPO = "other-owner/other-repo";
-        process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+        process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
 
-        createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
+        createAgentOutput([{ type: "create_agent_session", body: "Test task", repo: "not-allowed/other-repo" }]);
 
         await runScript();
 
-        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E004:"));
-        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
       });
 
       it("should allow target repository in allowlist", async () => {
-        process.env.GITHUB_AW_TARGET_REPO = "allowed-owner/allowed-repo";
-        process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+        process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
 
-        createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
+        createAgentOutput([{ type: "create_agent_session", body: "Test task", repo: "allowed-owner/allowed-repo" }]);
 
         // Mock gh CLI command
         mockExec.getExecOutput.mockResolvedValueOnce({
@@ -170,9 +168,9 @@ describe("create_agent_session.cjs", () => {
       });
 
       it("should allow default repository without allowlist", async () => {
-        // No GITHUB_AW_TARGET_REPO set, uses default
-        delete process.env.GITHUB_AW_TARGET_REPO;
-        delete process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS;
+        // No GH_AW_TARGET_REPO_SLUG set, no GH_AW_ALLOWED_REPOS set - uses context repo
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+        delete process.env.GH_AW_ALLOWED_REPOS;
 
         createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
 

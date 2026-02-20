@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -55,6 +55,11 @@ async function main() {
 
   core.info(`Found ${createAgentSessionItems.length} create-agent-session item(s)`);
 
+  // Get default target repository and allowed repos using standardized helpers
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig({
+    allowed_repos: process.env.GH_AW_ALLOWED_REPOS,
+  });
+
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Create Agent Sessions Preview\n\n";
     summaryContent += "The following agent sessions would be created if staged mode was disabled:\n\n";
@@ -66,8 +71,7 @@ async function main() {
       const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || "main";
       summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
 
-      const targetRepo = process.env.GITHUB_AW_TARGET_REPO || process.env.GITHUB_REPOSITORY || "unknown";
-      summaryContent += `**Target Repository:** ${targetRepo}\n\n`;
+      summaryContent += `**Target Repository:** ${defaultTargetRepo}\n\n`;
 
       summaryContent += "---\n\n";
     }
@@ -80,20 +84,6 @@ async function main() {
 
   // Get base branch from environment or use current branch
   const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || process.env.GITHUB_REF_NAME || "main";
-  const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
-
-  // Validate target repository against allowlist if specified
-  if (targetRepo) {
-    const allowedReposEnv = process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS?.trim();
-    const allowedRepos = parseAllowedRepos(allowedReposEnv);
-    const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
-
-    const repoValidation = validateRepo(targetRepo, defaultRepo, allowedRepos);
-    if (!repoValidation.valid) {
-      core.setFailed(`E004: ${repoValidation.error}`);
-      return;
-    }
-  }
 
   // Process all agent session items
   const createdTasks = [];
@@ -106,6 +96,15 @@ async function main() {
       core.warning(`Task ${index + 1}: Agent task description is empty, skipping`);
       continue;
     }
+
+    // Resolve and validate target repository for this item using the standardized helper.
+    // taskItem.repo field (if present) overrides the default target repo.
+    const repoResult = resolveAndValidateRepo(taskItem, defaultTargetRepo, allowedRepos, "agent session");
+    if (!repoResult.success) {
+      core.error(`E004: ${repoResult.error}`);
+      continue;
+    }
+    const effectiveRepo = repoResult.repo;
 
     try {
       // Write task description to a temporary file
@@ -121,8 +120,9 @@ async function main() {
       // Build gh agent-task create command
       const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
 
-      if (targetRepo) {
-        ghArgs.push("--repo", targetRepo);
+      const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+      if (effectiveRepo !== contextRepo) {
+        ghArgs.push("--repo", effectiveRepo);
       }
 
       core.info(`Task ${index + 1}: Creating agent session with command: gh ${ghArgs.join(" ")}`);

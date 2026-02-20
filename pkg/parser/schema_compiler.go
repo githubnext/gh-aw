@@ -280,7 +280,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				message := rewriteAdditionalPropertiesError(cleanOneOfMessage(primaryPath.Message))
 
 				// Add schema-based suggestions
-				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path)
+				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path, frontmatterContent)
 				if suggestions != "" {
 					message = message + ". " + suggestions
 				}
@@ -308,7 +308,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 		message := rewriteAdditionalPropertiesError(errorMsg)
 
 		// Add schema-based suggestions for fallback case
-		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "")
+		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "", frontmatterContent)
 		if suggestions != "" {
 			message = message + ". " + suggestions
 		}

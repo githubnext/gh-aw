@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1c7e9095a4960a70d4be26e98a3da1fb9a7a3526fc8e60d0614b182f9fbf0904"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0cbff208fe0695987e6a089673e8346206c6dca1fdb91f20648b52de072e50c6"}
 
 name: "Smoke Gemini"
 "on":
@@ -159,6 +159,33 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Adding Labels to Issues or Pull Requests, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Adding a Comment to an Issue or Pull Request**
+          
+          To add a comment to an issue or pull request, use the add_comment tool from safeoutputs.
+          
+          **Creating an Issue**
+          
+          To create an issue, use the create_issue tool from safeoutputs.
+          
+          **Adding Labels to Issues or Pull Requests**
+          
+          To add labels to an issue or pull request, use the add_labels tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>
@@ -359,7 +386,7 @@ jobs:
             const awInfo = {
               engine_id: "gemini",
               engine_name: "Google Gemini CLI",
-              model: process.env.GH_AW_MODEL_AGENT_CUSTOM || "",
+              model: "gemini-2.0-flash-lite",
               version: "",
               agent_version: "",
               workflow_name: "Smoke Gemini",
@@ -900,12 +927,12 @@ jobs:
         id: agentic_execution
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains '*.githubusercontent.com,*.googleapis.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,generativelanguage.googleapis.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.2 --skip-pull \
-            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && gemini --yolo --output-format json --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains '*.githubusercontent.com,*.googleapis.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,generativelanguage.googleapis.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.2 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && gemini --model gemini-2.0-flash-lite --yolo --output-format stream-json --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
+          GEMINI_API_BASE_URL: http://host.docker.internal:10003
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GH_AW_MCP_CONFIG: ${{ github.workspace }}/.gemini/settings.json
-          GH_AW_MODEL_AGENT_GEMINI: ${{ vars.GH_AW_MODEL_AGENT_GEMINI || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -1197,10 +1224,9 @@ jobs:
         id: agentic_execution
         run: |
           set -o pipefail
-          gemini --yolo --output-format json --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          gemini --model gemini-2.0-flash-lite --yolo --output-format stream-json --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GH_AW_MODEL_DETECTION_GEMINI: ${{ vars.GH_AW_MODEL_DETECTION_GEMINI || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_WORKSPACE: ${{ github.workspace }}
       - name: Parse threat detection results
@@ -1267,6 +1293,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "gemini"
+      GH_AW_ENGINE_MODEL: "gemini-2.0-flash-lite"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*\",\"runStarted\":\"✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges...\"}"
       GH_AW_WORKFLOW_ID: "smoke-gemini"
       GH_AW_WORKFLOW_NAME: "Smoke Gemini"
