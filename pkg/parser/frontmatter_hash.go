@@ -17,6 +17,19 @@ import (
 
 var frontmatterHashLog = logger.New("parser:frontmatter_hash")
 
+// parseBoolFromFrontmatter extracts a boolean value from a frontmatter map.
+// Returns false if the key is absent, the map is nil, or the value is not a bool.
+func parseBoolFromFrontmatter(m map[string]any, key string) bool {
+	if m == nil {
+		return false
+	}
+	if v, ok := m[key]; ok {
+		b, _ := v.(bool)
+		return b
+	}
+	return false
+}
+
 // FileReader is a function type that reads file content
 // This abstraction allows for different file reading strategies (disk, GitHub API, in-memory, etc.)
 type FileReader func(filePath string) ([]byte, error)
@@ -311,12 +324,7 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 
 	// Detect inlined-imports from the pre-parsed frontmatter map.
 	// If nil (parsing failed or not provided), inlined-imports is treated as false.
-	inlinedImports := false
-	if parsedFrontmatter != nil {
-		if v, ok := parsedFrontmatter["inlined-imports"]; ok {
-			inlinedImports, _ = v.(bool)
-		}
-	}
+	inlinedImports := parseBoolFromFrontmatter(parsedFrontmatter, "inlined-imports")
 
 	// When inlined-imports is enabled, the entire markdown body is compiled into the lock
 	// file, so any change to the body must invalidate the hash. Include the full body text.

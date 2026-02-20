@@ -173,11 +173,7 @@ func (c *Compiler) buildInitialWorkflowData(
 // It reads the value directly from the raw (pre-parsed) frontmatter map, which is always
 // populated regardless of whether ParseFrontmatterConfig succeeded.
 func resolveInlinedImports(rawFrontmatter map[string]any) bool {
-	if v, ok := rawFrontmatter["inlined-imports"]; ok {
-		b, _ := v.(bool)
-		return b
-	}
-	return false
+	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter
