@@ -137,6 +137,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
+				data.SafeOutputs.CreatePullRequests.Max,
+				1, // default max
 				data.SafeOutputs.CreatePullRequests.AllowedLabels,
 				data.SafeOutputs.CreatePullRequests.AllowEmpty,
 				data.SafeOutputs.CreatePullRequests.AutoMerge,

@@ -123,12 +123,11 @@ func generateAssignToAgentConfig(max int, defaultMax int, defaultAgent string, t
 	return config
 }
 
-// generatePullRequestConfig creates a config with allowed_labels, allow_empty, auto_merge, and expires
-func generatePullRequestConfig(allowedLabels []string, allowEmpty bool, autoMerge bool, expires int) map[string]any {
-	safeOutputsConfigGenLog.Printf("Generating pull request config: allowEmpty=%t, autoMerge=%t, expires=%d, labels_count=%d",
-		allowEmpty, autoMerge, expires, len(allowedLabels))
-	config := make(map[string]any)
-	// Note: max is always 1 for pull requests, not configurable
+// generatePullRequestConfig creates a config with max, allowed_labels, allow_empty, auto_merge, and expires
+func generatePullRequestConfig(max int, defaultMax int, allowedLabels []string, allowEmpty bool, autoMerge bool, expires int) map[string]any {
+	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%d, allowEmpty=%t, autoMerge=%t, expires=%d, labels_count=%d",
+		max, allowEmpty, autoMerge, expires, len(allowedLabels))
+	config := generateMaxConfig(max, defaultMax)
 	if len(allowedLabels) > 0 {
 		config["allowed_labels"] = allowedLabels
 	}

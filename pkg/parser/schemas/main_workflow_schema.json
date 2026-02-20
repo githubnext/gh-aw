@@ -4883,8 +4883,15 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub pull requests from agentic workflow output. Note: The max parameter is not supported for pull requests - workflows are always limited to creating 1 pull request per run. This design decision prevents workflow runs from creating excessive PRs and maintains repository integrity.",
+              "description": "Configuration for creating GitHub pull requests from agentic workflow output. Supports creating multiple PRs in a single run when max > 1.",
               "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of pull requests to create (default: 1). Each PR requires distinct changes on a separate branch.",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "default": 1
+                },
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix for the pull request title"
@@ -5751,8 +5758,15 @@
             },
             {
               "type": "object",
-              "description": "Configuration for pushing changes to a specific branch from agentic workflow output",
+              "description": "Configuration for pushing changes to a specific branch from agentic workflow output. Supports pushing to multiple PRs in a single run when max > 1.",
               "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of push operations to perform (default: 1). Each push targets a different pull request branch.",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "default": 1
+                },
                 "branch": {
                   "type": "string",
                   "description": "The branch to push changes to (defaults to 'triggering')"

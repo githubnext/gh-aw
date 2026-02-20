@@ -270,9 +270,10 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
 	}
 
-	// Note: max parameter is not supported for pull requests (always limited to 1)
-	// Override any user-specified max value to enforce the limit
-	config.Max = 1
+	// Log max if configured (defaults to 1 if not specified)
+	if config.Max > 0 {
+		createPRLog.Printf("Pull request max count configured: %d", config.Max)
+	}
 
 	return &config
 }
