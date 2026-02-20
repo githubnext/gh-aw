@@ -266,6 +266,94 @@ func TestGenerateDispatchWorkflowToolEmptyInputs(t *testing.T) {
 	assert.False(t, hasRequired, "required field should not be present when no required inputs")
 }
 
+// TestCheckAllEnabledToolsPresentAllMatch tests that no error is returned when all enabled tools are present.
+func TestCheckAllEnabledToolsPresentAllMatch(t *testing.T) {
+	enabledTools := map[string]bool{
+		"create_issue": true,
+		"add_comment":  true,
+	}
+	filteredTools := []map[string]any{
+		{"name": "create_issue"},
+		{"name": "add_comment"},
+	}
+
+	err := checkAllEnabledToolsPresent(enabledTools, filteredTools)
+	assert.NoError(t, err, "should not error when all enabled tools are present")
+}
+
+// TestCheckAllEnabledToolsPresentMissing tests that an error is returned when a tool is missing.
+func TestCheckAllEnabledToolsPresentMissing(t *testing.T) {
+	enabledTools := map[string]bool{
+		"create_issue":     true,
+		"nonexistent_tool": true,
+	}
+	filteredTools := []map[string]any{
+		{"name": "create_issue"},
+	}
+
+	err := checkAllEnabledToolsPresent(enabledTools, filteredTools)
+	require.Error(t, err, "should error when an enabled tool is missing from filtered tools")
+	assert.Contains(t, err.Error(), "nonexistent_tool", "error should mention the missing tool")
+	assert.Contains(t, err.Error(), "compiler error", "error should be labelled as a compiler error")
+	assert.Contains(t, err.Error(), "report this issue to the developer", "error should instruct user to report")
+}
+
+// TestCheckAllEnabledToolsPresentEmpty tests that no error is returned when there are no enabled tools.
+func TestCheckAllEnabledToolsPresentEmpty(t *testing.T) {
+	err := checkAllEnabledToolsPresent(map[string]bool{}, []map[string]any{})
+	assert.NoError(t, err, "should not error with empty inputs")
+}
+
+// TestCheckAllEnabledToolsPresentMultipleMissing tests that multiple missing tools are all reported.
+func TestCheckAllEnabledToolsPresentMultipleMissing(t *testing.T) {
+	enabledTools := map[string]bool{
+		"tool_a": true,
+		"tool_b": true,
+		"tool_c": true,
+	}
+	filteredTools := []map[string]any{
+		{"name": "tool_a"},
+	}
+
+	err := checkAllEnabledToolsPresent(enabledTools, filteredTools)
+	require.Error(t, err, "should error when multiple enabled tools are missing")
+	assert.Contains(t, err.Error(), "tool_b", "error should mention tool_b")
+	assert.Contains(t, err.Error(), "tool_c", "error should mention tool_c")
+}
+
+// TestGenerateFilteredToolsJSONWithStandardOutputs tests that standard safe outputs produce
+// the expected tools in the filtered output (regression test for the completeness check).
+func TestGenerateFilteredToolsJSONWithStandardOutputs(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+			MissingData:  &MissingDataConfig{},
+			// MissingTool is the built-in safe-output type that lets the AI report that a
+			// requested tool is unavailable; it is distinct from "a tool definition that is missing".
+			MissingTool: &MissingToolConfig{},
+			// NoOp (null) is the built-in fallback safe-output type for transparency.
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	result, err := generateFilteredToolsJSON(data, ".github/workflows/test.md")
+	require.NoError(t, err, "should not error when all standard tools are present in static JSON")
+
+	var tools []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &tools), "result should be valid JSON")
+
+	toolNames := make(map[string]bool)
+	for _, tool := range tools {
+		if name, ok := tool["name"].(string); ok {
+			toolNames[name] = true
+		}
+	}
+	assert.True(t, toolNames["create_issue"], "create_issue should be present")
+	assert.True(t, toolNames["missing_data"], "missing_data should be present")
+	assert.True(t, toolNames["missing_tool"], "missing_tool should be present")
+	assert.True(t, toolNames["noop"], "noop should be present")
+}
+
 // TestGenerateFilteredToolsJSONCustomJobs tests that custom job tools are included in filtered output.
 func TestGenerateFilteredToolsJSONCustomJobs(t *testing.T) {
 	data := &WorkflowData{
