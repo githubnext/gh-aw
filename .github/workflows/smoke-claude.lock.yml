@@ -33,7 +33,7 @@
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"32aef79c7284de05d51d3e15b16a49adacf12a14d78ff8ab97441e482981fb10"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4c1aff44aafcd080af123475aa4736bc98b28c1a12f5775c6374e521799265e9"}
 
 name: "Smoke Claude"
 "on":

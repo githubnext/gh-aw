@@ -173,17 +173,17 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
-	// Enable inline-imports mode from WorkflowData (parsed during buildInitialWorkflowData).
+	// Enable inlined-imports mode from WorkflowData (parsed during buildInitialWorkflowData).
 	// Save previous compiler state and restore it with defer so that reusing the same
-	// Compiler instance for a subsequent workflow without inline-imports works correctly.
-	if data.InlineImports {
+	// Compiler instance for a subsequent workflow without inlined-imports works correctly.
+	if data.InlinedImports {
 		prevInlinePrompt := c.inlinePrompt
-		prevInlineImports := c.inlineImports
+		prevInlinedImports := c.inlinedImports
 		c.inlinePrompt = true
-		c.inlineImports = true
+		c.inlinedImports = true
 		defer func() {
 			c.inlinePrompt = prevInlinePrompt
-			c.inlineImports = prevInlineImports
+			c.inlinedImports = prevInlinedImports
 		}()
 	}
 
@@ -310,11 +310,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	}
 
 	// Step 1b: For imports without inputs:
-	// - inlineImports mode (inline-imports: true frontmatter): read and inline content at compile time
+	// - inlinedImports mode (inlined-imports: true frontmatter): read and inline content at compile time
 	// - normal mode: generate runtime-import macros (loaded at runtime)
 	if len(data.ImportPaths) > 0 {
-		if c.inlineImports && c.markdownPath != "" {
-			// inlineImports mode: read import file content from disk and embed directly
+		if c.inlinedImports && c.markdownPath != "" {
+			// inlinedImports mode: read import file content from disk and embed directly
 			compilerYamlLog.Printf("Inlining %d imports without inputs at compile time", len(data.ImportPaths))
 
 			// ImportPaths are relative to the workspace root (e.g. ".github/workflows/shared/common.md").

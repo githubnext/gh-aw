@@ -288,7 +288,7 @@ func ComputeFrontmatterHashFromFileWithReader(filePath string, cache *ImportCach
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Parse frontmatter once from content; treat inline-imports as false if parsing fails
+	// Parse frontmatter once from content; treat inlined-imports as false if parsing fails
 	var parsedFrontmatter map[string]any
 	if parsed, parseErr := ExtractFrontmatterFromContent(string(content)); parseErr == nil {
 		parsedFrontmatter = parsed.Frontmatter
@@ -309,21 +309,21 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 	// Get base directory for resolving imports
 	baseDir := filepath.Dir(filePath)
 
-	// Detect inline-imports from the pre-parsed frontmatter map.
-	// If nil (parsing failed or not provided), inline-imports is treated as false.
-	inlineImports := false
+	// Detect inlined-imports from the pre-parsed frontmatter map.
+	// If nil (parsing failed or not provided), inlined-imports is treated as false.
+	inlinedImports := false
 	if parsedFrontmatter != nil {
-		if v, ok := parsedFrontmatter["inline-imports"]; ok {
-			inlineImports, _ = v.(bool)
+		if v, ok := parsedFrontmatter["inlined-imports"]; ok {
+			inlinedImports, _ = v.(bool)
 		}
 	}
 
-	// When inline-imports is enabled, the entire markdown body is compiled into the lock
+	// When inlined-imports is enabled, the entire markdown body is compiled into the lock
 	// file, so any change to the body must invalidate the hash. Include the full body text.
 	// Otherwise, only extract the relevant template expressions (env./vars. references).
 	var relevantExpressions []string
 	var fullBody string
-	if inlineImports {
+	if inlinedImports {
 		fullBody = normalizeFrontmatterText(markdown)
 	} else {
 		relevantExpressions = extractRelevantTemplateExpressions(markdown)
@@ -564,7 +564,7 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 
 // computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader.
 // When markdown is non-empty, it is included as the full body text in the canonical data (used for
-// inline-imports mode where the entire body is compiled into the lock file).
+// inlined-imports mode where the entire body is compiled into the lock file).
 func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDir string, cache *ImportCache, expressions []string, fileReader FileReader) (string, error) {
 	frontmatterHashLog.Print("Computing frontmatter hash using text-based approach")
 
@@ -600,7 +600,7 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 		canonical["imported-frontmatters"] = strings.Join(normalizedTexts, "\n---\n")
 	}
 
-	// When inline-imports is enabled, include the full markdown body so any content
+	// When inlined-imports is enabled, include the full markdown body so any content
 	// change invalidates the hash. Otherwise, include only relevant template expressions.
 	if markdown != "" {
 		canonical["body-text"] = markdown

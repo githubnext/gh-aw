@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestInlineImports_FrontmatterField verifies that inline-imports: true activates
+// TestInlinedImports_FrontmatterField verifies that inlined-imports: true activates
 // compile-time inlining of imports (without inputs) and the main workflow markdown.
-func TestInlineImports_FrontmatterField(t *testing.T) {
+func TestInlinedImports_FrontmatterField(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a shared import file with markdown content
@@ -32,17 +32,17 @@ Always follow best practices.
 `
 	require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0o644))
 
-	// Create the main workflow file with inline-imports: true
+	// Create the main workflow file with inlined-imports: true
 	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
 	workflowFile := filepath.Join(workflowDir, "test-workflow.md")
 	workflowContent := `---
-name: inline-imports-test
+name: inlined-imports-test
 on:
   workflow_dispatch:
 permissions:
   contents: read
 engine: copilot
-inline-imports: true
+inlined-imports: true
 imports:
   - shared/common.md
 ---
@@ -62,19 +62,19 @@ This is the main workflow content.
 	require.NoError(t, err, "should parse workflow file")
 	require.NotNil(t, wd)
 
-	// WorkflowData.InlineImports should be true (parsed into the workspace data)
-	assert.True(t, wd.InlineImports, "WorkflowData.InlineImports should be true")
+	// WorkflowData.InlinedImports should be true (parsed into the workspace data)
+	assert.True(t, wd.InlinedImports, "WorkflowData.InlinedImports should be true")
 
-	// ParsedFrontmatter should also have InlineImports = true
+	// ParsedFrontmatter should also have InlinedImports = true
 	require.NotNil(t, wd.ParsedFrontmatter, "ParsedFrontmatter should not be nil")
-	assert.True(t, wd.ParsedFrontmatter.InlineImports, "InlineImports should be true")
+	assert.True(t, wd.ParsedFrontmatter.InlinedImports, "InlinedImports should be true")
 
 	// Compile and get YAML
 	yamlContent, err := compiler.CompileToYAML(wd, workflowFile)
 	require.NoError(t, err, "should compile workflow")
 	require.NotEmpty(t, yamlContent, "YAML should not be empty")
 
-	// With inline-imports: true, the import should be inlined (no runtime-import macros)
+	// With inlined-imports: true, the import should be inlined (no runtime-import macros)
 	assert.NotContains(t, yamlContent, "{{#runtime-import", "should not generate any runtime-import macros")
 
 	// The shared content should be inlined in the prompt
@@ -86,8 +86,8 @@ This is the main workflow content.
 	assert.Contains(t, yamlContent, "This is the main workflow content", "main workflow content should be inlined")
 }
 
-// TestInlineImports_Disabled verifies that without inline-imports, runtime-import macros are used.
-func TestInlineImports_Disabled(t *testing.T) {
+// TestInlinedImports_Disabled verifies that without inlined-imports, runtime-import macros are used.
+func TestInlinedImports_Disabled(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sharedDir := filepath.Join(tmpDir, ".github", "workflows", "shared")
@@ -107,7 +107,7 @@ Always follow best practices.
 	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
 	workflowFile := filepath.Join(workflowDir, "test-workflow.md")
 	workflowContent := `---
-name: no-inline-imports-test
+name: no-inlined-imports-test
 on:
   workflow_dispatch:
 permissions:
@@ -133,28 +133,28 @@ This is the main workflow content.
 	require.NotNil(t, wd)
 
 	require.NotNil(t, wd.ParsedFrontmatter, "ParsedFrontmatter should be populated")
-	assert.False(t, wd.ParsedFrontmatter.InlineImports, "InlineImports should be false by default")
+	assert.False(t, wd.ParsedFrontmatter.InlinedImports, "InlinedImports should be false by default")
 
 	yamlContent, err := compiler.CompileToYAML(wd, workflowFile)
 	require.NoError(t, err, "should compile workflow")
 
-	// Without inline-imports, the import should use runtime-import macro (with full path from workspace root)
+	// Without inlined-imports, the import should use runtime-import macro (with full path from workspace root)
 	assert.Contains(t, yamlContent, "{{#runtime-import .github/workflows/shared/common.md}}", "should generate runtime-import macro for import")
 
 	// The main workflow markdown should also use a runtime-import macro
 	assert.Contains(t, yamlContent, "{{#runtime-import .github/workflows/test-workflow.md}}", "should generate runtime-import macro for main workflow")
 }
 
-// TestInlineImports_HashChangesWithBody verifies that the frontmatter hash includes
-// the entire markdown body when inline-imports: true.
-func TestInlineImports_HashChangesWithBody(t *testing.T) {
+// TestInlinedImports_HashChangesWithBody verifies that the frontmatter hash includes
+// the entire markdown body when inlined-imports: true.
+func TestInlinedImports_HashChangesWithBody(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	content1 := `---
 name: test
 on:
   workflow_dispatch:
-inline-imports: true
+inlined-imports: true
 engine: copilot
 ---
 
@@ -164,13 +164,13 @@ engine: copilot
 name: test
 on:
   workflow_dispatch:
-inline-imports: true
+inlined-imports: true
 engine: copilot
 ---
 
 # Modified body - different
 `
-	// Normal mode (no inline-imports) - body changes should not affect hash
+	// Normal mode (no inlined-imports) - body changes should not affect hash
 	contentNormal1 := `---
 name: test
 on:
@@ -210,29 +210,29 @@ engine: copilot
 	hashN2, err := parser.ComputeFrontmatterHashFromFile(fileN2, cache)
 	require.NoError(t, err)
 
-	// With inline-imports: true, different body content should produce different hashes
+	// With inlined-imports: true, different body content should produce different hashes
 	assert.NotEqual(t, hash1, hash2,
-		"with inline-imports: true, different body content should produce different hashes")
+		"with inlined-imports: true, different body content should produce different hashes")
 
-	// Without inline-imports, body-only changes produce the same hash
+	// Without inlined-imports, body-only changes produce the same hash
 	// (only env./vars. expressions from body are included)
 	assert.Equal(t, hashN1, hashN2,
-		"without inline-imports, body-only changes should not affect hash")
+		"without inlined-imports, body-only changes should not affect hash")
 
-	// inline-imports mode should also produce a different hash than normal mode
+	// inlined-imports mode should also produce a different hash than normal mode
 	// (frontmatter text differs, so hash differs regardless of body treatment)
 	assert.NotEqual(t, hash1, hashN1,
-		"inline-imports and normal mode should produce different hashes (different frontmatter)")
+		"inlined-imports and normal mode should produce different hashes (different frontmatter)")
 }
 
-// TestInlineImports_FrontmatterHashInline_SameBodySameHash verifies determinism.
-func TestInlineImports_FrontmatterHashInline_SameBodySameHash(t *testing.T) {
+// TestInlinedImports_FrontmatterHashInline_SameBodySameHash verifies determinism.
+func TestInlinedImports_FrontmatterHashInline_SameBodySameHash(t *testing.T) {
 	tmpDir := t.TempDir()
 	content := `---
 name: test
 on:
   workflow_dispatch:
-inline-imports: true
+inlined-imports: true
 engine: copilot
 ---
 
@@ -252,8 +252,8 @@ engine: copilot
 	assert.Equal(t, hash1, hash2, "same content should produce the same hash")
 }
 
-// TestInlineImports_InlinePromptActivated verifies that inline-imports also activates inline prompt mode.
-func TestInlineImports_InlinePromptActivated(t *testing.T) {
+// TestInlinedImports_InlinePromptActivated verifies that inlined-imports also activates inline prompt mode.
+func TestInlinedImports_InlinePromptActivated(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -266,7 +266,7 @@ on:
 permissions:
   contents: read
 engine: copilot
-inline-imports: true
+inlined-imports: true
 ---
 
 # My Workflow
@@ -286,36 +286,36 @@ Do something useful.
 	yamlContent, err := compiler.CompileToYAML(wd, workflowFile)
 	require.NoError(t, err)
 
-	// When inline-imports is true, the main markdown body is also inlined (no runtime-import for main file)
+	// When inlined-imports is true, the main markdown body is also inlined (no runtime-import for main file)
 	assert.NotContains(t, yamlContent, "{{#runtime-import", "should not generate any runtime-import macros")
 	// Main workflow content should be inlined
 	assert.Contains(t, yamlContent, "My Workflow", "main workflow content should be inlined")
 	assert.Contains(t, yamlContent, "Do something useful", "main workflow body should be inlined")
 }
 
-// TestInlineImports_AgentFileCleared verifies that when inline-imports: true, the AgentFile
+// TestInlinedImports_AgentFileCleared verifies that when inlined-imports: true, the AgentFile
 // field is cleared in WorkflowData so the engine doesn't read it from disk separately
 // (the agent content is already inlined via ImportPaths → step 1b).
-func TestInlineImports_AgentFileCleared(t *testing.T) {
+func TestInlinedImports_AgentFileCleared(t *testing.T) {
 	compiler := NewCompiler()
 
 	frontmatterResult := &parser.FrontmatterResult{
 		Frontmatter: map[string]any{
-			"name":           "agent-test",
-			"engine":         "copilot",
-			"inline-imports": true,
+			"name":            "agent-test",
+			"engine":          "copilot",
+			"inlined-imports": true,
 		},
 		FrontmatterLines: []string{
 			"name: agent-test",
 			"engine: copilot",
-			"inline-imports: true",
+			"inlined-imports: true",
 		},
 	}
 
 	toolsResult := &toolsProcessingResult{
 		workflowName:         "agent-test",
 		frontmatterName:      "agent-test",
-		parsedFrontmatter:    &FrontmatterConfig{Name: "agent-test", Engine: "copilot", InlineImports: true},
+		parsedFrontmatter:    &FrontmatterConfig{Name: "agent-test", Engine: "copilot", InlinedImports: true},
 		tools:                map[string]any{},
 		importPaths:          []string{".github/agents/my-agent.md"},
 		mainWorkflowMarkdown: "# Main",
@@ -334,10 +334,10 @@ func TestInlineImports_AgentFileCleared(t *testing.T) {
 
 	wd := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, importsResult)
 
-	// InlineImports should be true in WorkflowData
-	assert.True(t, wd.InlineImports, "InlineImports should be true in WorkflowData")
+	// InlinedImports should be true in WorkflowData
+	assert.True(t, wd.InlinedImports, "InlinedImports should be true in WorkflowData")
 
 	// AgentFile should be cleared (content inlined via ImportPaths instead)
-	assert.Empty(t, wd.AgentFile, "AgentFile should be cleared when inline-imports is true")
-	assert.Empty(t, wd.AgentImportSpec, "AgentImportSpec should be cleared when inline-imports is true")
+	assert.Empty(t, wd.AgentFile, "AgentFile should be cleared when inlined-imports is true")
+	assert.Empty(t, wd.AgentImportSpec, "AgentImportSpec should be cleared when inlined-imports is true")
 }

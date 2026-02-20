@@ -118,13 +118,13 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
-	inlineImports := resolveInlineImports(toolsResult.parsedFrontmatter, strings.Join(result.FrontmatterLines, "\n"))
+	inlinedImports := resolveInlinedImports(toolsResult.parsedFrontmatter, strings.Join(result.FrontmatterLines, "\n"))
 
-	// When inline-imports is true, agent file content is already inlined via ImportPaths → step 1b.
+	// When inlined-imports is true, agent file content is already inlined via ImportPaths → step 1b.
 	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
 	agentFile := importsResult.AgentFile
 	agentImportSpec := importsResult.AgentImportSpec
-	if inlineImports {
+	if inlinedImports {
 		agentFile = ""
 		agentImportSpec = ""
 	}
@@ -165,34 +165,34 @@ func (c *Compiler) buildInitialWorkflowData(
 		RawFrontmatter:        result.Frontmatter,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
-		InlineImports:         inlineImports,
+		InlinedImports:        inlinedImports,
 	}
 }
 
-// resolveInlineImports returns true if inline-imports is enabled.
+// resolveInlinedImports returns true if inlined-imports is enabled.
 // ParsedFrontmatter may be nil when ParseFrontmatterConfig fails (e.g. engine is an object),
 // so fall back to a tolerant text scan of the raw frontmatter YAML.
-// A line matches when it starts with "inline-imports:" followed by "true" (optional trailing comments allowed).
-func resolveInlineImports(parsedFrontmatter *FrontmatterConfig, frontmatterYAML string) bool {
-	if parsedFrontmatter != nil && parsedFrontmatter.InlineImports {
+// A line matches when it starts with "inlined-imports:" followed by "true" (optional trailing comments allowed).
+func resolveInlinedImports(parsedFrontmatter *FrontmatterConfig, frontmatterYAML string) bool {
+	if parsedFrontmatter != nil && parsedFrontmatter.InlinedImports {
 		return true
 	}
 	for _, line := range strings.Split(frontmatterYAML, "\n") {
-		if isInlineImportsLine(strings.TrimSpace(line)) {
+		if isInlinedImportsLine(strings.TrimSpace(line)) {
 			return true
 		}
 	}
 	return false
 }
 
-// isInlineImportsLine returns true if the YAML line declares inline-imports: true.
+// isInlinedImportsLine returns true if the YAML line declares inlined-imports: true.
 // Trailing YAML comments (e.g. "# ...") are stripped before matching.
-func isInlineImportsLine(line string) bool {
+func isInlinedImportsLine(line string) bool {
 	// Strip trailing comment
 	if idx := strings.Index(line, " #"); idx != -1 {
 		line = strings.TrimSpace(line[:idx])
 	}
-	const prefix = "inline-imports:"
+	const prefix = "inlined-imports:"
 	if !strings.HasPrefix(line, prefix) {
 		return false
 	}
