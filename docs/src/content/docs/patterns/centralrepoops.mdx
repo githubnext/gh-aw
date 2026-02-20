@@ -1,10 +1,13 @@
 ---
 title: CentralRepoOps
 description: Operate and roll out changes across many repositories from a single private control repository.
-sidebar:
-  badge: { text: 'Enterprise', variant: 'caution' }
-draft: true
 ---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Experimental">
+  CentralRepoOps is still **experimental**. There may be changes in guidance or interfaces as the pattern evolves.
+</Aside>
 
 CentralRepoOps is a [MultiRepoOps](/gh-aw/patterns/multirepoops/) deployment variant where a single private repository acts as a control plane for large-scale operations across many repositories.
 
