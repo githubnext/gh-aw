@@ -565,6 +565,35 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
                 }
               }
             },
@@ -603,6 +632,12 @@ jobs:
             "update_issue": {
               "defaultMax": 1,
               "fields": {
+                "assignees": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 39
+                },
                 "body": {
                   "type": "string",
                   "sanitize": true,
@@ -610,6 +645,28 @@ jobs:
                 },
                 "issue_number": {
                   "issueOrPRNumber": true
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "milestone": {
+                  "optionalPositiveInteger": true
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "replace",
+                    "append",
+                    "prepend",
+                    "replace-island"
+                  ]
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "status": {
                   "type": "string",
