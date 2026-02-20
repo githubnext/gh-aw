@@ -92,11 +92,11 @@ Understand:
 
 Inspect the current safe-outputs implementation in code and treat it as a required source of truth:
 
-- Use `get_file_contents` to review these files:
-  - `pkg/workflow/safe_outputs_config.go`
-  - `pkg/workflow/safe_outputs_config_generation.go`
-  - `pkg/workflow/js/safe_outputs_tools.json`
-  - `pkg/workflow/compiler_safe_outputs.go`
+- Use `get_file_contents` to review these three key files that define safe-output operations and their accepted arguments:
+  - `pkg/workflow/compiler_types.go` — `SafeOutputsConfig` struct defining every operation field and its Go type
+  - `pkg/workflow/safe_outputs_config.go` — parses frontmatter YAML into typed structs, showing what arguments each operation accepts
+  - `pkg/parser/schemas/main_workflow_schema.json` — JSON Schema listing all operations, their properties, types, and defaults
+- Browse other code files as needed to validate behavior or resolve ambiguity (e.g., config generation, compiler, validation, and step files under `pkg/workflow/`).
 - Enumerate supported safe-output operations, options, and constraints.
 - Compare this code-level state against the safe-outputs sections in `.github/aw/github-agentic-workflows.md`.
 - If the instructions differ from code, update the instructions to match code even when documentation commits do not mention safe outputs.
