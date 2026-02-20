@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["smoke-multi-pr"]
   reaction: "eyes"
   status-comment: true
 permissions:

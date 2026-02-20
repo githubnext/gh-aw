@@ -457,7 +457,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Title will be prefixed with \"[code-scanning-fix] \". Labels [security automated-fix agentic-campaign z_campaign_security-alert-burndown] will be automatically added. Reviewers [copilot] will be assigned.",
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[code-scanning-fix] \". Labels [security automated-fix agentic-campaign z_campaign_security-alert-burndown] will be automatically added. Reviewers [copilot] will be assigned.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1356,7 +1356,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_labels\":{\"allowed\":[\"agentic-campaign\",\"z_campaign_security-alert-burndown\"]},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"expires\":48,\"labels\":[\"security\",\"automated-fix\",\"agentic-campaign\",\"z_campaign_security-alert-burndown\"],\"max_patch_size\":1024,\"reviewers\":[\"copilot\"],\"title_prefix\":\"[code-scanning-fix] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_labels\":{\"allowed\":[\"agentic-campaign\",\"z_campaign_security-alert-burndown\"]},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"expires\":48,\"labels\":[\"security\",\"automated-fix\",\"agentic-campaign\",\"z_campaign_security-alert-burndown\"],\"max\":1,\"max_patch_size\":1024,\"reviewers\":[\"copilot\"],\"title_prefix\":\"[code-scanning-fix] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
