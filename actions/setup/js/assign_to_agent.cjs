@@ -84,6 +84,9 @@ async function main() {
     core.info(`Default custom instructions: ${defaultCustomInstructions}`);
   }
 
+  // Get base branch configuration for PR creation in target repo
+  const configuredBaseBranch = process.env.GH_AW_AGENT_BASE_BRANCH?.trim();
+
   // Get target configuration (defaults to "triggering")
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
   core.info(`Target configuration: ${targetConfig}`);
@@ -157,6 +160,8 @@ async function main() {
   let pullRequestOwner = null;
   let pullRequestRepo = null;
   let pullRequestRepoId = null;
+  // Effective base branch: explicit config > fetched default branch from PR repo
+  let effectiveBaseBranch = configuredBaseBranch || null;
 
   // Get allowed PR repos configuration for cross-repo validation
   const allowedPullRequestReposEnv = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim();
@@ -178,18 +183,26 @@ async function main() {
       pullRequestRepo = parts[1];
       core.info(`Using pull request repository: ${pullRequestOwner}/${pullRequestRepo}`);
 
-      // Fetch the repository ID for the PR repo (needed for GraphQL agentAssignment)
+      // Fetch the repository ID and default branch for the PR repo
       try {
         const pullRequestRepoQuery = `
           query($owner: String!, $name: String!) {
             repository(owner: $owner, name: $name) {
               id
+              defaultBranchRef { name }
             }
           }
         `;
         const pullRequestRepoResponse = await github.graphql(pullRequestRepoQuery, { owner: pullRequestOwner, name: pullRequestRepo });
         pullRequestRepoId = pullRequestRepoResponse.repository.id;
         core.info(`Pull request repository ID: ${pullRequestRepoId}`);
+
+        // Determine effective base branch: explicit config wins, otherwise use repo's default branch
+        const repoBranchDefault = pullRequestRepoResponse.repository.defaultBranchRef?.name;
+        if (!effectiveBaseBranch && repoBranchDefault) {
+          effectiveBaseBranch = repoBranchDefault;
+          core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
+        }
       } catch (error) {
         core.setFailed(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
         return;
@@ -211,7 +224,13 @@ async function main() {
     // They are NOT available as per-item overrides in the tool call
     const model = defaultModel;
     const customAgent = defaultCustomAgent;
-    const customInstructions = defaultCustomInstructions;
+    // Build effective custom instructions: prepend base-branch instruction when needed
+    let customInstructions = defaultCustomInstructions;
+    if (configuredBaseBranch || (effectiveBaseBranch && effectiveBaseBranch !== "main")) {
+      const branch = effectiveBaseBranch || configuredBaseBranch;
+      const branchInstruction = `IMPORTANT: Create your branch from the '${branch}' branch.`;
+      customInstructions = customInstructions ? `${branchInstruction}\n\n${customInstructions}` : branchInstruction;
+    }
 
     // Use these variables to allow temporary IDs to override target repo per-item.
     // Default to the configured target repo.

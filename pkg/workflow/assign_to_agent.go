@@ -18,6 +18,7 @@ type AssignToAgentConfig struct {
 	IgnoreIfError             bool     `yaml:"ignore-if-error,omitempty"`            // If true, workflow continues when agent assignment fails
 	PullRequestRepoSlug       string   `yaml:"pull-request-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
 	AllowedPullRequestRepos   []string `yaml:"allowed-pull-request-repos,omitempty"` // List of additional repositories that PRs can be created in (beyond pull-request-repo which is automatically allowed)
+	BaseBranch                string   `yaml:"base-branch,omitempty"`                // Base branch for PR creation in target repo (defaults to target repo's default branch)
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration
