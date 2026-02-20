@@ -84,6 +84,9 @@ Then add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TO
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
+> [!TIP]
+> If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
+
 <Video
   src="/gh-aw/videos/create-pat-user-copilot.mp4"
   caption="Creating a fine-grained PAT for user-owned repositories with Copilot permissions"
