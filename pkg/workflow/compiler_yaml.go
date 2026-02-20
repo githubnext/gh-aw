@@ -174,9 +174,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
 	// Enable inline-imports mode from WorkflowData (parsed during buildInitialWorkflowData).
+	// Save previous compiler state and restore it with defer so that reusing the same
+	// Compiler instance for a subsequent workflow without inline-imports works correctly.
 	if data.InlineImports {
+		prevInlinePrompt := c.inlinePrompt
+		prevInlineImports := c.inlineImports
 		c.inlinePrompt = true
 		c.inlineImports = true
+		defer func() {
+			c.inlinePrompt = prevInlinePrompt
+			c.inlineImports = prevInlineImports
+		}()
 	}
 
 	// Build all jobs and validate dependencies
@@ -311,11 +319,17 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 			// ImportPaths are relative to the workspace root (e.g. ".github/workflows/shared/common.md").
 			// Resolve the workspace root by finding the directory that contains ".github/".
+			// Handle both absolute paths ("/repo/.github/workflows/foo.md") and
+			// relative paths (".github/workflows/foo.md" or "repo/.github/workflows/foo.md").
 			normalizedMarkdownPath := filepath.ToSlash(c.markdownPath)
 			workspaceRoot := filepath.Dir(c.markdownPath) // fallback: workflow dir
 			if idx := strings.Index(normalizedMarkdownPath, "/.github/"); idx != -1 {
-				// Convert back to OS-native path separators for correct filepath.Join behaviour
+				// Absolute or non-root relative path: everything before "/.github/"
+				// Convert back to OS-native separators for correct filepath.Join behaviour
 				workspaceRoot = filepath.FromSlash(normalizedMarkdownPath[:idx])
+			} else if strings.HasPrefix(normalizedMarkdownPath, ".github/") {
+				// Path starts with ".github/" — workspace root is current directory "."
+				workspaceRoot = "."
 			}
 
 			for _, importPath := range data.ImportPaths {

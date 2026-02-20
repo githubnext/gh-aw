@@ -255,12 +255,27 @@ func marshalSorted(data any) string {
 	}
 }
 
+// isInlineImportsLineEnabled returns true if a single YAML line declares
+// inline-imports: true, tolerating optional trailing YAML comments.
+// For example: "inline-imports: true" and "inline-imports: true # comment" both match.
+func isInlineImportsLineEnabled(line string) bool {
+	// Strip trailing comment (everything from " #" onwards)
+	if idx := strings.Index(line, " #"); idx != -1 {
+		line = strings.TrimSpace(line[:idx])
+	}
+	// Match "inline-imports:" followed by optional whitespace and "true"
+	const prefix = "inline-imports:"
+	if !strings.HasPrefix(line, prefix) {
+		return false
+	}
+	return strings.TrimSpace(line[len(prefix):]) == "true"
+}
+
 // isInlineImportsEnabled checks if inline-imports is set to true in the frontmatter text.
 // This uses simple text-based parsing to avoid YAML dependency in the hash module.
 func isInlineImportsEnabled(frontmatterText string) bool {
 	for _, line := range strings.Split(frontmatterText, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "inline-imports: true" {
+		if isInlineImportsLineEnabled(strings.TrimSpace(line)) {
 			return true
 		}
 	}

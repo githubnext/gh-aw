@@ -170,17 +170,32 @@ func (c *Compiler) buildInitialWorkflowData(
 
 // resolveInlineImports returns true if inline-imports is enabled.
 // ParsedFrontmatter may be nil when ParseFrontmatterConfig fails (e.g. engine is an object),
-// so fall back to a simple text scan of the raw frontmatter YAML.
+// so fall back to a tolerant text scan of the raw frontmatter YAML.
+// A line matches when it starts with "inline-imports:" followed by "true" (optional trailing comments allowed).
 func resolveInlineImports(parsedFrontmatter *FrontmatterConfig, frontmatterYAML string) bool {
 	if parsedFrontmatter != nil && parsedFrontmatter.InlineImports {
 		return true
 	}
 	for _, line := range strings.Split(frontmatterYAML, "\n") {
-		if strings.TrimSpace(line) == "inline-imports: true" {
+		if isInlineImportsLine(strings.TrimSpace(line)) {
 			return true
 		}
 	}
 	return false
+}
+
+// isInlineImportsLine returns true if the YAML line declares inline-imports: true.
+// Trailing YAML comments (e.g. "# ...") are stripped before matching.
+func isInlineImportsLine(line string) bool {
+	// Strip trailing comment
+	if idx := strings.Index(line, " #"); idx != -1 {
+		line = strings.TrimSpace(line[:idx])
+	}
+	const prefix = "inline-imports:"
+	if !strings.HasPrefix(line, prefix) {
+		return false
+	}
+	return strings.TrimSpace(line[len(prefix):]) == "true"
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter
