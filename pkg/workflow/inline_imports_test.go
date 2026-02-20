@@ -62,7 +62,10 @@ This is the main workflow content.
 	require.NoError(t, err, "should parse workflow file")
 	require.NotNil(t, wd)
 
-	// ParsedFrontmatter should have InlineImports = true
+	// WorkflowData.InlineImports should be true (parsed into the workspace data)
+	assert.True(t, wd.InlineImports, "WorkflowData.InlineImports should be true")
+
+	// ParsedFrontmatter should also have InlineImports = true
 	require.NotNil(t, wd.ParsedFrontmatter, "ParsedFrontmatter should not be nil")
 	assert.True(t, wd.ParsedFrontmatter.InlineImports, "InlineImports should be true")
 
@@ -288,4 +291,53 @@ Do something useful.
 	// Main workflow content should be inlined
 	assert.Contains(t, yamlContent, "My Workflow", "main workflow content should be inlined")
 	assert.Contains(t, yamlContent, "Do something useful", "main workflow body should be inlined")
+}
+
+// TestInlineImports_AgentFileCleared verifies that when inline-imports: true, the AgentFile
+// field is cleared in WorkflowData so the engine doesn't read it from disk separately
+// (the agent content is already inlined via ImportPaths → step 1b).
+func TestInlineImports_AgentFileCleared(t *testing.T) {
+	compiler := NewCompiler()
+
+	frontmatterResult := &parser.FrontmatterResult{
+		Frontmatter: map[string]any{
+			"name":           "agent-test",
+			"engine":         "copilot",
+			"inline-imports": true,
+		},
+		FrontmatterLines: []string{
+			"name: agent-test",
+			"engine: copilot",
+			"inline-imports: true",
+		},
+	}
+
+	toolsResult := &toolsProcessingResult{
+		workflowName:         "agent-test",
+		frontmatterName:      "agent-test",
+		parsedFrontmatter:    &FrontmatterConfig{Name: "agent-test", Engine: "copilot", InlineImports: true},
+		tools:                map[string]any{},
+		importPaths:          []string{".github/agents/my-agent.md"},
+		mainWorkflowMarkdown: "# Main",
+	}
+
+	engineSetup := &engineSetupResult{
+		engineSetting: "copilot",
+		engineConfig:  &EngineConfig{ID: "copilot"},
+		sandboxConfig: &SandboxConfig{},
+	}
+
+	importsResult := &parser.ImportsResult{
+		AgentFile:       ".github/agents/my-agent.md",
+		AgentImportSpec: ".github/agents/my-agent.md",
+	}
+
+	wd := compiler.buildInitialWorkflowData(frontmatterResult, toolsResult, engineSetup, importsResult)
+
+	// InlineImports should be true in WorkflowData
+	assert.True(t, wd.InlineImports, "InlineImports should be true in WorkflowData")
+
+	// AgentFile should be cleared (content inlined via ImportPaths instead)
+	assert.Empty(t, wd.AgentFile, "AgentFile should be cleared when inline-imports is true")
+	assert.Empty(t, wd.AgentImportSpec, "AgentImportSpec should be cleared when inline-imports is true")
 }

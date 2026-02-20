@@ -118,6 +118,17 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
+	inlineImports := resolveInlineImports(toolsResult.parsedFrontmatter, strings.Join(result.FrontmatterLines, "\n"))
+
+	// When inline-imports is true, agent file content is already inlined via ImportPaths → step 1b.
+	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
+	agentFile := importsResult.AgentFile
+	agentImportSpec := importsResult.AgentImportSpec
+	if inlineImports {
+		agentFile = ""
+		agentImportSpec = ""
+	}
+
 	return &WorkflowData{
 		Name:                  toolsResult.workflowName,
 		FrontmatterName:       toolsResult.frontmatterName,
@@ -138,8 +149,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,
-		AgentFile:             importsResult.AgentFile,
-		AgentImportSpec:       importsResult.AgentImportSpec,
+		AgentFile:             agentFile,
+		AgentImportSpec:       agentImportSpec,
 		RepositoryImports:     importsResult.RepositoryImports,
 		NetworkPermissions:    engineSetup.networkPermissions,
 		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
@@ -153,7 +164,23 @@ func (c *Compiler) buildInitialWorkflowData(
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
+		InlineImports:         inlineImports,
 	}
+}
+
+// resolveInlineImports returns true if inline-imports is enabled.
+// ParsedFrontmatter may be nil when ParseFrontmatterConfig fails (e.g. engine is an object),
+// so fall back to a simple text scan of the raw frontmatter YAML.
+func resolveInlineImports(parsedFrontmatter *FrontmatterConfig, frontmatterYAML string) bool {
+	if parsedFrontmatter != nil && parsedFrontmatter.InlineImports {
+		return true
+	}
+	for _, line := range strings.Split(frontmatterYAML, "\n") {
+		if strings.TrimSpace(line) == "inline-imports: true" {
+			return true
+		}
+	}
+	return false
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter

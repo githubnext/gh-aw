@@ -16,17 +16,6 @@ import (
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
 
-// inlineImportsEnabledInYAML returns true if the raw frontmatter YAML text contains
-// "inline-imports: true". This is used as a fallback when ParsedFrontmatter is nil.
-func inlineImportsEnabledInYAML(frontmatterYAML string) bool {
-	for _, line := range strings.Split(frontmatterYAML, "\n") {
-		if strings.TrimSpace(line) == "inline-imports: true" {
-			return true
-		}
-	}
-	return false
-}
-
 // buildJobsAndValidate builds all workflow jobs and validates their dependencies.
 // It resets the job manager, builds jobs from the workflow data, and performs
 // dependency and duplicate step validation.
@@ -184,11 +173,8 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
-	// Enable inline-imports mode from frontmatter.
-	// ParsedFrontmatter may be nil when ParseFrontmatterConfig fails (e.g. engine is an object),
-	// so fall back to a simple text scan of the raw FrontmatterYAML.
-	if (data.ParsedFrontmatter != nil && data.ParsedFrontmatter.InlineImports) ||
-		inlineImportsEnabledInYAML(data.FrontmatterYAML) {
+	// Enable inline-imports mode from WorkflowData (parsed during buildInitialWorkflowData).
+	if data.InlineImports {
 		c.inlinePrompt = true
 		c.inlineImports = true
 	}

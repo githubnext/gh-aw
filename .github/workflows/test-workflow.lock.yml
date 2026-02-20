@@ -142,10 +142,15 @@ jobs:
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
+          .
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/test-workflow.md}}
+          # Instructions for Test Workflow
+          
+          This is the target workflow that will be triggered by the `test-dispatcher` workflow.
+          
+          When this workflow is dispatched, it expects an input parameter named `test_param`, which is a question sent from the dispatcher workflow. Answer the question and print the response.
+          
           GH_AW_PROMPT_EOF
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
