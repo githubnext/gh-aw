@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["water"]
 permissions:
   contents: read
   issues: read

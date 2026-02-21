@@ -28,13 +28,13 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0cbff208fe0695987e6a089673e8346206c6dca1fdb91f20648b52de072e50c6"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ad3f0e21d9ddf5a77a14a1e4be33788a602f43e6b56cc12c14f668c898a4d8f7"}
 
 name: "Smoke Gemini"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
+    # - water # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
@@ -55,7 +55,7 @@ jobs:
     needs: pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1284,7 +1284,7 @@ jobs:
   pre_activation:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
