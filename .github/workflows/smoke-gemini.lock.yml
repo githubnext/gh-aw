@@ -1046,6 +1046,17 @@ jobs:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gemini-client-error-*.json
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
+      - name: Clean up engine output files
+        run: |
+          rm -fr /tmp/gemini-client-error-*.json
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
