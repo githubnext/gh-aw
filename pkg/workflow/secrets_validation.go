@@ -26,3 +26,24 @@ func validateSecretsExpression(value string) error {
 	secretsValidationLog.Printf("Valid secret expression validated")
 	return nil
 }
+
+// validateSecretReferences validates that secret references are valid
+func validateSecretReferences(secrets []string) error {
+	secretsValidationLog.Printf("Validating secret references: checking %d secrets", len(secrets))
+	// Secret names must be valid environment variable names
+	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
+	for _, secret := range secrets {
+		if !secretNamePattern.MatchString(secret) {
+			secretsValidationLog.Printf("Invalid secret name format: %s", secret)
+			return NewValidationError(
+				"secrets",
+				secret,
+				"invalid secret name format - must follow environment variable naming conventions",
+				"Secret names must:\n- Start with an uppercase letter\n- Contain only uppercase letters, numbers, and underscores\n\nExamples:\n  MY_SECRET_KEY      ✓\n  API_TOKEN_123      ✓\n  mySecretKey        ✗ (lowercase)\n  123_SECRET         ✗ (starts with number)\n  MY-SECRET          ✗ (hyphens not allowed)",
+			)
+		}
+	}
+
+	return nil
+}

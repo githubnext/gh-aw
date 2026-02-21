@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -54,30 +52,6 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		permissionsLog.Printf("Unknown permission scope key: %s", key)
 	}
 	return scope
-}
-
-// ContainsCheckout returns true if the given custom steps contain an actions/checkout step
-func ContainsCheckout(customSteps string) bool {
-	if customSteps == "" {
-		return false
-	}
-
-	// Look for actions/checkout usage patterns
-	checkoutPatterns := []string{
-		"actions/checkout@",
-		"uses: actions/checkout",
-		"- uses: actions/checkout",
-	}
-
-	lowerSteps := strings.ToLower(customSteps)
-	for _, pattern := range checkoutPatterns {
-		if strings.Contains(lowerSteps, strings.ToLower(pattern)) {
-			permissionsLog.Print("Detected actions/checkout in custom steps")
-			return true
-		}
-	}
-
-	return false
 }
 
 // PermissionLevel represents the level of access (read, write, none)
