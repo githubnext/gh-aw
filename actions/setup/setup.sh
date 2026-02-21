@@ -158,6 +158,7 @@ SAFE_INPUTS_FILES=(
   "setup_globals.cjs"
   "error_helpers.cjs"
   "mcp_enhanced_errors.cjs"
+  "shim.cjs"
 )
 
 SAFE_INPUTS_COUNT=0
@@ -225,6 +226,7 @@ SAFE_OUTPUTS_FILES=(
   "git_helpers.cjs"
   "mcp_enhanced_errors.cjs"
   "comment_limit_helpers.cjs"
+  "shim.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

@@ -18,6 +18,10 @@
  *   --log-dir <path>   Directory for log files
  */
 
+// Load core shim before any other modules so that global.core is available
+// for modules that rely on it.
+require("./shim.cjs");
+
 const http = require("http");
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");

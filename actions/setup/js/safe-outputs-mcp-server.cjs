@@ -5,6 +5,10 @@
 // This is the main entry point script for the safe-outputs MCP server
 // It starts the HTTP server on the configured port
 
+// Load core shim before any other modules so that global.core is available
+// for modules that rely on it (e.g. generate_git_patch.cjs).
+require("./shim.cjs");
+
 const { createLogger } = require("./mcp_logger.cjs");
 const logger = createLogger("safe-outputs-entry");
 
