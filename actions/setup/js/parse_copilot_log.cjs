@@ -415,6 +415,14 @@ function parseDebugLogFormat(logContent) {
                     const content = [];
                     const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
 
+                    // Add reasoning_text first (agent's thinking before response/tools)
+                    if (message.reasoning_text && message.reasoning_text.trim()) {
+                      content.push({
+                        type: "text",
+                        text: message.reasoning_text,
+                      });
+                    }
+
                     if (message.content && message.content.trim()) {
                       content.push({
                         type: "text",

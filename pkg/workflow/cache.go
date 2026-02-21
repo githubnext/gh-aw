@@ -824,6 +824,14 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		permissions = perms.RenderToYAML()
 	}
 
+	// Set GH_AW_WORKFLOW_ID_SANITIZED so cache keys match those used in the agent job
+	var jobEnv map[string]string
+	if data.WorkflowID != "" {
+		jobEnv = map[string]string{
+			"GH_AW_WORKFLOW_ID_SANITIZED": SanitizeWorkflowIDForCacheKey(data.WorkflowID),
+		}
+	}
+
 	job := &Job{
 		Name:        "update_cache_memory",
 		DisplayName: "", // No display name - job ID is sufficient
@@ -831,6 +839,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		If:          jobCondition,
 		Permissions: permissions,
 		Needs:       []string{"agent", "detection"},
+		Env:         jobEnv,
 		Steps:       steps,
 	}
 
