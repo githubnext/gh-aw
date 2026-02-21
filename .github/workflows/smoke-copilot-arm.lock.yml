@@ -633,7 +633,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers — it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the comment will be silently discarded.",
                     "type": "number"
                   },
                   "repo": {
@@ -722,7 +722,7 @@ jobs:
                 "additionalProperties": false,
                 "properties": {
                   "item_number": {
-                    "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow.",
+                    "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required — omitting it will silently skip the label operation.",
                     "type": "number"
                   },
                   "labels": {
@@ -2310,6 +2310,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GH_AW_WORKFLOW_ID_SANITIZED: smokecopilotarm
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

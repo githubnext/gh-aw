@@ -5,6 +5,7 @@ on:
   pull_request:
     types: [labeled]
     names: ["metal"]
+  reaction: "rocket"
   status-comment: true
 permissions:
   contents: read
