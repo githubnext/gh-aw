@@ -31,13 +31,15 @@
  * @param {MockContext} ctx - Optional overrides for context fields
  */
 function setupMockContext(ctx) {
-  /** @type {any} */ (global).core = {
+  /** @type {any} */
+  const g = global;
+  g.core = {
     info: () => {},
     warning: () => {},
     setFailed: () => {},
   };
 
-  /** @type {any} */ (global).context = {
+  g.context = {
     actor: ctx.actor ?? "testuser",
     job: ctx.job ?? "test-job",
     repo: { owner: ctx.owner ?? "testorg", repo: ctx.repo ?? "testrepo" },
