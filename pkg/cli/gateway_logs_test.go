@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -267,7 +268,7 @@ func TestGatewayTruncateString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := truncateString(tt.input, tt.maxLen)
+			result := stringutil.Truncate(tt.input, tt.maxLen)
 			assert.Equal(t, tt.want, result)
 			assert.LessOrEqual(t, len(result), tt.maxLen)
 		})
