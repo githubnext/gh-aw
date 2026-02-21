@@ -795,3 +795,7 @@ Include in the PR description:
   - **Checkboxes**: Use `- [ ]` for unchecked and `- [x]` for checked task items
   - **Progressive Disclosure**: Use `<details><summary><b>Bold Summary Text</b></summary>` to collapse long content
   - **Workflow Run Links**: Format as `[§12345](https://github.com/owner/repo/actions/runs/12345)`. Do NOT add footer attribution (system adds automatically)
+- **Produce a single workflow file**: Always output exactly **one** workflow `.md` file as the primary deliverable. Do not create separate architecture documents, runbooks, usage guides, or any other documentation files alongside the workflow.
+  - If documentation is needed, add a brief inline `## Usage` section within the same `.md` file.
+  - ✅ **Correct**: One file — `.github/workflows/<workflow-id>.md` (with optional `## Usage` section inside)
+  - ❌ **Incorrect**: `.github/workflows/<workflow-id>.md` + `docs/workflow-guide.md` + `README-workflow.md` + architecture docs
