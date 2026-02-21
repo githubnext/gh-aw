@@ -959,7 +959,7 @@ func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 
 	// Running update with no source workflows should fail
 	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false)
-	assert.Error(t, err, "Should error when no workflows with source field exist")
+	require.Error(t, err, "Should error when no workflows with source field exist")
 	assert.Contains(t, err.Error(), "no workflows found with source field")
 }
 
@@ -976,6 +976,6 @@ func TestRunUpdateWorkflows_SpecificWorkflowNotFound(t *testing.T) {
 
 	// Running update with a specific name that doesn't exist should fail
 	err := RunUpdateWorkflows([]string{"nonexistent"}, false, false, false, "", "", false, "", false)
-	assert.Error(t, err, "Should error when specified workflow not found")
+	require.Error(t, err, "Should error when specified workflow not found")
 	assert.Contains(t, err.Error(), "no workflows found matching the specified names")
 }
