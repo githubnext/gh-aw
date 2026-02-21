@@ -33,6 +33,7 @@ tools:
 
 safe-outputs:
   upload-asset:
+    max: 5
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]
