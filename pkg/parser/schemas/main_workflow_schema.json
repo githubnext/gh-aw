@@ -5700,6 +5700,10 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository issue updates. Takes precedence over trial target repo settings."
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Required prefix for issue title. Only issues with this title prefix can be updated."
                 }
               },
               "additionalProperties": false
