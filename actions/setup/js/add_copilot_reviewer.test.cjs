@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -76,7 +77,7 @@ describe("add_copilot_reviewer", () => {
 
     await runScript();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: PR_NUMBER environment variable is required but not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: PR_NUMBER environment variable is required but not set`);
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
@@ -85,7 +86,7 @@ describe("add_copilot_reviewer", () => {
 
     await runScript();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: PR_NUMBER environment variable is required but not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: PR_NUMBER environment variable is required but not set`);
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
