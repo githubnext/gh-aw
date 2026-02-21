@@ -45,7 +45,7 @@ Each safe output type has additional environment variables specific to its confi
 | Variable | Description | Set When | Example |
 |----------|-------------|----------|---------|
 | `GH_AW_WORKFLOW_ID` | Workflow identifier for branch naming | Always | `"agent"` (job name) |
-| `GH_AW_BASE_BRANCH` | Base branch for PR | Always | `${{ github.ref_name }}` |
+| `GH_AW_BASE_BRANCH` | Base branch for PR | Always | `${{ github.base_ref \|\| github.ref_name }}` |
 | `GH_AW_PR_TITLE_PREFIX` | Prefix for PR titles | `title-prefix` configured | `"[agent] "` |
 | `GH_AW_PR_LABELS` | Comma-separated labels to add | `labels` configured | `"automation"` |
 | `GH_AW_PR_ALLOWED_LABELS` | Comma-separated allowed labels | `allowed-labels` configured | `"automation,bug"` |
@@ -172,7 +172,7 @@ Each safe output type has additional environment variables specific to its confi
 
 | Variable | Description | Set When | Example |
 |----------|-------------|----------|---------|
-| `GH_AW_AGENT_TASK_BASE` | Base branch for pull request | `base` configured or `${{ github.ref_name }}` fallback | `"main"` or `"develop"` |
+| `GH_AW_AGENT_TASK_BASE` | Base branch for pull request | `base` configured or `${{ github.base_ref \|\| github.ref_name }}` fallback | `"main"` or `"develop"` |
 | `GH_AW_TARGET_REPO` | Target repository for cross-repo tasks | `target-repo` configured | `"owner/repo"` |
 
 ### Assign to Agent (`assign-to-agent:`)

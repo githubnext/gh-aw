@@ -93,11 +93,12 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	var customEnvVars []string
 	// Pass the workflow ID for branch naming
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
-	// Pass the base branch - use custom value if specified, otherwise default to github.ref_name
+	// Pass the base branch - use custom value if specified, otherwise default to github.base_ref || github.ref_name
+	// This handles PR contexts where github.ref_name is "123/merge" which is invalid as a target branch
 	if data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_BASE_BRANCH: %q\n", data.SafeOutputs.CreatePullRequests.BaseBranch))
 	} else {
-		customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
+		customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.base_ref || github.ref_name }}\n")
 	}
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", data.SafeOutputs.CreatePullRequests.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", data.SafeOutputs.CreatePullRequests.Labels)...)

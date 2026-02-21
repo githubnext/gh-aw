@@ -284,12 +284,12 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "default checkout ref uses github.ref_name",
+			name: "default checkout ref uses github.base_ref || github.ref_name",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"ref: ${{ github.ref_name }}",
+				"ref: ${{ github.base_ref || github.ref_name }}",
 			},
 		},
 		{
