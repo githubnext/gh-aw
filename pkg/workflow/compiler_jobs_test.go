@@ -1246,6 +1246,55 @@ func TestJobsWithCacheMemoryDependencies(t *testing.T) {
 	}
 }
 
+// TestUpdateCacheMemoryJobHasWorkflowIDEnv verifies that the update_cache_memory job
+// includes GH_AW_WORKFLOW_ID_SANITIZED in its env block so cache keys match the agent job.
+func TestUpdateCacheMemoryJobHasWorkflowIDEnv(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:       "Test Workflow",
+		WorkflowID: "daily-repo-status",
+		AI:         "copilot",
+		RunsOn:     "runs-on: ubuntu-latest",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	compiler.stepOrderTracker = NewStepOrderTracker()
+	activationJob, _ := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	compiler.jobManager.AddJob(activationJob)
+
+	agentJob, _ := compiler.buildMainJob(data, true)
+	compiler.jobManager.AddJob(agentJob)
+
+	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+
+	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
+	if err != nil {
+		t.Fatalf("buildUpdateCacheMemoryJob() error: %v", err)
+	}
+	if updateCacheMemoryJob == nil {
+		t.Fatal("Expected update_cache_memory job to be created")
+	}
+
+	// GH_AW_WORKFLOW_ID_SANITIZED must be present so the save key matches the restore key
+	sanitizedID, ok := updateCacheMemoryJob.Env["GH_AW_WORKFLOW_ID_SANITIZED"]
+	if !ok {
+		t.Error("update_cache_memory job is missing GH_AW_WORKFLOW_ID_SANITIZED env var; cache keys will not match")
+	}
+	// "daily-repo-status" -> lowercase + hyphens removed -> "dailyrepostatus"
+	if sanitizedID != "dailyrepostatus" {
+		t.Errorf("GH_AW_WORKFLOW_ID_SANITIZED = %q, want %q", sanitizedID, "dailyrepostatus")
+	}
+}
+
 // ========================================
 // Edge Case Tests
 // ========================================
