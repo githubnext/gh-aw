@@ -273,7 +273,7 @@ The YAML frontmatter supports these fields:
         log-level: debug                  # Optional: debug, info (default), warn, error
         args: ["--custom-arg", "value"]   # Optional: additional AWF arguments
     ```
-  
+
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (no sandbox), `"awf"` (Agent Workflow Firewall), `"srt"` or `"sandbox-runtime"` (Anthropic Sandbox Runtime)
   - **⚠️ Deprecated**: Top-level `sandbox: false` is deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to automatically migrate.
@@ -589,11 +589,11 @@ The YAML frontmatter supports these fields:
         title-prefix: "[ai] "           # Optional: prefix for project titles
     ```
     Use this to create new projects for organizing and tracking work across issues and pull requests. Can optionally specify custom fields, project views, and an initial item to add.
-    
+
     **⚠️ IMPORTANT**: GitHub Projects requires a **Personal Access Token (PAT)** or GitHub App token with Projects permissions. The default `GITHUB_TOKEN` cannot be used. Ensure `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` exists and contains a token with:
     - Classic PAT: `project` and `repo` scopes
     - Fine-grained PAT: Organization permission `Projects: Read & Write` and repository access
-    
+
     Project tools automatically fall back to `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` when per-output and top-level `github-token` values are omitted, so specifying `github-token` is optional unless you need to override the default token.
     Not supported for cross-repository operations.
   - `update-project:` - Add items to GitHub Projects, update custom fields, manage project structure
@@ -605,7 +605,7 @@ The YAML frontmatter supports these fields:
         # github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional here if GH_AW_PROJECT_GITHUB_TOKEN is set; PAT with projects:write (NOT GITHUB_TOKEN) is still required
     ```
     Use this to organize work by adding issues and pull requests to projects, updating field values (status, priority, effort, dates), creating custom fields, and setting up project views.
-    
+
     **⚠️ IMPORTANT REQUIREMENTS:**
     - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"` or `https://github.com/users/username/projects/5`
     - Project URLs must be full URLs; project numbers alone are NOT accepted
@@ -614,7 +614,7 @@ The YAML frontmatter supports these fields:
     - Token scopes:
       - Classic PAT: `project` and `repo` scopes
       - Fine-grained PAT: Organization `Projects: Read & Write` permission
-    
+
     **Three calling modes:**
 
     **Mode 1: Add/update existing issues or PRs**
@@ -676,7 +676,7 @@ The YAML frontmatter supports these fields:
         github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # REQUIRED: PAT with projects:write (NOT GITHUB_TOKEN)
     ```
     Use this to provide stakeholders with regular updates on project status (on-track, at-risk, off-track, complete, inactive), timeline information, and progress summaries. Status updates create a historical record of project progress and enable tracking over time.
-    
+
     **⚠️ IMPORTANT REQUIREMENTS:**
     - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"`
     - Requires a **PAT or GitHub App token** with Projects permissions configured as `github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`
@@ -684,14 +684,14 @@ The YAML frontmatter supports these fields:
     - Token scopes:
       - Classic PAT: `project` and `repo` scopes
       - Fine-grained PAT: Organization `Projects: Read & Write` permission
-    
+
     **Agent output fields:**
     - `project`: Full project URL (required) - MUST be explicitly included in output
     - `status`: ON_TRACK, AT_RISK, OFF_TRACK, COMPLETE, or INACTIVE (optional, defaults to ON_TRACK)
     - `start_date`: Project start date in YYYY-MM-DD format (optional)
     - `target_date`: Project end date in YYYY-MM-DD format (optional)
     - `body`: Status summary in markdown (required)
-    
+
     Not supported for cross-repository operations.
   - `push-to-pull-request-branch:` - Push changes to PR branch
     ```yaml
@@ -1008,7 +1008,7 @@ cache:
     restore-keys: |
       node-modules-
   - key: build-cache-${{ github.sha }}
-    path: 
+    path:
       - dist
       - .cache
     restore-keys:
@@ -1309,7 +1309,7 @@ All other expressions are dissallowed.
 The `needs.activation.outputs.text` value provides automatically sanitized content based on the triggering event:
 
 - **Issues**: `title + "\n\n" + body`
-- **Pull Requests**: `title + "\n\n" + body`  
+- **Pull Requests**: `title + "\n\n" + body`
 - **Issue Comments**: `comment.body`
 - **PR Review Comments**: `comment.body`
 - **PR Reviews**: `review.body`
@@ -1468,7 +1468,7 @@ Each ecosystem identifier enables network access to the domains required by that
 | `playwright` | Any | Playwright browser automation (`playwright.azureedge.net`, etc.) |
 
 **Network Inference Rule:** When a workflow will run `dotnet restore`, `pip install`, `npm install`, `go mod download`, `mvn install`, etc., infer the ecosystem from the repository language and include it. Examples:
-- `.NET` repository (`.csproj`, `.fsproj`, `*.sln`) → `network: { allowed: [defaults, dotnet] }`
+- `.NET` repository (`.csproj`, `.fsproj`, `*.sln`, `*.slnx`) → `network: { allowed: [defaults, dotnet] }`
 - Python repository (`requirements.txt`, `pyproject.toml`) → `network: { allowed: [defaults, python] }`
 - Node.js repository (`package.json`) → `network: { allowed: [defaults, node] }`
 - Go repository (`go.mod`) → `network: { allowed: [defaults, go] }`
@@ -1559,7 +1559,7 @@ permissions:
 
 safe-outputs:
   create-issue:       # Automatic issue creation
-  add-comment:  # Automatic comment creation  
+  add-comment:  # Automatic comment creation
   create-pull-request: # Automatic PR creation
 ```
 
@@ -1830,7 +1830,7 @@ The `--start-date` and `--end-date` flags support delta time syntax for relative
 
 **Supported Time Units:**
 - **Days**: `-1d`, `-7d`
-- **Weeks**: `-1w`, `-4w` 
+- **Weeks**: `-1w`, `-4w`
 - **Months**: `-1mo`, `-6mo`
 - **Hours/Minutes**: `-12h`, `-30m` (for sub-day precision)
 - **Combinations**: `-1mo2w3d`, `-2w5d12h`
@@ -1840,7 +1840,7 @@ The `--start-date` and `--end-date` flags support delta time syntax for relative
 # Get runs from the last week
 gh aw logs --start-date -1w
 
-# Get runs up to yesterday  
+# Get runs up to yesterday
 gh aw logs --end-date -1d
 
 # Get runs from the last month
@@ -1895,7 +1895,7 @@ permissions:
 GitHub Agentic Workflows supports security scanning during compilation with `--actionlint`, `--zizmor`, and `--poutine` flags.
 
 **actionlint** - Lints GitHub Actions workflows and validates shell scripts with integrated shellcheck
-**zizmor** - Scans for security vulnerabilities, privilege escalation, and secret exposure  
+**zizmor** - Scans for security vulnerabilities, privilege escalation, and secret exposure
 **poutine** - Analyzes supply chain risks and third-party action usage
 
 ```bash
@@ -1952,7 +1952,7 @@ gh aw mcp list-tools github weekly-research
 
 This command is useful for:
 - **Discovering capabilities**: See what tools are available from each MCP server
-- **Workflow discovery**: Find which workflows use a specific MCP server  
+- **Workflow discovery**: Find which workflows use a specific MCP server
 - **Permission debugging**: Check which tools are allowed in your workflow configuration
 
 ## Compilation Process
@@ -2003,7 +2003,7 @@ Use `gh aw fix --write` to automatically migrate deprecated configurations:
 
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
-3. **Include security notices** for workflows processing user content  
+3. **Include security notices** for workflows processing user content
 4. **Use the `imports:` field** in frontmatter for common patterns and security boilerplate
 5. **ALWAYS run `gh aw compile` after every change** to generate the GitHub Actions workflow (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
