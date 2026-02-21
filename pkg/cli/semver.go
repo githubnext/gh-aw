@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strconv"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -44,16 +45,23 @@ func parseVersion(v string) *semanticVersion {
 	canonical := semver.Canonical(v)
 
 	// Parse major, minor, patch from canonical form
-	// Canonical format is always vMAJOR.MINOR.PATCH
-	parts := strings.Split(strings.TrimPrefix(canonical, "v"), ".")
+	// Strip prerelease and build metadata before splitting, since semver.Canonical
+	// preserves the prerelease suffix (e.g. "v1.2.3-beta.1" stays "v1.2.3-beta.1")
+	corePart := strings.TrimPrefix(canonical, "v")
+	if idx := strings.IndexAny(corePart, "-+"); idx >= 0 {
+		corePart = corePart[:idx]
+	}
+	parts := strings.Split(corePart, ".")
+	// Parse the numeric components; strconv.Atoi returns 0 on error, matching
+	// the previous behavior where non-numeric input produced 0.
 	if len(parts) >= 1 {
-		ver.major = parseInt(parts[0])
+		ver.major, _ = strconv.Atoi(parts[0])
 	}
 	if len(parts) >= 2 {
-		ver.minor = parseInt(parts[1])
+		ver.minor, _ = strconv.Atoi(parts[1])
 	}
 	if len(parts) >= 3 {
-		ver.patch = parseInt(parts[2])
+		ver.patch, _ = strconv.Atoi(parts[2])
 	}
 
 	// Get prerelease if any
@@ -62,19 +70,6 @@ func parseVersion(v string) *semanticVersion {
 	ver.pre = strings.TrimPrefix(prerelease, "-")
 
 	return ver
-}
-
-// parseInt parses an integer from a string, returns 0 on error
-func parseInt(s string) int {
-	var result int
-	for _, ch := range s {
-		if ch >= '0' && ch <= '9' {
-			result = result*10 + int(ch-'0')
-		} else {
-			break
-		}
-	}
-	return result
 }
 
 // isPreciseVersion returns true if this version has explicit minor and patch components
