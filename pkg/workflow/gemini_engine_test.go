@@ -58,7 +58,8 @@ func TestGeminiEngine(t *testing.T) {
 
 	t.Run("declared output files", func(t *testing.T) {
 		outputFiles := engine.GetDeclaredOutputFiles()
-		assert.Empty(t, outputFiles, "Should not declare any output files")
+		require.Len(t, outputFiles, 1, "Should declare one output file path")
+		assert.Equal(t, "/tmp/gemini-client-error-*.json", outputFiles[0], "Should declare Gemini error log wildcard path")
 	})
 }
 
@@ -226,30 +227,35 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "GEMINI_API_KEY:", "Should include GEMINI_API_KEY")
 		assert.Contains(t, stepContent, "GH_AW_PROMPT:", "Should include GH_AW_PROMPT")
 		assert.Contains(t, stepContent, "GITHUB_WORKSPACE:", "Should include GITHUB_WORKSPACE")
+		assert.Contains(t, stepContent, "DEBUG: gemini-cli:*", "Should include DEBUG env var for verbose diagnostics")
 	})
 
 	t.Run("model environment variables", func(t *testing.T) {
-		// Detection job (no SafeOutputs)
-		detectionWorkflow := &WorkflowData{
-			Name:        "detection",
-			SafeOutputs: nil,
-		}
-
-		steps := engine.GetExecutionSteps(detectionWorkflow, "/tmp/test.log")
-		require.Len(t, steps, 1)
-		stepContent := strings.Join(steps[0], "\n")
-		assert.Contains(t, stepContent, "GH_AW_MODEL_DETECTION_GEMINI", "Should include detection model env var")
-
-		// Agent job (with SafeOutputs)
-		agentWorkflow := &WorkflowData{
-			Name:        "agent",
+		// When model is not configured, no model env var should be set (let Gemini CLI use its default)
+		noModelWorkflow := &WorkflowData{
+			Name:        "no-model",
 			SafeOutputs: &SafeOutputsConfig{},
 		}
 
-		steps = engine.GetExecutionSteps(agentWorkflow, "/tmp/test.log")
+		steps := engine.GetExecutionSteps(noModelWorkflow, "/tmp/test.log")
+		require.Len(t, steps, 1)
+		stepContent := strings.Join(steps[0], "\n")
+		assert.NotContains(t, stepContent, "GH_AW_MODEL_DETECTION_GEMINI", "Should not include detection model env var when model is unconfigured")
+		assert.NotContains(t, stepContent, "GH_AW_MODEL_AGENT_GEMINI", "Should not include agent model env var when model is unconfigured")
+		assert.NotContains(t, stepContent, "GEMINI_MODEL", "Should not include GEMINI_MODEL when model is unconfigured")
+
+		// When model is configured, use the native GEMINI_MODEL env var
+		modelWorkflow := &WorkflowData{
+			Name: "model-configured",
+			EngineConfig: &EngineConfig{
+				Model: "gemini-2.0-flash",
+			},
+		}
+
+		steps = engine.GetExecutionSteps(modelWorkflow, "/tmp/test.log")
 		require.Len(t, steps, 1)
 		stepContent = strings.Join(steps[0], "\n")
-		assert.Contains(t, stepContent, "GH_AW_MODEL_AGENT_GEMINI", "Should include agent model env var")
+		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-2.0-flash", "Should set GEMINI_MODEL when model is explicitly configured")
 	})
 }
 

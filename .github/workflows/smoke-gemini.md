@@ -6,6 +6,7 @@ on:
   pull_request:
     types: [labeled]
     names: ["water"]
+  reaction: "rocket"
   status-comment: true
 permissions:
   contents: read
@@ -14,7 +15,6 @@ permissions:
 name: Smoke Gemini
 engine:
   id: gemini
-  model: gemini-2.0-flash-lite
 strict: true
 imports:
   - shared/gh.md
