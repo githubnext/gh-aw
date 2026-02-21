@@ -11,7 +11,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Gemini
-engine: gemini
+engine:
+  id: gemini
+  model: gemini-2.0-flash-lite
 strict: true
 imports:
   - shared/gh.md

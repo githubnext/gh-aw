@@ -152,7 +152,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
 		assert.Contains(t, stepContent, "gemini", "Should invoke gemini command")
 		assert.Contains(t, stepContent, "--yolo", "Should include --yolo flag for auto-approving tool executions")
-		assert.Contains(t, stepContent, "--output-format json", "Should use JSON output format")
+		assert.Contains(t, stepContent, "--output-format stream-json", "Should use streaming JSON output format")
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
@@ -171,7 +171,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		assert.Contains(t, stepContent, "--model gemini-1.5-pro", "Should include model flag")
+		// Model is passed via the native GEMINI_MODEL env var (not as a --model flag)
+		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-1.5-pro", "Should set GEMINI_MODEL env var")
+		assert.NotContains(t, stepContent, "--model gemini-1.5-pro", "Should not embed model in command")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {
@@ -273,6 +275,8 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		// Should use AWF command
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
+		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
+		assert.Contains(t, stepContent, "GEMINI_API_BASE_URL: http://host.docker.internal:10003", "Should set GEMINI_API_BASE_URL to LLM gateway URL")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {
@@ -293,5 +297,6 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		// Should use simple command without AWF
 		assert.Contains(t, stepContent, "set -o pipefail", "Should use simple command with pipefail")
 		assert.NotContains(t, stepContent, "awf", "Should not use AWF when firewall is disabled")
+		assert.NotContains(t, stepContent, "GEMINI_API_BASE_URL", "Should not set GEMINI_API_BASE_URL when firewall is disabled")
 	})
 }

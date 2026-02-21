@@ -465,6 +465,10 @@ jobs:
                     "description": "Pull request body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this is added with a separator.",
                     "type": "string"
                   },
+                  "draft": {
+                    "description": "Whether the PR should be a draft (true) or ready for review (false). Use to convert between draft and ready states.",
+                    "type": "boolean"
+                  },
                   "operation": {
                     "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced.",
                     "enum": [
@@ -591,6 +595,31 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
           {
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                }
+              }
+            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -651,6 +680,9 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
+                "draft": {
+                  "type": "boolean"
+                },
                 "operation": {
                   "type": "string",
                   "enum": [
@@ -661,6 +693,10 @@ jobs:
                 },
                 "pull_request_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "title": {
                   "type": "string",
@@ -806,11 +842,12 @@ jobs:
           set -o pipefail
           mkdir -p "$CODEX_HOME/logs"
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains '*.jsr.io,172.30.0.1,api.npms.io,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,go.dev,golang.org,googleapis.deno.dev,googlechromelabs.github.io,goproxy.io,host.docker.internal,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkg.go.dev,ppa.launchpad.net,proxy.golang.org,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,sum.golang.org,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.2 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && codex -c model=gpt-5.1-codex-mini exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "$INSTRUCTION"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "$INSTRUCTION"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GH_AW_MODEL_AGENT_CODEX: gpt-5.1-codex-mini
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

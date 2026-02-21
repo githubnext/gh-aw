@@ -659,6 +659,10 @@ jobs:
                     "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
                     "type": "string"
                   },
+                  "draft": {
+                    "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true.",
+                    "type": "boolean"
+                  },
                   "labels": {
                     "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
                     "items": {
@@ -966,6 +970,10 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 }
               }
             },
@@ -981,6 +989,10 @@ jobs:
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 }
               }
             },
@@ -992,6 +1004,10 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 }
               }
             },
@@ -1069,11 +1085,18 @@ jobs:
                   "sanitize": true,
                   "maxLength": 256
                 },
+                "draft": {
+                  "type": "boolean"
+                },
                 "labels": {
                   "type": "array",
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "title": {
                   "required": true,
@@ -1100,6 +1123,10 @@ jobs:
                   "required": true,
                   "type": "string"
                 },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
                 "side": {
                   "type": "string",
                   "enum": [
@@ -1120,12 +1147,41 @@ jobs:
                   "required": true,
                   "issueNumberOrTemporaryId": true
                 },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
                 "sub_issue_number": {
                   "required": true,
                   "issueNumberOrTemporaryId": true
                 }
               },
               "customValidation": "parentAndSubDifferent"
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                }
+              }
             },
             "missing_tool": {
               "defaultMax": 20,
@@ -1182,6 +1238,12 @@ jobs:
             "update_issue": {
               "defaultMax": 1,
               "fields": {
+                "assignees": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 39
+                },
                 "body": {
                   "type": "string",
                   "sanitize": true,
@@ -1189,6 +1251,28 @@ jobs:
                 },
                 "issue_number": {
                   "issueOrPRNumber": true
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "milestone": {
+                  "optionalPositiveInteger": true
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "replace",
+                    "append",
+                    "prepend",
+                    "replace-island"
+                  ]
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "status": {
                   "type": "string",
@@ -1356,10 +1440,11 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org,telemetry.enterprise.githubcopilot.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.2 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --model gpt-5 --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(git add:*)'\'' --allow-tool '\''shell(git branch:*)'\'' --allow-tool '\''shell(git checkout:*)'\'' --allow-tool '\''shell(git commit:*)'\'' --allow-tool '\''shell(git merge:*)'\'' --allow-tool '\''shell(git rm:*)'\'' --allow-tool '\''shell(git status)'\'' --allow-tool '\''shell(git switch:*)'\'' --allow-tool '\''shell(git)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(git add:*)'\'' --allow-tool '\''shell(git branch:*)'\'' --allow-tool '\''shell(git checkout:*)'\'' --allow-tool '\''shell(git commit:*)'\'' --allow-tool '\''shell(git merge:*)'\'' --allow-tool '\''shell(git rm:*)'\'' --allow-tool '\''shell(git status)'\'' --allow-tool '\''shell(git switch:*)'\'' --allow-tool '\''shell(git)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_MODEL: gpt-5
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
@@ -1732,10 +1817,11 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --model gpt-5 --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_MODEL: gpt-5
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}

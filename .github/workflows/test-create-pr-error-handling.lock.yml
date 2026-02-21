@@ -429,6 +429,10 @@ jobs:
                     "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
                     "type": "string"
                   },
+                  "draft": {
+                    "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true.",
+                    "type": "boolean"
+                  },
                   "labels": {
                     "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
                     "items": {
@@ -537,17 +541,49 @@ jobs:
                   "sanitize": true,
                   "maxLength": 256
                 },
+                "draft": {
+                  "type": "boolean"
+                },
                 "labels": {
                   "type": "array",
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
                 },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
                 "title": {
                   "required": true,
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
+                }
+              }
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
                 }
               }
             },

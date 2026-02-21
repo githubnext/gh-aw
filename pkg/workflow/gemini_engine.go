@@ -37,6 +37,12 @@ func (e *GeminiEngine) SupportsLLMGateway() int {
 	return constants.GeminiLLMGatewayPort
 }
 
+// GetModelEnvVarName returns the native environment variable name that the Gemini CLI uses
+// for model selection. Setting GEMINI_MODEL is equivalent to passing --model to the CLI.
+func (e *GeminiEngine) GetModelEnvVarName() string {
+	return constants.GeminiCLIModelEnvVar
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Gemini engine
 // This includes GEMINI_API_KEY and optionally MCP_GATEWAY_API_KEY
 func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
@@ -166,10 +172,11 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build gemini CLI arguments based on configuration
 	var geminiArgs []string
 
-	// Add model if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		geminiArgs = append(geminiArgs, "--model", workflowData.EngineConfig.Model)
-	}
+	// Model is always passed via the native GEMINI_MODEL environment variable when configured.
+	// This avoids embedding the value directly in the shell command (which fails template injection
+	// validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_GEMINI with shell expansion.
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
 	// Gemini CLI reads MCP config from .gemini/settings.json (project-level)
 	// The conversion script (convert_gateway_config_gemini.sh) writes settings.json
@@ -179,8 +186,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
 	geminiArgs = append(geminiArgs, "--yolo")
 
-	// Add headless mode with JSON output
-	geminiArgs = append(geminiArgs, "--output-format", "json")
+	// Add streaming JSON output (JSONL format, compatible with the log parser)
+	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
 
 	// Add prompt argument
 	geminiArgs = append(geminiArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -206,18 +213,22 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
 
+		// Enable API proxy sidecar if this engine supports LLM gateway
+		llmGatewayPort := e.SupportsLLMGateway()
+		usesAPIProxy := llmGatewayPort > 0
+
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "gemini",
 			EngineCommand:  geminiCommandWithPath,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
-			UsesAPIProxy:   false,
+			UsesAPIProxy:   usesAPIProxy,
 			AllowedDomains: allowedDomains,
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
-%s 2>&1 | tee %s`, geminiCommand, logFile)
+%s 2>&1 | tee -a %s`, geminiCommand, logFile)
 	}
 
 	// Build environment variables
@@ -232,12 +243,25 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.gemini/settings.json"
 	}
 
+	// When the firewall (AWF) is enabled with --enable-api-proxy, point Gemini CLI at the
+	// LLM gateway sidecar instead of the real googleapis.com endpoint.
+	if firewallEnabled {
+		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
+	}
+
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
 
-	// Add model env var if not explicitly configured
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if !modelConfigured {
+	// Set the model environment variable.
+	// When model is configured, use the native GEMINI_MODEL env var - the Gemini CLI reads it
+	// directly, avoiding the need to embed the value in the shell command (which would fail
+	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_GEMINI so users
+	// can set a default via GitHub Actions variables.
+	if modelConfigured {
+		geminiLog.Printf("Setting %s env var for model: %s", constants.GeminiCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.GeminiCLIModelEnvVar] = workflowData.EngineConfig.Model
+	} else {
 		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
 			env[constants.EnvVarModelDetectionGemini] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionGemini)
