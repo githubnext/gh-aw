@@ -1,0 +1,224 @@
+/* @theme gh-aw */
+
+/* Follows GitHub brand guidelines:
+   Typography: https://brand.github.com/foundations/typography
+   Color: https://brand.github.com/foundations/color
+*/
+
+@import "default";
+
+@font-face {
+  font-family: "Mona Sans";
+  src: url("../public/fonts/MonaSans-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Mona Sans";
+  src: url("../public/fonts/MonaSans-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+section {
+  font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  font-size: 1.5rem;
+  background: linear-gradient(160deg, #1c2128 0%, #22272e 50%, #0d1117 100%);
+  color: #f0f6fc;
+  padding: 2.5rem 3rem;
+}
+
+/* Radial glow overlay */
+section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+      ellipse 800px 600px at 20% 30%,
+      rgba(139, 92, 246, 0.12),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 600px 800px at 80% 70%,
+      rgba(192, 110, 255, 0.09),
+      transparent
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+section > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Headings */
+section h1 {
+  font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 2rem;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+section h2 {
+  font-weight: 700;
+  color: #d896ff;
+  font-size: 1.6rem;
+  margin-top: 0.5rem;
+}
+
+section h3 {
+  font-weight: 600;
+  color: #e5c7ff;
+  font-size: 1.3rem;
+}
+
+/* Links */
+section a {
+  color: #d896ff;
+  text-decoration: none;
+}
+
+section a:hover {
+  color: #e5c7ff;
+  text-decoration: underline;
+}
+
+/* Code blocks */
+section pre {
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.85rem;
+  overflow: auto;
+}
+
+section code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.875em;
+  background: rgba(175, 184, 193, 0.15);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+}
+
+section pre code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Lists */
+section ul,
+section ol {
+  padding-left: 1.5rem;
+}
+
+section li {
+  margin: 0.35rem 0;
+  line-height: 1.65;
+}
+
+/* Blockquotes */
+section blockquote {
+  border-left: 4px solid #d896ff;
+  color: #8d96a0;
+  padding-left: 1rem;
+  margin-left: 0;
+  font-style: italic;
+}
+
+/* Tables */
+section table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+section th {
+  background: #161b22;
+  color: #d896ff;
+  border-bottom: 2px solid #21262d;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+section td {
+  border-bottom: 1px solid #21262d;
+  padding: 0.5rem 0.75rem;
+  color: #c9d1d9;
+}
+
+section tr:last-child td {
+  border-bottom: none;
+}
+
+/* Strong / emphasis */
+section strong {
+  color: #e5c7ff;
+  font-weight: 700;
+}
+
+section em {
+  color: #d2a8ff;
+}
+
+/* Slide number (paginate) */
+section::after {
+  font-family: "Mona Sans", sans-serif;
+  font-size: 0.75rem;
+  color: #656d76;
+}
+
+/* Title slide (first slide) */
+section.title {
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(160deg, #1c2128 0%, #22272e 50%, #0d1117 100%);
+}
+
+section.title::before {
+  background: radial-gradient(
+      ellipse 800px 600px at 50% 40%,
+      rgba(139, 92, 246, 0.2),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 600px 500px at 50% 60%,
+      rgba(192, 110, 255, 0.15),
+      transparent
+    );
+}
+
+section.title h1 {
+  font-size: 2.6rem;
+  border-bottom: none;
+  color: #ffffff;
+}
+
+section.title h2 {
+  color: #d896ff;
+  font-size: 1.5rem;
+}
+
+section.title h3 {
+  color: #8d96a0;
+  font-size: 1.1rem;
+}
+
+section.title a {
+  color: #8d96a0;
+  font-size: 0.95rem;
+}

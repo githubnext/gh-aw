@@ -44,13 +44,6 @@ network:
     - "http://legacy.example.com"        # HTTP-only access
     - "example.org"                      # Both HTTP and HTTPS (default)
 
-# Protocol-specific domain filtering (Copilot engine only)
-network:
-  allowed:
-    - "https://secure.api.example.com"   # HTTPS-only access
-    - "http://legacy.example.com"        # HTTP-only access
-    - "example.org"                      # Both HTTP and HTTPS (default)
-
 # No network access
 network: {}
 
@@ -75,25 +68,9 @@ network:
 
 ## Blocking Domains
 
-Use the `blocked` field to block specific domains or ecosystems while allowing others. Blocked domains take precedence over allowed domains, enabling fine-grained control:
+Use the `blocked` field to exclude specific domains or ecosystems from the allowed set. Blocked entries take precedence over allowed ones and include all subdomains, useful for privacy (block trackers), security (block known-bad domains), or compliance:
 
 ```yaml wrap
-# Block specific tracking/analytics domains
-network:
-  allowed:
-    - defaults
-    - github
-  blocked:
-    - "tracker.example.com"
-    - "analytics.example.com"
-
-# Block entire ecosystem within broader allowed set
-network:
-  allowed:
-    - defaults              # Includes many ecosystems
-  blocked:
-    - python               # Block Python/PyPI specifically
-
 # Combine domain and ecosystem blocking
 network:
   allowed:
@@ -105,22 +82,7 @@ network:
     - "cdn.example.com"    # Block specific CDN
 ```
 
-> [!TIP]
-> When to Use Blocked Domains
->
-> - **Privacy**: Block tracking and analytics domains while allowing legitimate services
-> - **Security**: Block known malicious or compromised domains
-> - **Compliance**: Enforce organizational network policies
-> - **Fine-grained control**: Allow broad ecosystem access but block specific problematic domains
-
-**Key behaviors**:
-
-- Blocked domains are subtracted from the allowed list
-- Supports both individual domains and ecosystem identifiers
-- Blocked domains include all subdomains (like allowed domains)
-- Useful for blocking specific domains within broader ecosystem allowlists
-
-## Configuration
+## Access Levels
 
 Network permissions follow the principle of least privilege with four access levels:
 
@@ -132,17 +94,7 @@ Network permissions follow the principle of least privilege with four access lev
 
 ## Protocol-Specific Domain Filtering
 
-For fine-grained security control, you can restrict domains to specific protocols (HTTP or HTTPS only). This is particularly useful when:
-
-- Working with legacy systems that only support HTTP
-- Ensuring secure connections by restricting to HTTPS-only
-- Migrating from HTTP to HTTPS gradually
-
-> [!TIP]
-> Copilot Engine Support
-> Protocol-specific filtering is currently supported by the Copilot engine with AWF firewall enabled. Domains without protocol prefixes allow both HTTP and HTTPS traffic (backward compatible).
-
-### Usage Examples
+Restrict domains to a specific protocol (HTTP or HTTPS only) for legacy systems, strict HTTPS enforcement, or gradual migration. Currently supported by the Copilot engine with AWF firewall enabled; domains without a protocol prefix allow both HTTP and HTTPS.
 
 ```yaml wrap
 engine: copilot
@@ -159,12 +111,6 @@ network:
 ```bash
 --allow-domains ...,example.org,http://legacy.example.com,https://secure.api.example.com,...
 ```
-
-### Supported Protocols
-
-- `https://` - HTTPS-only access
-- `http://` - HTTP-only access
-- No prefix - Both HTTP and HTTPS (backward compatible)
 
 ## Content Sanitization
 
@@ -189,15 +135,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains |
 
-> [!TIP]
-> Common Use Cases
->
-> - **Python projects**: Add `python` for PyPI, pip, and files.pythonhosted.org
-> - **Node.js projects**: Add `node` for registry.npmjs.org, yarn, and pnpm
-> - **Container builds**: Add `containers` for Docker Hub and other registries
-> - **Go projects**: Add `go` for proxy.golang.org and sum.golang.org
->
-> See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples and domain lists.
+Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists.
 
 ## Strict Mode Validation
 
@@ -240,8 +178,6 @@ When strict mode encounters an individual ecosystem domain, it emits a warning s
 ````text
 warning: strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
 ````
-
-The workflow will compile successfully, but the warning helps maintain best practices.
 
 ## Implementation
 
@@ -286,14 +222,7 @@ network:
     - python
 ```
 
-Available log levels:
-
-- `debug`: Detailed diagnostic information for troubleshooting
-- `info`: General informational messages (default)
-- `warn`: Warning messages for potential issues
-- `error`: Error messages only
-
-The default log level is `info`, which provides a balance between visibility and log volume. Use `debug` for troubleshooting network access issues or `error` to minimize log output.
+Available log levels: `debug` (verbose), `info` (default), `warn`, `error`.
 
 ### SSL Bump for HTTPS Inspection
 
@@ -341,16 +270,9 @@ network:
 - SSL bump intercepts and decrypts HTTPS traffic for inspection, acting as a man-in-the-middle
 - Only enable SSL bump when URL-level filtering is necessary for your security requirements
 - Use `allow-urls` patterns carefully to avoid breaking legitimate HTTPS connections
-- This feature is specific to AWF (Agent Workflow Firewall) and does not apply to Sandbox Runtime (SRT) or other sandbox configurations
-- Requires AWF version 0.9.0 or later
+- This feature is specific to AWF and does not apply to Sandbox Runtime (SRT); requires AWF version 0.9.0 or later
 
-**When to Use SSL Bump**
-
-- You need to filter HTTPS traffic by specific URL paths, not just domain names
-- You want to allow access to specific API endpoints while blocking others on the same domain
-- You need fine-grained control over HTTPS resources accessed by the AI engine
-
-See the [Sandbox Configuration](/gh-aw/reference/sandbox/) documentation for detailed AWF configuration options.
+Use SSL bump when you need to allow specific API endpoints while blocking others on the same domain. See the [Sandbox Configuration](/gh-aw/reference/sandbox/) documentation for detailed AWF configuration options.
 
 ### Disabling the Firewall
 
@@ -366,13 +288,7 @@ network:
 # sandbox.agent defaults to 'awf' if not specified
 ```
 
-When the firewall is disabled:
-
-- Network permissions are still applied for content sanitization
-- The agent can make network requests without firewall enforcement
-- This is useful during development or when the firewall is incompatible with your workflow
-
-For production workflows, enabling the firewall is recommended for better network security.
+When the firewall is disabled, network permissions still apply for content sanitization but the agent can make unrestricted network requests. Only disable during development or when AWF is incompatible with your workflow; keep it enabled in production.
 
 ## Wildcard Domain Patterns
 
@@ -393,12 +309,7 @@ network:
 - Only a single wildcard at the start is allowed (e.g., `*.*.example.com` is invalid)
 - The wildcard must be followed by a dot and domain (e.g., `*` alone is not allowed in strict mode)
 
-> [!TIP]
-> When to Use Wildcards vs Base Domains
-> Both approaches work for subdomain matching:
->
-> - **Base domain** (`example.com`): Simpler syntax, automatically matches all subdomains
-> - **Wildcard pattern** (`*.example.com`): Explicit about subdomain matching intent, useful when you want to clearly document that subdomains are expected
+Both `example.com` (simpler) and `*.example.com` (explicit about subdomain intent) match all subdomains.
 
 ## Best Practices
 

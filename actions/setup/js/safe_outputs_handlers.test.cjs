@@ -4,6 +4,20 @@ import fs from "fs";
 import path from "path";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
 
+// Mock the global objects that GitHub Actions provides
+const mockCore = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  notice: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+};
+
+// Set up global mocks before importing the module
+global.core = mockCore;
+
 describe("safe_outputs_handlers", () => {
   let mockServer;
   let mockAppendSafeOutput;
@@ -11,6 +25,8 @@ describe("safe_outputs_handlers", () => {
   let testWorkspaceDir;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     mockServer = {
       debug: vi.fn(),
     };

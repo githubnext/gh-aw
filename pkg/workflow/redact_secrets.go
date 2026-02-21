@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -43,7 +44,7 @@ func CollectSecretReferences(yamlContent string) []string {
 	}
 
 	// Sort for consistent output
-	SortStrings(secrets)
+	sort.Strings(secrets)
 
 	secretMaskingLog.Printf("Found %d unique secret reference(s) in workflow", len(secrets))
 
