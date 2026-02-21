@@ -34,7 +34,7 @@ safe-outputs:
       expires: 2h
     create-issue:
       expires: 2h
-      labels: [ai-generated]
+      labels: [ai-generated, automation, testing]
       group: true
       close-older-issues: true
     add-labels:

@@ -23,7 +23,7 @@
 #
 # Test temporary ID functionality for issue chaining and cross-references
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"669a1ba6fd2a05698a484015dba9bd90e4e86618d0825ffa1228e9d67d34103f"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"17699cbdd3a52636d274f4f6a24975a9d66eb82fa1eb90ff2b6f0de4581bfa2d"}
 
 name: "Smoke Temporary ID"
 "on":
@@ -435,7 +435,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 5 issue(s) can be created. Title will be prefixed with \"[smoke-temporary-id] \". Labels [ai-generated] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 5 issue(s) can be created. Title will be prefixed with \"[smoke-temporary-id] \". Labels [ai-generated automation testing] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1316,7 +1316,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"ai-generated\"],\"max\":5,\"title_prefix\":\"[smoke-temporary-id] \"},\"link_sub_issue\":{\"max\":3},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"ai-generated\",\"automation\",\"testing\"],\"max\":5,\"title_prefix\":\"[smoke-temporary-id] \"},\"link_sub_issue\":{\"max\":3},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -55,6 +55,7 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      labels: [automation, testing]
     create-discussion:
       category: announcements
       labels: [ai-generated]

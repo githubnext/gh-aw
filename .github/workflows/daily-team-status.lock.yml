@@ -33,7 +33,7 @@
 #   Imports:
 #     - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"82fb3f9c3eb862ab47afa2a88e6e9e2c5e45692e2c7234e98c1a7149b9f1f25e","stop_time":"2026-02-09 04:24:39"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ca307870d9450bb5749137eaec17bcf28b1ef69da1cce257a7c7f9b864312cf6","stop_time":"2026-02-09 04:24:39"}
 #
 # Effective stop-time: 2026-02-09 04:24:39
 
@@ -409,7 +409,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[team-status] \".",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[team-status] \". Labels [automation daily-report] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1180,7 +1180,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":24,\"max\":1,\"title_prefix\":\"[team-status] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":24,\"labels\":[\"automation\",\"daily-report\"],\"max\":1,\"title_prefix\":\"[team-status] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

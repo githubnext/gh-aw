@@ -62,6 +62,7 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+      labels: [automation, testing]
     add-labels:
       allowed: [smoke-claude]
     update-pull-request:

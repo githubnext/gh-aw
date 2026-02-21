@@ -36,6 +36,7 @@ safe-outputs:
     create-issue:
       expires: 2h
       close-older-issues: true
+      labels: [automation, testing]
     add-labels:
       allowed: [smoke-gemini]
     messages:
