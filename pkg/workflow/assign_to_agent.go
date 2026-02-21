@@ -1,6 +1,10 @@
 package workflow
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -36,6 +40,18 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 		assignToAgentLog.Printf("Failed to unmarshal config: %v", err)
 		// Handle null case: create empty config
 		return &AssignToAgentConfig{}
+	}
+
+	// Handle deprecated 'default-agent' key: if 'name' was not set but 'default-agent' is present in the raw map, use its value and emit a deprecation warning
+	if config.DefaultAgent == "" {
+		if rawConfig, ok := outputMap["assign-to-agent"].(map[string]any); ok {
+			if deprecatedVal, exists := rawConfig["default-agent"]; exists {
+				if deprecatedStr, ok := deprecatedVal.(string); ok && deprecatedStr != "" {
+					config.DefaultAgent = deprecatedStr
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("safe-outputs.assign-to-agent: 'default-agent' is deprecated; use 'name' instead"))
+				}
+			}
+		}
 	}
 
 	// Set default max if not specified
