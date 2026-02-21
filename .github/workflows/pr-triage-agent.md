@@ -251,7 +251,7 @@ For each PR, add the following labels:
 For each triaged PR, add a comment with the triage results:
 
 ```markdown
-## 🔍 PR Triage Results
+### 🔍 PR Triage Results
 
 **Category:** {category} | **Risk:** {risk} | **Priority:** {priority_score}/100
 
@@ -274,12 +274,14 @@ For each triaged PR, add a comment with the triage results:
 
 Create a comprehensive triage report as a GitHub Issue:
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 **Report Structure:**
 
 ```markdown
-# PR Triage Report - {date}
+### PR Triage Report - {date}
 
-## Executive Summary
+### Executive Summary
 
 - **Total PRs Triaged:** {count}
 - **New PRs:** {new_count}
@@ -289,9 +291,11 @@ Create a comprehensive triage report as a GitHub Issue:
 - **Batches Identified:** {batch_count}
 - **Close Candidates:** {close_count}
 
-## Triage Statistics
+### Triage Statistics
 
-### By Category
+<details>
+<summary><b>By Category</b></summary>
+
 - Bug: {bug_count}
 - Feature: {feature_count}
 - Docs: {docs_count}
@@ -300,52 +304,62 @@ Create a comprehensive triage report as a GitHub Issue:
 - Refactor: {refactor_count}
 - Chore: {chore_count}
 
-### By Risk Level
+</details>
+
+<details>
+<summary><b>By Risk Level</b></summary>
+
 - High Risk: {high_risk_count}
 - Medium Risk: {medium_risk_count}
 - Low Risk: {low_risk_count}
 
-### By Priority
+</details>
+
+<details>
+<summary><b>By Priority</b></summary>
+
 - High Priority (70-100): {high_priority_count}
 - Medium Priority (40-69): {medium_priority_count}
 - Low Priority (0-39): {low_priority_count}
 
-### By Recommended Action
+</details>
+
+#### By Recommended Action
 - Auto-merge: {auto_merge_count}
 - Fast-track: {fast_track_count}
 - Batch Review: {batch_review_count}
 - Defer: {defer_count}
 - Close: {close_count}
 
-## 🚀 Top Priority PRs (Top 10)
+### 🚀 Top Priority PRs (Top 10)
 
 {list_top_10_prs_with_scores_and_links}
 
-## ✅ Auto-merge Candidates
+### ✅ Auto-merge Candidates
 
 {list_auto_merge_prs}
 
-## ⚡ Fast-track Review Needed
+### ⚡ Fast-track Review Needed
 
 {list_fast_track_prs}
 
-## 📦 Batch Processing Opportunities
+### 📦 Batch Processing Opportunities
 
 {list_batches_with_pr_numbers}
 
-## 🗑️ Close Candidates
+### 🗑️ Close Candidates
 
 {list_close_candidate_prs_with_reasons}
 
-## 📊 Agent Performance Summary
+### 📊 Agent Performance Summary
 
 {summary_of_prs_by_agent_with_quality_scores}
 
-## 🔄 Trends
+### 🔄 Trends
 
 {compare_to_previous_runs_if_available}
 
-## Next Steps
+### Next Steps
 
 1. Review auto-merge candidates for immediate merge
 2. Fast-track high-priority PRs for urgent review

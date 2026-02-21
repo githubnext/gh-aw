@@ -99,6 +99,8 @@ Follow the **report layout rules** below — they apply to every report this wor
 
 Apply these principles to make the report scannable, warm, and actionable:
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 1. **Lead with the takeaway.** Open with a single-sentence human-readable summary that tells the maintainer what happened and what needs attention. No jargon, no counts-only headers. Example: *"We looked at 10 new PRs — 6 look great, 3 need a closer look, and 1 doesn't fit the project guidelines."*
 
 2. **Group by action, not by data.** Organize results into clear groups that answer "what should I do?" rather than listing raw rows. Use these groups (omit any group with zero items):
@@ -119,7 +121,7 @@ Apply these principles to make the report scannable, warm, and actionable:
 ### Example Report
 
 ```markdown
-## Contribution Check — {date}
+### Contribution Check — {date}
 
 We looked at 4 new PRs — 1 looks great, 2 need a closer look, and 1 doesn't fit the contribution guidelines.
 
@@ -144,9 +146,14 @@ We looked at 4 new PRs — 1 looks great, 2 need a closer look, and 1 doesn't fi
 
 ### Off-guidelines 🔴
 
+<details>
+<summary><b>Per-PR Details</b></summary>
+
 | PR | Title | Author | Lines | Quality |
 |----|-------|--------|------:|---------|
 | #4519 | Add unrelated marketing page | @dave | 42 | spam |
+
+</details>
 
 ---
 

@@ -170,39 +170,49 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 ### Investigation Issue Template
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 When creating an investigation issue, use this structure:
 
 ```markdown
-# 🏥 CI Failure Investigation - Run #${{ github.event.workflow_run.run_number }}
+### CI Failure Investigation - Run #${{ github.event.workflow_run.run_number }}
 
-## Summary
+### Summary
 [Brief description of the failure]
 
-## Failure Details
+### Failure Details
 - **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
 - **Commit**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger**: ${{ github.event.workflow_run.event }}
 
-## Root Cause Analysis
+### Root Cause Analysis
 [Detailed analysis of what went wrong]
 
-## Failed Jobs and Errors
+### Failed Jobs and Errors
 [List of failed jobs with key error messages]
 
-## Investigation Findings
+<details>
+<summary><b>Investigation Findings</b></summary>
+
 [Deep analysis results]
 
-## Recommended Actions
+</details>
+
+### Recommended Actions
 - [ ] [Specific actionable steps]
 
-## Prevention Strategies
+### Prevention Strategies
 [How to prevent similar failures]
 
-## AI Team Self-Improvement
+### AI Team Self-Improvement
 [Short set of additional prompting instructions to copy-and-paste into instructions.md for a AI coding agents to help prevent this type of failure in future]
 
-## Historical Context
+<details>
+<summary><b>Historical Context</b></summary>
+
 [Similar past failures and patterns]
+
+</details>
 ```
 
 ## Important Guidelines
