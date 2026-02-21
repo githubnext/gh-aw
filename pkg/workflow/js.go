@@ -2,11 +2,57 @@ package workflow
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
+
+// SafeOutputToolOption represents a safe output tool with its name and description.
+type SafeOutputToolOption struct {
+	// Name is the snake_case name from the JSON (e.g. "create_issue").
+	Name string
+	// Key is the hyphenated YAML config key (e.g. "create-issue").
+	Key string
+	// Description is the tool's description from safe_outputs_tools.json.
+	Description string
+}
+
+// internalSafeOutputs are tool names that are internal / system-level and should
+// not be presented to users as selectable safe outputs.
+var internalSafeOutputs = map[string]bool{
+	"missing_tool": true,
+	"noop":         true,
+	"missing_data": true,
+}
+
+// GetSafeOutputToolOptions parses safe_outputs_tools.json and returns all user-facing
+// safe output tools with their human-readable descriptions.
+// Tools that are internal (missing_tool, noop, missing_data) are excluded.
+func GetSafeOutputToolOptions() []SafeOutputToolOption {
+	var tools []struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal([]byte(safeOutputsToolsJSONContent), &tools); err != nil {
+		jsLog.Printf("Failed to parse safe_outputs_tools.json: %v", err)
+		return nil
+	}
+
+	options := make([]SafeOutputToolOption, 0, len(tools))
+	for _, t := range tools {
+		if internalSafeOutputs[t.Name] {
+			continue
+		}
+		options = append(options, SafeOutputToolOption{
+			Name:        t.Name,
+			Key:         strings.ReplaceAll(t.Name, "_", "-"),
+			Description: t.Description,
+		})
+	}
+	return options
+}
 
 var jsLog = logger.New("workflow:js")
 

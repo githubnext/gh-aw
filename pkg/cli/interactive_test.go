@@ -290,14 +290,22 @@ func TestInteractiveWorkflowBuilder_generateWorkflowContent(t *testing.T) {
 		t.Error("Content should contain engine configuration")
 	}
 
-	// Check for tools
-	if !strings.Contains(content, "github:") {
-		t.Error("Content should contain github tools")
+	// Check that github tool uses toolsets instead of allowed list
+	if !strings.Contains(content, "toolsets: [default]") {
+		t.Error("Content should use toolsets for github tools")
+	}
+	if strings.Contains(content, "allowed:") {
+		t.Error("Content should not use allowed list for github tools")
 	}
 
 	// Check for safe outputs
 	if !strings.Contains(content, "create-issue:") {
 		t.Error("Content should contain safe outputs")
+	}
+
+	// Check permissions include issues: write from create-issue safe output
+	if !strings.Contains(content, "issues: write") {
+		t.Error("Content should contain issues: write permission from create-issue safe output")
 	}
 
 	t.Logf("Generated content:\n%s", content)
@@ -562,4 +570,153 @@ func TestInteractiveWorkflowBuilder_AllMajorFieldsHaveDescriptions(t *testing.T)
 	// This test serves as a checklist and documentation
 	// Manual testing is required to verify the UI actually displays these descriptions
 	t.Log("Manual verification required: Run 'gh aw interactive' to verify descriptions appear")
+}
+
+func TestBuildSafeOutputOptions(t *testing.T) {
+	options := buildSafeOutputOptions()
+
+	// Should have options loaded from safe_outputs_tools.json
+	if len(options) == 0 {
+		t.Fatal("buildSafeOutputOptions returned no options")
+	}
+
+	// Should not include internal tools
+	for _, opt := range options {
+		if opt.Value == "missing-tool" || opt.Value == "noop" || opt.Value == "missing-data" {
+			t.Errorf("buildSafeOutputOptions should not include internal tool %q", opt.Value)
+		}
+	}
+
+	// Should include common user-facing tools
+	values := make(map[string]bool)
+	for _, opt := range options {
+		values[opt.Value] = true
+	}
+	for _, expected := range []string{"create-issue", "add-comment", "create-pull-request"} {
+		if !values[expected] {
+			t.Errorf("buildSafeOutputOptions should include %q", expected)
+		}
+	}
+}
+
+func TestDetectNetworkFromRepo(t *testing.T) {
+	// detectNetworkFromRepo inspects the current directory; we exercise it
+	// without relying on the actual repo contents – we just verify it returns
+	// a list (possibly empty) without panicking.
+	result := detectNetworkFromRepo()
+	// Result must be a (possibly empty) slice of strings
+	for _, b := range result {
+		if b == "" {
+			t.Error("detectNetworkFromRepo returned an empty bucket name")
+		}
+	}
+	t.Logf("Detected network buckets: %v", result)
+}
+
+func TestGeneratePermissionsConfig_SafeOutputPermissions(t *testing.T) {
+	tests := []struct {
+		name        string
+		tools       []string
+		safeOutputs []string
+		wantContain []string
+		wantAbsent  []string
+	}{
+		{
+			name:        "no tools no safe outputs",
+			tools:       nil,
+			safeOutputs: nil,
+			wantContain: []string{"contents: read"},
+			wantAbsent:  []string{"issues:", "pull-requests:", "discussions:"},
+		},
+		{
+			name:        "create-issue requires issues write",
+			tools:       nil,
+			safeOutputs: []string{"create-issue"},
+			wantContain: []string{"issues: write"},
+		},
+		{
+			name:        "create-pull-request requires contents write and pull-requests write",
+			tools:       nil,
+			safeOutputs: []string{"create-pull-request"},
+			wantContain: []string{"contents: write", "pull-requests: write"},
+		},
+		{
+			name:        "github toolset adds issues read and pull-requests read",
+			tools:       []string{"github"},
+			safeOutputs: nil,
+			wantContain: []string{"issues: read", "pull-requests: read"},
+		},
+		{
+			name:        "github toolset with create-issue upgrades issues to write",
+			tools:       []string{"github"},
+			safeOutputs: []string{"create-issue"},
+			wantContain: []string{"issues: write"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &InteractiveWorkflowBuilder{
+				Tools:       tt.tools,
+				SafeOutputs: tt.safeOutputs,
+			}
+			config := b.generatePermissionsConfig()
+			for _, want := range tt.wantContain {
+				if !strings.Contains(config, want) {
+					t.Errorf("generatePermissionsConfig() missing %q\ngot:\n%s", want, config)
+				}
+			}
+			for _, absent := range tt.wantAbsent {
+				if strings.Contains(config, absent) {
+					t.Errorf("generatePermissionsConfig() should not contain %q\ngot:\n%s", absent, config)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateNetworkConfig_MultiNetwork(t *testing.T) {
+	tests := []struct {
+		name     string
+		network  string
+		expected string
+	}{
+		{
+			name:     "single defaults",
+			network:  "defaults",
+			expected: "network: defaults\n",
+		},
+		{
+			name:     "ecosystem expands all",
+			network:  "ecosystem",
+			expected: "network:\n  allowed:\n    - defaults\n    - python\n    - node\n    - go\n    - java\n",
+		},
+		{
+			name:     "auto-detected comma-separated",
+			network:  "defaults,go,node",
+			expected: "network:\n  allowed:\n    - defaults\n    - go\n    - node\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &InteractiveWorkflowBuilder{NetworkAccess: tt.network}
+			got := b.generateNetworkConfig()
+			if got != tt.expected {
+				t.Errorf("generateNetworkConfig() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGenerateToolsConfig_UsesToolsets(t *testing.T) {
+	b := &InteractiveWorkflowBuilder{Tools: []string{"github", "bash"}}
+	config := b.generateToolsConfig()
+
+	if !strings.Contains(config, "toolsets: [default]") {
+		t.Errorf("generateToolsConfig() should use toolsets for github tool\ngot:\n%s", config)
+	}
+	if strings.Contains(config, "allowed:") {
+		t.Errorf("generateToolsConfig() should not use allowed list for github tool\ngot:\n%s", config)
+	}
 }

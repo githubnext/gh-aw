@@ -312,15 +312,26 @@ permissions:
   issues: write
   pull-requests: write
 
+# Tools - GitHub API access via toolsets (context, repos, issues, pull_requests)
+# tools:
+#   github:
+#     toolsets: [default]
+
+# Network access
+network: defaults
+
 # Outputs - what APIs and tools can the AI use?
 safe-outputs:
   create-issue:          # Creates issues (default max: 1)
     max: 5               # Optional: specify maximum number
   # create-agent-session:   # Creates GitHub Copilot coding agent sessions (max: 1)
   # create-pull-request: # Creates exactly one pull request
-  # add-comment:   # Adds comments (default max: 1)
+  # add-comment:         # Adds comments (default max: 1)
   #   max: 2             # Optional: specify maximum number
   # add-labels:
+  # update-issue:
+  # create-discussion:
+  # push-to-pull-request-branch:
 
 ---
 
