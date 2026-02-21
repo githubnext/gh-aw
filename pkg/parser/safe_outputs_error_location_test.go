@@ -3,6 +3,9 @@
 package parser
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -383,5 +386,53 @@ safe-outputs:
 				}
 			}
 		})
+	}
+}
+
+func TestValidateWithSchemaAndLocationReportsAllSafeOutputFailures(t *testing.T) {
+	t.Parallel()
+
+	yamlContent := `---
+on: daily
+safe-outputs:
+  create-issue:
+    invalid-issue-field: true
+  create-discussion:
+    invalid-discussion-field: true
+---
+# body`
+	filePath := filepath.Join(t.TempDir(), "workflow.md")
+	if err := os.WriteFile(filePath, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{
+				"invalid-issue-field": true,
+			},
+			"create-discussion": map[string]any{
+				"invalid-discussion-field": true,
+			},
+		},
+	}
+
+	err := validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath)
+	if err == nil {
+		t.Fatal("expected schema validation error, got nil")
+	}
+
+	errorText := err.Error()
+	wantSubstrings := []string{
+		"/safe-outputs/create-issue",
+		"/safe-outputs/create-discussion",
+		"line 5, column 5",
+		"line 7, column 5",
+	}
+	for _, want := range wantSubstrings {
+		if !strings.Contains(errorText, want) {
+			t.Fatalf("expected error to contain %q, got:\n%s", want, errorText)
+		}
 	}
 }

@@ -244,7 +244,12 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 		// If we have paths and frontmatter content, try to get precise locations
 		if len(jsonPaths) > 0 && frontmatterContent != "" {
-			// Use the first error path for the primary error location
+			detailLines := make([]string, 0, len(jsonPaths))
+			for _, pathInfo := range jsonPaths {
+				detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, frontmatterContent, frontmatterStart))
+			}
+
+			// Use the first error path for primary context rendering.
 			primaryPath := jsonPaths[0]
 			location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, primaryPath.Path, primaryPath.Message)
 
@@ -275,14 +280,12 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					adjustedContextLines = contextLines
 				}
 
-				// Rewrite "additional properties not allowed" errors to be more friendly
-				// Also clean up oneOf jargon (e.g., "got string, want object") to plain English
-				message := rewriteAdditionalPropertiesError(cleanOneOfMessage(primaryPath.Message))
-
-				// Add schema-based suggestions
-				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path, frontmatterContent)
-				if suggestions != "" {
-					message = message + ". " + suggestions
+				// Include every schema failure with path + line + column.
+				message := ""
+				if len(detailLines) == 1 {
+					message = detailLines[0]
+				} else {
+					message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
 				}
 
 				// Create a compiler error with precise location information
@@ -333,6 +336,24 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 	// Fallback to the original error if we can't format it nicely
 	return err
+}
+
+func formatSchemaFailureDetail(pathInfo JSONPathInfo, frontmatterContent string, frontmatterStart int) string {
+	path := pathInfo.Path
+	if path == "" {
+		path = "/"
+	}
+
+	location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, pathInfo.Path, pathInfo.Message)
+	line := frontmatterStart
+	column := 1
+	if location.Found {
+		line = location.Line + frontmatterStart - 1
+		column = location.Column
+	}
+
+	message := rewriteAdditionalPropertiesError(cleanOneOfMessage(pathInfo.Message))
+	return fmt.Sprintf("at '%s' (line %d, column %d): %s", path, line, column, message)
 }
 
 // GetMainWorkflowSchema returns the embedded main workflow schema JSON
