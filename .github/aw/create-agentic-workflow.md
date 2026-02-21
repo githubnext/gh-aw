@@ -668,7 +668,7 @@ When you identify issues requiring tracking:
 ```
 
 **Reference Documentation:**
-- https://github.github.com/gh-aw/patterns/multirepoops/
+- https://github.github.com/gh-aw/patterns/multi-repo-ops/
 
 ### Step 3: Create the Workflow File
 
