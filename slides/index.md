@@ -6,9 +6,11 @@ paginate: true
 
 # GitHub Agentic Workflows
 ## Write AI Automation in Natural Language
-### Research Preview
+### Technical Preview
 
 https://github.com/github/gh-aw
+
+https://github.blog/ai-and-ml/automate-repository-tasks-with-github-agentic-workflows/
 
 ---
 
@@ -100,7 +102,7 @@ mcp-servers:
 
 Multiple engine options:
 - **Copilot** - GitHub's AI pair programmer
-- **Claude** - Anthropic's Claude models
+- **Claude Code** - Anthropic's Claude models
 - **Codex** - OpenAI's code model
 
 ---
@@ -180,7 +182,8 @@ Topics covered:
 # Community & Support
 
 - **GitHub Repository**: github/gh-aw
-- **Documentation**: gh.io/gh-aw
+- **Documentation**: https://github.github.com/gh-aw/
+- **Community Feedback**: https://gh.io/next-discord
 
 ---
 
