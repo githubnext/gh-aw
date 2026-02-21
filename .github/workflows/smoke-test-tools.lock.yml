@@ -23,7 +23,7 @@
 #
 # Smoke test to validate common development tools are available in the agent container
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"798e01a94a89407a4b4102b0551de2d8376a5c3b5ef4a3622ab601229694cf78"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"66719f9b4f14ffe4813576ded899fbfeedc87461d1b7e22cf32d93d7f49b5f96"}
 
 name: "Agent Container Smoke Test"
 "on":
@@ -34,8 +34,7 @@ name: "Agent Container Smoke Test"
     - labeled
   schedule:
   - cron: "29 */12 * * *"
-    # Friendly format: every 12h (scattered)
-  workflow_dispatch:
+  workflow_dispatch: null
 
 permissions: {}
 
@@ -56,8 +55,9 @@ jobs:
       contents: read
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.add-comment.outputs.comment-id }}
+      comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
+      comment_url: ${{ steps.add-comment.outputs.comment-url }}
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
     steps:
@@ -105,6 +105,19 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
+            await main();
+      - name: Add comment with workflow run link
+        id: add-comment
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_NAME: "Agent Container Smoke Test"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔧 *Tool validation by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools...\",\"runSuccess\":\"✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready.\",\"runFailure\":\"❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}\"}"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -972,6 +985,25 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/handle_noop_message.cjs');
+            await main();
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Agent Container Smoke Test"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔧 *Tool validation by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools...\",\"runSuccess\":\"✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready.\",\"runFailure\":\"❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}\"}"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
   detection:

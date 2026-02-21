@@ -1,0 +1,34 @@
+---
+title: Workflow Editors
+description: A curated list of editors for authoring and previewing agentic workflows.
+---
+
+import { LinkButton } from '@astrojs/starlight/components';
+
+> [!WARNING]
+> All editors listed here are **experimental**. They may change without notice and are not covered by any stability guarantees.
+
+The following editors can be used to author, compile, and preview agentic workflows. Some are built-in tools maintained alongside gh-aw; others are community-created projects.
+
+## Built-in editors
+
+### Compiler Playground
+
+An interactive browser-based playground that runs the gh-aw compiler entirely in the browser using [WebAssembly](/gh-aw/reference/wasm-compilation/). It demonstrates how to use the WASM build of the compiler directly in a webpage and shows how to compile workflows in the browser using the WASM-based execution engine.
+
+<LinkButton href={`${import.meta.env.BASE_URL}editor/`} icon="right-arrow" variant="primary">
+  Open Playground
+</LinkButton>
+
+## Community editors
+
+> [!NOTE]
+> Community editors are created and maintained by independent contributors. They are not officially supported by the gh-aw project.
+
+### Graphical Workflow Editor
+
+A visual, graphical workflow editor that provides a richer UI for editing agentic workflows. Rather than working directly with markdown and YAML, this editor focuses on a more interactive and visual editing experience.
+
+<LinkButton href="https://mossaka.github.io/gh-aw-editor-visualizer/" icon="external" variant="secondary">
+  https://mossaka.github.io/gh-aw-editor-visualizer/
+</LinkButton>

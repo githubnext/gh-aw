@@ -8,6 +8,11 @@ tools:
   bash:
     - "*"
 
+network:
+  allowed:
+    - defaults
+    - python
+
 steps:
   - name: Setup Python environment
     run: |
