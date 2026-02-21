@@ -849,3 +849,23 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 	return job, nil
 }
+
+// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
+func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
+	cacheLog.Printf("Validating cache IDs: checking %d caches for duplicates", len(caches))
+	seen := make(map[string]bool)
+	for _, cache := range caches {
+		if seen[cache.ID] {
+			cacheLog.Printf("Duplicate cache ID found: %s", cache.ID)
+			return NewValidationError(
+				"sandbox.cache-memory",
+				cache.ID,
+				"duplicate cache-memory ID found - each cache must have a unique ID",
+				"Change the cache ID to a unique value. Example:\n\nsandbox:\n  cache-memory:\n    - id: cache-1\n      size: 100MB\n    - id: cache-2  # Use unique IDs\n      size: 50MB",
+			)
+		}
+		seen[cache.ID] = true
+	}
+	cacheLog.Print("Cache ID validation passed: no duplicates found")
+	return nil
+}

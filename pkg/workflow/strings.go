@@ -77,7 +77,6 @@ package workflow
 
 import (
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -100,13 +99,6 @@ type SanitizeOptions struct {
 	// DefaultValue is returned when the sanitized name is empty after all transformations.
 	// If empty string, no default is applied.
 	DefaultValue string
-}
-
-// SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
-func SortPermissionScopes(s []PermissionScope) {
-	sort.Slice(s, func(i, j int) bool {
-		return string(s[i]) < string(s[j])
-	})
 }
 
 // SanitizeName sanitizes a string for use as an identifier, file name, or similar context.
