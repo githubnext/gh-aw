@@ -498,12 +498,10 @@ function neutralizeTemplateDelimiters(s) {
 }
 
 /**
- * Builds the set of allowed repositories for GitHub reference filtering.
- * Returns null if all references should be allowed (default behavior).
- * Returns empty Set if no references should be allowed (escape all).
- * The special value "repo" expands to the current repository slug.
- * Supports wildcard patterns (e.g., "myorg/*", "*") via isRepoAllowed().
- * @returns {Set<string>|null} Set of allowed repository slugs/patterns or null if all allowed
+ * Builds the list of allowed repositories for GitHub reference filtering
+ * Returns null if all references should be allowed (default behavior)
+ * Returns empty array if no references should be allowed (escape all)
+ * @returns {string[]|null} Array of allowed repository slugs or null if all allowed
  */
 function buildAllowedGitHubReferences() {
   const allowedRefsEnv = process.env.GH_AW_ALLOWED_GITHUB_REFS;
@@ -512,16 +510,13 @@ function buildAllowedGitHubReferences() {
   }
 
   if (allowedRefsEnv === "") {
-    return new Set(); // Empty set means escape all references
+    return []; // Empty array means escape all references
   }
 
-  const currentRepo = getCurrentRepoSlug();
-  const refs = allowedRefsEnv
+  return allowedRefsEnv
     .split(",")
     .map(ref => ref.trim().toLowerCase())
-    .filter(ref => ref)
-    .map(ref => (ref === "repo" ? currentRepo : ref));
-  return new Set(refs);
+    .filter(ref => ref);
 }
 
 /**
@@ -539,10 +534,10 @@ function getCurrentRepoSlug() {
 
 /**
  * Neutralizes GitHub references (#123 or owner/repo#456) by wrapping them in backticks
- * if they reference repositories not in the allowed set.
+ * if they reference repositories not in the allowed list.
  * Supports wildcard patterns (e.g., "myorg/*", "*") via isRepoAllowed().
  * @param {string} s - The string to process
- * @param {Set<string>|null} allowedRepos - Set of allowed repository slugs/patterns (lowercase), or null to allow all
+ * @param {string[]|null} allowedRepos - List of allowed repository slugs (lowercase), or null to allow all
  * @returns {string} The string with unauthorized references neutralized
  */
 function neutralizeGitHubReferences(s, allowedRepos) {
@@ -552,6 +547,9 @@ function neutralizeGitHubReferences(s, allowedRepos) {
   }
 
   const currentRepo = getCurrentRepoSlug();
+
+  // Expand the special "repo" keyword to the current repo slug and build a Set for isRepoAllowed()
+  const allowedSet = new Set(allowedRepos.map(r => (r === "repo" ? currentRepo : r)));
 
   // Match GitHub references:
   // - #123 (current repo reference)
@@ -570,7 +568,7 @@ function neutralizeGitHubReferences(s, allowedRepos) {
     }
 
     // Check if this repo is allowed using isRepoAllowed (supports wildcard patterns)
-    if (isRepoAllowed(targetRepo, allowedRepos)) {
+    if (isRepoAllowed(targetRepo, allowedSet)) {
       return match; // Keep the original reference
     } else {
       // Escape the reference
