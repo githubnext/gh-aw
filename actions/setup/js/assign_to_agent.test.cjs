@@ -1354,7 +1354,7 @@ describe("assign_to_agent", () => {
     expect(lastCall[1].customInstructions).toBeUndefined();
   });
 
-  it("should auto-resolve non-main default branch from pull-request-repo and pass as instruction", async () => {
+  it("should auto-resolve non-main default branch from pull-request-repo and set as baseRef", async () => {
     process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code-repo";
     // No GH_AW_AGENT_BASE_BRANCH set - should use repo's default branch
     setAgentOutput({
@@ -1382,7 +1382,7 @@ describe("assign_to_agent", () => {
     expect(lastCall[1].baseRef).toBe("develop");
   });
 
-  it("should inject branch instruction even when pull-request-repo default branch is main (no explicit base-branch)", async () => {
+  it("should set baseRef when pull-request-repo default branch is main (no explicit base-branch)", async () => {
     process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code-repo";
     // No GH_AW_AGENT_BASE_BRANCH set; repo default is main
     setAgentOutput({

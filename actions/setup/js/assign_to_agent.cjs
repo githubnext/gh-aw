@@ -458,6 +458,9 @@ async function main() {
       if (customInstructions) {
         core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       }
+      if (effectiveBaseBranch) {
+        core.info(`Using base branch: ${effectiveBaseBranch}`);
+      }
       const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId, model, customAgent, customInstructions, effectiveBaseBranch);
 
       if (!success) {
