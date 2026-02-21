@@ -30,7 +30,9 @@ const createTestableFunction = scriptContent => {
     }
     throw new Error(`Module ${module} not mocked in test`);
   };
-  return new Function(`\n    const { github, core, context, process } = arguments[0];\n    const require = ${mockRequire.toString()};\n    \n    ${scriptBody}\n    \n    return { updateActivationComment, updateActivationCommentWithCommit, updateActivationCommentWithMessage };\n  `);
+  return new Function(
+    `\n    const { github, core, context, process } = arguments[0];\n    const require = ${mockRequire.toString()};\n    \n    ${scriptBody}\n    \n    return { updateActivationComment, updateActivationCommentWithCommit, updateActivationCommentWithMessage };\n  `
+  );
 };
 describe("update_activation_comment.cjs", () => {
   let createFunctionFromScript, mockDependencies;
@@ -196,14 +198,16 @@ describe("update_activation_comment.cjs", () => {
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with issue link"));
     }),
     describe("fallback comment creation when no activation comment", () => {
-      it("should create new comment on target PR via updateActivationCommentWithCommit when no activation comment", async () => {
+      (it("should create new comment on target PR via updateActivationCommentWithCommit when no activation comment", async () => {
         mockDependencies.process.env.GH_AW_COMMENT_ID = "";
         mockDependencies.github.request.mockResolvedValue({
           data: { id: 789012, html_url: "https://github.com/testowner/testrepo/issues/225#issuecomment-789012" },
         });
         const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
         await updateActivationCommentWithCommit(
-          mockDependencies.github, mockDependencies.context, mockDependencies.core,
+          mockDependencies.github,
+          mockDependencies.context,
+          mockDependencies.core,
           "41b061a0abc1c574c8ca4344bb69961efee7b45c",
           "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
           { targetIssueNumber: 225 }
@@ -220,64 +224,56 @@ describe("update_activation_comment.cjs", () => {
         );
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with commit link on #225");
       }),
-      it("should use context.payload.pull_request.number when no targetIssueNumber", async () => {
-        mockDependencies.process.env.GH_AW_COMMENT_ID = "";
-        mockDependencies.context.payload = { pull_request: { number: 100 } };
-        mockDependencies.github.request.mockResolvedValue({
-          data: { id: 789013, html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-789013" },
-        });
-        const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
-        await updateActivationCommentWithMessage(
-          mockDependencies.github, mockDependencies.context, mockDependencies.core,
-          "\n\n✅ Test message", "test"
-        );
-        expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #100");
-        expect(mockDependencies.github.request).toHaveBeenCalledWith(
-          "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
-          expect.objectContaining({ issue_number: 100 })
-        );
-      }),
-      it("should use context.payload.issue.number when no targetIssueNumber and no pull_request", async () => {
-        mockDependencies.process.env.GH_AW_COMMENT_ID = "";
-        mockDependencies.context.payload = { issue: { number: 50 } };
-        mockDependencies.github.request.mockResolvedValue({
-          data: { id: 789014, html_url: "https://github.com/testowner/testrepo/issues/50#issuecomment-789014" },
-        });
-        const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
-        await updateActivationCommentWithMessage(
-          mockDependencies.github, mockDependencies.context, mockDependencies.core,
-          "\n\n✅ Test message", "test"
-        );
-        expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #50");
-        expect(mockDependencies.github.request).toHaveBeenCalledWith(
-          "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
-          expect.objectContaining({ issue_number: 50 })
-        );
-      }),
-      it("should not fail if fallback comment creation fails", async () => {
-        mockDependencies.process.env.GH_AW_COMMENT_ID = "";
-        mockDependencies.github.request.mockRejectedValue(new Error("API rate limit exceeded"));
-        const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
-        await updateActivationCommentWithCommit(
-          mockDependencies.github, mockDependencies.context, mockDependencies.core,
-          "41b061a0abc1c574c8ca4344bb69961efee7b45c",
-          "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
-          { targetIssueNumber: 225 }
-        );
-        expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to create comment on #225: API rate limit exceeded");
-        expect(mockDependencies.core.setFailed).not.toHaveBeenCalled();
-      }),
-      it("should log skip message when no activation comment, no targetIssueNumber, and no context payload", async () => {
-        mockDependencies.process.env.GH_AW_COMMENT_ID = "";
-        const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
-        await updateActivationCommentWithCommit(
-          mockDependencies.github, mockDependencies.context, mockDependencies.core,
-          "41b061a0abc1c574c8ca4344bb69961efee7b45c",
-          "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c"
-        );
-        expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set)");
-        expect(mockDependencies.github.request).not.toHaveBeenCalled();
-      });
+        it("should use context.payload.pull_request.number when no targetIssueNumber", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          mockDependencies.context.payload = { pull_request: { number: 100 } };
+          mockDependencies.github.request.mockResolvedValue({
+            data: { id: 789013, html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-789013" },
+          });
+          const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithMessage(mockDependencies.github, mockDependencies.context, mockDependencies.core, "\n\n✅ Test message", "test");
+          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #100");
+          expect(mockDependencies.github.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ issue_number: 100 }));
+        }),
+        it("should use context.payload.issue.number when no targetIssueNumber and no pull_request", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          mockDependencies.context.payload = { issue: { number: 50 } };
+          mockDependencies.github.request.mockResolvedValue({
+            data: { id: 789014, html_url: "https://github.com/testowner/testrepo/issues/50#issuecomment-789014" },
+          });
+          const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithMessage(mockDependencies.github, mockDependencies.context, mockDependencies.core, "\n\n✅ Test message", "test");
+          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #50");
+          expect(mockDependencies.github.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ issue_number: 50 }));
+        }),
+        it("should not fail if fallback comment creation fails", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          mockDependencies.github.request.mockRejectedValue(new Error("API rate limit exceeded"));
+          const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithCommit(
+            mockDependencies.github,
+            mockDependencies.context,
+            mockDependencies.core,
+            "41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            { targetIssueNumber: 225 }
+          );
+          expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to create comment on #225: API rate limit exceeded");
+          expect(mockDependencies.core.setFailed).not.toHaveBeenCalled();
+        }),
+        it("should log skip message when no activation comment, no targetIssueNumber, and no context payload", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithCommit(
+            mockDependencies.github,
+            mockDependencies.context,
+            mockDependencies.core,
+            "41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c"
+          );
+          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set)");
+          expect(mockDependencies.github.request).not.toHaveBeenCalled();
+        }));
     }),
     describe("append-only-comments mode", () => {
       it("should create new issue comment instead of updating when append-only-comments is enabled", async () => {
