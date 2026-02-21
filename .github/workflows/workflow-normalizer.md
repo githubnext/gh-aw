@@ -24,7 +24,7 @@ safe-outputs:
     expires: 1d
     title-prefix: "[workflow-style] "
     labels: [cookie]
-    max: 10
+    max: 1
 imports:
   - shared/reporting.md
 ---
@@ -106,26 +106,26 @@ Document workflows that:
 - Have unclear or inconsistent report formatting instructions
 - Could benefit from progressive disclosure patterns
 
-### Step 4: Create One Issue Per Non-Compliant Workflow
+### Step 4: Create One Consolidated Improvement Issue
 
-For each non-compliant workflow found, create a **separate** issue (up to 10 per run).
+Create **one** issue that consolidates all non-compliant workflows found.
 
-**Title**: `[workflow-style] Normalize report formatting for <workflow-name>`
+**Title**: `[workflow-style] Normalize report formatting for non-compliant workflows`
 
-**Body Template** (per workflow):
+**Body Template**:
 ```markdown
-### Workflow to Update
+### Workflows to Update
 
-`.github/workflows/<workflow-name>.md`
+The following workflows generate reports but don't include markdown style guidelines:
 
-### Issues Found
-
-- <list specific issues, e.g. "Missing header level guidelines">
-- <list specific issues, e.g. "No progressive disclosure instructions">
+| Workflow File | Issues Found |
+|---|---|
+| `.github/workflows/<workflow-name-1>.md` | Missing header level guidelines |
+| `.github/workflows/<workflow-name-2>.md` | No progressive disclosure instructions |
 
 ### Required Changes
 
-Update the prompt to include these formatting guidelines:
+For each workflow listed above, update the prompt to include these formatting guidelines:
 
 #### 1. Header Levels
 Add instruction: "Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy."
@@ -152,7 +152,7 @@ Suggest a structure like:
 
 ### Design Principles (Airbnb-Inspired)
 
-The updated workflow should create reports that:
+The updated workflows should create reports that:
 1. **Build trust through clarity**: Most important info immediately visible
 2. **Exceed expectations**: Add helpful context, trends, comparisons
 3. **Create delight**: Use progressive disclosure to reduce overwhelm
@@ -164,7 +164,7 @@ See workflows like `daily-repo-chronicle` or `audit-workflows` for good examples
 
 ### Agent Task
 
-**Action Required**: Update `.github/workflows/<workflow-name>.md` to include the formatting guidelines specified above. Test the updated workflow to ensure it produces well-formatted reports.
+Update each workflow file listed in the table above to include the formatting guidelines in the prompt instructions. Test the updated workflows to ensure they produce well-formatted reports.
 ```
 
 ### Step 5: Summary Report
