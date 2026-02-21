@@ -29,13 +29,13 @@
 #     - shared/github-queries-safe-input.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"da79bf91609c01e8190c65903a19e009cc9622e8baa5f8cbad8d7d60dd6f1184"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9ca4a5d61b311689557cf99d71bcfcbbfeea33c0212e37247ce2b95f3c725c61"}
 
 name: "Smoke Copilot ARM64"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
+    # - water # Label filtering applied via job conditions
     types:
     - labeled
   workflow_dispatch: null
@@ -53,7 +53,7 @@ jobs:
     needs: pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -2048,7 +2048,7 @@ jobs:
   pre_activation:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
