@@ -23,6 +23,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	var hasCommand bool
 	var hasReaction bool
 	var hasStopAfter bool
+	var hasStatusComment bool
 	var otherEvents map[string]any
 
 	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
@@ -60,6 +61,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 			// Extract status-comment from on section
 			if statusCommentValue, hasStatusCommentField := onMap["status-comment"]; hasStatusCommentField {
+				hasStatusComment = true
 				if statusCommentBool, ok := statusCommentValue.(bool); ok {
 					workflowData.StatusComment = &statusCommentBool
 					compilerSafeOutputsLog.Printf("status-comment set to: %v", statusCommentBool)
@@ -156,7 +158,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		// We'll store this and handle it in applyDefaults
 		workflowData.On = "" // This will trigger command handling in applyDefaults
 		workflowData.CommandOtherEvents = otherEvents
-	} else if (hasReaction || hasStopAfter) && len(otherEvents) > 0 {
+	} else if (hasReaction || hasStopAfter || hasStatusComment) && len(otherEvents) > 0 {
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
