@@ -385,99 +385,33 @@ func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 }
 
 func (b *InteractiveWorkflowBuilder) generatePermissionsConfig() string {
-	// Accumulate required permissions
-	type permLevel struct{ read, write bool }
-	perms := map[string]*permLevel{}
+	// Compute read permissions needed by the AI agent for data access.
+	// Write permissions are NEVER set here — they are always handled automatically
+	// by the safe-outputs job via workflow.ComputePermissionsForSafeOutputs().
+	perms := workflow.NewPermissions()
+	perms.Set(workflow.PermissionContents, workflow.PermissionRead)
 
-	ensure := func(scope string) *permLevel {
-		if perms[scope] == nil {
-			perms[scope] = &permLevel{}
-		}
-		return perms[scope]
-	}
-	addRead := func(scope string) { ensure(scope).read = true }
-	addWrite := func(scope string) { ensure(scope).write = true }
-
-	// contents: read is always required
-	addRead("contents")
-
-	// Permissions from selected GitHub toolsets
 	if slices.Contains(b.Tools, "github") {
 		// Default toolsets: context, repos, issues, pull_requests
-		// repos → contents: read (already added)
+		// repos → contents: read (already set)
 		// issues → issues: read
 		// pull_requests → pull-requests: read
-		addRead("issues")
-		addRead("pull-requests")
+		perms.Set(workflow.PermissionIssues, workflow.PermissionRead)
+		perms.Set(workflow.PermissionPullRequests, workflow.PermissionRead)
 	}
 
-	// Permissions from selected safe outputs
-	for _, output := range b.SafeOutputs {
-		switch output {
-		case "create-issue", "close-issue", "update-issue",
-			"add-labels", "remove-labels",
-			"assign-to-agent", "assign-to-user", "unassign-from-user",
-			"assign-milestone", "link-sub-issue":
-			addWrite("issues")
-		case "create-discussion", "close-discussion", "update-discussion":
-			addWrite("discussions")
-		case "add-comment", "hide-comment":
-			addWrite("issues")
-			addWrite("discussions")
-		case "create-pull-request", "push-to-pull-request-branch":
-			addWrite("contents")
-			addWrite("pull-requests")
-		case "close-pull-request", "update-pull-request",
-			"create-pull-request-review-comment", "submit-pull-request-review",
-			"reply-to-pull-request-review-comment", "resolve-pull-request-review-thread",
-			"mark-pull-request-as-ready-for-review", "add-reviewer":
-			addWrite("pull-requests")
-		case "upload-asset", "update-release":
-			addWrite("contents")
-		case "create-code-scanning-alert", "autofix-code-scanning-alert":
-			addWrite("security-events")
-			if output == "autofix-code-scanning-alert" {
-				addRead("actions")
-			}
-		case "create-agent-session":
-			addWrite("issues")
+	// Include read permissions needed by the safe-outputs job (e.g. contents: read
+	// is already present; actions: read for autofix scanning alerts).
+	// Write permissions from ComputePermissionsForSafeOutputs are handled by the
+	// safe-outputs job automatically and must not appear in the main workflow block.
+	safeOutputsPerms := workflow.ComputePermissionsForSafeOutputs(workflow.SafeOutputsConfigFromKeys(b.SafeOutputs))
+	for _, scope := range workflow.GetAllPermissionScopes() {
+		if level, exists := safeOutputsPerms.Get(scope); exists && level == workflow.PermissionRead {
+			perms.Set(scope, workflow.PermissionRead)
 		}
 	}
 
-	// Build sorted output
-	order := []string{"contents", "actions", "issues", "pull-requests", "discussions", "security-events"}
-	// Collect any extra scopes not in the predefined order
-	extra := []string{}
-	for k := range perms {
-		found := false
-		for _, o := range order {
-			if o == k {
-				found = true
-				break
-			}
-		}
-		if !found {
-			extra = append(extra, k)
-		}
-	}
-	sort.Strings(extra)
-	allScopes := append(order, extra...)
-
-	var config strings.Builder
-	config.WriteString("permissions:\n")
-	for _, scope := range allScopes {
-		p, ok := perms[scope]
-		if !ok {
-			continue
-		}
-		level := "read"
-		if p.write {
-			level = "write"
-		}
-		fmt.Fprintf(&config, "  %s: %s\n", scope, level)
-	}
-
-	return config.String()
+	return perms.RenderToYAML() + "\n"
 }
 
 func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {

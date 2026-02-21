@@ -4,14 +4,14 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var safeOutputsPermissionsLog = logger.New("workflow:safe_outputs_permissions")
 
-// computePermissionsForSafeOutputs computes the minimal required permissions
+// ComputePermissionsForSafeOutputs computes the minimal required permissions
 // based on the configured safe-outputs. This function is used by both the
 // consolidated safe outputs job and the conclusion job to ensure they only
 // request the permissions they actually need.
 //
 // This implements the principle of least privilege by only including
 // permissions that are required by the configured safe outputs.
-func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissions {
+func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissions {
 	if safeOutputs == nil {
 		safeOutputsPermissionsLog.Print("No safe outputs configured, returning empty permissions")
 		return NewPermissions()
@@ -172,4 +172,83 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 
 	safeOutputsPermissionsLog.Printf("Computed permissions with %d scopes", len(permissions.permissions))
 	return permissions
+}
+
+// SafeOutputsConfigFromKeys builds a minimal SafeOutputsConfig from a list of safe-output
+// key names (e.g. "create-issue", "add-comment"). Only the fields needed for permission
+// computation are populated. This is used by external callers (e.g. the interactive wizard)
+// that want to call ComputePermissionsForSafeOutputs without constructing a full config.
+func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
+	config := &SafeOutputsConfig{}
+	for _, key := range keys {
+		switch key {
+		case "create-issue":
+			config.CreateIssues = &CreateIssuesConfig{}
+		case "create-agent-session":
+			config.CreateAgentSessions = &CreateAgentSessionConfig{}
+		case "create-discussion":
+			config.CreateDiscussions = &CreateDiscussionsConfig{}
+		case "update-discussion":
+			config.UpdateDiscussions = &UpdateDiscussionsConfig{}
+		case "close-discussion":
+			config.CloseDiscussions = &CloseDiscussionsConfig{}
+		case "add-comment":
+			config.AddComments = &AddCommentsConfig{}
+		case "close-issue":
+			config.CloseIssues = &CloseIssuesConfig{}
+		case "close-pull-request":
+			config.ClosePullRequests = &ClosePullRequestsConfig{}
+		case "create-pull-request":
+			config.CreatePullRequests = &CreatePullRequestsConfig{}
+		case "create-pull-request-review-comment":
+			config.CreatePullRequestReviewComments = &CreatePullRequestReviewCommentsConfig{}
+		case "submit-pull-request-review":
+			config.SubmitPullRequestReview = &SubmitPullRequestReviewConfig{}
+		case "reply-to-pull-request-review-comment":
+			config.ReplyToPullRequestReviewComment = &ReplyToPullRequestReviewCommentConfig{}
+		case "resolve-pull-request-review-thread":
+			config.ResolvePullRequestReviewThread = &ResolvePullRequestReviewThreadConfig{}
+		case "create-code-scanning-alert":
+			config.CreateCodeScanningAlerts = &CreateCodeScanningAlertsConfig{}
+		case "autofix-code-scanning-alert":
+			config.AutofixCodeScanningAlert = &AutofixCodeScanningAlertConfig{}
+		case "add-labels":
+			config.AddLabels = &AddLabelsConfig{}
+		case "remove-labels":
+			config.RemoveLabels = &RemoveLabelsConfig{}
+		case "add-reviewer":
+			config.AddReviewer = &AddReviewerConfig{}
+		case "assign-milestone":
+			config.AssignMilestone = &AssignMilestoneConfig{}
+		case "assign-to-agent":
+			config.AssignToAgent = &AssignToAgentConfig{}
+		case "assign-to-user":
+			config.AssignToUser = &AssignToUserConfig{}
+		case "unassign-from-user":
+			config.UnassignFromUser = &UnassignFromUserConfig{}
+		case "update-issue":
+			config.UpdateIssues = &UpdateIssuesConfig{}
+		case "update-pull-request":
+			config.UpdatePullRequests = &UpdatePullRequestsConfig{}
+		case "push-to-pull-request-branch":
+			config.PushToPullRequestBranch = &PushToPullRequestBranchConfig{}
+		case "upload-asset":
+			config.UploadAssets = &UploadAssetsConfig{}
+		case "update-release":
+			config.UpdateRelease = &UpdateReleaseConfig{}
+		case "hide-comment":
+			config.HideComment = &HideCommentConfig{}
+		case "link-sub-issue":
+			config.LinkSubIssue = &LinkSubIssueConfig{}
+		case "update-project":
+			config.UpdateProjects = &UpdateProjectConfig{}
+		case "create-project":
+			config.CreateProjects = &CreateProjectsConfig{}
+		case "create-project-status-update":
+			config.CreateProjectStatusUpdates = &CreateProjectStatusUpdateConfig{}
+		case "mark-pull-request-as-ready-for-review":
+			config.MarkPullRequestAsReadyForReview = &MarkPullRequestAsReadyForReviewConfig{}
+		}
+	}
+	return config
 }

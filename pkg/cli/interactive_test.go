@@ -303,9 +303,12 @@ func TestInteractiveWorkflowBuilder_generateWorkflowContent(t *testing.T) {
 		t.Error("Content should contain safe outputs")
 	}
 
-	// Check permissions include issues: write from create-issue safe output
-	if !strings.Contains(content, "issues: write") {
-		t.Error("Content should contain issues: write permission from create-issue safe output")
+	// Permissions should be read-only — write is handled by the safe-outputs job automatically
+	if strings.Contains(content, "issues: write") {
+		t.Error("Content should NOT contain write permissions; write operations are done through safe outputs")
+	}
+	if !strings.Contains(content, "issues: read") {
+		t.Error("Content should contain issues: read permission from github toolset")
 	}
 
 	t.Logf("Generated content:\n%s", content)
@@ -629,16 +632,17 @@ func TestGeneratePermissionsConfig_SafeOutputPermissions(t *testing.T) {
 			wantAbsent:  []string{"issues:", "pull-requests:", "discussions:"},
 		},
 		{
-			name:        "create-issue requires issues write",
+			name:        "create-issue never adds write permissions",
 			tools:       nil,
 			safeOutputs: []string{"create-issue"},
-			wantContain: []string{"issues: write"},
+			// Write operations are done by the safe-outputs job, not the main workflow
+			wantAbsent: []string{"issues: write", "contents: write"},
 		},
 		{
-			name:        "create-pull-request requires contents write and pull-requests write",
+			name:        "create-pull-request never adds write permissions",
 			tools:       nil,
 			safeOutputs: []string{"create-pull-request"},
-			wantContain: []string{"contents: write", "pull-requests: write"},
+			wantAbsent:  []string{"contents: write", "pull-requests: write"},
 		},
 		{
 			name:        "github toolset adds issues read and pull-requests read",
@@ -647,10 +651,19 @@ func TestGeneratePermissionsConfig_SafeOutputPermissions(t *testing.T) {
 			wantContain: []string{"issues: read", "pull-requests: read"},
 		},
 		{
-			name:        "github toolset with create-issue upgrades issues to write",
+			name:        "github toolset with create-issue keeps issues as read only",
 			tools:       []string{"github"},
 			safeOutputs: []string{"create-issue"},
-			wantContain: []string{"issues: write"},
+			// Write is never in main permissions
+			wantContain: []string{"issues: read"},
+			wantAbsent:  []string{"issues: write"},
+		},
+		{
+			name:        "autofix-code-scanning-alert adds actions read",
+			tools:       nil,
+			safeOutputs: []string{"autofix-code-scanning-alert"},
+			wantContain: []string{"actions: read"},
+			wantAbsent:  []string{"security-events: write"},
 		},
 	}
 

@@ -313,7 +313,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			permissions := computePermissionsForSafeOutputs(tt.safeOutputs)
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
 			require.NotNil(t, permissions, "Permissions should not be nil")
 
 			// Check that all expected permissions are present
@@ -344,7 +344,7 @@ func TestComputePermissionsForSafeOutputs_NoOpAndMissingTool(t *testing.T) {
 		},
 	}
 
-	permissions := computePermissionsForSafeOutputs(safeOutputs)
+	permissions := ComputePermissionsForSafeOutputs(safeOutputs)
 	require.NotNil(t, permissions, "Permissions should not be nil")
 
 	// NoOp and MissingTool alone don't require any permissions

@@ -47,7 +47,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		// Compute permissions based on configured safe outputs (principle of least privilege)
-		permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
+		permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
 	}
 
@@ -383,7 +383,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Compute permissions based on configured safe outputs (principle of least privilege)
-	permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
+	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 
 	job := &Job{
 		Name:        "conclusion",

@@ -307,10 +307,12 @@ on:
 #   # schedule: weekly on monday  # Fuzzy weekly schedule
 
 # Permissions - what can this workflow access?
+# Write operations (creating issues, PRs, comments, etc.) are handled
+# automatically by the safe-outputs job with its own scoped permissions.
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 
 # Tools - GitHub API access via toolsets (context, repos, issues, pull_requests)
 # tools:
