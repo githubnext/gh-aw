@@ -23,13 +23,13 @@
 #
 # Smoke Project - Test project operations
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2cad4dcef772bd6905657a076d744f34e2b22f6dd3fb7f717e0591ca9fbc8528"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2b86943b9e0d64f20fdf96a31234fb44adb90fea9e913d3423209b8f669a2ddb"}
 
 name: "Smoke Project"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
+    # - water # Label filtering applied via job conditions
     types:
     - labeled
   workflow_dispatch: null
@@ -47,7 +47,7 @@ jobs:
     needs: pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1632,7 +1632,7 @@ jobs:
   pre_activation:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
