@@ -424,12 +424,14 @@ function processExpressions(content, source) {
     throw new Error(errorMsg);
   }
 
-  // Second pass: replace safe expressions with evaluated values
-  // Use split/join to replace ALL occurrences of each expression, not just the first
-  let result = content;
-  for (const [original, evaluated] of replacements.entries()) {
-    result = result.split(original).join(evaluated);
-  }
+  // Second pass: replace safe expressions with evaluated values.
+  // Build a single regex that matches any of the original expressions so all
+  // replacements are done in one pass.  A multi-pass approach would incorrectly
+  // re-replace expression syntax that appears inside an already-evaluated value
+  // (e.g. an issue title that literally contains "${{ github.actor }}").
+  const escapeForRegex = (/** @type {string} */ s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(Array.from(replacements.keys()).map(escapeForRegex).join("|"), "g");
+  const result = content.replace(pattern, match => replacements.get(match) ?? match);
 
   core.info(`Successfully processed ${replacements.size} safe expression(s) in ${source}`);
   return result;
