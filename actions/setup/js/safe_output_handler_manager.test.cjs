@@ -779,4 +779,112 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings.noopMessages).toHaveLength(0);
     });
   });
+
+  describe("code-push fail-fast behaviour", () => {
+    it("should cancel subsequent messages when push_to_pull_request_branch fails", async () => {
+      const messages = [{ type: "push_to_pull_request_branch" }, { type: "add_comment", body: "Success!" }, { type: "create_issue", title: "Issue" }];
+
+      const codePushHandler = vi.fn().mockResolvedValue({ success: false, error: "Branch not found" });
+      const commentHandler = vi.fn();
+      const issueHandler = vi.fn();
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", codePushHandler],
+        ["add_comment", commentHandler],
+        ["create_issue", issueHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      // Code-push failure recorded
+      expect(result.codePushFailures).toHaveLength(1);
+      expect(result.codePushFailures[0].type).toBe("push_to_pull_request_branch");
+      expect(result.codePushFailures[0].error).toBe("Branch not found");
+      // First result: code-push failed
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].error).toBe("Branch not found");
+      // Subsequent results: cancelled
+      expect(result.results[1].success).toBe(false);
+      expect(result.results[1].cancelled).toBe(true);
+      expect(result.results[1].reason).toContain("Cancelled");
+      expect(result.results[2].success).toBe(false);
+      expect(result.results[2].cancelled).toBe(true);
+      // Subsequent handlers were NOT called
+      expect(commentHandler).not.toHaveBeenCalled();
+      expect(issueHandler).not.toHaveBeenCalled();
+    });
+
+    it("should cancel subsequent messages when create_pull_request fails via exception", async () => {
+      const messages = [{ type: "create_pull_request" }, { type: "add_comment", body: "PR created!" }];
+
+      const codePushHandler = vi.fn().mockRejectedValue(new Error("API error"));
+      const commentHandler = vi.fn();
+
+      const handlers = new Map([
+        ["create_pull_request", codePushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.codePushFailures).toHaveLength(1);
+      expect(result.codePushFailures[0].type).toBe("create_pull_request");
+      expect(result.codePushFailures[0].error).toBe("API error");
+      expect(result.results[1].cancelled).toBe(true);
+      expect(commentHandler).not.toHaveBeenCalled();
+    });
+
+    it("should NOT cancel subsequent code-push messages after a code-push failure", async () => {
+      const messages = [{ type: "push_to_pull_request_branch" }, { type: "create_pull_request" }];
+
+      const pushHandler = vi.fn().mockResolvedValue({ success: false, error: "Push failed" });
+      const createPRHandler = vi.fn().mockResolvedValue({ success: true, url: "https://github.com/pr/1" });
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", pushHandler],
+        ["create_pull_request", createPRHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.codePushFailures).toHaveLength(1);
+      // create_pull_request is also a code-push type, so it should NOT be cancelled
+      expect(result.results[1].cancelled).toBeUndefined();
+      expect(createPRHandler).toHaveBeenCalled();
+    });
+
+    it("should not cancel messages when no code-push failure occurs", async () => {
+      const messages = [{ type: "push_to_pull_request_branch" }, { type: "add_comment", body: "Success!" }];
+
+      const codePushHandler = vi.fn().mockResolvedValue({ success: true, branch: "my-branch" });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", codePushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.codePushFailures).toHaveLength(0);
+      expect(result.results[0].success).toBe(true);
+      expect(result.results[1].cancelled).toBeUndefined();
+      expect(commentHandler).toHaveBeenCalled();
+    });
+
+    it("should return empty codePushFailures array when no code-push types present", async () => {
+      const messages = [{ type: "create_issue", title: "Issue" }];
+      const mockHandler = vi.fn().mockResolvedValue({ repo: "owner/repo", number: 1 });
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.codePushFailures).toBeDefined();
+      expect(result.codePushFailures).toHaveLength(0);
+    });
+  });
 });

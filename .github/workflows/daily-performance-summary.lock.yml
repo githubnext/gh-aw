@@ -1734,6 +1734,8 @@ jobs:
       GH_AW_WORKFLOW_ID: "daily-performance-summary"
       GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
     outputs:
+      code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
+      code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}

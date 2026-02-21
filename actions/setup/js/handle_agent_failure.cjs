@@ -264,6 +264,30 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
 }
 
 /**
+ * Build a context string describing code-push failures for inclusion in failure issue/comment bodies.
+ * @param {string} codePushFailureErrors - Newline-separated list of "type:error" entries
+ * @returns {string} Formatted context string, or empty string if no failures
+ */
+function buildCodePushFailureContext(codePushFailureErrors) {
+  if (!codePushFailureErrors) {
+    return "";
+  }
+
+  let context = "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.\n\n**Code Push Errors:**\n";
+  const errorLines = codePushFailureErrors.split("\n").filter(line => line.trim());
+  for (const errorLine of errorLines) {
+    const colonIndex = errorLine.indexOf(":");
+    if (colonIndex !== -1) {
+      const type = errorLine.substring(0, colonIndex);
+      const error = errorLine.substring(colonIndex + 1);
+      context += `- \`${type}\`: ${error}\n`;
+    }
+  }
+  context += "\n";
+  return context;
+}
+
+/**
  * Load missing_data messages from agent output
  * @returns {Array<{data_type: string, reason: string, context?: string, alternatives?: string}>} Array of missing data messages
  */
@@ -341,6 +365,8 @@ async function main() {
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
     const createDiscussionErrors = process.env.GH_AW_CREATE_DISCUSSION_ERRORS || "";
     const createDiscussionErrorCount = process.env.GH_AW_CREATE_DISCUSSION_ERROR_COUNT || "0";
+    const codePushFailureErrors = process.env.GH_AW_CODE_PUSH_FAILURE_ERRORS || "";
+    const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
 
     // Collect repo-memory validation errors from all memory configurations
@@ -363,6 +389,7 @@ async function main() {
     core.info(`Secret verification result: ${secretVerificationResult}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
+    core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
 
     // Check if there are assignment errors (regardless of agent job status)
@@ -370,6 +397,9 @@ async function main() {
 
     // Check if there are create_discussion errors (regardless of agent job status)
     const hasCreateDiscussionErrors = parseInt(createDiscussionErrorCount, 10) > 0;
+
+    // Check if there are code-push failures (regardless of agent job status)
+    const hasCodePushFailures = parseInt(codePushFailureCount, 10) > 0;
 
     // Check if agent succeeded but produced no safe outputs
     let hasMissingSafeOutputs = false;
@@ -391,10 +421,10 @@ async function main() {
       }
     }
 
-    // Only proceed if the agent job actually failed OR there are assignment errors OR create_discussion errors OR missing safe outputs
+    // Only proceed if the agent job actually failed OR there are assignment errors OR create_discussion errors OR code-push failures OR missing safe outputs
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
-    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasMissingSafeOutputs) {
-      core.info(`Agent job did not fail and no assignment/discussion errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasCodePushFailures && !hasMissingSafeOutputs) {
+      core.info(`Agent job did not fail and no assignment/discussion/code-push errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -484,6 +514,9 @@ async function main() {
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
+        // Build code-push failure context
+        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors) : "";
+
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
@@ -520,6 +553,7 @@ async function main() {
               : "",
           assignment_errors_context: assignmentErrorsContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
+          code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
@@ -580,6 +614,9 @@ async function main() {
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
+        // Build code-push failure context
+        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors) : "";
+
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
@@ -617,6 +654,7 @@ async function main() {
               : "",
           assignment_errors_context: assignmentErrorsContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
+          code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,

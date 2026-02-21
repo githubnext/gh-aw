@@ -1190,6 +1190,8 @@ jobs:
       GH_AW_WORKFLOW_ID: "daily-mcp-concurrency-analysis"
       GH_AW_WORKFLOW_NAME: "Daily MCP Tool Concurrency Analysis"
     outputs:
+      code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
+      code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_agent_session_session_number: ${{ steps.create_agent_session.outputs.session_number }}
       create_agent_session_session_url: ${{ steps.create_agent_session.outputs.session_url }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}

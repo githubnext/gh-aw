@@ -1461,6 +1461,8 @@ jobs:
           GH_AW_WORKFLOW_ID: "smoke-project"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
+          GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
+          GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
           GH_AW_GROUP_REPORTS: "false"
         with:
@@ -1696,6 +1698,8 @@ jobs:
       GH_AW_WORKFLOW_ID: "smoke-project"
       GH_AW_WORKFLOW_NAME: "Smoke Project"
     outputs:
+      code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
+      code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
