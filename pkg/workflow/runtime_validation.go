@@ -7,8 +7,6 @@
 //   - Container images exist and are accessible
 //   - Runtime packages (npm, pip, uv) are available
 //   - Expression sizes don't exceed GitHub Actions limits
-//   - Secret references are valid
-//   - Cache IDs are unique
 //
 // # Validation Functions
 //
@@ -16,15 +14,12 @@
 //   - validateContainerImages() - Validates Docker images exist
 //   - validateRuntimePackages() - Validates npm, pip, uv packages
 //   - collectPackagesFromWorkflow() - Generic package collection helper
-//   - validateNoDuplicateCacheIDs() - Validates unique cache-memory IDs
-//   - validateSecretReferences() - Validates secret name format
 //
 // # Validation Patterns
 //
 // This file uses several patterns:
 //   - External resource validation: Docker images, npm/pip packages
 //   - Size limit validation: Expression sizes, file sizes
-//   - Format validation: Secret names, cache IDs
 //   - Collection and deduplication: Package extraction
 //
 // # Size Limits
@@ -37,7 +32,6 @@
 // Add validation to this file when:
 //   - It validates runtime dependencies (packages, containers)
 //   - It checks expression or content size limits
-//   - It validates configuration format (secrets, cache IDs)
 //   - It requires external resource checking
 //
 // For general validation, see validation.go.
@@ -49,7 +43,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -260,64 +253,4 @@ func collectPackagesFromWorkflow(
 
 	runtimeValidationLog.Printf("Collected %d unique packages", len(packages))
 	return packages
-}
-
-// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
-func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
-	runtimeValidationLog.Printf("Validating cache IDs: checking %d caches for duplicates", len(caches))
-	seen := make(map[string]bool)
-	for _, cache := range caches {
-		if seen[cache.ID] {
-			runtimeValidationLog.Printf("Duplicate cache ID found: %s", cache.ID)
-			return NewValidationError(
-				"sandbox.cache-memory",
-				cache.ID,
-				"duplicate cache-memory ID found - each cache must have a unique ID",
-				"Change the cache ID to a unique value. Example:\n\nsandbox:\n  cache-memory:\n    - id: cache-1\n      size: 100MB\n    - id: cache-2  # Use unique IDs\n      size: 50MB",
-			)
-		}
-		seen[cache.ID] = true
-	}
-	runtimeValidationLog.Print("Cache ID validation passed: no duplicates found")
-	return nil
-}
-
-// validateSecretReferences validates that secret references are valid
-func validateSecretReferences(secrets []string) error {
-	runtimeValidationLog.Printf("Validating secret references: checking %d secrets", len(secrets))
-	// Secret names must be valid environment variable names
-	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
-
-	for _, secret := range secrets {
-		if !secretNamePattern.MatchString(secret) {
-			runtimeValidationLog.Printf("Invalid secret name format: %s", secret)
-			return NewValidationError(
-				"secrets",
-				secret,
-				"invalid secret name format - must follow environment variable naming conventions",
-				"Secret names must:\n- Start with an uppercase letter\n- Contain only uppercase letters, numbers, and underscores\n\nExamples:\n  MY_SECRET_KEY      ✓\n  API_TOKEN_123      ✓\n  mySecretKey        ✗ (lowercase)\n  123_SECRET         ✗ (starts with number)\n  MY-SECRET          ✗ (hyphens not allowed)",
-			)
-		}
-	}
-
-	return nil
-}
-
-// validateFirewallConfig validates firewall configuration including log-level
-func (c *Compiler) validateFirewallConfig(workflowData *WorkflowData) error {
-	if workflowData.NetworkPermissions == nil || workflowData.NetworkPermissions.Firewall == nil {
-		return nil
-	}
-
-	config := workflowData.NetworkPermissions.Firewall
-	runtimeValidationLog.Printf("Validating firewall config: enabled=%v, logLevel=%s", config.Enabled, config.LogLevel)
-	if config.LogLevel != "" {
-		if err := ValidateLogLevel(config.LogLevel); err != nil {
-			runtimeValidationLog.Printf("Invalid firewall log level: %s", config.LogLevel)
-			return err
-		}
-	}
-
-	runtimeValidationLog.Print("Firewall config validation passed")
-	return nil
 }

@@ -10,6 +10,13 @@ import (
 
 var permissionsOpsLog = logger.New("workflow:permissions_operations")
 
+// SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
+func SortPermissionScopes(s []PermissionScope) {
+	sort.Slice(s, func(i, j int) bool {
+		return string(s[i]) < string(s[j])
+	})
+}
+
 // Set sets a permission for a specific scope
 func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 	permissionsOpsLog.Printf("Setting permission: scope=%s, level=%s", scope, level)
