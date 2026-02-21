@@ -1200,9 +1200,9 @@ jobs:
         shell: bash
         run: |
           if [ -d "/tmp/gh-aw/cache-memory-repo-audits" ] && [ "$(ls -A /tmp/gh-aw/cache-memory-repo-audits 2>/dev/null)" ]; then
-            echo "has_content=true" >> $GITHUB_OUTPUT
+            echo "has_content=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has_content=false" >> $GITHUB_OUTPUT
+            echo "has_content=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Save cache-memory to cache (repo-audits)
         if: steps.check_cache_repo_audits.outputs.has_content == 'true'

@@ -1319,9 +1319,9 @@ jobs:
         shell: bash
         run: |
           if [ -d "/tmp/gh-aw/cache-memory" ] && [ "$(ls -A /tmp/gh-aw/cache-memory 2>/dev/null)" ]; then
-            echo "has_content=true" >> $GITHUB_OUTPUT
+            echo "has_content=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has_content=false" >> $GITHUB_OUTPUT
+            echo "has_content=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Save cache-memory to cache (default)
         if: steps.check_cache_default.outputs.has_content == 'true'

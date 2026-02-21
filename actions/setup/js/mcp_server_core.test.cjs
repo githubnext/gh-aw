@@ -734,7 +734,7 @@ process.stdin.on('end', () => {
         `#!/bin/bash
 echo "Hello from shell script"
 echo "Input was: $INPUT_NAME"
-echo "result=success" >> $GITHUB_OUTPUT
+echo "result=success" >> "$GITHUB_OUTPUT"
 `,
         { mode: 0o755 }
       );
@@ -785,8 +785,7 @@ echo "result=success" >> $GITHUB_OUTPUT
   echo "first=value1"
   echo "second=value2"
   echo "third=value with spaces"
-} >> $GITHUB_OUTPUT
-`,
+} >> "$GITHUB_OUTPUT"`,
         { mode: 0o755 }
       );
 
@@ -873,7 +872,7 @@ exit 1
         handlerPath,
         `#!/bin/bash
 echo "my-input value: $INPUT_MY_INPUT"
-echo "result=$INPUT_MY_INPUT" >> $GITHUB_OUTPUT
+echo "result=$INPUT_MY_INPUT" >> "$GITHUB_OUTPUT"
 `,
         { mode: 0o755 }
       );
