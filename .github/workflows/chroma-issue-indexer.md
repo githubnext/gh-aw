@@ -7,7 +7,6 @@ engine:
   id: copilot
   model: gpt-5.1-codex-mini
 imports:
-  - shared/mood.md
   - shared/mcp/chroma.md
 permissions:
   contents: read

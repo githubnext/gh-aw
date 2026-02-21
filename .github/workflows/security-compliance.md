@@ -39,8 +39,6 @@ tools:
     branch-name: memory/campaigns
     file-glob: "memory/campaigns/security-compliance-*/**"
 
-imports:
-  - shared/mood.md
 ---
 
 # Security Compliance Campaign

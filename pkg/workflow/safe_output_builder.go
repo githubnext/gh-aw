@@ -36,7 +36,7 @@ type SafeOutputDiscussionFilterConfig struct {
 
 // ParseTargetConfig parses target and target-repo fields from a config map.
 // Returns the parsed SafeOutputTargetConfig and a boolean indicating if there was a validation error.
-// If target-repo is "*" (wildcard), it returns an error (second return value is true).
+// target-repo accepts "*" (wildcard) to indicate that any repository can be targeted.
 func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) {
 	safeOutputBuilderLog.Print("Parsing target config from map")
 	config := SafeOutputTargetConfig{}
@@ -49,13 +49,8 @@ func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) 
 		}
 	}
 
-	// Parse target-repo using shared helper with validation
-	targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-	if isInvalid {
-		safeOutputBuilderLog.Print("Target repo validation failed")
-		return config, true // Return true to indicate validation error
-	}
-	config.TargetRepoSlug = targetRepoSlug
+	// Parse target-repo; wildcard "*" is allowed and means "any repository"
+	config.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
 
 	return config, false
 }

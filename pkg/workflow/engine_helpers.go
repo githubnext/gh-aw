@@ -201,39 +201,6 @@ func BuildStandardNpmEngineInstallSteps(
 	)
 }
 
-// InjectCustomEngineSteps processes custom steps from engine config and converts them to GitHubActionSteps.
-// This shared function extracts the common pattern used by Copilot, Codex, and Claude engines.
-//
-// Parameters:
-//   - workflowData: The workflow data containing engine configuration
-//   - convertStepFunc: A function that converts a step map to YAML string (engine-specific)
-//
-// Returns:
-//   - []GitHubActionStep: Array of custom steps ready to be included in the execution pipeline
-func InjectCustomEngineSteps(
-	workflowData *WorkflowData,
-	convertStepFunc func(map[string]any) (string, error),
-) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		engineHelpersLog.Printf("Injecting %d custom engine steps", len(workflowData.EngineConfig.Steps))
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := convertStepFunc(step)
-			if err != nil {
-				engineHelpersLog.Printf("Failed to convert custom step: %v", err)
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-		engineHelpersLog.Printf("Successfully injected %d custom engine steps", len(steps))
-	}
-
-	return steps
-}
-
 // RenderCustomMCPToolConfigHandler is a function type that engines must provide to render their specific MCP config
 // FormatStepWithCommandAndEnv formats a GitHub Actions step with command and environment variables.
 // This shared function extracts the common pattern used by Copilot and Codex engines.
@@ -280,22 +247,29 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 	return stepLines
 }
 
-// FilterEnvForSecrets filters environment variables to only include allowed secrets
-// This is a security measure to ensure that only necessary secrets are passed to the execution step
+// FilterEnvForSecrets filters environment variables to only include allowed secrets.
+// This is a security measure to ensure that only necessary secrets are passed to the execution step.
+//
+// An env var carrying a secret reference is kept when either:
+//   - The referenced secret name (e.g. "COPILOT_GITHUB_TOKEN") is in allowedNamesAndKeys, OR
+//   - The env var key itself (e.g. "COPILOT_GITHUB_TOKEN") is in allowedNamesAndKeys.
+//
+// The second rule allows users to override an engine's required env var with a
+// differently-named secret, e.g. COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_TOKEN }}.
 //
 // Parameters:
 //   - env: Map of all environment variables
-//   - allowedSecrets: List of secret names that are allowed to be passed
+//   - allowedNamesAndKeys: List of secret names and/or env var keys that are permitted
 //
 // Returns:
 //   - map[string]string: Filtered environment variables with only allowed secrets
-func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[string]string {
-	engineHelpersLog.Printf("Filtering environment variables: total=%d, allowed_secrets=%d", len(env), len(allowedSecrets))
+func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) map[string]string {
+	engineHelpersLog.Printf("Filtering environment variables: total=%d, allowed=%d", len(env), len(allowedNamesAndKeys))
 
-	// Create a set of allowed secret names for fast lookup
+	// Create a set for fast lookup — entries may be secret names or env var keys.
 	allowedSet := make(map[string]bool)
-	for _, secret := range allowedSecrets {
-		allowedSet[secret] = true
+	for _, entry := range allowedNamesAndKeys {
+		allowedSet[entry] = true
 	}
 
 	filtered := make(map[string]string)
@@ -307,7 +281,8 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 			// Extract the secret name from the expression
 			// Format: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || ... }}
 			secretName := ExtractSecretName(value)
-			if secretName != "" && !allowedSet[secretName] {
+			// Allow the secret if the secret name OR the env var key is in the allowed set.
+			if secretName != "" && !allowedSet[secretName] && !allowedSet[key] {
 				engineHelpersLog.Printf("Removing unauthorized secret from env: %s (secret: %s)", key, secretName)
 				secretsRemoved++
 				continue

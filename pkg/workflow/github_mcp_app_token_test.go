@@ -115,8 +115,8 @@ Test workflow with GitHub MCP app token minting.
 	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP Server")
 }
 
-// TestGitHubMCPAppTokenOverridesDefaultToken tests that app token overrides custom and default tokens
-func TestGitHubMCPAppTokenOverridesDefaultToken(t *testing.T) {
+// TestGitHubMCPAppTokenAndGitHubTokenMutuallyExclusive tests that setting both app and github-token is rejected
+func TestGitHubMCPAppTokenAndGitHubTokenMutuallyExclusive(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
@@ -134,7 +134,7 @@ tools:
 
 # Test Workflow
 
-Test that app token overrides custom token.
+Test that setting both app and github-token is an error.
 `
 
 	// Create a temporary test file
@@ -143,21 +143,10 @@ Test that app token overrides custom token.
 	err := os.WriteFile(testFile, []byte(markdown), 0644)
 	require.NoError(t, err, "Failed to write test file")
 
-	// Compile the workflow
+	// Compile the workflow - should fail because both app and github-token are set
 	err = compiler.CompileWorkflow(testFile)
-	require.NoError(t, err, "Failed to compile workflow")
-
-	// Read the generated lock file (same name with .lock.yml extension)
-	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
-	content, err := os.ReadFile(lockFile)
-	require.NoError(t, err, "Failed to read lock file")
-	lockContent := string(content)
-
-	// Verify app token is used (not the custom token)
-	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token")
-
-	// Verify custom token is not used when app is configured
-	assert.NotContains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}", "Should not use custom token when app is configured")
+	require.Error(t, err, "Expected error when both app and github-token are set")
+	assert.Contains(t, err.Error(), "'tools.github.app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
 }
 
 // TestGitHubMCPAppTokenWithRemoteMode tests that app token works with remote mode

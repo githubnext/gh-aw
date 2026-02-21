@@ -265,6 +265,84 @@ Use ${{ env.TEST_VAR }} and ${{ vars.CONFIG }}
 	}
 }
 
+func TestComputeFrontmatterHash_LFAndCRLFMatch(t *testing.T) {
+	baseContentLF := `---
+engine: copilot
+description: newline stability
+on:
+  workflow_dispatch: true
+---
+
+# Newline Stability
+`
+	baseContentCRLF := strings.ReplaceAll(baseContentLF, "\n", "\r\n")
+
+	tempDir := t.TempDir()
+	lfFile := filepath.Join(tempDir, "workflow-lf.md")
+	crlfFile := filepath.Join(tempDir, "workflow-crlf.md")
+
+	require.NoError(t, os.WriteFile(lfFile, []byte(baseContentLF), 0644))
+	require.NoError(t, os.WriteFile(crlfFile, []byte(baseContentCRLF), 0644))
+
+	cache := NewImportCache("")
+	lfHash, err := ComputeFrontmatterHashFromFile(lfFile, cache)
+	require.NoError(t, err)
+	crlfHash, err := ComputeFrontmatterHashFromFile(crlfFile, cache)
+	require.NoError(t, err)
+
+	assert.Equal(t, lfHash, crlfHash, "LF and CRLF frontmatter should hash identically")
+}
+
+func TestComputeFrontmatterHash_ImportedFrontmatterLFAndCRLFMatch(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mainLF := `---
+engine: copilot
+imports:
+  - ./shared.md
+---
+
+# Main
+`
+	mainCRLF := strings.ReplaceAll(mainLF, "\n", "\r\n")
+
+	importLF := `---
+description: shared settings
+tools:
+  playwright: {}
+---
+
+# Shared
+`
+	importCRLF := strings.ReplaceAll(importLF, "\n", "\r\n")
+
+	lfDir := filepath.Join(tempDir, "lf")
+	crlfDir := filepath.Join(tempDir, "crlf")
+	require.NoError(t, os.MkdirAll(lfDir, 0755))
+	require.NoError(t, os.MkdirAll(crlfDir, 0755))
+
+	lfMain := filepath.Join(lfDir, "main.md")
+	crlfMain := filepath.Join(crlfDir, "main.md")
+
+	require.NoError(t, os.WriteFile(lfMain, []byte(mainLF), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(lfDir, "shared.md"), []byte(importLF), 0644))
+	require.NoError(t, os.WriteFile(crlfMain, []byte(mainCRLF), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(crlfDir, "shared.md"), []byte(importCRLF), 0644))
+
+	cache := NewImportCache("")
+	lfHash, err := ComputeFrontmatterHashFromFile(lfMain, cache)
+	require.NoError(t, err)
+	crlfHash, err := ComputeFrontmatterHashFromFile(crlfMain, cache)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		lfHash,
+		crlfHash,
+		"LF and CRLF variants should hash identically with imported frontmatter",
+	)
+}
+
 // TestHashConsistency_WithImports validates hash consistency for workflows
 // that import other workflows.
 func TestHashConsistency_WithImports(t *testing.T) {
@@ -431,6 +509,166 @@ engine: copilot
 		t.Logf("⚠ Go ordering-dependent: %v, JS ordering-dependent: %v, File 1 cross-match: %v, File 2 cross-match: %v",
 			goMatch, jsMatch, crossMatch1, crossMatch2)
 	}
+}
+
+// TestHashConsistency_LFvsCRLF validates that workflow files with identical content but
+// different newline conventions (LF vs CRLF) produce the same frontmatter hash.
+// This is a regression test for cross-platform hash stability.
+func TestHashConsistency_LFvsCRLF(t *testing.T) {
+	tempDir := t.TempDir()
+	cache := NewImportCache("")
+
+	testCases := []struct {
+		name    string
+		content string // LF version; CRLF version is derived automatically
+	}{
+		{
+			name: "simple frontmatter",
+			content: `---
+engine: copilot
+description: Test workflow
+on:
+  schedule: daily
+---
+
+# Test Workflow
+`,
+		},
+		{
+			name: "complex frontmatter",
+			content: `---
+engine: claude
+description: Complex workflow
+tracker-id: complex-test
+timeout-minutes: 30
+on:
+  schedule: daily
+  workflow_dispatch: true
+permissions:
+  contents: read
+  actions: read
+tools:
+  playwright:
+    version: v1.41.0
+labels:
+  - test
+  - complex
+bots:
+  - copilot
+---
+
+# Complex Workflow
+`,
+		},
+		{
+			name: "frontmatter with env template expressions",
+			content: `---
+engine: copilot
+description: Workflow with template expressions
+---
+
+# Test
+
+Use environment variable: ${{ env.MY_VAR }}
+Use config variable: ${{ vars.MY_CONFIG }}
+`,
+		},
+		{
+			name: "frontmatter with inlined-imports",
+			content: `---
+engine: copilot
+inlined-imports: true
+description: Inlined imports workflow
+---
+
+# Inlined body content
+Some multi-line
+content here
+`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lfContent := tc.content
+			crlfContent := strings.ReplaceAll(tc.content, "\n", "\r\n")
+
+			lfFile := filepath.Join(tempDir, "lf-"+strings.ReplaceAll(tc.name, " ", "-")+".md")
+			crlfFile := filepath.Join(tempDir, "crlf-"+strings.ReplaceAll(tc.name, " ", "-")+".md")
+
+			err := os.WriteFile(lfFile, []byte(lfContent), 0644)
+			require.NoError(t, err, "Should write LF test file")
+			err = os.WriteFile(crlfFile, []byte(crlfContent), 0644)
+			require.NoError(t, err, "Should write CRLF test file")
+
+			lfHash, err := ComputeFrontmatterHashFromFile(lfFile, cache)
+			require.NoError(t, err, "Should compute hash for LF file")
+			assert.Len(t, lfHash, 64, "LF hash should be 64 characters")
+
+			crlfHash, err := ComputeFrontmatterHashFromFile(crlfFile, cache)
+			require.NoError(t, err, "Should compute hash for CRLF file")
+			assert.Len(t, crlfHash, 64, "CRLF hash should be 64 characters")
+
+			assert.Equal(t, lfHash, crlfHash, "LF and CRLF variants must produce identical hashes")
+			t.Logf("  ✓ LF=CRLF hash: %s", lfHash)
+		})
+	}
+}
+
+// TestHashConsistency_LFvsCRLF_WithImports validates that LF/CRLF invariance holds
+// when workflows import other workflows.
+func TestHashConsistency_LFvsCRLF_WithImports(t *testing.T) {
+	tempDir := t.TempDir()
+	sharedDir := filepath.Join(tempDir, "shared")
+	err := os.MkdirAll(sharedDir, 0755)
+	require.NoError(t, err, "Should create shared directory")
+
+	sharedLF := `---
+tools:
+  playwright:
+    version: v1.41.0
+labels:
+  - shared
+  - common
+---
+
+# Shared Content
+`
+	mainLF := `---
+engine: copilot
+description: Main workflow
+imports:
+  - shared/common.md
+labels:
+  - main
+---
+
+# Main Workflow
+`
+
+	cache := NewImportCache("")
+
+	// LF variant: both main and shared use LF
+	err = os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(sharedLF), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "main-lf.md"), []byte(mainLF), 0644)
+	require.NoError(t, err)
+	lfHash, err := ComputeFrontmatterHashFromFile(filepath.Join(tempDir, "main-lf.md"), cache)
+	require.NoError(t, err, "Should compute hash for LF files with imports")
+
+	// CRLF variant: both main and shared use CRLF
+	sharedCRLF := strings.ReplaceAll(sharedLF, "\n", "\r\n")
+	mainCRLF := strings.ReplaceAll(mainLF, "\n", "\r\n")
+	err = os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(sharedCRLF), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "main-crlf.md"), []byte(mainCRLF), 0644)
+	require.NoError(t, err)
+	crlfHash, err := ComputeFrontmatterHashFromFile(filepath.Join(tempDir, "main-crlf.md"), cache)
+	require.NoError(t, err, "Should compute hash for CRLF files with imports")
+
+	assert.Equal(t, lfHash, crlfHash, "LF and CRLF import variants must produce identical hashes")
+	t.Logf("  ✓ LF with imports hash:   %s", lfHash)
+	t.Logf("  ✓ CRLF with imports hash: %s", crlfHash)
 }
 
 // computeHashViaNode computes the hash using the JavaScript implementation via Node.js

@@ -23,11 +23,7 @@
 #
 # Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"43b3ac4dc74d732a6ae6dfd8e6577f9b1783197374933e17e0cfc71c9baa12a4"}
 
 name: "Workflow Generator"
 "on":
@@ -163,6 +159,29 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           
           **Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
+          
+          ---
+          
+          ## Updating Issues, Assigning to an Agent, Reporting Missing Tools or Functionality, Reporting Missing Data
+          
+          **IMPORTANT**: To perform the actions listed above, use the **safeoutputs** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.
+          
+          **Updating an Issue**
+          
+          To update an issue, use the update_issue tool from safeoutputs.
+          
+          **Assigning to an Agent**
+          
+          To assign an issue or pull request to a GitHub Copilot agent, use the assign_to_agent tool from safeoutputs.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
+          
+          **Reporting Missing Data**
+          
+          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          
           </instructions>
           </safe-outputs>
           <github-context>
@@ -196,9 +215,6 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/workflow-generator.md}}
@@ -344,7 +360,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.411",
+              agent_version: "0.0.412",
               workflow_name: "Workflow Generator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -381,7 +397,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.412
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.2
       - name: Validate lockdown mode requirements
@@ -396,7 +412,7 @@ jobs:
             const validateLockdownRequirements = require('/opt/gh-aw/actions/validate_lockdown_requirements.cjs');
             validateLockdownRequirements(core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.2 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.2 ghcr.io/github/gh-aw-firewall/squid:0.20.2 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.30.3 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.2 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.2 ghcr.io/github/gh-aw-firewall/squid:0.20.2 ghcr.io/github/gh-aw-mcpg:v0.1.4 ghcr.io/github/github-mcp-server:v0.31.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -589,9 +605,42 @@ jobs:
                 },
                 "pull_number": {
                   "optionalPositiveInteger": true
+                },
+                "pull_request_repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 }
               },
               "customValidation": "requiresOneOf:issue_number,pull_number"
+            },
+            "missing_data": {
+              "defaultMax": 20,
+              "fields": {
+                "alternatives": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "context": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "data_type": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                }
+              }
             },
             "missing_tool": {
               "defaultMax": 20,
@@ -628,6 +677,12 @@ jobs:
             "update_issue": {
               "defaultMax": 1,
               "fields": {
+                "assignees": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 39
+                },
                 "body": {
                   "type": "string",
                   "sanitize": true,
@@ -635,6 +690,28 @@ jobs:
                 },
                 "issue_number": {
                   "issueOrPRNumber": true
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "milestone": {
+                  "optionalPositiveInteger": true
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "replace",
+                    "append",
+                    "prepend",
+                    "replace-island"
+                  ]
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
                 },
                 "status": {
                   "type": "string",
@@ -721,7 +798,7 @@ jobs:
             "mcpServers": {
               "github": {
                 "type": "stdio",
-                "container": "ghcr.io/github/github-mcp-server:v0.30.3",
+                "container": "ghcr.io/github/github-mcp-server:v0.31.0",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "1",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
@@ -774,6 +851,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -1080,7 +1158,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.412
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

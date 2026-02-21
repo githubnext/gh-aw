@@ -13,7 +13,6 @@ permissions:
 tracker-id: code-simplifier
 
 imports:
-  - shared/mood.md
   - shared/reporting.md
 
 safe-outputs:

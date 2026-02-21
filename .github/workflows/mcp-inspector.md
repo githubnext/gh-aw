@@ -26,7 +26,6 @@ safe-outputs:
 timeout-minutes: 20
 strict: false
 imports:
-  - shared/mood.md
   - shared/mcp/arxiv.md
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs

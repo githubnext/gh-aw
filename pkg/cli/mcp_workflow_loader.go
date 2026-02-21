@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var mcpWorkflowLoaderLog = logger.New("cli:mcp_workflow_loader")
 
 // loadWorkflowMCPConfigs loads a workflow file and extracts MCP configurations.
 // This is a shared helper used by multiple MCP commands to avoid code duplication.
@@ -19,6 +22,8 @@ import (
 //   - []parser.MCPServerConfig: list of MCP server configurations
 //   - error: any error that occurred during loading or parsing
 func loadWorkflowMCPConfigs(workflowPath string, serverFilter string) (*parser.FrontmatterResult, []parser.MCPServerConfig, error) {
+	mcpWorkflowLoaderLog.Printf("Loading MCP configs: path=%s, server_filter=%q", workflowPath, serverFilter)
+
 	// Read the workflow file
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
@@ -37,5 +42,6 @@ func loadWorkflowMCPConfigs(workflowPath string, serverFilter string) (*parser.F
 		return nil, nil, fmt.Errorf("failed to extract MCP configurations: %w", err)
 	}
 
+	mcpWorkflowLoaderLog.Printf("Loaded %d MCP configurations from workflow", len(mcpConfigs))
 	return workflowData, mcpConfigs, nil
 }

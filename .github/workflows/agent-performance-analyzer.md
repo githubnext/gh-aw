@@ -17,7 +17,6 @@ tools:
     file-glob: "**"
     max-file-size: 102400  # 100KB
 imports:
-  - shared/mood.md
   - shared/reporting.md
 safe-outputs:
   create-issue:

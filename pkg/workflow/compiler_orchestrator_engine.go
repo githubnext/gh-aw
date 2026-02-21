@@ -277,6 +277,15 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 
+	// Validate that actions/checkout steps in the agent job include persist-credentials: false
+	orchestratorEngineLog.Printf("Validating checkout persist-credentials (strict=%v)", c.strictMode)
+	if err := c.validateCheckoutPersistCredentials(result.Frontmatter, importsResult.MergedSteps); err != nil {
+		orchestratorEngineLog.Printf("Checkout persist-credentials validation failed: %v", err)
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictModeForFirewall
+		return nil, err
+	}
+
 	// Restore the strict mode state after network check
 	c.strictMode = initialStrictModeForFirewall
 

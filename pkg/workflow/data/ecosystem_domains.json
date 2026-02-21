@@ -54,7 +54,8 @@
     "www.microsoft.com",
     "oneocsp.microsoft.com"
   ],
-  "dart": ["pub.dev", "pub.dartlang.org"],
+  "clojure": ["repo.clojars.org", "clojars.org"],
+  "dart": ["pub.dev", "pub.dartlang.org", "storage.googleapis.com"],
   "fonts": ["fonts.googleapis.com", "fonts.gstatic.com"],
   "github": [
     "*.githubusercontent.com",
@@ -66,9 +67,11 @@
     "codeload.github.com",
     "github.githubassets.com"
   ],
+  "elixir": ["hex.pm", "repo.hex.pm", "builds.hex.pm", "cdn.hex.pm", "fastly.hex.pm"],
   "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io", "storage.googleapis.com"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
   "haskell": ["haskell.org", "*.hackage.haskell.org", "get-ghcup.haskell.org", "downloads.haskell.org"],
+  "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com"],
   "java": [
     "www.java.com",
     "jdk.java.net",
@@ -96,7 +99,8 @@
     "central.sonatype.com",
     "maven.google.com",
     "dl.google.com",
-    "repo.gradle.org"
+    "repo.gradle.org",
+    "downloads.gradle-dn.com"
   ],
   "linux-distros": [
     "deb.debian.org",
@@ -166,7 +170,9 @@
   ],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
+  "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com"],
   "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
+  "zig": ["ziglang.org", "pkg.machengine.org"],
   "github-actions": [
     "productionresultssa0.blob.core.windows.net",
     "productionresultssa1.blob.core.windows.net",

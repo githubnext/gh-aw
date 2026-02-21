@@ -50,6 +50,8 @@ engine: copilot
 steps:
   - name: Custom checkout
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
 ---
 
 # Test workflow with custom checkout

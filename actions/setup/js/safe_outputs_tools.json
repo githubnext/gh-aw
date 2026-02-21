@@ -436,6 +436,10 @@
         "agent": {
           "type": "string",
           "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified."
+        },
+        "pull_request_repo": {
+          "type": "string",
+          "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos."
         }
       },
       "additionalProperties": false
@@ -518,6 +522,29 @@
         "issue_number": {
           "type": ["number", "string"],
           "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue)."
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["replace", "append", "prepend", "replace-island"],
+          "description": "How to update the issue body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), 'replace' (overwrite entire body), or 'replace-island' (update a run-specific section)."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Replace the issue labels with this list (e.g., ['bug', 'tracking:foo']). Labels must exist in the repository."
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Replace the issue assignees with this list of GitHub usernames (e.g., ['octocat', 'mona'])."
+        },
+        "milestone": {
+          "type": ["number", "string"],
+          "description": "Milestone number to assign (e.g., 1). Use null to clear."
         }
       },
       "additionalProperties": false

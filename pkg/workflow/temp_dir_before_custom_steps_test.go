@@ -149,6 +149,8 @@ engine: copilot
 steps:
   - name: Checkout code
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
   - name: Custom step after checkout
     run: echo "Using /tmp/gh-aw/"
 ---

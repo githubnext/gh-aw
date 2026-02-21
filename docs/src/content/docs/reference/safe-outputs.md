@@ -1106,6 +1106,7 @@ safe-outputs:
     target-repo: "owner/repo"  # where the issue lives (cross-repository)
     pull-request-repo: "owner/repo"      # where the PR should be created (may differ from issue repo)
     allowed-pull-request-repos: [owner/repo1, owner/repo2]  # additional allowed PR repositories
+    base-branch: "develop"     # target branch for PR (default: target repo's default branch)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
@@ -1125,6 +1126,8 @@ The `pull-request-repo` parameter allows you to create pull requests in a differ
 When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
 
 The repository specified by `pull-request-repo` is automatically allowed - you don't need to list it in `allowed-pull-request-repos`. Use `allowed-pull-request-repos` to specify additional repositories where PRs can be created.
+
+Use `base-branch` to specify which branch in the target repository the pull request should target. When omitted, the target repository's actual default branch is used automatically. Only relevant when `pull-request-repo` is configured.
 
 **Assignee Filtering:**
 When `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.

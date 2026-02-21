@@ -394,7 +394,7 @@ func TestExtractMetadataRealisticLockFile(t *testing.T) {
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mood.md
+#     - shared/reporting.md
 #
 # gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"49266e50774d7e6a8b1c50f64b2f790c214dcdcf7b75b6bc8478bb43257b9863"}
 

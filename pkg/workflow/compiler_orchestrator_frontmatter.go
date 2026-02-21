@@ -110,6 +110,12 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, err
 	}
 
+	// Validate that the runs-on field does not specify unsupported runner types (e.g. macOS)
+	if err := validateRunsOn(frontmatterForValidation, cleanPath); err != nil {
+		orchestratorFrontmatterLog.Printf("runs-on validation failed: %v", err)
+		return nil, err
+	}
+
 	// Validate that @include/@import directives are not used inside template regions
 	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
 		orchestratorFrontmatterLog.Printf("Template region validation failed: %v", err)

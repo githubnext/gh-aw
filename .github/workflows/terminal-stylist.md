@@ -27,8 +27,6 @@ safe-outputs:
     category: "audits"
     max: 1
     close-older-discussions: true
-imports:
-  - shared/mood.md
 ---
 
 # Terminal Stylist - Console Output Analysis

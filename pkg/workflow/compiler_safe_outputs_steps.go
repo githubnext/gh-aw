@@ -142,6 +142,22 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Printf("Using trialLogicalRepoSlug: %s", targetRepoSlug)
 	}
 
+	// Determine the ref (branch) to checkout
+	// Priority: create-pull-request base-branch > default to github.ref_name
+	// This is critical: we must checkout the base branch, not github.sha (the triggering commit),
+	// because github.sha might be an older commit with different workflow files. A shallow clone
+	// of an old commit followed by git fetch/checkout may not properly update all files,
+	// leading to spurious "workflow file changed" errors on push.
+	var checkoutRef string
+	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
+		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
+		consolidatedSafeOutputsStepsLog.Printf("Using base-branch from create-pull-request for checkout ref: %s", checkoutRef)
+	} else {
+		// Default to github.ref_name which is the branch name that triggered the workflow
+		checkoutRef = "${{ github.ref_name }}"
+		consolidatedSafeOutputsStepsLog.Print("Using github.ref_name for checkout ref")
+	}
+
 	// Step 1: Checkout repository with conditional execution
 	steps = append(steps, "      - name: Checkout repository\n")
 	steps = append(steps, fmt.Sprintf("        if: %s\n", condition.Render()))
@@ -154,6 +170,8 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Printf("Added repository parameter: %s", targetRepoSlug)
 	}
 
+	// Set ref to checkout the base branch, not github.sha
+	steps = append(steps, fmt.Sprintf("          ref: %s\n", checkoutRef))
 	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	steps = append(steps, "          persist-credentials: false\n")
 	steps = append(steps, "          fetch-depth: 1\n")

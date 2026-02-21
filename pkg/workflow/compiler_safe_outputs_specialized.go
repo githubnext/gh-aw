@@ -14,7 +14,8 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	specializedOutputsLog.Printf("Building assign-to-agent step config: max=%d, default_agent=%s", cfg.Max, cfg.DefaultAgent)
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
 
 	// Add max count environment variable for JavaScript to validate against
 	if cfg.Max > 0 {
@@ -68,6 +69,11 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_PULL_REQUEST_REPO: %q\n", cfg.PullRequestRepoSlug))
 	}
 
+	// Add base branch environment variable for PR creation in target repo
+	if cfg.BaseBranch != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_BASE_BRANCH: %q\n", cfg.BaseBranch))
+	}
+
 	// Add allowed PR repos list environment variable (comma-separated)
 	if len(cfg.AllowedPullRequestRepos) > 0 {
 		allowedPullRequestReposStr := ""
@@ -106,7 +112,8 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	specializedOutputsLog.Print("Building create-agent-session step config")
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
 
 	condition := BuildSafeOutputType("create_agent_session")
 

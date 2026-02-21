@@ -71,6 +71,22 @@ func isGitToolAllowed(tools *Tools) bool {
 	return false
 }
 
+// validateGitHubToolConfig validates that the GitHub tool configuration does not
+// specify both app and github-token at the same time, as only one authentication
+// method is allowed.
+func validateGitHubToolConfig(tools *Tools, workflowName string) error {
+	if tools == nil || tools.GitHub == nil {
+		return nil
+	}
+
+	if tools.GitHub.App != nil && tools.GitHub.GitHubToken != "" {
+		toolsValidationLog.Printf("Invalid GitHub tool configuration in workflow: %s", workflowName)
+		return fmt.Errorf("invalid GitHub tool configuration: 'tools.github.app' and 'tools.github.github-token' cannot both be set. Use one authentication method: either 'app' (GitHub App) or 'github-token' (personal access token)")
+	}
+
+	return nil
+}
+
 // Note: validateGitToolForSafeOutputs was removed because git commands are automatically
 // injected by the compiler when safe-outputs needs them (see compiler_safe_outputs.go).
 // The validation was misleading - it would fail even though the compiler would add the

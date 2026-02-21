@@ -269,8 +269,7 @@ uvx ruff check .`,
 }
 
 func TestExtractPipPackages(t *testing.T) {
-	// This function extracts packages from custom steps and engine steps
-	// We test it with CustomSteps field which is easier to test
+	// This function extracts packages from custom steps
 	tests := []struct {
 		name string
 		data *WorkflowData
@@ -311,8 +310,7 @@ pip3 install numpy`,
 }
 
 func TestExtractUvPackages(t *testing.T) {
-	// This function extracts packages from custom steps and engine steps
-	// We test it with CustomSteps field which is easier to test
+	// This function extracts packages from custom steps
 	tests := []struct {
 		name string
 		data *WorkflowData

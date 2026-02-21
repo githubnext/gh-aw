@@ -852,11 +852,11 @@ func TestGetDomainsFromRuntimes(t *testing.T) {
 			expectEmpty: true,
 		},
 		{
-			name: "elixir has no ecosystem mapping",
+			name: "elixir runtime adds elixir ecosystem domains",
 			runtimes: map[string]any{
 				"elixir": map[string]any{"version": "1.15"},
 			},
-			expectEmpty: true,
+			expectContains: []string{"hex.pm", "repo.hex.pm"},
 		},
 	}
 

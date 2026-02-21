@@ -120,6 +120,12 @@
         ]
       ]
     },
+    "inlined-imports": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, inline all imports (including those without inputs) at compilation time in the generated lock.yml instead of using runtime-import macros. When enabled, the frontmatter hash covers the entire markdown body so any change to the content will invalidate the hash.",
+      "examples": [true, false]
+    },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "examples": [
@@ -1747,6 +1753,7 @@
           },
           "timeout-minutes": {
             "type": "integer",
+            "minimum": 1,
             "description": "Job timeout in minutes"
           },
           "strategy": {
@@ -1857,6 +1864,7 @@
     },
     "timeout-minutes": {
       "type": "integer",
+      "minimum": 1,
       "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
       "examples": [5, 10, 30]
     },
@@ -5464,6 +5472,10 @@
                   "description": "If true, the workflow continues gracefully when agent assignment fails (e.g., due to missing token or insufficient permissions), logging a warning instead of failing. Default is false. Useful for workflows that should not fail when agent assignment is optional.",
                   "default": false
                 },
+                "base-branch": {
+                  "type": "string",
+                  "description": "Base branch for pull request creation in the target repository. Defaults to the target repo's default branch. Only relevant when pull-request-repo is configured."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -6368,6 +6380,16 @@
               "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
               "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
+            "agent-failure-issue": {
+              "type": "string",
+              "description": "Custom footer template for agent failure tracking issues. Available placeholders: {workflow_name}, {run_url}. Default: '> Agent failure tracked by [{workflow_name}]({run_url})'",
+              "examples": ["> Agent failure tracked by [{workflow_name}]({run_url})", "> Failure report from [{workflow_name}]({run_url})"]
+            },
+            "agent-failure-comment": {
+              "type": "string",
+              "description": "Custom footer template for comments on agent failure tracking issues. Available placeholders: {workflow_name}, {run_url}. Default: '> Agent failure update from [{workflow_name}]({run_url})'",
+              "examples": ["> Agent failure update from [{workflow_name}]({run_url})", "> Update from [{workflow_name}]({run_url})"]
+            },
             "append-only-comments": {
               "type": "boolean",
               "description": "When enabled, workflow completion notifier creates a new comment instead of editing the activation comment. Creates an append-only timeline of workflow runs. Default: false",
@@ -6920,14 +6942,6 @@
               "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
               "additionalProperties": {
                 "type": "string"
-              }
-            },
-            "steps": {
-              "type": "array",
-              "description": "Custom GitHub Actions steps for 'custom' engine. Define your own deterministic workflow steps instead of using AI processing.",
-              "items": {
-                "type": "object",
-                "additionalProperties": true
               }
             },
             "error_patterns": {

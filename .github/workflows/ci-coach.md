@@ -21,7 +21,6 @@ safe-outputs:
     title-prefix: "[ci-coach] "
 timeout-minutes: 30
 imports:
-  - shared/mood.md
   - shared/ci-data-analysis.md
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
@@ -41,9 +40,6 @@ Analyze the CI workflow daily to identify concrete optimization opportunities th
 - **Run Number**: #${{ github.run_number }}
 - **Target Workflow**: `.github/workflows/ci.yml`
 
-## Data Available
-
-The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
 ## Data Available
 
 The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
@@ -108,10 +104,6 @@ For each potential optimization:
 - **Priority**: High/Medium/Low
 
 Prioritize optimizations with high impact, low risk, and low to medium effort.
-
-### Phase 5: Implement and Validate Changes (8 minutes)
-
-If you identify improvements worth implementing:
 
 ### Phase 5: Implement and Validate Changes (8 minutes)
 

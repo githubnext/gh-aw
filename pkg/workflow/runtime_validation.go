@@ -220,23 +220,6 @@ func collectPackagesFromWorkflow(
 		}
 	}
 
-	// Extract from engine steps
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			if run, hasRun := step["run"]; hasRun {
-				if runStr, ok := run.(string); ok {
-					pkgs := extractor(runStr)
-					for _, pkg := range pkgs {
-						if !seen[pkg] {
-							packages = append(packages, pkg)
-							seen[pkg] = true
-						}
-					}
-				}
-			}
-		}
-	}
-
 	// Extract from MCP server configurations (if toolCommand is provided)
 	if toolCommand != "" && workflowData.Tools != nil {
 		for _, toolConfig := range workflowData.Tools {

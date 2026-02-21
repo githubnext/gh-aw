@@ -36,8 +36,7 @@ var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	copilotExecLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
@@ -70,15 +69,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
-	// Add model if specified
-	// Model can be configured via:
-	// 1. Explicit model in workflow config (highest priority)
-	// 2. GH_AW_MODEL_AGENT_COPILOT environment variable (set via GitHub Actions variables)
+	// Model is always passed via the native COPILOT_MODEL environment variable when configured.
+	// This avoids embedding the value directly in the shell command (which fails template injection
+	// validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_COPILOT with shell expansion.
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if modelConfigured {
-		copilotExecLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
-		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
-	}
 
 	// Add --agent flag if specified via engine.agent
 	// Note: Agent imports (.github/agents/*.md) still work for importing markdown content,
@@ -147,7 +142,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build the copilot command
 	var copilotCommand string
 
-	// Determine if we need to conditionally add --model flag based on environment variable
+	// When model is not configured, use the GH_AW_MODEL_AGENT_COPILOT fallback env var
+	// via shell expansion (${VAR:+ --model "$VAR"}) so users can set it as a GitHub variable.
+	// When model IS configured, COPILOT_MODEL is set in the env block (see below) and the
+	// Copilot CLI reads it natively - no --model flag in the shell command needed.
 	needsModelFlag := !modelConfigured
 	// Check if this is a detection job (has no SafeOutputs config)
 	isDetectionJob := workflowData.SafeOutputs == nil
@@ -256,10 +254,15 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	if hasGitHubTool(workflowData.ParsedTools) {
-		customGitHubToken := getGitHubToken(workflowData.Tools["github"])
-		// Use effective token with precedence: custom > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken)
-		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		// If GitHub App is configured, use the app token (overrides custom and default tokens)
+		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.App != nil {
+			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+		} else {
+			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+			// Use effective token with precedence: custom > default
+			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
+			env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		}
 	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
@@ -279,17 +282,21 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	}
 
-	// Add model environment variable if model is not explicitly configured
-	// This allows users to configure the default model via GitHub Actions variables
-	// Use different env vars for agent vs detection jobs
-	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
-		// Check if this is a detection job (has no SafeOutputs config)
+	// Set the model environment variable.
+	// When model is configured, use the native COPILOT_MODEL env var - the Copilot CLI reads it
+	// directly, avoiding the need to embed the value in the shell command (which would fail
+	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_COPILOT so users
+	// can set a default via GitHub Actions variables.
+	if modelConfigured {
+		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
+	} else {
+		// No model configured - use fallback GitHub variable with shell expansion
 		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
-			// For detection, use detection-specific env var (no builtin default, CLI will use its own)
 			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCopilot)
 		} else {
-			// For agent execution, use agent-specific env var
 			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
 		}
 	}

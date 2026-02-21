@@ -1,0 +1,271 @@
+---
+title: CentralRepoOps
+description: Operate and roll out changes across many repositories from a single private control repository.
+---
+
+> [!WARNING]
+> **Experimental:** CentralRepoOps is still experimental! Things may break, change, or be removed without deprecation at any time.
+
+CentralRepoOps is a [MultiRepoOps](/gh-aw/patterns/multirepoops/) deployment variant where a single private repository acts as a control plane for large-scale operations across many repositories.
+
+Use this pattern when you need to coordinate rollouts, policy updates, and tracking across tens or hundreds of repositories from a private central location, using cross-repository safe outputs and secure authentication to deliver consistency, control, and auditability.
+
+Below are the key benefits of this pattern for enterprise use cases:
+
+- **Consistency at scale** - Same rollout logic and policy gates across all repositories
+- **Risk reduction** - Controlled fan-out (`max`), phased prioritization, and explicit rationale
+- **Auditability** - One orchestrator run provides a full decision trail of selection and outcomes
+- **Operational agility** - Update workflows in one central repository without pushing `main` changes across dozens or hundreds of repositories
+- **Security posture** - Prioritize exposed or vulnerable repositories first
+
+
+## When to Use CentralRepoOps
+
+- **Organization-wide rollouts** - Apply one change pattern across dozens or hundreds of repositories.
+- **Central governance** - Keep prioritization, approvals, and reporting in one control repository.
+- **Phased adoption** - Roll out by waves (pilot first, then broader groups).
+- **Security operations** - Prioritize repositories with alerts or higher exposure.
+
+## Example: Dependabot Rollout (Orchestrator + Worker)
+
+This pattern maps directly to your Dependabot rollout pair:
+
+- `dependabot-rollout-orchestrator.md` decides *where* to roll out next.
+- `dependabot-rollout.md` executes *how* to configure each target repository.
+
+### Orchestrator (central control)
+
+Let's say you want to roll out a new Dependabot configuration across 100 repositories. This example shows you how to do this based on
+a small subset.
+
+Navigate to your central repository and create a workflow file `.github/workflows/dependabot-rollout-orchestrator.md` with the following contents:
+
+```aw wrap
+---
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+
+tools:
+  github:
+    github-token: ${{ secrets.ORG_GITHUB_MCP_SERVER_TOKEN }}
+    toolsets: [repos]
+
+safe-outputs:
+  dispatch-workflow:
+    workflows: [dependabot-rollout]
+    max: 5
+---
+
+# Dependabot Rollout Orchestrator
+
+Categorize and orchestrate Dependabot rollout across repositories.
+
+**Target repos**: All repos in the organization
+
+## Task
+
+1. **Filter** - Parse repos (from input or variable), check each for existing `.github/dependabot.yml`, keep only repos without it
+
+2. **Categorize** - Read repo contents to assess complexity:
+   - Simple: Single package.json, <50 dependencies, standard structure
+   - Complex: Multiple package.json files, >100 deps, or multiple ecosystems
+   - Conflicting: Has Renovate config or custom update scripts
+   - Security: Open security alerts or public with dependencies
+
+3. **Prioritize** - Order repos by rollout preference: simple → security → complex → conflicting
+
+4. **Dispatch** - Dispatch `dependabot-rollout` worker for every prioritized repository
+
+5. **Summarize** - Report total candidates, categorization breakdown, selected repos with rationale
+```
+
+Compile this workflow to generate the lock file: `gh aw compile`.
+Create a fine-grained PAT `ORG_GITHUB_MCP_SERVER_TOKEN` with the organization as an owner,
+select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read-only`.
+Add this into your Actions repository secrets. This gives the orchestrator read access to all candidate repositories.
+
+### Worker (cross-repository execution)
+
+Next, create the worker workflow `.github/workflows/dependabot-rollout.md` in your central repository that will operate on each target repository via checkout:
+
+````aw wrap
+---
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'Target repository (owner/repo format)'
+        required: true
+        type: string
+
+steps:
+  - name: Checkout target repository
+    uses: actions/checkout@v5
+    with:
+      token: ${{ secrets.ORG_REPO_CHECKOUT_TOKEN }}
+      repository: ${{ github.event.inputs.target_repo }}
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+tools:
+  github:
+    github-token: ${{ secrets.ORG_GITHUB_MCP_SERVER_TOKEN }}
+    toolsets: [repos]
+
+safe-outputs:
+  github-token: ${{ secrets.REPO_SAFE_OUTPUTS_TOKEN }}
+  create-pull-request:
+    target-repo: ${{ github.event.inputs.target_repo }}
+    title-prefix: '[dependabot] '
+    max: 1
+  create-issue:
+    target-repo: ${{ github.event.inputs.target_repo }}
+    title-prefix: '[dependabot-config] '
+    max: 1
+---
+
+# Intelligent Dependabot Configuration
+
+You are creating a **customized** Dependabot configuration based on analyzing this specific repository.
+
+**Target Repository**: ${{ github.event.inputs.target_repo }}
+
+## Why AI is Required
+
+You must analyze the repository structure and create an intelligent, customized configuration - not a generic template.
+
+## Step 1: Analyze Repository
+
+**Check for conflicts:**
+
+- Does `.github/dependabot.yml` already exist? → Stop, create issue explaining it exists
+- Does `.github/renovate.json` or `renovate.json` exist? → Create issue about migrating from Renovate
+- Are there custom dependency update scripts? → Create issue suggesting Dependabot alternative
+
+**Analyze package manager complexity:**
+
+For **npm** (if package.json exists):
+
+- Count total dependencies (dependencies + devDependencies)
+- Check for monorepo: Are there multiple package.json files in subdirectories?
+- Simple: <20 dependencies, single package.json
+- Complex: >100 dependencies OR monorepo structure
+
+For **Python** (requirements.txt, setup.py, pyproject.toml):
+
+- Count dependencies
+- Check for multiple requirement files
+
+For **Go** (go.mod):
+
+- Note if present
+
+For **GitHub Actions** (.github/workflows/*.yml):
+
+- Count workflow files
+
+**Security context:**
+
+- Use GitHub tools to check for open security alerts
+- If critical alerts exist, prioritize security updates
+
+## Step 2: Create Customized Configuration
+
+Based on your analysis, create an appropriate config:
+
+### Simple Repository (<20 npm deps, no monorepo)
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"  # Low complexity = more frequent
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+```
+
+### Complex Repository (>100 deps OR security alerts)
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"  # High complexity = less frequent
+    groups:
+      production:
+        patterns: ["*"]
+        exclude-patterns: ["@types/*", "@jest/*"]
+      dev-dependencies:
+        patterns: ["@types/*", "@jest/*", "eslint*"]
+```
+
+### Monorepo (multiple package.json)
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/packages/frontend"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/packages/backend"
+    schedule:
+      interval: "weekly"
+```
+
+## Step 3: Deliver Configuration
+
+**If config is straightforward (no Renovate conflict):**
+
+- Create `.github/dependabot.yml` with your customized config
+- Create pull request with:
+  - Title: "[dependabot] Add customized Dependabot configuration"
+  - Body explaining: dependency count, why weekly vs daily, grouping strategy, etc.
+
+**If Renovate detected:**
+
+- Create issue explaining migration benefits and proposed config
+- Include generated config in issue body
+
+**If no package managers found:**
+
+- Create issue: "No supported package managers detected"
+
+## Key: Explain Your Reasoning
+
+In the PR/issue body, explain **why** you chose this specific configuration (not a generic template).
+````
+
+Compile this workflow to generate the lock file: `gh aw compile`.
+Create a fine-grained PAT `ORG_REPO_CHECKOUT_TOKEN` with the organization as an owner,
+select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read & write`, `Actions: Read & write`.
+This allows the worker to check out the target repository.
+
+Also create a fine-grained PAT `REPO_SAFE_OUTPUTS_TOKEN` with the organization as an owner,
+select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Write`, `Issues: Write`, `Pull Requests: Write`.
+This allows the worker to create pull requests and issues in the target repository based on the orchestrator's instructions.
+
+After the setup is complete, you can run the orchestrator with `workflow_dispatch` (`target_repos`) or let the schedule trigger run automatically.
+
+## Best Practices
+
+- Keep orchestrator permissions narrow; delegate repo-specific writes to workers.
+- Use safe output limits (`max`) and explicit target workflow allowlists.
+- Add correlation IDs to worker dispatch inputs for tracking.
+
+## Related Patterns
+
+- **[MultiRepoOps](/gh-aw/patterns/multirepoops/)** - Cross-repository automation capability
+- **[Orchestration](/gh-aw/patterns/orchestration/)** - Generic orchestrator/worker dispatch pattern
+- **[SideRepoOps](/gh-aw/patterns/siderepoops/)** - Isolated control-plane setup

@@ -28,7 +28,6 @@ safe-outputs:
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 

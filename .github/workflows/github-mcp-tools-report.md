@@ -30,7 +30,6 @@ safe-outputs:
     draft: false
 timeout-minutes: 15
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 

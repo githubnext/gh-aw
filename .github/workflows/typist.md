@@ -14,7 +14,6 @@ permissions:
 engine: claude
 
 imports:
-  - shared/mood.md
   - shared/reporting.md
 
 safe-outputs:

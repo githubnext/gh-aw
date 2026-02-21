@@ -683,6 +683,15 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 	if result.RunFailure == "" && imported.RunFailure != "" {
 		result.RunFailure = imported.RunFailure
 	}
+	if result.DetectionFailure == "" && imported.DetectionFailure != "" {
+		result.DetectionFailure = imported.DetectionFailure
+	}
+	if result.AgentFailureIssue == "" && imported.AgentFailureIssue != "" {
+		result.AgentFailureIssue = imported.AgentFailureIssue
+	}
+	if result.AgentFailureComment == "" && imported.AgentFailureComment != "" {
+		result.AgentFailureComment = imported.AgentFailureComment
+	}
 	if !result.AppendOnlyComments && imported.AppendOnlyComments {
 		result.AppendOnlyComments = imported.AppendOnlyComments
 	}

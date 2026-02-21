@@ -6,6 +6,8 @@
  * Provides common repository parsing, validation, and resolution logic
  */
 
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+
 /**
  * Parse the allowed repos from config value (array or comma-separated string)
  * @param {string[]|string|undefined} allowedReposValue - Allowed repos from config (array or comma-separated string)
@@ -48,13 +50,41 @@ function getDefaultTargetRepo(config) {
 }
 
 /**
+ * Check if a qualified repo matches any allowed repo pattern.
+ * Supports exact matches and wildcard patterns using glob syntax:
+ *   - "*" matches any repository
+ *   - "github/*" matches any repository in the "github" org
+ *   - "STAR/gh-aw" (where STAR is *) matches "gh-aw" in any org
+ * @param {string} qualifiedRepo - Fully qualified repo slug "owner/repo"
+ * @param {Set<string>} allowedRepos - Set of allowed repo patterns
+ * @returns {boolean}
+ */
+function isRepoAllowed(qualifiedRepo, allowedRepos) {
+  // Fast path: exact match
+  if (allowedRepos.has(qualifiedRepo)) {
+    return true;
+  }
+  // Check for wildcard patterns
+  for (const pattern of allowedRepos) {
+    if (pattern === "*") {
+      return true;
+    }
+    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(qualifiedRepo)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Validate that a repo is allowed for operations
  * If repo is a bare name (no slash), it is automatically qualified with the
  * default repo's organization (e.g., "gh-aw" becomes "github/gh-aw" if
  * the default repo is "github/something").
+ * Allowed repos support wildcard patterns (e.g., "github/*", "*").
  * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
  * @param {string} defaultRepo - Default target repository
- * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
+ * @param {Set<string>} allowedRepos - Set of explicitly allowed repo patterns
  * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
  */
 function validateRepo(repo, defaultRepo, allowedRepos) {
@@ -71,8 +101,8 @@ function validateRepo(repo, defaultRepo, allowedRepos) {
   if (qualifiedRepo === defaultRepo) {
     return { valid: true, error: null, qualifiedRepo };
   }
-  // Check if it's in the allowed repos list
-  if (allowedRepos.has(qualifiedRepo)) {
+  // Check if it's in the allowed repos list (supports wildcards)
+  if (isRepoAllowed(qualifiedRepo, allowedRepos)) {
     return { valid: true, error: null, qualifiedRepo };
   }
   return {
@@ -159,6 +189,7 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
 module.exports = {
   parseAllowedRepos,
   getDefaultTargetRepo,
+  isRepoAllowed,
   validateRepo,
   parseRepoSlug,
   resolveTargetRepoConfig,

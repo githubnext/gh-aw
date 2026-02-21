@@ -154,6 +154,14 @@ var runtimeToEcosystem = map[string]string{
 	"bun":     "node",   // bun.sh is in the node ecosystem
 	"deno":    "node",   // deno.land is in the node ecosystem
 	"uv":      "python", // uv is a Python package manager
+	"clojure": "clojure",
+	"dart":    "dart",
+	"elixir":  "elixir",
+	"kotlin":  "kotlin",
+	"php":     "php",
+	"scala":   "scala",
+	"swift":   "swift",
+	"zig":     "zig",
 }
 
 // getDomainsFromRuntimes extracts ecosystem domains based on the specified runtimes
@@ -226,14 +234,17 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //
 // # Supported ecosystem identifiers:
 //   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, package mirrors)
+//   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
-//   - "dotnet": .NET and NuGet ecosystem
 //   - "dart": Dart/Flutter ecosystem
+//   - "dotnet": .NET and NuGet ecosystem
+//   - "elixir": Elixir/Hex
 //   - "github": GitHub domains (*.githubusercontent.com, github.githubassets.com, etc.)
+//   - "github-actions": GitHub Actions blob storage domains
 //   - "go": Go ecosystem
-//   - "terraform": HashiCorp/Terraform
 //   - "haskell": Haskell ecosystem
 //   - "java": Java/Maven/Gradle
+//   - "kotlin": Kotlin/JetBrains
 //   - "linux-distros": Linux distribution package repositories
 //   - "node": Node.js/NPM/Yarn
 //   - "perl": Perl/CPAN
@@ -242,8 +253,10 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "python": Python/PyPI/Conda
 //   - "ruby": Ruby/RubyGems
 //   - "rust": Rust/Cargo/Crates
+//   - "scala": Scala/SBT
 //   - "swift": Swift/CocoaPods
-//   - "github-actions": GitHub Actions blob storage domains
+//   - "terraform": HashiCorp/Terraform
+//   - "zig": Zig
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
 		domainsLog.Print("No network permissions specified, using defaults")
@@ -295,16 +308,19 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 var ecosystemPriority = []string{
 	"node-cdns", // before "node" — more specific CDN sub-ecosystem
 	"rust",      // before "python" — crates.io/index.crates.io/static.crates.io are native Rust domains
+	"clojure",
 	"containers",
 	"dart",
 	"defaults",
 	"dotnet",
+	"elixir",
 	"fonts",
 	"github",
 	"github-actions",
 	"go",
 	"haskell",
 	"java",
+	"kotlin",
 	"linux-distros",
 	"node",
 	"perl",
@@ -312,8 +328,10 @@ var ecosystemPriority = []string{
 	"playwright",
 	"python",
 	"ruby",
+	"scala",
 	"swift",
 	"terraform",
+	"zig",
 }
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found.

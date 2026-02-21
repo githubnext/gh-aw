@@ -1029,19 +1029,14 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			allSteps := strings.Join(steps, "")
 
 			if tt.shouldContainModel {
-				// Check for --model flag
-				if !strings.Contains(allSteps, "--model") {
-					t.Errorf("Expected steps to contain --model flag, but it was not found.\nGenerated steps:\n%s", allSteps)
-				}
-
 				// For detection jobs, check if either:
-				// 1. The model is explicitly specified in the command (for custom models)
-				// 2. The environment variable GH_AW_MODEL_DETECTION_COPILOT is used (for default model)
-				hasExplicitModel := strings.Contains(allSteps, "--model "+tt.expectedModel)
+				// 1. The model is set via native COPILOT_MODEL env var (for configured models)
+				// 2. The environment variable GH_AW_MODEL_DETECTION_COPILOT is used (for default/fallback)
+				hasNativeEnvVar := strings.Contains(allSteps, "COPILOT_MODEL: "+tt.expectedModel)
 				hasEnvVar := strings.Contains(allSteps, "GH_AW_MODEL_DETECTION_COPILOT")
 
-				if !hasExplicitModel && !hasEnvVar {
-					t.Errorf("Expected steps to contain either explicit model %q or GH_AW_MODEL_DETECTION_COPILOT environment variable, but neither was found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
+				if !hasNativeEnvVar && !hasEnvVar {
+					t.Errorf("Expected steps to contain either COPILOT_MODEL: %q or GH_AW_MODEL_DETECTION_COPILOT environment variable, but neither was found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
 				}
 			}
 		})

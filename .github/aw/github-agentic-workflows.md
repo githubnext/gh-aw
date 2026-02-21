@@ -733,7 +733,6 @@ The YAML frontmatter supports these fields:
         max-size: 10240                 # Optional: max file size in KB (default: 10MB)
         allowed-exts: [.png, .jpg, .pdf] # Optional: allowed file extensions
         max: 10                         # Optional: max assets (default: 10)
-        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB).
   - `dispatch-workflow:` - Trigger other workflows with inputs
@@ -781,7 +780,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       assign-to-user:
-        assignees: [user1, user2]       # Optional: restrict to specific users
+        allowed: [user1, user2]         # Optional: restrict to specific users
         blocked: [copilot, "*[bot]"]    # Optional: deny specific users or glob patterns
         max: 3                          # Optional: max assignments (default: 3)
         target: "*"                     # Optional: "triggering" (default), "*", or number
@@ -867,10 +866,14 @@ The YAML frontmatter supports these fields:
     - Message types:
       - `footer:` - Custom footer for AI-generated content
       - `footer-install:` - Installation instructions appended to footer
+      - `footer-workflow-recompile:` - Footer for workflow recompile tracking issues (placeholder: `{repository}`)
+      - `footer-workflow-recompile-comment:` - Footer for comments on workflow recompile issues (placeholder: `{repository}`)
       - `run-started:` - Workflow activation notification
       - `run-success:` - Successful completion message
       - `run-failure:` - Failure notification message
       - `detection-failure:` - Detection job failure message
+      - `agent-failure-issue:` - Footer for agent failure tracking issues
+      - `agent-failure-comment:` - Footer for comments on agent failure tracking issues
       - `staged-title:` - Staged mode preview title
       - `staged-description:` - Staged mode preview description
       - `append-only-comments:` - Create new comments instead of editing existing ones (boolean, default: false)
@@ -899,6 +902,48 @@ The YAML frontmatter supports these fields:
     - Defaults to `ubuntu-slim` (1-vCPU runner)
     - Examples: `ubuntu-latest`, `windows-latest`, `self-hosted`
     - Applies to activation, create-issue, add-comment, and other safe-output jobs
+  - `footer:` - Global footer control for all safe outputs (boolean, default: `true`)
+    - When `false`, omits visible AI-generated footer content from all created/updated entities (issues, PRs, discussions, releases) while still including XML markers for searchability
+    - Individual safe-output types can override this setting
+  - `staged:` - Preview mode for all safe outputs (boolean)
+    - When `true`, emits step summary messages instead of making GitHub API calls; useful for testing without side effects
+  - `env:` - Environment variables passed to all safe output jobs (object)
+    - Values typically reference secrets: `MY_VAR: ${{ secrets.MY_SECRET }}`
+  - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
+    - Patches exceeding this size are rejected to prevent accidental large changes
+  - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
+    - When `true`, creates a parent `[agentics] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
+  - `app:` - GitHub App credentials for minting installation access tokens (object)
+    - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
+    - Fields:
+      - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
+      - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+      - `owner:` - Optional App installation owner (defaults to current repository owner)
+      - `repositories:` - Optional list of repositories to grant access to
+    - Example:
+      ```yaml
+      safe-outputs:
+        app:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        create-issue:
+      ```
+  - `threat-detection:` - Threat detection configuration (auto-enabled for all safe-outputs workflows)
+    - Automatically enabled by default; customizable via explicit configuration
+    - Fields:
+      - `enabled:` - Enable/disable threat detection (boolean, default: `true`)
+      - `prompt:` - Additional instructions appended to threat detection analysis (string)
+      - `engine:` - AI engine for threat detection (engine config or `false` to disable AI detection)
+      - `steps:` - Extra job steps to run after detection (array)
+    - Example to disable AI-based detection (use custom steps only):
+      ```yaml
+      safe-outputs:
+        threat-detection:
+          engine: false
+          steps:
+            - name: Custom check
+              run: echo "Custom threat check"
+      ```
 
 - **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, or Python scripts (object)
   - Tools mounted in MCP server with access to specified secrets
@@ -1553,7 +1598,7 @@ Create an issue with your final analysis.
 
 ### Automatic Pull Request Creation
 
-Use the `safe-outputs.pull-request` configuration to automatically create pull requests from coding agent output:
+Use the `safe-outputs.create-pull-request` configuration to automatically create pull requests from coding agent output:
 
 ```aw
 ---

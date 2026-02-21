@@ -81,8 +81,6 @@ jobs:
             - File operations failed`,
               labels: ['bug', 'firewall', 'automated']
             });
-imports:
-  - shared/mood.md
 ---
 
 # The Great Escapi

@@ -51,9 +51,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Store a stable workflow identifier derived from the file name.
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
+	// Validate that inlined-imports is not used with agent file imports.
+	// Agent files require runtime access and cannot be resolved without sources.
+	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
+		return nil, formatCompilerError(cleanPath, "error",
+			fmt.Sprintf("inlined-imports cannot be used with agent file imports: '%s'. "+
+				"Agent files require runtime access and will not be resolved without sources. "+
+				"Remove 'inlined-imports: true' or do not import agent files.",
+				engineSetup.importsResult.AgentFile), nil)
+	}
+
 	// Validate bash tool configuration BEFORE applying defaults
 	// This must happen before applyDefaults() which converts nil bash to default commands
 	if err := validateBashToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate GitHub tool configuration
+	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
@@ -118,6 +133,17 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
+	inlinedImports := resolveInlinedImports(result.Frontmatter)
+
+	// When inlined-imports is true, agent file content is already inlined via ImportPaths → step 1b.
+	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
+	agentFile := importsResult.AgentFile
+	agentImportSpec := importsResult.AgentImportSpec
+	if inlinedImports {
+		agentFile = ""
+		agentImportSpec = ""
+	}
+
 	return &WorkflowData{
 		Name:                  toolsResult.workflowName,
 		FrontmatterName:       toolsResult.frontmatterName,
@@ -138,8 +164,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,
-		AgentFile:             importsResult.AgentFile,
-		AgentImportSpec:       importsResult.AgentImportSpec,
+		AgentFile:             agentFile,
+		AgentImportSpec:       agentImportSpec,
 		RepositoryImports:     importsResult.RepositoryImports,
 		NetworkPermissions:    engineSetup.networkPermissions,
 		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
@@ -151,9 +177,18 @@ func (c *Compiler) buildInitialWorkflowData(
 		StrictMode:            c.strictMode,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
+		RawFrontmatter:        result.Frontmatter,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
+		InlinedImports:        inlinedImports,
 	}
+}
+
+// resolveInlinedImports returns true if inlined-imports is enabled.
+// It reads the value directly from the raw (pre-parsed) frontmatter map, which is always
+// populated regardless of whether ParseFrontmatterConfig succeeded.
+func resolveInlinedImports(rawFrontmatter map[string]any) bool {
+	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter

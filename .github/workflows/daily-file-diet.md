@@ -16,7 +16,6 @@ tracker-id: daily-file-diet
 engine: copilot
 
 imports:
-  - shared/mood.md
   - shared/reporting.md
   - shared/safe-output-app.md
 

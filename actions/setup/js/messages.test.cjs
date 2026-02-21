@@ -193,6 +193,39 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Custom Workflow](https://example.com/run/456)");
     });
 
+    it("should NOT append triggering number suffix when custom footer is configured", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url})",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Custom Workflow",
+        runUrl: "https://example.com/run/456",
+        triggeringNumber: 42,
+      });
+
+      expect(result).toBe("> Custom: [Custom Workflow](https://example.com/run/456)");
+      expect(result).not.toContain("for issue");
+    });
+
+    it("should allow custom footer template to include triggering number via placeholder", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url}) (#{triggering_number})",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Custom Workflow",
+        runUrl: "https://example.com/run/456",
+        triggeringNumber: 42,
+      });
+
+      expect(result).toBe("> Custom: [Custom Workflow](https://example.com/run/456) (#42)");
+    });
+
     it("should support both snake_case and camelCase in custom templates", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         footer: "> {workflowName} ({workflow_name})",

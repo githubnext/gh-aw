@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 2.5
-**Last Updated**: 2026-02-19
+**Version**: 2.6
+**Last Updated**: 2026-02-20
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -223,6 +223,12 @@ This is a guideline, not a hard rule. Domain complexity may justify larger files
 - `permissions.go` (37 functions, 945 lines) - Permission handling for GitHub Actions
 - `scripts.go` (37 functions, 397 lines) - Script generation with specialized functions
 - `compiler_safe_outputs_consolidated.go` (30 functions, 1267 lines) - Consolidated safe output handling
+
+**Post-Processing Extraction Pattern**:
+
+When a compilation command accumulates unrelated post-processing steps, extract them into a dedicated `*_post_processing.go` file. Example: `pkg/cli/compile_post_processing.go` groups Dependabot manifest generation, maintenance workflow generation, and `.gitattributes` updates — all operations that run after workflow compilation completes.
+
+Key rule: wrapper functions in post-processing files must propagate all relevant CLI flags (e.g., `actionTag`, `version`) to the underlying generators. Missing parameter propagation causes flags to be silently ignored in specific execution modes.
 
 ### Anti-Patterns to Avoid
 
@@ -1776,6 +1782,7 @@ type Everything interface {
 ---
 
 **Document History**:
+- v2.6 (2026-02-20): Fixed 8 tone issues across 4 spec files, documented post-processing extraction pattern and CLI flag propagation rule from PR #17316, analyzed 61 files
 - v2.5 (2026-02-19): Fixed 6 tone issues in engine review docs, added Engine-Specific MCP Config Delivery section (Gemini pattern), analyzed 61 files
 - v2.4 (2026-02-17): Quality verification - analyzed 4 new files, zero tone issues found across all 61 files
 - v2.3 (2026-02-16): Quality verification - zero tone issues, all formatting standards maintained

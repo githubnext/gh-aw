@@ -30,11 +30,12 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 	}`
 
 	tests := []struct {
-		name         string
-		errorMessage string
-		jsonPath     string
-		wantContains []string
-		wantEmpty    bool
+		name               string
+		errorMessage       string
+		jsonPath           string
+		frontmatterContent string
+		wantContains       []string
+		wantEmpty          bool
 	}{
 		{
 			name:         "additional property error at root level",
@@ -66,11 +67,32 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 			jsonPath:     "",
 			wantEmpty:    true,
 		},
+		{
+			name:               "enum violation with close match suggests Did you mean",
+			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			jsonPath:           "/engine",
+			frontmatterContent: "engine: coplit\n",
+			wantContains:       []string{"Did you mean", "copilot"},
+		},
+		{
+			name:               "enum violation with no user value returns empty",
+			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			jsonPath:           "/engine",
+			frontmatterContent: "",
+			wantEmpty:          true,
+		},
+		{
+			name:               "enum violation with no close match returns empty",
+			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			jsonPath:           "/engine",
+			frontmatterContent: "engine: xyz123\n",
+			wantEmpty:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateSchemaBasedSuggestions(schemaJSON, tt.errorMessage, tt.jsonPath)
+			result := generateSchemaBasedSuggestions(schemaJSON, tt.errorMessage, tt.jsonPath, tt.frontmatterContent)
 
 			if tt.wantEmpty {
 				if result != "" {
@@ -316,6 +338,100 @@ func TestGenerateExampleJSONForPath(t *testing.T) {
 				if !strings.Contains(result, want) {
 					t.Errorf("Expected result to contain '%s', got: %s", want, result)
 				}
+			}
+		})
+	}
+}
+
+func TestExtractEnumValuesFromError(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "engine enum values",
+			input: "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			want:  []string{"claude", "codex", "copilot", "gemini"},
+		},
+		{
+			name:  "permissions enum values",
+			input: "value must be one of 'read', 'write', 'none'",
+			want:  []string{"read", "write", "none"},
+		},
+		{
+			name:  "no single-quoted values",
+			input: "some other error message",
+			want:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractEnumValuesFromError(tt.input)
+			if len(result) != len(tt.want) {
+				t.Errorf("Expected %v, got %v", tt.want, result)
+				return
+			}
+			for i, v := range tt.want {
+				if result[i] != v {
+					t.Errorf("Expected result[%d]=%q, got %q", i, v, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestExtractYAMLValueAtPath(t *testing.T) {
+	tests := []struct {
+		name      string
+		yaml      string
+		path      string
+		wantValue string
+	}{
+		{
+			name:      "simple top-level field",
+			yaml:      "engine: coplit\ntimeout-minutes: 30\n",
+			path:      "/engine",
+			wantValue: "coplit",
+		},
+		{
+			name:      "field with double-quoted value",
+			yaml:      `engine: "copilot"` + "\n",
+			path:      "/engine",
+			wantValue: "copilot",
+		},
+		{
+			name:      "field with single-quoted value",
+			yaml:      "engine: 'copilot'\n",
+			path:      "/engine",
+			wantValue: "copilot",
+		},
+		{
+			name:      "nested path returns empty",
+			yaml:      "engine: copilot\n",
+			path:      "/permissions/issues",
+			wantValue: "",
+		},
+		{
+			name:      "empty yaml returns empty",
+			yaml:      "",
+			path:      "/engine",
+			wantValue: "",
+		},
+		{
+			name:      "field not present returns empty",
+			yaml:      "engine: copilot\n",
+			path:      "/timeout-minutes",
+			wantValue: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractYAMLValueAtPath(tt.yaml, tt.path)
+			if result != tt.wantValue {
+				t.Errorf("extractYAMLValueAtPath(%q, %q) = %q, want %q", tt.yaml, tt.path, result, tt.wantValue)
 			}
 		})
 	}

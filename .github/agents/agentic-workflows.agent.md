@@ -16,6 +16,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Debugging workflows**: Routes to `debug` prompt  
 - **Upgrading workflows**: Routes to `upgrade-agentic-workflows` prompt
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
+- **Fixing Dependabot PRs**: Routes to `dependabot` prompt — use this when Dependabot opens PRs that modify generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`). Never merge those PRs directly; instead update the source `.md` files and rerun `gh aw compile --dependabot` to bundle all fixes
 
 Workflows may optionally include:
 
@@ -95,6 +96,16 @@ When you interact with this agent, it will:
 - "Create a shared component for Notion integration"
 - "Wrap the Slack MCP server as a reusable component"
 - "Design a shared workflow for database queries"
+
+### Fix Dependabot PRs
+**Load when**: User needs to close or fix open Dependabot PRs that update dependencies in generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`)
+
+**Prompt file**: https://github.com/github/gh-aw/blob/main/.github/aw/dependabot.md
+
+**Use cases**:
+- "Fix the open Dependabot PRs for npm dependencies"
+- "Bundle and close the Dependabot PRs for workflow dependencies"
+- "Update @playwright/test to fix the Dependabot PR"
 
 ## Instructions
 

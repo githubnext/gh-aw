@@ -5,13 +5,15 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["water"]
 permissions:
   contents: read
   issues: read
   pull-requests: read
 name: Smoke Gemini
-engine: gemini
+engine:
+  id: gemini
+  model: gemini-2.0-flash-lite
 strict: true
 imports:
   - shared/gh.md

@@ -44,7 +44,6 @@ network:
     - node
 
 imports:
-  - shared/mood.md
   - shared/docs-server-lifecycle.md
   - shared/reporting.md
 ---

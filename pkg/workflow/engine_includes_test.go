@@ -377,7 +377,7 @@ This should fail due to multiple engine specifications in includes.
 	}
 }
 
-// TestImportedEngineWithCustomSteps tests importing a codex engine configuration with steps
+// TestImportedEngineWithCustomSteps tests importing a codex engine configuration with top-level steps
 func TestImportedEngineWithCustomSteps(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -387,16 +387,16 @@ func TestImportedEngineWithCustomSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create shared file with codex engine and steps
+	// Create shared file with codex engine and top-level steps
 	sharedContent := `---
 engine:
   id: codex
-  steps:
-    - name: Run AI Inference
-      uses: actions/ai-inference@v1
-      with:
-        prompt-file: ${{ env.GH_AW_PROMPT }}
-        model: gpt-4o-mini
+steps:
+  - name: Run AI Inference
+    uses: actions/ai-inference@v1
+    with:
+      prompt-file: ${{ env.GH_AW_PROMPT }}
+      model: gpt-4o-mini
 ---
 
 <!--
@@ -479,16 +479,13 @@ func TestImportedEngineWithEnvVars(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create shared file with codex engine, steps, and env vars
+	// Create shared file with codex engine and env vars
 	sharedContent := `---
 engine:
   id: codex
   env:
     CUSTOM_VAR: "test-value"
     ANOTHER_VAR: "another-value"
-  steps:
-    - name: Test Step
-      run: echo "Testing with env vars"
 ---
 
 # Shared Config
@@ -549,41 +546,30 @@ func TestExtractEngineConfigFromJSON(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name          string
-		engineJSON    string
-		expectedID    string
-		expectedSteps int
-		expectedEnv   map[string]string
-		expectError   bool
+		name        string
+		engineJSON  string
+		expectedID  string
+		expectedEnv map[string]string
+		expectError bool
 	}{
 		{
-			name:          "simple string engine",
-			engineJSON:    `"claude"`,
-			expectedID:    "claude",
-			expectedSteps: 0,
-			expectError:   false,
+			name:        "simple string engine",
+			engineJSON:  `"claude"`,
+			expectedID:  "claude",
+			expectError: false,
 		},
 		{
-			name:          "object with id only",
-			engineJSON:    `{"id": "codex"}`,
-			expectedID:    "codex",
-			expectedSteps: 0,
-			expectError:   false,
+			name:        "object with id only",
+			engineJSON:  `{"id": "codex"}`,
+			expectedID:  "codex",
+			expectError: false,
 		},
 		{
-			name:          "codex engine with steps",
-			engineJSON:    `{"id": "codex", "steps": [{"name": "Test", "run": "echo test"}]}`,
-			expectedID:    "codex",
-			expectedSteps: 1,
-			expectError:   false,
-		},
-		{
-			name:          "codex engine with env vars",
-			engineJSON:    `{"id": "codex", "env": {"VAR1": "value1", "VAR2": "value2"}, "steps": [{"name": "Test", "run": "echo test"}]}`,
-			expectedID:    "codex",
-			expectedSteps: 1,
-			expectedEnv:   map[string]string{"VAR1": "value1", "VAR2": "value2"},
-			expectError:   false,
+			name:        "codex engine with env vars",
+			engineJSON:  `{"id": "codex", "env": {"VAR1": "value1", "VAR2": "value2"}}`,
+			expectedID:  "codex",
+			expectedEnv: map[string]string{"VAR1": "value1", "VAR2": "value2"},
+			expectError: false,
 		},
 		{
 			name:        "invalid JSON",
@@ -626,10 +612,6 @@ func TestExtractEngineConfigFromJSON(t *testing.T) {
 
 			if config.ID != tt.expectedID {
 				t.Errorf("Expected ID %q, got %q", tt.expectedID, config.ID)
-			}
-
-			if len(config.Steps) != tt.expectedSteps {
-				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(config.Steps))
 			}
 
 			if tt.expectedEnv != nil {

@@ -420,7 +420,7 @@ func (b *InteractiveWorkflowBuilder) generateToolsConfig() string {
 	for _, tool := range b.Tools {
 		switch tool {
 		case "github":
-			config.WriteString("  github:\n    allowed:\n      - issue_read\n      - add_issue_comment\n      - create_issue\n")
+			config.WriteString("  github:\n    allowed:\n      - issue_read\n      - create_issue_comment\n      - create_issue\n")
 		case "bash":
 			config.WriteString("  bash:\n")
 		default:

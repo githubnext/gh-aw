@@ -447,3 +447,178 @@ func TestValidateEnvSecretsMultipleSecretsErrorMessage(t *testing.T) {
 	secretCount := strings.Count(errorMsg, "${{ secrets.")
 	assert.GreaterOrEqual(t, secretCount, 1, "Error should mention at least one secret")
 }
+
+func TestValidateEngineEnvSecrets(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		strictMode  bool
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "engine string format has no env section to validate",
+			frontmatter: map[string]any{
+				"on":     "push",
+				"engine": "copilot",
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine object without env is allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with no secrets is allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"NODE_ENV": "production",
+						"API_URL":  "https://api.example.com",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env overriding COPILOT_GITHUB_TOKEN with custom secret is allowed in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						// Override the engine's own token with an org-specific secret – allowed.
+						"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "engine.env with non-engine secret alongside engine var override still fails",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						// Override for engine var – allowed.
+						"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+						// Non-engine var with a secret – should still fail.
+						"SOME_OTHER_KEY": "${{ secrets.SOME_OTHER_SECRET }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section",
+		},
+		{
+			name: "engine.env with single secret in strict mode fails",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"API_KEY": "${{ secrets.API_KEY }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container. Found: ${{ secrets.API_KEY }}",
+		},
+		{
+			name: "engine.env with multiple secrets in strict mode fails",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"API_KEY": "${{ secrets.API_KEY }}",
+						"DB_PASS": "${{ secrets.DATABASE_PASSWORD }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container",
+		},
+		{
+			name: "engine.env with secret embedded in string in strict mode fails",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"AUTH_HEADER": "Bearer ${{ secrets.TOKEN }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'engine.env' section will be leaked to the agent container. Found: ${{ secrets.TOKEN }}",
+		},
+		{
+			name: "engine.env with secret in non-strict mode emits warning (no error)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"API_KEY": "${{ secrets.API_KEY }}",
+					},
+				},
+			},
+			strictMode:  false,
+			expectError: false,
+		},
+		{
+			name: "both env and engine.env with secrets in strict mode fails on env first",
+			frontmatter: map[string]any{
+				"on": "push",
+				"env": map[string]any{
+					"TOP_KEY": "${{ secrets.TOP_SECRET }}",
+				},
+				"engine": map[string]any{
+					"id": "copilot",
+					"env": map[string]any{
+						"API_KEY": "${{ secrets.API_KEY }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.strictMode = tt.strictMode
+
+			err := compiler.validateEnvSecrets(tt.frontmatter)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected an error but got none")
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error but got: %v", err)
+			}
+		})
+	}
+}

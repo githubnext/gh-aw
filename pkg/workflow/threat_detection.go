@@ -353,7 +353,6 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 				Concurrency: detectionEngineConfig.Concurrency,
 				UserAgent:   detectionEngineConfig.UserAgent,
 				Env:         detectionEngineConfig.Env,
-				Steps:       detectionEngineConfig.Steps,
 				Config:      detectionEngineConfig.Config,
 				Args:        detectionEngineConfig.Args,
 				Firewall:    detectionEngineConfig.Firewall,

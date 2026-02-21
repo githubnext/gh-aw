@@ -3,12 +3,12 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -251,27 +251,6 @@ func TestExtractEngineConfig(t *testing.T) {
 					}
 				}
 
-				if len(config.Steps) != len(test.expectedConfig.Steps) {
-					t.Errorf("Expected config.Steps length %d, got %d", len(test.expectedConfig.Steps), len(config.Steps))
-				} else {
-					for i, expectedStep := range test.expectedConfig.Steps {
-						if i >= len(config.Steps) {
-							t.Errorf("Expected step at index %d", i)
-							continue
-						}
-						actualStep := config.Steps[i]
-						for key, expectedValue := range expectedStep {
-							if actualValue, exists := actualStep[key]; !exists {
-								t.Errorf("Expected step[%d] to contain key '%s'", i, key)
-							} else {
-								// For nested maps, do a simple string comparison for now
-								if fmt.Sprintf("%v", actualValue) != fmt.Sprintf("%v", expectedValue) {
-									t.Errorf("Expected step[%d]['%s'] = '%v', got '%v'", i, key, expectedValue, actualValue)
-								}
-							}
-						}
-					}
-				}
 			}
 		})
 	}
@@ -443,17 +422,24 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 			switch tt.engine.GetID() {
 			case "claude":
 				if tt.expectedModel != "" {
-					expectedModelLine := "--model " + tt.expectedModel
-					if !strings.Contains(stepContent, expectedModelLine) {
-						t.Errorf("Expected step to contain model %s, got step content:\n%s", tt.expectedModel, stepContent)
+					// Claude passes model via native ANTHROPIC_MODEL env var
+					expectedEnvLine := "ANTHROPIC_MODEL: " + tt.expectedModel
+					if !strings.Contains(stepContent, expectedEnvLine) {
+						t.Errorf("Expected step to contain env var for model %s, got step content:\n%s", tt.expectedModel, stepContent)
+					}
+					// Should NOT embed --model in the shell command
+					if strings.Contains(stepContent, "--model "+tt.expectedModel) {
+						t.Errorf("Model should not be embedded as --model flag, got step content:\n%s", stepContent)
 					}
 				}
 
 			case "codex":
 				if tt.expectedModel != "" {
-					expectedModelArg := "model=" + tt.expectedModel
-					if !strings.Contains(stepContent, expectedModelArg) {
-						t.Errorf("Expected command to contain %s, got step content:\n%s", expectedModelArg, stepContent)
+					// Codex passes model via GH_AW_MODEL_*_CODEX with shell expansion
+					// The workflow has no SafeOutputs, so it uses the detection env var
+					expectedEnvLine := constants.EnvVarModelDetectionCodex + ": " + tt.expectedModel
+					if !strings.Contains(stepContent, expectedEnvLine) {
+						t.Errorf("Expected step to contain env var for model %s, got step content:\n%s", tt.expectedModel, stepContent)
 					}
 				}
 			}

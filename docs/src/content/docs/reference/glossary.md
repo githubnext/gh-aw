@@ -203,7 +203,7 @@ A compilation target allowing the gh-aw compiler to run in browser environments 
 
 ### Cache Memory
 
-Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Memory Reference](/gh-aw/reference/memory/).
+Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Cache Memory](/gh-aw/reference/cache-memory/).
 
 ### Command Triggers
 
@@ -223,7 +223,7 @@ Configuration section in frontmatter defining environment variables for the work
 
 ### Repo Memory
 
-Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. See [Memory Reference](/gh-aw/reference/memory/).
+Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. See [Repo Memory](/gh-aw/reference/repo-memory/).
 
 ### Strict Mode
 
