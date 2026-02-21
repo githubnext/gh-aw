@@ -2489,7 +2489,7 @@ safe-outputs:
     auto-merge: true
 
     # Base branch for the pull request. Defaults to the workflow's branch
-    # (github.ref_name) if not specified. Useful for cross-repository PRs targeting
+    # (github.base_ref || github.ref_name) if not specified. Useful for cross-repository PRs targeting
     # non-default branches (e.g., 'vnext', 'release/v1.0').
     # (optional)
     base-branch: "example-value"

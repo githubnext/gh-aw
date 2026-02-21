@@ -445,11 +445,12 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddDefault("max_patch_size", maxPatchSize).
 			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue)
-		// Add base_branch - use custom value if specified, otherwise use github.ref_name
+		// Add base_branch - use custom value if specified, otherwise use github.base_ref || github.ref_name
+		// This handles PR contexts where github.ref_name is "123/merge" which is invalid as a target branch
 		if c.BaseBranch != "" {
 			builder.AddDefault("base_branch", c.BaseBranch)
 		} else {
-			builder.AddDefault("base_branch", "${{ github.ref_name }}")
+			builder.AddDefault("base_branch", "${{ github.base_ref || github.ref_name }}")
 		}
 		return builder.Build()
 	},
@@ -469,7 +470,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
-			AddDefault("base_branch", "${{ github.ref_name }}").
+			AddDefault("base_branch", "${{ github.base_ref || github.ref_name }}").
 			AddDefault("max_patch_size", maxPatchSize).
 			Build()
 	},
