@@ -510,13 +510,20 @@ function buildAllowedGitHubReferences() {
   }
 
   if (allowedRefsEnv === "") {
+    if (typeof core !== "undefined" && core.info) {
+      core.info("GitHub reference filtering: all references will be escaped (GH_AW_ALLOWED_GITHUB_REFS is empty)");
+    }
     return []; // Empty array means escape all references
   }
 
-  return allowedRefsEnv
+  const refs = allowedRefsEnv
     .split(",")
     .map(ref => ref.trim().toLowerCase())
     .filter(ref => ref);
+  if (typeof core !== "undefined" && core.info) {
+    core.info(`GitHub reference filtering: allowed repos = ${refs.join(", ")}`);
+  }
+  return refs;
 }
 
 /**
