@@ -246,7 +246,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 		if len(jsonPaths) > 0 && frontmatterContent != "" {
 			detailLines := make([]string, 0, len(jsonPaths))
 			for _, pathInfo := range jsonPaths {
-				detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, frontmatterContent, frontmatterStart))
+				detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, schemaJSON, frontmatterContent, frontmatterStart))
 			}
 
 			// Use the first error path for primary context rendering.
@@ -338,7 +338,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 	return err
 }
 
-func formatSchemaFailureDetail(pathInfo JSONPathInfo, frontmatterContent string, frontmatterStart int) string {
+func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterContent string, frontmatterStart int) string {
 	path := pathInfo.Path
 	if path == "" {
 		path = "/"
@@ -353,6 +353,10 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, frontmatterContent string,
 	}
 
 	message := rewriteAdditionalPropertiesError(cleanOneOfMessage(pathInfo.Message))
+	suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
+	if suggestions != "" {
+		message = message + ". " + suggestions
+	}
 	return fmt.Sprintf("at '%s' (line %d, column %d): %s", path, line, column, message)
 }
 

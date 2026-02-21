@@ -445,7 +445,7 @@ func TestFormatSchemaFailureDetailEmptyPath(t *testing.T) {
 		Path:    "",
 		Message: "additional property 'x' not allowed",
 	}
-	result := formatSchemaFailureDetail(pathInfo, "on: daily\n", 1)
+	result := formatSchemaFailureDetail(pathInfo, "", "on: daily\n", 1)
 	if !strings.HasPrefix(result, "at '/'") {
 		t.Errorf("expected result to start with \"at '/'\", got: %s", result)
 	}
@@ -461,7 +461,7 @@ func TestFormatSchemaFailureDetailLineColumn(t *testing.T) {
 		Path:    "/safe-outputs/create-issue",
 		Message: "additional property 'invalid-field' not allowed",
 	}
-	result := formatSchemaFailureDetail(pathInfo, frontmatterContent, 1)
+	result := formatSchemaFailureDetail(pathInfo, "", frontmatterContent, 1)
 	if !strings.Contains(result, "line ") || !strings.Contains(result, "column ") {
 		t.Errorf("expected result to contain line/column info, got: %s", result)
 	}
