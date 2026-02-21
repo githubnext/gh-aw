@@ -781,6 +781,14 @@ describe("runtime_import", () => {
           expect(result).toBe("Run ID: 12345, Again: 12345, Third: 12345");
         });
 
+        it("should not re-replace evaluated values that contain expression-like text", () => {
+          // Simulate an issue title that contains literal expression syntax.
+          // The evaluated value for github.event.issue.title should be:
+          // "Use ${{ github.actor }} here"
+          const content = "Title: ${{ github.event.issue.title }}, User: ${{ github.actor }}";
+          const result = processExpressions(content, "test.md");
+          expect(result).toBe("Title: Use ${{ github.actor }} here, User: testuser");
+        });
         it("should throw error for unsafe expressions", () => {
           const content = "Token: ${{ secrets.GITHUB_TOKEN }}";
           expect(() => processExpressions(content, "test.md")).toThrow("unauthorized GitHub Actions expressions");
