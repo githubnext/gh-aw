@@ -266,10 +266,20 @@ Local modification that should be preserved during merge.
 	output, _ := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	// The output should indicate merge mode (not override)
-	// It may succeed or fail depending on the source repo state,
-	// but it should attempt a merge rather than a plain override
+	// The command should produce output (may succeed or fail depending on
+	// source repo accessibility, but must attempt merge, not override).
 	t.Logf("Update output: %s", outputStr)
+	assert.NotEmpty(t, outputStr, "Update command should produce output")
+
+	// Verify it does NOT report "override mode" — merge is the default
+	assert.NotContains(t, outputStr, "Using override mode",
+		"Default behavior should use merge, not override")
+
+	// Read the resulting workflow file to verify it still exists
+	updatedContent, err := os.ReadFile(filepath.Join(setup.workflowsDir, "test-update.md"))
+	require.NoError(t, err, "Workflow file should still exist after update")
+	assert.Contains(t, string(updatedContent), "Local modification",
+		"Local content should be preserved when merge is the default")
 }
 
 // --- ParseSourceSpec Integration Tests ---

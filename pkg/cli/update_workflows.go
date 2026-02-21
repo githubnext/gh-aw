@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -187,7 +188,9 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 
 	updateLog.Printf("Latest commit for branch %s: %s", currentRef, latestSHA)
 
-	// Return the latest SHA so the source pin gets updated
+	// Return the SHA for comparison so we can detect upstream changes.
+	// The caller (updateWorkflow) preserves the branch name in the source
+	// field to avoid SHA-pinning — see isBranchRef() usage there.
 	return latestSHA, nil
 }
 
@@ -236,7 +239,8 @@ func getRepoDefaultBranch(repo string) (string, error) {
 
 // getLatestBranchCommitSHA fetches the latest commit SHA for a given branch.
 func getLatestBranchCommitSHA(repo, branch string) (string, error) {
-	output, err := workflow.RunGH("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
+	// URL-encode the branch name since it may contain slashes (e.g. "feature/foo")
+	output, err := workflow.RunGH("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, url.PathEscape(branch)), "--jq", ".commit.sha")
 	if err != nil {
 		return "", err
 	}
@@ -340,6 +344,14 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		return fmt.Errorf("failed to resolve latest ref: %w", err)
 	}
 
+	// For branch refs, resolveLatestRef returns the branch-head SHA so that
+	// we can detect upstream changes (currentRef != latestRef). However the
+	// source field must keep the branch *name* to avoid SHA-pinning.
+	sourceFieldRef := latestRef
+	if isBranchRef(currentRef) {
+		sourceFieldRef = currentRef
+	}
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current ref: %s", currentRef)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest ref: %s", latestRef)))
@@ -438,7 +450,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 		// Perform 3-way merge using git merge-file
 		updateLog.Printf("Performing 3-way merge for workflow: %s", wf.Name)
-		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
+		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceFieldRef, verbose)
 		if err != nil {
 			updateLog.Printf("Merge failed for workflow %s: %v", wf.Name, err)
 			return fmt.Errorf("failed to merge workflow content: %w", err)
@@ -457,7 +469,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		}
 
 		// Update the source field in the new content with the new ref
-		newWithUpdatedSource, err := UpdateFieldInFrontmatter(string(newContent), "source", fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, latestRef))
+		newWithUpdatedSource, err := UpdateFieldInFrontmatter(string(newContent), "source", fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, sourceFieldRef))
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update source in new content: %v", err)))
@@ -538,6 +550,12 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	return nil
+}
+
+// isBranchRef returns true when the ref is a branch name — i.e. it is
+// neither a semantic-version tag nor a full commit SHA.
+func isBranchRef(ref string) bool {
+	return !isSemanticVersionTag(ref) && !IsCommitSHA(ref)
 }
 
 // shortRef abbreviates a ref for display. Commit SHAs are truncated to 7 characters;

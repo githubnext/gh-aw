@@ -496,9 +496,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Testing update command to ensure it runs without issues..."
-          # Run update with verbose flag to check for updates without making changes
-          # The command checks for workflow updates from source repositories
+          echo "Testing update command to ensure it runs successfully..."
+          # Run update with verbose flag to check for and apply workflow updates from source repositories
+          # The command may modify workflow files if upstream updates are available
           ./gh-aw update --verbose
           echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
