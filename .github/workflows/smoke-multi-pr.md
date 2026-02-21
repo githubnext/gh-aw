@@ -52,8 +52,8 @@ Create exactly TWO pull requests with distinct changes:
 
 ### PR 1: Documentation Update
 
-1. Create a new branch for the first PR
-2. Create a file `tmp-smoke-multi-pr-doc-${{ github.run_id }}.txt` with content:
+1. Create a separate new branch off main `smoke-multi-pr-doc-${{ github.run_id }}-1` for the first PR
+2. Create a file `tmp-smoke-multi-pr-doc-${{ github.run_id }}-1.txt` with content:
    ```
    Documentation smoke test for multi-PR workflow
    Run ID: ${{ github.run_id }}
@@ -66,8 +66,8 @@ Create exactly TWO pull requests with distinct changes:
 
 ### PR 2: Configuration Update
 
-1. Create a new branch for the second PR
-2. Create a file `tmp-smoke-multi-pr-config-${{ github.run_id }}.txt` with content:
+1. Create a separate new branch off main `smoke-multi-pr-config-${{ github.run_id }}-2` for the second PR
+2. Create a file `tmp-smoke-multi-pr-config-${{ github.run_id }}-2.txt` with content:
    ```
    Configuration smoke test for multi-PR workflow
    Run ID: ${{ github.run_id }}
