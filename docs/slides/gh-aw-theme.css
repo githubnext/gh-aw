@@ -27,7 +27,7 @@ section {
   font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji";
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   background: linear-gradient(160deg, #1c2128 0%, #22272e 50%, #0d1117 100%);
   color: #f0f6fc;
   padding: 2.5rem 3rem;
@@ -63,7 +63,7 @@ section h1 {
     sans-serif;
   font-weight: 700;
   color: #ffffff;
-  font-size: 2rem;
+  font-size: 2.5rem;
   border-bottom: 1px solid #21262d;
   padding-bottom: 0.5rem;
   margin-bottom: 1rem;
@@ -72,14 +72,14 @@ section h1 {
 section h2 {
   font-weight: 700;
   color: #d896ff;
-  font-size: 1.6rem;
+  font-size: 2rem;
   margin-top: 0.5rem;
 }
 
 section h3 {
   font-weight: 600;
   color: #e5c7ff;
-  font-size: 1.3rem;
+  font-size: 1.6rem;
 }
 
 /* Links */
@@ -101,15 +101,15 @@ section pre {
   padding: 1rem 1.25rem;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
-  font-size: 0.85rem;
+  font-size: 1rem;
   overflow: auto;
 }
 
 section code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
-  font-size: 0.875em;
-  background: rgba(175, 184, 193, 0.15);
+  font-size: 1em;
+  background: rgba(175, 184, 193, 0.2);
   border-radius: 3px;
   padding: 0.1em 0.35em;
 }
@@ -134,7 +134,7 @@ section li {
 /* Blockquotes */
 section blockquote {
   border-left: 4px solid #d896ff;
-  color: #8d96a0;
+  color: #adbac7;
   padding-left: 1rem;
   margin-left: 0;
   font-style: italic;
@@ -144,21 +144,21 @@ section blockquote {
 section table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 section th {
   background: #161b22;
-  color: #d896ff;
-  border-bottom: 2px solid #21262d;
+  color: #e2c9ff;
+  border-bottom: 2px solid #30363d;
   padding: 0.5rem 0.75rem;
   text-align: left;
 }
 
 section td {
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid #30363d;
   padding: 0.5rem 0.75rem;
-  color: #c9d1d9;
+  color: #e6edf3;
 }
 
 section tr:last-child td {
@@ -178,8 +178,8 @@ section em {
 /* Slide number (paginate) */
 section::after {
   font-family: "Mona Sans", sans-serif;
-  font-size: 0.75rem;
-  color: #656d76;
+  font-size: 0.875rem;
+  color: #8b949e;
 }
 
 /* Title slide (first slide) */
@@ -203,22 +203,22 @@ section.title::before {
 }
 
 section.title h1 {
-  font-size: 2.6rem;
+  font-size: 3rem;
   border-bottom: none;
   color: #ffffff;
 }
 
 section.title h2 {
   color: #d896ff;
-  font-size: 1.5rem;
+  font-size: 1.85rem;
 }
 
 section.title h3 {
-  color: #8d96a0;
-  font-size: 1.1rem;
+  color: #adbac7;
+  font-size: 1.35rem;
 }
 
 section.title a {
-  color: #8d96a0;
-  font-size: 0.95rem;
+  color: #adbac7;
+  font-size: 1.1rem;
 }
