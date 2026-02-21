@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"38d223f929c2de946360b7e1d9354350fd6151dfafe5ac74a2ef164ce970cc26"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ffdad88357c76b85dcef6475fa1cc4267f7660bce6ee9b59e44591972fc22f9a"}
 
 name: "Smoke Gemini"
 "on":
@@ -39,8 +39,7 @@ name: "Smoke Gemini"
     - labeled
   schedule:
   - cron: "22 */12 * * *"
-    # Friendly format: every 12h (scattered)
-  workflow_dispatch:
+  workflow_dispatch: null
 
 permissions: {}
 
@@ -61,8 +60,9 @@ jobs:
       contents: read
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.add-comment.outputs.comment-id }}
+      comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
+      comment_url: ${{ steps.add-comment.outputs.comment-url }}
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
     steps:
@@ -110,6 +110,19 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
+            await main();
+      - name: Add comment with workflow run link
+        id: add-comment
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_NAME: "Smoke Gemini"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*\",\"runStarted\":\"✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges...\"}"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -1185,6 +1198,25 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/handle_noop_message.cjs');
+            await main();
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Smoke Gemini"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*\",\"runStarted\":\"✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges...\"}"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
   detection:

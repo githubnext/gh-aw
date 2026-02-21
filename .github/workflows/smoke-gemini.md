@@ -6,6 +6,7 @@ on:
   pull_request:
     types: [labeled]
     names: ["water"]
+  status-comment: true
 permissions:
   contents: read
   issues: read

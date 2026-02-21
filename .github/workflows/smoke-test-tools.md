@@ -6,6 +6,7 @@ on:
   pull_request:
     types: [labeled]
     names: ["smoke"]
+  status-comment: true
 permissions:
   contents: read
   issues: read
