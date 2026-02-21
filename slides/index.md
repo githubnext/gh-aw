@@ -73,6 +73,32 @@ Summarize this issue and respond in a comment.
 
 ---
 
+# Security Architecture
+
+## Multi-layered defense in depth
+
+```
+┌─ Action Job VM ──────────────────────────────┐
+│  ┌─ Sandbox ──┐                              │
+│  │   Agent    │──▶ Proxy/Firewall             │
+│  └────────────┘         │                    │
+│                    MCP Gateway               │
+│                    /          \              │
+│  ┌─ Sandbox ──┐       ┌─ Sandbox ──┐        │
+│  │ MCP Server │       │   Skill    │        │
+│  └─────┬──────┘       └─────┬──────┘        │
+│  Proxy/Firewall       Proxy/Firewall         │
+└─────────┼───────────────────┼────────────────┘
+          ▼                   ▼
+       Service             Service
+```
+
+- **Container isolation** - Agent, MCP servers, skills in separate sandboxes
+- **Proxy/firewall at every layer** - Controls egress traffic and domain access
+- **MCP Gateway** - Central routing with auditable tool access
+
+---
+
 # Tools & Integrations
 
 Built-in tools:
