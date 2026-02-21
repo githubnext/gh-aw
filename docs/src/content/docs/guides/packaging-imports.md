@@ -50,7 +50,7 @@ gh aw update ci-doctor                 # update specific workflow
 gh aw update ci-doctor issue-triage    # update multiple
 ```
 
-Use `--major`, `--force`, `--engine`, or `--verbose` flags to control update behavior. Semantic versions (e.g., `v1.2.3`) update to latest compatible release within same major version. Branch references update to latest commit. Updates use 3-way merge; when conflicts occur, manually resolve conflict markers and run `gh aw compile`.
+Use `--major`, `--force`, `--no-merge`, `--engine`, or `--verbose` flags to control update behavior. Semantic versions (e.g., `v1.2.3`) update to latest compatible release within same major version. Branch references update to latest commit. SHA references update to the latest commit on the default branch. Updates use 3-way merge by default to preserve local changes; use `--no-merge` to replace with the upstream version. When merge conflicts occur, manually resolve conflict markers and run `gh aw compile`.
 
 ## Imports
 

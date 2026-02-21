@@ -270,7 +270,11 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		if len(caches) > 1 {
 			stepName = fmt.Sprintf("Cache %d", i+1)
 		}
-		if key, hasKey := cache["key"]; hasKey {
+		if nameVal, hasName := cache["name"]; hasName {
+			if nameStr, ok := nameVal.(string); ok && nameStr != "" {
+				stepName = nameStr
+			}
+		} else if key, hasKey := cache["key"]; hasKey {
 			if keyStr, ok := key.(string); ok && keyStr != "" {
 				stepName = fmt.Sprintf("Cache (%s)", keyStr)
 			}
@@ -736,9 +740,9 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		checkStep.WriteString("        shell: bash\n")
 		checkStep.WriteString("        run: |\n")
 		fmt.Fprintf(&checkStep, "          if [ -d \"%s\" ] && [ \"$(ls -A %s 2>/dev/null)\" ]; then\n", cacheDir, cacheDir)
-		checkStep.WriteString("            echo \"has_content=true\" >> $GITHUB_OUTPUT\n")
+		checkStep.WriteString("            echo \"has_content=true\" >> \"$GITHUB_OUTPUT\"\n")
 		checkStep.WriteString("          else\n")
-		checkStep.WriteString("            echo \"has_content=false\" >> $GITHUB_OUTPUT\n")
+		checkStep.WriteString("            echo \"has_content=false\" >> \"$GITHUB_OUTPUT\"\n")
 		checkStep.WriteString("          fi\n")
 		steps = append(steps, checkStep.String())
 

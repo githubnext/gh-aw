@@ -272,7 +272,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Generate the execution step
 	stepLines := []string{
-		"      - name: Run Gemini",
+		"      - name: Execute Gemini CLI",
 		"        id: agentic_execution",
 	}
 

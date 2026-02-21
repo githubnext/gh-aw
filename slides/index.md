@@ -4,6 +4,11 @@ theme: gh-aw
 paginate: true
 ---
 
+<script src="./js/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true });
+</script>
+
 # GitHub Agentic Workflows
 ## Write AI Automation in Natural Language
 ### Technical Preview
@@ -70,6 +75,54 @@ Summarize this issue and respond in a comment.
 - **Network firewall** - Control external access
 - **Container isolation** - Sandboxed execution
 - **MCP proxy** - Secure tool access
+
+---
+
+# Security Architecture
+
+## Multi-layered defense in depth
+
+<pre class="mermaid">
+flowchart TB
+    subgraph ActionJobVM["Action Job VM"]
+        subgraph Sandbox1["Sandbox"]
+            Agent["Agent Process"]
+        end
+
+        Proxy1["Proxy / Firewall"]
+        Gateway["Gateway<br/>(mcpg)"]
+
+        Agent --> Proxy1
+        Proxy1 --> Gateway
+
+        subgraph Sandbox2["Sandbox"]
+            MCP["MCP Server"]
+        end
+
+        subgraph Sandbox3["Sandbox"]
+            Skill["Skill"]
+        end
+
+        Gateway --> MCP
+        Gateway --> Skill
+
+        Proxy2["Proxy / Firewall"]
+        Proxy3["Proxy / Firewall"]
+
+        MCP --> Proxy2
+        Skill --> Proxy3
+    end
+
+    Service1{{"Service"}}
+    Service2{{"Service"}}
+
+    Proxy2 --> Service1
+    Proxy3 --> Service2
+</pre>
+
+- **Container isolation** - Agent, MCP servers, skills in separate sandboxes
+- **Proxy/firewall at every layer** - Controls egress traffic and domain access
+- **MCP Gateway** - Central routing with auditable tool access
 
 ---
 

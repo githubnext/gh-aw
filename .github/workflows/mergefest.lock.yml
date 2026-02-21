@@ -23,7 +23,7 @@
 #
 # Automatically merges the main branch into pull request branches when invoked with /mergefest command
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b84af66674cb25eda1cd571181ea003462abb952f5a68c60deb0f5d7cd7e3dbc"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c981d37f11bc2c11773de35070124859129139ba95aff08624c563605165439f"}
 
 name: "Mergefest"
 "on":
@@ -323,7 +323,7 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Setup Git configuration
+      - name: Configure Git credentials
         run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF"
 
       - name: Configure Git credentials

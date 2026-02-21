@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -54,6 +55,29 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 			} else {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", err)))
 				fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+
+				// Ask user whether to continue or stop
+				continueAfterMerge := true
+				mergeForm := huh.NewForm(
+					huh.NewGroup(
+						huh.NewConfirm().
+							Title("Would you like to continue?").
+							Description("Select 'Yes' once you have merged the PR, or 'No' to stop here").
+							Affirmative("Yes, continue (PR is merged)").
+							Negative("No, stop for now").
+							Value(&continueAfterMerge),
+					),
+				).WithAccessible(console.IsAccessibleMode())
+
+				if mergeFormErr := mergeForm.Run(); mergeFormErr != nil {
+					return fmt.Errorf("failed to get user input: %w", mergeFormErr)
+				}
+
+				if !continueAfterMerge {
+					fmt.Fprintln(os.Stderr, "")
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Stopped. You can continue later by merging the PR and running the workflow manually."))
+					return fmt.Errorf("user chose to stop after merge failure")
+				}
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Merged pull request %s", result.PRURL)))
@@ -129,6 +153,27 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Local branch updated with merged changes"))
 	}
 
+	return nil
+}
+
+// checkCleanWorkingDirectory verifies the working directory has no uncommitted changes.
+// This is checked early in the interactive flow to avoid failing later during PR creation.
+func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
+	addInteractiveLog.Print("Checking working directory is clean")
+
+	if err := checkCleanWorkingDirectory(c.Verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Working directory is not clean."))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "The add wizard creates a pull request which requires a clean working directory.")
+		fmt.Fprintln(os.Stderr, "Please commit or stash your changes first:")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git stash        # Temporarily stash changes"))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'wip'  # Commit changes"))
+		fmt.Fprintln(os.Stderr, "")
+		return fmt.Errorf("working directory is not clean")
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Working directory is clean"))
 	return nil
 }
 

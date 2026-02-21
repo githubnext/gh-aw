@@ -148,7 +148,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		assert.Contains(t, stepContent, "name: Run Gemini", "Should have correct step name")
+		assert.Contains(t, stepContent, "name: Execute Gemini CLI", "Should have correct step name")
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
 		assert.Contains(t, stepContent, "gemini", "Should invoke gemini command")
 		assert.Contains(t, stepContent, "--yolo", "Should include --yolo flag for auto-approving tool executions")

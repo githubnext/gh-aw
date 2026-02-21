@@ -41,7 +41,7 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 steps:
-  - name: Setup Git configuration
+  - name: Configure Git credentials
     run: |
       git config user.name "github-actions[bot]"
       git config user.email "github-actions[bot]@users.noreply.github.com"

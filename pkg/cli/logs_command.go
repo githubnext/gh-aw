@@ -48,16 +48,21 @@ Downloaded artifacts include:
 ` + WorkflowIDExplanation + `
 
 Examples:
+  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research.md        # Download logs (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` logs -c 10                     # Download last 10 matching runs
+
+  # Date filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date 2024-01-01   # Download all runs after date
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date 2024-01-31     # Download all runs before date
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w          # Download all runs from last week
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download all runs until yesterday
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+
+  # Content filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine codex            # Filter logs by codex engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
@@ -66,16 +71,22 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-tool     # Filter logs with missing_tool messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-data     # Filter logs with missing_data messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create_issue messages
-  ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
+
+  # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + string(constants.CLIExtensionPrefix) + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+
+  # Output options
+  ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` logs --tool-graph              # Generate Mermaid tool sequence graph
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse                   # Parse logs and generate Markdown reports
   ` + string(constants.CLIExtensionPrefix) + ` logs --json                    # Output metrics in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse --json            # Generate both Markdown and JSON
+
+  # Cross-repository
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))

@@ -39,45 +39,57 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   const operation = updateData._operation || "append";
   let rawBody = updateData._rawBody;
   const includeFooter = updateData._includeFooter !== false; // Default to true
+  const titlePrefix = updateData._titlePrefix || "";
 
   // Remove internal fields
-  const { _operation, _rawBody, _includeFooter, ...apiData } = updateData;
+  const { _operation, _rawBody, _includeFooter, _titlePrefix, ...apiData } = updateData;
 
-  // If we have a body, process it with the appropriate operation
-  if (rawBody !== undefined) {
-    // Load and apply temporary project URL replacements FIRST
-    // This resolves any temporary project IDs (e.g., #aw_abc123def456) to actual project URLs
-    const temporaryProjectMap = loadTemporaryProjectMap();
-    if (temporaryProjectMap.size > 0) {
-      rawBody = replaceTemporaryProjectReferences(rawBody, temporaryProjectMap);
-      core.debug(`Applied ${temporaryProjectMap.size} temporary project URL replacement(s)`);
-    }
-
-    // Fetch current issue body for all operations (needed for append/prepend/replace-island/replace)
+  // Fetch current issue if needed (title prefix validation or body update)
+  if (titlePrefix || rawBody !== undefined) {
     const { data: currentIssue } = await github.rest.issues.get({
       owner: context.repo.owner,
       repo: context.repo.repo,
       issue_number: issueNumber,
     });
-    const currentBody = currentIssue.body || "";
 
-    // Get workflow run URL for AI attribution
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
-    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+    // Validate title prefix if specified
+    if (titlePrefix) {
+      const currentTitle = currentIssue.title || "";
+      if (!currentTitle.startsWith(titlePrefix)) {
+        throw new Error(`Issue title "${currentTitle}" does not start with required prefix "${titlePrefix}"`);
+      }
+      core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+    }
 
-    // Use helper to update body (handles all operations including replace)
-    apiData.body = updateBody({
-      currentBody,
-      newContent: rawBody,
-      operation,
-      workflowName,
-      runUrl,
-      workflowId,
-      includeFooter, // Pass footer flag to helper
-    });
+    if (rawBody !== undefined) {
+      // Load and apply temporary project URL replacements FIRST
+      // This resolves any temporary project IDs (e.g., #aw_abc123def456) to actual project URLs
+      const temporaryProjectMap = loadTemporaryProjectMap();
+      if (temporaryProjectMap.size > 0) {
+        rawBody = replaceTemporaryProjectReferences(rawBody, temporaryProjectMap);
+        core.debug(`Applied ${temporaryProjectMap.size} temporary project URL replacement(s)`);
+      }
 
-    core.info(`Will update body (length: ${apiData.body.length})`);
+      const currentBody = currentIssue.body || "";
+
+      // Get workflow run URL for AI attribution
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
+      const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+      const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+      // Use helper to update body (handles all operations including replace)
+      apiData.body = updateBody({
+        currentBody,
+        newContent: rawBody,
+        operation,
+        workflowName,
+        runUrl,
+        workflowId,
+        includeFooter, // Pass footer flag to helper
+      });
+
+      core.info(`Will update body (length: ${apiData.body.length})`);
+    }
   }
 
   const { data: issue } = await github.rest.issues.update({
@@ -111,7 +123,7 @@ function buildIssueUpdateData(item, config) {
   const updateData = {};
 
   if (item.title !== undefined) {
-    // Sanitize title for Unicode security (no prefix handling needed for updates)
+    // Sanitize title for Unicode security
     updateData.title = sanitizeTitle(item.title);
   }
   // Check if body updates are allowed (defaults to true if not specified)
@@ -157,6 +169,11 @@ function buildIssueUpdateData(item, config) {
 
   // Pass footer config to executeUpdate (default to true)
   updateData._includeFooter = config.footer !== false;
+
+  // Store title prefix for validation in executeIssueUpdate
+  if (config.title_prefix) {
+    updateData._titlePrefix = config.title_prefix;
+  }
 
   return { success: true, data: updateData };
 }

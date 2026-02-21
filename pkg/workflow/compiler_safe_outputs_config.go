@@ -309,7 +309,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.UpdateIssues
 		builder := newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
-			AddIfNotEmpty("target", c.Target)
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("title_prefix", c.TitlePrefix)
 		// Boolean pointer fields indicate which fields can be updated
 		if c.Status != nil {
 			builder.AddDefault("allow_status", true)

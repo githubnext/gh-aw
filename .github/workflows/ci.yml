@@ -496,10 +496,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Testing update command to ensure it runs without issues..."
-          # Run update with verbose flag to check for updates without making changes
-          # The command checks for gh-aw updates, action updates, and workflow updates
-          ./gh-aw update --verbose --no-actions
+          echo "Testing update command to ensure it runs successfully..."
+          # Run update with verbose flag to check for and apply workflow updates from source repositories
+          # The command may modify workflow files if upstream updates are available
+          ./gh-aw update --verbose
           echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
   build:
@@ -1143,7 +1143,7 @@ jobs:
         run: |
           echo "## Dependency Health Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          ./gh-aw update --audit 2>&1 | tee audit_output.txt || true
+          ./gh-aw upgrade --audit 2>&1 | tee audit_output.txt || true
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           head -100 audit_output.txt >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -1152,7 +1152,7 @@ jobs:
         id: audit_json
         run: |
           # Run audit with JSON output for agent-friendly parsing
-          ./gh-aw update --audit --json > audit.json 2>&1
+          ./gh-aw upgrade --audit --json > audit.json 2>&1
           
           # Display summary in GitHub Actions
           echo "✅ Dependency audit completed" >> $GITHUB_STEP_SUMMARY

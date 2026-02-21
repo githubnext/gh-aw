@@ -64,6 +64,13 @@ metadata:
 # (optional)
 imports: []
 
+# If true, inline all imports (including those without inputs) at compilation time
+# in the generated lock.yml instead of using runtime-import macros. When enabled,
+# the frontmatter hash covers the entire markdown body so any change to the
+# content will invalidate the hash.
+# (optional)
+inlined-imports: true
+
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
 # /commands (required)
@@ -101,6 +108,55 @@ on:
     # This field supports multiple formats (oneOf):
 
     # Option 1: Single command name for slash commands (e.g., 'helper-bot' for
+    # '/helper-bot' triggers). Command names must not start with '/' as the slash is
+    # automatically added when matching commands. Defaults to workflow filename
+    # without .md extension if not specified.
+    name: "My Workflow"
+
+    # Option 2: Array of command names that trigger this workflow (e.g., ['cmd.add',
+    # 'cmd.remove'] for '/cmd.add' and '/cmd.remove' triggers). Each command name must
+    # not start with '/'.
+    name: []
+      # Array items: Command name without leading slash
+
+    # Events where the command should be active. Default is all comment-related events
+    # ('*'). Use GitHub Actions event names.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single event name or '*' for all events. Use GitHub Actions event
+    # names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request',
+    # 'pull_request_review_comment', 'discussion', 'discussion_comment'.
+    events: "*"
+
+    # Option 2: Array of event names where the command should be active (requires at
+    # least one). Use GitHub Actions event names.
+    events: []
+      # Array items: GitHub Actions event name.
+
+  # DEPRECATED: Use 'slash_command' instead. Special command trigger for /command
+  # workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash
+  # commands automatically.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Null command configuration - defaults to using the workflow filename
+  # (without .md extension) as the command name
+  command: null
+
+  # Option 2: Command name as a string (shorthand format, e.g., 'customname' for
+  # '/customname' triggers). Command names must not start with '/' as the slash is
+  # automatically added when matching commands.
+  command: "example-value"
+
+  # Option 3: Command configuration object with custom command name
+  command:
+    # Name of the slash command that triggers the workflow (e.g., '/deploy', '/test').
+    # Used for command-based workflow activation.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Custom command name for slash commands (e.g., 'helper-bot' for
     # '/helper-bot' triggers). Command names must not start with '/' as the slash is
     # automatically added when matching commands. Defaults to workflow filename
     # without .md extension if not specified.
@@ -537,6 +593,62 @@ on:
     # (optional)
     min: 1
 
+  # Skip workflow execution for users with specific repository roles. Useful for
+  # workflows that should only run for external contributors or specific permission
+  # levels.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Single role to skip workflow for (e.g., 'admin'). If the triggering
+  # user has this role, the workflow will be skipped.
+  skip-roles: "example-value"
+
+  # Option 2: List of roles to skip workflow for (e.g., ['admin', 'maintainer',
+  # 'write']). If the triggering user has any of these roles, the workflow will be
+  # skipped.
+  skip-roles: []
+    # Array items: string
+
+  # Skip workflow execution for specific GitHub users. Useful for preventing
+  # workflows from running for specific accounts (e.g., bots, specific team
+  # members).
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Single GitHub username to skip workflow for (e.g., 'user1'). If the
+  # triggering user matches, the workflow will be skipped.
+  skip-bots: "example-value"
+
+  # Option 2: List of GitHub usernames to skip workflow for (e.g., ['user1',
+  # 'user2']). If the triggering user is in this list, the workflow will be skipped.
+  skip-bots: []
+    # Array items: string
+
+  # Repository access roles required to trigger agentic workflows. Defaults to
+  # ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any
+  # authenticated user (⚠️ security consideration).
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Allow any authenticated user to trigger the workflow (⚠️ disables
+  # permission checking entirely - use with caution)
+  roles: "all"
+
+  # Option 2: List of repository permission levels that can trigger the workflow.
+  # Permission checks are automatically applied to potentially unsafe triggers.
+  roles: []
+    # Array items: Repository permission level: 'admin' (full access),
+    # 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage'
+    # (issue management)
+
+  # Allow list of bot identifiers that can trigger the workflow even if they don't
+  # meet the required role permissions. When the actor is in this list, the bot must
+  # be active (installed) on the repository to trigger the workflow.
+  # (optional)
+  bots: []
+    # Array of Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]',
+    # 'github-actions[bot]')
+
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)
@@ -554,6 +666,14 @@ on:
   # Option 2: YAML parses +1 and -1 without quotes as integers. These are converted
   # to +1 and -1 strings respectively.
   reaction: 1
+
+  # Whether to post status comments (started/completed) on the triggering item. When
+  # true, adds a comment with workflow run link and updates it on completion. When
+  # false or not specified, no status comments are posted. Must be explicitly set to
+  # true to enable status comments - there is no automatic bundling with
+  # ai-reaction.
+  # (optional)
+  status-comment: true
 
 # GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can
 # access during execution. Use the principle of least privilege - only grant the
@@ -598,10 +718,11 @@ permissions:
   # (optional)
   discussions: "read"
 
-  # Permission level for OIDC token requests (read/write/none). Allows workflows to
-  # request JWT tokens for cloud provider authentication.
+  # Permission level for OIDC token requests (write/none only - read is not
+  # supported). Allows workflows to request JWT tokens for cloud provider
+  # authentication.
   # (optional)
-  id-token: "read"
+  id-token: "write"
 
   # Permission for repository issues (read: view issues, write: create/update/close
   # issues, none: no access)
@@ -756,9 +877,21 @@ env: "example-value"
 features:
   {}
 
+# DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom
+# agent should infer additional context from the conversation. This field is
+# maintained for backward compatibility with existing custom agent files.
+# (optional)
+infer: true
+
+# Controls whether the custom agent should disable model invocation. When set to
+# true, the agent will not make additional model calls. This is the preferred
+# field name for custom agent files (replaces the deprecated 'infer' field).
+# (optional)
+disable-model-invocation: true
+
 # Secret values passed to workflow execution. Secrets can be defined as simple
 # strings (GitHub Actions expressions) or objects with 'value' and 'description'
-# properties. Typically used to provide secrets to MCP servers or workflow components.
+# properties. Typically used to provide secrets to MCP servers or custom engines.
 # Note: For passing secrets to reusable workflows, use the jobs.<job_id>.secrets
 # field instead.
 # (optional)
@@ -831,7 +964,13 @@ services:
 
 # Network access control for AI engines using ecosystem identifiers and domain
 # allowlists. Supports wildcard patterns like '*.example.com' to match any
-# subdomain. Controls web fetch and search capabilities.
+# subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows
+# that build/install/test code, always include the language ecosystem identifier
+# alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not
+# package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet),
+# 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java'
+# (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a
+# .NET project needs network: { allowed: [defaults, dotnet] }.
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -849,7 +988,13 @@ network:
   allowed: []
     # Array of Domain name or ecosystem identifier. Supports wildcards like
     # '*.example.com' (matches sub.example.com, deep.nested.example.com, and
-    # example.com itself) and ecosystem names like 'python', 'node'.
+    # example.com itself). Ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet),
+    # 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java'
+    # (Maven/Gradle), 'ruby' (RubyGems), 'rust' (Cargo), 'swift' (Swift PM), 'php'
+    # (Composer), 'dart' (pub.dev), 'haskell' (Hackage), 'perl' (CPAN), 'containers'
+    # (Docker/GHCR), 'github' (GitHub domains), 'terraform' (HashiCorp),
+    # 'linux-distros' (apt/yum), 'playwright' (browser testing), 'defaults' (basic
+    # infrastructure).
 
   # List of blocked domains or ecosystem identifiers (e.g., 'python', 'node',
   # 'tracker.example.com'). Blocked domains take precedence over allowed domains.
@@ -859,50 +1004,62 @@ network:
     # '*.example.com' (matches sub.example.com, deep.nested.example.com, and
     # example.com itself) and ecosystem names like 'python', 'node'.
 
-# Sandbox configuration for AI engines. Controls coding agent sandbox (AWF or Sandbox
-# Runtime) and MCP gateway. The MCP gateway is always enabled and cannot be
-# disabled.
+# Sandbox configuration for AI engines. Controls agent sandbox (AWF) and MCP
+# gateway. The MCP gateway is always enabled and cannot be disabled.
 # (optional)
 # This field supports multiple formats (oneOf):
+
+# Option 1: String format for sandbox type: 'default' for no sandbox, 'awf' for
+# Agent Workflow Firewall. Note: Legacy 'srt' and 'sandbox-runtime' values are
+# automatically migrated to 'awf'
+sandbox: "default"
 
 # Option 2: Object format for full sandbox configuration with agent and mcp
 # options
 sandbox:
-  # Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses
-  # Anthropic Sandbox Runtime, or false to disable coding agent sandbox. Defaults to 'awf'
-  # if not specified. Note: Disabling the coding agent sandbox (false) removes firewall
-  # protection but keeps the MCP gateway enabled.
+  # Legacy sandbox type field (use agent instead). Note: Legacy 'srt' and
+  # 'sandbox-runtime' values are automatically migrated to 'awf'
+  # (optional)
+  type: "default"
+
+  # Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to
+  # disable agent sandbox. Defaults to 'awf' if not specified. Note: Disabling the
+  # agent sandbox (false) removes firewall protection but keeps the MCP gateway
+  # enabled.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Set to false to disable the coding agent sandbox (firewall). Warning: This
+  # Option 1: Set to false to disable the agent sandbox (firewall). Warning: This
   # removes firewall protection but keeps the MCP gateway enabled. Not allowed in
   # strict mode.
   agent: true
 
-  # Option 2: Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox
-  # Runtime
+  # Option 2: Sandbox type: 'awf' for Agent Workflow Firewall
   agent: "awf"
 
   # Option 3: Custom sandbox runtime configuration
   agent:
     # Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow
-    # Firewall, 'srt' for Sandbox Runtime
+    # Firewall
     # (optional)
     id: "awf"
 
-    # Custom command to replace the default AWF or SRT installation. For AWF: 'docker
-    # run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'
+    # Legacy: Sandbox type to use (use 'id' instead)
+    # (optional)
+    type: "awf"
+
+    # Custom command to replace the default AWF installation. For AWF: 'docker run
+    # my-custom-awf-image'
     # (optional)
     command: "example-value"
 
-    # Additional arguments to append to the command (applies to both AWF and SRT, for
-    # standard and custom commands)
+    # Additional arguments to append to the command (applies to AWF, for standard and
+    # custom commands)
     # (optional)
     args: []
       # Array of strings
 
-    # Environment variables to set on the execution step (applies to both AWF and SRT)
+    # Environment variables to set on the execution step (applies to AWF)
     # (optional)
     env:
       {}
@@ -914,8 +1071,8 @@ sandbox:
     mounts: []
       # Array of Mount specification in format 'source:destination:mode'
 
-    # Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note:
-    # Network configuration is controlled by the top-level 'network' field, not here.
+    # Custom sandbox runtime configuration. Note: Network configuration is controlled
+    # by the top-level 'network' field, not here.
     # (optional)
     config:
       # Filesystem access control configuration for the agent within the sandbox.
@@ -945,6 +1102,43 @@ sandbox:
       # Enable weaker nested sandbox mode (recommended: true for Docker access)
       # (optional)
       enableWeakerNestedSandbox: true
+
+  # Legacy custom Sandbox Runtime configuration (use agent.config instead). Note:
+  # Network configuration is controlled by the top-level 'network' field, not here.
+  # (optional)
+  config:
+    # Filesystem access control configuration for sandboxed workflows. Controls
+    # read/write permissions and path restrictions for file operations.
+    # (optional)
+    filesystem:
+      # Array of path patterns that deny read access in the sandboxed environment. Takes
+      # precedence over other read permissions.
+      # (optional)
+      denyRead: []
+        # Array of strings
+
+      # Array of path patterns that allow write access in the sandboxed environment.
+      # Paths outside these patterns are read-only.
+      # (optional)
+      allowWrite: []
+        # Array of strings
+
+      # Array of path patterns that deny write access in the sandboxed environment.
+      # Takes precedence over other write permissions.
+      # (optional)
+      denyWrite: []
+        # Array of strings
+
+    # When true, log sandbox violations without blocking execution. Useful for
+    # debugging and gradual enforcement of sandbox policies.
+    # (optional)
+    ignoreViolations:
+      {}
+
+    # When true, allows nested sandbox processes to run with relaxed restrictions.
+    # Required for certain containerized tools that spawn subprocesses.
+    # (optional)
+    enableWeakerNestedSandbox: true
 
   # MCP Gateway configuration for routing MCP server calls through a unified HTTP
   # gateway. Requires the 'mcp-gateway' feature flag to be enabled. Per MCP Gateway
@@ -1058,14 +1252,15 @@ post-steps: []
 # This field supports multiple formats (oneOf):
 
 # Option 1: Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub
-# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)
+# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'gemini' (Google Gemini CLI -
+# experimental)
 engine: "claude"
 
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
   # AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI),
-  # 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)
+  # 'copilot' (GitHub Copilot CLI), or 'gemini' (Google Gemini CLI - experimental)
   id: "claude"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
@@ -1129,12 +1324,6 @@ engine:
   # (optional)
   env:
     {}
-
-  # Custom GitHub Actions steps for extended engine configuration. Define additional
-  # workflow steps to run alongside AI processing.
-  # (optional)
-  steps: []
-    # Array items:
 
   # Custom error patterns for validating agent logs
   # (optional)
@@ -1272,10 +1461,8 @@ tools:
       # (optional)
       owner: "example-value"
 
-      # Optional list of repositories to grant access to. Supports three modes:
-      # - ["*"] for org-wide access (all repos in the installation)
-      # - ["repo1", "repo2"] for specific repositories only
-      # - Empty/omit for current repository only (default)
+      # Optional list of repositories to grant access to (defaults to current repository
+      # if not specified)
       # (optional)
       repositories: []
         # Array of strings
@@ -1370,7 +1557,7 @@ tools:
     args: []
       # Array of strings
 
-  # GH-AW as an MCP server for workflow introspection and analysis.
+  # GitHub Agentic Workflows MCP server for workflow introspection and analysis.
   # Provides tools for checking status, compiling workflows, downloading logs, and
   # auditing runs.
   # (optional)
@@ -1681,6 +1868,10 @@ cache:
   # (optional)
   lookup-only: true
 
+  # Optional custom name for the cache step (overrides auto-generated name)
+  # (optional)
+  name: "My Workflow"
+
 # Option 2: Multiple cache configurations
 cache: []
   # Array items: object
@@ -1802,19 +1993,53 @@ safe-outputs:
   # Option 2: Enable issue creation with default configuration
   create-issue: null
 
-  # Enable creation of GitHub Copilot coding agent tasks from workflow output. Allows
-  # workflows to spawn new agent sessions for follow-up work.
+  # Enable creation of GitHub Copilot coding agent tasks from workflow output.
+  # Allows workflows to spawn new agent sessions for follow-up work.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Enable creation of GitHub Copilot coding agent sessions from workflow output. Allows
-  # workflows to start interactive agent conversations.
+  # Option 1: DEPRECATED: Use 'create-agent-session' instead. Configuration for
+  # creating GitHub Copilot coding agent sessions from agentic workflow output using
+  # gh agent-task CLI. The main job does not need write permissions.
+  create-agent-task:
+    # Base branch for the agent session pull request. Defaults to the current branch
+    # or repository default branch.
+    # (optional)
+    base: "example-value"
+
+    # Maximum number of agent sessions to create (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository agent session
+    # creation. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that agent sessions can
+    # be created in. When specified, the agent can use a 'repo' field in the output to
+    # specify which repository to create the agent session in. The target repository
+    # (current or target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable agent session creation with default configuration
+  create-agent-task: null
+
+  # Enable creation of GitHub Copilot coding agent sessions from workflow output.
+  # Allows workflows to start interactive agent conversations.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Configuration for creating GitHub Copilot coding agent sessions from agentic
-  # workflow output using gh agent-task CLI. The main job does not need write
-  # permissions.
+  # Option 1: Configuration for creating GitHub Copilot coding agent sessions from
+  # agentic workflow output using gh agent-task CLI. The main job does not need
+  # write permissions.
   create-agent-session:
     # Base branch for the agent session pull request. Defaults to the current branch
     # or repository default branch.
@@ -2302,6 +2527,11 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # If true, emit step summary messages instead of making GitHub API calls for this
+    # specific output type (preview mode)
+    # (optional)
+    staged: true
+
   # Option 2: Enable pull request closing with default configuration
   close-pull-request: null
 
@@ -2388,6 +2618,13 @@ safe-outputs:
     allowed-reasons: []
       # Array of strings
 
+    # Controls whether the workflow requests discussions:write permission for
+    # add-comment. Default: true (includes discussions:write). Set to false if your
+    # GitHub App lacks Discussions permission to prevent 422 errors during token
+    # generation.
+    # (optional)
+    discussions: true
+
   # Option 2: Enable issue comment creation with default configuration
   add-comment: null
 
@@ -2397,11 +2634,13 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for creating GitHub pull requests from agentic workflow
-  # output. Note: The max parameter is not supported for pull requests - workflows
-  # are always limited to creating 1 pull request per run. This design decision
-  # prevents workflow runs from creating excessive PRs and maintains repository
-  # integrity.
+  # output. Supports creating multiple PRs in a single run when max > 1.
   create-pull-request:
+    # Maximum number of pull requests to create (default: 1). Each PR requires
+    # distinct changes on a separate branch.
+    # (optional)
+    max: 1
+
     # Optional prefix for the pull request title
     # (optional)
     title-prefix: "example-value"
@@ -2488,9 +2727,8 @@ safe-outputs:
     # (optional)
     auto-merge: true
 
-    # Base branch for the pull request. Defaults to the PR target branch
-    # (github.base_ref) in pull request contexts, or the triggering branch
-    # (github.ref_name) for push events. Useful for cross-repository PRs targeting
+    # Base branch for the pull request. Defaults to the workflow's branch
+    # (github.ref_name) if not specified. Useful for cross-repository PRs targeting
     # non-default branches (e.g., 'vnext', 'release/v1.0').
     # (optional)
     base-branch: "example-value"
@@ -2568,15 +2806,27 @@ safe-outputs:
     # (optional)
     max: 1
 
-    # Target PR for the review: 'triggering' (default), '*' (any PR), or explicit PR number.
-    # Required when workflow is not triggered by a pull request (e.g. workflow_dispatch).
+    # Controls when AI-generated footer is added to the review body. Accepts boolean
+    # (true/false) or string ('always', 'none', 'if-body'). The 'if-body' mode is
+    # useful for clean approval reviews without body text. Defaults to 'always'.
     # (optional)
-    target: "triggering"
+    # This field supports multiple formats (oneOf):
 
-    # Controls whether AI-generated footer is added to the review body. When false,
-    # the footer is omitted. Defaults to true.
-    # (optional)
+    # Option 1: Controls whether AI-generated footer is added to the review body. true
+    # maps to 'always', false maps to 'none'.
     footer: true
+
+    # Option 2: Controls when AI-generated footer is added to the review body:
+    # 'always' (default), 'none' (never), or 'if-body' (only when review has body
+    # text).
+    footer: "always"
+
+    # Target PR for the review: 'triggering' (default, current PR), '*' (any PR,
+    # requires pull_request_number in agent output), or explicit PR number (e.g. ${{
+    # github.event.inputs.pr_number }}). Required when workflow is not triggered by a
+    # pull request (e.g. workflow_dispatch).
+    # (optional)
+    target: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -2708,6 +2958,13 @@ safe-outputs:
     allowed: []
       # Array of strings
 
+    # Optional list of blocked label patterns (supports glob patterns like '~*',
+    # '*[bot]'). Labels matching these patterns will be rejected. Applied before
+    # allowed list filtering for security.
+    # (optional)
+    blocked: []
+      # Array of strings
+
     # Optional maximum number of labels to add (default: 3)
     # (optional)
     max: 1
@@ -2749,6 +3006,13 @@ safe-outputs:
     # be removed.
     # (optional)
     allowed: []
+      # Array of strings
+
+    # Optional list of blocked label patterns (supports glob patterns like '~*',
+    # '*[bot]'). Labels matching these patterns will be rejected. Applied before
+    # allowed list filtering for security.
+    # (optional)
+    blocked: []
       # Array of strings
 
     # Optional maximum number of labels to remove (default: 3)
@@ -2849,23 +3113,23 @@ safe-outputs:
   assign-to-agent:
     # Default agent name to assign (default: 'copilot')
     # (optional)
-    name: "copilot"
+    name: "My Workflow"
 
     # Default AI model to use for the agent (e.g., 'auto', 'claude-sonnet-4.5',
     # 'claude-opus-4.5', 'claude-opus-4.6', 'gpt-5.1-codex-max', 'gpt-5.2-codex').
     # Defaults to 'auto' if not specified.
     # (optional)
-    model: "claude-opus-4.6"
+    model: "example-value"
 
     # Default custom agent ID to use when assigning custom agents. This is used for
     # specialized agent configurations beyond the standard Copilot agent.
     # (optional)
-    custom-agent: "agent-id"
+    custom-agent: "example-value"
 
     # Default custom instructions to provide to the agent. These instructions will
     # guide the agent's behavior when working on the task.
     # (optional)
-    custom-instructions: "Focus on performance optimization"
+    custom-instructions: "example-value"
 
     # Optional list of allowed agent names. If specified, only these agents can be
     # assigned. When configured, existing agent assignees not in the list are removed
@@ -2895,7 +3159,7 @@ safe-outputs:
     # issue (specified by target-repo or the workflow's repository). This allows
     # issues and code to live in different repositories.
     # (optional)
-    pull-request-repo: "owner/repo"
+    pull-request-repo: "example-value"
 
     # List of additional repositories that pull requests can be created in beyond
     # pull-request-repo. Each entry should be in 'owner/repo' format. The repository
@@ -2911,6 +3175,12 @@ safe-outputs:
     # assignment is optional.
     # (optional)
     ignore-if-error: true
+
+    # Base branch for pull request creation in the target repository. Defaults to the
+    # target repo's default branch. Only relevant when pull-request-repo is
+    # configured.
+    # (optional)
+    base-branch: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -2934,6 +3204,13 @@ safe-outputs:
     allowed: []
       # Array of strings
 
+    # Optional list of blocked usernames or patterns (e.g., 'copilot', '*[bot]').
+    # Users matching these patterns cannot be assigned. Supports exact matches and
+    # glob patterns.
+    # (optional)
+    blocked: []
+      # Array of strings
+
     # Optional maximum number of user assignments (default: 1)
     # (optional)
     max: 1
@@ -2947,6 +3224,11 @@ safe-outputs:
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # If true, unassign all current assignees before assigning new ones. Useful for
+    # reassigning issues from one user to another (default: false).
+    # (optional)
+    unassign-first: true
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -2968,6 +3250,13 @@ safe-outputs:
     # unassigned.
     # (optional)
     allowed: []
+      # Array of strings
+
+    # Optional list of blocked usernames or patterns (e.g., 'copilot', '*[bot]').
+    # Users matching these patterns cannot be unassigned. Supports exact matches and
+    # glob patterns.
+    # (optional)
+    blocked: []
       # Array of strings
 
     # Optional maximum number of unassignment operations (default: 1)
@@ -3079,6 +3368,11 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # Required prefix for issue title. Only issues with this title prefix can be
+    # updated.
+    # (optional)
+    title-prefix: "example-value"
+
   # Option 2: Enable issue updating with default configuration
   update-issue: null
 
@@ -3136,8 +3430,13 @@ safe-outputs:
   push-to-pull-request-branch: null
 
   # Option 2: Configuration for pushing changes to a specific branch from agentic
-  # workflow output
+  # workflow output. Supports pushing to multiple PRs in a single run when max > 1.
   push-to-pull-request-branch:
+    # Maximum number of push operations to perform (default: 1). Each push targets a
+    # different pull request branch.
+    # (optional)
+    max: 1
+
     # The branch to push changes to (defaults to 'triggering')
     # (optional)
     branch: "example-value"
@@ -3173,6 +3472,11 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # If true, emit step summary messages instead of making GitHub API calls for this
+    # specific output type (preview mode)
+    # (optional)
+    staged: true
+
   # Enable AI agents to minimize (hide) comments on issues or pull requests based on
   # relevance, spam detection, or moderation rules.
   # (optional)
@@ -3198,6 +3502,13 @@ safe-outputs:
     # (optional)
     allowed-reasons: []
       # Array of strings
+
+    # Controls whether the workflow requests discussions:write permission for
+    # hide-comment. Default: true (includes discussions:write). Set to false if your
+    # GitHub App lacks Discussions permission to prevent 422 errors during token
+    # generation.
+    # (optional)
+    discussions: true
 
   # Dispatch workflow_dispatch events to other workflows. Used by orchestrators to
   # delegate work to worker workflows with controlled maximum dispatch count.
@@ -3419,10 +3730,10 @@ safe-outputs:
     # (optional)
     owner: "example-value"
 
-    # Optional: List of repositories to grant access to. Supports three modes:
-    # - ["*"] for org-wide access (all repos in the installation)
-    # - ["repo1", "repo2"] for specific repositories only
-    # - Empty/omit for current repository only (default)
+    # Optional: Comma or newline-separated list of repositories to grant access to. If
+    # owner is set and repositories is empty, access will be scoped to all
+    # repositories in the provided repository owner's installation. If owner and
+    # repositories are empty, access will be scoped to only the current repository.
     # (optional)
     repositories: []
       # Array of strings
@@ -3539,6 +3850,18 @@ safe-outputs:
     # (optional)
     detection-failure: "example-value"
 
+    # Custom footer template for agent failure tracking issues. Available
+    # placeholders: {workflow_name}, {run_url}. Default: '> Agent failure tracked by
+    # [{workflow_name}]({run_url})'
+    # (optional)
+    agent-failure-issue: "example-value"
+
+    # Custom footer template for comments on agent failure tracking issues. Available
+    # placeholders: {workflow_name}, {run_url}. Default: '> Agent failure update from
+    # [{workflow_name}]({run_url})'
+    # (optional)
+    agent-failure-comment: "example-value"
+
     # When enabled, workflow completion notifier creates a new comment instead of
     # editing the activation comment. Creates an append-only timeline of workflow
     # runs. Default: false
@@ -3585,6 +3908,12 @@ safe-outputs:
   # (optional)
   footer: true
 
+  # When true, creates a parent '[agentics] Failed runs' issue that tracks all
+  # workflow failures as sub-issues. Helps organize failure tracking but may be
+  # unnecessary in smaller repositories. Defaults to false.
+  # (optional)
+  group-reports: true
+
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
   # 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See
@@ -3599,23 +3928,6 @@ secret-masking:
   # Use this to mask secrets in generated files using custom patterns.
   # (optional)
   steps: []
-
-# Repository access roles required to trigger agentic workflows. Defaults to
-# ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any
-# authenticated user (⚠️ security consideration).
-# (optional)
-# This field supports multiple formats (oneOf):
-
-# Option 1: Allow any authenticated user to trigger the workflow (⚠️ disables
-# permission checking entirely - use with caution)
-roles: "all"
-
-# Option 2: List of repository permission levels that can trigger the workflow.
-# Permission checks are automatically applied to potentially unsafe triggers.
-roles: []
-  # Array items: Repository permission level: 'admin' (full access),
-  # 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage'
-  # (issue management)
 
 # Allow list of bot identifiers that can trigger the workflow even if they don't
 # meet the required role permissions. When the actor is in this list, the bot must

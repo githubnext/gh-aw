@@ -166,7 +166,7 @@ process.stdin.on('end', () => {
         handlerPath,
         `#!/bin/bash
 echo "Shell says: $INPUT_NAME"
-echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
+echo "greeting=Hello from shell" >> "$GITHUB_OUTPUT"
 `,
         { mode: 0o755 }
       );
@@ -748,7 +748,7 @@ process.stdin.on('end', () => {
         echoShPath,
         `#!/bin/bash
 echo "Shell echo: $INPUT_MESSAGE"
-echo "result=Shell echo: $INPUT_MESSAGE" >> $GITHUB_OUTPUT
+echo "result=Shell echo: $INPUT_MESSAGE" >> "$GITHUB_OUTPUT"
 `,
         { mode: 0o755 }
       );

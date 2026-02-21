@@ -157,14 +157,14 @@ When a user requests capabilities beyond agentic workflows:
 
 **Correct response**:
 > 🚨 This requires multi-stage orchestration with waiting and cross-job state management, which agentic workflows don't support. Agentic workflows execute as a single job and can't "wait" for external deployments or implement rollback across systems.
-> 
+>
 > **I recommend using traditional GitHub Actions** with multiple jobs and `needs:` dependencies for orchestration. Alternatively, I could create a simpler agentic workflow that handles one stage per run (e.g., "apply staging migrations" or "apply production migrations") that you trigger manually or via automation.
-> 
+>
 > Which approach would you prefer?
 
 **Incorrect response** ❌:
 > Sure! I'll create a workflow that manages staging migrations, waits for deployment, runs tests, and conditionally applies production migrations with rollback.
-> 
+>
 > *(This overpromises capabilities that don't exist)*
 
 ## Learning from Reference Materials
@@ -198,7 +198,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
   - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
    - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
    - 🌐 **Always infer network ecosystem from repository language**: If the workflow involves package management, building, or testing code, detect the repository's primary language from file indicators and include the matching ecosystem identifier. **Never use `network: defaults` alone for code workflows** — `defaults` only provides basic infrastructure and cannot reach package registries. Key indicators:
-     - `.csproj`, `.fsproj`, `*.sln`, `global.json` → add `dotnet` (for `dotnet restore`, NuGet)
+     - `.csproj`, `.fsproj`, `*.sln`, `*.slnx`, `global.json` → add `dotnet` (for `dotnet restore`, NuGet)
      - `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` → add `python` (for pip/conda)
      - `package.json`, `yarn.lock`, `pnpm-lock.yaml` → add `node` (for npm/yarn/pnpm)
      - `go.mod`, `go.sum` → add `go` (for go module downloads)
@@ -409,17 +409,17 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 
    ✅ **Correct approach**:
    > I can create a web scraping workflow, but first: Have you checked if the target site has a public API or RSS feed? Scraping may violate their Terms of Service.
-   > 
+   >
    > **Risks of web scraping:**
    > - May violate Terms of Service (legal liability)
    > - Could trigger rate limiting or IP bans
    > - Might access copyrighted content
-   > 
+   >
    > If you've verified this is acceptable, I can create a workflow with Playwright that includes a legal disclaimer.
 
    ❌ **Incorrect approach**:
    > Sure! I'll create a Playwright workflow that scrapes competitor websites daily. It'll capture screenshots and store data. (Note: Check Terms of Service)
-   > 
+   >
    > *(Builds first, warns later - warning is buried)*
 
    **Correct tool snippets (reference):**
@@ -432,7 +432,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
        toolsets: [default]
    ```
 
-   ⚠️ **IMPORTANT**: 
+   ⚠️ **IMPORTANT**:
    - **Always use `toolsets:` for GitHub tools** - Use `toolsets: [default]` instead of manually listing individual tools.
    - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
@@ -460,7 +460,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
   **Advanced static analysis tools**:
   For advanced code analysis tasks, see `.github/aw/serena-tool.md` for when and how to use Serena language server.
 
-   ⚠️ **IMPORTANT - Default Tools (Sandboxed by Default)**: 
+   ⚠️ **IMPORTANT - Default Tools (Sandboxed by Default)**:
    - **Agentic workflows are sandboxed by the Agent Workflow Firewall (AWF)** - The agent runs in a secure, sandboxed environment with domain-based access control
    - **`edit` and `bash` are enabled by default** - No need to add explicitly since the agent is sandboxed
    - **`bash` defaults to `*` (all commands)** - All bash commands are available because the sandbox provides security isolation
@@ -584,7 +584,7 @@ Based on the parsed requirements, determine:
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
    - **Network ecosystem inference**: For workflows that build/test/install packages, always include the language ecosystem in `network: allowed:`. Never use `network: defaults` alone — it only covers basic infrastructure, not package registries. Detect from repository files:
-     - `.csproj`/`.fsproj`/`*.sln` → `network: { allowed: [defaults, dotnet] }` (NuGet)
+     - `.csproj`/`.fsproj`/`*.sln`/`*.slnx` → `network: { allowed: [defaults, dotnet] }` (NuGet)
      - `requirements.txt`/`pyproject.toml` → `network: { allowed: [defaults, python] }` (pip/PyPI)
      - `package.json` → `network: { allowed: [defaults, node] }` (npm/yarn)
      - `go.mod` → `network: { allowed: [defaults, go] }` (Go modules)

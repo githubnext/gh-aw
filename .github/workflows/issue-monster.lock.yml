@@ -229,7 +229,6 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
           GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: ${{ needs.search_issues.outputs.issue_count }}
           GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: ${{ needs.search_issues.outputs.issue_list }}
           GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ needs.search_issues.outputs.issue_numbers }}
@@ -254,7 +253,6 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND,
                 GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT: process.env.GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT,
                 GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST: process.env.GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST,
                 GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: process.env.GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS,
