@@ -25,7 +25,6 @@ safe-outputs:
     title-prefix: "[workflow-style] "
     labels: [cookie]
     max: 1
-    group: true
 imports:
   - shared/reporting.md
 ---
