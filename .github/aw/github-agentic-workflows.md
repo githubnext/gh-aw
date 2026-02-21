@@ -1443,24 +1443,36 @@ network: {}
 5. **Block specific domains**: `network: { blocked: ["tracking.com", "*.ads.com", ...] }` (deny-list)
 
 **Available Ecosystem Identifiers:**
-- `defaults`: Basic infrastructure (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
-- `containers`: Container registries (Docker Hub, GitHub Container Registry, Quay, etc.)
-- `dotnet`: .NET and NuGet ecosystem
-- `dart`: Dart and Flutter ecosystem
-- `github`: GitHub domains
-- `go`: Go ecosystem
-- `terraform`: HashiCorp and Terraform ecosystem
-- `haskell`: Haskell ecosystem
-- `java`: Java ecosystem (Maven Central, Gradle, etc.)
-- `linux-distros`: Linux distribution package repositories
-- `node`: Node.js and NPM ecosystem
-- `perl`: Perl and CPAN ecosystem
-- `php`: PHP and Composer ecosystem
-- `playwright`: Playwright testing framework domains
-- `python`: Python ecosystem (PyPI, Conda, etc.)
-- `ruby`: Ruby and RubyGems ecosystem
-- `rust`: Rust and Cargo ecosystem
-- `swift`: Swift and CocoaPods ecosystem
+
+Each ecosystem identifier enables network access to the domains required by that language's package manager and toolchain. When writing workflows that involve package management, builds, or tests, **always include the ecosystem identifier matching the repository's primary language** in addition to `defaults`.
+
+| Identifier | Runtimes / Languages | Package Manager / Domains |
+|---|---|---|
+| `defaults` | All (always include) | Certificates, JSON schema, Ubuntu mirrors, Microsoft sources |
+| `dotnet` | C#, F#, VB.NET | NuGet (`nuget.org`, `api.nuget.org`, `dotnetcli.blob.core.windows.net`, etc.) |
+| `python` | Python | pip, conda, PyPI (`pypi.org`, `files.pythonhosted.org`, `conda.anaconda.org`, etc.) |
+| `node` | Node.js, JavaScript, TypeScript | npm, yarn, pnpm (`registry.npmjs.org`, `yarnpkg.com`, etc.) |
+| `go` | Go | Go modules (`proxy.golang.org`, `sum.golang.org`, `pkg.go.dev`) |
+| `java` | Java, Kotlin, Scala, Groovy | Maven, Gradle (`repo1.maven.org`, `plugins.gradle.org`, etc.) |
+| `ruby` | Ruby | RubyGems, Bundler (`rubygems.org`, `gems.ruby-china.com`, etc.) |
+| `rust` | Rust | Cargo, crates.io (`crates.io`, `static.crates.io`) |
+| `swift` | Swift | Swift Package Manager, CocoaPods (`swiftpackageindex.com`, `cocoapods.org`) |
+| `php` | PHP | Composer, Packagist (`packagist.org`, `getcomposer.org`, etc.) |
+| `dart` | Dart, Flutter | pub.dev (`pub.dev`, `storage.googleapis.com`) |
+| `haskell` | Haskell | Hackage, Stack (`hackage.haskell.org`, `s3.amazonaws.com/haskell-platform`) |
+| `perl` | Perl | CPAN (`cpan.org`, `www.cpan.org`, `metacpan.org`) |
+| `terraform` | Terraform, OpenTofu | HashiCorp registry (`registry.terraform.io`, `releases.hashicorp.com`) |
+| `containers` | Docker, OCI | Docker Hub, GHCR, Quay (`registry.hub.docker.com`, `ghcr.io`, etc.) |
+| `github` | Any | GitHub domains (`github.com`, `api.github.com`, `objects.githubusercontent.com`, etc.) |
+| `linux-distros` | Any | apt, yum/dnf (`archive.ubuntu.com`, `packages.microsoft.com`, etc.) |
+| `playwright` | Any | Playwright browser automation (`playwright.azureedge.net`, etc.) |
+
+**Network Inference Rule:** When a workflow will run `dotnet restore`, `pip install`, `npm install`, `go mod download`, `mvn install`, etc., infer the ecosystem from the repository language and include it. Examples:
+- `.NET` repository (`.csproj`, `.fsproj`, `*.sln`) → `network: { allowed: [defaults, dotnet] }`
+- Python repository (`requirements.txt`, `pyproject.toml`) → `network: { allowed: [defaults, python] }`
+- Node.js repository (`package.json`) → `network: { allowed: [defaults, node] }`
+- Go repository (`go.mod`) → `network: { allowed: [defaults, go] }`
+- Java repository (`pom.xml`, `build.gradle`) → `network: { allowed: [defaults, java] }`
 
 ## Imports Field
 

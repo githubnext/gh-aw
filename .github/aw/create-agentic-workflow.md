@@ -197,6 +197,17 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
   - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
    - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
+   - 🌐 **Always infer network ecosystem from repository language**: If the workflow involves package management, building, or testing code, detect the repository's primary language from file indicators and include the matching ecosystem identifier. **Never use `network: defaults` alone for code workflows** — `defaults` only provides basic infrastructure and cannot reach package registries. Key indicators:
+     - `.csproj`, `.fsproj`, `*.sln`, `global.json` → add `dotnet` (for `dotnet restore`, NuGet)
+     - `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` → add `python` (for pip/conda)
+     - `package.json`, `yarn.lock`, `pnpm-lock.yaml` → add `node` (for npm/yarn/pnpm)
+     - `go.mod`, `go.sum` → add `go` (for go module downloads)
+     - `pom.xml`, `build.gradle`, `build.gradle.kts` → add `java` (for Maven/Gradle)
+     - `Gemfile`, `*.gemspec` → add `ruby` (for Bundler/RubyGems)
+     - `Cargo.toml`, `Cargo.lock` → add `rust` (for cargo)
+     - `Package.swift`, `*.podspec` → add `swift`
+     - `composer.json` → add `php`
+     - `pubspec.yaml` → add `dart`
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: all`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.
 
@@ -572,6 +583,14 @@ Based on the parsed requirements, determine:
    - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed)
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
+   - **Network ecosystem inference**: For workflows that build/test/install packages, always include the language ecosystem in `network: allowed:`. Never use `network: defaults` alone — it only covers basic infrastructure, not package registries. Detect from repository files:
+     - `.csproj`/`.fsproj`/`*.sln` → `network: { allowed: [defaults, dotnet] }` (NuGet)
+     - `requirements.txt`/`pyproject.toml` → `network: { allowed: [defaults, python] }` (pip/PyPI)
+     - `package.json` → `network: { allowed: [defaults, node] }` (npm/yarn)
+     - `go.mod` → `network: { allowed: [defaults, go] }` (Go modules)
+     - `pom.xml`/`build.gradle` → `network: { allowed: [defaults, java] }` (Maven/Gradle)
+     - `Gemfile` → `network: { allowed: [defaults, ruby] }` (Bundler)
+     - `Cargo.toml` → `network: { allowed: [defaults, rust] }` (Cargo)
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`

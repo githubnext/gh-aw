@@ -2167,7 +2167,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -2199,7 +2199,7 @@
               "description": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com'). Wildcard patterns match any subdomain AND the base domain.",
               "items": {
                 "type": "string",
-                "description": "Domain name or ecosystem identifier. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself) and ecosystem names like 'python', 'node'."
+                "description": "Domain name or ecosystem identifier. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself). Ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (RubyGems), 'rust' (Cargo), 'swift' (Swift PM), 'php' (Composer), 'dart' (pub.dev), 'haskell' (Hackage), 'perl' (CPAN), 'containers' (Docker/GHCR), 'github' (GitHub domains), 'terraform' (HashiCorp), 'linux-distros' (apt/yum), 'playwright' (browser testing), 'defaults' (basic infrastructure)."
               },
               "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions. Wildcard patterns like '*.example.com' are allowed; only standalone '*' is blocked in strict mode."
             },
