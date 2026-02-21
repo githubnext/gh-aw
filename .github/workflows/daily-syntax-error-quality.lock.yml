@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"43648c2639a5507ae65ca3f85c20e8cca36e03f22c9270cba75533d2cf9f4b30"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"dab397e4905cd616677ab556cadfab8af5fe1a9340d1be9198a6275868d7f70c"}
 
 name: "Daily Syntax Error Quality Check"
 "on":
@@ -302,7 +302,7 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           cache: true

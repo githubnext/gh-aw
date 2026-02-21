@@ -23,7 +23,7 @@ steps:
       if-no-files-found: warn
       retention-days: 30
 
-  - name: Upload source and data
+  - name: Upload source files and data
     if: always()
     uses: actions/upload-artifact@v6
     with:

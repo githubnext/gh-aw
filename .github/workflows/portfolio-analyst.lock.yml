@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"19bf0f7a723536c63f211541f608a82c59486fbf4cabdc532861440d1de9fe35"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"397d001014026e638c8c767818c6018bb9132905b1cf18bc181590718ef71bf2"}
 
 name: "Automated Portfolio Analyst"
 "on":
@@ -370,7 +370,7 @@ jobs:
           path: /tmp/gh-aw/python/charts/*.png
           retention-days: 30
       - if: always()
-        name: Upload source and data
+        name: Upload source files and data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn

@@ -32,7 +32,7 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 steps:
-  - name: Set up Go
+  - name: Setup Go
     uses: actions/setup-go@v5
     with:
       go-version-file: go.mod

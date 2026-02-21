@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"244119508a70dc04f680b417a85ee75f39c6a79cf47cc2bedba8ace519d48c16"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9741fe7866f3ef8519d9dd30f5727277632770190cba181167312c829dde60fe"}
 
 name: "Agentic Workflow Audit Agent"
 "on":
@@ -400,7 +400,7 @@ jobs:
           path: /tmp/gh-aw/python/charts/*.png
           retention-days: 30
       - if: always()
-        name: Upload source and data
+        name: Upload source files and data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn

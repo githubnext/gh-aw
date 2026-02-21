@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4e0ed5b542e18b21cc107dd54b9e332d04524f77fb33ac7e450135a173837396"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"14351a04a177f420011a4ab433ef82b6a70d137fa1739eba5516716784998d52"}
 
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
@@ -344,7 +344,7 @@ jobs:
           path: /tmp/gh-aw/python/charts/*.png
           retention-days: 30
       - if: always()
-        name: Upload source and data
+        name: Upload source files and data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn

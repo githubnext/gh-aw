@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8a38a8908d02c9ca24826a79d789561e88e4edfca4685cb9161825670862913f"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e7f085887671661c1f83eb7bf4ea672958e81a7894601c5ec0ad7f12da545835"}
 
 name: "Copilot Agent Prompt Clustering Analysis"
 "on":
@@ -373,7 +373,7 @@ jobs:
           path: /tmp/gh-aw/python/charts/*.png
           retention-days: 30
       - if: always()
-        name: Upload source and data
+        name: Upload source files and data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn

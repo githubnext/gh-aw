@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"beb6c434ca33dfce2b0061d8e45b416998cb09b1e5042a7b5ab3cbc771974a6d"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"04988c7ee68909305fc48414d69951b11bd8c641e5f7bc13b14fe36128bbb4f3"}
 
 name: "Stale Repository Identifier"
 "on":
@@ -375,7 +375,7 @@ jobs:
           path: /tmp/gh-aw/python/charts/*.png
           retention-days: 30
       - if: always()
-        name: Upload source and data
+        name: Upload source files and data
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn
