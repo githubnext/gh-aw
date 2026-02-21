@@ -44,7 +44,7 @@ safe-outputs:
     run-started: "🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}..."
     run-success: "🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️"
     run-failure: "🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party..."
-timeout-minutes: 10
+timeout-minutes: 20
 strict: true
 ---
 
