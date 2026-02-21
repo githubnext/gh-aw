@@ -22,6 +22,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -310,7 +311,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			}
 
 			fmt.Fprintf(&output, "│ %-26s │ %8d │ %10d │ %7.0fms │ %6d │\n",
-				truncateString(serverName, 26),
+				stringutil.Truncate(serverName, 26),
 				server.RequestCount,
 				server.ToolCallCount,
 				avgTime,
@@ -348,7 +349,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			for _, toolName := range toolNames {
 				tool := server.Tools[toolName]
 				fmt.Fprintf(&output, "│ %-24s │ %5d │ %6.0fms │ %6.0fms │ %8d │\n",
-					truncateString(toolName, 24),
+					stringutil.Truncate(toolName, 24),
 					tool.CallCount,
 					tool.AvgDuration,
 					tool.MaxDuration,
@@ -372,17 +373,6 @@ func getSortedServerNames(metrics *GatewayMetrics) []string {
 		return metrics.Servers[names[i]].RequestCount > metrics.Servers[names[j]].RequestCount
 	})
 	return names
-}
-
-// truncateString truncates a string to a maximum length
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 3 {
-		return s[:maxLen]
-	}
-	return s[:maxLen-3] + "..."
 }
 
 // extractMCPToolUsageData creates detailed MCP tool usage data from gateway metrics

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var mcpNetworkCodemodLog = logger.New("cli:codemod_mcp_network")
@@ -82,7 +83,7 @@ func getMCPNetworkMigrationCodemod() Codemod {
 			}
 
 			// Remove duplicates from collected domains
-			allAllowedDomains = uniqueStrings(allAllowedDomains)
+			allAllowedDomains = sliceutil.Deduplicate(allAllowedDomains)
 
 			// Parse frontmatter to get raw lines
 			frontmatterLines, markdown, err := parseFrontmatterLines(content)
@@ -129,7 +130,7 @@ func getMCPNetworkMigrationCodemod() Codemod {
 
 			// Merge existing and new domains, remove duplicates
 			mergedDomains := append(existingAllowed, allAllowedDomains...)
-			mergedDomains = uniqueStrings(mergedDomains)
+			mergedDomains = sliceutil.Deduplicate(mergedDomains)
 
 			// Add or update top-level network configuration
 			if hasTopLevelNetwork {
@@ -416,18 +417,5 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 		}
 	}
 
-	return result
-}
-
-// uniqueStrings removes duplicates from a string slice while preserving order
-func uniqueStrings(input []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-	for _, item := range input {
-		if !seen[item] {
-			seen[item] = true
-			result = append(result, item)
-		}
-	}
 	return result
 }

@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -111,8 +112,8 @@ func TestExtractHTTPMCPDomains(t *testing.T) {
 			result := extractHTTPMCPDomains(tt.tools)
 
 			// Sort both slices for comparison
-			SortStrings(result)
-			SortStrings(tt.expected)
+			sort.Strings(result)
+			sort.Strings(tt.expected)
 
 			assert.Equal(t, tt.expected, result, "Extracted domains should match expected")
 		})
@@ -289,8 +290,8 @@ func TestExtractPlaywrightDomains(t *testing.T) {
 			result := extractPlaywrightDomains(tt.tools)
 
 			// Sort both slices for comparison
-			SortStrings(result)
-			SortStrings(tt.expected)
+			sort.Strings(result)
+			sort.Strings(tt.expected)
 
 			assert.Equal(t, tt.expected, result, "Extracted Playwright domains should match expected")
 		})
