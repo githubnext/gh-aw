@@ -66,10 +66,21 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ steps.sanitized.outputs.text }}"
 - **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
+- **Git History Mode** (if workflow_dispatch): "${{ github.event.inputs.history }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
 
-**Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.
+**Note**:
+- **Topic precedence**: Use `workflow_dispatch` topic when present. Otherwise, derive topic from triggering content (for example `/scout ...`).
+- **History precedence**: Use `workflow_dispatch` history when present. Otherwise, default to `shallow` unless the triggering content explicitly requests full history (for example `history=full`).
+
+**Git History Handling**: If `Git History Mode` is `full`, fetch full history before doing any git-history analysis:
+
+```bash
+git fetch --unshallow --tags || git fetch --tags
+```
+
+If `Git History Mode` is `shallow` (or empty), keep default shallow history unless triggering content explicitly requests `history=full`, and avoid conclusions that require complete historical data.
 
 **Deep Research Agent**: This workflow imports the GitHub deep research agent repository, which provides additional tools and capabilities from `.github/agents/` and `.github/workflows/` for enhanced research functionality.
 
