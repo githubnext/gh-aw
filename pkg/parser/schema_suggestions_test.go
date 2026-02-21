@@ -436,3 +436,54 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 		})
 	}
 }
+
+// TestGenerateExampleFromSchemaWithExamples tests that schema examples array is preferred over generic fallback
+func TestGenerateExampleFromSchemaWithExamples(t *testing.T) {
+	tests := []struct {
+		name         string
+		schema       map[string]any
+		wantContains string
+	}{
+		{
+			name: "integer with examples uses first example",
+			schema: map[string]any{
+				"type":     "integer",
+				"minimum":  float64(1),
+				"examples": []any{float64(5), float64(10), float64(30)},
+			},
+			wantContains: "5",
+		},
+		{
+			name: "integer with default uses default",
+			schema: map[string]any{
+				"type":    "integer",
+				"default": float64(20),
+			},
+			wantContains: "20",
+		},
+		{
+			name: "integer without examples falls back to 42",
+			schema: map[string]any{
+				"type": "integer",
+			},
+			wantContains: "42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateExampleFromSchema(tt.schema)
+			if result == nil {
+				t.Errorf("Expected non-nil result")
+				return
+			}
+			exampleJSON, err := json.Marshal(result)
+			if err != nil {
+				t.Fatalf("Failed to marshal result: %v", err)
+			}
+			if !strings.Contains(string(exampleJSON), tt.wantContains) {
+				t.Errorf("Expected result to contain %q, got %s", tt.wantContains, string(exampleJSON))
+			}
+		})
+	}
+}

@@ -9,6 +9,27 @@ import (
 // atPathPattern matches "- at '/path': " or "at '/path': " prefixes in error messages
 var atPathPattern = regexp.MustCompile(`^-?\s*at '([^']*)': (.+)$`)
 
+// minConstraintPattern matches "minimum: got X, want Y" messages from the jsonschema library
+var minConstraintPattern = regexp.MustCompile(`^minimum: got (-?\d+(?:\.\d+)?), want (-?\d+(?:\.\d+)?)$`)
+
+// maxConstraintPattern matches "maximum: got X, want Y" messages from the jsonschema library
+var maxConstraintPattern = regexp.MustCompile(`^maximum: got (-?\d+(?:\.\d+)?), want (-?\d+(?:\.\d+)?)$`)
+
+// translateSchemaConstraintMessage rewrites jsonschema range-constraint messages into plain English.
+//
+// Examples:
+//   - "minimum: got -45, want 1" → "must be at least 1 (got -45)"
+//   - "maximum: got 120, want 60" → "must be at most 60 (got 120)"
+func translateSchemaConstraintMessage(message string) string {
+	if m := minConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
+		return fmt.Sprintf("must be at least %s (got %s)", m[2], m[1])
+	}
+	if m := maxConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
+		return fmt.Sprintf("must be at most %s (got %s)", m[2], m[1])
+	}
+	return message
+}
+
 // cleanJSONSchemaErrorMessage removes unhelpful prefixes from jsonschema validation errors
 func cleanJSONSchemaErrorMessage(errorMsg string) string {
 	// Split the error message into lines
