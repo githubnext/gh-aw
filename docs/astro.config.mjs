@@ -243,7 +243,7 @@ export default defineConfig({
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
-				{ label: 'Compiler Playground', link: '/editor/' },
+				{ label: 'Editors', link: '/reference/editors/' },
 			],
 		}),
 	],

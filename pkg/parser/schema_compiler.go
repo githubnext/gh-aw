@@ -263,13 +263,21 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					// Use the same sanitized path
 					if content, readErr := os.ReadFile(cleanPath); readErr == nil {
 						allLines := strings.Split(string(content), "\n")
-						// Create context around the adjusted line (±3 lines)
-						// The console formatter expects context to be centered around the error line
-						contextSize := 7                                     // ±3 lines around the error
-						contextStart := max(0, adjustedLine-contextSize/2-1) // -1 for 0-based indexing
-						contextEnd := min(len(allLines), contextStart+contextSize)
+						// Create context around the adjusted line (±3 lines).
+						// renderContext expects context[0] to map to line (adjustedLine - contextSize/2),
+						// so we must pad the beginning with empty strings for lines before the file starts.
+						contextSize := 7 // ±3 lines around the error
+						expectedFirstLine := adjustedLine - contextSize/2
+						fileStart := max(0, expectedFirstLine-1) // 0-indexed, clamped to file start
 
-						for i := contextStart; i < contextEnd; i++ {
+						// Pad with empty strings for lines that are before the file
+						for lineNum := expectedFirstLine; lineNum < 1; lineNum++ {
+							adjustedContextLines = append(adjustedContextLines, "")
+						}
+
+						// Add real lines from the file
+						fileEnd := min(len(allLines), fileStart+contextSize-len(adjustedContextLines))
+						for i := fileStart; i < fileEnd; i++ {
 							adjustedContextLines = append(adjustedContextLines, allLines[i])
 						}
 					}
@@ -353,6 +361,11 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	}
 
 	message := rewriteAdditionalPropertiesError(cleanOneOfMessage(pathInfo.Message))
+	// Strip any "at '/path': " prefix from the message to avoid duplication with the
+	// "at 'path' (line N, column M):" prefix we prepend below.
+	message = stripAtPathPrefix(message)
+	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
+	message = translateSchemaConstraintMessage(message)
 	suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
 	if suggestions != "" {
 		message = message + ". " + suggestions

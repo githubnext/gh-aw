@@ -367,6 +367,13 @@ func generateExampleFromSchema(schema map[string]any) any {
 		}
 		return "string"
 	case "number", "integer":
+		// Prefer schema-provided examples over the generic fallback value
+		if examples, ok := schema["examples"].([]any); ok && len(examples) > 0 {
+			return examples[0]
+		}
+		if defaultVal, ok := schema["default"]; ok {
+			return defaultVal
+		}
 		return 42
 	case "boolean":
 		return true

@@ -7,6 +7,7 @@ sidebar:
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 import Video from '../../../components/Video.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 **⏱️ Estimated time: 5-15 minutes** depending on complexity
 
@@ -22,13 +23,38 @@ from the Web Interface. This technique is slow and non-interactive
 but it is incredibly useful to turn an idea to reality in a couple minutes. 
 For a more fine grained, interactive experience we recommend using a coding agent (see next section).
 
-Use this Agent Session task in your repository.
+Use one of these prompts in your repository.
 
-```markdown wrap
-Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+<Tabs>
+  <TabItem label="Issue Triage">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
 
-The purpose of the workflow is triage issues.
-```
+    The purpose of the workflow is to triage new issues: label them by type and priority, identify duplicates, ask clarifying questions when the description is unclear, and assign them to the right team members.
+    ```
+  </TabItem>
+  <TabItem label="Activity Report">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is a daily report on recent activity in the repository, delivered as an issue. The report should summarize new issues, pull requests merged, and any open blockers.
+    ```
+  </TabItem>
+  <TabItem label="Documentation Updater">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is to run daily and keep the repository documentation up to date: identify doc files that are out of sync with recent code changes and open a pull request with the necessary updates.
+    ```
+  </TabItem>
+  <TabItem label="AGENTS.md Maintainer">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is to run weekly and maintain the AGENTS.md file: review merged pull requests and updated source files since the last run, then open a pull request that keeps AGENTS.md accurate and current.
+    ```
+  </TabItem>
+</Tabs>
 
 <Video
    src="/gh-aw/videos/create-workflow-on-github.mp4"
