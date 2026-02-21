@@ -553,7 +553,7 @@ async function processUrlImport(url, optional, startLine, endLine) {
 
   // Check for front matter and warn
   if (hasFrontMatter(content)) {
-    core.warning(`URL ${url} contains front matter which will be ignored in runtime import`);
+    core.debug(`URL ${url} contains front matter which will be ignored in runtime import`);
     // Remove front matter (everything between first --- and second ---)
     const lines = content.split("\n");
     let inFrontMatter = false;
@@ -814,7 +814,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 
   // Check for front matter and warn
   if (hasFrontMatter(content)) {
-    core.warning(`File ${filepath} contains front matter which will be ignored in runtime import`);
+    core.debug(`File ${filepath} contains front matter which will be ignored in runtime import`);
     // Remove front matter (everything between first --- and second ---)
     const lines = content.split("\n");
     let inFrontMatter = false;

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
+const core = { info: vi.fn(), warning: vi.fn(), debug: vi.fn(), setFailed: vi.fn() };
 global.core = core;
 const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros, isSafeExpression, evaluateExpression } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
@@ -365,14 +365,14 @@ describe("runtime_import", () => {
           const result = await processRuntimeImport("missing.md", !0, tempDir);
           (expect(result).toBe(""), expect(core.warning).toHaveBeenCalledWith("Optional runtime import file not found: workflows/missing.md"));
         }),
-        it("should remove front matter and warn", async () => {
+        it("should remove front matter and log debug message", async () => {
           const filepath = "with-frontmatter.md";
           fs.writeFileSync(path.join(workflowsDir, filepath), "---\ntitle: Test\nkey: value\n---\n\n# Content\n\nActual content.");
           const result = await processRuntimeImport(filepath, !1, tempDir);
           (expect(result).toContain("# Content"),
             expect(result).toContain("Actual content."),
             expect(result).not.toContain("title: Test"),
-            expect(core.warning).toHaveBeenCalledWith(`File workflows/${filepath} contains front matter which will be ignored in runtime import`));
+            expect(core.debug).toHaveBeenCalledWith(`File workflows/${filepath} contains front matter which will be ignored in runtime import`));
         }),
         it("should remove XML comments", async () => {
           fs.writeFileSync(path.join(workflowsDir, "with-comments.md"), "# Title\n\n\x3c!-- This is a comment --\x3e\n\nContent here.");
