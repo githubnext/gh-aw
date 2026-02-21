@@ -226,6 +226,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "GEMINI_API_KEY:", "Should include GEMINI_API_KEY")
 		assert.Contains(t, stepContent, "GH_AW_PROMPT:", "Should include GH_AW_PROMPT")
 		assert.Contains(t, stepContent, "GITHUB_WORKSPACE:", "Should include GITHUB_WORKSPACE")
+		assert.Contains(t, stepContent, "DEBUG: gemini-cli:*", "Should include DEBUG env var for verbose diagnostics")
 	})
 
 	t.Run("model environment variables", func(t *testing.T) {

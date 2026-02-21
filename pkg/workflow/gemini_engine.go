@@ -236,6 +236,11 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GEMINI_API_KEY":   "${{ secrets.GEMINI_API_KEY }}",
 		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		// Enable verbose debug logging from Gemini CLI for better diagnostics.
+		// Gemini CLI uses the npm 'debug' package, and 'gemini-cli:*' enables all
+		// internal Gemini CLI debug channels (see: https://gemini-cli-docs.pages.dev/cli/configuration).
+		// Non-JSON debug lines are gracefully skipped by ParseLogMetrics.
+		"DEBUG": "gemini-cli:*",
 	}
 
 	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
