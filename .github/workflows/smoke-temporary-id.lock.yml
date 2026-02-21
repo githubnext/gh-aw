@@ -23,13 +23,13 @@
 #
 # Test temporary ID functionality for issue chaining and cross-references
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f46a58f33696edf01bd0c1ccaee894ad70f95bdf8d269b6839744eb8bae08357"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"669a1ba6fd2a05698a484015dba9bd90e4e86618d0825ffa1228e9d67d34103f"}
 
 name: "Smoke Temporary ID"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
+    # - water # Label filtering applied via job conditions
     types:
     - labeled
   workflow_dispatch: null
@@ -47,7 +47,7 @@ jobs:
     needs: pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1222,7 +1222,7 @@ jobs:
   pre_activation:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'water')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
