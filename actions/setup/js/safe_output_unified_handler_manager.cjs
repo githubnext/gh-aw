@@ -169,7 +169,7 @@ function loadConfig() {
 async function setupProjectGitHubClient() {
   const projectToken = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
   if (!projectToken) {
-    throw new Error(`${ERR_CONFIG}: GH_AW_PROJECT_GITHUB_TOKEN environment variable is required for project-related safe outputs. " + "Configure a GitHub token with Projects permissions in your workflow secrets.`);
+    throw new Error(`${ERR_CONFIG}: GH_AW_PROJECT_GITHUB_TOKEN environment variable is required for project-related safe outputs. Configure a GitHub token with Projects permissions in your workflow secrets.`);
   }
 
   core.info("Setting up separate Octokit client for project handlers with GH_AW_PROJECT_GITHUB_TOKEN");

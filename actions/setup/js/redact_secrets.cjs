@@ -8,6 +8,8 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 /**
  * Recursively finds all files matching the specified extensions
  * @param {string} dir - Directory to search
@@ -219,8 +221,5 @@ async function main() {
     core.setFailed(`${ERR_VALIDATION}: Secret redaction failed: ${getErrorMessage(error)}`);
   }
 }
-
-const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 module.exports = { main, redactSecrets, redactBuiltInPatterns, BUILT_IN_PATTERNS };
