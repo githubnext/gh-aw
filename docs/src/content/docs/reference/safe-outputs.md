@@ -675,12 +675,12 @@ safe-outputs:
     expires: 14                   # auto-close after 14 days (same-repo only)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
     target-repo: "owner/repo"     # cross-repository
-    base-branch: "vnext"          # target branch for PR (default: github.ref_name)
+    base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
     fallback-as-issue: false      # disable issue fallback (default: true)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to the workflow's branch (`github.ref_name`).
+The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
 
 **Example use case:** A workflow in `org/engineering` that creates PRs in `org/docs` targeting the `vnext` branch for feature documentation:
 

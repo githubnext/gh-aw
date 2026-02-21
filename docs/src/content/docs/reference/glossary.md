@@ -107,7 +107,7 @@ A safe output capability for uploading generated files (screenshots, charts, rep
 
 ### Base Branch
 
-Configuration field in the `create-pull-request` safe output specifying which branch the pull request should target. Defaults to `github.ref_name` if not specified. Useful for cross-repository pull requests targeting non-default branches.
+Configuration field in the `create-pull-request` safe output specifying which branch the pull request should target. Defaults to `github.base_ref || github.ref_name` if not specified. Useful for cross-repository pull requests targeting non-default branches.
 
 ### Minimize Comment
 
