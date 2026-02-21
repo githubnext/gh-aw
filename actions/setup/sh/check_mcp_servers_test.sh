@@ -321,6 +321,20 @@ test_validation_functions_exist() {
     print_result "tools/list request logic missing" "FAIL"
   fi
   
+  # Check for MCP initialize before tools/list (per MCP protocol)
+  if grep -q 'method.*initialize' "$SCRIPT_PATH"; then
+    print_result "MCP initialize request logic exists" "PASS"
+  else
+    print_result "MCP initialize request logic missing" "FAIL"
+  fi
+  
+  # Check for Mcp-Session-Id handling
+  if grep -q 'Mcp-Session-Id' "$SCRIPT_PATH"; then
+    print_result "Mcp-Session-Id session tracking exists" "PASS"
+  else
+    print_result "Mcp-Session-Id session tracking missing" "FAIL"
+  fi
+  
   # Check for gateway config authentication logic
   if grep -q "Authorization" "$SCRIPT_PATH"; then
     print_result "Gateway config authentication logic exists" "PASS"
