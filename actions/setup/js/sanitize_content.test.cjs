@@ -986,6 +986,30 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Before other/repo#123 after");
       expect(result).toBe("Before `other/repo#123` after");
     });
+
+    it("should allow all repos when wildcard * is used", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "*";
+
+      const result = sanitizeContent("See myorg/myrepo#123, other/repo#456, and another/repo#789");
+      expect(result).toBe("See myorg/myrepo#123, other/repo#456, and another/repo#789");
+    });
+
+    it("should allow repos matching org wildcard pattern", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "myorg/*";
+
+      const result = sanitizeContent("See myorg/myrepo#123, myorg/otherrepo#456, and other/repo#789");
+      expect(result).toBe("See myorg/myrepo#123, myorg/otherrepo#456, and `other/repo#789`");
+    });
+
+    it("should allow repos matching wildcard in combination with repo keyword", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo,trusted/*";
+
+      const result = sanitizeContent("See #123, myorg/myrepo#456, trusted/lib#789, and other/repo#101");
+      expect(result).toBe("See #123, myorg/myrepo#456, trusted/lib#789, and `other/repo#101`");
+    });
   });
 
   describe("content truncation", () => {

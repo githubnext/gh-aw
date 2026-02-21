@@ -6,6 +6,8 @@
  * sanitize_content.cjs (full version) and sanitize_incoming_text.cjs (minimal version).
  */
 
+const { isRepoAllowed } = require("./repo_helpers.cjs");
+
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
  * @type {string[]}
@@ -496,10 +498,12 @@ function neutralizeTemplateDelimiters(s) {
 }
 
 /**
- * Builds the list of allowed repositories for GitHub reference filtering
- * Returns null if all references should be allowed (default behavior)
- * Returns empty array if no references should be allowed (escape all)
- * @returns {string[]|null} Array of allowed repository slugs or null if all allowed
+ * Builds the set of allowed repositories for GitHub reference filtering.
+ * Returns null if all references should be allowed (default behavior).
+ * Returns empty Set if no references should be allowed (escape all).
+ * The special value "repo" expands to the current repository slug.
+ * Supports wildcard patterns (e.g., "myorg/*", "*") via isRepoAllowed().
+ * @returns {Set<string>|null} Set of allowed repository slugs/patterns or null if all allowed
  */
 function buildAllowedGitHubReferences() {
   const allowedRefsEnv = process.env.GH_AW_ALLOWED_GITHUB_REFS;
@@ -508,13 +512,16 @@ function buildAllowedGitHubReferences() {
   }
 
   if (allowedRefsEnv === "") {
-    return []; // Empty array means escape all references
+    return new Set(); // Empty set means escape all references
   }
 
-  return allowedRefsEnv
+  const currentRepo = getCurrentRepoSlug();
+  const refs = allowedRefsEnv
     .split(",")
     .map(ref => ref.trim().toLowerCase())
-    .filter(ref => ref);
+    .filter(ref => ref)
+    .map(ref => (ref === "repo" ? currentRepo : ref));
+  return new Set(refs);
 }
 
 /**
@@ -532,9 +539,10 @@ function getCurrentRepoSlug() {
 
 /**
  * Neutralizes GitHub references (#123 or owner/repo#456) by wrapping them in backticks
- * if they reference repositories not in the allowed list
+ * if they reference repositories not in the allowed set.
+ * Supports wildcard patterns (e.g., "myorg/*", "*") via isRepoAllowed().
  * @param {string} s - The string to process
- * @param {string[]|null} allowedRepos - List of allowed repository slugs (lowercase), or null to allow all
+ * @param {Set<string>|null} allowedRepos - Set of allowed repository slugs/patterns (lowercase), or null to allow all
  * @returns {string} The string with unauthorized references neutralized
  */
 function neutralizeGitHubReferences(s, allowedRepos) {
@@ -561,13 +569,8 @@ function neutralizeGitHubReferences(s, allowedRepos) {
       targetRepo = currentRepo;
     }
 
-    // Check if "repo" is in allowed list (means current repo)
-    const allowCurrentRepo = allowedRepos.includes("repo");
-
-    // Check if this specific repo is in the allowed list
-    const isAllowed = allowedRepos.includes(targetRepo) || (allowCurrentRepo && targetRepo === currentRepo);
-
-    if (isAllowed) {
+    // Check if this repo is allowed using isRepoAllowed (supports wildcard patterns)
+    if (isRepoAllowed(targetRepo, allowedRepos)) {
       return match; // Keep the original reference
     } else {
       // Escape the reference
