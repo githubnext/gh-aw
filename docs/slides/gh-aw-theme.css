@@ -93,16 +93,17 @@ section a:hover {
   text-decoration: underline;
 }
 
-/* Code blocks */
+/* Code blocks — light background for projection visibility */
 section pre {
-  background: #0d1117;
-  border: 1px solid #21262d;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
   border-radius: 6px;
   padding: 1rem 1.25rem;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
   font-size: 1rem;
   overflow: auto;
+  color: #1f2328;
 }
 
 section code {
@@ -118,6 +119,55 @@ section pre code {
   background: transparent;
   padding: 0;
   font-size: inherit;
+  color: inherit;
+}
+
+/* Syntax highlighting tokens — GitHub light theme for projection contrast */
+section pre .hljs-keyword,
+section pre .hljs-selector-tag,
+section pre .hljs-built_in,
+section pre .hljs-literal {
+  color: #cf222e;
+  font-weight: bold;
+}
+
+section pre .hljs-string,
+section pre .hljs-attr {
+  color: #0a3069;
+}
+
+section pre .hljs-number,
+section pre .hljs-symbol,
+section pre .hljs-bullet {
+  color: #116329;
+}
+
+section pre .hljs-comment,
+section pre .hljs-meta {
+  color: #6e7781;
+  font-style: italic;
+}
+
+section pre .hljs-title,
+section pre .hljs-section,
+section pre .hljs-name,
+section pre .hljs-type {
+  color: #8250df;
+}
+
+section pre .hljs-variable,
+section pre .hljs-template-variable,
+section pre .hljs-addition {
+  color: #116329;
+}
+
+section pre .hljs-deletion {
+  color: #82071e;
+}
+
+section pre .hljs-tag,
+section pre .hljs-link {
+  color: #0550ae;
 }
 
 /* Lists */
