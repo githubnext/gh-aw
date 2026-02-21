@@ -1734,7 +1734,7 @@ jobs:
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.base_ref || github.ref_name }}
           token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 1
@@ -1756,7 +1756,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-project\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_project_status_update\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"project\":\"https://github.com/orgs/github/projects/24068\"},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"expires\":2,\"if_no_changes\":\"warn\",\"labels\":[\"ai-generated\"],\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[smoke-project] \"},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke-project\"]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":20,\"project\":\"https://github.com/orgs/github/projects/24068\",\"views\":[{\"name\":\"Smoke Test Board\",\"layout\":\"board\",\"filter\":\"is:open\"}]}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-project\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_project_status_update\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"project\":\"https://github.com/orgs/github/projects/24068\"},\"create_pull_request\":{\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"expires\":2,\"if_no_changes\":\"warn\",\"labels\":[\"ai-generated\"],\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[smoke-project] \"},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke-project\"]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":20,\"project\":\"https://github.com/orgs/github/projects/24068\",\"views\":[{\"name\":\"Smoke Test Board\",\"layout\":\"board\",\"filter\":\"is:open\"}]}}"
           GH_AW_PROJECT_URL: "https://github.com/orgs/github/projects/24068"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:
