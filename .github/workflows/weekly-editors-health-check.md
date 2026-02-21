@@ -16,6 +16,8 @@ network:
   allowed:
     - defaults
     - playwright
+    - "*.github.io"
+    - "*.github.com"
 
 tools:
   playwright:
