@@ -10,7 +10,7 @@ permissions:
 strict: false
 engine: claude
 network: 
-   allowed: [defaults, node, "api.github.com", "ghcr.io"]
+   allowed: [defaults, node, go, "api.github.com", "ghcr.io"]
 imports:
   - shared/jqschema.md
   - shared/reporting.md
