@@ -52,6 +52,8 @@ func parseVersion(v string) *semanticVersion {
 		corePart = corePart[:idx]
 	}
 	parts := strings.Split(corePart, ".")
+	// Parse the numeric components; strconv.Atoi returns 0 on error, matching
+	// the previous behavior where non-numeric input produced 0.
 	if len(parts) >= 1 {
 		ver.major, _ = strconv.Atoi(parts[0])
 	}
