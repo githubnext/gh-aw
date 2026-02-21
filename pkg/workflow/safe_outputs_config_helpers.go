@@ -121,6 +121,51 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
 }
 
+// builtinSafeOutputFields contains the struct field names for the built-in safe output types
+// that are excluded from the "non-builtin" check. These are: noop, missing-data, missing-tool.
+var builtinSafeOutputFields = map[string]bool{
+	"NoOp":        true,
+	"MissingData": true,
+	"MissingTool": true,
+}
+
+// nonBuiltinSafeOutputFieldNames is a pre-computed list of field names from safeOutputFieldMapping
+// that are not builtins, used by hasNonBuiltinSafeOutputsEnabled to avoid repeated map iterations.
+var nonBuiltinSafeOutputFieldNames = func() []string {
+	var fields []string
+	for fieldName := range safeOutputFieldMapping {
+		if !builtinSafeOutputFields[fieldName] {
+			fields = append(fields, fieldName)
+		}
+	}
+	return fields
+}()
+
+// hasNonBuiltinSafeOutputsEnabled checks if any non-builtin safe outputs are configured.
+// The builtin types (noop, missing-data, missing-tool) are excluded from this check
+// because they are always auto-enabled and do not represent a meaningful output action.
+func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+
+	// Custom safe-jobs are always non-builtin
+	if len(safeOutputs.Jobs) > 0 {
+		return true
+	}
+
+	// Check non-builtin pointer fields using the pre-computed list
+	val := reflect.ValueOf(safeOutputs).Elem()
+	for _, fieldName := range nonBuiltinSafeOutputFieldNames {
+		field := val.FieldByName(fieldName)
+		if field.IsValid() && !field.IsNil() {
+			return true
+		}
+	}
+
+	return false
+}
+
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	enabled := hasAnySafeOutputEnabled(safeOutputs)
@@ -130,6 +175,28 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	}
 
 	return enabled
+}
+
+// applyDefaultCreateIssue injects a default create-issues safe output when safe-outputs is configured
+// but has no non-builtin output types. The injected config uses the workflow ID as the label
+// and [workflowID] as the title prefix. The AutoInjectedCreateIssue flag is set so the prompt
+// generator can add a specific instruction for the agent.
+func applyDefaultCreateIssue(workflowData *WorkflowData) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+	if hasNonBuiltinSafeOutputsEnabled(workflowData.SafeOutputs) {
+		return
+	}
+
+	workflowID := workflowData.WorkflowID
+	safeOutputsConfigLog.Printf("Auto-injecting create-issues for workflow %q (no non-builtin safe outputs configured)", workflowID)
+	workflowData.SafeOutputs.CreateIssues = &CreateIssuesConfig{
+		BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+		Labels:               []string{workflowID},
+		TitlePrefix:          fmt.Sprintf("[%s]", workflowID),
+	}
+	workflowData.SafeOutputs.AutoInjectedCreateIssue = true
 }
 
 // GetEnabledSafeOutputToolNames returns a list of enabled safe output tool names.

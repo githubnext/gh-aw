@@ -789,6 +789,9 @@ func generateSafeOutputsPromptSection(b *strings.Builder, safeOutputs *SafeOutpu
 	if safeOutputs.CreateIssues != nil {
 		b.WriteString("**Creating an Issue**\n\n")
 		fmt.Fprintf(b, "To create an issue, use the create_issue tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		if safeOutputs.AutoInjectedCreateIssue {
+			b.WriteString("**IMPORTANT**: Report your findings or results by creating a GitHub issue using the create_issue tool. If you have no meaningful results to report, call the noop tool instead.\n\n")
+		}
 	}
 
 	if safeOutputs.CloseIssues != nil {

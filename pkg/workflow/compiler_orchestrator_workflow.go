@@ -532,6 +532,10 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.SafeOutputs = mergedSafeOutputs
 
+	// Auto-inject create-issues if safe-outputs is configured but has no non-builtin outputs.
+	// This ensures every workflow with safe-outputs has at least one meaningful action handler.
+	applyDefaultCreateIssue(workflowData)
+
 	return nil
 }
 
