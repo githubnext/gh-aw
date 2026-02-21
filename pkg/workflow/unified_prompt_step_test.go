@@ -51,7 +51,7 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should include temp folder instructions")
 	assert.Contains(t, output, "playwright_prompt.md", "Should include playwright instructions")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should include cache memory template file")
-	assert.Contains(t, output, "Repo Memory Available", "Should include repo memory instructions")
+	assert.Contains(t, output, "repo_memory_prompt.md", "Should include repo memory template file")
 	assert.Contains(t, output, "<safe-outputs>", "Should include safe outputs instructions")
 	assert.Contains(t, output, "<github-context>", "Should include GitHub context")
 
@@ -115,7 +115,7 @@ func TestGenerateUnifiedPromptStep_MinimalSections(t *testing.T) {
 	// Verify other sections are NOT included
 	assert.NotContains(t, output, "playwright_prompt.md", "Should not include playwright without tool")
 	assert.NotContains(t, output, "cache_memory_prompt.md", "Should not include cache memory template without config")
-	assert.NotContains(t, output, "Repo Memory Available", "Should not include repo memory without config")
+	assert.NotContains(t, output, "repo_memory_prompt.md", "Should not include repo memory without config")
 	assert.NotContains(t, output, "<safe-outputs>", "Should not include safe outputs without config")
 	assert.NotContains(t, output, "<github-context>", "Should not include GitHub context without tool")
 }

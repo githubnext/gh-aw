@@ -542,8 +542,7 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 
 	// Verify cache template file reference
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should reference cache template file")
-	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory prompt")
-	assert.Contains(t, output, "/tmp/gh-aw/repo-memory/", "Should reference repo memory directory")
+	assert.Contains(t, output, "repo_memory_prompt.md", "Should reference repo memory template file")
 
 	// Generate the substitution step separately to verify cache dir is in substitutions
 	var substYaml strings.Builder
@@ -552,11 +551,12 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	}
 	substOutput := substYaml.String()
 	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
+	assert.Contains(t, substOutput, "GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR", "Should have memory dir in substitution")
 
 	// Verify ordering within system tags
 	systemOpenPos := strings.Index(output, "<system>")
 	cachePos := strings.Index(output, "cache_memory_prompt.md")
-	repoPos := strings.Index(output, "Repo Memory Available")
+	repoPos := strings.Index(output, "repo_memory_prompt.md")
 	systemClosePos := strings.Index(output, "</system>")
 	userPos := strings.Index(output, "# User Task")
 
@@ -642,7 +642,7 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should have temp folder")
 	assert.Contains(t, output, "playwright_prompt.md", "Should have playwright")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should have cache memory template")
-	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory")
+	assert.Contains(t, output, "repo_memory_prompt.md", "Should have repo memory template file")
 	assert.Contains(t, output, "<safe-outputs>", "Should have safe outputs")
 	assert.Contains(t, output, "<github-context>", "Should have GitHub context")
 	assert.Contains(t, output, "pr_context_prompt.md", "Should have PR context")

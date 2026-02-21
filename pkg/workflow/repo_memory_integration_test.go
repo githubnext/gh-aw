@@ -58,9 +58,9 @@ This workflow uses repo memory.
 		t.Error("Expected push step in compiled workflow")
 	}
 
-	// Check for prompt
-	if !strings.Contains(lockFile, "## Repo Memory Available") {
-		t.Error("Expected repo memory prompt in compiled workflow")
+	// Check for prompt template file reference
+	if !strings.Contains(lockFile, "repo_memory_prompt.md") {
+		t.Error("Expected repo memory template file reference in compiled workflow")
 	}
 
 	// Check for memory directory path
@@ -189,9 +189,9 @@ This workflow uses multiple repo memories.
 		t.Error("Expected logs memory directory")
 	}
 
-	// Check for plural form in prompt
-	if !strings.Contains(lockFile, "## Repo Memory Locations Available") {
-		t.Error("Expected plural form in prompt for multiple memories")
+	// Check for plural form in prompt (multi template is used for multiple memories)
+	if !strings.Contains(lockFile, "repo_memory_prompt_multi.md") {
+		t.Error("Expected multi memory template file reference for multiple memories")
 	}
 }
 

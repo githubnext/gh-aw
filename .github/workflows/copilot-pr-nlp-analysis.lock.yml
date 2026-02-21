@@ -111,37 +111,8 @@ jobs:
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/cache_memory_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/repo_memory_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          <repo-memory>
-          
-          ## Repo Memory Available
-          
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Historical NLP analysis results
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/nlp-analysis` branch of the current repository
-          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
-          - **Merge Strategy**: In case of conflicts, your changes (current version) win
-          - **Persistence**: Files persist across workflow runs via git branch storage
-          - **Allowed File Types**: Only the following file extensions are allowed: `.json`, `.jsonl`, `.txt`, `.md`, `.csv`. Files with other extensions will be rejected during validation.
-          
-          **Constraints:**
-          - **Allowed Files**: Only files matching patterns: memory/nlp-analysis/*.json, memory/nlp-analysis/*.jsonl, memory/nlp-analysis/*.csv, memory/nlp-analysis/*.md
-          - **Max File Size**: 102400 bytes (0.10 MB) per file
-          - **Max File Count**: 100 files per commit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/notes.txt` - plain text notes
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history.jsonl` - activity history in JSON Lines format
-          - `/tmp/gh-aw/repo-memory/default/data.csv` - tabular data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories (with allowed file types)
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks, using only the allowed file types.
-          </repo-memory>
-          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -271,6 +242,17 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_MEMORY_BRANCH_NAME: 'memory/nlp-analysis'
+          GH_AW_MEMORY_CONSTRAINTS: '
+
+**Constraints:**
+- **Allowed Files**: Only files matching patterns: memory/nlp-analysis/*.json, memory/nlp-analysis/*.jsonl, memory/nlp-analysis/*.csv, memory/nlp-analysis/*.md
+- **Max File Size**: 102400 bytes (0.10 MB) per file
+- **Max File Count**: 100 files per commit
+'
+          GH_AW_MEMORY_DESCRIPTION: ' Historical NLP analysis results'
+          GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
+          GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -292,7 +274,12 @@ jobs:
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
-                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_MEMORY_BRANCH_NAME: process.env.GH_AW_MEMORY_BRANCH_NAME,
+                GH_AW_MEMORY_CONSTRAINTS: process.env.GH_AW_MEMORY_CONSTRAINTS,
+                GH_AW_MEMORY_DESCRIPTION: process.env.GH_AW_MEMORY_DESCRIPTION,
+                GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR,
+                GH_AW_MEMORY_TARGET_REPO: process.env.GH_AW_MEMORY_TARGET_REPO
               }
             });
       - name: Validate prompt placeholders

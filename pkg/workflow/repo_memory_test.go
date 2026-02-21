@@ -314,38 +314,22 @@ func TestRepoMemoryPromptGeneration(t *testing.T) {
 		},
 	}
 
-	var builder strings.Builder
-	generateRepoMemoryPromptSection(&builder, config)
+	section := buildRepoMemoryPromptSection(config)
 
-	output := builder.String()
+	require.NotNil(t, section, "Expected non-nil prompt section")
+	assert.True(t, section.IsFile, "Should use template file")
+	assert.Equal(t, repoMemoryPromptFile, section.Content, "Should reference repo memory prompt file")
+	require.NotNil(t, section.EnvVars, "Should have environment variables")
 
-	// Check for prompt header
-	if !strings.Contains(output, "## Repo Memory Available") {
-		t.Error("Expected repo memory header")
-	}
+	// Check for prompt header key
+	assert.Equal(t, "/tmp/gh-aw/repo-memory/default/", section.EnvVars["GH_AW_MEMORY_DIR"], "Should have correct memory directory")
 
 	// Check for description
-	if !strings.Contains(output, "Persistent memory for agent state") {
-		t.Error("Expected custom description")
-	}
+	assert.Equal(t, " Persistent memory for agent state", section.EnvVars["GH_AW_MEMORY_DESCRIPTION"], "Expected custom description with leading space")
 
 	// Check for key information
-	if !strings.Contains(output, "Read/Write Access") {
-		t.Error("Expected read/write access information")
-	}
-
-	if !strings.Contains(output, "Git Branch Storage") {
-		t.Error("Expected git branch storage information")
-	}
-
-	if !strings.Contains(output, "Automatic Push") {
-		t.Error("Expected automatic push information")
-	}
-
-	// Check for examples
-	if !strings.Contains(output, "notes.md") {
-		t.Error("Expected example file")
-	}
+	assert.Equal(t, "memory/default", section.EnvVars["GH_AW_MEMORY_BRANCH_NAME"], "Should have correct branch name")
+	assert.Equal(t, " of the current repository", section.EnvVars["GH_AW_MEMORY_TARGET_REPO"], "Should default to current repository")
 }
 
 // TestRepoMemoryMaxFileSizeValidation tests max-file-size boundary validation

@@ -20,6 +20,8 @@ const (
 	xpiaPromptFile             = "xpia.md"
 	cacheMemoryPromptFile      = "cache_memory_prompt.md"
 	cacheMemoryPromptMultiFile = "cache_memory_prompt_multi.md"
+	repoMemoryPromptFile       = "repo_memory_prompt.md"
+	repoMemoryPromptMultiFile  = "repo_memory_prompt_multi.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions

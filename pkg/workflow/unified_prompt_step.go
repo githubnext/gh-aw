@@ -277,12 +277,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 6. Repo memory instructions (if enabled)
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		unifiedPromptLog.Printf("Adding repo memory section: memories=%d", len(data.RepoMemoryConfig.Memories))
-		var repoMemContent strings.Builder
-		generateRepoMemoryPromptSection(&repoMemContent, data.RepoMemoryConfig)
-		sections = append(sections, PromptSection{
-			Content: repoMemContent.String(),
-			IsFile:  false,
-		})
+		section := buildRepoMemoryPromptSection(data.RepoMemoryConfig)
+		if section != nil {
+			sections = append(sections, *section)
+		}
 	}
 
 	// 7. Safe outputs instructions (if enabled)
