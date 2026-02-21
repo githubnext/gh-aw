@@ -783,8 +783,10 @@ describe("runtime_import", () => {
 
         it("should not re-replace evaluated values that contain expression-like text", () => {
           // Simulate an issue title that contains literal expression syntax.
-          // The evaluated value for github.event.issue.title should be:
+          // The evaluated value for github.event.issue.title is:
           // "Use ${{ github.actor }} here"
+          // The ${{ github.actor }} inside the title must NOT be replaced a second time.
+          global.context.payload.issue.title = "Use ${{ github.actor }} here";
           const content = "Title: ${{ github.event.issue.title }}, User: ${{ github.actor }}";
           const result = processExpressions(content, "test.md");
           expect(result).toBe("Title: Use ${{ github.actor }} here, User: testuser");
