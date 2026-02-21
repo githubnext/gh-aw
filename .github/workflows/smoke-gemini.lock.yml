@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ffdad88357c76b85dcef6475fa1cc4267f7660bce6ee9b59e44591972fc22f9a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c1cc854ca4445238a9a3d11e58860d2a8930fdfa740d6380d512db7b4b7e64bb"}
 
 name: "Smoke Gemini"
 "on":
@@ -58,6 +58,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -397,7 +400,7 @@ jobs:
             const awInfo = {
               engine_id: "gemini",
               engine_name: "Google Gemini CLI",
-              model: "gemini-2.0-flash-lite",
+              model: process.env.GH_AW_MODEL_AGENT_CUSTOM || "",
               version: "",
               agent_version: "",
               workflow_name: "Smoke Gemini",
@@ -977,7 +980,6 @@ jobs:
           DEBUG: gemini-cli:*
           GEMINI_API_BASE_URL: http://host.docker.internal:10003
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: gemini-2.0-flash-lite
           GH_AW_MCP_CONFIG: ${{ github.workspace }}/.gemini/settings.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1304,7 +1306,6 @@ jobs:
         env:
           DEBUG: gemini-cli:*
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: gemini-2.0-flash-lite
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_WORKSPACE: ${{ github.workspace }}
       - name: Parse threat detection results
@@ -1331,6 +1332,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
@@ -1345,6 +1349,19 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Add rocket reaction for immediate feedback
+        id: react
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REACTION: "rocket"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_reaction.cjs');
+            await main();
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1372,7 +1389,6 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "gemini"
-      GH_AW_ENGINE_MODEL: "gemini-2.0-flash-lite"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*\",\"runStarted\":\"✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges...\"}"
       GH_AW_WORKFLOW_ID: "smoke-gemini"
       GH_AW_WORKFLOW_NAME: "Smoke Gemini"
