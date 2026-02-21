@@ -396,6 +396,7 @@ safe-outputs:
   update-pull-request:
     title: true               # enable title updates (default: true)
     body: true                # enable body updates (default: true)
+    footer: false             # omit AI-generated footer from body updates (default: true)
     max: 1                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository

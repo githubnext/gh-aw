@@ -5734,6 +5734,11 @@
                   "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), or 'replace' (overwrite completely). Defaults to 'replace' if not specified.",
                   "enum": ["append", "prepend", "replace"]
                 },
+                "footer": {
+                  "type": "boolean",
+                  "description": "Controls whether AI-generated footer is added when updating the pull request body. When false, the visible footer content is omitted but XML markers are still included. Defaults to true. Only applies when 'body' is enabled.",
+                  "default": true
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of pull requests to update (default: 1)",
