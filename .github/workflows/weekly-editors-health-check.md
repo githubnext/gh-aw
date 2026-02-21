@@ -16,8 +16,9 @@ network:
   allowed:
     - defaults
     - playwright
-    - "*.github.io"
-    - "*.github.com"
+    - github.github.com
+    - ashleywolf.github.io
+    - mossaka.github.io
 
 tools:
   playwright:
