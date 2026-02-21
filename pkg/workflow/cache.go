@@ -270,7 +270,11 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		if len(caches) > 1 {
 			stepName = fmt.Sprintf("Cache %d", i+1)
 		}
-		if key, hasKey := cache["key"]; hasKey {
+		if nameVal, hasName := cache["name"]; hasName {
+			if nameStr, ok := nameVal.(string); ok && nameStr != "" {
+				stepName = nameStr
+			}
+		} else if key, hasKey := cache["key"]; hasKey {
 			if keyStr, ok := key.(string); ok && keyStr != "" {
 				stepName = fmt.Sprintf("Cache (%s)", keyStr)
 			}

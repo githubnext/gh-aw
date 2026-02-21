@@ -23,6 +23,7 @@ strict: true
 
 cache:
   - key: layout-spec-cache-${{ github.run_id }}
+    name: Cache layout spec data
     path: /tmp/gh-aw/layout-cache
     restore-keys: |
       layout-spec-cache-

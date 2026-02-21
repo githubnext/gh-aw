@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e7f085887671661c1f83eb7bf4ea672958e81a7894601c5ec0ad7f12da545835"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f24ea6237b83b09e4e76a0db5eee51656f2ae35ce5d8897384e3785e46309cba"}
 
 name: "Copilot Agent Prompt Clustering Analysis"
 "on":
@@ -397,7 +397,7 @@ jobs:
         run: "# Create logs directory\nmkdir -p /tmp/gh-aw/workflow-logs\n\necho \"Downloading workflow logs to extract turn counts...\"\n\n# Download logs for the last 30 days of copilot workflows\n# This will give us the aw_info.json which contains turn counts\n./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs\n\n# Verify logs were downloaded\necho \"Downloaded workflow logs:\"\nfind /tmp/gh-aw/workflow-logs -maxdepth 1 -ls\n"
 
       # Cache configuration from frontmatter processed below
-      - name: Cache (prompt-clustering-cache-${{ github.run_id }})
+      - name: Cache prompt clustering data
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: prompt-clustering-cache-${{ github.run_id }}

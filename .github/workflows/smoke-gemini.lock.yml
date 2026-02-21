@@ -956,7 +956,7 @@ jobs:
           path: /tmp/gh-aw/aw-prompts
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
-      - name: Run Gemini
+      - name: Execute Gemini CLI
         id: agentic_execution
         run: |
           set -o pipefail
@@ -1254,7 +1254,7 @@ jobs:
           package-manager-cache: false
       - name: Install Gemini CLI
         run: npm install -g --silent @google/gemini-cli@0.29.0
-      - name: Run Gemini
+      - name: Execute Gemini CLI
         id: agentic_execution
         run: |
           set -o pipefail

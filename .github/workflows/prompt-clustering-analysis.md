@@ -34,6 +34,7 @@ imports:
 
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
+    name: Cache prompt clustering data
     path: /tmp/gh-aw/prompt-cache
     restore-keys: |
       prompt-clustering-cache-
