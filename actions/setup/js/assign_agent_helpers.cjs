@@ -250,9 +250,10 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * @param {string|null} model - Optional AI model to use (e.g., "claude-opus-4.6", "auto")
  * @param {string|null} customAgent - Optional custom agent ID for custom agents
  * @param {string|null} customInstructions - Optional custom instructions for the agent
+ * @param {string|null} baseBranch - Optional base branch for the PR (uses GraphQL baseRef field)
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null) {
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null, baseBranch = null) {
   // Filter current assignees based on allowed list (if configured)
   let filteredAssignees = currentAssignees;
   if (allowedAgents && allowedAgents.length > 0) {
@@ -276,7 +277,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   const actorIds = [agentId, ...filteredAssignees.map(a => a.id).filter(id => id !== agentId)];
 
   // Build the agentAssignment object if any agent-specific parameters are provided
-  const hasAgentAssignment = pullRequestRepoId || model || customAgent || customInstructions;
+  const hasAgentAssignment = pullRequestRepoId || model || customAgent || customInstructions || baseBranch;
 
   // Build the mutation - conditionally include agentAssignment if any parameters are provided
   let mutation;
@@ -302,6 +303,10 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     if (customInstructions) {
       agentAssignmentFields.push("customInstructions: $customInstructions");
       agentAssignmentParams.push("$customInstructions: String!");
+    }
+    if (baseBranch) {
+      agentAssignmentFields.push("baseRef: $baseRef");
+      agentAssignmentParams.push("$baseRef: String!");
     }
 
     // Build the mutation with agentAssignment
@@ -329,6 +334,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
       ...(model && { model }),
       ...(customAgent && { customAgent }),
       ...(customInstructions && { customInstructions }),
+      ...(baseBranch && { baseRef: baseBranch }),
     };
   } else {
     // Standard mutation without agentAssignment
@@ -357,6 +363,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     if (model) debugMsg += `, model=${model}`;
     if (customAgent) debugMsg += `, customAgent=${customAgent}`;
     if (customInstructions) debugMsg += `, customInstructions=${customInstructions.substring(0, 50)}...`;
+    if (baseBranch) debugMsg += `, baseRef=${baseBranch}`;
     core.debug(debugMsg);
 
     // Build GraphQL-Features header - include coding_agent_model_selection when model is provided

@@ -9,7 +9,7 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { loadTemporaryIdMap, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolvePullRequestRepo, buildBranchInstruction } = require("./pr_helpers.cjs");
+const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -147,8 +147,6 @@ async function main() {
   let pullRequestRepoId = null;
   // Effective base branch: explicit config > fetched default branch from PR repo
   let effectiveBaseBranch = configuredBaseBranch || null;
-  // Resolved default branch fetched from the target PR repo (used in NOT clause of branch instructions)
-  let resolvedDefaultBranch = null;
 
   // Get allowed PR repos configuration for cross-repo validation
   const allowedPullRequestReposEnv = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim();
@@ -175,7 +173,6 @@ async function main() {
         const resolved = await resolvePullRequestRepo(github, pullRequestOwner, pullRequestRepo, configuredBaseBranch);
         pullRequestRepoId = resolved.repoId;
         effectiveBaseBranch = resolved.effectiveBaseBranch;
-        resolvedDefaultBranch = resolved.resolvedDefaultBranch;
         core.info(`Pull request repository ID: ${pullRequestRepoId}`);
         if (!configuredBaseBranch && effectiveBaseBranch) {
           core.info(`Resolved pull request repository default branch: ${effectiveBaseBranch}`);
@@ -201,12 +198,7 @@ async function main() {
     // They are NOT available as per-item overrides in the tool call
     const model = defaultModel;
     const customAgent = defaultCustomAgent;
-    // Build effective custom instructions: prepend base-branch instruction when needed
-    let customInstructions = defaultCustomInstructions;
-    if (effectiveBaseBranch) {
-      const branchInstruction = buildBranchInstruction(effectiveBaseBranch, resolvedDefaultBranch);
-      customInstructions = customInstructions ? `${branchInstruction}\n\n${customInstructions}` : branchInstruction;
-    }
+    const customInstructions = defaultCustomInstructions || null;
 
     // Use these variables to allow temporary IDs to override target repo per-item.
     // Default to the per-item resolved repo (from item.repo or defaultTargetRepo).
@@ -466,7 +458,7 @@ async function main() {
       if (customInstructions) {
         core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
       }
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId, model, customAgent, customInstructions);
+      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId, model, customAgent, customInstructions, effectiveBaseBranch);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);

@@ -397,6 +397,65 @@ describe("assign_agent_helpers.cjs", () => {
       expect(variables.customInstructions).toBe("Focus on performance");
     });
 
+    it("should include baseBranch as baseRef in agentAssignment when provided", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, null, null, "develop");
+
+      const calledArgs = mockGithub.graphql.mock.calls[0];
+      const mutation = calledArgs[0];
+      const variables = calledArgs[1];
+
+      // Mutation should include agentAssignment with baseRef
+      expect(mutation).toContain("agentAssignment");
+      expect(mutation).toContain("baseRef: $baseRef");
+      expect(variables.baseRef).toBe("develop");
+    });
+
+    it("should not include baseRef in mutation when baseBranch is not provided", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, null, null, null, null, null);
+
+      const calledArgs = mockGithub.graphql.mock.calls[0];
+      const mutation = calledArgs[0];
+      const variables = calledArgs[1];
+
+      expect(mutation).not.toContain("baseRef");
+      expect(variables.baseRef).toBeUndefined();
+    });
+
+    it("should include baseRef alongside other agentAssignment parameters", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      await assignAgentToIssue("ISSUE_123", "AGENT_456", [{ id: "USER_1", login: "user1" }], "copilot", null, "REPO_ID_789", "claude-opus-4.6", null, "Fix the bug", "develop");
+
+      const calledArgs = mockGithub.graphql.mock.calls[0];
+      const mutation = calledArgs[0];
+      const variables = calledArgs[1];
+
+      expect(mutation).toContain("targetRepositoryId: $targetRepoId");
+      expect(mutation).toContain("model: $model");
+      expect(mutation).toContain("customInstructions: $customInstructions");
+      expect(mutation).toContain("baseRef: $baseRef");
+      expect(variables.targetRepoId).toBe("REPO_ID_789");
+      expect(variables.model).toBe("claude-opus-4.6");
+      expect(variables.customInstructions).toBe("Fix the bug");
+      expect(variables.baseRef).toBe("develop");
+    });
+
     it("should omit agentAssignment when no agent-specific parameters provided", async () => {
       mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
