@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Add Copilot as a reviewer to a pull request.
@@ -22,13 +23,13 @@ async function main() {
   const prNumberStr = process.env.PR_NUMBER?.trim();
 
   if (!prNumberStr) {
-    core.setFailed("PR_NUMBER environment variable is required but not set");
+    core.setFailed(`${ERR_CONFIG}: PR_NUMBER environment variable is required but not set`);
     return;
   }
 
   const prNumber = parseInt(prNumberStr, 10);
   if (isNaN(prNumber) || prNumber <= 0) {
-    core.setFailed(`Invalid PR_NUMBER: ${prNumberStr}. Must be a positive integer.`);
+    core.setFailed(`${ERR_VALIDATION}: Invalid PR_NUMBER: ${prNumberStr}. Must be a positive integer.`);
     return;
   }
 
@@ -55,7 +56,7 @@ Successfully added Copilot as a reviewer to PR #${prNumber}.`
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to add Copilot as reviewer: ${errorMessage}`);
-    core.setFailed(`Failed to add Copilot as reviewer to PR #${prNumber}: ${errorMessage}`);
+    core.setFailed(`${ERR_NOT_FOUND}: Failed to add Copilot as reviewer to PR #${prNumber}: ${errorMessage}`);
   }
 }
 

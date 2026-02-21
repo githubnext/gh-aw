@@ -2,23 +2,24 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 
 async function main() {
   const { GH_AW_SKIP_QUERY: skipQuery, GH_AW_WORKFLOW_NAME: workflowName, GH_AW_SKIP_MIN_MATCHES: minMatchesStr = "1" } = process.env;
 
   if (!skipQuery) {
-    core.setFailed("Configuration error: GH_AW_SKIP_QUERY not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_QUERY not specified.`);
     return;
   }
 
   if (!workflowName) {
-    core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_NAME not specified.`);
     return;
   }
 
   const minMatches = parseInt(minMatchesStr, 10);
   if (isNaN(minMatches) || minMatches < 1) {
-    core.setFailed(`Configuration error: GH_AW_SKIP_MIN_MATCHES must be a positive integer, got "${minMatchesStr}".`);
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_MIN_MATCHES must be a positive integer, got "${minMatchesStr}".`);
     return;
   }
 
@@ -49,7 +50,7 @@ async function main() {
     core.info(`✓ Found ${totalCount} matches (meets or exceeds minimum of ${minMatches}), workflow can proceed`);
     core.setOutput("skip_no_match_check_ok", "true");
   } catch (error) {
-    core.setFailed(`Failed to execute search query: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_API}: Failed to execute search query: ${getErrorMessage(error)}`);
   }
 }
 

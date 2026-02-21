@@ -7,6 +7,7 @@
  */
 
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Parse the allowed repos from config value (array or comma-separated string)
@@ -159,7 +160,7 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
     // When valid is false, error is guaranteed to be non-null
     const errorMessage = repoValidation.error;
     if (!errorMessage) {
-      throw new Error("Internal error: repoValidation.error should not be null when valid is false");
+      throw new Error(`${ERR_VALIDATION}: Internal error: repoValidation.error should not be null when valid is false`);
     }
     return {
       success: false,

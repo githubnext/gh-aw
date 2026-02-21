@@ -134,7 +134,7 @@ const mockCore = {
               (global.context.eventName = "discussion_comment"),
               (global.context.payload = { discussion: { number: 10 }, comment: { id: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
               await eval(`(async () => { ${reactionScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion comment node ID not found in event payload"),
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Discussion comment node ID not found in event payload"),
               expect(mockGithub.graphql).not.toHaveBeenCalled());
           }));
       }),
@@ -220,21 +220,21 @@ const mockCore = {
             (global.context.eventName = "discussion"),
             (global.context.payload = { repository: { html_url: "https://github.com/testowner/testrepo" } }),
             await eval(`(async () => { ${reactionScript}; await main(); })()`),
-            expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion number not found in event payload"));
+            expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Discussion number not found in event payload"));
         }),
           it("should handle missing discussion or comment info for discussion_comment", async () => {
             ((process.env.GH_AW_REACTION = "eyes"),
               (global.context.eventName = "discussion_comment"),
               (global.context.payload = { discussion: { number: 10 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
               await eval(`(async () => { ${reactionScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion or comment information not found in event payload"));
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Discussion or comment information not found in event payload"));
           }),
           it("should handle unsupported event types", async () => {
             ((process.env.GH_AW_REACTION = "eyes"),
               (global.context.eventName = "push"),
               (global.context.payload = { repository: { html_url: "https://github.com/testowner/testrepo" } }),
               await eval(`(async () => { ${reactionScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: push"));
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Unsupported event type: push"));
           }),
           it("should silently ignore locked issue errors (status 403)", async () => {
             const lockedError = new Error("Issue is locked");

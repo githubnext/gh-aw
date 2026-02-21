@@ -42,6 +42,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * List of numeric context variable paths to validate
@@ -188,7 +189,7 @@ async function main() {
     core.info("✅ All context variables validated successfully");
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    core.setFailed(`Context variable validation failed: ${errorMessage}`);
+    core.setFailed(`${ERR_VALIDATION}: Context variable validation failed: ${errorMessage}`);
     throw error;
   }
 }

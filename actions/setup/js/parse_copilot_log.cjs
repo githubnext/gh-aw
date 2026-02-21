@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 const main = createEngineLogParser({
   parserName: "Copilot",
@@ -45,7 +46,7 @@ function parseCopilotLog(logContent) {
   try {
     logEntries = JSON.parse(logContent);
     if (!Array.isArray(logEntries)) {
-      throw new Error("Not a JSON array");
+      throw new Error(`${ERR_PARSE}: Not a JSON array`);
     }
   } catch (jsonArrayError) {
     // If that fails, try to parse as debug logs format

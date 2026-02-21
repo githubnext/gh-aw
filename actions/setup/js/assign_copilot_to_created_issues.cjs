@@ -4,6 +4,7 @@
 const { AGENT_LOGIN_NAMES, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sleep } = require("./error_recovery.cjs");
+const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
 
 /**
  * Assign copilot to issues created by create_issue job.
@@ -74,7 +75,7 @@ async function main() {
         core.info(`Looking for ${agentName} coding agent...`);
         agentId = await findAgent(owner, repo, agentName);
         if (!agentId) {
-          throw new Error(`${agentName} coding agent is not available for this repository`);
+          throw new Error(`${ERR_PERMISSION}: ${agentName} coding agent is not available for this repository`);
         }
         core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
       }
@@ -83,7 +84,7 @@ async function main() {
       core.info(`Getting details for issue #${issueNumber} in ${repoSlug}...`);
       const issueDetails = await getIssueDetails(owner, repo, issueNumber);
       if (!issueDetails) {
-        throw new Error("Failed to get issue details");
+        throw new Error(`${ERR_API}: Failed to get issue details`);
       }
 
       core.info(`Issue ID: ${issueDetails.issueId}`);
@@ -105,7 +106,7 @@ async function main() {
       const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null);
 
       if (!success) {
-        throw new Error(`Failed to assign ${agentName} via GraphQL`);
+        throw new Error(`${ERR_API}: Failed to assign ${agentName} via GraphQL`);
       }
 
       core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
@@ -164,7 +165,7 @@ async function main() {
 
   // Fail if any assignments failed
   if (failureCount > 0) {
-    core.setFailed(`Failed to assign copilot to ${failureCount} issue(s)`);
+    core.setFailed(`${ERR_API}: Failed to assign copilot to ${failureCount} issue(s)`);
   }
 }
 

@@ -11,6 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
@@ -85,7 +86,7 @@ const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_req
  */
 function loadConfig() {
   if (!process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG) {
-    throw new Error("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set");
+    throw new Error(`${ERR_CONFIG}: GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set`);
   }
 
   try {
@@ -94,7 +95,7 @@ function loadConfig() {
     // Normalize config keys: convert hyphens to underscores
     return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
   } catch (error) {
-    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
   }
 }
 
@@ -990,7 +991,7 @@ async function main() {
 
     core.info("Safe Output Handler Manager completed");
   } catch (error) {
-    core.setFailed(`Handler manager failed: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`);
   } finally {
     // Guarantee the manifest file exists for artifact upload even when the handler fails.
     // This is a no-op if the file was already created by createManifestLogger().

@@ -11,6 +11,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 // Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
@@ -76,7 +77,7 @@ async function main(config = {}) {
         }
 
         if (!releaseTag) {
-          throw new Error("Release tag is required but not provided and cannot be inferred from event context");
+          throw new Error(`${ERR_CONFIG}: Release tag is required but not provided and cannot be inferred from event context`);
         }
       }
 
@@ -128,10 +129,10 @@ async function main(config = {}) {
 
       // Check for specific error cases
       if (errorMessage.includes("Not Found")) {
-        throw new Error(`Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
+        throw new Error(`${ERR_VALIDATION}: Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
       }
 
-      throw new Error(`Failed to update release with tag ${tagInfo}: ${errorMessage}`);
+      throw new Error(`${ERR_API}: Failed to update release with tag ${tagInfo}: ${errorMessage}`);
     }
   };
 }

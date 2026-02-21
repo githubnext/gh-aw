@@ -65,7 +65,7 @@ const mockCore = {
               (process.env.ISSUE_NUMBER = "123"),
               delete process.env.ASSIGNEE,
               await eval(`(async () => { ${assignIssueScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("ASSIGNEE environment variable is required but not set"),
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: ASSIGNEE environment variable is required but not set"),
               expect(mockExec.exec).not.toHaveBeenCalled());
           }),
           it("should fail when ASSIGNEE is empty string", async () => {
@@ -73,7 +73,7 @@ const mockCore = {
               (process.env.ASSIGNEE = "   "),
               (process.env.ISSUE_NUMBER = "123"),
               await eval(`(async () => { ${assignIssueScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("ASSIGNEE environment variable is required but not set"),
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: ASSIGNEE environment variable is required but not set"),
               expect(mockExec.exec).not.toHaveBeenCalled());
           }),
           it("should fail when ISSUE_NUMBER is not set", async () => {
@@ -81,7 +81,7 @@ const mockCore = {
               (process.env.ASSIGNEE = "test-user"),
               delete process.env.ISSUE_NUMBER,
               await eval(`(async () => { ${assignIssueScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("ISSUE_NUMBER environment variable is required but not set"),
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: ISSUE_NUMBER environment variable is required but not set"),
               expect(mockExec.exec).not.toHaveBeenCalled());
           }),
           it("should fail when ISSUE_NUMBER is empty string", async () => {
@@ -89,7 +89,7 @@ const mockCore = {
               (process.env.ASSIGNEE = "test-user"),
               (process.env.ISSUE_NUMBER = "   "),
               await eval(`(async () => { ${assignIssueScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("ISSUE_NUMBER environment variable is required but not set"),
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: ISSUE_NUMBER environment variable is required but not set"),
               expect(mockExec.exec).not.toHaveBeenCalled());
           }));
       }),
@@ -135,7 +135,7 @@ const mockCore = {
           (mockExec.exec.mockRejectedValue(testError),
             await eval(`(async () => { ${assignIssueScript}; await main(); })()`),
             expect(mockCore.error).toHaveBeenCalledWith("Failed to assign issue: User not found"),
-            expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign issue #999 to test-user: User not found"));
+            expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Failed to assign issue #999 to test-user: User not found"));
         }),
           it("should handle non-Error objects in catch block", async () => {
             ((process.env.GH_TOKEN = "ghp_test123"), (process.env.ASSIGNEE = "test-user"), (process.env.ISSUE_NUMBER = "999"));
@@ -143,7 +143,7 @@ const mockCore = {
             (mockExec.exec.mockRejectedValue(stringError),
               await eval(`(async () => { ${assignIssueScript}; await main(); })()`),
               expect(mockCore.error).toHaveBeenCalledWith("Failed to assign issue: Command failed"),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign issue #999 to test-user: Command failed"));
+              expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Failed to assign issue #999 to test-user: Command failed"));
           }),
           it("should handle top-level errors with catch handler", async () => {
             ((process.env.GH_TOKEN = "ghp_test123"), (process.env.ASSIGNEE = "test-user"), (process.env.ISSUE_NUMBER = "123"));

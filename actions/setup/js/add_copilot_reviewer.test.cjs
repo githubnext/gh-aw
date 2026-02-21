@@ -76,7 +76,7 @@ describe("add_copilot_reviewer", () => {
 
     await runScript();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("PR_NUMBER environment variable is required but not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: PR_NUMBER environment variable is required but not set");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
@@ -85,7 +85,7 @@ describe("add_copilot_reviewer", () => {
 
     await runScript();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("PR_NUMBER environment variable is required but not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: PR_NUMBER environment variable is required but not set");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 

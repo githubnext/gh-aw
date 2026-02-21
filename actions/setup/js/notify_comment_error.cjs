@@ -10,6 +10,7 @@ const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage }
 const { getMessages } = require("./messages_core.cjs");
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -105,7 +106,7 @@ async function main() {
 
   // At this point, we have a comment to update
   if (!runUrl) {
-    core.setFailed("Run URL is required");
+    core.setFailed(`${ERR_VALIDATION}: Run URL is required`);
     return;
   }
 
@@ -261,7 +262,7 @@ async function main() {
 
   // At this point, we must have a comment ID (verified by earlier checks)
   if (!commentId) {
-    core.setFailed("Comment ID is required for updating existing comment");
+    core.setFailed(`${ERR_VALIDATION}: Comment ID is required for updating existing comment`);
     return;
   }
 

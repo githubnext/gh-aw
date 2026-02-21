@@ -14,6 +14,7 @@ const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Maximum limits for issue update parameters to prevent resource exhaustion.
@@ -56,7 +57,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
     if (titlePrefix) {
       const currentTitle = currentIssue.title || "";
       if (!currentTitle.startsWith(titlePrefix)) {
-        throw new Error(`Issue title "${currentTitle}" does not start with required prefix "${titlePrefix}"`);
+        throw new Error(`${ERR_VALIDATION}: Issue title "${currentTitle}" does not start with required prefix "${titlePrefix}"`);
       }
       core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
     }

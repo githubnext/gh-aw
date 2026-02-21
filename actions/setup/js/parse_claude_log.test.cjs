@@ -407,7 +407,7 @@ describe("parse_claude_log.cjs", () => {
 
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
-      expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: broken_server");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_API: MCP server(s) failed to launch: broken_server");
     });
 
     it("should call setFailed when max-turns limit is hit", async () => {
@@ -421,7 +421,7 @@ describe("parse_claude_log.cjs", () => {
 
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.");
     });
 
     it("should handle missing log file", async () => {
@@ -440,7 +440,7 @@ describe("parse_claude_log.cjs", () => {
 
     it("should fail when Claude log has no structured entries", async () => {
       await runScript("this is not structured Claude JSON output");
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_CONFIG: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
     });
   });
 

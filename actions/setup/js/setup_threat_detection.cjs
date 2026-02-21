@@ -16,6 +16,7 @@ const fs = require("fs");
 const path = require("path");
 const { checkFileExists } = require("./file_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Main entry point for setting up threat detection
@@ -26,7 +27,7 @@ async function main() {
   // At runtime, markdown files are copied to /opt/gh-aw/prompts/ by the setup action
   const templatePath = "/opt/gh-aw/prompts/threat_detection.md";
   if (!fs.existsSync(templatePath)) {
-    core.setFailed(`Threat detection template not found at: ${templatePath}`);
+    core.setFailed(`${ERR_VALIDATION}: Threat detection template not found at: ${templatePath}`);
     return;
   }
   const templateContent = fs.readFileSync(templatePath, "utf-8");
@@ -66,7 +67,7 @@ async function main() {
   }
 
   if (patchFiles.length === 0 && hasPatch) {
-    core.setFailed(`Patch file(s) expected but not found in: ${threatDetectionDir}`);
+    core.setFailed(`${ERR_VALIDATION}: Patch file(s) expected but not found in: ${threatDetectionDir}`);
     return;
   }
 

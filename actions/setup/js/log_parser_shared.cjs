@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 /**
  * Shared utility functions for log parsers
@@ -837,7 +838,7 @@ function parseLogEntries(logContent) {
   try {
     logEntries = JSON.parse(logContent);
     if (!Array.isArray(logEntries) || logEntries.length === 0) {
-      throw new Error("Not a JSON array or empty array");
+      throw new Error(`${ERR_PARSE}: Not a JSON array or empty array`);
     }
     return logEntries;
   } catch (jsonArrayError) {

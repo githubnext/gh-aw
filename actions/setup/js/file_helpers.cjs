@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * List all files recursively in a directory
@@ -72,7 +73,7 @@ function checkFileExists(filePath, artifactDir, fileDescription, required) {
         core.info("  Found " + files.length + " file(s):");
         files.forEach(file => core.info("    - " + file));
       }
-      core.setFailed("❌ " + fileDescription + " not found at: " + filePath);
+      core.setFailed(`${ERR_SYSTEM}: ❌ ${fileDescription} not found at: ${filePath}`);
       return false;
     } else {
       core.info("No " + fileDescription.toLowerCase() + " found at: " + filePath);

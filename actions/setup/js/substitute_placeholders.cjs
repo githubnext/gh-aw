@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 const substitutePlaceholders = async ({ file, substitutions }) => {
   if (typeof core !== "undefined") {
@@ -46,7 +47,7 @@ const substitutePlaceholders = async ({ file, substitutions }) => {
     if (typeof core !== "undefined") {
       core.info(`[substitutePlaceholders] ERROR reading file: ${errorMessage}`);
     }
-    throw new Error(`Failed to read file ${file}: ${errorMessage}`);
+    throw new Error(`${ERR_SYSTEM}: Failed to read file ${file}: ${errorMessage}`);
   }
 
   // Perform substitutions
@@ -108,7 +109,7 @@ const substitutePlaceholders = async ({ file, substitutions }) => {
     if (typeof core !== "undefined") {
       core.info(`[substitutePlaceholders] ERROR writing file: ${errorMessage}`);
     }
-    throw new Error(`Failed to write file ${file}: ${errorMessage}`);
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${file}: ${errorMessage}`);
   }
 
   return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;

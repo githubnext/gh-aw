@@ -12,6 +12,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -84,7 +85,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const uploadAssetHandler = args => {
     const branchName = process.env.GH_AW_ASSETS_BRANCH;
-    if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
+    if (!branchName) throw new Error(`${ERR_CONFIG}: GH_AW_ASSETS_BRANCH not set`);
 
     // Normalize the branch name to ensure it's a valid git branch name
     const normalizedBranchName = normalizeBranchName(branchName);
@@ -100,12 +101,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const isInTmp = absolutePath.startsWith(tmpDir);
 
     if (!isInWorkspace && !isInTmp) {
-      throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
+      throw new Error(`${ERR_CONFIG}: File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
     }
 
     // Validate file exists
     if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
+      throw new Error(`${ERR_SYSTEM}: File not found: ${filePath}`);
     }
 
     // Get file stats
@@ -116,7 +117,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Check file size - read from environment variable if available
     const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; // Default 10MB
     if (sizeKB > maxSizeKB) {
-      throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
+      throw new Error(`${ERR_VALIDATION}: File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
     }
 
     // Check file extension - read from environment variable if available
@@ -131,7 +132,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         ];
 
     if (!allowedExts.includes(ext)) {
-      throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
+      throw new Error(`${ERR_VALIDATION}: File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
     }
 
     // Create assets directory

@@ -113,7 +113,7 @@ const mockCore = {
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             (process.env.GH_AW_AGENT_CONCLUSION = "failure"),
             await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
-            expect(mockCore.setFailed).toHaveBeenCalledWith("Run URL is required"),
+            expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Run URL is required"),
             expect(mockGithub.request).not.toHaveBeenCalled(),
             expect(mockGithub.graphql).not.toHaveBeenCalled());
         });

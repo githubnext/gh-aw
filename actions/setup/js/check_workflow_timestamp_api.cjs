@@ -10,12 +10,13 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
 const { getFileContent } = require("./github_api_helpers.cjs");
+const { ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
 async function main() {
   const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
 
   if (!workflowFile) {
-    core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_FILE not available.`);
     return;
   }
 
@@ -159,7 +160,7 @@ async function main() {
       await summary.write();
 
       // Fail the step to prevent workflow from running with outdated configuration
-      core.setFailed(warningMessage);
+      core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
     } else if (hashComparison.match) {
       // Hashes match - lock file is up to date despite timestamp difference
       core.info("✅ Lock file is up to date (frontmatter hashes match despite timestamp difference)");
@@ -189,7 +190,7 @@ async function main() {
       await summary.write();
 
       // Fail the step to prevent workflow from running with outdated configuration
-      core.setFailed(warningMessage);
+      core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
     }
   } else if (workflowCommit.sha === lockCommit.sha) {
     // Same commit - definitely up to date
@@ -233,7 +234,7 @@ async function main() {
       await summary.write();
 
       // Fail the step to prevent workflow from running with outdated configuration
-      core.setFailed(warningMessage);
+      core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
     }
   } else {
     // Lock file is newer than workflow file

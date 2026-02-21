@@ -9,6 +9,7 @@ const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Interpolates variables in the prompt content
@@ -141,7 +142,7 @@ async function main() {
 
     const promptPath = process.env.GH_AW_PROMPT;
     if (!promptPath) {
-      core.setFailed("GH_AW_PROMPT environment variable is not set");
+      core.setFailed(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`);
       return;
     }
     core.info(`[main] Prompt path: ${promptPath}`);
@@ -149,7 +150,7 @@ async function main() {
     // Get the workspace directory for runtime imports
     const workspaceDir = process.env.GITHUB_WORKSPACE;
     if (!workspaceDir) {
-      core.setFailed("GITHUB_WORKSPACE environment variable is not set");
+      core.setFailed(`${ERR_CONFIG}: GITHUB_WORKSPACE environment variable is not set`);
       return;
     }
     core.info(`[main] Workspace directory: ${workspaceDir}`);
@@ -256,7 +257,7 @@ async function main() {
     if (err.stack) {
       core.info(`[main] Stack trace:\n${err.stack}`);
     }
-    core.setFailed(getErrorMessage(error));
+    core.setFailed(`${ERR_API}: ${getErrorMessage(error)}`);
   }
 }
 

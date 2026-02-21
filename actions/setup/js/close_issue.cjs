@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
  * Get issue details using REST API
@@ -26,7 +27,7 @@ async function getIssueDetails(github, owner, repo, issueNumber) {
   });
 
   if (!issue) {
-    throw new Error(`Issue #${issueNumber} not found in ${owner}/${repo}`);
+    throw new Error(`${ERR_NOT_FOUND}: Issue #${issueNumber} not found in ${owner}/${repo}`);
   }
 
   return issue;

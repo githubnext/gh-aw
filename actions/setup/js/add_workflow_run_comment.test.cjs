@@ -139,7 +139,7 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Issue number not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Issue number not found in event payload");
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });
@@ -201,7 +201,7 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Pull request number not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Pull request number not found in event payload");
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });
@@ -260,7 +260,7 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion number not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Discussion number not found in event payload");
     });
   });
 
@@ -303,7 +303,7 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion or comment information not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Discussion or comment information not found in event payload");
     });
   });
 
@@ -318,7 +318,7 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: unsupported_event");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Unsupported event type: unsupported_event");
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });

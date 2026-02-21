@@ -415,7 +415,7 @@ describe("parse_safe_inputs_logs.cjs", () => {
 
       await main();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Test error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_PARSE: Test error");
     });
 
     it("should process multiple log files", async () => {

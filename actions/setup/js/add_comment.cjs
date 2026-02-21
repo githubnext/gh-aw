@@ -17,6 +17,7 @@ const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -229,7 +230,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   );
 
   if (!repository || !repository.discussion) {
-    throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+    throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
   }
 
   const discussionId = repository.discussion.id;
@@ -522,7 +523,7 @@ async function main(config = {}) {
 
         const discussionId = queryResult?.repository?.discussion?.id;
         if (!discussionId) {
-          throw new Error(`Discussion #${itemNumber} not found in ${itemRepo}`);
+          throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
         }
 
         comment = await commentOnDiscussion(github, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
@@ -592,7 +593,7 @@ async function main(config = {}) {
 
           const discussionId = queryResult?.repository?.discussion?.id;
           if (!discussionId) {
-            throw new Error(`Discussion #${itemNumber} not found in ${itemRepo}`);
+            throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
           }
 
           core.info(`Found discussion #${itemNumber}, adding comment...`);

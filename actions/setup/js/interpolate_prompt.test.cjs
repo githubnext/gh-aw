@@ -117,8 +117,9 @@ describe("interpolate_prompt", () => {
           delete process.env.GH_AW_PROMPT;
           const mainMatch = interpolatePromptScript.match(/async function main\(\)\s*{[\s\S]*?^}/m);
           if (!mainMatch) throw new Error("Could not extract main function");
+          const ERR_CONFIG = "ERR_CONFIG";
           const main = eval(`(${mainMatch[0]})`);
-          (main(), expect(core.setFailed).toHaveBeenCalledWith("GH_AW_PROMPT environment variable is not set"));
+          (main(), expect(core.setFailed).toHaveBeenCalledWith("ERR_CONFIG: GH_AW_PROMPT environment variable is not set"));
         }));
     }));
 });

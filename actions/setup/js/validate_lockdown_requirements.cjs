@@ -14,6 +14,7 @@
  * @param {any} core - GitHub Actions core library
  * @returns {void}
  */
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 function validateLockdownRequirements(core) {
   // Check if lockdown mode is explicitly enabled (set to "true" in frontmatter)
   const lockdownEnabled = process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT === "true";

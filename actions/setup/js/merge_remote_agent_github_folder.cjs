@@ -23,6 +23,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 // Get the core object - in github-script context it's global, for testing we create a minimal version
 const coreObj =
@@ -133,7 +134,7 @@ function validateGitParameter(value, name) {
   // This is safe for git owner/repo/ref names
   const safePattern = /^[a-zA-Z0-9._/-]+$/;
   if (!safePattern.test(value)) {
-    throw new Error(`Invalid ${name}: contains unsafe characters. Only alphanumeric, hyphens, underscores, dots, and forward slashes are allowed.`);
+    throw new Error(`${ERR_VALIDATION}: Invalid ${name}: contains unsafe characters. Only alphanumeric, hyphens, underscores, dots, and forward slashes are allowed.`);
   }
 }
 
@@ -147,12 +148,12 @@ function validateGitParameter(value, name) {
 function validateSafePath(userPath, basePath, name) {
   // Reject paths with null bytes
   if (userPath.includes("\0")) {
-    throw new Error(`Invalid ${name}: contains null bytes`);
+    throw new Error(`${ERR_VALIDATION}: Invalid ${name}: contains null bytes`);
   }
 
   // Reject paths that attempt to traverse up (..)
   if (userPath.includes("..")) {
-    throw new Error(`Invalid ${name}: path traversal detected`);
+    throw new Error(`${ERR_VALIDATION}: Invalid ${name}: path traversal detected`);
   }
 
   // Resolve the full path and ensure it's within the base path
@@ -160,7 +161,7 @@ function validateSafePath(userPath, basePath, name) {
   const resolvedBase = path.resolve(basePath);
 
   if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
-    throw new Error(`Invalid ${name}: path escapes base directory`);
+    throw new Error(`${ERR_VALIDATION}: Invalid ${name}: path escapes base directory`);
   }
 
   return resolvedPath;
@@ -212,7 +213,7 @@ function sparseCheckoutGithubFolder(owner, repo, ref, tempDir) {
 
     coreObj.info("Sparse checkout completed successfully");
   } catch (error) {
-    throw new Error(`Sparse checkout failed: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_PARSE}: Sparse checkout failed: ${getErrorMessage(error)}`);
   }
 }
 
@@ -302,7 +303,7 @@ async function mergeRepositoryGithubFolder(owner, repo, ref, workspace) {
 
   // Check if the pre-checked-out folder exists
   if (!pathExists(checkoutPath)) {
-    throw new Error(`Pre-checked-out repository not found at ${checkoutPath}. The actions/checkout step may have failed.`);
+    throw new Error(`${ERR_SYSTEM}: Pre-checked-out repository not found at ${checkoutPath}. The actions/checkout step may have failed.`);
   }
 
   // Check if .github folder exists in the checked-out repository
@@ -329,7 +330,7 @@ async function mergeRepositoryGithubFolder(owner, repo, ref, workspace) {
     for (const conflict of conflicts) {
       coreObj.error(`  - ${conflict}`);
     }
-    throw new Error(`Cannot merge .github folder from ${owner}/${repo}@${ref}: ${conflicts.length} file(s) conflict with existing files`);
+    throw new Error(`${ERR_VALIDATION}: Cannot merge .github folder from ${owner}/${repo}@${ref}: ${conflicts.length} file(s) conflict with existing files`);
   }
 
   if (merged > 0) {
@@ -356,17 +357,17 @@ async function main() {
       try {
         repositoryImports = JSON.parse(repositoryImportsEnv);
       } catch (error) {
-        throw new Error(`Failed to parse GH_AW_REPOSITORY_IMPORTS: ${getErrorMessage(error)}`);
+        throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_REPOSITORY_IMPORTS: ${getErrorMessage(error)}`);
       }
 
       if (!Array.isArray(repositoryImports)) {
-        throw new Error("GH_AW_REPOSITORY_IMPORTS must be a JSON array");
+        throw new Error(`${ERR_PARSE}: GH_AW_REPOSITORY_IMPORTS must be a JSON array`);
       }
 
       // Get workspace path
       const workspace = process.env.GITHUB_WORKSPACE;
       if (!workspace) {
-        throw new Error("GITHUB_WORKSPACE environment variable not set");
+        throw new Error(`${ERR_CONFIG}: GITHUB_WORKSPACE environment variable not set`);
       }
 
       // Process each repository import
@@ -419,7 +420,7 @@ async function main() {
     // Get workspace path
     const workspace = process.env.GITHUB_WORKSPACE;
     if (!workspace) {
-      throw new Error("GITHUB_WORKSPACE environment variable not set");
+      throw new Error(`${ERR_CONFIG}: GITHUB_WORKSPACE environment variable not set`);
     }
 
     await mergeRepositoryGithubFolder(owner, repo, ref, workspace);

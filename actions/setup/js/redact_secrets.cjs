@@ -216,10 +216,11 @@ async function main() {
       core.info("Secret redaction complete: no secrets found");
     }
   } catch (error) {
-    core.setFailed(`Secret redaction failed: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_VALIDATION}: Secret redaction failed: ${getErrorMessage(error)}`);
   }
 }
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 module.exports = { main, redactSecrets, redactBuiltInPatterns, BUILT_IN_PATTERNS };

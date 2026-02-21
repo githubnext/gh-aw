@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -57,12 +58,12 @@ function logGraphQLError(error, operation) {
  */
 function parseProjectUrl(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
-    throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
   const match = projectUrl.match(/^https:\/\/[^/]+\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
-    throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
 
   return {
@@ -209,7 +210,9 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
   } catch (fallbackError) {
     // Both direct query and fallback list query failed - this could be a transient API error
     const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
-    throw new Error(`Unable to resolve project #${projectNumberInt} for ${who}. Both direct projectV2 query and fallback projectsV2 list query failed. This may be a transient GitHub API error. Error: ${getErrorMessage(fallbackError)}`);
+    throw new Error(
+      `${ERR_NOT_FOUND}: Unable to resolve project #${projectNumberInt} for ${who}. Both direct projectV2 query and fallback projectsV2 list query failed. This may be a transient GitHub API error. Error: ${getErrorMessage(fallbackError)}`
+    );
   }
 
   const nodes = Array.isArray(list.nodes) ? list.nodes : [];
@@ -221,7 +224,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
   const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
   const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
 
-  throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
+  throw new Error(`${ERR_NOT_FOUND}: Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
 }
 
 /**
@@ -291,7 +294,7 @@ async function main(config = {}, githubClient = null) {
   const github = githubClient || global.github;
 
   if (!github) {
-    throw new Error("GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.");
+    throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
 
   core.info(`Max count: ${maxCount}`);
@@ -351,7 +354,7 @@ async function main(config = {}, githubClient = null) {
       const projectNumberInt = parseInt(projectInfo.projectNumber, 10);
 
       if (!Number.isFinite(projectNumberInt)) {
-        throw new Error(`Invalid project number parsed from URL: ${projectInfo.projectNumber}`);
+        throw new Error(`${ERR_PARSE}: Invalid project number parsed from URL: ${projectInfo.projectNumber}`);
       }
 
       const project = await resolveProjectV2(projectInfo, projectNumberInt);

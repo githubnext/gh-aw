@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
+const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
 
 async function main() {
   try {
@@ -141,7 +142,7 @@ async function main() {
           core.info(`invalid input json: ${jsonStr}`);
           const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
           const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
-          throw new Error(`JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
+          throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
         }
       }
     }
@@ -361,7 +362,7 @@ async function main() {
     core.setOutput("output", "");
     core.setOutput("output_types", "");
     core.setOutput("has_patch", "false");
-    core.setFailed(`Agent output ingestion failed: ${errorMsg}`);
+    core.setFailed(`${ERR_API}: Agent output ingestion failed: ${errorMsg}`);
     throw error;
   }
 }

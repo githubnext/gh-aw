@@ -6,6 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Normalizes a branch name to be a valid git branch name.
@@ -62,7 +63,7 @@ async function main() {
   // Get the branch name from environment variable (required)
   const branchName = process.env.GH_AW_ASSETS_BRANCH;
   if (!branchName || typeof branchName !== "string") {
-    core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+    core.setFailed(`${ERR_CONFIG}: GH_AW_ASSETS_BRANCH environment variable is required but not set`);
     return;
   }
 
@@ -121,14 +122,14 @@ async function main() {
       const { fileName, sha, size, targetFileName } = asset;
 
       if (!fileName || !sha || !targetFileName) {
-        core.setFailed(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+        core.setFailed(`${ERR_VALIDATION}: Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
         return;
       }
 
       // Check if file exists in artifacts
       const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
       if (!fs.existsSync(assetSourcePath)) {
-        core.setFailed(`Asset file not found: ${assetSourcePath}`);
+        core.setFailed(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath}`);
         return;
       }
 
@@ -137,7 +138,7 @@ async function main() {
       const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
       if (computedSha !== sha) {
-        core.setFailed(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+        core.setFailed(`${ERR_VALIDATION}: SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
         return;
       }
 
@@ -159,7 +160,7 @@ async function main() {
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {
-        core.setFailed(`Failed to process asset ${fileName}: ${getErrorMessage(error)}`);
+        core.setFailed(`${ERR_API}: Failed to process asset ${fileName}: ${getErrorMessage(error)}`);
         return;
       }
     }
@@ -186,7 +187,7 @@ async function main() {
       core.info("No new assets to upload");
     }
   } catch (error) {
-    core.setFailed(`Failed to upload assets: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_API}: Failed to upload assets: ${getErrorMessage(error)}`);
     return;
   }
 

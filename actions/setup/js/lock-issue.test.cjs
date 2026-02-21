@@ -51,7 +51,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           delete global.context.payload.issue,
           await eval(`(async () => { ${lockIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.lock).not.toHaveBeenCalled(),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Issue number not found in context"));
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Issue number not found in context"));
       }),
       it("should handle API errors gracefully", async () => {
         mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !1 } });
@@ -60,7 +60,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           await eval(`(async () => { ${lockIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.lock).toHaveBeenCalled(),
           expect(mockCore.error).toHaveBeenCalledWith("Failed to lock issue: API rate limit exceeded"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to lock issue #42: API rate limit exceeded"),
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Failed to lock issue #42: API rate limit exceeded"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false"));
       }),
       it("should handle non-Error exceptions", async () => {
@@ -68,7 +68,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.rest.issues.lock.mockRejectedValue("String error"),
           await eval(`(async () => { ${lockIssueScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith("Failed to lock issue: String error"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to lock issue #42: String error"),
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_NOT_FOUND: Failed to lock issue #42: String error"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false"));
       }),
       it("should work with different issue numbers", async () => {

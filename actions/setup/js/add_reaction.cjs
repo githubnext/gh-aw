@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
+const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Add a reaction to the triggering item (issue, PR, comment, or discussion).
@@ -18,7 +19,7 @@ async function main() {
   // Validate reaction type
   const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
   if (!validReactions.includes(reaction)) {
-    core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
+    core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
     return;
   }
 
@@ -33,7 +34,7 @@ async function main() {
       case "issues":
         const issueNumber = context.payload?.issue?.number;
         if (!issueNumber) {
-          core.setFailed("Issue number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
@@ -42,7 +43,7 @@ async function main() {
       case "issue_comment":
         const commentId = context.payload?.comment?.id;
         if (!commentId) {
-          core.setFailed("Comment ID not found in event payload");
+          core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
@@ -51,7 +52,7 @@ async function main() {
       case "pull_request":
         const prNumber = context.payload?.pull_request?.number;
         if (!prNumber) {
-          core.setFailed("Pull request number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
           return;
         }
         // PRs are "issues" for the reactions endpoint
@@ -61,7 +62,7 @@ async function main() {
       case "pull_request_review_comment":
         const reviewCommentId = context.payload?.comment?.id;
         if (!reviewCommentId) {
-          core.setFailed("Review comment ID not found in event payload");
+          core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
@@ -70,7 +71,7 @@ async function main() {
       case "discussion":
         const discussionNumber = context.payload?.discussion?.number;
         if (!discussionNumber) {
-          core.setFailed("Discussion number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
           return;
         }
         // Discussions use GraphQL API - get the node ID
@@ -81,14 +82,14 @@ async function main() {
       case "discussion_comment":
         const commentNodeId = context.payload?.comment?.node_id;
         if (!commentNodeId) {
-          core.setFailed("Discussion comment node ID not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
           return;
         }
         await addDiscussionReaction(commentNodeId, reaction);
         return; // Early return for discussion comment events
 
       default:
-        core.setFailed(`Unsupported event type: ${eventName}`);
+        core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
         return;
     }
 
@@ -107,7 +108,7 @@ async function main() {
 
     // For other errors, fail as before
     core.error(`Failed to add reaction: ${errorMessage}`);
-    core.setFailed(`Failed to add reaction: ${errorMessage}`);
+    core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);
   }
 }
 
@@ -154,7 +155,7 @@ async function addDiscussionReaction(subjectId, reaction) {
 
   const reactionContent = reactionMap[reaction];
   if (!reactionContent) {
-    throw new Error(`Invalid reaction type for GraphQL: ${reaction}`);
+    throw new Error(`${ERR_VALIDATION}: Invalid reaction type for GraphQL: ${reaction}`);
   }
 
   const result = await github.graphql(
@@ -197,7 +198,7 @@ async function getDiscussionId(owner, repo, discussionNumber) {
   );
 
   if (!repository || !repository.discussion) {
-    throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+    throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
   }
 
   return {
