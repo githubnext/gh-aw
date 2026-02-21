@@ -243,7 +243,7 @@ export default defineConfig({
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
-				{ label: 'Workflow Editors', link: '/reference/editors/' },
+				{ label: 'Editors', link: '/reference/editors/' },
 			],
 		}),
 	],
