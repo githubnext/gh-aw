@@ -12,8 +12,8 @@ import (
 )
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, merge bool) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, merge=%v", workflowsDir, workflowNames, merge)
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v", workflowsDir, workflowNames, noMerge)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -44,7 +44,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 	// Update each workflow
 	for _, wf := range workflows {
 		updateLog.Printf("Updating workflow: %s (source: %s)", wf.Name, wf.SourceSpec)
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, merge); err != nil {
+		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge); err != nil {
 			updateLog.Printf("Failed to update workflow %s: %v", wf.Name, err)
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
@@ -168,12 +168,10 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 
 	// Check if current ref is a commit SHA (40-character hex string)
 	if IsCommitSHA(currentRef) {
-		updateLog.Printf("Current ref is a commit SHA: %s, returning as-is", currentRef)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Ref %s is a commit SHA, already pinned to specific commit", currentRef)))
-		}
-		// Commit SHAs are already pinned to a specific commit, no need to resolve
-		return currentRef, nil
+		updateLog.Printf("Current ref is a commit SHA: %s, fetching latest from default branch", currentRef)
+		// The source field only contains a pinned SHA with no branch information.
+		// Fetch the latest commit from the default branch to check for updates.
+		return resolveLatestCommitFromDefaultBranch(repo, currentRef, verbose)
 	}
 
 	// Otherwise, treat as branch and get latest commit
@@ -182,17 +180,73 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 	}
 
 	// Get the latest commit SHA for the branch
-	output, err := workflow.RunGH("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, currentRef), "--jq", ".commit.sha")
+	latestSHA, err := getLatestBranchCommitSHA(repo, currentRef)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest commit for branch %s: %w", currentRef, err)
 	}
 
-	latestSHA := strings.TrimSpace(string(output))
 	updateLog.Printf("Latest commit for branch %s: %s", currentRef, latestSHA)
 
-	// For branches, we return the branch name, not the SHA
-	// The source spec will remain as branch@branchname
-	return currentRef, nil
+	// Return the latest SHA so the source pin gets updated
+	return latestSHA, nil
+}
+
+// resolveLatestCommitFromDefaultBranch fetches the latest commit SHA from
+// the default branch of a repo. This is used when the source field is pinned
+// to a commit SHA with no branch information — in that case we can only
+// logically track the default branch.
+func resolveLatestCommitFromDefaultBranch(repo, currentSHA string, verbose bool) (string, error) {
+	// Get the default branch name
+	defaultBranch, err := getRepoDefaultBranch(repo)
+	if err != nil {
+		return "", fmt.Errorf("failed to get default branch for %s: %w", repo, err)
+	}
+
+	updateLog.Printf("Source is pinned to commit SHA, tracking default branch %q of %s", defaultBranch, repo)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source is pinned to commit SHA, checking default branch %q for updates", defaultBranch)))
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Source has no branch ref, tracking default branch %q", defaultBranch)))
+
+	// Get the latest commit SHA from the default branch
+	latestSHA, err := getLatestBranchCommitSHA(repo, defaultBranch)
+	if err != nil {
+		return "", fmt.Errorf("failed to get latest commit for default branch %s: %w", defaultBranch, err)
+	}
+
+	updateLog.Printf("Latest commit on default branch %s: %s (current: %s)", defaultBranch, latestSHA, currentSHA)
+
+	return latestSHA, nil
+}
+
+// getRepoDefaultBranch fetches the default branch name for a repository.
+func getRepoDefaultBranch(repo string) (string, error) {
+	output, err := workflow.RunGH("Fetching repo info...", "api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
+	if err != nil {
+		return "", err
+	}
+
+	branch := strings.TrimSpace(string(output))
+	if branch == "" {
+		return "", fmt.Errorf("empty default branch returned for %s", repo)
+	}
+
+	return branch, nil
+}
+
+// getLatestBranchCommitSHA fetches the latest commit SHA for a given branch.
+func getLatestBranchCommitSHA(repo, branch string) (string, error) {
+	output, err := workflow.RunGH("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
+	if err != nil {
+		return "", err
+	}
+
+	sha := strings.TrimSpace(string(output))
+	if sha == "" {
+		return "", fmt.Errorf("empty commit SHA returned for branch %s", branch)
+	}
+
+	return sha, nil
 }
 
 // resolveLatestRelease resolves the latest compatible release for a workflow source
@@ -259,8 +313,8 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, merge bool) error {
-	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, merge=%v", wf.Name, wf.SourceSpec, force, merge)
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool) error {
+	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
@@ -302,7 +356,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download source for comparison: %v", err)))
 			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
 			return nil
 		}
 
@@ -315,13 +369,13 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		// Check if local file differs from source
 		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, verbose) {
 			updateLog.Printf("Local modifications detected in workflow: %s", wf.Name)
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
 			return nil
 		}
 
 		updateLog.Printf("Workflow %s is up to date with no local modifications", wf.Name)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, currentRef)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
 		return nil
 	}
 
@@ -333,6 +387,27 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	newContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, latestRef, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to download workflow: %w", err)
+	}
+
+	// Determine merge mode. Merge is the default behaviour — it detects
+	// local modifications and performs a 3-way merge to preserve them.
+	// When --no-merge is used, local changes are overridden with upstream.
+	merge := !noMerge
+
+	// When merge mode is on, detect local modifications to confirm we
+	// actually need to merge (if no local mods, override is fine either way).
+	if merge {
+		baseContent, dlErr := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		if dlErr == nil {
+			localContent, readErr := os.ReadFile(wf.Path)
+			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, verbose) {
+				updateLog.Printf("Local modifications detected in %s, merging to preserve changes", wf.Name)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Local modifications detected in %s, merging to preserve your changes", wf.Name)))
+			} else {
+				// No local modifications — no need to merge, just override
+				merge = false
+			}
+		}
 	}
 
 	var finalContent string
@@ -448,12 +523,12 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	if hasConflicts {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, currentRef, latestRef)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, shortRef(currentRef), shortRef(latestRef))))
 		return nil // Not an error, but user needs to resolve conflicts
 	}
 
 	updateLog.Printf("Successfully updated workflow %s from %s to %s", wf.Name, currentRef, latestRef)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, currentRef, latestRef)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, shortRef(currentRef), shortRef(latestRef))))
 
 	// Compile the updated workflow with refreshStopTime enabled
 	updateLog.Printf("Compiling updated workflow: %s", wf.Name)
@@ -463,4 +538,13 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	return nil
+}
+
+// shortRef abbreviates a ref for display. Commit SHAs are truncated to 7 characters;
+// other refs (branch names, tags) are returned as-is.
+func shortRef(ref string) string {
+	if IsCommitSHA(ref) {
+		return ref[:7]
+	}
+	return ref
 }

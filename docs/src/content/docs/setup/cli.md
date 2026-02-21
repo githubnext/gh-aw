@@ -385,15 +385,16 @@ gh aw remove my-workflow
 
 #### `update`
 
-Update workflows based on `source` field (`owner/repo/path@ref`). Default replaces local file; `--merge` performs 3-way merge. Semantic versions update within same major version.
+Update workflows based on `source` field (`owner/repo/path@ref`). By default, performs a 3-way merge to preserve local changes; use `--no-merge` to override with upstream. Semantic versions update within same major version.
 
 ```bash wrap
 gh aw update                              # Update all with source field
-gh aw update ci-doctor --merge            # Update with 3-way merge
+gh aw update ci-doctor                    # Update specific workflow (3-way merge)
+gh aw update ci-doctor --no-merge         # Override local changes with upstream
 gh aw update ci-doctor --major --force    # Allow major version updates
 ```
 
-**Options:** `--dir`, `--merge`, `--major`, `--force`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`
 
 #### `upgrade`
 
@@ -404,9 +405,11 @@ gh aw upgrade                              # Upgrade repository agent files and 
 gh aw upgrade --no-fix                     # Update agent files only (skip codemods)
 gh aw upgrade --push                       # Upgrade and automatically commit/push
 gh aw upgrade --push --no-fix              # Update agent files and push
+gh aw upgrade --audit                      # Run dependency health audit
+gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir`, `--no-fix`, `--push` (see [--push flag](#the---push-flag))
+**Options:** `--dir`, `--no-fix`, `--no-actions`, `--push` (see [--push flag](#the---push-flag)), `--audit`, `--json`
 
 ### Advanced
 
