@@ -396,6 +396,8 @@ The YAML frontmatter supports these fields:
         category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
         max: 3                          # Optional: maximum number of discussions (default: 1)
         close-older-discussions: true   # Optional: close older discussions with same prefix/labels (default: false)
+        expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
+        fallback-to-issue: true         # Optional: create issue if discussion creation fails (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
@@ -423,6 +425,7 @@ The YAML frontmatter supports these fields:
         target: "*"                     # Optional: target for comments (default: "triggering")
         hide-older-comments: true       # Optional: minimize previous comments from same workflow
         allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
+        discussions: false              # Optional: set false to exclude discussions:write permission (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -441,6 +444,7 @@ The YAML frontmatter supports these fields:
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
         auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
+        fallback-as-issue: false        # Optional: create issue if PR creation fails (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -516,6 +520,7 @@ The YAML frontmatter supports these fields:
         target: "triggering"                # Optional: "triggering" (default), "*" (any PR), or explicit PR number
         max: 10                             # Optional: maximum number of PRs to close (default: 1)
         target-repo: "owner/repo"           # Optional: cross-repository
+        github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
     ```
     When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
   - `mark-pull-request-as-ready-for-review:` - Mark draft PRs as ready for review
@@ -701,6 +706,8 @@ The YAML frontmatter supports these fields:
         title-prefix: "[bot] "          # Optional: require title prefix
         labels: [automated]             # Optional: require all labels
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+        commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
+        staged: true                    # Optional: preview mode (default: follows global staged)
     ```
     Not supported for cross-repository operations.
   - `update-discussion:` - Update discussion title, body, or labels
@@ -770,10 +777,17 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       assign-to-agent:
         name: "copilot"                 # Optional: agent name
+        model: "claude-sonnet-4-5"      # Optional: model override
+        custom-agent: "agent-id"        # Optional: custom agent ID
+        custom-instructions: "..."      # Optional: additional instructions for the agent
         allowed: [copilot]              # Optional: restrict to specific agent names
         max: 1                          # Optional: max assignments (default: 1)
         target: "*"                     # Optional: "triggering" (default), "*", or number
-        target-repo: "owner/repo"       # Optional: cross-repository
+        target-repo: "owner/repo"       # Optional: where the issue lives (cross-repository)
+        pull-request-repo: "owner/repo" # Optional: where PR should be created (if different)
+        allowed-pull-request-repos: [owner/repo1]  # Optional: additional repos for PR creation
+        base-branch: "develop"          # Optional: target branch for PR (default: repo default)
+        ignore-if-error: true           # Optional: continue workflow on assignment error (default: false)
     ```
     Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
   - `assign-to-user:` - Assign users to issues or pull requests
@@ -815,6 +829,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       noop:
+        report-as-issue: false          # Optional: report noop as issue (default: true)
     ```
     The noop safe-output provides a fallback mechanism ensuring workflows never complete silently. When enabled (automatically by default), agents can emit human-visible messages even when no other actions are required (e.g., "Analysis complete - no issues found"). This ensures every workflow run produces visible output.
   - `missing-tool:` - Report missing tools or functionality (auto-enabled)
@@ -832,6 +847,31 @@ The YAML frontmatter supports these fields:
         labels: [data-request]          # Optional: labels for created issues
     ```
     The missing-data safe-output allows agents to report when required data or information is unavailable. This is automatically enabled by default. When `create-issue` is true, missing data reports create or update GitHub issues for tracking.
+
+  - `jobs:` - Custom safe-output jobs registered as MCP tools for third-party integrations
+    ```yaml
+    safe-outputs:
+      jobs:
+        send-notification:
+          description: "Send a notification to an external service"
+          runs-on: ubuntu-latest
+          output: "Notification sent successfully!"
+          inputs:
+            message:
+              description: "The message to send"
+              required: true
+              type: string
+          permissions:
+            contents: read
+          env:
+            API_KEY: ${{ secrets.API_KEY }}
+          steps:
+            - name: Send notification
+              run: |
+                MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "send_notification") | .message')
+                curl -H "Authorization: $API_KEY" -d "$MESSAGE" https://api.example.com/notify
+    ```
+    Custom safe-output jobs define post-processing GitHub Actions jobs registered as MCP tools. Agents call the tool by its normalized name (dashes converted to underscores, e.g., `send_notification`). The job runs after the agent completes with access to `$GH_AW_AGENT_OUTPUT` (the path to agent output JSON). Use this to integrate with Slack, Discord, external APIs, databases, or any service requiring secrets. Import from shared files using the `imports:` field.
 
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs
@@ -1982,6 +2022,7 @@ Agentic workflows compile to GitHub Actions YAML:
 - **`sandbox: false`** (top-level) - Deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to migrate automatically.
 - **`timeout_minutes`** (underscore) - Breaking change. Must use `timeout-minutes` (with hyphen).
 - **`create-agent-task`** - Deprecated. Use `create-agent-session` instead for Copilot coding agent sessions.
+- **`safe-outputs.add-comment.discussion`** - Deprecated. The `discussion: true` flag is no longer needed; `add-comment` auto-detects the target type. Run `gh aw fix --write` with codemod `add-comment-discussion-removal` to remove it automatically.
 
 ### Breaking Configuration Changes
 
@@ -1995,6 +2036,7 @@ Agentic workflows compile to GitHub Actions YAML:
 Use `gh aw fix --write` to automatically migrate deprecated configurations:
 - Converts `sandbox: false` to `sandbox.agent: false`
 - Updates `create-agent-task` to `create-agent-session`
+- Removes deprecated `discussion: true` from `add-comment` (codemod: `add-comment-discussion-removal`)
 - Applies other codemods for deprecated patterns
 
 ## Best Practices
