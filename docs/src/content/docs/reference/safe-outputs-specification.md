@@ -2030,6 +2030,15 @@ safe-outputs:
 3. **No Side Effects**: Creates no GitHub resources.
 4. **Transparency**: Provides clear indication of normal completion vs. error states.
 
+**Configuration Parameters**:
+- `max`: Operation limit (always 1; noop is registered as a singleton type)
+- `message`: Default completion message (overridden by agent-provided message at invocation time)
+
+**Security Requirements**:
+- The `message` field MUST undergo content sanitization to prevent log injection
+- The handler MUST NOT make any GitHub API calls
+- The handler MUST NOT modify any workflow state or create side effects
+
 **Required Permissions**:
 
 *GitHub Actions Token*:
@@ -2057,6 +2066,53 @@ This section provides complete definitions for all remaining safe output types. 
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
 
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "update_issue",
+  "description": "Update an existing GitHub issue's status, title, body, labels, assignees, or milestone. Only the fields you specify will be updated; other fields remain unchanged.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "status": {"type": "string", "enum": ["open", "closed"], "description": "New issue status"},
+      "title": {"type": "string", "description": "New issue title"},
+      "body": {"type": "string", "description": "New issue body in Markdown"},
+      "issue_number": {"type": ["number", "string"], "description": "Issue number to update"},
+      "operation": {
+        "type": "string",
+        "enum": ["replace", "append", "prepend", "replace-island"],
+        "description": "Body update mode (default: append)"
+      },
+      "labels": {"type": "array", "items": {"type": "string"}, "description": "Replacement label list"},
+      "assignees": {"type": "array", "items": {"type": "string"}, "description": "Replacement assignee list"},
+      "milestone": {"type": ["number", "string"], "description": "Milestone number (null to clear)"}
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Partial Updates**: Only fields explicitly provided are modified; omitted fields are unchanged.
+2. **Body Operation Modes**: `replace` overwrites the entire body; `append`/`prepend` add content with separator; `replace-island` updates a run-specific section.
+3. **Label Validation**: Provided labels must exist in the repository; non-existent labels cause failure.
+4. **Assignee Resolution**: Assignees must have repository access; invalid usernames cause failure.
+5. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
+
+**Configuration Parameters**:
+- `max`: Operation limit (default: 1)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `staged`: Staged mode override
+
+**Security Requirements**:
+- Title and body MUST undergo full content sanitization before modification
+- Label values MUST be validated against repository labels before application
+- Cross-repository targets MUST be validated against the `allowed-repos` allowlist
+- Issue number MUST be validated as a positive integer belonging to the target repository
+
 **Required Permissions**:
 
 *GitHub Actions Token*:
@@ -2081,6 +2137,48 @@ This section provides complete definitions for all remaining safe output types. 
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
 
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "close_issue",
+  "description": "Close a GitHub issue with a closing comment explaining the resolution or reason for closing.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["body"],
+    "properties": {
+      "body": {"type": "string", "description": "Closing comment explaining the resolution"},
+      "issue_number": {
+        "type": ["number", "string"],
+        "description": "Issue number to close. If omitted, closes the issue that triggered this workflow."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Comment First**: A closing comment is posted before the issue state is changed to `closed`.
+2. **Context Resolution**: When `issue_number` is omitted, resolves from the workflow trigger context.
+3. **Idempotent Comment**: If the issue is already closed, the closing comment is still posted.
+4. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
+5. **Footer Injection**: Appends attribution footer to the closing comment when configured.
+
+**Configuration Parameters**:
+- `max`: Operation limit (default: 1)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `footer`: Footer override
+- `staged`: Staged mode override
+
+**Security Requirements**:
+- The closing comment body MUST undergo full content sanitization
+- Issue number MUST be validated as a positive integer belonging to the target repository
+- Cross-repository targets MUST be validated against the `allowed-repos` allowlist
+- The handler MUST verify the caller has `issues: write` permission before executing
+
 **Required Permissions**:
 
 *GitHub Actions Token*:
@@ -2100,6 +2198,48 @@ This section provides complete definitions for all remaining safe output types. 
 **Default Max**: 1  
 **Cross-Repository Support**: No (same repository only)  
 **Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "link_sub_issue",
+  "description": "Link an issue as a sub-issue of a parent issue, establishing a parent-child relationship.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["parent_issue_number", "sub_issue_number"],
+    "properties": {
+      "parent_issue_number": {
+        "type": ["number", "string"],
+        "description": "The parent issue number to link the sub-issue to"
+      },
+      "sub_issue_number": {
+        "type": ["number", "string"],
+        "description": "The issue number to link as a sub-issue of the parent"
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Task List Insertion**: Adds a task list entry referencing the sub-issue to the parent issue body.
+2. **Bidirectional Navigation**: Creates navigable links from parent to child and child to parent.
+3. **Limit Enforcement**: Enforces maximum sub-issue count (default: 50) per parent issue.
+4. **Validation**: Both parent and sub-issue numbers must exist in the same repository.
+5. **Same Repository Only**: Cross-repository sub-issue linking is not supported.
+
+**Configuration Parameters**:
+- `max`: Operation limit (default: 1)
+- `staged`: Staged mode override
+
+**Security Requirements**:
+- Both `parent_issue_number` and `sub_issue_number` MUST be validated as positive integers
+- Both issue numbers MUST exist in the target repository before modification
+- The handler MUST enforce the maximum sub-issue count limit to prevent unbounded growth
+- Cross-repository operations MUST be rejected; only same-repository linking is permitted
 
 **Required Permissions**:
 
@@ -2124,6 +2264,49 @@ This section provides complete definitions for all remaining safe output types. 
 **Default Max**: 1  
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "create_discussion",
+  "description": "Create a GitHub discussion for announcements, Q&A, reports, status updates, or community conversations.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["title", "body"],
+    "properties": {
+      "title": {"type": "string", "description": "Discussion title"},
+      "body": {"type": "string", "description": "Discussion body in Markdown"},
+      "category": {
+        "type": "string",
+        "description": "Discussion category by name, slug, or ID. Defaults to first available category."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Category Resolution**: Category is resolved by name, slug, or ID; defaults to the first available category if omitted.
+2. **Fallback Behavior**: When repository discussions are disabled, falls back to creating an issue if `issues: write` is available.
+3. **Footer Injection**: Appends attribution footer to the discussion body when configured.
+4. **Cross-Repository**: When `target-repo` is configured, creates in that repository (must be in `allowed-repos`).
+5. **Temporary ID Support**: Supports `temporary_id` field for referencing before creation.
+
+**Configuration Parameters**:
+- `max`: Operation limit (default: 1)
+- `category`: Default discussion category
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `footer`: Footer override
+- `staged`: Staged mode override
+
+**Security Requirements**:
+- Title and body MUST undergo full content sanitization before creation
+- Category MUST be validated as an existing category in the target repository
+- Cross-repository targets MUST be validated against the `allowed-repos` allowlist
 
 **Required Permissions**:
 
@@ -2151,6 +2334,46 @@ This section provides complete definitions for all remaining safe output types. 
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
 
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "update_discussion",
+  "description": "Update an existing GitHub discussion's title or body. Only the fields you specify will be updated.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {"type": "string", "description": "New discussion title"},
+      "body": {"type": "string", "description": "New discussion body in Markdown"},
+      "discussion_number": {
+        "type": ["number", "string"],
+        "description": "Discussion number to update. Required when workflow target is '*'."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Partial Updates**: Only fields explicitly provided are modified; omitted fields are unchanged.
+2. **Context Resolution**: When `discussion_number` is omitted, resolves from the workflow trigger context.
+3. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
+4. **GraphQL-Based**: Uses GitHub GraphQL API for discussion updates as the REST API does not support discussion modification.
+
+**Configuration Parameters**:
+- `max`: Operation limit (default: 1)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `staged`: Staged mode override
+
+**Security Requirements**:
+- Title and body MUST undergo full content sanitization before modification
+- Discussion number MUST be validated as a positive integer belonging to the target repository
+- Cross-repository targets MUST be validated against the `allowed-repos` allowlist
+- At least one of `title` or `body` MUST be provided; empty updates MUST be rejected
+
 **Required Permissions**:
 
 *GitHub Actions Token*:
@@ -2170,6 +2393,53 @@ This section provides complete definitions for all remaining safe output types. 
 **Default Max**: 1  
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "close_discussion",
+  "description": "Close a GitHub discussion with a resolution comment and optional reason.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["body"],
+    "properties": {
+      "body": {"type": "string", "description": "Closing comment explaining why the discussion is being closed"},
+      "reason": {
+        "type": "string",
+        "enum": ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"],
+        "description": "Resolution reason"
+      },
+      "discussion_number": {
+        "type": ["number", "string"],
+        "description": "Discussion number to close. If omitted, closes the discussion that triggered this workflow."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Comment First**: A closing comment is posted before the discussion state is changed to `closed`.
+2. **Resolution Reason**: Optional reason (`RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`) is recorded via GraphQL API.
+3. **Context Resolution**: When `discussion_number` is omitted, resolves from the workflow trigger context.
+4. **Idempotent Comment**: If the discussion is already closed, the closing comment is still posted.
+5. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
+
+**Configuration Parameters**:
+- `max`: Operation limit (default: 1)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `footer`: Footer override
+- `staged`: Staged mode override
+
+**Security Requirements**:
+- The closing comment body MUST undergo full content sanitization
+- Discussion number MUST be validated as a positive integer belonging to the target repository
+- Cross-repository targets MUST be validated against the `allowed-repos` allowlist
+- The `reason` field MUST be validated against the allowed enum values before submission
 
 **Required Permissions**:
 
