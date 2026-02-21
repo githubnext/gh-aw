@@ -13,24 +13,48 @@ import (
 
 func TestGenerateKnownNeedsExpressions(t *testing.T) {
 	tests := []struct {
-		name             string
-		data             *WorkflowData
-		expectedMinCount int
-		checkExpressions []string
-		notExpectedExprs []string
+		name                    string
+		data                    *WorkflowData
+		preActivationJobCreated bool
+		expectedMinCount        int
+		checkExpressions        []string
+		notExpectedExprs        []string
 	}{
 		{
-			name:             "basic pre_activation job only",
-			data:             &WorkflowData{},
-			expectedMinCount: 2, // Only pre_activation outputs (activated, matched_command)
+			name:                    "basic pre_activation job only - no command",
+			data:                    &WorkflowData{},
+			preActivationJobCreated: true,
+			expectedMinCount:        1, // Only activated output (no matched_command without command trigger)
+			checkExpressions: []string{
+				"needs.pre_activation.outputs.activated",
+			},
+			notExpectedExprs: []string{
+				"needs.pre_activation.outputs.matched_command", // No command trigger, so not included
+				"needs.activation.outputs.text",                // Activation is the current job
+				"needs.agent.outputs.output",                   // Agent runs AFTER activation
+				"needs.detection.outputs.success",              // Detection runs AFTER activation
+			},
+		},
+		{
+			name: "pre_activation with command - includes matched_command",
+			data: &WorkflowData{
+				Command: []string{"/bot"},
+			},
+			preActivationJobCreated: true,
+			expectedMinCount:        2, // activated + matched_command
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 				"needs.pre_activation.outputs.matched_command",
 			},
+		},
+		{
+			name:                    "no pre_activation job - no pre_activation outputs",
+			data:                    &WorkflowData{},
+			preActivationJobCreated: false,
+			expectedMinCount:        0,
 			notExpectedExprs: []string{
-				"needs.activation.outputs.text",   // Activation is the current job
-				"needs.agent.outputs.output",      // Agent runs AFTER activation
-				"needs.detection.outputs.success", // Detection runs AFTER activation
+				"needs.pre_activation.outputs.activated",
+				"needs.pre_activation.outputs.matched_command",
 			},
 		},
 		{
@@ -43,6 +67,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 				"needs.custom_job.outputs.output",
@@ -61,6 +86,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 			},
@@ -78,6 +104,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 			},
@@ -92,6 +119,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					CreateIssues: &CreateIssuesConfig{},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 			},
@@ -103,7 +131,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mappings := generateKnownNeedsExpressions(tt.data)
+			mappings := generateKnownNeedsExpressions(tt.data, tt.preActivationJobCreated)
 
 			// Check minimum count if specified
 			if tt.expectedMinCount > 0 {
@@ -377,7 +405,7 @@ func TestGetCustomJobNames(t *testing.T) {
 
 func TestGenerateKnownNeedsExpressions_EnvVarFormat(t *testing.T) {
 	data := &WorkflowData{}
-	mappings := generateKnownNeedsExpressions(data)
+	mappings := generateKnownNeedsExpressions(data, true)
 
 	require.NotEmpty(t, mappings, "Should generate at least some mappings")
 
@@ -503,11 +531,13 @@ This workflow has custom jobs before and after activation.
 		substSection = substSection[:50+nextStepIdx]
 	}
 
-	// Should have pre_activation expressions in substitution step
+	// Should have pre_activation activated expression in substitution step
+	// (workflow uses 'on: issues' which creates a pre_activation job with permission check)
 	assert.Contains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED",
 		"Substitution step should have pre_activation.outputs.activated")
-	assert.Contains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND",
-		"Substitution step should have pre_activation.outputs.matched_command")
+	// Should NOT have matched_command since this workflow has no command trigger
+	assert.NotContains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND",
+		"Substitution step should NOT have pre_activation.outputs.matched_command (no command trigger)")
 
 	// Should have before_job expression in substitution step
 	assert.Contains(t, substSection, "GH_AW_NEEDS_BEFORE_JOB_OUTPUTS_OUTPUT",

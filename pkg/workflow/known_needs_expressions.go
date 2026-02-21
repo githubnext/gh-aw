@@ -17,7 +17,7 @@ var knownNeedsLog = logger.New("workflow:known_needs")
 // IMPORTANT: The prompt is generated in the ACTIVATION job, so it can only access outputs
 // from jobs that the activation job depends on (i.e., jobs that run BEFORE activation).
 // This typically includes:
-// - needs.pre_activation.outputs.* (activated, matched_command)
+// - needs.pre_activation.outputs.* (activated, matched_command) - only when pre_activation job exists
 // - needs.<custom-job>.outputs.* for custom jobs that run before activation
 //
 // The function does NOT generate mappings for jobs that run AFTER activation:
@@ -26,27 +26,43 @@ var knownNeedsLog = logger.New("workflow:known_needs")
 // - needs.detection.outputs.* (detection runs AFTER activation)
 // - needs.<safe-output-job>.outputs.* (these run AFTER agent)
 //
+// preActivationJobCreated indicates whether the pre_activation job was created for this workflow.
+// When false, no pre_activation output mappings are generated to avoid actionlint errors.
+//
 // Returns a slice of ExpressionMapping that should be merged with other expression mappings.
-func generateKnownNeedsExpressions(data *WorkflowData) []*ExpressionMapping {
+func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated bool) []*ExpressionMapping {
 	knownNeedsLog.Print("Generating known needs.* expressions for activation job")
 
 	var mappings []*ExpressionMapping
 
-	// Pre-activation job outputs (activation depends on pre_activation)
-	preActivationOutputs := []string{
-		constants.ActivatedOutput,
-		constants.MatchedCommandOutput,
-	}
-	for _, output := range preActivationOutputs {
-		expr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, output)
-		envVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
+	// Pre-activation job outputs (activation depends on pre_activation only when it exists)
+	// Only generate these mappings when the pre_activation job was actually created;
+	// otherwise referencing needs.pre_activation.outputs.* causes actionlint errors.
+	if preActivationJobCreated {
+		// Always include the "activated" output
+		activatedExpr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)
+		activatedEnvVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
 			normalizeJobNameForEnvVar(string(constants.PreActivationJobName)),
-			normalizeOutputNameForEnvVar(output))
+			normalizeOutputNameForEnvVar(constants.ActivatedOutput))
 		mappings = append(mappings, &ExpressionMapping{
-			Original: fmt.Sprintf("${{ %s }}", expr),
-			EnvVar:   envVar,
-			Content:  expr,
+			Original: fmt.Sprintf("${{ %s }}", activatedExpr),
+			EnvVar:   activatedEnvVar,
+			Content:  activatedExpr,
 		})
+
+		// Only include "matched_command" when the workflow has a command trigger,
+		// since matched_command is only declared in the pre_activation job outputs for command workflows.
+		if len(data.Command) > 0 {
+			matchedCmdExpr := fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.MatchedCommandOutput)
+			matchedCmdEnvVar := fmt.Sprintf("GH_AW_NEEDS_%s_OUTPUTS_%s",
+				normalizeJobNameForEnvVar(string(constants.PreActivationJobName)),
+				normalizeOutputNameForEnvVar(constants.MatchedCommandOutput))
+			mappings = append(mappings, &ExpressionMapping{
+				Original: fmt.Sprintf("${{ %s }}", matchedCmdExpr),
+				EnvVar:   matchedCmdEnvVar,
+				Content:  matchedCmdExpr,
+			})
+		}
 	}
 
 	// Custom job outputs from frontmatter jobs

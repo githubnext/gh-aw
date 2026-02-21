@@ -254,7 +254,7 @@ func splitContentIntoChunks(content string) []string {
 	return chunks
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, preActivationJobCreated bool) {
 	compilerYamlLog.Printf("Generating prompt for workflow: %s (markdown size: %d bytes)", data.Name, len(data.MarkdownContent))
 
 	// Collect built-in prompt sections (these should be prepended to user prompt)
@@ -410,7 +410,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Since the markdown may change without recompilation (via runtime-import), we need to
 	// ensure all known needs.* variables are available for interpolation in the substitution step.
 	// These are NOT added to the prompt creation step because they're not needed there.
-	knownNeedsExpressions := generateKnownNeedsExpressions(data)
+	knownNeedsExpressions := generateKnownNeedsExpressions(data, preActivationJobCreated)
 	if len(knownNeedsExpressions) > 0 {
 		compilerYamlLog.Printf("Adding %d known needs.* expressions for substitution step only", len(knownNeedsExpressions))
 		// Merge known needs expressions with the returned expression mappings for substitution

@@ -225,8 +225,6 @@ jobs:
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_BODY: ${{ needs.precompute.outputs.issue_body }}
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_NUMBER: ${{ needs.precompute.outputs.issue_number }}
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE: ${{ needs.precompute.outputs.issue_title }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -249,9 +247,7 @@ jobs:
                 GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION: process.env.GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION,
                 GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_BODY: process.env.GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_BODY,
                 GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_NUMBER: process.env.GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_NUMBER,
-                GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE: process.env.GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
+                GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE: process.env.GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE
               }
             });
       - name: Validate prompt placeholders
