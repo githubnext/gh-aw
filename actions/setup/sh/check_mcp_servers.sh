@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # Check MCP Server Functionality
 # This script performs basic functionality checks on MCP servers configured by the MCP gateway
-# It sends an MCP initialize + tools/list request to each server to verify backend connectivity
+# It sends an MCP ping + initialize + tools/list request to each server to verify backend connectivity
 #
 # Resilience Features:
 # - Progressive timeout: 10s, 20s, 30s across retry attempts
 # - Progressive delay: 2s, 4s between retry attempts
 # - Up to 3 retry attempts per server
 # - Accommodates slow-starting MCP servers (gateway may take 40-50 seconds to start)
-# Note: MCP protocol requires initialize before tools/list. We use tools/list (not ping) because
-# ping may be handled by the gateway itself without being forwarded to the backend. tools/list must
-# be forwarded to the backend container, ensuring the backend is truly ready. The Mcp-Session-Id
-# header returned by initialize is passed to tools/list when present.
+# Protocol: ping verifies basic connectivity; initialize establishes the session (capturing
+# Mcp-Session-Id); tools/list confirms the backend container is truly ready (must be forwarded
+# by the gateway, unlike ping which may be handled at the proxy layer).
 
 set -e
 
@@ -119,11 +118,14 @@ while IFS= read -r SERVER_NAME; do
     AUTH_HEADER=$(echo "$SERVER_CONFIG" | jq -r '.headers.Authorization' 2>/dev/null)
   fi
   
-  # MCP protocol requires initialize before tools/list.
+  # MCP protocol sequence: ping → initialize → tools/list.
+  # ping verifies basic connectivity (may be handled by the gateway proxy).
   # initialize establishes protocol version and may return a Mcp-Session-Id header
   # that must be included in subsequent requests (for stateful HTTP transports).
-  INIT_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"check-mcp-servers","version":"1.0.0"},"protocolVersion":"2024-11-05"}}'
-  TOOLS_LIST_PAYLOAD='{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+  # tools/list must be forwarded to the backend container, confirming the backend is ready.
+  PING_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"ping"}'
+  INIT_PAYLOAD='{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"check-mcp-servers","version":"1.0.0"},"protocolVersion":"2024-11-05"}}'
+  TOOLS_LIST_PAYLOAD='{"jsonrpc":"2.0","id":3,"method":"tools/list"}'
   
   # Retry logic for slow-starting servers
   RETRY_COUNT=0
@@ -143,7 +145,21 @@ while IFS= read -r SERVER_NAME; do
       echo "  Attempting connection (timeout: ${TIMEOUT}s)..."
     fi
     
-    # Step 1: Send MCP initialize request, capturing response headers for Mcp-Session-Id
+    # Step 1: Send ping to verify basic connectivity
+    CURL_ARGS=(-s -w "\n%{http_code}" --max-time "$TIMEOUT" -X POST "$SERVER_URL"
+      -H "Content-Type: application/json")
+    [ -n "$AUTH_HEADER" ] && CURL_ARGS+=(-H "Authorization: $AUTH_HEADER")
+    CURL_ARGS+=(-d "$PING_PAYLOAD")
+    PING_RESPONSE=$(curl "${CURL_ARGS[@]}" 2>&1 || echo -e "\n000")
+    PING_HTTP_CODE=$(echo "$PING_RESPONSE" | tail -n 1)
+    
+    if [ "$PING_HTTP_CODE" != "200" ]; then
+      LAST_ERROR="Ping failed: HTTP ${PING_HTTP_CODE:-000}"
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      continue
+    fi
+    
+    # Step 2: Send MCP initialize request, capturing response headers for Mcp-Session-Id
     CURL_ARGS=(-s -D - --max-time "$TIMEOUT" -X POST "$SERVER_URL"
       -H "Content-Type: application/json")
     [ -n "$AUTH_HEADER" ] && CURL_ARGS+=(-H "Authorization: $AUTH_HEADER")
@@ -159,7 +175,7 @@ while IFS= read -r SERVER_NAME; do
       continue
     fi
     
-    # Step 2: Send tools/list, including Mcp-Session-Id header if returned by initialize
+    # Step 3: Send tools/list, including Mcp-Session-Id header if returned by initialize
     CURL_ARGS=(-s -w "\n%{http_code}" --max-time "$TIMEOUT" -X POST "$SERVER_URL"
       -H "Content-Type: application/json")
     [ -n "$AUTH_HEADER" ] && CURL_ARGS+=(-H "Authorization: $AUTH_HEADER")
@@ -221,7 +237,7 @@ if [ $SERVERS_FAILED -gt 0 ]; then
   echo "ERROR: $SERVERS_FAILED of $SERVERS_CHECKED server(s) failed connectivity check"
   echo "Succeeded: $SERVERS_SUCCEEDED, Failed: $SERVERS_FAILED, Skipped: $SERVERS_SKIPPED"
   echo ""
-  echo "This indicates that one or more MCP servers failed to respond to MCP initialize/tools/list requests"
+  echo "This indicates that one or more MCP servers failed to respond to MCP ping/initialize/tools/list requests"
   echo "after multiple retry attempts with progressive timeouts (10s, 20s, 30s)."
   echo ""
   echo "Common causes:"
