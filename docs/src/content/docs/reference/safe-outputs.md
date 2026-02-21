@@ -32,13 +32,13 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Pull Requests
 
-- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (max: 1)
+- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
 - [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
 - [**Close PR**](#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
 - [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
 - [**Reply to PR Review Comment**](#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
 - [**Resolve PR Review Thread**](#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
-- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (max: 1, same-repo only)
+- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
 
 ### Labels, Assignments & Reviews
 
@@ -665,6 +665,8 @@ Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 Creates PRs with code changes. By default, falls back to creating an issue if PR creation fails (e.g., org settings block it). Set `fallback-as-issue: false` to disable this fallback and avoid requiring `issues: write` permission. `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).
 
+Multiple PRs per run are supported by setting `max` higher than 1. Each PR is created from its own branch with an independent patch, so concurrent calls do not conflict.
+
 ```yaml wrap
 safe-outputs:
   create-pull-request:
@@ -672,6 +674,7 @@ safe-outputs:
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
     draft: true                   # create as draft (default: true)
+    max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after 14 days (same-repo only)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
     target-repo: "owner/repo"     # cross-repository
@@ -813,7 +816,7 @@ safe-outputs:
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes.
+Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
 
 ```yaml wrap
 safe-outputs:
@@ -821,6 +824,7 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
+    max: 3                      # max pushes per run (default: 1)
     if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
