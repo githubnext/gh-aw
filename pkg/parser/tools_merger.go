@@ -117,7 +117,7 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 						// Both are MCP tools, check for conflicts
 						mergedMap, err := mergeMCPTools(existingMap, newMap)
 						if err != nil {
-							return nil, fmt.Errorf("MCP tool conflict for '%s': %v", key, err)
+							return nil, fmt.Errorf("MCP tool conflict for '%s': %w", key, err)
 						}
 						result[key] = mergedMap
 						continue
@@ -220,7 +220,7 @@ func mergeMCPTools(existing, new map[string]any) (map[string]any, error) {
 					if newMcp, ok := newValue.(map[string]any); ok {
 						mergedMcp, err := mergeMCPTools(existingMcp, newMcp)
 						if err != nil {
-							return nil, fmt.Errorf("MCP config conflict: %v", err)
+							return nil, fmt.Errorf("MCP config conflict: %w", err)
 						}
 						result[key] = mergedMcp
 						continue

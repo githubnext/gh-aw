@@ -134,7 +134,7 @@ Examples:
 				logsCommandLog.Printf("Resolving start date: %s", startDate)
 				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
 				if err != nil {
-					return fmt.Errorf("invalid start-date format '%s': %v", startDate, err)
+					return fmt.Errorf("invalid start-date format '%s': %w", startDate, err)
 				}
 				startDate = resolvedStartDate
 				logsCommandLog.Printf("Resolved start date to: %s", startDate)
@@ -143,7 +143,7 @@ Examples:
 				logsCommandLog.Printf("Resolving end date: %s", endDate)
 				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
 				if err != nil {
-					return fmt.Errorf("invalid end-date format '%s': %v", endDate, err)
+					return fmt.Errorf("invalid end-date format '%s': %w", endDate, err)
 				}
 				endDate = resolvedEndDate
 				logsCommandLog.Printf("Resolved end date to: %s", endDate)

@@ -91,7 +91,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 
 		// Fallback if we can't parse the line/col
 		frontmatterErrorLog.Print("Could not extract line/col from formatted error")
-		return fmt.Errorf("%s: %v", filePath, err)
+		return fmt.Errorf("%s: %w", filePath, err)
 	}
 
 	// Fallback: if not already formatted, return with filename prefix

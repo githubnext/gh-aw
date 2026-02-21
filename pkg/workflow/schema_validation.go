@@ -141,7 +141,7 @@ func enhanceSchemaValidationError(err error) error {
 	}
 
 	// Return enhanced error with example
-	return fmt.Errorf("%v. %s", err, example)
+	return fmt.Errorf("%w. %s", err, example)
 }
 
 // extractFieldPath converts InstanceLocation to a readable field path
