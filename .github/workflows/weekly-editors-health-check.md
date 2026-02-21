@@ -46,19 +46,25 @@ Monitor the health of all workflow editors listed in the documentation and keep 
 
 ## Editors to Check
 
-The editors are documented in `docs/src/content/docs/reference/editors.mdx`. Check each of the following URLs:
-
-| Editor | URL |
-|--------|-----|
-| Compiler Playground | https://github.github.com/gh-aw/editor/ |
-| Agentic Prompt Generator | https://ashleywolf.github.io/agentic-prompt-generator/ |
-| Graphical Workflow Editor | https://mossaka.github.io/gh-aw-editor-visualizer/ |
+The editors are documented in `docs/src/content/docs/reference/editors.mdx`.
 
 ## Process
 
+### Step 0: Discover Editors
+
+Read the file `docs/src/content/docs/reference/editors.mdx` using the `cat` command to extract the list of editors to inspect. Parse the file sequentially top to bottom:
+
+1. Track the most recent `###` heading encountered — this is the editor name for all `<LinkButton>` elements that follow it until the next heading.
+2. For each `<LinkButton href="...">` element found, record the `href` value as the editor URL.
+3. Derive the editor-id by converting the `###` heading to lowercase kebab-case (e.g., "Compiler Playground" → `compiler-playground`).
+4. For any `href` that is not an absolute `https://` URL (e.g., it uses template expressions like `${import.meta.env.BASE_URL}` or starts with `/`), resolve it relative to the documentation base URL `https://github.github.com/gh-aw/`. For example, `${import.meta.env.BASE_URL}editor/` resolves to `https://github.github.com/gh-aw/editor/`.
+5. Build a working list of editors with: name, editor-id, and resolved URL.
+
+Proceed with the full list of editors discovered in this step.
+
 ### Step 1: URL Availability Check
 
-For each URL in the table above, verify that the page is reachable:
+For each editor discovered in Step 0, verify that its URL is reachable:
 
 1. Use `web_fetch` (or `curl -sS -o /dev/null -w "%{http_code}" <url>`) to perform an HTTP GET request.
 2. Record the HTTP status code for each URL.
@@ -71,10 +77,7 @@ For each editor URL that responded with HTTP 200 in Step 1:
 
 1. Use the Playwright MCP tool to navigate to the URL.
 2. Wait for the page to fully load (wait for network idle).
-3. Take a full-page screenshot and save it to `/tmp/gh-aw/editors/<editor-id>-screenshot.png` where `<editor-id>` is one of:
-   - `compiler-playground`
-   - `agentic-prompt-generator`
-   - `graphical-workflow-editor`
+3. Take a full-page screenshot and save it to `/tmp/gh-aw/editors/<editor-id>-screenshot.png` where `<editor-id>` is the kebab-case id derived in Step 0.
 
 ### Step 3: Upload Screenshots as Assets
 
@@ -109,7 +112,7 @@ After updating the documentation file, use the `create-pull-request` safe output
   - HTTP status (✅ 200 / ❌ <status code>)
   - Embedded screenshot (if available)
 
-Example body:
+Example body (rows reflect whatever editors were discovered in Step 0):
 
 ```markdown
 ## Editor Health Report – <date>
@@ -118,7 +121,7 @@ Example body:
 |--------|-----|--------|---------|
 | Compiler Playground | https://github.github.com/gh-aw/editor/ | ✅ 200 | ![preview](<url>) |
 | Agentic Prompt Generator | https://ashleywolf.github.io/agentic-prompt-generator/ | ✅ 200 | ![preview](<url>) |
-| Graphical Workflow Editor | https://mossaka.github.io/gh-aw-editor-visualizer/ | ✅ 200 | ![preview](<url>) |
+| ... | ... | ... | ... |
 ```
 
 ## Error Handling
