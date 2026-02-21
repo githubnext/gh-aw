@@ -70,6 +70,7 @@ Check for existing triage data in shared memory at `/tmp/gh-aw/repo-memory/defau
 
 Use GitHub tools to fetch all open pull requests:
 - Filter by: `is:open is:pr author:app/github-copilot`
+- **Fork PRs only**: After fetching, filter to include only PRs where `head.repo.full_name` differs from `base.repo.full_name` (i.e., PRs opened from forks, not from branches within the same repository). Skip any PRs that originate from the same repository.
 - Get PR details including:
   - Number, title, description, author
   - Files changed (count and paths)
