@@ -343,7 +343,9 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: "test-workflow"}
-			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+			if err := engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
 
 			result := yaml.String()
 			lines := strings.Split(strings.TrimSpace(result), "\n")
@@ -416,7 +418,9 @@ func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 			tools := map[string]any{"github": map[string]any{}}
 			mcpTools := []string{"github"}
 
-			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+			if err := engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
 
 			result := yaml.String()
 			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
@@ -487,7 +491,9 @@ func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
 			tools := map[string]any{"github": map[string]any{}}
 			mcpTools := []string{"github"}
 
-			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+			if err := engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
 
 			result := yaml.String()
 			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
@@ -604,7 +610,9 @@ func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 			tools := map[string]any{"github": map[string]any{}}
 			mcpTools := []string{"github"}
 
-			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+			if err := engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
 
 			result := yaml.String()
 			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
@@ -734,7 +742,9 @@ func TestCodexEngineHttpMCPServerRendered(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: "test-workflow"}
-			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+			if err := engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
 
 			result := yaml.String()
 

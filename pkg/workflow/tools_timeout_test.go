@@ -137,7 +137,9 @@ func TestCodexEngineWithToolsTimeout(t *testing.T) {
 			// Render MCP config
 			var configBuilder strings.Builder
 			mcpTools := []string{"github"}
-			engine.RenderMCPConfig(&configBuilder, workflowData.Tools, mcpTools, workflowData)
+			if err := engine.RenderMCPConfig(&configBuilder, workflowData.Tools, mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
 			configContent := configBuilder.String()
 
 			if !strings.Contains(configContent, tt.expectedTimeout) {

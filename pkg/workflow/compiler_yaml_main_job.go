@@ -224,7 +224,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 
 	// Add MCP setup
-	c.generateMCPSetup(yaml, data.Tools, engine, data)
+	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
+		return fmt.Errorf("failed to generate MCP setup: %w", err)
+	}
 
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps

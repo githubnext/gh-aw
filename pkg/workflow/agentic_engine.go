@@ -152,7 +152,7 @@ type WorkflowExecutor interface {
 // Engines that support MCP servers should implement this
 type MCPConfigProvider interface {
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
-	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData)
+	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error
 }
 
 // LogParser handles parsing and analyzing engine logs
@@ -311,8 +311,9 @@ func (e *BaseEngine) GetLogParserScriptId() string {
 
 // RenderMCPConfig provides a default no-op implementation for MCP configuration
 // Engines can override this to provide custom MCP server configuration
-func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	// Default implementation does nothing - engines that support MCP should override this
+	return nil
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization

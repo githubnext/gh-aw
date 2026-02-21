@@ -110,7 +110,8 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 			var yaml strings.Builder
 			mcpTools := []string{"agentic-workflows"}
 
-			e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+			err := e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+			require.NoError(t, err)
 			result := yaml.String()
 
 			// Verify the MCP config contains agentic-workflows
@@ -143,7 +144,7 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	var yaml strings.Builder
 	engine := NewCopilotEngine()
 
-	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
 	result := yaml.String()
 
 	// Verify the install step is present
@@ -178,7 +179,7 @@ func TestAgenticWorkflowsInstallStepSkippedWithImport(t *testing.T) {
 	var yaml strings.Builder
 	engine := NewCopilotEngine()
 
-	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
 	result := yaml.String()
 
 	// Verify the install step is NOT present when import exists
@@ -203,7 +204,7 @@ func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
 	var yaml strings.Builder
 	engine := NewCopilotEngine()
 
-	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	require.NoError(t, c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData))
 	result := yaml.String()
 
 	// Verify the install step IS present when no import exists

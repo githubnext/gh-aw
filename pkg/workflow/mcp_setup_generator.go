@@ -73,14 +73,14 @@ import (
 var mcpSetupGeneratorLog = logger.New("workflow:mcp_setup_generator")
 
 // generateMCPSetup generates the MCP server configuration setup
-func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
+func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) error {
 	mcpSetupGeneratorLog.Print("Generating MCP server configuration setup")
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 
 	// Check if workflowData is valid before accessing its fields
 	if workflowData == nil {
-		return
+		return nil
 	}
 
 	workflowTools := workflowData.Tools
@@ -138,7 +138,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// If no MCP tools, no configuration needed
 	if len(mcpTools) == 0 {
 		mcpSetupGeneratorLog.Print("No MCP tools configured, skipping MCP setup")
-		return
+		return nil
 	}
 
 	// Install gh-aw extension if agentic-workflows tool is enabled
@@ -732,5 +732,5 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Render MCP config - this will pipe directly to the gateway script
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }

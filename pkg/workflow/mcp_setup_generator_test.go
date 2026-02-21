@@ -63,7 +63,7 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 
 	for i := 0; i < iterations; i++ {
 		var yaml strings.Builder
-		compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+		require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 		outputs[i] = yaml.String()
 	}
 
@@ -219,7 +219,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			var yaml strings.Builder
 			mockEngine := NewClaudeEngine()
 
-			compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+			require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 			setupOutput := yaml.String()
 
 			// The setup output should contain the container image with the correct version
