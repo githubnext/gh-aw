@@ -379,8 +379,9 @@ async function main(config = {}) {
     const commitUrl = `${repoUrl}/commit/${commitSha}`;
 
     // Update the activation comment with commit link (if a comment was created and changes were pushed)
+    // Pass pullNumber so a new comment is created on the PR when no activation comment exists (e.g., schedule triggers)
     if (hasChanges) {
-      await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
+      await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, { targetIssueNumber: pullNumber });
     }
 
     // Write summary to GitHub Actions summary

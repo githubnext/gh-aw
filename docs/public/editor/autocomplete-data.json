@@ -34,6 +34,12 @@
       "desc": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter).",
       "array": true
     },
+    "inlined-imports": {
+      "type": "boolean",
+      "desc": "If true, inline all imports (including those without inputs) at compilation time in the generated lock.yml instead of...",
+      "enum": [true, false],
+      "leaf": true
+    },
     "on": {
       "type": "string|object",
       "desc": "Workflow triggers that define when the agentic workflow should run.",
@@ -739,12 +745,12 @@
     "engine": {
       "type": "string|object",
       "desc": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow.",
-      "enum": ["claude", "codex", "copilot"],
+      "enum": ["claude", "codex", "copilot", "gemini"],
       "children": {
         "id": {
           "type": "string",
-          "desc": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), or 'copilot' (GitHub Copilot CLI)",
-          "enum": ["claude", "codex", "copilot"],
+          "desc": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'gemini'...",
+          "enum": ["claude", "codex", "copilot", "gemini"],
           "leaf": true
         },
         "version": {
@@ -792,11 +798,6 @@
         "env": {
           "type": "object",
           "desc": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets...."
-        },
-        "steps": {
-          "type": "array",
-          "desc": "Custom GitHub Actions steps for 'custom' engine.",
-          "array": true
         },
         "error_patterns": {
           "type": "array",
@@ -1166,6 +1167,11 @@
           "type": "boolean",
           "desc": "If true, only checks if cache entry exists and skips download",
           "enum": [true, false],
+          "leaf": true
+        },
+        "name": {
+          "type": "string",
+          "desc": "Optional custom name for the cache step (overrides auto-generated name)",
           "leaf": true
         }
       },

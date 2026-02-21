@@ -17,7 +17,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
   const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-  await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
+  await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, { targetIssueNumber: itemNumber });
 }
 
 /**
@@ -27,11 +27,13 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
  * @param {any} core - GitHub Actions core
  * @param {string} commitSha - SHA of the commit
  * @param {string} commitUrl - URL of the commit
+ * @param {object} [options] - Optional configuration
+ * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
  */
-async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
   const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-  await updateActivationCommentWithMessage(github, context, core, message, "commit");
+  await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
 }
 
 /**
@@ -41,8 +43,10 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
  * @param {any} core - GitHub Actions core
  * @param {string} message - Message to append to the comment
  * @param {string} label - Optional label for log messages (e.g., "pull request", "issue", "commit")
+ * @param {object} [options] - Optional configuration
+ * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
  */
-async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
+async function updateActivationCommentWithMessage(github, context, core, message, label = "", options = {}) {
   const commentId = process.env.GH_AW_COMMENT_ID;
   const commentRepo = process.env.GH_AW_COMMENT_REPO;
 
@@ -150,9 +154,34 @@ async function updateActivationCommentWithMessage(github, context, core, message
   }
 
   // Standard mode: update the existing activation comment
-  // If no comment was created in activation, skip updating
+  // If no comment was created in activation, try to create a new comment on the target PR/issue
   if (!commentId) {
-    core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+    // Determine target issue/PR number: explicit option, or from event payload
+    const targetNumber = options.targetIssueNumber || context.payload?.issue?.number || context.payload?.pull_request?.number;
+    if (targetNumber) {
+      core.info(`No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #${targetNumber}`);
+      try {
+        const sanitizedMessage = sanitizeContent(message);
+        const response = await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+          owner: repoOwner,
+          repo: repoName,
+          issue_number: targetNumber,
+          body: sanitizedMessage,
+          headers: {
+            Accept: "application/vnd.github+json",
+          },
+        });
+
+        const successMessage = label ? `Successfully created comment with ${label} link on #${targetNumber}` : `Successfully created comment on #${targetNumber}`;
+        core.info(successMessage);
+        if (response?.data?.id) core.info(`Comment ID: ${response.data.id}`);
+        if (response?.data?.html_url) core.info(`Comment URL: ${response.data.html_url}`);
+      } catch (error) {
+        core.warning(`Failed to create comment on #${targetNumber}: ${getErrorMessage(error)}`);
+      }
+    } else {
+      core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+    }
     return;
   }
 

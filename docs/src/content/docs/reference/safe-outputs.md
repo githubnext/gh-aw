@@ -360,7 +360,7 @@ safe-outputs:
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`.
+Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
 
 ```yaml wrap
 safe-outputs:
@@ -368,6 +368,7 @@ safe-outputs:
     status:                   # enable status updates
     title:                    # enable title updates
     body:                     # enable body updates
+    title-prefix: "[bot] "    # only update issues with this title prefix
     max: 3                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
@@ -377,6 +378,8 @@ safe-outputs:
 **Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
 
 When using `target: "*"`, the agent must provide `issue_number` or `item_number` in the output to identify which issue to update.
+
+**Title Prefix**: When `title-prefix` is set, the update is rejected if the target issue's current title does not start with the specified prefix. This ensures agents can only modify issues that have been explicitly tagged for automated updates.
 
 **Operation Types** (for body updates):
 
