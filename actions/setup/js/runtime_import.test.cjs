@@ -775,6 +775,12 @@ describe("runtime_import", () => {
           expect(result).toBe("Issue #123: Test Issue");
         });
 
+        it("should replace all occurrences of the same expression", () => {
+          const content = "Run ID: ${{ github.run_id }}, Again: ${{ github.run_id }}, Third: ${{ github.run_id }}";
+          const result = processExpressions(content, "test.md");
+          expect(result).toBe("Run ID: 12345, Again: 12345, Third: 12345");
+        });
+
         it("should throw error for unsafe expressions", () => {
           const content = "Token: ${{ secrets.GITHUB_TOKEN }}";
           expect(() => processExpressions(content, "test.md")).toThrow("unauthorized GitHub Actions expressions");

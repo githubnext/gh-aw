@@ -425,9 +425,10 @@ function processExpressions(content, source) {
   }
 
   // Second pass: replace safe expressions with evaluated values
+  // Use split/join to replace ALL occurrences of each expression, not just the first
   let result = content;
   for (const [original, evaluated] of replacements.entries()) {
-    result = result.replace(original, evaluated);
+    result = result.split(original).join(evaluated);
   }
 
   core.info(`Successfully processed ${replacements.size} safe expression(s) in ${source}`);
