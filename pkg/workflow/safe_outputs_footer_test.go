@@ -39,6 +39,7 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 				"update-issue":        map[string]any{"body": nil},
 				"update-discussion":   map[string]any{"body": nil},
 				"update-release":      nil,
+				"update-pull-request": map[string]any{"body": nil},
 			},
 		}
 		config := compiler.extractSafeOutputsConfig(frontmatter)
@@ -85,6 +86,9 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 					}
 					if updateReleaseConfig, ok := handlerConfig["update_release"].(map[string]any); ok {
 						assert.Equal(t, false, updateReleaseConfig["footer"], "update_release should inherit global footer: false")
+					}
+					if updatePRConfig, ok := handlerConfig["update_pull_request"].(map[string]any); ok {
+						assert.Equal(t, false, updatePRConfig["footer"], "update_pull_request should inherit global footer: false")
 					}
 				}
 			}

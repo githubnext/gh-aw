@@ -485,6 +485,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
 			AddStringPtr("default_operation", c.Operation).
+			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			Build()

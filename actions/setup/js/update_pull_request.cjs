@@ -25,9 +25,10 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   // Handle body operation (append/prepend/replace/replace-island)
   const operation = updateData._operation || "replace";
   const rawBody = updateData._rawBody;
+  const includeFooter = updateData._includeFooter !== false; // Default to true
 
   // Remove internal fields
-  const { _operation, _rawBody, ...apiData } = updateData;
+  const { _operation, _rawBody, _includeFooter, ...apiData } = updateData;
 
   // If we have a body, process it with the appropriate operation
   if (rawBody !== undefined) {
@@ -52,6 +53,7 @@ async function executePRUpdate(github, context, prNumber, updateData) {
       workflowName,
       runUrl,
       workflowId,
+      includeFooter, // Pass footer flag to helper
     });
 
     core.info(`Will update body (length: ${apiData.body.length})`);
@@ -128,6 +130,9 @@ function buildPRUpdateData(item, config) {
       reason: "No update fields provided or all fields are disabled",
     };
   }
+
+  // Pass footer config to executeUpdate (default to true)
+  updateData._includeFooter = config.footer !== false;
 
   return { success: true, data: updateData };
 }
