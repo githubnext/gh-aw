@@ -1524,9 +1524,9 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
         preview.push("<details>");
         preview.push("<summary>Preview</summary>");
         preview.push("");
-        preview.push("```");
+        preview.push("``````");
         preview.push(bodyPreview);
-        preview.push("```");
+        preview.push("``````");
         preview.push("</details>");
         preview.push("");
       }
