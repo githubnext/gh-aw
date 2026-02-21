@@ -19,7 +19,7 @@ GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (no
 
 To use Copilot CLI with GitHub Agentic Workflows:
 
-1. Copilot CLI is the default AI engine (coding agent). You can optionally request the use of of the Copilot CLI in your workflow frontmatter:
+1. Copilot CLI is the default AI engine (coding agent). You can optionally request the use of the Copilot CLI in your workflow frontmatter:
 
    ```yaml wrap
    engine: copilot
@@ -103,7 +103,7 @@ engine:
 
 The `agent` field value should match the agent file name without the `.agent.md` extension. For example, `agent: technical-doc-writer` references `.github/agents/technical-doc-writer.agent.md`.
 
-See [Copilot Agent Filess](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
+See [Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
 
 ### Engine Environment Variables
 
