@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f24ea6237b83b09e4e76a0db5eee51656f2ae35ce5d8897384e3785e46309cba"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"21ddbdfe1c91c9d3cb4ee4a3709c5a952a127fb2b064a408013d117c5bb6d299"}
 
 name: "Copilot Agent Prompt Clustering Analysis"
 "on":

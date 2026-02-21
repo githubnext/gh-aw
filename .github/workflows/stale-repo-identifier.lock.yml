@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"04988c7ee68909305fc48414d69951b11bd8c641e5f7bc13b14fe36128bbb4f3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d7b3564dbc30b785b522f06b3b226667ccd1a5880532f0bb253521b02712bb9c"}
 
 name: "Stale Repository Identifier"
 "on":
