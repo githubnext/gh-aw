@@ -303,7 +303,44 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+      const allowedTags = [
+        "abbr",
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "del",
+        "details",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "ins",
+        "kbd",
+        "li",
+        "mark",
+        "ol",
+        "p",
+        "pre",
+        "s",
+        "span",
+        "strong",
+        "sub",
+        "summary",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+      ];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);
@@ -412,6 +449,36 @@ describe("sanitize_content.cjs", () => {
 
     it("should preserve table structure tags", () => {
       const input = "<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Data</td></tr></tbody></table>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve span tag with title attribute", () => {
+      const input = 'prod:&nbsp;<span title="2026-02-18 16:10 MT">2 days ago</span>';
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve abbr tag with title attribute", () => {
+      const input = '<abbr title="HyperText Markup Language">HTML</abbr>';
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve del and ins tags", () => {
+      const input = "<del>old text</del> <ins>new text</ins>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve kbd tag", () => {
+      const input = "Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve mark and s tags", () => {
+      const input = "<mark>highlighted</mark> and <s>strikethrough</s>";
       const result = sanitizeContent(input);
       expect(result).toBe(input);
     });

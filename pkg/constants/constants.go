@@ -702,6 +702,8 @@ const (
 	ClaudeEngine EngineName = "claude"
 	// CodexEngine is the OpenAI Codex engine identifier
 	CodexEngine EngineName = "codex"
+	// GeminiEngine is the Google Gemini engine identifier
+	GeminiEngine EngineName = "gemini"
 )
 
 // AgenticEngines lists all supported agentic engine names

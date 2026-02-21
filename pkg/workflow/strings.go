@@ -102,11 +102,6 @@ type SanitizeOptions struct {
 	DefaultValue string
 }
 
-// SortStrings sorts a slice of strings in place using Go's standard library sort
-func SortStrings(s []string) {
-	sort.Strings(s)
-}
-
 // SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
 func SortPermissionScopes(s []PermissionScope) {
 	sort.Slice(s, func(i, j int) bool {

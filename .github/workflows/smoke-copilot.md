@@ -145,7 +145,7 @@ strict: true
      - Timestamp
      - Pull request author and assignees
 
-2. Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+2. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
    - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
@@ -155,6 +155,6 @@ strict: true
 
 4. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
 
-If all tests pass:
-- Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request
-- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
+If all tests pass and this workflow was triggered by a pull_request event:
+- Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request (omit the `item_number` parameter to auto-target the triggering PR)
+- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (omit the `item_number` parameter to auto-target the triggering PR)

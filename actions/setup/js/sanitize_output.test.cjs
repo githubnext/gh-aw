@@ -72,7 +72,7 @@ const mockCore = {
           }),
           it("should handle XML tags with various whitespace patterns", () => {
             const result = sanitizeContentFunction('Various: <div\tclass="test">content</div> <span\n  id="test">text</span>');
-            (expect(result).toContain('(div\tclass="test")content(/div)'), expect(result).toContain('(span\n  id="test")text(/span)'));
+            (expect(result).toContain('(div\tclass="test")content(/div)'), expect(result).toContain('<span\n  id="test">text</span>'));
           }),
           it("should preserve non-XML uses of < and > characters", () => {
             const result = sanitizeContentFunction("Math: x < y, array[5] > 3, and <div>content</div>");
