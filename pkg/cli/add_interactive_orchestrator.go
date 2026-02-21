@@ -82,6 +82,11 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 		return err
 	}
 
+	// Step 3b: Check working directory is clean (must be clean for PR creation later)
+	if err := config.checkCleanWorkingDirectory(); err != nil {
+		return err
+	}
+
 	// Step 4: Check GitHub Actions is enabled
 	if err := config.checkActionsEnabled(); err != nil {
 		return err
