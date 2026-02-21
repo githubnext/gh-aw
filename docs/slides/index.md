@@ -1,5 +1,7 @@
 ---
 marp: true
+theme: gh-aw
+paginate: true
 ---
 
 <script src="../js/mermaid.min.js"></script>

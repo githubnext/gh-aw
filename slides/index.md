@@ -1,6 +1,6 @@
 ---
 marp: true
-theme: default
+theme: gh-aw
 paginate: true
 ---
 
