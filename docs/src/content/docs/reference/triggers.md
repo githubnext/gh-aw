@@ -429,7 +429,7 @@ on: issue labeled bug, enhancement, priority-high  # Multiple labels
 on: pull_request labeled needs-review, ready-to-merge
 ```
 
-All shorthand formats compile to standard GitHub Actions syntax and automatically include the `workflow_dispatch` trigger. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps workflows](/gh-aw/patterns/labelops/) for automation examples.
+All shorthand formats compile to standard GitHub Actions syntax and automatically include the `workflow_dispatch` trigger. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps workflows](/gh-aw/patterns/label-ops/) for automation examples.
 
 ### Reactions (`reaction:`)
 
@@ -513,5 +513,5 @@ A pre-activation check runs the search query against the current repository. If 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
-- [LabelOps](/gh-aw/patterns/labelops/) - Label-based automation workflows
+- [LabelOps](/gh-aw/patterns/label-ops/) - Label-based automation workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization

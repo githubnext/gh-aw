@@ -246,4 +246,4 @@ Analyze the combined data at `/tmp/gh-aw/combined.json` covering:
 - [Steps Reference](/gh-aw/reference/frontmatter/#custom-steps-steps) - Shell step configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Validated GitHub operations
 - [Cache Memory](/gh-aw/reference/cache-memory/) - Caching data between runs
-- [DailyOps](/gh-aw/patterns/dailyops/) - Scheduled improvement workflows
+- [DailyOps](/gh-aw/patterns/daily-ops/) - Scheduled improvement workflows

@@ -164,7 +164,7 @@ The [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/) demonstrates Spec
 
 ## Related Patterns
 
-- **[MultiRepoOps](/gh-aw/patterns/multirepoops/)** - Cross-repository coordination
+- **[MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)** - Cross-repository coordination
 
 ## References
 

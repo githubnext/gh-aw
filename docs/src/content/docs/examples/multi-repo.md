@@ -153,7 +153,7 @@ For organization-wide workflows, use organization-level secrets, configure GitHu
 
 For comprehensive documentation on the MultiRepoOps design pattern, see:
 
-[MultiRepoOps Design Pattern](/gh-aw/patterns/multirepoops/)
+[MultiRepoOps Design Pattern](/gh-aw/patterns/multi-repo-ops/)
 
 ## Related Documentation
 

@@ -154,5 +154,5 @@ ProjectOps complements [GitHub's built-in Projects automation](https://docs.gith
 - [Projects & Monitoring](/gh-aw/patterns/monitoring/) - Design pattern guide
 - [Orchestration](/gh-aw/patterns/orchestration/) - Design pattern guide
 - [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration options
-- [IssueOps](/gh-aw/patterns/issueops/) - Related issue automation patterns
+- [IssueOps](/gh-aw/patterns/issue-ops/) - Related issue automation patterns
 - [Token Reference](/gh-aw/reference/auth/#gh_aw_project_github_token) - GitHub Projects token setup

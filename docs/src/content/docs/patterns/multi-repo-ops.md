@@ -250,8 +250,8 @@ For organization-wide workflows:
 
 ## Related Patterns
 
-- **[IssueOps](/gh-aw/patterns/issueops/)** - Single-repo issue automation
-- **[ChatOps](/gh-aw/patterns/chatops/)** - Command-driven workflows
+- **[IssueOps](/gh-aw/patterns/issue-ops/)** - Single-repo issue automation
+- **[ChatOps](/gh-aw/patterns/chat-ops/)** - Command-driven workflows
 - **[Orchestration](/gh-aw/patterns/orchestration/)** - Multi-issue initiative coordination
 
 ## Related Documentation

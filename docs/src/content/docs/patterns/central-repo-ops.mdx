@@ -6,7 +6,7 @@ description: Operate and roll out changes across many repositories from a single
 > [!WARNING]
 > **Experimental:** CentralRepoOps is still experimental! Things may break, change, or be removed without deprecation at any time.
 
-CentralRepoOps is a [MultiRepoOps](/gh-aw/patterns/multirepoops/) deployment variant where a single private repository acts as a control plane for large-scale operations across many repositories.
+CentralRepoOps is a [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) deployment variant where a single private repository acts as a control plane for large-scale operations across many repositories.
 
 Use this pattern when you need to coordinate rollouts, policy updates, and tracking across tens or hundreds of repositories from a private central location, using cross-repository safe outputs and secure authentication to deliver consistency, control, and auditability.
 
@@ -266,6 +266,6 @@ After the setup is complete, you can run the orchestrator with `workflow_dispatc
 
 ## Related Patterns
 
-- **[MultiRepoOps](/gh-aw/patterns/multirepoops/)** - Cross-repository automation capability
+- **[MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)** - Cross-repository automation capability
 - **[Orchestration](/gh-aw/patterns/orchestration/)** - Generic orchestrator/worker dispatch pattern
-- **[SideRepoOps](/gh-aw/patterns/siderepoops/)** - Isolated control-plane setup
+- **[SideRepoOps](/gh-aw/patterns/side-repo-ops/)** - Isolated control-plane setup

@@ -1224,7 +1224,7 @@ safe-outputs:
 
 **Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`.
 
-**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/patterns/siderepoops/) workflows to prevent automation from cluttering your main repository's timeline.
+**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows to prevent automation from cluttering your main repository's timeline.
 
 - `[]` - Escape all references (prevents all timeline items)
 - `["repo"]` - Allow only the target repository's references

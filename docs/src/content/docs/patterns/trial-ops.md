@@ -7,7 +7,7 @@ sidebar:
 
 > [!NOTE]
 > Part of SideRepoOps
-> TrialOps is a specialized testing pattern that extends [SideRepoOps](/gh-aw/patterns/siderepoops/). While SideRepoOps runs workflows from a separate repository against your main codebase, TrialOps uses temporary trial repositories to safely validate and test workflows before production deployment.
+> TrialOps is a specialized testing pattern that extends [SideRepoOps](/gh-aw/patterns/side-repo-ops/). While SideRepoOps runs workflows from a separate repository against your main codebase, TrialOps uses temporary trial repositories to safely validate and test workflows before production deployment.
 
 TrialOps runs agentic workflows in isolated trial repositories to safely validate behavior, compare approaches, and iterate on prompts without affecting production. The `trial` command creates temporary private repositories where workflows execute and capture safe outputs (issues, PRs, comments) without modifying your actual codebase.
 
@@ -285,8 +285,8 @@ gh aw trial ./workflow.md --clone-repo myorg/production --trigger-context "https
 
 ## Related Documentation
 
-- [SideRepoOps](/gh-aw/patterns/siderepoops/) - Run workflows from separate repositories
-- [MultiRepoOps](/gh-aw/patterns/multirepoops/) - Coordinate across multiple repositories
+- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Run workflows from separate repositories
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) - Coordinate across multiple repositories
 - [Orchestration](/gh-aw/patterns/orchestration/) - Orchestrate multi-issue initiatives
 - [CLI Commands](/gh-aw/setup/cli/) - Complete CLI reference
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Configuration options
