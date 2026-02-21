@@ -50,6 +50,13 @@ func (e *CodexEngine) SupportsLLMGateway() int {
 	return constants.CodexLLMGatewayPort
 }
 
+// GetModelEnvVarName returns an empty string because the Codex CLI does not support
+// selecting the model via a native environment variable. Model selection for Codex
+// is done via the -c model=... configuration override in the shell command.
+func (e *CodexEngine) GetModelEnvVarName() string {
+	return ""
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
 // This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
@@ -122,33 +129,23 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	model := ""
-	if modelConfigured {
-		model = workflowData.EngineConfig.Model
-	}
 	firewallEnabled := isFirewallEnabled(workflowData)
-	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v, firewall=%v",
-		workflowData.Name, model, workflowData.AgentFile != "", firewallEnabled)
+	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, modelConfigured=%v, has_agent_file=%v, firewall=%v",
+		workflowData.Name, modelConfigured, workflowData.AgentFile != "", firewallEnabled)
 
 	var steps []GitHubActionStep
 
-	// Build model parameter only if specified in engineConfig
-	// Otherwise, model can be set via GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX environment variable
-	var modelParam string
-	if modelConfigured {
-		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
+	// Codex does not support a native model environment variable, so model selection
+	// always uses GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX with shell expansion.
+	// This also correctly handles GitHub Actions expressions like ${{ inputs.model }}.
+	isDetectionJob := workflowData.SafeOutputs == nil
+	var modelEnvVar string
+	if isDetectionJob {
+		modelEnvVar = constants.EnvVarModelDetectionCodex
 	} else {
-		// Check if this is a detection job (has no SafeOutputs config)
-		isDetectionJob := workflowData.SafeOutputs == nil
-		var modelEnvVar string
-		if isDetectionJob {
-			modelEnvVar = constants.EnvVarModelDetectionCodex
-		} else {
-			modelEnvVar = constants.EnvVarModelAgentCodex
-		}
-		// Model will be conditionally added via shell expansion if environment variable is set
-		modelParam = fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
+		modelEnvVar = constants.EnvVarModelAgentCodex
 	}
+	modelParam := fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
 
 	// Build search parameter if web-search tool is present
 	webSearchParam := ""
@@ -271,19 +268,16 @@ mkdir -p "$CODEX_HOME/logs"
 		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
 	}
 
-	// Add model environment variable if model is not explicitly configured
-	// This allows users to configure the default model via GitHub Actions variables
-	// Use different env vars for agent vs detection jobs
-	if !modelConfigured {
-		// Check if this is a detection job (has no SafeOutputs config)
-		isDetectionJob := workflowData.SafeOutputs == nil
-		if isDetectionJob {
-			// For detection, use detection-specific env var (no default fallback for Codex)
-			env[constants.EnvVarModelDetectionCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCodex)
-		} else {
-			// For agent execution, use agent-specific env var
-			env[constants.EnvVarModelAgentCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCodex)
-		}
+	// Set the model environment variable.
+	// Codex has no native model env var, so model selection always goes through
+	// GH_AW_MODEL_AGENT_CODEX / GH_AW_MODEL_DETECTION_CODEX with shell expansion.
+	// When model is configured (static or GitHub Actions expression), set the env var directly.
+	// When not configured, use the GitHub variable fallback so users can set a default.
+	if modelConfigured {
+		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.EngineConfig.Model)
+		env[modelEnvVar] = workflowData.EngineConfig.Model
+	} else {
+		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
 	}
 
 	// Add custom environment variables from engine config

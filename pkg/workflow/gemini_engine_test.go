@@ -171,7 +171,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		assert.Contains(t, stepContent, "--model gemini-1.5-pro", "Should include model flag")
+		// Model is passed via the native GEMINI_MODEL env var (not as a --model flag)
+		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-1.5-pro", "Should set GEMINI_MODEL env var")
+		assert.NotContains(t, stepContent, "--model gemini-1.5-pro", "Should not embed model in command")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {

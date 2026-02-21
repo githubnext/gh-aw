@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -421,17 +422,24 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 			switch tt.engine.GetID() {
 			case "claude":
 				if tt.expectedModel != "" {
-					expectedModelLine := "--model " + tt.expectedModel
-					if !strings.Contains(stepContent, expectedModelLine) {
-						t.Errorf("Expected step to contain model %s, got step content:\n%s", tt.expectedModel, stepContent)
+					// Claude passes model via native ANTHROPIC_MODEL env var
+					expectedEnvLine := "ANTHROPIC_MODEL: " + tt.expectedModel
+					if !strings.Contains(stepContent, expectedEnvLine) {
+						t.Errorf("Expected step to contain env var for model %s, got step content:\n%s", tt.expectedModel, stepContent)
+					}
+					// Should NOT embed --model in the shell command
+					if strings.Contains(stepContent, "--model "+tt.expectedModel) {
+						t.Errorf("Model should not be embedded as --model flag, got step content:\n%s", stepContent)
 					}
 				}
 
 			case "codex":
 				if tt.expectedModel != "" {
-					expectedModelArg := "model=" + tt.expectedModel
-					if !strings.Contains(stepContent, expectedModelArg) {
-						t.Errorf("Expected command to contain %s, got step content:\n%s", expectedModelArg, stepContent)
+					// Codex passes model via GH_AW_MODEL_*_CODEX with shell expansion
+					// The workflow has no SafeOutputs, so it uses the detection env var
+					expectedEnvLine := constants.EnvVarModelDetectionCodex + ": " + tt.expectedModel
+					if !strings.Contains(stepContent, expectedEnvLine) {
+						t.Errorf("Expected step to contain env var for model %s, got step content:\n%s", tt.expectedModel, stepContent)
 					}
 				}
 			}
