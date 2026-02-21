@@ -27,6 +27,7 @@ network:
     - github
     - playwright
 tools:
+  agentic-workflows:
   cache-memory: true
   edit:
   bash:
