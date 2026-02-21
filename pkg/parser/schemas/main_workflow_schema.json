@@ -5486,11 +5486,6 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
-                },
-                "default-agent": {
-                  "type": "string",
-                  "description": "Deprecated: use 'name' instead. Default agent name to assign (default: 'copilot').",
-                  "deprecated": true
                 }
               },
               "additionalProperties": false
