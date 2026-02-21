@@ -6,8 +6,11 @@
 # Resilience Features:
 # - Progressive timeout: 10s, 20s, 30s across retry attempts
 # - Progressive delay: 2s, 4s between retry attempts
-# - Up to 3 retry attempts per server ping request
+# - Up to 3 retry attempts per server tools/list request
 # - Accommodates slow-starting MCP servers (gateway may take 40-50 seconds to start)
+# Note: We use tools/list instead of ping because ping may be handled by the gateway
+# itself without being forwarded to the backend. tools/list must be forwarded to the
+# backend container, ensuring the backend is truly ready (not just the gateway proxy).
 
 set -e
 
@@ -115,8 +118,11 @@ while IFS= read -r SERVER_NAME; do
     AUTH_HEADER=$(echo "$SERVER_CONFIG" | jq -r '.headers.Authorization' 2>/dev/null)
   fi
   
-  # Send MCP ping request with retry logic
-  PING_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"ping"}'
+  # Send MCP tools/list request with retry logic
+  # Use tools/list instead of ping: tools/list must be forwarded to the backend
+  # container by the gateway, whereas ping may be handled by the gateway proxy itself
+  # without reaching the backend. This ensures the backend is truly ready.
+  TOOLS_LIST_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
   
   # Retry logic for slow-starting servers
   RETRY_COUNT=0
@@ -141,11 +147,11 @@ while IFS= read -r SERVER_NAME; do
       PING_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
         -H "Content-Type: application/json" \
         -H "Authorization: $AUTH_HEADER" \
-        -d "$PING_PAYLOAD" 2>&1 || echo -e "\n000")
+        -d "$TOOLS_LIST_PAYLOAD" 2>&1 || echo -e "\n000")
     else
       PING_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
         -H "Content-Type: application/json" \
-        -d "$PING_PAYLOAD" 2>&1 || echo -e "\n000")
+        -d "$TOOLS_LIST_PAYLOAD" 2>&1 || echo -e "\n000")
     fi
     
     PING_HTTP_CODE=$(echo "$PING_RESPONSE" | tail -n 1)
