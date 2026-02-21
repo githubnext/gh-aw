@@ -44,38 +44,6 @@ Downloaded artifacts include:
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
 
-Orchestrator Usage:
-	In an orchestrator workflow, use this command in a pre-step to download logs,
-  then access the data in subsequent steps without needing GitHub CLI access:
-
-    steps:
-      - name: Download logs from last 30 days
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/portfolio-logs
-          gh aw logs <worker> --start-date -1mo -o /tmp/portfolio-logs
-
-  In your analysis step, reference the pre-downloaded data:
-    
-    **All workflow execution data has been pre-downloaded for you in the previous workflow step.**
-    
-    - **JSON Summary**: /tmp/portfolio-logs/summary.json - Contains all metrics and run data you need
-    - **Run Logs**: /tmp/portfolio-logs/run-{database-id}/ - Individual run logs (if needed for detailed analysis)
-    
-    **DO NOT call 'gh aw logs' or any GitHub CLI commands** - they will not work in your environment.
-    All data you need is in the summary.json file.
-
-	Live Tracking with Project Boards:
-		Use the summary.json data to update your project board, treating issues/PRs (workers)
-		on the board as the real-time view of progress, ownership, and status. The orchestrator workflow
-		can use the 'update-project' safe output to sync status fields without modifying worker workflow
-		files. Workers remain unchanged while the board reflects current execution state.
-    
-    For incremental updates, pull data for each worker based on the last pull time using --start-date
-    (e.g., --start-date -1d for daily updates) and align with existing board items. Compare run data
-    from summary.json with board status to update only changed workers, preserving board state.
-
 ` + WorkflowIDExplanation + `
 
 Examples:

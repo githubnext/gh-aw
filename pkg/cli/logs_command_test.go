@@ -248,7 +248,7 @@ func TestLogsCommandHelpText(t *testing.T) {
 	// Verify long description contains expected sections
 	expectedSections := []string{
 		"Download workflow run logs",
-		"Orchestrator Usage",
+		"Downloaded artifacts include:",
 		"Examples:",
 		"gh aw logs",
 	}
