@@ -1192,6 +1192,7 @@ jobs:
       contents: read
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      matched_command: ''
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
