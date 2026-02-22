@@ -149,9 +149,21 @@ jobs:
           <safe-output-tools>
           Tools: add_comment, create_issue, update_issue, create_discussion, create_agent_session, create_pull_request, close_pull_request, create_pull_request_review_comment, add_labels, push_to_pull_request_branch, upload_asset, link_sub_issue, missing_tool, missing_data
           
-          create_pull_request: commit changes to a local branch (do not push), then call this tool from safeoutputs.
+          **Creating a Pull Request**
           
-          push_to_pull_request_branch: commit changes locally (do not push), then call this tool from safeoutputs.
+          To create a pull request:
+          1. Make any file changes directly in the working directory.
+          2. If you haven't done so already, create a local branch using an appropriate unique name.
+          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Verify you haven't deleted or changed any files you didn't intend to.
+          4. Do not push your changes. That will be done by the tool.
+          5. Create the pull request with the create_pull_request tool from safeoutputs.
+          
+          **Pushing Changes to a Pull Request Branch**
+          
+          To push changes to the branch of a pull request:
+          1. Make any file changes directly in the working directory.
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and verify you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push_to_pull_request_branch tool from safeoutputs.
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           

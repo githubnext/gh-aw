@@ -719,11 +719,21 @@ func generateSafeOutputsPerToolInstructions(b *strings.Builder, safeOutputs *Saf
 
 	// Special multi-step instructions for complex tools
 	if safeOutputs.CreatePullRequests != nil {
-		fmt.Fprintf(b, "create_pull_request: commit changes to a local branch (do not push), then call this tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		b.WriteString("**Creating a Pull Request**\n\n")
+		b.WriteString("To create a pull request:\n")
+		b.WriteString("1. Make any file changes directly in the working directory.\n")
+		b.WriteString("2. If you haven't done so already, create a local branch using an appropriate unique name.\n")
+		b.WriteString("3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Verify you haven't deleted or changed any files you didn't intend to.\n")
+		b.WriteString("4. Do not push your changes. That will be done by the tool.\n")
+		fmt.Fprintf(b, "5. Create the pull request with the create_pull_request tool from %s.\n\n", constants.SafeOutputsMCPServerID)
 	}
 
 	if safeOutputs.PushToPullRequestBranch != nil {
-		fmt.Fprintf(b, "push_to_pull_request_branch: commit changes locally (do not push), then call this tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		b.WriteString("**Pushing Changes to a Pull Request Branch**\n\n")
+		b.WriteString("To push changes to the branch of a pull request:\n")
+		b.WriteString("1. Make any file changes directly in the working directory.\n")
+		b.WriteString("2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and verify you haven't deleted or changed any files you didn't intend to.\n")
+		fmt.Fprintf(b, "3. Push the branch to the repo by using the push_to_pull_request_branch tool from %s.\n\n", constants.SafeOutputsMCPServerID)
 	}
 
 	if safeOutputs.UploadAssets != nil {
