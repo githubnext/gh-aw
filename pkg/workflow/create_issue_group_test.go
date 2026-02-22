@@ -14,10 +14,11 @@ import (
 
 // TestCreateIssueGroupFieldParsing verifies that the group field is parsed correctly
 func TestCreateIssueGroupFieldParsing(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
 	tests := []struct {
 		name          string
 		frontmatter   string
-		expectedGroup bool
+		expectedGroup *string
 	}{
 		{
 			name: "group enabled with true",
@@ -34,7 +35,7 @@ safe-outputs:
 ---
 
 Test content`,
-			expectedGroup: true,
+			expectedGroup: strPtr("true"),
 		},
 		{
 			name: "group disabled with false",
@@ -51,10 +52,10 @@ safe-outputs:
 ---
 
 Test content`,
-			expectedGroup: false,
+			expectedGroup: strPtr("false"),
 		},
 		{
-			name: "group not specified defaults to false",
+			name: "group not specified defaults to nil",
 			frontmatter: `---
 name: Test Workflow
 on: workflow_dispatch
@@ -67,7 +68,7 @@ safe-outputs:
 ---
 
 Test content`,
-			expectedGroup: false,
+			expectedGroup: nil,
 		},
 	}
 
