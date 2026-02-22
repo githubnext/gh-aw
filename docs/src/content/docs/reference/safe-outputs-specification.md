@@ -986,11 +986,13 @@ safe-outputs:
 
 #### GP1: footer
 
-**Syntax**: `footer: true | false`
+**Syntax**: `footer: true | false | <github-expression>`
 
 **Default**: `true`
 
 **Semantics**: Controls whether AI attribution footers are appended to created content (issues, discussions, pull requests, comments).
+
+This field is **templatable**: in addition to literal `true`/`false`, it accepts GitHub Actions expression strings (e.g., `${{ inputs.enable-footer }}`). See Section 5.5 for details.
 
 **Inheritance**: Type-specific `footer` parameter overrides this global setting.
 
@@ -1265,16 +1267,19 @@ Every safe output type supports these parameters:
 
 #### TS1: max
 
-**Syntax**: `max: <positive-integer> | -1 | null`
+**Syntax**: `max: <positive-integer> | -1 | null | <github-expression>`
 
 **Default**: Type-dependent (see Section 7 for per-type defaults)
 
 **Semantics**: Maximum count of operations permitted for this type in a single workflow run.
 
+This field is **templatable**: in addition to integer literals and `-1`, it accepts GitHub Actions expression strings (e.g., `${{ inputs.max-issues }}`). When a GitHub Actions expression is supplied, the limit is evaluated at runtime. See Section 5.5 for details.
+
 **Special Values**:
 - Positive integer: Strict limit (e.g., `max: 3` allows up to 3 operations)
 - `-1`: Unlimited operations (use with caution)
 - `null` or omitted: Use type's default max
+- GitHub Actions expression: Limit resolved at runtime (e.g., `max: ${{ inputs.max-issues }}`)
 
 **Enforcement Algorithm**:
 
@@ -1337,11 +1342,13 @@ MUST NOT:
 
 #### TS2: footer (Type-Specific Override)
 
-**Syntax**: `footer: true | false`
+**Syntax**: `footer: true | false | <github-expression>`
 
 **Default**: Inherits from `safe-outputs.footer` (global)
 
 **Semantics**: Override global footer setting for this specific safe output type.
+
+This field is **templatable**: in addition to literal `true`/`false`, it accepts GitHub Actions expression strings (e.g., `${{ inputs.enable-footer }}`). See Section 5.5 for details.
 
 **Inheritance Precedence**:
 1. Type-specific `footer` (highest priority)
@@ -1458,9 +1465,54 @@ create-discussion:
 
 Complete parameter documentation for each type appears in Section 7.
 
----
+### 5.5 Templatable Fields
 
-(Due to response length constraints, I'll complete the file with remaining sections)
+Certain safe output configuration fields are **templatable**: they accept either a literal value of the expected type or a GitHub Actions expression string that is evaluated at runtime.
+
+#### Templatable Integer Fields
+
+Fields documented as `<positive-integer> | -1 | null | <github-expression>` are templatable integers. When a GitHub Actions expression is supplied, it MUST resolve to a valid integer value at runtime.
+
+**Applicable fields**: `max` (all types)
+
+**Syntax**:
+
+```yaml
+# Literal integer
+max: 5
+
+# GitHub Actions expression (evaluated at runtime)
+max: ${{ inputs.max-issues }}
+```
+
+**Conformance requirements**:
+- Implementations MUST accept literal integers and GitHub Actions expressions for templatable integer fields.
+- When a GitHub Actions expression is supplied as `max`, implementations MUST evaluate it at runtime and treat the result as an integer.
+- A non-integer runtime value for a templatable integer field MUST cause the operation to fail with a descriptive error.
+
+#### Templatable Boolean Fields
+
+Fields documented as `true | false | <github-expression>` are templatable booleans. When a GitHub Actions expression is supplied, it MUST resolve to `true` or `false` at runtime.
+
+**Applicable fields**: `footer` (global and type-specific), `group`, `close-older-issues`, `hide-older-comments`, `close-older-discussions`, `draft`, `allow-empty`, `auto-merge`, `report-as-issue`, `unassign-first`
+
+**Syntax**:
+
+```yaml
+# Literal boolean
+group: true
+
+# GitHub Actions expression (evaluated at runtime)
+group: ${{ inputs.group-issues }}
+```
+
+**Conformance requirements**:
+- Implementations MUST accept literal booleans and GitHub Actions expressions for templatable boolean fields.
+- A free-form string that is not a GitHub Actions expression (i.e., does not match `${{ ... }}`) MUST be rejected with a descriptive error at compile time.
+- When a GitHub Actions expression is supplied, implementations MUST evaluate it at runtime and treat the result as a boolean.
+- A non-boolean runtime value for a templatable boolean field MUST be treated as `false`.
+
+---
 
 
 ## 6. Universal Feature Interpretation
@@ -3973,6 +4025,12 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.14.0** (2026-02-22):
+- **Added**: Section 5.5 "Templatable Fields" documenting support for GitHub Actions expressions in integer and boolean configuration fields
+- **Updated**: GP1 (`footer` global), TS1 (`max`), and TS2 (`footer` type-specific) syntax to document expression support
+- **Clarified**: Templatable integer fields (`max`) and templatable boolean fields (`footer`, `group`, `close-older-issues`, `hide-older-comments`, `close-older-discussions`, `draft`, `allow-empty`, `auto-merge`, `report-as-issue`, `unassign-first`) accept `${{ ... }}` GitHub Actions expressions in addition to literal values
+- **Added**: Conformance requirements for runtime evaluation of templatable fields
 
 **Version 1.13.0** (2026-02-18):
 - **Added**: Optional `discussions` field for `add-comment` and `hide-comment` safe output types to control `discussions:write` permission
