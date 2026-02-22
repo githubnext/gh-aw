@@ -109,7 +109,6 @@ jobs:
           Tools: create_discussion, upload_asset, missing_tool, missing_data
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
-          
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:

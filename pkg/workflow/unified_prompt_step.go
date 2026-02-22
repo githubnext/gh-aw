@@ -291,17 +291,9 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			Content: safeOutputsPromptFile,
 			IsFile:  true,
 		})
-		// Per-tool instructions (dynamic, depends on which tools are enabled)
-		var perToolBuilder strings.Builder
-		perToolBuilder.WriteString("<safe-output-tools>\n")
-		generateSafeOutputsPerToolInstructions(&perToolBuilder, data.SafeOutputs)
-		perToolBuilder.WriteString("</safe-output-tools>")
-		sections = append(sections, PromptSection{
-			Content: perToolBuilder.String(),
-			IsFile:  false,
-		})
+		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
+		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
 	}
-
 	// 8. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
@@ -587,18 +579,21 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 var safeOutputsPromptLog = logger.New("workflow:safe_outputs_prompt")
 
-// generateSafeOutputsPerToolInstructions appends per-tool usage instructions for each
-// configured safe-output capability. It is called from collectPromptSections to inject
-// tool-specific guidance inside the <safe-output-tools> XML block.
+// buildSafeOutputsSections returns the PromptSections that form the <safe-output-tools> block.
+// The block contains:
+//  1. An inline opening tag with a compact Tools list (dynamic, depends on which tools are enabled).
+//  2. File references for tools that require multi-step instructions (create_pull_request,
+//     push_to_pull_request_branch, auto-injected create_issue notice).
+//  3. An inline closing tag.
 //
 // The static intro (gh CLI warning, temporary ID rules, noop note) lives in
-// actions/setup/md/safe_outputs_prompt.md and is included separately via a file reference.
-func generateSafeOutputsPerToolInstructions(b *strings.Builder, safeOutputs *SafeOutputsConfig) {
+// actions/setup/md/safe_outputs_prompt.md and is included by the caller before these sections.
+func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs == nil {
-		return
+		return nil
 	}
 
-	safeOutputsPromptLog.Print("Generating safe outputs per-tool instructions")
+	safeOutputsPromptLog.Print("Building safe outputs sections")
 
 	// Build compact list of enabled tool names
 	var tools []string
@@ -712,38 +707,42 @@ func generateSafeOutputsPerToolInstructions(b *strings.Builder, safeOutputs *Saf
 	}
 
 	if len(tools) == 0 {
-		return
+		return nil
 	}
 
-	fmt.Fprintf(b, "Tools: %s\n\n", strings.Join(tools, ", "))
+	var sections []PromptSection
 
-	// Special multi-step instructions for complex tools
+	// Inline opening: XML tag + compact tools list
+	sections = append(sections, PromptSection{
+		Content: "<safe-output-tools>\nTools: " + strings.Join(tools, ", "),
+		IsFile:  false,
+	})
+
+	// File sections for tools with multi-step instructions
 	if safeOutputs.CreatePullRequests != nil {
-		b.WriteString("**Creating a Pull Request**\n\n")
-		b.WriteString("To create a pull request:\n")
-		b.WriteString("1. Make any file changes directly in the working directory.\n")
-		b.WriteString("2. If you haven't done so already, create a local branch using an appropriate unique name.\n")
-		b.WriteString("3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Verify you haven't deleted or changed any files you didn't intend to.\n")
-		b.WriteString("4. Do not push your changes. That will be done by the tool.\n")
-		fmt.Fprintf(b, "5. Create the pull request with the create_pull_request tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
 	}
-
 	if safeOutputs.PushToPullRequestBranch != nil {
-		b.WriteString("**Pushing Changes to a Pull Request Branch**\n\n")
-		b.WriteString("To push changes to the branch of a pull request:\n")
-		b.WriteString("1. Make any file changes directly in the working directory.\n")
-		b.WriteString("2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and verify you haven't deleted or changed any files you didn't intend to.\n")
-		fmt.Fprintf(b, "3. Push the branch to the repo by using the push_to_pull_request_branch tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		sections = append(sections, PromptSection{Content: safeOutputsPushToBranchFile, IsFile: true})
 	}
-
 	if safeOutputs.UploadAssets != nil {
-		fmt.Fprintf(b, "upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (%s).\n\n", constants.SafeOutputsMCPServerID)
+		sections = append(sections, PromptSection{
+			Content: "\nupload_asset: provide a file path; returns a URL; assets are published after the workflow completes (" + constants.SafeOutputsMCPServerID + ").",
+			IsFile:  false,
+		})
 	}
-
 	// Auto-injected create_issue special notice
 	if safeOutputs.CreateIssues != nil && safeOutputs.AutoInjectedCreateIssue {
-		b.WriteString("**IMPORTANT**: Report your findings or results by creating a GitHub issue using the create_issue tool. If you have no meaningful results to report, call the noop tool instead.\n\n")
+		sections = append(sections, PromptSection{Content: safeOutputsAutoCreateIssueFile, IsFile: true})
 	}
+
+	// Inline closing tag
+	sections = append(sections, PromptSection{
+		Content: "</safe-output-tools>",
+		IsFile:  false,
+	})
+
+	return sections
 }
 
 var promptStepHelperLog = logger.New("workflow:prompt_step_helper")

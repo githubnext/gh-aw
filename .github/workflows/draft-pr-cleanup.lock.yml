@@ -109,7 +109,6 @@ jobs:
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
           Tools: add_comment, close_pull_request, add_labels, missing_tool, missing_data
-          
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:

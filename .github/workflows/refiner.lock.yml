@@ -134,16 +134,9 @@ jobs:
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
           Tools: add_comment, create_pull_request, missing_tool, missing_data
-          
-          **Creating a Pull Request**
-          
-          To create a pull request:
-          1. Make any file changes directly in the working directory.
-          2. If you haven't done so already, create a local branch using an appropriate unique name.
-          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Verify you haven't deleted or changed any files you didn't intend to.
-          4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create_pull_request tool from safeoutputs.
-          
+          GH_AW_PROMPT_EOF
+          cat "/opt/gh-aw/prompts/safe_outputs_create_pull_request.md"
+          cat << 'GH_AW_PROMPT_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:

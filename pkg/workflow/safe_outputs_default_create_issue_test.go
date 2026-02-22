@@ -261,7 +261,7 @@ func TestAutoInjectedCreateIssuePrompt(t *testing.T) {
 	tests := []struct {
 		name           string
 		safeOutputs    *SafeOutputsConfig
-		expectSpecific bool // expect the "IMPORTANT: Report your findings" instruction
+		expectSpecific bool // expect the auto_create_issue file reference
 	}{
 		{
 			name: "auto-injected create-issue produces specific prompt",
@@ -296,19 +296,21 @@ func TestAutoInjectedCreateIssuePrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var b strings.Builder
-			generateSafeOutputsPerToolInstructions(&b, tt.safeOutputs)
-			output := b.String()
+			compiler := &Compiler{}
+			var yaml strings.Builder
+			data := &WorkflowData{
+				ParsedTools: NewTools(map[string]any{}),
+				SafeOutputs: tt.safeOutputs,
+			}
+			compiler.generateUnifiedPromptStep(&yaml, data)
+			output := yaml.String()
 
-			specificInstruction := "**IMPORTANT**: Report your findings or results by creating a GitHub issue"
 			if tt.expectSpecific {
-				assert.Contains(t, output, specificInstruction,
-					"Auto-injected create-issue should include specific prompt instruction")
-				assert.Contains(t, output, "noop tool instead",
-					"Auto-injected create-issue prompt should mention calling noop as alternative")
+				assert.Contains(t, output, safeOutputsAutoCreateIssueFile,
+					"Auto-injected create-issue should include the auto_create_issue file reference")
 			} else {
-				assert.NotContains(t, output, specificInstruction,
-					"Non-auto-injected create-issue should not include specific auto-inject instruction")
+				assert.NotContains(t, output, safeOutputsAutoCreateIssueFile,
+					"Non-auto-injected create-issue should not include the auto_create_issue file reference")
 			}
 		})
 	}
