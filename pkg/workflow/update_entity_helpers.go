@@ -204,6 +204,10 @@ const (
 	// Special case: nil values are treated as true for backward compatibility.
 	// Used by body/footer fields in all update entities.
 	FieldParsingBoolValue
+	// FieldParsingTemplatableBool mode: Field accepts a literal boolean or a GitHub Actions
+	// expression string (e.g. "${{ inputs.show-footer }}"). The parsed value is stored as a
+	// *string in the StringDest field of UpdateEntityFieldSpec.
+	FieldParsingTemplatableBool
 )
 
 // parseUpdateEntityBoolField is a generic helper that parses boolean fields from config maps
@@ -256,11 +260,34 @@ func parseUpdateEntityBoolField(configMap map[string]any, fieldName string, mode
 	}
 }
 
+// parseUpdateEntityStringBoolField parses a FieldParsingTemplatableBool field from a config map.
+// It pre-processes the value to normalise literal booleans to strings, then returns the value
+// as *string.  Returns nil when the field is absent.
+func parseUpdateEntityStringBoolField(configMap map[string]any, fieldName string, log *logger.Logger) *string {
+	if configMap == nil {
+		return nil
+	}
+	if _, exists := configMap[fieldName]; !exists {
+		return nil
+	}
+	if err := preprocessBoolFieldAsString(configMap, fieldName, log); err != nil {
+		if log != nil {
+			log.Printf("Invalid %s value: %v", fieldName, err)
+		}
+		return nil
+	}
+	if strVal, ok := configMap[fieldName].(string); ok {
+		return &strVal
+	}
+	return nil
+}
+
 // UpdateEntityFieldSpec defines a boolean field to be parsed from config
 type UpdateEntityFieldSpec struct {
-	Name string           // Field name in config (e.g., "title", "body", "status")
-	Mode FieldParsingMode // Parsing mode for this field
-	Dest **bool           // Pointer to the destination field in the config struct
+	Name       string           // Field name in config (e.g., "title", "body", "status")
+	Mode       FieldParsingMode // Parsing mode for this field
+	Dest       **bool           // Pointer to the destination field (used with FieldParsingKeyExistence / FieldParsingBoolValue)
+	StringDest **string         // Pointer to the destination string field (used with FieldParsingTemplatableBool)
 }
 
 // UpdateEntityParseOptions holds options for parsing entity-specific configuration
@@ -305,7 +332,15 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 
 	// Parse entity-specific bool fields according to specs
 	for _, field := range opts.Fields {
-		*field.Dest = parseUpdateEntityBoolField(configMap, field.Name, field.Mode)
+		if field.Mode == FieldParsingTemplatableBool {
+			if field.StringDest != nil {
+				*field.StringDest = parseUpdateEntityStringBoolField(configMap, field.Name, opts.Logger)
+			}
+		} else {
+			if field.Dest != nil {
+				*field.Dest = parseUpdateEntityBoolField(configMap, field.Name, field.Mode)
+			}
+		}
 	}
 
 	// Call custom parser if provided (e.g., for AllowedLabels in discussions)

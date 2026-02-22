@@ -12,7 +12,7 @@ type UpdatePullRequestsConfig struct {
 	Title              *bool   `yaml:"title,omitempty"`     // Allow updating PR title - defaults to true, set to false to disable
 	Body               *bool   `yaml:"body,omitempty"`      // Allow updating PR body - defaults to true, set to false to disable
 	Operation          *string `yaml:"operation,omitempty"` // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
-	Footer             *bool   `yaml:"footer,omitempty"`    // Controls whether AI-generated footer is added. When false, visible footer is omitted.
+	Footer             *string `yaml:"footer,omitempty"`    // Controls whether AI-generated footer is added. When false, visible footer is omitted.
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration
@@ -25,7 +25,7 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 			return []UpdateEntityFieldSpec{
 				{Name: "title", Mode: FieldParsingBoolValue, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
-				{Name: "footer", Mode: FieldParsingBoolValue, Dest: &cfg.Footer},
+				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
 			}
 		}, func(configMap map[string]any, cfg *UpdatePullRequestsConfig) {
 			// Parse operation field

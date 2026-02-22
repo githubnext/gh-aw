@@ -12,6 +12,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 // Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
@@ -27,7 +28,7 @@ async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
-  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const includeFooter = parseBoolTemplatable(config.footer, true);
 
   /**
    * Process a single update-release message

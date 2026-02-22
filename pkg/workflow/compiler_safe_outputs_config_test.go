@@ -47,7 +47,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 						Max: 3,
 					},
 					Target:            "issue",
-					HideOlderComments: true,
+					HideOlderComments: testStringPtr("true"),
 				},
 			},
 			checkContains: []string{
@@ -66,7 +66,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					Category:              "general",
 					TitlePrefix:           "[Discussion] ",
 					Labels:                []string{"ai"},
-					CloseOlderDiscussions: true,
+					CloseOlderDiscussions: testStringPtr("true"),
 				},
 			},
 			checkContains: []string{
@@ -134,7 +134,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					Labels:      []string{"automated"},
 					Draft:       testStringPtr("true"),
 					IfNoChanges: "skip",
-					AllowEmpty:  true,
+					AllowEmpty:  testStringPtr("true"),
 					Expires:     7,
 				},
 			},
@@ -424,7 +424,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "hide older comments",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					HideOlderComments: true,
+					HideOlderComments: testStringPtr("true"),
 				},
 			},
 			checkField: "add_comment",
@@ -435,7 +435,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "close older discussions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
-					CloseOlderDiscussions: true,
+					CloseOlderDiscussions: testStringPtr("true"),
 				},
 			},
 			checkField: "create_discussion",
@@ -446,7 +446,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 			name: "allow empty PR",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					AllowEmpty: true,
+					AllowEmpty: testStringPtr("true"),
 				},
 			},
 			checkField: "create_pull_request",
@@ -972,7 +972,7 @@ func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					Max: 3,
 				},
-				UnassignFirst: true,
+				UnassignFirst: testStringPtr("true"),
 			},
 		},
 	}

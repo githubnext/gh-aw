@@ -95,14 +95,14 @@ async function main(config = {}) {
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const draftDefault = parseBoolTemplatable(config.draft, true);
   const ifNoChanges = config.if_no_changes || "warn";
-  const allowEmpty = config.allow_empty || false;
-  const autoMerge = config.auto_merge || false;
+  const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
+  const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   let baseBranch = config.base_branch || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
 
   // Environment validation - fail early if required variables are missing

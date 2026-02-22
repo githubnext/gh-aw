@@ -9,11 +9,11 @@ var updateIssueLog = logger.New("workflow:update_issue")
 // UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
 type UpdateIssuesConfig struct {
 	UpdateEntityConfig `yaml:",inline"`
-	Status             *bool  `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Title              *bool  `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
-	Body               *bool  `yaml:"body,omitempty"`         // Allow updating issue body - boolean value controls permission (defaults to true)
-	Footer             *bool  `yaml:"footer,omitempty"`       // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
-	TitlePrefix        string `yaml:"title-prefix,omitempty"` // Required title prefix for issue validation - only issues with this prefix can be updated
+	Status             *bool   `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Title              *bool   `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
+	Body               *bool   `yaml:"body,omitempty"`         // Allow updating issue body - boolean value controls permission (defaults to true)
+	Footer             *string `yaml:"footer,omitempty"`       // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	TitlePrefix        string  `yaml:"title-prefix,omitempty"` // Required title prefix for issue validation - only issues with this prefix can be updated
 }
 
 // parseUpdateIssuesConfig handles update-issue configuration
@@ -25,7 +25,7 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 				{Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
 				{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
-				{Name: "footer", Mode: FieldParsingBoolValue, Dest: &cfg.Footer},
+				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
 			}
 		}, func(configMap map[string]any, cfg *UpdateIssuesConfig) {
 			cfg.TitlePrefix = parseTitlePrefixFromConfig(configMap)

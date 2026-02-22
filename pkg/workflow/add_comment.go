@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -21,7 +22,7 @@ type AddCommentsConfig struct {
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`         // Target repository in format "owner/repo" for cross-repository comments
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`       // List of additional repositories that comments can be added to (additionally to the target-repo)
 	Discussion           *bool    `yaml:"discussion,omitempty"`          // Target discussion comments instead of issue/PR comments. Must be true if present.
-	HideOlderComments    bool     `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
+	HideOlderComments    *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 	AllowedReasons       []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
 	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission.
 }
@@ -55,8 +56,13 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
 	}
 	// Pass the hide-older-comments flag configuration
-	if data.SafeOutputs.AddComments.HideOlderComments {
-		customEnvVars = append(customEnvVars, "          GH_AW_HIDE_OLDER_COMMENTS: \"true\"\n")
+	if data.SafeOutputs.AddComments.HideOlderComments != nil {
+		hoc := *data.SafeOutputs.AddComments.HideOlderComments
+		if strings.HasPrefix(hoc, "${{") {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_HIDE_OLDER_COMMENTS: %s\n", hoc))
+		} else {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_HIDE_OLDER_COMMENTS: %q\n", hoc))
+		}
 	}
 	// Pass the allowed-reasons list configuration
 	if len(data.SafeOutputs.AddComments.AllowedReasons) > 0 {
@@ -150,6 +156,15 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	addCommentLog.Print("Parsing add-comment configuration")
+
+	// Get config data for pre-processing before YAML unmarshaling
+	configData, _ := outputMap["add-comment"].(map[string]any)
+
+	// Pre-process templatable bool fields
+	if err := preprocessBoolFieldAsString(configData, "hide-older-comments", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid hide-older-comments value: %v", err)
+		return nil
+	}
 
 	// Unmarshal into typed config struct
 	var config AddCommentsConfig

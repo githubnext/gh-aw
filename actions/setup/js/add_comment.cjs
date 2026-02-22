@@ -10,6 +10,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
@@ -280,7 +281,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
  */
 async function main(config = {}) {
   // Extract configuration
-  const hideOlderCommentsEnabled = config.hide_older_comments === true;
+  const hideOlderCommentsEnabled = parseBoolTemplatable(config.hide_older_comments, false);
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);

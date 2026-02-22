@@ -12,6 +12,7 @@ const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Execute the pull request update API call
@@ -132,7 +133,7 @@ function buildPRUpdateData(item, config) {
   }
 
   // Pass footer config to executeUpdate (default to true)
-  updateData._includeFooter = config.footer !== false;
+  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
 
   return { success: true, data: updateData };
 }

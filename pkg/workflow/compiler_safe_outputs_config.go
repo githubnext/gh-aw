@@ -9,14 +9,23 @@ import (
 
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
-// getEffectiveFooter returns the effective footer value for a config
-// If the local footer is set, use it; otherwise fall back to global footer
-// Returns nil if neither is set (default to true in JavaScript)
-func getEffectiveFooter(localFooter *bool, globalFooter *bool) *bool {
+// getEffectiveFooterForTemplatable returns the effective footer as a templatable string.
+// If the local string footer is set, use it; otherwise convert the global bool footer.
+// Returns nil if neither is set (default to true in JavaScript).
+func getEffectiveFooterForTemplatable(localFooter *string, globalFooter *bool) *string {
 	if localFooter != nil {
 		return localFooter
 	}
-	return globalFooter
+	if globalFooter != nil {
+		var s string
+		if *globalFooter {
+			s = "true"
+		} else {
+			s = "false"
+		}
+		return &s
+	}
+	return nil
 }
 
 // getEffectiveFooterString returns the effective footer string value for a config.
@@ -138,9 +147,9 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("assignees", c.Assignees).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
-			AddIfTrue("group", c.Group).
-			AddIfTrue("close_older_issues", c.CloseOlderIssues).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("group", c.Group).
+			AddTemplatableBool("close_older_issues", c.CloseOlderIssues).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {
@@ -151,7 +160,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
 			AddIfNotEmpty("target", c.Target).
-			AddIfTrue("hide_older_comments", c.HideOlderComments).
+			AddTemplatableBool("hide_older_comments", c.HideOlderComments).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			Build()
@@ -168,12 +177,12 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("labels", c.Labels).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddIfTrue("close_older_discussions", c.CloseOlderDiscussions).
+			AddTemplatableBool("close_older_discussions", c.CloseOlderDiscussions).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
 			AddIfPositive("expires", c.Expires).
-			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).
+			AddTemplatableBool("fallback_to_issue", c.FallbackToIssue).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"close_issue": func(cfg *SafeOutputsConfig) map[string]any {
@@ -323,7 +332,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return builder.
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"update_discussion": func(cfg *SafeOutputsConfig) map[string]any {
@@ -348,7 +357,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"link_sub_issue": func(cfg *SafeOutputsConfig) map[string]any {
@@ -373,7 +382,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.UpdateRelease
 		return newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"create_pull_request_review_comment": func(cfg *SafeOutputsConfig) map[string]any {
@@ -410,7 +419,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"resolve_pull_request_review_thread": func(cfg *SafeOutputsConfig) map[string]any {
@@ -438,13 +447,13 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("reviewers", c.Reviewers).
 			AddTemplatableBool("draft", c.Draft).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
-			AddIfTrue("allow_empty", c.AllowEmpty).
-			AddIfTrue("auto_merge", c.AutoMerge).
+			AddTemplatableBool("allow_empty", c.AllowEmpty).
+			AddTemplatableBool("auto_merge", c.AutoMerge).
 			AddIfPositive("expires", c.Expires).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddDefault("max_patch_size", maxPatchSize).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue)
 		// Add base_branch - use custom value if specified, otherwise use github.base_ref || github.ref_name
 		// This handles PR contexts where github.ref_name is "123/merge" which is invalid as a target branch
@@ -486,7 +495,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
 			AddStringPtr("default_operation", c.Operation).
-			AddBoolPtr("footer", getEffectiveFooter(c.Footer, cfg.Footer)).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			Build()
@@ -612,7 +621,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddIfTrue("unassign_first", c.UnassignFirst).
+			AddTemplatableBool("unassign_first", c.UnassignFirst).
 			Build()
 	},
 	"unassign_from_user": func(cfg *SafeOutputsConfig) map[string]any {

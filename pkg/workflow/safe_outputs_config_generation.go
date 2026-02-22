@@ -68,7 +68,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.CreateIssues.AllowedLabels,
 			)
 			// Add group flag if enabled
-			if data.SafeOutputs.CreateIssues.Group {
+			if data.SafeOutputs.CreateIssues.Group != nil && *data.SafeOutputs.CreateIssues.Group == "true" {
 				config["group"] = true
 			}
 			// Add expires value if set (0 means explicitly disabled or not set)

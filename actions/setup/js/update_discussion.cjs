@@ -9,6 +9,7 @@ const { isDiscussionContext, getDiscussionNumber } = require("./update_context_h
 const { createUpdateHandlerFactory, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -136,7 +137,7 @@ function buildDiscussionUpdateData(item, config) {
   }
 
   // Pass footer config to executeUpdate (default to true)
-  updateData._includeFooter = config.footer !== false;
+  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
 
   return { success: true, data: updateData };
 }

@@ -12,7 +12,7 @@ type AssignToUserConfig struct {
 	SafeOutputTargetConfig `yaml:",inline"`
 	Allowed                []string `yaml:"allowed,omitempty"`        // Optional list of allowed usernames. If omitted, any users are allowed.
 	Blocked                []string `yaml:"blocked,omitempty"`        // Optional list of blocked usernames or patterns (e.g., "copilot", "*[bot]")
-	UnassignFirst          bool     `yaml:"unassign-first,omitempty"` // If true, unassign all current assignees before assigning new ones
+	UnassignFirst          *string  `yaml:"unassign-first,omitempty"` // If true, unassign all current assignees before assigning new ones
 }
 
 // parseAssignToUserConfig handles assign-to-user configuration
@@ -23,6 +23,15 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 	}
 
 	assignToUserLog.Print("Parsing assign-to-user configuration")
+
+	// Get config data for pre-processing before YAML unmarshaling
+	configData, _ := outputMap["assign-to-user"].(map[string]any)
+
+	// Pre-process templatable bool fields
+	if err := preprocessBoolFieldAsString(configData, "unassign-first", assignToUserLog); err != nil {
+		assignToUserLog.Printf("Invalid unassign-first value: %v", err)
+		return nil
+	}
 
 	// Unmarshal into typed config struct
 	var config AssignToUserConfig

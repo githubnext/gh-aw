@@ -11,6 +11,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Type constant for handler identification
@@ -30,7 +31,7 @@ async function main(config = {}) {
   // Extract configuration
   const maxCount = config.max || 10;
   const replyTarget = config.target || "triggering";
-  const includeFooter = config.footer !== false; // Default to true
+  const includeFooter = parseBoolTemplatable(config.footer, true);
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 

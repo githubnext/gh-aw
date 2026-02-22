@@ -649,7 +649,7 @@ This test verifies that auto-merge configuration is properly handled.
 	}
 
 	// Verify auto-merge is set to true
-	if !workflowData.SafeOutputs.CreatePullRequests.AutoMerge {
+	if workflowData.SafeOutputs.CreatePullRequests.AutoMerge == nil || *workflowData.SafeOutputs.CreatePullRequests.AutoMerge != "true" {
 		t.Error("Expected auto-merge to be true")
 	}
 

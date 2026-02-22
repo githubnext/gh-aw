@@ -11,7 +11,7 @@ var replyToPRReviewCommentLog = logger.New("workflow:reply_to_pr_review_comment"
 type ReplyToPullRequestReviewCommentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Footer                 *bool `yaml:"footer,omitempty"` // Whether to add AI-generated footer to replies
+	Footer                 *string `yaml:"footer,omitempty"` // Whether to add AI-generated footer to replies
 }
 
 // parseReplyToPullRequestReviewCommentConfig handles reply-to-pull-request-review-comment configuration
@@ -51,8 +51,12 @@ func (c *Compiler) parseReplyToPullRequestReviewCommentConfig(outputMap map[stri
 				}
 			}
 
-			// Parse footer
-			if footer, ok := configMap["footer"].(bool); ok {
+			// Parse footer as templatable bool
+			if err := preprocessBoolFieldAsString(configMap, "footer", replyToPRReviewCommentLog); err != nil {
+				replyToPRReviewCommentLog.Printf("Invalid footer value: %v", err)
+				return nil
+			}
+			if footer, ok := configMap["footer"].(string); ok {
 				config.Footer = &footer
 			}
 

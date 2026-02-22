@@ -14,14 +14,14 @@ func TestParseNoOpConfig(t *testing.T) {
 		outputMap      map[string]any
 		expectedNil    bool
 		expectedMax    int
-		expectedReport bool
+		expectedReport *string
 	}{
 		{
 			name:           "noop not present",
 			outputMap:      map[string]any{},
 			expectedNil:    true,
 			expectedMax:    0,
-			expectedReport: false,
+			expectedReport: nil,
 		},
 		{
 			name: "noop explicitly disabled with false",
@@ -30,7 +30,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    true,
 			expectedMax:    0,
-			expectedReport: false,
+			expectedReport: nil,
 		},
 		{
 			name: "noop enabled with nil value",
@@ -39,7 +39,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    1,
-			expectedReport: true,
+			expectedReport: testStringPtr("true"),
 		},
 		{
 			name: "noop with empty config object",
@@ -48,7 +48,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    1,
-			expectedReport: true,
+			expectedReport: testStringPtr("true"),
 		},
 		{
 			name: "noop with max specified",
@@ -59,7 +59,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    5,
-			expectedReport: true,
+			expectedReport: testStringPtr("true"),
 		},
 		{
 			name: "noop with report-as-issue set to true",
@@ -70,7 +70,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    1,
-			expectedReport: true,
+			expectedReport: testStringPtr("true"),
 		},
 		{
 			name: "noop with report-as-issue set to false",
@@ -81,7 +81,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    1,
-			expectedReport: false,
+			expectedReport: testStringPtr("false"),
 		},
 		{
 			name: "noop with max and report-as-issue",
@@ -93,7 +93,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    3,
-			expectedReport: false,
+			expectedReport: testStringPtr("false"),
 		},
 		{
 			name: "noop with report-as-issue not specified defaults to true",
@@ -104,7 +104,7 @@ func TestParseNoOpConfig(t *testing.T) {
 			},
 			expectedNil:    false,
 			expectedMax:    2,
-			expectedReport: true,
+			expectedReport: testStringPtr("true"),
 		},
 	}
 
@@ -118,7 +118,11 @@ func TestParseNoOpConfig(t *testing.T) {
 			} else {
 				assert.NotNil(t, result, "Expected non-nil NoOpConfig")
 				assert.Equal(t, tt.expectedMax, result.Max, "Max value mismatch")
-				assert.Equal(t, tt.expectedReport, result.ReportAsIssue, "ReportAsIssue value mismatch")
+				if tt.expectedReport == nil {
+					assert.Nil(t, result.ReportAsIssue, "ReportAsIssue value mismatch")
+				} else {
+					assert.Equal(t, *tt.expectedReport, *result.ReportAsIssue, "ReportAsIssue value mismatch")
+				}
 			}
 		})
 	}

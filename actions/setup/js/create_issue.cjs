@@ -38,6 +38,7 @@ const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { closeOlderIssues } = require("./close_older_issues.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -209,9 +210,9 @@ async function main(config = {}) {
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max ?? 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const groupEnabled = config.group === true || config.group === "true";
-  const closeOlderIssuesEnabled = config.close_older_issues === true || config.close_older_issues === "true";
-  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const groupEnabled = parseBoolTemplatable(config.group, false);
+  const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
+  const includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";

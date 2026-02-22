@@ -98,7 +98,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 	tests := []struct {
 		name                      string
 		configMap                 map[string]any
-		expectedHideOlderComments bool
+		expectedHideOlderComments *string
 	}{
 		{
 			name: "hide-older-comments enabled",
@@ -108,7 +108,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					"hide-older-comments": true,
 				},
 			},
-			expectedHideOlderComments: true,
+			expectedHideOlderComments: testStringPtr("true"),
 		},
 		{
 			name: "hide-older-comments disabled",
@@ -118,16 +118,16 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					"hide-older-comments": false,
 				},
 			},
-			expectedHideOlderComments: false,
+			expectedHideOlderComments: testStringPtr("false"),
 		},
 		{
-			name: "hide-older-comments not specified (default false)",
+			name: "hide-older-comments not specified (default nil)",
 			configMap: map[string]any{
 				"add-comment": map[string]any{
 					"max": 1,
 				},
 			},
-			expectedHideOlderComments: false,
+			expectedHideOlderComments: nil,
 		},
 		{
 			name: "hide-older-comments with other fields",
@@ -139,7 +139,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					"hide-older-comments": true,
 				},
 			},
-			expectedHideOlderComments: true,
+			expectedHideOlderComments: testStringPtr("true"),
 		},
 	}
 
@@ -151,8 +151,16 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 				t.Fatal("Expected valid config, but got nil")
 			}
 
-			if config.HideOlderComments != tt.expectedHideOlderComments {
-				t.Errorf("Expected HideOlderComments = %v, got %v", tt.expectedHideOlderComments, config.HideOlderComments)
+			if tt.expectedHideOlderComments == nil {
+				if config.HideOlderComments != nil {
+					t.Errorf("Expected HideOlderComments = nil, got %v", *config.HideOlderComments)
+				}
+			} else {
+				if config.HideOlderComments == nil {
+					t.Errorf("Expected HideOlderComments = %v, got nil", *tt.expectedHideOlderComments)
+				} else if *config.HideOlderComments != *tt.expectedHideOlderComments {
+					t.Errorf("Expected HideOlderComments = %v, got %v", *tt.expectedHideOlderComments, *config.HideOlderComments)
+				}
 			}
 		})
 	}

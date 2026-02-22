@@ -124,19 +124,19 @@ func generateAssignToAgentConfig(max int, defaultMax int, defaultAgent string, t
 }
 
 // generatePullRequestConfig creates a config with max, allowed_labels, allow_empty, auto_merge, and expires
-func generatePullRequestConfig(max int, defaultMax int, allowedLabels []string, allowEmpty bool, autoMerge bool, expires int) map[string]any {
-	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%d, allowEmpty=%t, autoMerge=%t, expires=%d, labels_count=%d",
+func generatePullRequestConfig(max int, defaultMax int, allowedLabels []string, allowEmpty *string, autoMerge *string, expires int) map[string]any {
+	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%d, allowEmpty=%v, autoMerge=%v, expires=%d, labels_count=%d",
 		max, allowEmpty, autoMerge, expires, len(allowedLabels))
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowedLabels) > 0 {
 		config["allowed_labels"] = allowedLabels
 	}
 	// Pass allow_empty flag to MCP server so it can skip patch generation
-	if allowEmpty {
+	if allowEmpty != nil && *allowEmpty == "true" {
 		config["allow_empty"] = true
 	}
 	// Pass auto_merge flag to enable auto-merge for the pull request
-	if autoMerge {
+	if autoMerge != nil && *autoMerge == "true" {
 		config["auto_merge"] = true
 	}
 	// Pass expires to configure pull request expiration

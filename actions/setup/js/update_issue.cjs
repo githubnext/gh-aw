@@ -15,6 +15,7 @@ const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Maximum limits for issue update parameters to prevent resource exhaustion.
@@ -169,7 +170,7 @@ function buildIssueUpdateData(item, config) {
   }
 
   // Pass footer config to executeUpdate (default to true)
-  updateData._includeFooter = config.footer !== false;
+  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Store title prefix for validation in executeIssueUpdate
   if (config.title_prefix) {

@@ -19,6 +19,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Maximum limits for discussion parameters to prevent resource exhaustion.
@@ -305,9 +306,9 @@ async function main(config = {}) {
   const configCategory = config.category || "";
   const maxCount = config.max || 10;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
-  const fallbackToIssue = config.fallback_to_issue !== false; // Default to true
-  const closeOlderDiscussions = config.close_older_discussions === true || config.close_older_discussions === "true";
-  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const fallbackToIssue = parseBoolTemplatable(config.fallback_to_issue, true);
+  const closeOlderDiscussions = parseBoolTemplatable(config.close_older_discussions, false);
+  const includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";

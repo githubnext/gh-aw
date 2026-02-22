@@ -23,7 +23,7 @@ func TestFooterConfiguration(t *testing.T) {
 	require.NotNil(t, config)
 	require.NotNil(t, config.CreateIssues)
 	require.NotNil(t, config.CreateIssues.Footer)
-	assert.False(t, *config.CreateIssues.Footer)
+	assert.Equal(t, "false", *config.CreateIssues.Footer)
 }
 
 func TestGlobalFooterConfiguration(t *testing.T) {
@@ -110,7 +110,7 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 		require.NotNil(t, config.Footer)
 		assert.False(t, *config.Footer, "Global footer should be false")
 		require.NotNil(t, config.CreatePullRequests.Footer)
-		assert.True(t, *config.CreatePullRequests.Footer, "Local PR footer should override to true")
+		assert.Equal(t, "true", *config.CreatePullRequests.Footer, "Local PR footer should override to true")
 
 		// Verify in handler config
 		workflowData := &WorkflowData{
@@ -151,7 +151,7 @@ func TestFooterInHandlerConfig(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
-				Footer:               boolPtr(false),
+				Footer:               testStringPtr("false"),
 			},
 		},
 	}
