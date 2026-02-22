@@ -287,7 +287,14 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 	owner, repo := parts[0], parts[1]
 	ref := spec.Version
 	if ref == "" {
-		ref = "main"
+		// Resolve the actual default branch of the source repo rather than assuming "main"
+		defaultBranch, err := getRepoDefaultBranch(spec.RepoSlug)
+		if err != nil {
+			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
+			ref = "main"
+		} else {
+			ref = defaultBranch
+		}
 	}
 
 	// Base directory of the workflow in the remote repo (e.g. ".github/workflows")

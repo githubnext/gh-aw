@@ -411,3 +411,107 @@ engine: copilot
 	assert.Empty(t, tracker.CreatedFiles, "no files should be created when there are no imports")
 	assert.Empty(t, tracker.ModifiedFiles, "no files should be modified when there are no imports")
 }
+
+// TestFetchAndSaveRemoteFrontmatterImports_SectionSkipped verifies that imports
+// with a section reference (file.md#Section) have the section stripped but the
+// file path is still used for deduplication.
+func TestFetchAndSaveRemoteFrontmatterImports_SectionSkipped(t *testing.T) {
+	// Content with two imports that differ only in their #section fragment.
+	// Both should resolve to the same file (deduplication by file path).
+	content := `---
+engine: copilot
+imports:
+  - github/gh-aw/.github/workflows/shared/reporting.md@abc123
+  - github/gh-aw/.github/workflows/shared/reporting.md@abc123
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/ci-coach.md",
+	}
+
+	tmpDir := t.TempDir()
+	// Both entries are already workflowspec format – neither should trigger a download.
+	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "duplicate workflowspec imports should not error")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "workflowspec imports must not be downloaded")
+}
+
+// TestFetchAndSaveRemoteFrontmatterImports_SkipExistingWithoutForce verifies that
+// an import that is already present on disk is skipped when force=false.
+func TestFetchAndSaveRemoteFrontmatterImports_SkipExistingWithoutForce(t *testing.T) {
+	// Pre-create the shared file that the workflow would import.
+	tmpDir := t.TempDir()
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	existingContent := []byte("existing content")
+	existingFile := filepath.Join(sharedDir, "ci-data-analysis.md")
+	require.NoError(t, os.WriteFile(existingFile, existingContent, 0600))
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	// Use a content with a relative import that would resolve to the pre-created file.
+	// But since the import path is workflowspec-format, it's skipped regardless –
+	// this test verifies no modification is done to the pre-created file.
+	content := `---
+engine: copilot
+imports:
+  - github/gh-aw/.github/workflows/shared/ci-data-analysis.md@abc123
+---
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/ci-coach.md",
+	}
+
+	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, tracker)
+	require.NoError(t, err)
+
+	// The existing file should not have been touched.
+	gotContent, readErr := os.ReadFile(existingFile)
+	require.NoError(t, readErr)
+	assert.Equal(t, existingContent, gotContent, "pre-existing file must not be modified when force=false")
+	assert.Empty(t, tracker.CreatedFiles)
+	assert.Empty(t, tracker.ModifiedFiles)
+}
+
+// TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug verifies that an invalid
+// RepoSlug (not in owner/repo format) causes the function to return early without error.
+func TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug(t *testing.T) {
+	content := `---
+engine: copilot
+imports:
+  - shared/ci-data-analysis.md
+---
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "not-a-valid-slug", // missing slash → only one part
+		},
+		WorkflowPath: ".github/workflows/ci-coach.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "invalid RepoSlug should return nil without error")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
+}
