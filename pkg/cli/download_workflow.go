@@ -173,13 +173,17 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 	}
 
 	// The content is base64 encoded, decode it
-	contentBase64 := strings.TrimSpace(string(output))
-	// Remove newlines that GitHub API embeds in base64 content
-	contentBase64 = strings.ReplaceAll(contentBase64, "\n", "")
-	content, err := base64.StdEncoding.DecodeString(contentBase64)
+	return decodeBase64FileContent(string(output))
+}
+
+// decodeBase64FileContent decodes base64-encoded file content returned by the GitHub API.
+// The GitHub API wraps lines at 60 characters and may include surrounding whitespace,
+// so both are stripped before decoding.
+func decodeBase64FileContent(raw string) ([]byte, error) {
+	cleaned := strings.ReplaceAll(strings.TrimSpace(raw), "\n", "")
+	content, err := base64.StdEncoding.DecodeString(cleaned)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode file content: %w", err)
 	}
-
 	return content, nil
 }
