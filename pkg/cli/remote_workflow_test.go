@@ -375,24 +375,23 @@ imports:
 // TestFetchAndSaveRemoteFrontmatterImports_FileTracking verifies that files saved by
 // the function are properly tracked (created vs modified).
 func TestFetchAndSaveRemoteFrontmatterImports_FileTracking(t *testing.T) {
-	// Use a git repo temp dir so the FileTracker can initialise
+	// Use a temp dir that acts as the workflows directory.
 	tmpDir := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, ".git"), 0755))
 
+	// Pre-create one file so we can test the "modified" branch.
 	sharedDir := filepath.Join(tmpDir, "shared")
 	require.NoError(t, os.MkdirAll(sharedDir, 0755))
-
-	// Pre-create one of the two files so we can verify the modified-vs-created distinction
 	existingFile := filepath.Join(sharedDir, "existing.md")
 	require.NoError(t, os.WriteFile(existingFile, []byte("old content"), 0600))
 
-	tracker, err := NewFileTracker()
-	if err != nil {
-		t.Skip("skipping: not in a git repository", err)
+	// Build a minimal FileTracker without calling NewFileTracker (which requires a real
+	// git repository).  We only need the tracking lists populated.
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
 	}
 
-	// We cannot invoke real GitHub downloads in unit tests, so instead we call
-	// the function with an empty imports list and verify no files were changed.
+	// A workflow with no imports should leave the tracker empty.
 	content := `---
 engine: copilot
 ---
@@ -407,8 +406,8 @@ engine: copilot
 		WorkflowPath: ".github/workflows/test.md",
 	}
 
-	err = fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, tracker)
+	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, tracker)
 	require.NoError(t, err)
-	assert.Empty(t, tracker.CreatedFiles, "no files should be created")
-	assert.Empty(t, tracker.ModifiedFiles, "no files should be modified")
+	assert.Empty(t, tracker.CreatedFiles, "no files should be created when there are no imports")
+	assert.Empty(t, tracker.ModifiedFiles, "no files should be modified when there are no imports")
 }

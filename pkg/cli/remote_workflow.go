@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -310,12 +311,14 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 		}
 		seen[filePath] = true
 
-		// Resolve the remote file path relative to the workflow's directory
+		// Resolve the remote file path relative to the workflow's directory.
+		// Use path.Join (not filepath.Join) because this is a URL/API path that always
+		// uses forward slashes regardless of the OS.
 		var remoteFilePath string
 		if rest, ok := strings.CutPrefix(filePath, "/"); ok {
 			remoteFilePath = rest
 		} else if workflowBaseDir != "" {
-			remoteFilePath = workflowBaseDir + "/" + filePath
+			remoteFilePath = path.Join(workflowBaseDir, filePath)
 		} else {
 			remoteFilePath = filePath
 		}
@@ -374,7 +377,9 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 		}
 
 		// Recursively fetch any nested imports declared in this file
-		_ = fetchAndSaveRemoteFrontmatterImports(string(importContent), spec, targetDir, verbose, force, tracker)
+		if err := fetchAndSaveRemoteFrontmatterImports(string(importContent), spec, targetDir, verbose, force, tracker); err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch nested imports from %s: %v", filePath, err)))
+		}
 	}
 
 	return nil
