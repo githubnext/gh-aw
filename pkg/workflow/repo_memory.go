@@ -96,8 +96,9 @@ func validateBranchPrefix(prefix string) error {
 	return nil
 }
 
-// extractRepoMemoryConfig extracts repo-memory configuration from tools section
-func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemoryConfig, error) {
+// extractRepoMemoryConfig extracts repo-memory configuration from tools section.
+// workflowID is used to qualify the default branch name (e.g. "memory/{workflowID}").
+func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID string) (*RepoMemoryConfig, error) {
 	// Check if repo-memory tool is configured
 	if toolsConfig == nil || toolsConfig.RepoMemory == nil {
 		return nil, nil
@@ -110,13 +111,22 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	}
 	repoMemoryValue := toolsConfig.RepoMemory.Raw
 
+	// defaultMemoryBranchID returns workflowID when set, otherwise "default".
+	// This qualifies the default branch name by workflow, e.g. "memory/repo-assist".
+	defaultMemoryBranchID := func() string {
+		if workflowID != "" {
+			return workflowID
+		}
+		return "default"
+	}
+
 	// Handle nil value (simple enable with defaults) - same as true
 	if repoMemoryValue == nil {
 		repoMemoryLog.Print("Using default repo-memory configuration (nil value)")
 		config.Memories = []RepoMemoryEntry{
 			{
 				ID:                "default",
-				BranchName:        generateDefaultBranchName("default", config.BranchPrefix),
+				BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 				MaxFileSize:       10240, // 10KB
 				MaxFileCount:      100,
 				CreateOrphan:      true,
@@ -134,7 +144,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			config.Memories = []RepoMemoryEntry{
 				{
 					ID:                "default",
-					BranchName:        generateDefaultBranchName("default", config.BranchPrefix),
+					BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 					MaxFileSize:       10240, // 10KB
 					MaxFileCount:      100,
 					CreateOrphan:      true,
@@ -178,9 +188,11 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				}
 
 				// ID is required for array notation
+				explicitID := false
 				if id, exists := memoryMap["id"]; exists {
 					if idStr, ok := id.(string); ok {
 						entry.ID = idStr
+						explicitID = true
 					}
 				}
 				// Use "default" if no ID specified
@@ -201,9 +213,14 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 						entry.BranchName = branchStr
 					}
 				}
-				// Set default branch name if not specified
+				// Set default branch name if not specified.
+				// When no explicit ID was provided (defaulted to "default"), qualify the branch by workflow ID.
 				if entry.BranchName == "" {
-					entry.BranchName = generateDefaultBranchName(entry.ID, config.BranchPrefix)
+					branchID := entry.ID
+					if !explicitID {
+						branchID = defaultMemoryBranchID()
+					}
+					entry.BranchName = generateDefaultBranchName(branchID, config.BranchPrefix)
 				}
 
 				// Parse file-glob
@@ -311,7 +328,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 
 		entry := RepoMemoryEntry{
 			ID:           "default",
-			BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
+			BranchName:   generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 			MaxFileSize:  10240, // 10KB default
 			MaxFileCount: 100,   // 100 files default
 			CreateOrphan: true,  // create orphan by default

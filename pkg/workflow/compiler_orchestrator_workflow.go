@@ -449,7 +449,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	if err != nil {
 		return err
 	}
-	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig)
+	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig, workflowData.WorkflowID)
 	if err != nil {
 		return err
 	}

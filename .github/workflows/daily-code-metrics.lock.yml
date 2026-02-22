@@ -237,7 +237,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MEMORY_BRANCH_NAME: 'daily/default'
+          GH_AW_MEMORY_BRANCH_NAME: 'daily/daily-code-metrics'
           GH_AW_MEMORY_CONSTRAINTS: '
 
 **Constraints:**
@@ -374,7 +374,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: daily/default
+          BRANCH_NAME: daily/daily-code-metrics
           TARGET_REPO: ${{ github.repository }}
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
@@ -1323,7 +1323,7 @@ jobs:
           ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: daily/default
+          BRANCH_NAME: daily/daily-code-metrics
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
           ALLOWED_EXTENSIONS: '[]'

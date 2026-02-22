@@ -22,7 +22,7 @@ func TestRepoMemoryConfigDefault(t *testing.T) {
 	}
 
 	compiler := NewCompiler()
-	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "my-workflow")
 	if err != nil {
 		t.Fatalf("Failed to extract repo-memory config: %v", err)
 	}
@@ -40,8 +40,8 @@ func TestRepoMemoryConfigDefault(t *testing.T) {
 		t.Errorf("Expected ID 'default', got '%s'", memory.ID)
 	}
 
-	if memory.BranchName != "memory/default" {
-		t.Errorf("Expected branch name 'memory/default', got '%s'", memory.BranchName)
+	if memory.BranchName != "memory/my-workflow" {
+		t.Errorf("Expected branch name 'memory/my-workflow', got '%s'", memory.BranchName)
 	}
 
 	if memory.MaxFileSize != 10240 {
@@ -74,7 +74,7 @@ func TestRepoMemoryConfigObject(t *testing.T) {
 	}
 
 	compiler := NewCompiler()
-	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 	if err != nil {
 		t.Fatalf("Failed to extract repo-memory config: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestRepoMemoryConfigArray(t *testing.T) {
 	}
 
 	compiler := NewCompiler()
-	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 	if err != nil {
 		t.Fatalf("Failed to extract repo-memory config: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestRepoMemoryConfigDuplicateIDs(t *testing.T) {
 	}
 
 	compiler := NewCompiler()
-	_, err = compiler.extractRepoMemoryConfig(toolsConfig)
+	_, err = compiler.extractRepoMemoryConfig(toolsConfig, "")
 	if err == nil {
 		t.Fatal("Expected error for duplicate memory IDs, got nil")
 	}
@@ -395,7 +395,7 @@ func TestRepoMemoryMaxFileSizeValidation(t *testing.T) {
 			}
 
 			compiler := NewCompiler()
-			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 
 			if tt.wantError {
 				if err == nil {
@@ -465,7 +465,7 @@ func TestRepoMemoryMaxFileSizeValidationArray(t *testing.T) {
 			}
 
 			compiler := NewCompiler()
-			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 
 			if tt.wantError {
 				if err == nil {
@@ -554,7 +554,7 @@ func TestRepoMemoryMaxFileCountValidation(t *testing.T) {
 			}
 
 			compiler := NewCompiler()
-			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 
 			if tt.wantError {
 				if err == nil {
@@ -624,7 +624,7 @@ func TestRepoMemoryMaxFileCountValidationArray(t *testing.T) {
 			}
 
 			compiler := NewCompiler()
-			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 
 			if tt.wantError {
 				if err == nil {
@@ -778,7 +778,7 @@ func TestBranchPrefixInConfig(t *testing.T) {
 	require.NoError(t, err, "Failed to parse tools config")
 
 	compiler := NewCompiler()
-	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "my-workflow")
 	require.NoError(t, err, "Failed to extract repo-memory config")
 	require.NotNil(t, config, "Expected non-nil config")
 
@@ -786,7 +786,7 @@ func TestBranchPrefixInConfig(t *testing.T) {
 	assert.Len(t, config.Memories, 1, "Expected 1 memory")
 
 	memory := config.Memories[0]
-	assert.Equal(t, "campaigns/default", memory.BranchName, "Expected branch name 'campaigns/default'")
+	assert.Equal(t, "campaigns/my-workflow", memory.BranchName, "Expected branch name 'campaigns/my-workflow'")
 }
 
 // TestBranchPrefixInArrayConfig tests branch-prefix in array configuration
@@ -807,7 +807,7 @@ func TestBranchPrefixInArrayConfig(t *testing.T) {
 	require.NoError(t, err, "Failed to parse tools config")
 
 	compiler := NewCompiler()
-	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 	require.NoError(t, err, "Failed to extract repo-memory config")
 	require.NotNil(t, config, "Expected non-nil config")
 
@@ -832,7 +832,7 @@ func TestBranchPrefixWithExplicitBranchName(t *testing.T) {
 	require.NoError(t, err, "Failed to parse tools config")
 
 	compiler := NewCompiler()
-	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 	require.NoError(t, err, "Failed to extract repo-memory config")
 	require.NotNil(t, config, "Expected non-nil config")
 
@@ -866,7 +866,7 @@ func TestInvalidBranchPrefixRejectsConfig(t *testing.T) {
 			require.NoError(t, err, "Failed to parse tools config")
 
 			compiler := NewCompiler()
-			config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
 			require.Error(t, err, "Expected error for invalid branch-prefix: %s", tt.prefix)
 			assert.Nil(t, config, "Expected nil config on error")
 		})
