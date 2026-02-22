@@ -406,13 +406,26 @@ function convertXmlTags(s) {
 }
 
 /**
- * Neutralizes bot trigger phrases by wrapping them in backticks
+ * Maximum number of bot trigger references allowed before filtering is applied.
+ */
+const MAX_BOT_TRIGGER_REFERENCES = 10;
+
+/**
+ * Neutralizes bot trigger phrases by wrapping them in backticks.
+ * Filtering is only applied when there are more than MAX_BOT_TRIGGER_REFERENCES
+ * unquoted trigger references. Already-quoted entries are never re-quoted.
  * @param {string} s - The string to process
  * @returns {string} The string with neutralized bot triggers
  */
 function neutralizeBotTriggers(s) {
-  // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+  // Match unquoted bot trigger phrases like "fixes #123", "closes #asdfs", etc.
+  // The negative lookbehind (?<!`) skips already-quoted entries.
+  const pattern = /(?<!`)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi;
+  const matches = s.match(pattern);
+  if (!matches || matches.length <= MAX_BOT_TRIGGER_REFERENCES) {
+    return s;
+  }
+  return s.replace(pattern, (match, action, ref) => `\`${action} #${ref}\``);
 }
 
 /**
@@ -801,6 +814,7 @@ module.exports = {
   removeXmlComments,
   convertXmlTags,
   neutralizeBotTriggers,
+  MAX_BOT_TRIGGER_REFERENCES,
   neutralizeTemplateDelimiters,
   applyTruncation,
   hardenUnicodeText,

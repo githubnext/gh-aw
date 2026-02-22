@@ -746,32 +746,56 @@ describe("sanitize_content.cjs", () => {
   });
 
   describe("bot trigger neutralization", () => {
-    it("should neutralize 'fixes #123' patterns", () => {
+    it("should not neutralize 'fixes #123' when there are 10 or fewer references", () => {
       const result = sanitizeContent("This fixes #123");
-      expect(result).toBe("This `fixes #123`");
+      expect(result).toBe("This fixes #123");
     });
 
-    it("should neutralize 'closes #456' patterns", () => {
+    it("should not neutralize 'closes #456' when there are 10 or fewer references", () => {
       const result = sanitizeContent("PR closes #456");
-      expect(result).toBe("PR `closes #456`");
+      expect(result).toBe("PR closes #456");
     });
 
-    it("should neutralize 'resolves #789' patterns", () => {
+    it("should not neutralize 'resolves #789' when there are 10 or fewer references", () => {
       const result = sanitizeContent("This resolves #789");
-      expect(result).toBe("This `resolves #789`");
+      expect(result).toBe("This resolves #789");
     });
 
-    it("should handle various bot trigger verbs", () => {
+    it("should not neutralize various bot trigger verbs when count is within limit", () => {
       const triggers = ["fix", "fixes", "close", "closes", "resolve", "resolves"];
       triggers.forEach(verb => {
         const result = sanitizeContent(`This ${verb} #123`);
-        expect(result).toBe(`This \`${verb} #123\``);
+        expect(result).toBe(`This ${verb} #123`);
       });
     });
 
-    it("should neutralize alphanumeric issue references", () => {
+    it("should not neutralize alphanumeric issue references when count is within limit", () => {
       const result = sanitizeContent("fixes #abc123def");
-      expect(result).toBe("`fixes #abc123def`");
+      expect(result).toBe("fixes #abc123def");
+    });
+
+    it("should neutralize all unquoted references when there are more than 10", () => {
+      const input = Array.from({ length: 11 }, (_, i) => `fixes #${i + 1}`).join(" ");
+      const result = sanitizeContent(input);
+      for (let i = 1; i <= 11; i++) {
+        expect(result).toContain(`\`fixes #${i}\``);
+      }
+    });
+
+    it("should not requote already-quoted entries", () => {
+      // Build a string with 12 entries where one is already quoted and 11 are unquoted
+      // (11 unquoted entries exceed the MAX_BOT_TRIGGER_REFERENCES threshold of 10)
+      const alreadyQuoted = "`fixes #1`";
+      const unquoted = Array.from({ length: 11 }, (_, i) => `fixes #${i + 2}`).join(" ");
+      const input = `${alreadyQuoted} ${unquoted}`;
+      const result = sanitizeContent(input);
+      // The already-quoted entry must not be double-quoted
+      expect(result).not.toContain("``fixes #1``");
+      expect(result).toContain("`fixes #1`");
+      // The unquoted entries should be wrapped
+      for (let i = 2; i <= 12; i++) {
+        expect(result).toContain(`\`fixes #${i}\``);
+      }
     });
   });
 
@@ -1063,7 +1087,7 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("https://github.com");
       expect(result).not.toContain("<script>");
       expect(result).toContain("(script)");
-      expect(result).toContain("`fixes #123`");
+      expect(result).toContain("fixes #123");
       expect(result).not.toContain("\x1b[31m");
       expect(result).toContain("Red text");
     });
