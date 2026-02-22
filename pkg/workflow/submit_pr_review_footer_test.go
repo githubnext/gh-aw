@@ -181,11 +181,11 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 			Name: "Test",
 			SafeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					Footer:               &footerValue,
 				},
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 					Side:                 "RIGHT",
 				},
 			},
@@ -229,7 +229,7 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 			Name: "Test",
 			SafeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 		}
@@ -268,7 +268,7 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 			Name: "Test",
 			SafeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					Target:               targetValue,
 				},
 			},

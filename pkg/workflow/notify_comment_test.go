@@ -163,7 +163,7 @@ func TestConclusionJob(t *testing.T) {
 				workflowData.SafeOutputs = &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 					},
 				}
@@ -270,7 +270,7 @@ func TestConclusionJobIntegration(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 		},
@@ -340,7 +340,7 @@ func TestConclusionJobWithMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			Messages: &SafeOutputMessagesConfig{
@@ -392,7 +392,7 @@ func TestConclusionJobWithoutMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			// Messages intentionally nil
@@ -435,7 +435,7 @@ func TestActivationJobWithMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			Messages: &SafeOutputMessagesConfig{
@@ -484,7 +484,7 @@ func TestActivationJobWithoutMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			// Messages intentionally nil
@@ -526,7 +526,7 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			NoOp: &NoOpConfig{},

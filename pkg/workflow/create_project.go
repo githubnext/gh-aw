@@ -19,7 +19,7 @@ func (c *Compiler) parseCreateProjectsConfig(outputMap map[string]any) *CreatePr
 	if configData, exists := outputMap["create-project"]; exists {
 		createProjectLog.Print("Parsing create-project configuration")
 		createProjectsConfig := &CreateProjectsConfig{}
-		createProjectsConfig.Max = 1 // Default max is 1
+		createProjectsConfig.Max = defaultIntStr(1) // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)

@@ -23,7 +23,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					"create-code-scanning-alert": nil,
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}}, // 0 means unlimited
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: nil}}, // 0 means unlimited
 		},
 		{
 			name: "code scanning alert with max configuration",
@@ -34,7 +34,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					},
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 50}},
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("50")}},
 		},
 		{
 			name: "code scanning alert with driver configuration",
@@ -45,7 +45,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					},
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}, Driver: "Custom Security Scanner"},
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: nil}, Driver: "Custom Security Scanner"},
 		},
 		{
 			name: "code scanning alert with max and driver configuration",
@@ -57,7 +57,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					},
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 25}, Driver: "Advanced Scanner"},
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("25")}, Driver: "Advanced Scanner"},
 		},
 		{
 			name: "no code scanning alert configuration",
@@ -87,8 +87,9 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 				return
 			}
 
-			if config.CreateCodeScanningAlerts.Max != tt.expectedConfig.Max {
-				t.Errorf("Expected Max=%d, got Max=%d", tt.expectedConfig.Max, config.CreateCodeScanningAlerts.Max)
+			if (config.CreateCodeScanningAlerts.Max == nil) != (tt.expectedConfig.Max == nil) ||
+				(config.CreateCodeScanningAlerts.Max != nil && *config.CreateCodeScanningAlerts.Max != *tt.expectedConfig.Max) {
+				t.Errorf("Expected Max=%v, got Max=%v", tt.expectedConfig.Max, config.CreateCodeScanningAlerts.Max)
 			}
 
 			if config.CreateCodeScanningAlerts.Driver != tt.expectedConfig.Driver {
@@ -105,7 +106,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	// Test valid configuration
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}},
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: nil}},
 		},
 	}
 
@@ -144,7 +145,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	// Test with max configuration
 	dataWithMax := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 25}},
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("25")}},
 		},
 	}
 
@@ -182,7 +183,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 		Name:            "Security Analysis Workflow",
 		FrontmatterName: "Security Analysis Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}}, // No driver specified
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: nil}}, // No driver specified
 		},
 	}
 
@@ -201,7 +202,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 		Name:            "Security Analysis",
 		FrontmatterName: "", // No frontmatter name
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}}, // No driver specified
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: nil}}, // No driver specified
 		},
 	}
 
@@ -235,7 +236,7 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 	tests := []struct {
 		name           string
 		outputMap      map[string]any
-		expectedMax    int
+		expectedMax    *string
 		expectedDriver string
 		expectNil      bool
 	}{
@@ -244,7 +245,7 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 			outputMap: map[string]any{
 				"create-code-scanning-alert": nil,
 			},
-			expectedMax:    0,
+			expectedMax:    nil,
 			expectedDriver: "",
 			expectNil:      false,
 		},
@@ -255,7 +256,7 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 					"max": 100,
 				},
 			},
-			expectedMax:    100,
+			expectedMax:    strPtr("100"),
 			expectedDriver: "",
 			expectNil:      false,
 		},
@@ -266,7 +267,7 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 					"driver": "Test Security Scanner",
 				},
 			},
-			expectedMax:    0,
+			expectedMax:    nil,
 			expectedDriver: "Test Security Scanner",
 			expectNil:      false,
 		},
@@ -278,7 +279,7 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 					"driver": "Combined Scanner",
 				},
 			},
-			expectedMax:    50,
+			expectedMax:    strPtr("50"),
 			expectedDriver: "Combined Scanner",
 			expectNil:      false,
 		},
@@ -287,7 +288,7 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 			outputMap: map[string]any{
 				"other-config": nil,
 			},
-			expectedMax:    0,
+			expectedMax:    nil,
 			expectedDriver: "",
 			expectNil:      true,
 		},
@@ -309,8 +310,9 @@ func TestParseCodeScanningAlertsConfig(t *testing.T) {
 				return
 			}
 
-			if config.Max != tt.expectedMax {
-				t.Errorf("Expected Max=%d, got Max=%d", tt.expectedMax, config.Max)
+			if (config.Max == nil) != (tt.expectedMax == nil) ||
+				(config.Max != nil && *config.Max != *tt.expectedMax) {
+				t.Errorf("Expected Max=%v, got Max=%v", tt.expectedMax, config.Max)
 			}
 
 			if config.Driver != tt.expectedDriver {

@@ -21,7 +21,7 @@ type CreateDiscussionsConfig struct {
 	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
 	CloseOlderDiscussions *string  `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
 	RequiredCategory      string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
-	Expires               int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
+	Expires               *string  `yaml:"expires,omitempty"`                 // Time until the discussion expires (integer days, relative format, or GitHub Actions expression)
 	FallbackToIssue       *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions.
 	Footer                *string  `yaml:"footer,omitempty"`                  // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
@@ -38,8 +38,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-discussion"].(map[string]any)
 
-	// Pre-process the expires field (convert to hours before unmarshaling)
-	expiresDisabled := preprocessExpiresField(configData, discussionLog)
+	// Pre-process the expires field (convert to hours string before unmarshaling, or keep as expression)
+	expiresDisabled := preprocessExpiresFieldAsString(configData, discussionLog)
 
 	// Pre-process templatable bool fields
 	for _, field := range []string{"close-older-discussions", "footer"} {
@@ -47,6 +47,12 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			discussionLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}
+	}
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", discussionLog); err != nil {
+		discussionLog.Printf("Invalid max value: %v", err)
+		return nil
 	}
 
 	// Unmarshal into typed config struct
@@ -58,16 +64,16 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Set default expires to 7 days (168 hours) if not specified and not explicitly disabled
-	if config.Expires == 0 && !expiresDisabled {
-		config.Expires = 168 // 7 days = 168 hours
+	if config.Expires == nil && !expiresDisabled {
+		config.Expires = defaultIntStr(168) // 7 days = 168 hours
 		discussionLog.Print("Using default expiration: 7 days (168 hours)")
 	} else if expiresDisabled {
-		config.Expires = 0
+		config.Expires = nil
 		discussionLog.Print("Expiration explicitly disabled")
 	}
 
@@ -111,8 +117,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)
 		}
 	}
-	if config.Expires > 0 {
-		discussionLog.Printf("Discussion expiration configured: %d hours", config.Expires)
+	if config.Expires != nil {
+		discussionLog.Printf("Discussion expiration configured: %s hours", *config.Expires)
 	}
 	if config.FallbackToIssue != nil {
 		discussionLog.Printf("Fallback to issue configured: %t", *config.FallbackToIssue)
@@ -141,9 +147,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_CLOSE_OLDER_DISCUSSIONS", data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions)...)
 
 	// Add expires value if set
-	if data.SafeOutputs.CreateDiscussions.Expires > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_EXPIRES: \"%d\"\n", data.SafeOutputs.CreateDiscussions.Expires))
-	}
+	customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_DISCUSSION_EXPIRES", data.SafeOutputs.CreateDiscussions.Expires)...)
 
 	// Add fallback-to-issue flag
 	ftiVal := data.SafeOutputs.CreateDiscussions.FallbackToIssue

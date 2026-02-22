@@ -63,7 +63,7 @@ func (c *Compiler) parseReplyToPullRequestReviewCommentConfig(outputMap map[stri
 			replyToPRReviewCommentLog.Printf("Parsed reply-to-pull-request-review-comment config: max=%d", config.Max)
 		} else {
 			// If configData is nil or not a map, still set the default max
-			config.Max = 10
+			config.Max = defaultIntStr(10)
 		}
 
 		return config

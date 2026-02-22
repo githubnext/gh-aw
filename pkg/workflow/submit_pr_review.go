@@ -64,7 +64,7 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 		}
 	} else {
 		// If configData is nil or not a map, set the default max
-		config.Max = 1
+		config.Max = defaultIntStr(1)
 	}
 
 	return config

@@ -344,8 +344,8 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 				t.Errorf("Expected category %q, but got %q", tt.expectedCategory, discussionConfig.Category)
 			}
 
-			if discussionConfig.Max != tt.expectedMax {
-				t.Errorf("Expected max %d, but got %d", tt.expectedMax, discussionConfig.Max)
+			if templatableIntValue(discussionConfig.Max) != tt.expectedMax {
+				t.Errorf("Expected max %d, but got %v", tt.expectedMax, discussionConfig.Max)
 			}
 		})
 	}

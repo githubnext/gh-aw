@@ -49,9 +49,8 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 		if workflowData.SafeOutputs != nil {
 			// Check for expired discussions
 			if workflowData.SafeOutputs.CreateDiscussions != nil {
-				if workflowData.SafeOutputs.CreateDiscussions.Expires > 0 {
+				if expires := templatableIntValue(workflowData.SafeOutputs.CreateDiscussions.Expires); expires > 0 {
 					hasExpires = true
-					expires := workflowData.SafeOutputs.CreateDiscussions.Expires
 					maintenanceLog.Printf("Workflow %s has expires field set to %d hours for discussions", workflowData.Name, expires)
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires
@@ -60,9 +59,8 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 			}
 			// Check for expired issues
 			if workflowData.SafeOutputs.CreateIssues != nil {
-				if workflowData.SafeOutputs.CreateIssues.Expires > 0 {
+				if expires := templatableIntValue(workflowData.SafeOutputs.CreateIssues.Expires); expires > 0 {
 					hasExpires = true
-					expires := workflowData.SafeOutputs.CreateIssues.Expires
 					maintenanceLog.Printf("Workflow %s has expires field set to %d hours for issues", workflowData.Name, expires)
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires
@@ -71,9 +69,8 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 			}
 			// Check for expired pull requests
 			if workflowData.SafeOutputs.CreatePullRequests != nil {
-				if workflowData.SafeOutputs.CreatePullRequests.Expires > 0 {
+				if expires := templatableIntValue(workflowData.SafeOutputs.CreatePullRequests.Expires); expires > 0 {
 					hasExpires = true
-					expires := workflowData.SafeOutputs.CreatePullRequests.Expires
 					maintenanceLog.Printf("Workflow %s has expires field set to %d hours for pull requests", workflowData.Name, expires)
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires

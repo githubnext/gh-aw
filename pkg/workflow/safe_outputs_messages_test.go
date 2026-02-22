@@ -202,7 +202,7 @@ func TestMessagesEnvVarInSafeOutputJobs(t *testing.T) {
 			Name:            "Test",
 			FrontmatterName: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 				Messages: &SafeOutputMessagesConfig{
 					Footer: "> Custom footer [{workflow_name}]({run_url})",
 				},
@@ -230,7 +230,7 @@ func TestMessagesEnvVarInSafeOutputJobs(t *testing.T) {
 			Name:            "Test",
 			FrontmatterName: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
 		}
 

@@ -28,7 +28,7 @@ func (c *Compiler) parseResolvePullRequestReviewThreadConfig(outputMap map[strin
 			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d", config.Max)
 		} else {
 			// If configData is nil or not a map, still set the default max
-			config.Max = 10
+			config.Max = defaultIntStr(10)
 		}
 
 		return config

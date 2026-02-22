@@ -18,7 +18,7 @@ type CreateIssuesConfig struct {
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`        // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`      // List of additional repositories that issues can be created in
 	CloseOlderIssues     *string  `yaml:"close-older-issues,omitempty"` // When true, close older issues with same title prefix or labels as "not planned"
-	Expires              int      `yaml:"expires,omitempty"`            // Hours until the issue expires and should be automatically closed
+	Expires              *string  `yaml:"expires,omitempty"`            // Time until the issue expires (integer days, relative format, or GitHub Actions expression)
 	Group                *string  `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
 	Footer               *string  `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
@@ -35,8 +35,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-issue"].(map[string]any)
 
-	// Pre-process the expires field (convert to hours before unmarshaling)
-	expiresDisabled := preprocessExpiresField(configData, createIssueLog)
+	// Pre-process the expires field (convert to hours string before unmarshaling, or keep as expression)
+	expiresDisabled := preprocessExpiresFieldAsString(configData, createIssueLog)
 
 	// Pre-process templatable bool fields: convert literal booleans to strings so that
 	// GitHub Actions expression strings (e.g. "${{ inputs.close-older-issues }}") are also accepted.
@@ -45,6 +45,12 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 			createIssueLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}
+	}
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", createIssueLog); err != nil {
+		createIssueLog.Printf("Invalid max value: %v", err)
+		return nil
 	}
 
 	// Unmarshal into typed config struct
@@ -66,8 +72,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)
@@ -78,8 +84,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	// Log expires if configured or explicitly disabled
 	if expiresDisabled {
 		createIssueLog.Print("Issue expiration explicitly disabled")
-	} else if config.Expires > 0 {
-		createIssueLog.Printf("Issue expiration configured: %d hours", config.Expires)
+	} else if config.Expires != nil {
+		createIssueLog.Printf("Issue expiration configured: %s hours", *config.Expires)
 	}
 
 	return &config
@@ -154,9 +160,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateIssues.AllowedRepos)...)
 
 	// Add expires value if set
-	if data.SafeOutputs.CreateIssues.Expires > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", data.SafeOutputs.CreateIssues.Expires))
-	}
+	customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_ISSUE_EXPIRES", data.SafeOutputs.CreateIssues.Expires)...)
 
 	// Add group flag if set
 	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_ISSUE_GROUP", data.SafeOutputs.CreateIssues.Group)...)

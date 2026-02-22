@@ -32,7 +32,7 @@ func TestDispatchWorkflowErrorMessage_EmptyList(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			DispatchWorkflow: &DispatchWorkflowConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				Workflows: []string{}, // Empty list
 			},

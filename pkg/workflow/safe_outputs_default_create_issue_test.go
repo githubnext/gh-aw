@@ -243,7 +243,7 @@ func TestAutoInjectCreateIssue(t *testing.T) {
 			require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil after injection")
 			require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be injected")
 
-			assert.Equal(t, 1, workflowData.SafeOutputs.CreateIssues.Max,
+			assert.Equal(t, strPtr("1"), workflowData.SafeOutputs.CreateIssues.Max,
 				"Injected create-issues should have max=1")
 			assert.Equal(t, []string{tt.expectedLabel}, workflowData.SafeOutputs.CreateIssues.Labels,
 				"Injected create-issues should have workflow ID as label")
@@ -267,7 +267,7 @@ func TestAutoInjectedCreateIssuePrompt(t *testing.T) {
 			name: "auto-injected create-issue produces specific prompt",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					Labels:               []string{"my-workflow"},
 					TitlePrefix:          "[my-workflow]",
 				},

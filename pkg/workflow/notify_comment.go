@@ -58,9 +58,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.NoOp != nil {
 		// Build custom environment variables specific to noop
 		var noopEnvVars []string
-		if data.SafeOutputs.NoOp.Max > 0 {
-			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_NOOP_MAX: %d\n", data.SafeOutputs.NoOp.Max))
-		}
+		noopEnvVars = append(noopEnvVars, buildTemplatableIntEnvVar("GH_AW_NOOP_MAX", data.SafeOutputs.NoOp.Max)...)
 
 		// Add workflow metadata for consistency
 		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
@@ -82,9 +80,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.MissingTool != nil {
 		// Build custom environment variables specific to missing-tool
 		var missingToolEnvVars []string
-		if data.SafeOutputs.MissingTool.Max > 0 {
-			missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
-		}
+		missingToolEnvVars = append(missingToolEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
 
 		// Add create-issue configuration
 		if data.SafeOutputs.MissingTool.CreateIssue {

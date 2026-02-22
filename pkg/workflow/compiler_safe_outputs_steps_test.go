@@ -434,7 +434,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				},
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 				CreateDiscussions: &CreateDiscussionsConfig{
@@ -451,7 +451,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				UpdateProjects: &UpdateProjectConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					Project: "https://github.com/orgs/github-agentic-workflows/projects/1",
 				},
@@ -469,7 +469,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				UpdateProjects: &UpdateProjectConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					Project: "https://github.com/orgs/github-agentic-workflows/projects/1",
 				},
@@ -483,7 +483,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 1,
+						Max: strPtr("1"),
 					},
 					Project: "https://github.com/orgs/github-agentic-workflows/projects/1",
 				},

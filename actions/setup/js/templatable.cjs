@@ -35,4 +35,29 @@ function parseBoolTemplatable(value, defaultValue = true) {
   return String(value) !== "false";
 }
 
-module.exports = { parseBoolTemplatable };
+/**
+ * Parses a templatable integer config value.
+ *
+ * Handles all representations that can arrive in a handler config:
+ *  - `undefined` / `null`       → `defaultValue`
+ *  - number `5`                 → `5`
+ *  - string `"5"`               → `5`
+ *  - string that is not a valid integer → `defaultValue`
+ *
+ * GitHub Actions expression strings (e.g. "${{ inputs.max-issues }}")
+ * are resolved by the runner before the config JSON is parsed, so by
+ * the time this function is called the value is already a plain
+ * integer string.
+ *
+ * @param {any} value - The config field value to parse.
+ * @param {number} [defaultValue=0] - Value returned when `value` is
+ *   `undefined`, `null`, or not a valid integer.
+ * @returns {number}
+ */
+function parseIntTemplatable(value, defaultValue = 0) {
+  if (value === undefined || value === null) return defaultValue;
+  const n = parseInt(String(value), 10);
+  return isNaN(n) ? defaultValue : n;
+}
+
+module.exports = { parseBoolTemplatable, parseIntTemplatable };

@@ -959,7 +959,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_NOOP_MAX: 1
+          GH_AW_NOOP_MAX: "1"
           GH_AW_WORKFLOW_NAME: "Claude Code User Documentation Review"
           GH_AW_TRACKER_ID: "claude-code-user-docs-review"
         with:

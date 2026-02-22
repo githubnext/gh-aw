@@ -192,7 +192,7 @@ func applyDefaultCreateIssue(workflowData *WorkflowData) {
 	workflowID := workflowData.WorkflowID
 	safeOutputsConfigLog.Printf("Auto-injecting create-issues for workflow %q (no non-builtin safe outputs configured)", workflowID)
 	workflowData.SafeOutputs.CreateIssues = &CreateIssuesConfig{
-		BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+		BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
 		Labels:               []string{workflowID},
 		TitlePrefix:          fmt.Sprintf("[%s]", workflowID),
 	}

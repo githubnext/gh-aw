@@ -43,7 +43,7 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 		} else {
 			// If configData is nil or not a map (e.g., "create-agent-session:" with no value),
 			// still set the default max
-			agentSessionConfig.Max = 1
+			agentSessionConfig.Max = defaultIntStr(1)
 		}
 
 		return agentSessionConfig
@@ -74,7 +74,7 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 		} else {
 			// If configData is nil or not a map (e.g., "create-agent-task:" with no value),
 			// still set the default max
-			agentSessionConfig.Max = 1
+			agentSessionConfig.Max = defaultIntStr(1)
 		}
 
 		return agentSessionConfig

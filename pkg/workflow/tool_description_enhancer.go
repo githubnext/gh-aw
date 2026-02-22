@@ -23,9 +23,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 	switch toolName {
 	case "create_issue":
 		if config := safeOutputs.CreateIssues; config != nil {
-			toolDescriptionEnhancerLog.Printf("Found create_issue config: max=%d, titlePrefix=%s", config.Max, config.TitlePrefix)
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be created.", config.Max))
+			toolDescriptionEnhancerLog.Printf("Found create_issue config: max=%v, titlePrefix=%s", config.Max, config.TitlePrefix)
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be created.", templatableIntValue(config.Max)))
 			}
 			if config.TitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
@@ -46,8 +46,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "create_agent_session":
 		if config := safeOutputs.CreateAgentSessions; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d agent task(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d agent task(s) can be created.", templatableIntValue(config.Max)))
 			}
 			if config.Base != "" {
 				constraints = append(constraints, fmt.Sprintf("Base branch for tasks: %q.", config.Base))
@@ -62,8 +62,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "create_discussion":
 		if config := safeOutputs.CreateDiscussions; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d discussion(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d discussion(s) can be created.", templatableIntValue(config.Max)))
 			}
 			if config.TitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
@@ -81,8 +81,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "close_discussion":
 		if config := safeOutputs.CloseDiscussions; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d discussion(s) can be closed.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d discussion(s) can be closed.", templatableIntValue(config.Max)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
@@ -91,8 +91,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "close_issue":
 		if config := safeOutputs.CloseIssues; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be closed.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be closed.", templatableIntValue(config.Max)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
@@ -101,8 +101,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "close_pull_request":
 		if config := safeOutputs.ClosePullRequests; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be closed.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be closed.", templatableIntValue(config.Max)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
@@ -117,8 +117,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "add_comment":
 		if config := safeOutputs.AddComments; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d comment(s) can be added.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d comment(s) can be added.", templatableIntValue(config.Max)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
@@ -130,9 +130,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "create_pull_request":
 		if config := safeOutputs.CreatePullRequests; config != nil {
-			toolDescriptionEnhancerLog.Printf("Found create_pull_request config: max=%d, titlePrefix=%s, draft=%v", config.Max, config.TitlePrefix, config.Draft)
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be created.", config.Max))
+			toolDescriptionEnhancerLog.Printf("Found create_pull_request config: max=%v, titlePrefix=%s, draft=%v", config.Max, config.TitlePrefix, config.Draft)
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be created.", templatableIntValue(config.Max)))
 			}
 			if config.TitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
@@ -153,8 +153,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "create_pull_request_review_comment":
 		if config := safeOutputs.CreatePullRequestReviewComments; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d review comment(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d review comment(s) can be created.", templatableIntValue(config.Max)))
 			}
 			if config.Side != "" {
 				constraints = append(constraints, fmt.Sprintf("Comments will be on the %s side of the diff.", config.Side))
@@ -163,36 +163,36 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "submit_pull_request_review":
 		if config := safeOutputs.SubmitPullRequestReview; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d review(s) can be submitted.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d review(s) can be submitted.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "reply_to_pull_request_review_comment":
 		if config := safeOutputs.ReplyToPullRequestReviewComment; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d reply/replies can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d reply/replies can be created.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "resolve_pull_request_review_thread":
 		if config := safeOutputs.ResolvePullRequestReviewThread; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d review thread(s) can be resolved.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d review thread(s) can be resolved.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "create_code_scanning_alert":
 		if config := safeOutputs.CreateCodeScanningAlerts; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d alert(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d alert(s) can be created.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "add_labels":
 		if config := safeOutputs.AddLabels; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d label(s) can be added.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d label(s) can be added.", templatableIntValue(config.Max)))
 			}
 			if len(config.Allowed) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.Allowed))
@@ -204,8 +204,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "remove_labels":
 		if config := safeOutputs.RemoveLabels; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d label(s) can be removed.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d label(s) can be removed.", templatableIntValue(config.Max)))
 			}
 			if len(config.Allowed) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %v.", config.Allowed))
@@ -217,15 +217,15 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "add_reviewer":
 		if config := safeOutputs.AddReviewer; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d reviewer(s) can be added.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d reviewer(s) can be added.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "update_issue":
 		if config := safeOutputs.UpdateIssues; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be updated.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be updated.", templatableIntValue(config.Max)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
@@ -243,8 +243,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "update_pull_request":
 		if config := safeOutputs.UpdatePullRequests; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be updated.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be updated.", templatableIntValue(config.Max)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
@@ -253,16 +253,16 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "push_to_pull_request_branch":
 		if config := safeOutputs.PushToPullRequestBranch; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d push(es) can be made.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d push(es) can be made.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "upload_asset":
 		if config := safeOutputs.UploadAssets; config != nil {
 			toolDescriptionEnhancerLog.Printf("Found upload_asset config: max=%d, maxSizeKB=%d, allowedExts=%v", config.Max, config.MaxSizeKB, config.AllowedExts)
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d asset(s) can be uploaded.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d asset(s) can be uploaded.", templatableIntValue(config.Max)))
 			}
 			if config.MaxSizeKB > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum file size: %dKB.", config.MaxSizeKB))
@@ -274,36 +274,36 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "update_release":
 		if config := safeOutputs.UpdateRelease; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d release(s) can be updated.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d release(s) can be updated.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "missing_tool":
 		if config := safeOutputs.MissingTool; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d missing tool report(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d missing tool report(s) can be created.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "link_sub_issue":
 		if config := safeOutputs.LinkSubIssue; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d sub-issue link(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d sub-issue link(s) can be created.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "assign_milestone":
 		if config := safeOutputs.AssignMilestone; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d milestone assignment(s) can be made.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d milestone assignment(s) can be made.", templatableIntValue(config.Max)))
 			}
 		}
 
 	case "assign_to_agent":
 		if config := safeOutputs.AssignToAgent; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be assigned to agent.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be assigned to agent.", templatableIntValue(config.Max)))
 			}
 			if config.BaseBranch != "" {
 				constraints = append(constraints, fmt.Sprintf("Pull requests will target the %q branch.", config.BaseBranch))
@@ -318,8 +318,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "update_project":
 		if config := safeOutputs.UpdateProjects; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d project operation(s) can be performed.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d project operation(s) can be performed.", templatableIntValue(config.Max)))
 			}
 			if config.Project != "" {
 				constraints = append(constraints, fmt.Sprintf("Default project URL: %q.", config.Project))
@@ -328,8 +328,8 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "create_project_status_update":
 		if config := safeOutputs.CreateProjectStatusUpdates; config != nil {
-			if config.Max > 0 {
-				constraints = append(constraints, fmt.Sprintf("Maximum %d status update(s) can be created.", config.Max))
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d status update(s) can be created.", templatableIntValue(config.Max)))
 			}
 			if config.Project != "" {
 				constraints = append(constraints, fmt.Sprintf("Default project URL: %q.", config.Project))

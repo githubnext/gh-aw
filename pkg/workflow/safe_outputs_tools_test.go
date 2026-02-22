@@ -30,7 +30,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "create issues enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			expectedTools: []string{"create_issue"},
@@ -39,7 +39,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "create agent sessions enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateAgentSessions: &CreateAgentSessionConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 				},
 			},
 			expectedTools: []string{"create_agent_session"},
@@ -48,7 +48,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "create discussions enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
 				},
 			},
 			expectedTools: []string{"create_discussion"},
@@ -57,7 +57,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "add comments enabled",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				},
 			},
 			expectedTools: []string{"add_comment"},
@@ -73,7 +73,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "create pull request review comments enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			expectedTools: []string{"create_pull_request_review_comment"},
@@ -82,7 +82,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "submit pull request review enabled",
 			safeOutputs: &SafeOutputsConfig{
 				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expectedTools: []string{"submit_pull_request_review"},
@@ -91,7 +91,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "reply to pull request review comment enabled",
 			safeOutputs: &SafeOutputsConfig{
 				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				},
 			},
 			expectedTools: []string{"reply_to_pull_request_review_comment"},
@@ -100,7 +100,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "resolve pull request review thread enabled",
 			safeOutputs: &SafeOutputsConfig{
 				ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				},
 			},
 			expectedTools: []string{"resolve_pull_request_review_thread"},
@@ -109,7 +109,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "create code scanning alerts enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 100},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("100")},
 				},
 			},
 			expectedTools: []string{"create_code_scanning_alert"},
@@ -118,7 +118,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "add labels enabled",
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			expectedTools: []string{"add_labels"},
@@ -128,7 +128,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				UpdateIssues: &UpdateIssuesConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 					},
 				},
 			},
@@ -138,7 +138,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "push to pull request branch enabled",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expectedTools: []string{"push_to_pull_request_branch"},
@@ -147,7 +147,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "upload assets enabled",
 			safeOutputs: &SafeOutputsConfig{
 				UploadAssets: &UploadAssetsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				},
 			},
 			expectedTools: []string{"upload_asset"},
@@ -156,7 +156,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "missing tool enabled",
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			expectedTools: []string{"missing_tool"},
@@ -164,31 +164,31 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 		{
 			name: "multiple tools enabled",
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
-				AddComments:  &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
-				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
+				AddComments:  &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
+				AddLabels:    &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}},
 			},
 			expectedTools: []string{"create_issue", "add_comment", "add_labels"},
 		},
 		{
 			name: "all tools enabled",
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues:                    &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
-				CreateAgentSessions:             &CreateAgentSessionConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
-				CreateDiscussions:               &CreateDiscussionsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2}},
-				AddComments:                     &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
+				CreateIssues:                    &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
+				CreateAgentSessions:             &CreateAgentSessionConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}},
+				CreateDiscussions:               &CreateDiscussionsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")}},
+				AddComments:                     &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
 				CreatePullRequests:              &CreatePullRequestsConfig{},
-				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
-				SubmitPullRequestReview:         &SubmitPullRequestReviewConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
-				ResolvePullRequestReviewThread:  &ResolvePullRequestReviewThreadConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
-				CreateCodeScanningAlerts:        &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 100}},
-				AddLabels:                       &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
-				AddReviewer:                     &AddReviewerConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
-				UpdateIssues:                    &UpdateIssuesConfig{UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}}},
-				PushToPullRequestBranch:         &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-				UploadAssets:                    &UploadAssetsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
-				MissingTool:                     &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
+				SubmitPullRequestReview:         &SubmitPullRequestReviewConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
+				ResolvePullRequestReviewThread:  &ResolvePullRequestReviewThreadConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
+				CreateCodeScanningAlerts:        &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("100")}},
+				AddLabels:                       &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}},
+				AddReviewer:                     &AddReviewerConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}},
+				UpdateIssues:                    &UpdateIssuesConfig{UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}}},
+				PushToPullRequestBranch:         &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+				UploadAssets:                    &UploadAssetsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
+				MissingTool:                     &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
 			},
 			expectedTools: []string{
 				"create_issue",
@@ -249,8 +249,8 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 func TestGenerateFilteredToolsJSONValidStructure(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
-			AddComments:  &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
+			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
+			AddComments:  &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
 		},
 	}
 
@@ -392,7 +392,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Create a new GitHub issue.",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			wantContains:    []string{"CONSTRAINTS:", "Maximum 5 issue(s)"},
@@ -426,7 +426,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Create a new GitHub issue.",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 					TitlePrefix:          "[bot] ",
 					Labels:               []string{"automated"},
 					TargetRepoSlug:       "owner/repo",
@@ -446,7 +446,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Add labels to an issue.",
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 					Allowed:              []string{"bug", "enhancement", "question"},
 				},
 			},
@@ -476,7 +476,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Manage GitHub Projects.",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateProjects: &UpdateProjectConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				},
 			},
 			wantContains: []string{
@@ -504,7 +504,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Manage GitHub Projects.",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateProjects: &UpdateProjectConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 					Project:              "https://github.com/users/username/projects/1",
 				},
 			},
@@ -520,7 +520,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Post a status update to a GitHub Project.",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 				},
 			},
 			wantContains: []string{
@@ -548,7 +548,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Post a status update to a GitHub Project.",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 8},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("8")},
 					Project:              "https://github.com/orgs/example/projects/50",
 				},
 			},
@@ -573,7 +573,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 			toolName:        "unknown_tool",
 			baseDescription: "Unknown tool.",
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
 			},
 			wantContains:    []string{"Unknown tool."},
 			wantNotContains: []string{"CONSTRAINTS:"},
@@ -599,12 +599,12 @@ func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				TitlePrefix:          "[automated] ",
 				Labels:               []string{"bot", "enhancement"},
 			},
 			AddLabels: &AddLabelsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 				Allowed:              []string{"bug", "enhancement"},
 			},
 		},
@@ -663,7 +663,7 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			name: "create_issue without allowed-repos should not have repo parameter",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					TargetRepoSlug:       "org/target-repo",
 				},
 			},
@@ -674,7 +674,7 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			name: "create_issue with allowed-repos should have repo parameter",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					TargetRepoSlug:       "org/target-repo",
 					AllowedRepos:         []string{"org/other-repo"},
 				},
@@ -687,7 +687,7 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			name: "add_comment with allowed-repos should have repo parameter",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 					AllowedRepos:         []string{"org/repo-a", "org/repo-b"},
 				},
 			},
@@ -698,7 +698,7 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			name: "create_pull_request without allowed-repos should not have repo parameter",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			toolName:   "create_pull_request",
@@ -708,7 +708,7 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			name: "create_pull_request with allowed-repos should have repo parameter",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					AllowedRepos:         []string{"org/repo-c"},
 				},
 			},

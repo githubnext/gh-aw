@@ -140,7 +140,7 @@ imports:
 	assert.Equal(t, []string{"bug"}, workflowData.SafeOutputs.CreateIssues.Labels)
 
 	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported")
-	assert.Equal(t, 3, workflowData.SafeOutputs.AddComments.Max)
+	assert.Equal(t, strPtr("3"), workflowData.SafeOutputs.AddComments.Max)
 }
 
 // TestSafeOutputsImportOverride tests that when the same safe-output type is defined in both main and imported workflow, the main workflow's definition takes precedence
@@ -409,7 +409,7 @@ imports:
 	assert.Equal(t, "[issue] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
 
 	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported from second shared workflow")
-	assert.Equal(t, 5, workflowData.SafeOutputs.AddComments.Max)
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.AddComments.Max)
 }
 
 // TestMergeSafeOutputsUnit tests the MergeSafeOutputs function directly
@@ -1345,7 +1345,7 @@ func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
 	// Other safe-output types should be merged
 	require.NotNil(t, result.CreateIssues, "CreateIssues should be preserved")
 	require.NotNil(t, result.AddComments, "AddComments should be merged")
-	assert.Equal(t, 5, result.AddComments.Max, "AddComments config should be correct")
+	assert.Equal(t, strPtr("5"), result.AddComments.Max, "AddComments config should be correct")
 }
 
 // TestMergeSafeOutputsErrorPropagation tests error propagation from mergeSafeOutputConfig
@@ -1549,17 +1549,17 @@ This workflow uses the imported project safe-output configuration.
 
 	// Verify update-project configuration was imported correctly
 	require.NotNil(t, workflowData.SafeOutputs.UpdateProjects, "UpdateProjects configuration should be imported")
-	assert.Equal(t, 100, workflowData.SafeOutputs.UpdateProjects.Max)
+	assert.Equal(t, strPtr("100"), workflowData.SafeOutputs.UpdateProjects.Max)
 	assert.Equal(t, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}", workflowData.SafeOutputs.UpdateProjects.GitHubToken)
 
 	// Verify create-project-status-update configuration was imported correctly (the bug fix)
 	require.NotNil(t, workflowData.SafeOutputs.CreateProjectStatusUpdates, "CreateProjectStatusUpdates configuration should be imported")
-	assert.Equal(t, 1, workflowData.SafeOutputs.CreateProjectStatusUpdates.Max)
+	assert.Equal(t, strPtr("1"), workflowData.SafeOutputs.CreateProjectStatusUpdates.Max)
 	assert.Equal(t, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}", workflowData.SafeOutputs.CreateProjectStatusUpdates.GitHubToken)
 
 	// Verify create-project configuration was imported correctly
 	require.NotNil(t, workflowData.SafeOutputs.CreateProjects, "CreateProjects configuration should be imported")
-	assert.Equal(t, 5, workflowData.SafeOutputs.CreateProjects.Max)
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.CreateProjects.Max)
 	assert.Equal(t, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}", workflowData.SafeOutputs.CreateProjects.GitHubToken)
 }
 
@@ -1636,28 +1636,28 @@ This workflow uses the imported safe-output configuration for previously missing
 
 	// Verify all previously missing types are now imported correctly
 	require.NotNil(t, workflowData.SafeOutputs.UpdateDiscussions, "UpdateDiscussions should be imported")
-	assert.Equal(t, 10, workflowData.SafeOutputs.UpdateDiscussions.Max)
+	assert.Equal(t, strPtr("10"), workflowData.SafeOutputs.UpdateDiscussions.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.LinkSubIssue, "LinkSubIssue should be imported")
-	assert.Equal(t, 5, workflowData.SafeOutputs.LinkSubIssue.Max)
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.LinkSubIssue.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.HideComment, "HideComment should be imported")
-	assert.Equal(t, 20, workflowData.SafeOutputs.HideComment.Max)
+	assert.Equal(t, strPtr("20"), workflowData.SafeOutputs.HideComment.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.DispatchWorkflow, "DispatchWorkflow should be imported")
-	assert.Equal(t, 3, workflowData.SafeOutputs.DispatchWorkflow.Max)
+	assert.Equal(t, strPtr("3"), workflowData.SafeOutputs.DispatchWorkflow.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.AssignToUser, "AssignToUser should be imported")
-	assert.Equal(t, 15, workflowData.SafeOutputs.AssignToUser.Max)
+	assert.Equal(t, strPtr("15"), workflowData.SafeOutputs.AssignToUser.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.AutofixCodeScanningAlert, "AutofixCodeScanningAlert should be imported")
-	assert.Equal(t, 8, workflowData.SafeOutputs.AutofixCodeScanningAlert.Max)
+	assert.Equal(t, strPtr("8"), workflowData.SafeOutputs.AutofixCodeScanningAlert.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.MarkPullRequestAsReadyForReview, "MarkPullRequestAsReadyForReview should be imported")
-	assert.Equal(t, 12, workflowData.SafeOutputs.MarkPullRequestAsReadyForReview.Max)
+	assert.Equal(t, strPtr("12"), workflowData.SafeOutputs.MarkPullRequestAsReadyForReview.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.MissingData, "MissingData should be imported")
-	assert.Equal(t, 2, workflowData.SafeOutputs.MissingData.Max)
+	assert.Equal(t, strPtr("2"), workflowData.SafeOutputs.MissingData.Max)
 }
 
 // TestSafeOutputsImportMessagesAllFields tests that all message fields can be imported correctly

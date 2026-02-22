@@ -43,7 +43,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				BranchName:           "assets/${{ github.workflow }}",
 				MaxSizeKB:            10240,
 				AllowedExts:          []string{".png", ".jpg", ".jpeg"},
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 			},
 		},
 		{
@@ -81,8 +81,8 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				t.Errorf("GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
 			}
 
-			if result.Max != tt.expected.Max {
-				t.Errorf("Max: expected %d, got %d", tt.expected.Max, result.Max)
+			if (result.Max == nil) != (tt.expected.Max == nil) || (result.Max != nil && *result.Max != *tt.expected.Max) {
+				t.Errorf("Max: expected %v, got %v", tt.expected.Max, result.Max)
 			}
 
 			if len(result.AllowedExts) != len(tt.expected.AllowedExts) {

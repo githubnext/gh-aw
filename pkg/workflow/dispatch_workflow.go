@@ -28,7 +28,7 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 				}
 			}
 			// Set default max to 1
-			dispatchWorkflowConfig.Max = 1
+			dispatchWorkflowConfig.Max = defaultIntStr(1)
 			return dispatchWorkflowConfig
 		}
 
@@ -50,13 +50,13 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &dispatchWorkflowConfig.BaseSafeOutputConfig, 1)
 
-			// Cap max at 50 (absolute maximum allowed)
-			if dispatchWorkflowConfig.Max > 50 {
-				dispatchWorkflowLog.Printf("Max value %d exceeds limit, capping at 50", dispatchWorkflowConfig.Max)
-				dispatchWorkflowConfig.Max = 50
+			// Cap max at 50 (absolute maximum allowed) – only for literal integer values
+			if maxVal := templatableIntValue(dispatchWorkflowConfig.Max); maxVal > 50 {
+				dispatchWorkflowLog.Printf("Max value %d exceeds limit, capping at 50", maxVal)
+				dispatchWorkflowConfig.Max = defaultIntStr(50)
 			}
 
-			dispatchWorkflowLog.Printf("Parsed dispatch-workflow config: max=%d, workflows=%v",
+			dispatchWorkflowLog.Printf("Parsed dispatch-workflow config: max=%v, workflows=%v",
 				dispatchWorkflowConfig.Max, dispatchWorkflowConfig.Workflows)
 			return dispatchWorkflowConfig
 		}
