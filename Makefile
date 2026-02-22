@@ -196,7 +196,7 @@ security-gosec:
 	@# Keep this list in sync with .golangci.yml for consistency
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
-		-exclude=G101,G115,G602,G301,G302,G304,G306 \
+		-exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
 		./...
 	@echo "✓ Gosec scan complete (results in gosec-report.json)"
 

@@ -3,9 +3,12 @@
 package parser
 
 import (
+	"archive/tar"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	pathpkg "path"
@@ -402,6 +405,8 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
+	// #nosec G204 -- repoURL, ref, and path are from workflow import configuration authored by the
+	// developer; exec.Command with separate args (not shell execution) prevents shell injection.
 	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
@@ -409,11 +414,8 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 		return downloadFileViaGitClone(owner, repo, path, ref)
 	}
 
-	// Extract the file from the tar archive
-	// git archive outputs a tar archive containing the requested file
-	tarCmd := exec.Command("tar", "-xO", path)
-	tarCmd.Stdin = strings.NewReader(string(archiveOutput))
-	content, err := tarCmd.Output()
+	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
+	content, err := extractFileFromTar(archiveOutput, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
@@ -783,4 +785,24 @@ func listWorkflowFilesViaGit(owner, repo, ref, workflowPath string) ([]string, e
 
 	remoteLog.Printf("Found %d workflow files via git for %s/%s@%s (path: %s)", len(workflowFiles), owner, repo, ref, workflowPath)
 	return workflowFiles, nil
+}
+
+// extractFileFromTar extracts a single file from a tar archive.
+// Uses Go's standard archive/tar for cross-platform compatibility instead of
+// spawning an external tar process which may not be available on all platforms.
+func extractFileFromTar(data []byte, path string) ([]byte, error) {
+	tr := tar.NewReader(bytes.NewReader(data))
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read tar archive: %w", err)
+		}
+		if header.Name == path {
+			return io.ReadAll(tr)
+		}
+	}
+	return nil, fmt.Errorf("file %q not found in archive", path)
 }

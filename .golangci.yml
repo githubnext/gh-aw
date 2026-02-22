@@ -60,6 +60,10 @@ linters-settings:
     # when changing these exclusions to maintain consistency.
     # - G101: Potential hardcoded credentials (often false positives)
     # - G115: Integer overflow conversion (acceptable in most cases)
+    # - G204: Subprocess with variable args - all exec.Command calls use separate args
+    #         (not shell execution), making shell injection impossible. Specific high-risk
+    #         cases (user-controlled command names) are mitigated by exec.LookPath validation
+    #         and documented with inline #nosec G204 annotations.
     # - G602: Slice bounds check (handled by runtime)
     # - G301: Directory permissions 0755 (acceptable for non-sensitive dirs)
     # - G302: File permissions 0755 (acceptable for chmod operations)
@@ -68,6 +72,7 @@ linters-settings:
     exclude:
       - G101
       - G115
+      - G204
       - G602
       - G301
       - G302

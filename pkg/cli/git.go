@@ -671,6 +671,8 @@ func getDefaultBranch() (string, error) {
 	owner, repo := parts[0], parts[1]
 
 	// Use gh CLI to get default branch from GitHub API
+	// #nosec G204 -- owner and repo are parsed from the git remote URL (not direct user input);
+	// exec.Command with separate args (not shell execution) prevents shell injection.
 	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s", owner, repo), "--jq", ".default_branch")
 	output, err := cmd.Output()
 	if err != nil {

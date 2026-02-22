@@ -148,6 +148,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 		cmd = exec.Command("docker", args...)
 	} else {
 		// Direct command mode
+		// #nosec G204 -- config.Command is validated via exec.LookPath above (line 138);
+		// exec.Command with separate args (not shell execution) prevents shell injection.
 		cmd = exec.Command(config.Command, config.Args...)
 	}
 
