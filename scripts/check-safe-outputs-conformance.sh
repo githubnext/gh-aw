@@ -108,11 +108,13 @@ check_max_limits() {
     local failed=0
     
     for handler in actions/setup/js/*.cjs; do
-        # Skip test and utility files
-        [[ "$handler" =~ (test|parse|buffer|factory) ]] && continue
+        # Only check files that perform GitHub API operations
+        if ! grep -q "octokit\." "$handler"; then
+            continue
+        fi
         
-        # Check if handler enforces max limits
-        if ! grep -q "\.length.*>.*\.max\|enforceMaxLimit\|checkLimit\|max.*exceeded" "$handler"; then
+        # Check if handler enforces max limits using any recognized pattern
+        if ! grep -qE "\.length.*>.*\.max|enforceMaxLimit|checkLimit|max.*exceeded|enforceArrayLimit|tryEnforceArrayLimit|limit_enforcement_helpers" "$handler"; then
             log_medium "SEC-003: $handler may not enforce max limits"
             failed=1
         fi
