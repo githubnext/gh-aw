@@ -165,3 +165,166 @@ func TestPopulateDispatchWorkflowFilesFindsLockFile(t *testing.T) {
 	assert.Equal(t, ".lock.yml", data.SafeOutputs.DispatchWorkflow.WorkflowFiles["deploy"],
 		"Should prefer .lock.yml over .yml")
 }
+
+// TestGenerateCustomJobToolDefinition tests that generateCustomJobToolDefinition produces
+// valid MCP tool definitions from SafeJobConfig input definitions.
+func TestGenerateCustomJobToolDefinition(t *testing.T) {
+	tests := []struct {
+		name      string
+		jobName   string
+		jobConfig *SafeJobConfig
+		check     func(t *testing.T, result map[string]any)
+	}{
+		{
+			name:    "basic string input",
+			jobName: "my_job",
+			jobConfig: &SafeJobConfig{
+				Description: "A test job",
+				Inputs: map[string]*InputDefinition{
+					"title": {
+						Type:        "string",
+						Description: "The title",
+						Required:    true,
+					},
+				},
+			},
+			check: func(t *testing.T, result map[string]any) {
+				assert.Equal(t, "my_job", result["name"], "name should match job name")
+				assert.Equal(t, "A test job", result["description"], "description should be included")
+				schema, ok := result["inputSchema"].(map[string]any)
+				require.True(t, ok, "inputSchema should be a map")
+				assert.Equal(t, "object", schema["type"], "schema type should be object")
+				assert.Equal(t, false, schema["additionalProperties"], "additionalProperties should be false")
+				props, ok := schema["properties"].(map[string]any)
+				require.True(t, ok, "properties should be a map")
+				titleProp, ok := props["title"].(map[string]any)
+				require.True(t, ok, "title property should exist")
+				assert.Equal(t, "string", titleProp["type"], "title type should be string")
+				assert.Equal(t, "The title", titleProp["description"], "title description should be set")
+				required, ok := schema["required"].([]string)
+				require.True(t, ok, "required should be a []string")
+				assert.Contains(t, required, "title", "title should be required")
+			},
+		},
+		{
+			name:    "boolean input",
+			jobName: "bool_job",
+			jobConfig: &SafeJobConfig{
+				Inputs: map[string]*InputDefinition{
+					"flag": {
+						Type:     "boolean",
+						Required: false,
+					},
+				},
+			},
+			check: func(t *testing.T, result map[string]any) {
+				schema := result["inputSchema"].(map[string]any)
+				props := schema["properties"].(map[string]any)
+				flagProp := props["flag"].(map[string]any)
+				assert.Equal(t, "boolean", flagProp["type"], "flag type should be boolean")
+				assert.Nil(t, schema["required"], "required should be absent when no required fields")
+			},
+		},
+		{
+			name:    "number input",
+			jobName: "num_job",
+			jobConfig: &SafeJobConfig{
+				Inputs: map[string]*InputDefinition{
+					"count": {
+						Type:     "number",
+						Required: true,
+					},
+				},
+			},
+			check: func(t *testing.T, result map[string]any) {
+				schema := result["inputSchema"].(map[string]any)
+				props := schema["properties"].(map[string]any)
+				countProp := props["count"].(map[string]any)
+				assert.Equal(t, "number", countProp["type"], "count type should be number")
+			},
+		},
+		{
+			name:    "choice input with enum",
+			jobName: "choice_job",
+			jobConfig: &SafeJobConfig{
+				Inputs: map[string]*InputDefinition{
+					"color": {
+						Type:    "choice",
+						Options: []string{"red", "green", "blue"},
+					},
+				},
+			},
+			check: func(t *testing.T, result map[string]any) {
+				schema := result["inputSchema"].(map[string]any)
+				props := schema["properties"].(map[string]any)
+				colorProp := props["color"].(map[string]any)
+				assert.Equal(t, "string", colorProp["type"], "choice type should map to string")
+				assert.Equal(t, []string{"red", "green", "blue"}, colorProp["enum"], "enum options should be set")
+			},
+		},
+		{
+			name:    "no inputs",
+			jobName: "empty_job",
+			jobConfig: &SafeJobConfig{
+				Description: "No inputs",
+			},
+			check: func(t *testing.T, result map[string]any) {
+				assert.Equal(t, "empty_job", result["name"], "name should match")
+				schema := result["inputSchema"].(map[string]any)
+				props := schema["properties"].(map[string]any)
+				assert.Empty(t, props, "properties should be empty")
+				assert.Nil(t, schema["required"], "required should be absent")
+			},
+		},
+		{
+			name:    "no description uses default",
+			jobName: "nodesc_job",
+			jobConfig: &SafeJobConfig{
+				Inputs: map[string]*InputDefinition{
+					"x": {Type: "string"},
+				},
+			},
+			check: func(t *testing.T, result map[string]any) {
+				desc, hasDesc := result["description"]
+				assert.True(t, hasDesc, "description should be present (default is added)")
+				assert.Contains(t, desc.(string), "nodesc_job", "default description should include job name")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateCustomJobToolDefinition(tt.jobName, tt.jobConfig)
+			require.NotNil(t, result, "result should not be nil")
+			tt.check(t, result)
+		})
+	}
+}
+
+// TestGenerateCustomJobToolDefinitionJSONSerializable verifies that the output of
+// generateCustomJobToolDefinition can be marshaled to valid JSON.
+func TestGenerateCustomJobToolDefinitionJSONSerializable(t *testing.T) {
+	jobConfig := &SafeJobConfig{
+		Description: "Run deployment",
+		Inputs: map[string]*InputDefinition{
+			"env": {
+				Type:        "choice",
+				Description: "Target environment",
+				Required:    true,
+				Options:     []string{"staging", "production"},
+			},
+			"dry_run": {
+				Type:     "boolean",
+				Required: false,
+			},
+		},
+	}
+
+	result := generateCustomJobToolDefinition("deploy", jobConfig)
+	data, err := json.Marshal(result)
+	require.NoError(t, err, "result should be JSON serializable")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(data, &parsed), "JSON should be parseable back")
+	assert.Equal(t, "deploy", parsed["name"], "name should round-trip through JSON")
+}
