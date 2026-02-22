@@ -38,7 +38,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	if err != nil {
 		orchestratorFrontmatterLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
 		// Intentionally not wrapping to avoid exposing internal path details
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to read file: %v", err) //nolint:errorlint // intentionally not wrapping to avoid exposing os.PathError
 	}
 
 	log.Printf("File size: %d bytes", len(content))

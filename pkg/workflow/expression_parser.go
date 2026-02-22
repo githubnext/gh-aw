@@ -345,7 +345,7 @@ func BreakLongExpression(expression string) []string {
 			// Continue until closing quote
 			var sb strings.Builder
 			for i < len(expression) {
-				sb.WriteString(string(expression[i]))
+				sb.WriteByte(expression[i])
 				if expression[i] == quote {
 					i++
 					break
@@ -353,7 +353,7 @@ func BreakLongExpression(expression string) []string {
 				if expression[i] == '\\' && i+1 < len(expression) {
 					i++ // Skip escaped character
 					if i < len(expression) {
-						sb.WriteString(string(expression[i]))
+						sb.WriteByte(expression[i])
 					}
 				}
 				i++

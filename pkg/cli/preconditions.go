@@ -174,7 +174,7 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, "Note: For organization repositories, this setting may be controlled at the org level.")
 		fmt.Fprintln(os.Stderr, "Contact an organization owner if you cannot change this setting.")
 		fmt.Fprintln(os.Stderr, "")
-		return errors.New("") // Error already displayed above
+		return errors.New("repository action permissions prevent agentic workflows from running")
 	case "selected":
 		// Selected actions - need to check if GitHub-owned actions are allowed
 		if err := checkSelectedActionsPermissions(permissions.SelectedActionsURL, verbose); err != nil {
@@ -226,7 +226,7 @@ func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) er
 		fmt.Fprintln(os.Stderr, "Note: For organization repositories, this setting may be controlled at the org level.")
 		fmt.Fprintln(os.Stderr, "Contact an organization owner if you cannot change this setting.")
 		fmt.Fprintln(os.Stderr, "")
-		return errors.New("") // Error already displayed above
+		return errors.New("GitHub-owned actions are not allowed in this repository")
 	}
 
 	if verbose {
