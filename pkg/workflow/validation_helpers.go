@@ -13,6 +13,7 @@
 //   - ValidateInList() - Validates that a value is in an allowed list
 //   - ValidatePositiveInt() - Validates that a value is a positive integer
 //   - ValidateNonNegativeInt() - Validates that a value is a non-negative integer
+//   - validateMountStringFormat() - Parses and validates a "source:dest:mode" mount string
 //
 // # Design Rationale
 //
@@ -28,6 +29,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -145,4 +147,21 @@ func ValidateNonNegativeInt(field string, value int) error {
 		)
 	}
 	return nil
+}
+
+// validateMountStringFormat parses a mount string and validates its basic format.
+// Expected format: "source:destination:mode" where mode is "ro" or "rw".
+// Returns (source, dest, mode, nil) on success, or ("", "", "", error) on failure.
+// The error message describes which aspect of the format is invalid.
+// Callers are responsible for wrapping the error with context-appropriate error types.
+func validateMountStringFormat(mount string) (source, dest, mode string, err error) {
+	parts := strings.Split(mount, ":")
+	if len(parts) != 3 {
+		return "", "", "", errors.New("must follow 'source:destination:mode' format with exactly 3 colon-separated parts")
+	}
+	mode = parts[2]
+	if mode != "ro" && mode != "rw" {
+		return parts[0], parts[1], parts[2], fmt.Errorf("mode must be 'ro' or 'rw', got %q", mode)
+	}
+	return parts[0], parts[1], parts[2], nil
 }

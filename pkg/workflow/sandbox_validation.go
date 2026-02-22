@@ -12,7 +12,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -24,22 +23,24 @@ var sandboxValidationLog = logger.New("workflow:sandbox_validation")
 // Expected format: "source:destination:mode" where mode is either "ro" or "rw"
 func validateMountsSyntax(mounts []string) error {
 	for i, mount := range mounts {
-		// Split the mount string by colons
-		parts := strings.Split(mount, ":")
-
-		// Must have exactly 3 parts: source, destination, mode
-		if len(parts) != 3 {
+		source, dest, mode, err := validateMountStringFormat(mount)
+		if err != nil {
+			// Distinguish format error (3-parts) from mode error
+			if source == "" && dest == "" && mode == "" {
+				return NewValidationError(
+					fmt.Sprintf("sandbox.mounts[%d]", i),
+					mount,
+					"mount syntax must follow 'source:destination:mode' format with exactly 3 colon-separated parts",
+					fmt.Sprintf("Use the format 'source:destination:mode'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
+				)
+			}
 			return NewValidationError(
-				fmt.Sprintf("sandbox.mounts[%d]", i),
-				mount,
-				"mount syntax must follow 'source:destination:mode' format with exactly 3 colon-separated parts",
-				fmt.Sprintf("Use the format 'source:destination:mode'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
+				fmt.Sprintf("sandbox.mounts[%d].mode", i),
+				mode,
+				"mount mode must be 'ro' (read-only) or 'rw' (read-write)",
+				fmt.Sprintf("Change the mount mode to either 'ro' or 'rw'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"  # read-only\n    - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		}
-
-		source := parts[0]
-		dest := parts[1]
-		mode := parts[2]
 
 		// Validate that source and destination are not empty
 		if source == "" {
@@ -56,16 +57,6 @@ func validateMountsSyntax(mounts []string) error {
 				mount,
 				"destination path cannot be empty",
 				fmt.Sprintf("Provide a valid destination path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
-			)
-		}
-
-		// Validate mode is either "ro" or "rw"
-		if mode != "ro" && mode != "rw" {
-			return NewValidationError(
-				fmt.Sprintf("sandbox.mounts[%d].mode", i),
-				mode,
-				"mount mode must be 'ro' (read-only) or 'rw' (read-write)",
-				fmt.Sprintf("Change the mount mode to either 'ro' or 'rw'.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"  # read-only\n    - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		}
 

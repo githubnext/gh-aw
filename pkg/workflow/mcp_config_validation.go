@@ -313,12 +313,11 @@ func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
 	}
 
 	for i, mount := range mounts {
-		parts := strings.Split(mount, ":")
-		if len(parts) != 3 {
-			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must follow 'source:destination:mode' format, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
-		}
-		mode := parts[2]
-		if mode != "ro" && mode != "rw" {
+		source, dest, mode, err := validateMountStringFormat(mount)
+		if err != nil {
+			if source == "" && dest == "" && mode == "" {
+				return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must follow 'source:destination:mode' format, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
+			}
 			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] mode must be 'ro' or 'rw', got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"  # read-only\n      - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", toolName, i, mode, toolName, constants.DocsToolsURL)
 		}
 	}
