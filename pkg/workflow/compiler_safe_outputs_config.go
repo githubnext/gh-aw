@@ -180,7 +180,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("close_older_discussions", c.CloseOlderDiscussions).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
 			AddIfPositive("expires", c.Expires).
-			AddTemplatableBool("fallback_to_issue", c.FallbackToIssue).
+			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
