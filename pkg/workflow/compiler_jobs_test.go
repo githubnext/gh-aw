@@ -213,7 +213,207 @@ func TestGetCustomJobsDependingOnPreActivationEdgeCases(t *testing.T) {
 	}
 }
 
-// TestGetReferencedCustomJobs tests the getReferencedCustomJobs method
+// TestJobDependsOnActivation tests the jobDependsOnActivation function
+func TestJobDependsOnActivation(t *testing.T) {
+	tests := []struct {
+		name      string
+		jobConfig map[string]any
+		expected  bool
+	}{
+		{
+			name:      "no needs field",
+			jobConfig: map[string]any{"runs-on": "ubuntu-latest"},
+			expected:  false,
+		},
+		{
+			name:      "needs: activation as string",
+			jobConfig: map[string]any{"needs": "activation"},
+			expected:  true,
+		},
+		{
+			name:      "needs: pre_activation only",
+			jobConfig: map[string]any{"needs": "pre_activation"},
+			expected:  false,
+		},
+		{
+			name:      "needs: agent only",
+			jobConfig: map[string]any{"needs": "agent"},
+			expected:  false,
+		},
+		{
+			name: "needs: [activation, pre_activation] array",
+			jobConfig: map[string]any{
+				"needs": []any{"pre_activation", "activation"},
+			},
+			expected: true,
+		},
+		{
+			name: "needs: array without activation",
+			jobConfig: map[string]any{
+				"needs": []any{"pre_activation", "config"},
+			},
+			expected: false,
+		},
+		{
+			name: "needs: array with mixed types including activation",
+			jobConfig: map[string]any{
+				"needs": []any{123, "activation"},
+			},
+			expected: true,
+		},
+		{
+			name:      "needs: invalid type",
+			jobConfig: map[string]any{"needs": 123},
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := jobDependsOnActivation(tt.jobConfig)
+			if result != tt.expected {
+				t.Errorf("jobDependsOnActivation() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestGetCustomJobsDependingOnPreActivationExcludesActivationDependents tests that
+// getCustomJobsDependingOnPreActivation excludes jobs that also depend on activation.
+// This prevents the compiler from adding such jobs to activation's needs (which would
+// create a circular dependency: activation → job → activation).
+func TestGetCustomJobsDependingOnPreActivationExcludesActivationDependents(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name         string
+		customJobs   map[string]any
+		expectedJobs []string
+		excludedJobs []string
+	}{
+		{
+			name: "job with both pre_activation and activation is excluded",
+			customJobs: map[string]any{
+				"config": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation", "activation"},
+				},
+			},
+			expectedJobs: []string{},
+			excludedJobs: []string{"config"},
+		},
+		{
+			name: "job with only pre_activation is included",
+			customJobs: map[string]any{
+				"precompute": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation"},
+				},
+			},
+			expectedJobs: []string{"precompute"},
+			excludedJobs: []string{},
+		},
+		{
+			name: "mixed: pre_activation-only included, pre_activation+activation excluded",
+			customJobs: map[string]any{
+				"precompute": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   "pre_activation",
+				},
+				"config": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation", "activation"},
+				},
+				"release": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation", "activation", "config"},
+				},
+			},
+			expectedJobs: []string{"precompute"},
+			excludedJobs: []string{"config", "release"},
+		},
+		{
+			name: "job with only activation dependency is excluded",
+			customJobs: map[string]any{
+				"post_job": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   "activation",
+				},
+			},
+			expectedJobs: []string{},
+			excludedJobs: []string{"post_job"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.getCustomJobsDependingOnPreActivation(tt.customJobs)
+			resultSet := make(map[string]bool, len(result))
+			for _, j := range result {
+				resultSet[j] = true
+			}
+			for _, expected := range tt.expectedJobs {
+				if !resultSet[expected] {
+					t.Errorf("Expected job %q in result, got: %v", expected, result)
+				}
+			}
+			for _, excluded := range tt.excludedJobs {
+				if resultSet[excluded] {
+					t.Errorf("Job %q should be excluded from result, got: %v", excluded, result)
+				}
+			}
+		})
+	}
+}
+
+// TestBuildCustomJobsDoesNotAutoAddActivationToOutputReferencedJobs tests that
+// buildCustomJobs does NOT auto-add needs: activation to custom jobs whose outputs
+// are referenced in the markdown body (they must run before activation).
+func TestBuildCustomJobsDoesNotAutoAddActivationToOutputReferencedJobs(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	// Add activation job to manager
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	if err := compiler.jobManager.AddJob(activationJob); err != nil {
+		t.Fatal(err)
+	}
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		// precompute has no explicit needs and its output is referenced in the markdown
+		MarkdownContent: "Action: ${{ needs.precompute.outputs.action }}",
+		Jobs: map[string]any{
+			"precompute": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": "echo 'precompute'"},
+				},
+				// No explicit needs — normally would auto-get needs: activation
+				// But since precompute's output is referenced in markdown, it should NOT
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, true)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob("precompute")
+	if !exists {
+		t.Fatal("Expected precompute job to be added")
+	}
+
+	for _, need := range job.Needs {
+		if need == string(constants.ActivationJobName) {
+			t.Errorf("precompute job should NOT have needs: activation when its output is referenced in markdown (it must run before activation)")
+		}
+	}
+}
+
 func TestGetReferencedCustomJobs(t *testing.T) {
 	compiler := NewCompiler()
 
