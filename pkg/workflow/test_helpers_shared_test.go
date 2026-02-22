@@ -6,12 +6,6 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-// strPtr returns a pointer to a string value.
-// This is a shared helper used by both unit and integration tests.
-func strPtr(s string) *string {
-	return &s
-}
-
 // mockValidationError helps create validation errors for testing.
 // This is a shared helper used by both unit and integration tests.
 type mockValidationError struct {
