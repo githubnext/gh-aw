@@ -87,6 +87,17 @@ Analyze the output from `/tmp/conformance-results.txt`:
    - REQ-001 through REQ-003: Specification requirements
    - IMP-001 through IMP-003: Implementation requirements
 
+## 📝 Report Formatting Guidelines
+
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The issue title serves as the document title, so all content headers in the issue body should start at h3:
+- Use `###` for main sections (e.g., "### Conformance Check Failure", "### Problem Description")
+- Use `####` for subsections (e.g., "#### Affected Files", "#### Steps")
+- Never use `##` (h2) or `#` (h1) in the issue body
+
+**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
 ## Phase 3: Generate Agentic Tasks
 
 For each conformance issue found, create a GitHub issue using the `create_issue` tool with the following structure:
@@ -100,31 +111,31 @@ Example: `SEC-001: Agent job in workflow X has write permissions`
 **Body Format**:
 
 ```markdown
-## Conformance Check Failure
+### Conformance Check Failure
 
 **Check ID**: [CHECK_ID]
 **Severity**: [CRITICAL/HIGH/MEDIUM/LOW]
 **Category**: [Security/Usability/Specification/Implementation]
 
-## Problem Description
+### Problem Description
 
 [Detailed description of what conformance check failed and why it matters]
 
-## Affected Components
+### Affected Components
 
 - **Files**: [List specific files affected]
 - **Workflows**: [List workflows if applicable]
 - **Handlers**: [List handler files if applicable]
 
-## Current Behavior
+### Current Behavior
 
 [Describe what the code currently does that violates conformance]
 
-## Expected Behavior
+### Expected Behavior
 
 [Describe what the specification requires]
 
-## Remediation Steps
+### Remediation Steps
 
 This task can be assigned to a Copilot coding agent with the following steps:
 
@@ -132,7 +143,7 @@ This task can be assigned to a Copilot coding agent with the following steps:
 2. [Specific action 2]
 3. [Specific action 3]
 
-## Verification
+### Verification
 
 After remediation, verify the fix by running:
 
@@ -142,7 +153,7 @@ bash scripts/check-safe-outputs-conformance.sh
 
 The check [CHECK_ID] should pass without errors.
 
-## References
+### References
 
 - Safe Outputs Specification: docs/src/content/docs/reference/safe-outputs-specification.md
 - Conformance Checker: scripts/check-safe-outputs-conformance.sh
@@ -162,7 +173,7 @@ The check [CHECK_ID] should pass without errors.
 If multiple similar issues are found (e.g., 3 handlers missing the same validation), consider creating ONE issue that covers all of them with a checklist:
 
 ```markdown
-## Affected Components
+### Affected Components
 
 - [ ] Handler 1: actions/setup/js/handler1.cjs
 - [ ] Handler 2: actions/setup/js/handler2.cjs
