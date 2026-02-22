@@ -89,19 +89,42 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
    - Validate that all discovered tools are properly categorized
 
 4. **Load Current JSON Mapping from Repository**:
-   - Read the file `pkg/workflow/data/github_toolsets_permissions.json` from the repository
-   - This file contains the current toolset->tools mapping used by the compiler
-   - Parse the JSON to extract the expected tools for each toolset
-   - This will be used to detect discrepancies between the compiler's understanding and the actual MCP server
+   - Try to read the file `pkg/workflow/data/github_toolsets_permissions.json` from the repository
+   - If the file **exists**: parse the JSON to extract the expected tools for each toolset; this will be used to detect discrepancies between the compiler's understanding and the actual MCP server
+   - If the file **does NOT exist**: note that it is missing and must be created from scratch in Phase 2; skip the comparison step (step 5) and proceed to Phase 2
 
-5. **Compare MCP Server Tools with JSON Mapping**:
+5. **Cross-Reference Toolset Source Files in github-mcp-server**:
+   - For each toolset, identify the corresponding source file in the [github/github-mcp-server](https://github.com/github/github-mcp-server) repository
+   - Use the following mapping as a starting point (verify and update based on actual repo contents):
+     - `actions` → [`pkg/github/actions.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/actions.go)
+     - `code_security` → [`pkg/github/code_scanning.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/code_scanning.go)
+     - `context` → [`pkg/github/context_tools.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/context_tools.go)
+     - `dependabot` → [`pkg/github/dependabot.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/dependabot.go)
+     - `discussions` → [`pkg/github/discussions.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/discussions.go)
+     - `experiments` → [`pkg/github/dynamic_tools.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/dynamic_tools.go)
+     - `gists` → [`pkg/github/gists.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/gists.go)
+     - `issues` → [`pkg/github/issues.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/issues.go)
+     - `labels` → [`pkg/github/labels.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/labels.go)
+     - `notifications` → [`pkg/github/notifications.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/notifications.go)
+     - `orgs` → [`pkg/github/search.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/search.go) (primary: `search_orgs`; note that `list_org_repository_security_advisories` also uses this toolset but is defined in [`security_advisories.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/security_advisories.go))
+     - `projects` → [`pkg/github/projects.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/projects.go)
+     - `pull_requests` → [`pkg/github/pullrequests.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/pullrequests.go)
+     - `repos` → [`pkg/github/repositories.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/repositories.go)
+     - `search` → [`pkg/github/search.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/search.go)
+     - `secret_protection` → [`pkg/github/secret_scanning.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/secret_scanning.go)
+     - `security_advisories` → [`pkg/github/security_advisories.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/security_advisories.go)
+     - `stargazers` → [`pkg/github/repositories.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/repositories.go)
+     - `users` → [`pkg/github/search.go`](https://github.com/github/github-mcp-server/blob/main/pkg/github/search.go) (for `search_users`)
+   - These source links will be included in the report for each toolset section
+
+6. **Compare MCP Server Tools with JSON Mapping** (skip if JSON was missing in step 4):
    - For EACH toolset, compare the tools you discovered from the MCP server with the tools listed in the JSON mapping
    - Identify **missing tools**: Tools in the JSON mapping but not found in the MCP server
    - Identify **extra tools**: Tools found in the MCP server but not in the JSON mapping
    - Identify **moved tools**: Tools that appear in different toolsets between JSON and MCP
    - This comparison is CRITICAL for maintaining accuracy
 
-6. **Compare with Previous Tools** (if previous data exists):
+7. **Compare with Previous Tools** (if previous data exists):
    - Identify **new tools** that were added since the last run
    - Identify **removed tools** that existed before but are now missing
    - Identify tools that remain **unchanged**
@@ -110,15 +133,17 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
 
 ### Phase 2: Update JSON Mapping (if needed)
 
-**CRITICAL**: If you discovered any discrepancies between the MCP server tools and the JSON mapping in Phase 1, you MUST update the JSON file.
+**CRITICAL**: If you discovered any discrepancies between the MCP server tools and the JSON mapping in Phase 1, or if the JSON file was missing, you MUST create or update the JSON file.
 
 1. **Determine if Update is Needed**:
-   - If there are missing tools, extra tools, or moved tools identified in Phase 1 step 5
-   - If the JSON mapping is accurate, skip to Phase 3
+   - If `pkg/workflow/data/github_toolsets_permissions.json` was missing in Phase 1 step 4 (create from scratch)
+   - If there are missing tools, extra tools, or moved tools identified in Phase 1 step 6
+   - If the JSON mapping is accurate AND the file already existed, skip to Phase 3
 
-2. **Update the JSON File**:
-   - Edit `pkg/workflow/data/github_toolsets_permissions.json`
-   - For each toolset with discrepancies:
+2. **Create or Update the JSON File**:
+   - Edit (or create) `pkg/workflow/data/github_toolsets_permissions.json`
+   - If creating from scratch: build the complete JSON structure using all discovered toolsets and tools, following the existing schema (version, description, toolsets with read_permissions, write_permissions, and tools arrays)
+   - If updating: for each toolset with discrepancies:
      - **Add missing tools**: Add tools found in MCP server but not in JSON
      - **Remove extra tools**: Remove tools in JSON but not found in MCP server
      - **Move tools**: Update tool placement to match MCP server organization
@@ -145,6 +170,7 @@ For each discovered tool, document:
 3. **Purpose**: What the tool does (1-2 sentence description)
 4. **Parameters**: Key parameters it accepts (if you can determine them)
 5. **Example Use Case**: A brief example of when you would use this tool
+6. **Source File**: The link to the source file in [github/github-mcp-server](https://github.com/github/github-mcp-server) where this toolset's tools are defined (use the mapping from Phase 1 step 5)
 
 ### Phase 4: Generate Comprehensive Report
 
@@ -257,6 +283,8 @@ Organize tools into their respective toolset categories. For each toolset that h
 ### [Toolset Name] Toolset
 Brief description of the toolset.
 
+**Source**: [pkg/github/[file].go](https://github.com/github/github-mcp-server/blob/main/pkg/github/[file].go)
+
 | Tool Name | Purpose | Key Parameters |
 |-----------|---------|----------------|
 | [tool]    | [description] | [params] |
@@ -321,6 +349,7 @@ tools:
 - **Documentation**: Derived from tool names, descriptions, and usage patterns
 - **JSON Mapping**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
 - **Instructions**: [.github/instructions/github-mcp-server.instructions.md](https://github.com/github/gh-aw/blob/main/.github/instructions/github-mcp-server.instructions.md)
+- **MCP Server Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 ```
 
 ## Important Guidelines
@@ -372,20 +401,21 @@ A successful report:
 
 Your output MUST:
 1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
-2. **Load the current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`**
+2. **Load the current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`** if it exists; if it is missing, note that it will be created from scratch in step 6
 3. Systematically explore EACH of the 19 toolsets individually to discover all current tools (including `search`)
 4. Detect and document any inconsistencies:
    - Duplicate tools across toolsets
    - Miscategorized tools
    - Naming inconsistencies
    - Orphaned tools
-5. **Compare MCP server tools with JSON mapping** and identify:
+5. **Compare MCP server tools with JSON mapping** (if the JSON file existed) and identify:
    - Missing tools (in JSON but not in MCP)
    - Extra tools (in MCP but not in JSON)
    - Moved tools (different toolset placement)
-6. **Update the JSON mapping file** if discrepancies are found:
-   - Edit `pkg/workflow/data/github_toolsets_permissions.json`
-   - Add missing tools, remove extra entries, fix moved tools
+6. **Create or update the JSON mapping file** if the file was missing or discrepancies were found:
+   - Create or edit `pkg/workflow/data/github_toolsets_permissions.json`
+   - If creating from scratch: build the complete JSON using all discovered toolsets and tools
+   - If updating: add missing tools, remove extra entries, fix moved tools
    - Preserve JSON structure and alphabetical ordering
    - **Create a pull request using the create-pull-request tool from safe-outputs** with your changes (branch, commit, then call the tool)
 7. Compare current tools with previous tools (if available) and identify:
@@ -442,7 +472,7 @@ Your output MUST:
 Begin your tool discovery now. Follow these steps:
 
 1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists
-2. **Load JSON mapping**: Read `pkg/workflow/data/github_toolsets_permissions.json` to get the current expected tool mappings
+2. **Load JSON mapping**: Try to read `pkg/workflow/data/github_toolsets_permissions.json`; if missing, note it must be created from scratch
 3. **Systematically explore each toolset**: For EACH of the 19 toolsets, identify all tools that belong to it:
    - context
    - repos
@@ -463,20 +493,21 @@ Begin your tool discovery now. Follow these steps:
    - stargazers
    - users
    - search
-4. **Compare with JSON mapping**: For each toolset, compare MCP server tools with JSON mapping to identify discrepancies
-5. **Update JSON mapping if needed**: If discrepancies are found:
-   - Edit `pkg/workflow/data/github_toolsets_permissions.json` to fix them
+4. **Cross-reference source files**: For each toolset, identify its source file in [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github) using the mapping from Phase 1 step 5
+5. **Compare with JSON mapping**: If JSON file exists, for each toolset compare MCP server tools with JSON mapping to identify discrepancies
+6. **Create or update JSON mapping if needed**: If the JSON was missing or discrepancies are found:
+   - Create or edit `pkg/workflow/data/github_toolsets_permissions.json` to fix them
    - Create a branch and commit your changes
    - **Use the create-pull-request tool from safe-outputs** to create a PR with your updates
-6. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
-7. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
-8. **Analyze and recommend default toolsets**: 
+7. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
+8. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
+9. **Analyze and recommend default toolsets**: 
    - Analyze which toolsets provide the most fundamental functionality
    - Consider which tools are most commonly needed across different workflow types
    - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
    - Determine if these defaults should be updated based on actual tool availability and usage patterns
    - Document your rationale for the recommended defaults
-9. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
+10. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
    - Overview of GitHub MCP server (remote vs local mode)
    - Complete list of available tools organized by toolset
    - Tool descriptions, parameters, and return values
@@ -487,9 +518,9 @@ Begin your tool discovery now. Follow these steps:
      - Rationale for each toolset included in defaults
      - Explanation of when to enable other toolsets
    - Best practices for toolset selection
-7. **Update documentation references**: Update the default toolsets list in:
+11. **Update documentation references**: Update the default toolsets list in:
    - `.github/aw/github-agentic-workflows.md` (search for "Default toolsets")
-8. **Document**: Categorize tools appropriately and create comprehensive documentation
-9. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
-10. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
-11. **Publish**: Create a GitHub discussion with the complete tools report
+12. **Document**: Categorize tools appropriately and create comprehensive documentation
+13. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
+14. **Generate report**: Create the final markdown report including change tracking, source links, and inconsistency detection
+15. **Publish**: Create a GitHub discussion with the complete tools report
