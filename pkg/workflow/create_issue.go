@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -160,24 +159,14 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 
 	// Add group flag if set
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_ISSUE_GROUP", data.SafeOutputs.CreateIssues.Group)...)
 	if data.SafeOutputs.CreateIssues.Group != nil {
-		groupVal := *data.SafeOutputs.CreateIssues.Group
-		if strings.HasPrefix(groupVal, "${{") {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_GROUP: %s\n", groupVal))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_GROUP: %q\n", groupVal))
-		}
 		createIssueLog.Print("Issue grouping flag set")
 	}
 
 	// Add close-older-issues flag if enabled
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_CLOSE_OLDER_ISSUES", data.SafeOutputs.CreateIssues.CloseOlderIssues)...)
 	if data.SafeOutputs.CreateIssues.CloseOlderIssues != nil {
-		coi := *data.SafeOutputs.CreateIssues.CloseOlderIssues
-		if strings.HasPrefix(coi, "${{") {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_OLDER_ISSUES: %s\n", coi))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_OLDER_ISSUES: %q\n", coi))
-		}
 		createIssueLog.Print("Close older issues flag set")
 	}
 

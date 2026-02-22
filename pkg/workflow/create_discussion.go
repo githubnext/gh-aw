@@ -138,14 +138,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateDiscussions.AllowedRepos)...)
 
 	// Add close-older-discussions flag if set
-	if data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions != nil {
-		cod := *data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions
-		if strings.HasPrefix(cod, "${{") {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_OLDER_DISCUSSIONS: %s\n", cod))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CLOSE_OLDER_DISCUSSIONS: %q\n", cod))
-		}
-	}
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_CLOSE_OLDER_DISCUSSIONS", data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions)...)
 
 	// Add expires value if set
 	if data.SafeOutputs.CreateDiscussions.Expires > 0 {

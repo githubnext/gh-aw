@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -215,13 +214,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.NoOp != nil {
 		noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}\n")
 		// Pass the report-as-issue configuration
-		if rai := data.SafeOutputs.NoOp.ReportAsIssue; rai != nil {
-			if strings.HasPrefix(*rai, "${{") {
-				noopMessageEnvVars = append(noopMessageEnvVars, fmt.Sprintf("          GH_AW_NOOP_REPORT_AS_ISSUE: %s\n", *rai))
-			} else {
-				noopMessageEnvVars = append(noopMessageEnvVars, fmt.Sprintf("          GH_AW_NOOP_REPORT_AS_ISSUE: %q\n", *rai))
-			}
-		} else {
+		noopMessageEnvVars = append(noopMessageEnvVars, buildTemplatableBoolEnvVar("GH_AW_NOOP_REPORT_AS_ISSUE", data.SafeOutputs.NoOp.ReportAsIssue)...)
+		if data.SafeOutputs.NoOp.ReportAsIssue == nil {
 			noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_REPORT_AS_ISSUE: \"true\"\n")
 		}
 	}

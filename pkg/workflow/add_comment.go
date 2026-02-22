@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -56,14 +55,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
 	}
 	// Pass the hide-older-comments flag configuration
-	if data.SafeOutputs.AddComments.HideOlderComments != nil {
-		hoc := *data.SafeOutputs.AddComments.HideOlderComments
-		if strings.HasPrefix(hoc, "${{") {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_HIDE_OLDER_COMMENTS: %s\n", hoc))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_HIDE_OLDER_COMMENTS: %q\n", hoc))
-		}
-	}
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_HIDE_OLDER_COMMENTS", data.SafeOutputs.AddComments.HideOlderComments)...)
 	// Pass the allowed-reasons list configuration
 	if len(data.SafeOutputs.AddComments.AllowedReasons) > 0 {
 		reasonsJSON, err := json.Marshal(data.SafeOutputs.AddComments.AllowedReasons)

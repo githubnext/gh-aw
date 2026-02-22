@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -106,13 +105,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", data.SafeOutputs.CreatePullRequests.AllowedLabels)...)
 	// Pass draft setting - default to true for backwards compatibility
 	if data.SafeOutputs.CreatePullRequests.Draft != nil {
-		draftVal := *data.SafeOutputs.CreatePullRequests.Draft
-		if strings.HasPrefix(draftVal, "${{") {
-			// Expression value - embed unquoted so GitHub Actions evaluates it
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %s\n", draftVal))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", draftVal))
-		}
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_PR_DRAFT", data.SafeOutputs.CreatePullRequests.Draft)...)
 	} else {
 		customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"true\"\n")
 	}
@@ -126,24 +119,14 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Pass the allow-empty configuration
 	if data.SafeOutputs.CreatePullRequests.AllowEmpty != nil {
-		ae := *data.SafeOutputs.CreatePullRequests.AllowEmpty
-		if strings.HasPrefix(ae, "${{") {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_ALLOW_EMPTY: %s\n", ae))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_ALLOW_EMPTY: %q\n", ae))
-		}
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_PR_ALLOW_EMPTY", data.SafeOutputs.CreatePullRequests.AllowEmpty)...)
 	} else {
 		customEnvVars = append(customEnvVars, "          GH_AW_PR_ALLOW_EMPTY: \"false\"\n")
 	}
 
 	// Pass the auto-merge configuration
 	if data.SafeOutputs.CreatePullRequests.AutoMerge != nil {
-		am := *data.SafeOutputs.CreatePullRequests.AutoMerge
-		if strings.HasPrefix(am, "${{") {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_AUTO_MERGE: %s\n", am))
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_AUTO_MERGE: %q\n", am))
-		}
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_PR_AUTO_MERGE", data.SafeOutputs.CreatePullRequests.AutoMerge)...)
 	} else {
 		customEnvVars = append(customEnvVars, "          GH_AW_PR_AUTO_MERGE: \"false\"\n")
 	}

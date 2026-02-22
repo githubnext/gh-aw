@@ -62,6 +62,21 @@ func preprocessBoolFieldAsString(configData map[string]any, fieldName string, lo
 	return nil
 }
 
+// buildTemplatableBoolEnvVar returns a YAML environment variable entry for a
+// templatable boolean field. If value is a GitHub Actions expression it is
+// embedded unquoted so that GitHub Actions can evaluate it at runtime;
+// otherwise the literal string is quoted. Returns nil if value is nil.
+func buildTemplatableBoolEnvVar(envVarName string, value *string) []string {
+	if value == nil {
+		return nil
+	}
+	v := *value
+	if strings.HasPrefix(v, "${{") {
+		return []string{fmt.Sprintf("          %s: %s\n", envVarName, v)}
+	}
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, v)}
+}
+
 // AddTemplatableBool adds a templatable boolean field to the handler config.
 //
 // The stored JSON value depends on the content of *value:
