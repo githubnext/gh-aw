@@ -27,9 +27,9 @@ safe-outputs:
     footer: "> 📊 *Diagram rendered by [{workflow_name}]({run_url})*"
     footer-workflow-recompile: "> 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*"
     footer-workflow-recompile-comment: "> 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*"
-    run-started: "📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}..."
-    run-success: "🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅"
-    run-failure: "📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete..."
+    run-started: "📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}..."
+    run-success: "🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅"
+    run-failure: "📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details."
 timeout-minutes: 10
 ---
 
