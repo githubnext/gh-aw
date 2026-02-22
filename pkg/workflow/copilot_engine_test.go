@@ -1483,3 +1483,25 @@ func TestCopilotEnginePluginDiscoveryWithSRT(t *testing.T) {
 		t.Errorf("Expected step to contain '--add-dir /home/runner/.copilot/' when plugins are declared with SRT enabled, but it was missing:\n%s", stepContent)
 	}
 }
+
+// TestGenerateCopilotSessionFileCopyStep verifies the generated step copies session state files.
+func TestGenerateCopilotSessionFileCopyStep(t *testing.T) {
+	step := generateCopilotSessionFileCopyStep()
+	content := strings.Join([]string(step), "\n")
+
+	if !strings.Contains(content, "Copy Copilot session state files to logs") {
+		t.Error("Step should have a descriptive name")
+	}
+	if !strings.Contains(content, "always()") {
+		t.Error("Step should run always()")
+	}
+	if !strings.Contains(content, ".copilot/session-state") {
+		t.Error("Step should reference the Copilot session-state directory")
+	}
+	if !strings.Contains(content, "/tmp/gh-aw/sandbox/agent/logs") {
+		t.Error("Step should copy files into the gh-aw logs directory")
+	}
+	if !strings.Contains(content, "continue-on-error: true") {
+		t.Error("Step should be marked continue-on-error")
+	}
+}
