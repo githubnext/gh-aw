@@ -225,6 +225,9 @@ func rewriteAdditionalPropertiesError(message string) string {
 	return message
 }
 
+// normalizeAdditionalPropertyList strips quotes, trims whitespace, and sorts the
+// comma-separated property names so that diagnostics are deterministic regardless
+// of the order in which the schema validator emits them.
 func normalizeAdditionalPropertyList(raw string) string {
 	raw = strings.ReplaceAll(raw, "'", "")
 	parts := strings.Split(raw, ",")

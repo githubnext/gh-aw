@@ -301,7 +301,8 @@ func TestRewriteAdditionalPropertiesErrorOrdering(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := rewriteAdditionalPropertiesError(tt.in)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, got,
+				"rewriteAdditionalPropertiesError(%q) = %q, want %q", tt.in, got, tt.want)
 		})
 	}
 }
