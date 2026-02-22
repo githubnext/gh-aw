@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -96,13 +97,7 @@ func TestSerenaLanguageSupport(t *testing.T) {
 	// Verify some expected languages are present in default container
 	expectedLangs := []string{"go", "typescript", "python", "java", "rust"}
 	for _, lang := range expectedLangs {
-		found := false
-		for _, supportedLang := range defaultLangs {
-			if supportedLang == lang {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(defaultLangs, lang)
 		if !found {
 			t.Errorf("Expected language '%s' not found in default container support list", lang)
 		}

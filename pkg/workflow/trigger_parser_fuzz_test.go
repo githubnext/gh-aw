@@ -256,7 +256,7 @@ func FuzzTriggerIRToYAMLMap(f *testing.F) {
 		// Parse types from comma-separated string
 		var types []string
 		if typesStr != "" {
-			for _, typ := range strings.Split(typesStr, ",") {
+			for typ := range strings.SplitSeq(typesStr, ",") {
 				typ = strings.TrimSpace(typ)
 				if typ != "" {
 					types = append(types, typ)

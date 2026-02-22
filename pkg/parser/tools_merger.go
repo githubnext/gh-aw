@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 )
 
@@ -77,9 +78,7 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 	result := make(map[string]any)
 
 	// Copy base
-	for k, v := range base {
-		result[k] = v
-	}
+	maps.Copy(result, base)
 
 	// Merge additional
 	for key, newValue := range additional {
@@ -130,12 +129,8 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 						// Merge allowed arrays
 						merged := mergeAllowedArrays(existingAllowed, newAllowed)
 						mergedMap := make(map[string]any)
-						for k, v := range existingMap {
-							mergedMap[k] = v
-						}
-						for k, v := range newMap {
-							mergedMap[k] = v
-						}
+						maps.Copy(mergedMap, existingMap)
+						maps.Copy(mergedMap, newMap)
 						mergedMap["allowed"] = merged
 						result[key] = mergedMap
 						continue
@@ -198,9 +193,7 @@ func mergeMCPTools(existing, new map[string]any) (map[string]any, error) {
 	result := make(map[string]any)
 
 	// Copy existing properties
-	for k, v := range existing {
-		result[k] = v
-	}
+	maps.Copy(result, existing)
 
 	// Merge new properties, checking for conflicts
 	for key, newValue := range new {

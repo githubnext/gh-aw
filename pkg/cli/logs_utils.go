@@ -52,8 +52,8 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 		}
 
 		// Extract the workflow name using simple string parsing
-		lines := strings.Split(string(content), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(string(content), "\n")
+		for line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "name:") {
 				// Parse the name field

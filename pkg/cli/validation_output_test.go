@@ -188,8 +188,8 @@ func TestFormatValidationErrorPreservesStructure(t *testing.T) {
 
 	// Verify the error message contains the original structured content
 	originalMsg := structuredErr.Error()
-	lines := strings.Split(originalMsg, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(originalMsg, "\n")
+	for line := range lines {
 		if strings.TrimSpace(line) != "" {
 			assert.Contains(t, result, strings.TrimSpace(line),
 				"Structured error should preserve line: %s", line)

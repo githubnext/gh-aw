@@ -84,7 +84,7 @@ func TestAuditReportIncludesInputSizes(t *testing.T) {
 
 	// Verify the table has the correct number of columns (5: Tool, Calls, Max Input, Max Output, Max Duration)
 	headerLine := ""
-	for _, line := range strings.Split(report, "\n") {
+	for line := range strings.SplitSeq(report, "\n") {
 		if strings.Contains(line, "Max Input") {
 			headerLine = line
 			break

@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -58,13 +59,7 @@ func TestPullRequestActivityTypeEnumValidation(t *testing.T) {
 			}
 
 			// Check if the activity type is in the types array
-			foundType := false
-			for _, irType := range ir.Types {
-				if irType == activityType {
-					foundType = true
-					break
-				}
-			}
+			foundType := slices.Contains(ir.Types, activityType)
 
 			if !foundType {
 				t.Errorf("Activity type %q not found in parsed types: %v", activityType, ir.Types)
@@ -360,13 +355,7 @@ func TestPullRequestActivityTypeInTriggerParser(t *testing.T) {
 
 	t.Run("document unsupported but valid types", func(t *testing.T) {
 		for officialType := range officialTypes {
-			isSupported := false
-			for _, supported := range currentlySupported {
-				if supported == officialType {
-					isSupported = true
-					break
-				}
-			}
+			isSupported := slices.Contains(currentlySupported, officialType)
 			if !isSupported {
 				t.Logf("Official GitHub Actions type %q is not in trigger_parser.go validTypes map", officialType)
 			}

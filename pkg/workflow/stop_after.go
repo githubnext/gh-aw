@@ -173,14 +173,14 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 	// Legacy fallback: Look for GH_AW_STOP_TIME in the workflow body
 	// Use legacy method if: no metadata, legacy format, metadata exists but stop_time is empty, or metadata was malformed
 	if err != nil || metadata == nil || isLegacy || metadata.StopTime == "" {
-		lines := strings.Split(contentStr, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(contentStr, "\n")
+		for line := range lines {
 			// Look for GH_AW_STOP_TIME: YYYY-MM-DD HH:MM:SS
 			// This is in the env section of the stop time check job
 			if strings.Contains(line, "GH_AW_STOP_TIME:") {
 				prefix := "GH_AW_STOP_TIME:"
-				if idx := strings.Index(line, prefix); idx != -1 {
-					return strings.TrimSpace(line[idx+len(prefix):])
+				if _, after, ok := strings.Cut(line, prefix); ok {
+					return strings.TrimSpace(after)
 				}
 			}
 		}

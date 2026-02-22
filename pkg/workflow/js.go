@@ -320,7 +320,7 @@ func isInsideStringLiteral(text string) bool {
 	inDoubleQuote := false
 	inBacktick := false
 
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		switch runes[i] {
 		case '\'':
 			if !inDoubleQuote && !inBacktick {
@@ -367,7 +367,7 @@ func isInsideRegexLiteral(text string) bool {
 	inBacktick := false
 	inRegex := false
 
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		switch runes[i] {
 		case '\'':
 			if !inDoubleQuote && !inBacktick && !inRegex {
@@ -509,8 +509,8 @@ func FormatJavaScriptForYAML(script string) []string {
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
 
-	scriptLines := strings.Split(cleanScript, "\n")
-	for _, line := range scriptLines {
+	scriptLines := strings.SplitSeq(cleanScript, "\n")
+	for line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
 			formattedLines = append(formattedLines, fmt.Sprintf("            %s\n", line))
@@ -534,8 +534,8 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
 
-	scriptLines := strings.Split(cleanScript, "\n")
-	for _, line := range scriptLines {
+	scriptLines := strings.SplitSeq(cleanScript, "\n")
+	for line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
 			fmt.Fprintf(yaml, "            %s\n", line)

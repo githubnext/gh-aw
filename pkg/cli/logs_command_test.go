@@ -120,11 +120,11 @@ func TestLogsCommandBooleanFlags(t *testing.T) {
 func TestLogsCommandStructure(t *testing.T) {
 	tests := []struct {
 		name           string
-		commandCreator func() interface{}
+		commandCreator func() any
 	}{
 		{
 			name: "logs command exists",
-			commandCreator: func() interface{} {
+			commandCreator: func() any {
 				return NewLogsCommand()
 			},
 		},

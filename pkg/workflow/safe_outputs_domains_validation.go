@@ -104,10 +104,10 @@ func validateDomainPattern(domain string) error {
 	// Strip protocol prefix if present (http:// or https://)
 	// This allows protocol-specific domain filtering
 	domainWithoutProtocol := domain
-	if strings.HasPrefix(domain, "https://") {
-		domainWithoutProtocol = strings.TrimPrefix(domain, "https://")
-	} else if strings.HasPrefix(domain, "http://") {
-		domainWithoutProtocol = strings.TrimPrefix(domain, "http://")
+	if after, ok := strings.CutPrefix(domain, "https://"); ok {
+		domainWithoutProtocol = after
+	} else if after, ok := strings.CutPrefix(domain, "http://"); ok {
+		domainWithoutProtocol = after
 	}
 
 	// Check for wildcard-only pattern

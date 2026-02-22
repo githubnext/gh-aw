@@ -196,7 +196,7 @@ func TestContainsIgnoreCase(t *testing.T) {
 
 func BenchmarkContains(b *testing.B) {
 	slice := []string{"apple", "banana", "cherry", "date", "elderberry"}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Contains(slice, "cherry")
 	}
 }
@@ -204,7 +204,7 @@ func BenchmarkContains(b *testing.B) {
 func BenchmarkContainsAny(b *testing.B) {
 	s := "hello world from the testing framework"
 	substrings := []string{"goodbye", "world", "farewell"}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ContainsAny(s, substrings...)
 	}
 }
@@ -212,7 +212,7 @@ func BenchmarkContainsAny(b *testing.B) {
 func BenchmarkContainsIgnoreCase(b *testing.B) {
 	s := "Hello World From The Testing Framework"
 	substr := "world"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ContainsIgnoreCase(s, substr)
 	}
 }
@@ -222,7 +222,7 @@ func BenchmarkContainsIgnoreCase(b *testing.B) {
 func TestContains_LargeSlice(t *testing.T) {
 	// Test with a large slice
 	largeSlice := make([]string, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		largeSlice[i] = string(rune('a' + i%26))
 	}
 

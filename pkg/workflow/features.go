@@ -62,9 +62,9 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 	featuresLog.Printf("Checking GH_AW_FEATURES environment variable: %s", features)
 
 	// Split by comma and check each feature
-	featureList := strings.Split(features, ",")
+	featureList := strings.SplitSeq(features, ",")
 
-	for _, feature := range featureList {
+	for feature := range featureList {
 		if strings.ToLower(strings.TrimSpace(feature)) == flagLower {
 			featuresLog.Printf("Feature found in GH_AW_FEATURES: %s=true", flagLower)
 			return true

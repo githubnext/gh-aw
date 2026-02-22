@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -26,9 +27,7 @@ func extractToolsFromContent(content string) (string, error) {
 	mergeField := func(fieldName string) {
 		if fieldValue, exists := result.Frontmatter[fieldName]; exists {
 			if fieldMap, ok := fieldValue.(map[string]any); ok {
-				for key, value := range fieldMap {
-					extracted[key] = value
-				}
+				maps.Copy(extracted, fieldMap)
 			}
 		}
 	}

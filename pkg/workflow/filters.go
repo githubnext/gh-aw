@@ -1,6 +1,10 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var filtersLog = logger.New("workflow:filters")
 
@@ -165,11 +169,9 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	}
 
 	// If "*" wildcard is present, skip fork filtering (allow all forks)
-	for _, pattern := range allowedForks {
-		if pattern == "*" {
-			filtersLog.Print("Wildcard fork pattern detected, allowing all forks")
-			return // No fork filtering needed
-		}
+	if slices.Contains(allowedForks, "*") {
+		filtersLog.Print("Wildcard fork pattern detected, allowing all forks")
+		return // No fork filtering needed
 	}
 
 	// Build condition for allowed forks with glob support

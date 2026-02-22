@@ -1222,8 +1222,8 @@ This is a test workflow.`
 				t.Errorf("%s: Expected to find '%s' in lock file", tt.description, tt.expected)
 
 				// Find what runtime-import was actually generated
-				lines := strings.Split(lockContentStr, "\n")
-				for _, line := range lines {
+				lines := strings.SplitSeq(lockContentStr, "\n")
+				for line := range lines {
 					if strings.Contains(line, "{{#runtime-import") {
 						t.Logf("Found runtime-import: %s", strings.TrimSpace(line))
 					}
@@ -1308,8 +1308,8 @@ Test prompt.
 
 			// Extract metadata line
 			metadataLine := ""
-			lines := strings.Split(lockContentStr, "\n")
-			for _, line := range lines {
+			lines := strings.SplitSeq(lockContentStr, "\n")
+			for line := range lines {
 				if strings.Contains(line, "gh-aw-metadata:") {
 					metadataLine = line
 					break

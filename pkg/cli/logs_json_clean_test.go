@@ -135,10 +135,7 @@ func TestStderrMessagesAfterJSON(t *testing.T) {
 	// Find the first '{' and the matching '}'
 	firstBrace := strings.Index(output, "{")
 	if firstBrace != 0 {
-		maxLen := 50
-		if len(output) < maxLen {
-			maxLen = len(output)
-		}
+		maxLen := min(len(output), 50)
 		t.Errorf("Output doesn't start with JSON. It starts with: %s", output[:maxLen])
 	}
 

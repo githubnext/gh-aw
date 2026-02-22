@@ -16,7 +16,7 @@ func TestGetAllowedDomainsSorted(t *testing.T) {
 		domains := GetAllowedDomains(permissions)
 
 		// Verify that domains are sorted
-		for i := 0; i < len(domains)-1; i++ {
+		for i := range len(domains) - 1 {
 			if domains[i] >= domains[i+1] {
 				t.Errorf("Domains not sorted: %q >= %q at index %d", domains[i], domains[i+1], i)
 			}
@@ -30,7 +30,7 @@ func TestGetAllowedDomainsSorted(t *testing.T) {
 		domains := GetAllowedDomains(permissions)
 
 		// Verify that domains are sorted
-		for i := 0; i < len(domains)-1; i++ {
+		for i := range len(domains) - 1 {
 			if domains[i] >= domains[i+1] {
 				t.Errorf("Domains not sorted: %q >= %q at index %d", domains[i], domains[i+1], i)
 			}
@@ -44,7 +44,7 @@ func TestGetAllowedDomainsSorted(t *testing.T) {
 		domains := GetAllowedDomains(permissions)
 
 		// Verify that domains are sorted
-		for i := 0; i < len(domains)-1; i++ {
+		for i := range len(domains) - 1 {
 			if domains[i] >= domains[i+1] {
 				t.Errorf("Domains not sorted: %q >= %q at index %d", domains[i], domains[i+1], i)
 			}
@@ -196,7 +196,7 @@ func TestGetAllowedDomainsSortedAndUnique(t *testing.T) {
 		domains := GetAllowedDomains(permissions)
 
 		// Verify sorted
-		for i := 0; i < len(domains)-1; i++ {
+		for i := range len(domains) - 1 {
 			if domains[i] >= domains[i+1] {
 				t.Errorf("Domains not sorted: %q >= %q at index %d", domains[i], domains[i+1], i)
 			}
@@ -231,7 +231,7 @@ func TestGetAllowedDomainsSortedAndUnique(t *testing.T) {
 		}
 
 		// Verify sorted
-		for i := 0; i < len(domains)-1; i++ {
+		for i := range len(domains) - 1 {
 			if domains[i] >= domains[i+1] {
 				t.Errorf("Ecosystem domains not sorted: %q >= %q at index %d", domains[i], domains[i+1], i)
 			}
@@ -249,7 +249,7 @@ func TestGetCopilotAllowedDomainsSorted(t *testing.T) {
 
 		// Split the CSV and verify sorted
 		domains := strings.Split(domainsStr, ",")
-		for i := 0; i < len(domains)-1; i++ {
+		for i := range len(domains) - 1 {
 			if domains[i] >= domains[i+1] {
 				t.Errorf("Copilot domains not sorted: %q >= %q at index %d", domains[i], domains[i+1], i)
 			}

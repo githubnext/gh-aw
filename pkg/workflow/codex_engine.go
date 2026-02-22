@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -282,17 +283,13 @@ mkdir -p "$CODEX_HOME/logs"
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
 
 	// Add custom environment variables from agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		for key, value := range agentConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, agentConfig.Env)
 		codexEngineLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
@@ -384,14 +381,10 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 	}
 
 	// Copy custom tools
-	for key, value := range toolsConfig.Custom {
-		result.Custom[key] = value
-	}
+	maps.Copy(result.Custom, toolsConfig.Custom)
 
 	// Copy raw map
-	for key, value := range toolsConfig.raw {
-		result.raw[key] = value
-	}
+	maps.Copy(result.raw, toolsConfig.raw)
 
 	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
 	if toolsConfig.Playwright != nil {

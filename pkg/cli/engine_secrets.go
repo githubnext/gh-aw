@@ -434,8 +434,8 @@ func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool) 
 
 // stringContainsSecretName checks if the gh secret list output contains a secret name
 func stringContainsSecretName(output, secretName string) bool {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if len(line) >= len(secretName) {
 			if line[:len(secretName)] == secretName && (len(line) == len(secretName) || line[len(secretName)] == '\t' || line[len(secretName)] == ' ') {
 				return true

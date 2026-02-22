@@ -264,7 +264,8 @@ Test content.`
 			name: "large_markdown_content",
 			contentFunc: func() string {
 				// Create a large but valid markdown content
-				content := `---
+				var content strings.Builder
+				content.WriteString(`---
 on: push
 permissions:
   contents: read
@@ -272,12 +273,12 @@ permissions:
 
 # Large Content Workflow
 
-`
+`)
 				// Add lots of content
-				for i := 0; i < 1000; i++ {
-					content += "This is paragraph " + string(rune('0'+i%10)) + ".\n\n"
+				for i := range 1000 {
+					content.WriteString("This is paragraph " + string(rune('0'+i%10)) + ".\n\n")
 				}
-				return content
+				return content.String()
 			},
 			maxSizeMB:   1,
 			description: "Large markdown should be handled",

@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -275,9 +276,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		if enabledTools[toolName] {
 			// Create a copy of the tool to avoid modifying the original
 			enhancedTool := make(map[string]any)
-			for k, v := range tool {
-				enhancedTool[k] = v
-			}
+			maps.Copy(enhancedTool, tool)
 
 			// Enhance the description with configuration details
 			if description, ok := enhancedTool["description"].(string); ok {

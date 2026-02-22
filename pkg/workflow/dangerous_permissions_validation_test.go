@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -208,13 +209,7 @@ func TestFindWritePermissions(t *testing.T) {
 			if tt.expectedScopes != nil {
 				// Check that all expected scopes are present
 				for _, expectedScope := range tt.expectedScopes {
-					found := false
-					for _, scope := range writePerms {
-						if scope == expectedScope {
-							found = true
-							break
-						}
-					}
+					found := slices.Contains(writePerms, expectedScope)
 					if !found {
 						t.Errorf("Expected to find scope %s in write permissions", expectedScope)
 					}

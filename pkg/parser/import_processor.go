@@ -3,7 +3,9 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -114,8 +116,8 @@ type importQueueItem struct {
 func parseRemoteOrigin(spec string) *remoteImportOrigin {
 	// Remove section reference if present
 	cleanSpec := spec
-	if idx := strings.Index(spec, "#"); idx != -1 {
-		cleanSpec = spec[:idx]
+	if before, _, ok := strings.Cut(spec, "#"); ok {
+		cleanSpec = before
 	}
 
 	// Split on @ to get path and ref
@@ -363,9 +365,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		log.Printf("Processing import from queue: %s", item.fullPath)
 
 		// Merge inputs from this import into the aggregated inputs map
-		for k, v := range item.inputs {
-			importInputs[k] = v
-		}
+		maps.Copy(importInputs, item.inputs)
 
 		// Add to processing order
 		processedOrder = append(processedOrder, item.importPath)
@@ -1045,13 +1045,7 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		// Find which imports are part of the cycle (those not in result)
 		cycleNodes := make(map[string]bool)
 		for _, imp := range imports {
-			found := false
-			for _, processed := range result {
-				if processed == imp {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(result, imp)
 			if !found {
 				cycleNodes[imp] = true
 			}

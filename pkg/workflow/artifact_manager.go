@@ -243,7 +243,7 @@ func findCommonParent(paths []string) string {
 
 	// Find common prefix by comparing each component
 	var commonParts []string
-	for i := 0; i < minLen-1; i++ { // minLen-1 to exclude the filename
+	for i := range minLen - 1 { // minLen-1 to exclude the filename
 		part := splitPaths[0][i]
 		allMatch := true
 		for _, sp := range splitPaths[1:] {
@@ -415,14 +415,14 @@ func matchesPattern(name, pattern string) bool {
 	}
 
 	// Handle leading wildcard: "*suffix"
-	if strings.HasPrefix(pattern, "*") {
-		suffix := strings.TrimPrefix(pattern, "*")
+	if after, ok := strings.CutPrefix(pattern, "*"); ok {
+		suffix := after
 		return strings.HasSuffix(name, suffix)
 	}
 
 	// Handle trailing wildcard: "prefix*"
-	if strings.HasSuffix(pattern, "*") {
-		prefix := strings.TrimSuffix(pattern, "*")
+	if before, ok := strings.CutSuffix(pattern, "*"); ok {
+		prefix := before
 		return strings.HasPrefix(name, prefix)
 	}
 

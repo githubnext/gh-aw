@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -418,13 +419,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
 	}
 
 	targetFile := filepath.Join(targetDir, "file.md")
-	found := false
-	for _, f := range tracker.CreatedFiles {
-		if f == targetFile {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(tracker.CreatedFiles, targetFile)
 	if !found {
 		t.Errorf("File should be tracked as created, got CreatedFiles: %v", tracker.CreatedFiles)
 	}
@@ -444,13 +439,7 @@ func TestCopyIncludeDependenciesFromPackageWithForce_FileTracker(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	found = false
-	for _, f := range tracker2.ModifiedFiles {
-		if f == targetFile {
-			found = true
-			break
-		}
-	}
+	found = slices.Contains(tracker2.ModifiedFiles, targetFile)
 	if !found {
 		t.Errorf("File should be tracked as modified, got ModifiedFiles: %v", tracker2.ModifiedFiles)
 	}

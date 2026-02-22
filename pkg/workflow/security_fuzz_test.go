@@ -198,12 +198,13 @@ func FuzzTemplateRendering(f *testing.F) {
 	f.Add("${{ ${{ nested }} }}")
 
 	// Long expressions
-	longExpr := "${{ "
-	for i := 0; i < 50; i++ {
-		longExpr += "github.workflow && "
+	var longExpr strings.Builder
+	longExpr.WriteString("${{ ")
+	for range 50 {
+		longExpr.WriteString("github.workflow && ")
 	}
-	longExpr += "github.repository }}"
-	f.Add(longExpr)
+	longExpr.WriteString("github.repository }}")
+	f.Add(longExpr.String())
 
 	// Special characters
 	f.Add("${{ github.workflow }}™©®")

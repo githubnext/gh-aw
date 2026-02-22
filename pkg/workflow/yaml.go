@@ -85,6 +85,7 @@ package workflow
 
 import (
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -250,13 +251,7 @@ func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice 
 	var remainingKeys []string
 	for key := range data {
 		// Skip if it's already been added as a priority field
-		isPriority := false
-		for _, priorityField := range priorityFields {
-			if key == priorityField {
-				isPriority = true
-				break
-			}
-		}
+		isPriority := slices.Contains(priorityFields, key)
 		if !isPriority {
 			remainingKeys = append(remainingKeys, key)
 		}

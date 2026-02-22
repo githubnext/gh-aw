@@ -48,6 +48,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -257,11 +258,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		// check if this expression matches env.* pattern
 		allowed = true
 	} else {
-		for _, allowedExpr := range constants.AllowedExpressions {
-			if expression == allowedExpr {
-				allowed = true
-				break
-			}
+		if slices.Contains(constants.AllowedExpressions, expression) {
+			allowed = true
 		}
 	}
 
@@ -326,11 +324,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 					} else if opts.EnvRe.MatchString(property) {
 						propertyAllowed = true
 					} else {
-						for _, allowedExpr := range constants.AllowedExpressions {
-							if property == allowedExpr {
-								propertyAllowed = true
-								break
-							}
+						if slices.Contains(constants.AllowedExpressions, property) {
+							propertyAllowed = true
 						}
 					}
 
@@ -356,12 +351,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 // containsExpression checks if an expression is in the list
 func containsExpression(list *[]string, expr string) bool {
-	for _, item := range *list {
-		if item == expr {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(*list, expr)
 }
 
 // ValidateExpressionSafetyPublic is a public wrapper for validateExpressionSafety

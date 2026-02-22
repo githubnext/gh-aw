@@ -11,8 +11,8 @@ var geminiLogsLog = logger.New("workflow:gemini_logs")
 
 // GeminiResponse represents the JSON structure returned by Gemini CLI
 type GeminiResponse struct {
-	Response string                 `json:"response"`
-	Stats    map[string]interface{} `json:"stats"`
+	Response string         `json:"response"`
+	Stats    map[string]any `json:"stats"`
 }
 
 // ParseLogMetrics parses Gemini CLI log output and extracts metrics.
@@ -31,8 +31,8 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	toolCallCounts := make(map[string]int)
 
 	// Try to parse the JSON response from Gemini
-	lines := strings.Split(logContent, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(logContent, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -51,9 +51,9 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 		// Extract token usage from stats if available
 		if response.Stats != nil {
-			if models, ok := response.Stats["models"].(map[string]interface{}); ok {
+			if models, ok := response.Stats["models"].(map[string]any); ok {
 				for _, modelStats := range models {
-					if stats, ok := modelStats.(map[string]interface{}); ok {
+					if stats, ok := modelStats.(map[string]any); ok {
 						if inputTokens, ok := stats["input_tokens"].(float64); ok {
 							metrics.TokenUsage += int(inputTokens)
 						}
@@ -65,7 +65,7 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			}
 
 			// Aggregate tool calls using a map to avoid duplicates
-			if tools, ok := response.Stats["tools"].(map[string]interface{}); ok {
+			if tools, ok := response.Stats["tools"].(map[string]any); ok {
 				for toolName := range tools {
 					toolCallCounts[toolName]++
 				}

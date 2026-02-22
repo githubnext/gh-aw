@@ -11,8 +11,7 @@ func BenchmarkValidateExpression(b *testing.B) {
 	expression := "github.event.issue.number"
 	unauthorizedExprs := []string{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateSingleExpression(expression, ExpressionValidationOptions{
 			NeedsStepsRe:            needsStepsRegex,
 			InputsRe:                inputsRegex,
@@ -29,8 +28,7 @@ func BenchmarkValidateExpression_Complex(b *testing.B) {
 	expression := "github.event.pull_request.number == github.event.issue.number"
 	unauthorizedExprs := []string{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateSingleExpression(expression, ExpressionValidationOptions{
 			NeedsStepsRe:            needsStepsRegex,
 			InputsRe:                inputsRegex,
@@ -47,8 +45,7 @@ func BenchmarkValidateExpression_NeedsOutputs(b *testing.B) {
 	expression := "steps.sanitized.outputs.text"
 	unauthorizedExprs := []string{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateSingleExpression(expression, ExpressionValidationOptions{
 			NeedsStepsRe:            needsStepsRegex,
 			InputsRe:                inputsRegex,
@@ -65,8 +62,7 @@ func BenchmarkValidateExpression_StepsOutputs(b *testing.B) {
 	expression := "steps.my-step.outputs.result"
 	unauthorizedExprs := []string{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateSingleExpression(expression, ExpressionValidationOptions{
 			NeedsStepsRe:            needsStepsRegex,
 			InputsRe:                inputsRegex,
@@ -92,8 +88,7 @@ Repository: ${{ github.repository }}
 Run ID: ${{ github.run_id }}
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateExpressionSafety(markdown)
 	}
 }
@@ -134,8 +129,7 @@ func BenchmarkValidateExpressionSafety_Complex(b *testing.B) {
 - Mode: ${{ env.DEPLOYMENT_MODE }}
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateExpressionSafety(markdown)
 	}
 }
@@ -147,8 +141,7 @@ func BenchmarkValidateExpressionSafety_Minimal(b *testing.B) {
 Analyze issue #${{ github.event.issue.number }}.
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateExpressionSafety(markdown)
 	}
 }
@@ -157,8 +150,7 @@ Analyze issue #${{ github.event.issue.number }}.
 func BenchmarkParseExpression_Simple(b *testing.B) {
 	expression := "github.event.issue.number"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ParseExpression(expression)
 	}
 }
@@ -167,8 +159,7 @@ func BenchmarkParseExpression_Simple(b *testing.B) {
 func BenchmarkParseExpression_Comparison(b *testing.B) {
 	expression := "github.event.issue.number == 123"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ParseExpression(expression)
 	}
 }
@@ -177,8 +168,7 @@ func BenchmarkParseExpression_Comparison(b *testing.B) {
 func BenchmarkParseExpression_Logical(b *testing.B) {
 	expression := "github.event.issue.state == 'open' && github.event.issue.locked == false"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ParseExpression(expression)
 	}
 }
@@ -187,8 +177,7 @@ func BenchmarkParseExpression_Logical(b *testing.B) {
 func BenchmarkParseExpression_ComplexNested(b *testing.B) {
 	expression := "(github.event.issue.state == 'open' || github.event.pull_request.state == 'open') && !cancelled()"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ParseExpression(expression)
 	}
 }

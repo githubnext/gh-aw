@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -93,12 +94,7 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 // hasCopilotAssignee checks if "copilot" is in the assignees list
 func hasCopilotAssignee(assignees []string) bool {
-	for _, a := range assignees {
-		if a == "copilot" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(assignees, "copilot")
 }
 
 // filterNonCopilotAssignees returns assignees excluding "copilot"

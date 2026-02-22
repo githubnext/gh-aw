@@ -199,12 +199,13 @@ on:
 
 	// Deeply nested structure (testing reasonable nesting limits)
 	// Note: Reduced from 100 to 20 levels to prevent YAML parser from hanging during fuzzing
-	deepNested := "---\nname: Test\ndata:\n"
-	for i := 0; i < 20; i++ {
-		deepNested += strings.Repeat("  ", i+1) + "level" + strconv.Itoa(i%10) + ":\n"
+	var deepNested strings.Builder
+	deepNested.WriteString("---\nname: Test\ndata:\n")
+	for i := range 20 {
+		deepNested.WriteString(strings.Repeat("  ", i+1) + "level" + strconv.Itoa(i%10) + ":\n")
 	}
-	deepNested += strings.Repeat("  ", 21) + "value: deep\n---\n# Content"
-	f.Add(deepNested)
+	deepNested.WriteString(strings.Repeat("  ", 21) + "value: deep\n---\n# Content")
+	f.Add(deepNested.String())
 
 	// Very large array
 	f.Add(`---
@@ -440,12 +441,13 @@ on: push
 # Content`)
 
 	// Very long array with many items
-	longArray := "---\nname: Test\nitems:\n"
-	for i := 0; i < 1000; i++ {
-		longArray += "  - item" + strconv.Itoa(i%10) + "\n"
+	var longArray strings.Builder
+	longArray.WriteString("---\nname: Test\nitems:\n")
+	for i := range 1000 {
+		longArray.WriteString("  - item" + strconv.Itoa(i%10) + "\n")
 	}
-	longArray += "---\n# Content"
-	f.Add(longArray)
+	longArray.WriteString("---\n# Content")
+	f.Add(longArray.String())
 
 	// Run the fuzzer
 	f.Fuzz(func(t *testing.T, content string) {

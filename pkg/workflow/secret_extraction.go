@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"maps"
 	"regexp"
 	"strings"
 
@@ -83,9 +84,7 @@ func ExtractSecretsFromMap(values map[string]string) map[string]string {
 
 	for _, value := range values {
 		secrets := ExtractSecretsFromValue(value)
-		for varName, expr := range secrets {
-			allSecrets[varName] = expr
-		}
+		maps.Copy(allSecrets, secrets)
 	}
 
 	secretLog.Printf("Extracted total of %d unique secrets from map", len(allSecrets))

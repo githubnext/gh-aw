@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"maps"
+
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/types"
 )
@@ -151,9 +153,7 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	}
 
 	// Add custom fields (these override standard fields if there are conflicts)
-	for key, value := range config.CustomFields {
-		result[key] = value
-	}
+	maps.Copy(result, config.CustomFields)
 
 	return result
 }

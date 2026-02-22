@@ -77,16 +77,16 @@ func parseGitHubRepoSlugFromURL(url string) string {
 	githubHostWithoutScheme := strings.TrimPrefix(strings.TrimPrefix(githubHost, "https://"), "http://")
 
 	// Handle HTTPS URLs: https://github.com/owner/repo or https://enterprise.github.com/owner/repo
-	if strings.HasPrefix(url, githubHost+"/") {
-		slug := strings.TrimPrefix(url, githubHost+"/")
+	if after, ok := strings.CutPrefix(url, githubHost+"/"); ok {
+		slug := after
 		gitLog.Printf("Extracted slug from HTTPS URL: %s", slug)
 		return slug
 	}
 
 	// Handle SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
 	sshPrefix := "git@" + githubHostWithoutScheme + ":"
-	if strings.HasPrefix(url, sshPrefix) {
-		slug := strings.TrimPrefix(url, sshPrefix)
+	if after, ok := strings.CutPrefix(url, sshPrefix); ok {
+		slug := after
 		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
 		return slug
 	}

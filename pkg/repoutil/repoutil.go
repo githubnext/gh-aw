@@ -30,8 +30,8 @@ func ParseGitHubURL(url string) (owner, repo string, err error) {
 	var repoPath string
 
 	// SSH format: git@github.com:owner/repo.git
-	if strings.HasPrefix(url, "git@github.com:") {
-		repoPath = strings.TrimPrefix(url, "git@github.com:")
+	if after, ok := strings.CutPrefix(url, "git@github.com:"); ok {
+		repoPath = after
 		log.Printf("Detected SSH format, extracted path: %s", repoPath)
 	} else if strings.Contains(url, "github.com/") {
 		// HTTPS format: https://github.com/owner/repo.git

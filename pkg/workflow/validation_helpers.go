@@ -29,6 +29,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -106,10 +107,8 @@ func ValidateMinLength(field, value string, minLength int) error {
 
 // ValidateInList validates that a value is in an allowed list
 func ValidateInList(field, value string, allowedValues []string) error {
-	for _, allowed := range allowedValues {
-		if value == allowed {
-			return nil
-		}
+	if slices.Contains(allowedValues, value) {
+		return nil
 	}
 
 	validationHelpersLog.Printf("List validation failed: field=%s, value=%s not in allowed list", field, value)

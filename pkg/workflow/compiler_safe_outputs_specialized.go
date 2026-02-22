@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -55,14 +56,14 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 
 	// Add allowed agents list environment variable (comma-separated)
 	if len(cfg.Allowed) > 0 {
-		allowedStr := ""
+		var allowedStr strings.Builder
 		for i, agent := range cfg.Allowed {
 			if i > 0 {
-				allowedStr += ","
+				allowedStr.WriteString(",")
 			}
-			allowedStr += agent
+			allowedStr.WriteString(agent)
 		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr.String()))
 	}
 
 	// Add ignore-if-error flag if set
@@ -82,14 +83,14 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 
 	// Add allowed PR repos list environment variable (comma-separated)
 	if len(cfg.AllowedPullRequestRepos) > 0 {
-		allowedPullRequestReposStr := ""
+		var allowedPullRequestReposStr strings.Builder
 		for i, repo := range cfg.AllowedPullRequestRepos {
 			if i > 0 {
-				allowedPullRequestReposStr += ","
+				allowedPullRequestReposStr.WriteString(",")
 			}
-			allowedPullRequestReposStr += repo
+			allowedPullRequestReposStr.WriteString(repo)
 		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS: %q\n", allowedPullRequestReposStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS: %q\n", allowedPullRequestReposStr.String()))
 	}
 
 	// Allow assign_to_agent to reference issues created earlier in the same run via temporary IDs (aw_...)

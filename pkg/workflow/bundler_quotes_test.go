@@ -35,7 +35,7 @@ function test() {
 	}
 
 	// Check that path is defined before its use
-	fsIndex := strings.Index(output, "const fs")
+	found := strings.Contains(output, "const fs")
 	pathIndex := strings.Index(output, "const path")
 	joinIndex := strings.Index(output, "path.join")
 
@@ -48,7 +48,7 @@ function test() {
 	if pathIndex > joinIndex {
 		t.Errorf("path require appears after path.join usage (path at %d, join at %d)", pathIndex, joinIndex)
 	}
-	if fsIndex == -1 {
+	if !found {
 		t.Error("fs require is missing")
 	}
 }

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -27,9 +28,7 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 
 	// Create a copy of the tools map to avoid modifying the original
 	updatedTools := make(map[string]any)
-	for key, value := range tools {
-		updatedTools[key] = value
-	}
+	maps.Copy(updatedTools, tools)
 
 	// Remove the web-fetch tool since we'll replace it with an MCP server
 	delete(updatedTools, "web-fetch")

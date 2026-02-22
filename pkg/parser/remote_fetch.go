@@ -60,14 +60,14 @@ func isCustomAgentFile(filePath string) bool {
 func isRepositoryImport(importPath string) bool {
 	// Remove section reference if present
 	cleanPath := importPath
-	if idx := strings.Index(importPath, "#"); idx != -1 {
-		cleanPath = importPath[:idx]
+	if before, _, ok := strings.Cut(importPath, "#"); ok {
+		cleanPath = before
 	}
 
 	// Remove ref if present to check the path structure
 	pathWithoutRef := cleanPath
-	if idx := strings.Index(cleanPath, "@"); idx != -1 {
-		pathWithoutRef = cleanPath[:idx]
+	if before, _, ok := strings.Cut(cleanPath, "@"); ok {
+		pathWithoutRef = before
 	}
 
 	// Split by slash to count parts
@@ -160,8 +160,8 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 func isWorkflowSpec(path string) bool {
 	// Remove section reference if present
 	cleanPath := path
-	if idx := strings.Index(path, "#"); idx != -1 {
-		cleanPath = path[:idx]
+	if before, _, ok := strings.Cut(path, "#"); ok {
+		cleanPath = before
 	}
 
 	// Remove ref if present
@@ -203,8 +203,8 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 
 	// Remove section reference if present
 	cleanSpec := spec
-	if idx := strings.Index(spec, "#"); idx != -1 {
-		cleanSpec = spec[:idx]
+	if before, _, ok := strings.Cut(spec, "#"); ok {
+		cleanSpec = before
 	}
 
 	// Split on @ to get path and ref

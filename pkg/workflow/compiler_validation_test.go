@@ -272,7 +272,7 @@ This is a test workflow.
 	}
 
 	// Check that the first 4 lines are comment lines (disclaimer)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if !strings.HasPrefix(lines[i], "#") {
 			t.Errorf("Line %d should be a comment (disclaimer), but got: %s", i+1, lines[i])
 		}

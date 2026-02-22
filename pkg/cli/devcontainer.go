@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -312,9 +313,7 @@ func mergeFeatures(existing DevcontainerFeatures, toAdd map[string]any) {
 	}
 
 	// Add new features
-	for key, value := range toAdd {
-		existing[key] = value
-	}
+	maps.Copy(existing, toAdd)
 }
 
 // getCurrentRepoName gets the current repository name from git remote in owner/repo format

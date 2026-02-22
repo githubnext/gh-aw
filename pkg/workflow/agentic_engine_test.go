@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -14,13 +15,7 @@ func TestEngineRegistry(t *testing.T) {
 	supportedEngines := registry.GetSupportedEngines()
 	expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini"}
 	for _, engineID := range expectedEngineIDs {
-		found := false
-		for _, id := range supportedEngines {
-			if id == engineID {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(supportedEngines, engineID)
 		if !found {
 			t.Errorf("Expected engine '%s' to be registered", engineID)
 		}

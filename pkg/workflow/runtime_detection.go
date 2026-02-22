@@ -66,8 +66,8 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 // detectFromCustomSteps scans custom steps YAML for runtime commands
 func detectFromCustomSteps(customSteps string, requirements map[string]*RuntimeRequirement) {
 	log.Print("Scanning custom steps for runtime commands")
-	lines := strings.Split(customSteps, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(customSteps, "\n")
+	for line := range lines {
 		// Look for run: commands
 		if strings.Contains(line, "run:") {
 			// Extract the command part

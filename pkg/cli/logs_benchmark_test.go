@@ -43,8 +43,7 @@ tool result: {"id": 123, "body": "Issue content"}
 func BenchmarkParseClaudeLog(b *testing.B) {
 	engine := &workflow.ClaudeEngine{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = engine.ParseLogMetrics(sampleClaudeLog, false)
 	}
 }
@@ -53,8 +52,7 @@ func BenchmarkParseClaudeLog(b *testing.B) {
 func BenchmarkParseClaudeLog_Large(b *testing.B) {
 	engine := &workflow.ClaudeEngine{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = engine.ParseLogMetrics(largeClaudeLog, false)
 	}
 }
@@ -63,8 +61,7 @@ func BenchmarkParseClaudeLog_Large(b *testing.B) {
 func BenchmarkParseCopilotLog(b *testing.B) {
 	engine := &workflow.CopilotEngine{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = engine.ParseLogMetrics(sampleCopilotLog, false)
 	}
 }
@@ -73,8 +70,7 @@ func BenchmarkParseCopilotLog(b *testing.B) {
 func BenchmarkParseCopilotLog_Large(b *testing.B) {
 	engine := &workflow.CopilotEngine{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = engine.ParseLogMetrics(largeCopilotLog, false)
 	}
 }
@@ -83,8 +79,7 @@ func BenchmarkParseCopilotLog_Large(b *testing.B) {
 func BenchmarkParseCodexLog(b *testing.B) {
 	engine := &workflow.CodexEngine{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = engine.ParseLogMetrics(sampleCodexLog, false)
 	}
 }
@@ -100,8 +95,7 @@ func BenchmarkParseCodexLog_WithErrors(b *testing.B) {
 
 	engine := &workflow.CodexEngine{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = engine.ParseLogMetrics(logWithErrors, false)
 	}
 }
@@ -145,8 +139,7 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 		},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Simulate aggregation logic
 		totalTokens := 0
 		totalCost := 0.0
@@ -174,7 +167,7 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 	// Create 100 sample workflow runs
 	runs := make([]WorkflowRun, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		runs[i] = WorkflowRun{
 			DatabaseID:    int64(12345 + i),
 			WorkflowName:  "test-workflow",
@@ -188,8 +181,7 @@ func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		totalTokens := 0
 		totalCost := 0.0
 		totalTurns := 0
@@ -216,8 +208,7 @@ func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 func BenchmarkExtractJSONMetrics(b *testing.B) {
 	jsonLine := `{"type":"usage","input_tokens":1000,"output_tokens":500,"cost":0.015}`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = workflow.ExtractJSONMetrics(jsonLine, false)
 	}
 }
@@ -226,8 +217,7 @@ func BenchmarkExtractJSONMetrics(b *testing.B) {
 func BenchmarkExtractJSONMetrics_Complex(b *testing.B) {
 	jsonLine := `{"type":"result","total_input_tokens":5000,"total_output_tokens":2500,"cost":0.075,"metadata":{"tool_calls":["github.issue_read","github.add_comment"],"duration_ms":1500}}`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = workflow.ExtractJSONMetrics(jsonLine, false)
 	}
 }

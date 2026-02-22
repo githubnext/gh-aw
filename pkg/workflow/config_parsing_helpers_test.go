@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"maps"
 	"testing"
 )
 
@@ -1043,9 +1044,7 @@ func TestPreprocessExpiresField(t *testing.T) {
 			var configData map[string]any
 			if tt.input != nil {
 				configData = make(map[string]any)
-				for k, v := range tt.input {
-					configData[k] = v
-				}
+				maps.Copy(configData, tt.input)
 			}
 
 			disabled := preprocessExpiresField(configData, nil)

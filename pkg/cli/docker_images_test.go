@@ -284,7 +284,7 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	doneChan := make(chan int, numGoroutines)
 
 	// Launch multiple goroutines that all try to start downloading the same image
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			<-startChan // Wait for the signal to start
 			started[index] = StartDockerImageDownload(context.Background(), testImage)
@@ -296,7 +296,7 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	close(startChan)
 
 	// Wait for all goroutines to finish
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-doneChan
 	}
 
@@ -340,7 +340,7 @@ func TestStartDockerImageDownload_ConcurrentCallsWithAvailableImage(t *testing.T
 	doneChan := make(chan int, numGoroutines)
 
 	// Launch multiple goroutines
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			<-startChan
 			started[index] = StartDockerImageDownload(context.Background(), testImage)
@@ -352,7 +352,7 @@ func TestStartDockerImageDownload_ConcurrentCallsWithAvailableImage(t *testing.T
 	close(startChan)
 
 	// Wait for all to finish
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-doneChan
 	}
 
@@ -393,7 +393,7 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 	const numGoroutines = 5
 	results := make(chan bool, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		go func() {
 			results <- StartDockerImageDownload(context.Background(), testImage)
 		}()
@@ -401,7 +401,7 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 
 	// Collect results
 	downloadStarts := 0
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		if <-results {
 			downloadStarts++
 		}

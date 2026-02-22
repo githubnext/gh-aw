@@ -47,16 +47,17 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 	}
 
 	// First line doesn't get additional indentation
-	result := lines[0]
+	var result strings.Builder
+	result.WriteString(lines[0])
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimSpace(lines[i]) != "" {
-			result += "\n" + indent + lines[i]
+			result.WriteString("\n" + indent + lines[i])
 		} else {
-			result += "\n" + lines[i]
+			result.WriteString("\n" + lines[i])
 		}
 	}
 
-	return result
+	return result.String()
 }
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from frontmatter

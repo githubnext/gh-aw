@@ -453,7 +453,7 @@ func TestGenerateUnifiedPromptStep_EnvVarsSorted(t *testing.T) {
 	// Skip the first entry which is GH_AW_PROMPT
 	if len(envVarLines) > 0 {
 		// Check that the remaining variables are in sorted order
-		for i := 0; i < len(envVarLines)-1; i++ {
+		for i := range len(envVarLines) - 1 {
 			current := envVarLines[i]
 			next := envVarLines[i+1]
 			if current > next {

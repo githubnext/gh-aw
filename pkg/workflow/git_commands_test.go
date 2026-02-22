@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"maps"
 	"strings"
 	"testing"
 )
@@ -83,9 +84,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of input tools to avoid modifying test data
 			tools := make(map[string]any)
-			for k, v := range tt.tools {
-				tools[k] = v
-			}
+			maps.Copy(tools, tt.tools)
 
 			// Apply both default tool functions in sequence
 			tools = compiler.applyDefaultTools(tools, tt.safeOutputs, nil, nil)
@@ -191,9 +190,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of input tools to avoid modifying test data
 			tools := make(map[string]any)
-			for k, v := range tt.tools {
-				tools[k] = v
-			}
+			maps.Copy(tools, tt.tools)
 
 			// Apply both default tool functions in sequence
 			tools = compiler.applyDefaultTools(tools, tt.safeOutputs, nil, nil)

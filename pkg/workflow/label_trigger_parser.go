@@ -58,8 +58,8 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 	rawLabels := tokens[startIdx:]
 	for _, token := range rawLabels {
 		// Split on commas to handle "label1,label2,label3" format
-		parts := strings.Split(token, ",")
-		for _, part := range parts {
+		parts := strings.SplitSeq(token, ",")
+		for part := range parts {
 			cleanLabel := strings.TrimSpace(part)
 			if cleanLabel != "" {
 				labelNames = append(labelNames, cleanLabel)

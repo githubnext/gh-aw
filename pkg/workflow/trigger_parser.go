@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -103,9 +104,7 @@ func (ir *TriggerIR) ToYAMLMap() map[string]any {
 		}
 
 		// Add filters
-		for key, value := range ir.Filters {
-			eventConfig[key] = value
-		}
+		maps.Copy(eventConfig, ir.Filters)
 
 		// If event config has content, add it; otherwise omit the event entirely for simple triggers
 		if len(eventConfig) > 0 {
@@ -118,9 +117,7 @@ func (ir *TriggerIR) ToYAMLMap() map[string]any {
 	}
 
 	// Add additional events
-	for event, config := range ir.AdditionalEvents {
-		result[event] = config
-	}
+	maps.Copy(result, ir.AdditionalEvents)
 
 	return result
 }

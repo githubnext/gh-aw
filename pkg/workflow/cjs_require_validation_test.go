@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -186,10 +187,5 @@ func TestCJSFilesNoActionsRequires(t *testing.T) {
 
 // sliceContainsString checks if a string slice contains a specific string
 func sliceContainsString(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, str)
 }

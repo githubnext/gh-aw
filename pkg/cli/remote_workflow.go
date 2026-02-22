@@ -264,8 +264,8 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 
 		// Remove section reference for file fetching
 		filePath := includePath
-		if idx := strings.Index(includePath, "#"); idx != -1 {
-			filePath = includePath[:idx]
+		if before, _, ok := strings.Cut(includePath, "#"); ok {
+			filePath = before
 		}
 
 		// Skip if already processed

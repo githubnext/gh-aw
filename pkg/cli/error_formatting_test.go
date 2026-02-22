@@ -278,8 +278,8 @@ func TestErrorFormattingDoesNotMangle(t *testing.T) {
 
 			// All essential parts of the message should be preserved
 			// (formatting may add prefixes/styling but shouldn't lose content)
-			essentialParts := strings.Fields(tt.message)
-			for _, part := range essentialParts {
+			essentialParts := strings.FieldsSeq(tt.message)
+			for part := range essentialParts {
 				// Skip very short parts like ":", "at", etc.
 				if len(part) > 2 {
 					assert.Contains(t, formatted, part,

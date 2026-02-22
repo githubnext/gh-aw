@@ -529,8 +529,8 @@ func deduplicateRequires(content string) string {
 					var varNames []string
 					var destructuredNames []string
 					for _, imp := range imports {
-						if strings.HasPrefix(imp, "VAR:") {
-							varNames = append(varNames, strings.TrimPrefix(imp, "VAR:"))
+						if after, ok := strings.CutPrefix(imp, "VAR:"); ok {
+							varNames = append(varNames, after)
 						} else {
 							destructuredNames = append(destructuredNames, imp)
 						}

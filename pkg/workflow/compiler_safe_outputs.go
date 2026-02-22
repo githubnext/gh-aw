@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 
@@ -295,9 +296,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 
 		if toolConfig, ok := githubTool.(map[string]any); ok {
 			githubConfig = make(map[string]any)
-			for k, v := range toolConfig {
-				githubConfig[k] = v
-			}
+			maps.Copy(githubConfig, toolConfig)
 		} else {
 			githubConfig = make(map[string]any)
 		}

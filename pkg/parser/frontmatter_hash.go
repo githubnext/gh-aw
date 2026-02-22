@@ -471,7 +471,7 @@ func extractImportsFromText(frontmatterText string) []string {
 	inImports := false
 	baseIndent := 0
 
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 

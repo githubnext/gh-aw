@@ -20,19 +20,19 @@ func TestStrictFieldSchemaDocumentation(t *testing.T) {
 	}
 
 	// Parse the schema
-	var schema map[string]interface{}
+	var schema map[string]any
 	if err := json.Unmarshal(schemaContent, &schema); err != nil {
 		t.Fatalf("Failed to parse schema JSON: %v", err)
 	}
 
 	// Get the properties section
-	properties, ok := schema["properties"].(map[string]interface{})
+	properties, ok := schema["properties"].(map[string]any)
 	if !ok {
 		t.Fatal("Schema properties section not found or invalid")
 	}
 
 	// Get the strict field
-	strictField, ok := properties["strict"].(map[string]interface{})
+	strictField, ok := properties["strict"].(map[string]any)
 	if !ok {
 		t.Fatal("Strict field not found in schema properties")
 	}

@@ -30,9 +30,9 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	}
 
 	// Process line by line for error counting and fallback parsing
-	lines := strings.Split(logContent, "\n")
+	lines := strings.SplitSeq(logContent, "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue

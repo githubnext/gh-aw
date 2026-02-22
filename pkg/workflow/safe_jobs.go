@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -324,9 +325,7 @@ func mergeSafeJobs(base map[string]*SafeJobConfig, additional map[string]*SafeJo
 	result := make(map[string]*SafeJobConfig)
 
 	// Copy base safe-jobs
-	for name, config := range base {
-		result[name] = config
-	}
+	maps.Copy(result, base)
 
 	// Add additional safe-jobs, checking for conflicts
 	for name, config := range additional {

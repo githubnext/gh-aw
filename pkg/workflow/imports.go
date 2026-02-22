@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -68,9 +69,7 @@ func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServ
 
 	// Initialize result with top-level MCP servers
 	result := make(map[string]any)
-	for k, v := range topMCPServers {
-		result[k] = v
-	}
+	maps.Copy(result, topMCPServers)
 
 	// Split by newlines to handle multiple JSON objects from different imports
 	lines := strings.Split(importedMCPServersJSON, "\n")
@@ -278,9 +277,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 
 		// Combine all required permissions for the suggestion
 		allRequired := make(map[PermissionScope]PermissionLevel)
-		for scope, level := range missingPermissions {
-			allRequired[scope] = level
-		}
+		maps.Copy(allRequired, missingPermissions)
 		for scope, info := range insufficientPermissions {
 			allRequired[scope] = info.required
 		}
@@ -713,9 +710,7 @@ func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeatures []
 	// Start with top-level features or create a new map
 	result := make(map[string]any)
 	if topFeatures != nil {
-		for k, v := range topFeatures {
-			result[k] = v
-		}
+		maps.Copy(result, topFeatures)
 		importsLog.Printf("Starting with %d top-level features", len(topFeatures))
 	}
 

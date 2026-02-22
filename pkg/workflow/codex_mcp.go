@@ -83,8 +83,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Custom configuration\n")
 		// Write the custom config line by line with proper indentation
-		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
-		for _, line := range configLines {
+		configLines := strings.SplitSeq(workflowData.EngineConfig.Config, "\n")
+		for line := range configLines {
 			if strings.TrimSpace(line) != "" {
 				yaml.WriteString("          " + line + "\n")
 			} else {

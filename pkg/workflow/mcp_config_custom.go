@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -498,9 +499,7 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 				// Extract MCP config to get headers
 				if mcpConfig, err := getMCPConfig(toolConfig, toolName); err == nil {
 					secrets := ExtractSecretsFromMap(mcpConfig.Headers)
-					for varName, expr := range secrets {
-						allSecrets[varName] = expr
-					}
+					maps.Copy(allSecrets, secrets)
 				}
 			}
 		}

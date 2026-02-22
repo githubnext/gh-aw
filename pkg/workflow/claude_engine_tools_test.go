@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -300,14 +301,14 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]bool)
 			if tt.expected != "" {
-				for _, tool := range strings.Split(tt.expected, ",") {
+				for tool := range strings.SplitSeq(tt.expected, ",") {
 					expectedTools[strings.TrimSpace(tool)] = true
 				}
 			}
 
 			actualTools := make(map[string]bool)
 			if result != "" {
-				for _, tool := range strings.Split(result, ",") {
+				for tool := range strings.SplitSeq(result, ",") {
 					actualTools[strings.TrimSpace(tool)] = true
 				}
 			}
@@ -426,13 +427,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				if expectedTool == "" {
 					continue // Skip empty strings
 				}
-				found := false
-				for _, actualTool := range resultTools {
-					if actualTool == expectedTool {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(resultTools, expectedTool)
 				if !found {
 					t.Errorf("Expected tool '%s' not found in result '%s'", expectedTool, result)
 				}
@@ -443,13 +438,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				if actual == "" {
 					continue // Skip empty strings
 				}
-				found := false
-				for _, expected := range expectedTools {
-					if expected == actual {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(expectedTools, actual)
 				if !found {
 					t.Errorf("Unexpected tool '%s' found in result '%s'", actual, result)
 				}

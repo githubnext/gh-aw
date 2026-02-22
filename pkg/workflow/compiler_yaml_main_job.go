@@ -598,8 +598,8 @@ func (c *Compiler) generateRepositoryImportCheckouts(yaml *strings.Builder, repo
 func parseRepositoryImportSpec(importSpec string) (owner, repo, ref string) {
 	// Remove section reference if present (file.md#Section)
 	cleanSpec := importSpec
-	if idx := strings.Index(importSpec, "#"); idx != -1 {
-		cleanSpec = importSpec[:idx]
+	if before, _, ok := strings.Cut(importSpec, "#"); ok {
+		cleanSpec = before
 	}
 
 	// Split on @ to get path and ref

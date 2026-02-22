@@ -22,7 +22,7 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 	currentContent := content
 	visited := make(map[string]bool)
 
-	for depth := 0; depth < maxDepth; depth++ {
+	for depth := range maxDepth {
 		log.Printf("Include expansion depth: %d", depth)
 		// Process includes in current content
 		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
@@ -92,7 +92,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 	var results []string
 	currentContent := content
 
-	for depth := 0; depth < maxDepth; depth++ {
+	for range maxDepth {
 		// Process includes in current content to extract the field
 		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
 		if err != nil {

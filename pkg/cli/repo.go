@@ -65,8 +65,8 @@ func getCurrentRepoSlugUncached() (string, error) {
 	var repoPath string
 
 	// SSH format: git@github.com:owner/repo.git
-	if strings.HasPrefix(remoteURL, "git@github.com:") {
-		repoPath = strings.TrimPrefix(remoteURL, "git@github.com:")
+	if after, ok := strings.CutPrefix(remoteURL, "git@github.com:"); ok {
+		repoPath = after
 	} else if strings.Contains(remoteURL, "github.com/") {
 		// HTTPS format: https://github.com/owner/repo.git
 		parts := strings.Split(remoteURL, "github.com/")

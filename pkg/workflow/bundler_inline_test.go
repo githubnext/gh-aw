@@ -45,12 +45,12 @@ function initLogFile(server) {
 	// Check that they come before fs.existsSync usage
 	fsRequireIndex := strings.Index(output, `require("fs")`)
 	fsUsageIndex := strings.Index(output, "fs.existsSync")
-	pathRequireIndex := strings.Index(output, `require("path")`)
+	found := strings.Contains(output, `require("path")`)
 
 	if fsRequireIndex == -1 {
 		t.Error("fs require not found")
 	}
-	if pathRequireIndex == -1 {
+	if !found {
 		t.Error("path require not found")
 	}
 	if fsUsageIndex != -1 && fsRequireIndex > fsUsageIndex {

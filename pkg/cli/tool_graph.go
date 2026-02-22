@@ -48,7 +48,7 @@ func (g *ToolGraph) AddSequence(tools []string) {
 	}
 
 	// Add transitions between consecutive tools
-	for i := 0; i < len(tools)-1; i++ {
+	for i := range len(tools) - 1 {
 		from := tools[i]
 		to := tools[i+1]
 		key := fmt.Sprintf("%s->%s", from, to)
@@ -260,7 +260,7 @@ func extractToolSequencesFromRun(run ProcessedRun, verbose bool) [][]string {
 		var tools []string
 		for _, toolCall := range metrics.ToolCalls {
 			// Add each tool based on its call count to approximate sequence
-			for i := 0; i < toolCall.CallCount; i++ {
+			for range toolCall.CallCount {
 				tools = append(tools, toolCall.Name)
 			}
 		}

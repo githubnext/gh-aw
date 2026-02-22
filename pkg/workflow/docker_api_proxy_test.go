@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -46,13 +47,7 @@ func TestCollectDockerImages_APIProxyForEnginesWithLLMGateway(t *testing.T) {
 			images := collectDockerImages(nil, workflowData, ActionModeRelease)
 
 			apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:" + awfImageTag
-			found := false
-			for _, img := range images {
-				if img == apiProxyImage {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(images, apiProxyImage)
 
 			if found != tt.expectAPIProxy {
 				if tt.expectAPIProxy {

@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -203,13 +204,7 @@ func TestConclusionJob(t *testing.T) {
 					t.Errorf("Expected %d needs, got %d: %v", len(tt.expectNeeds), len(job.Needs), job.Needs)
 				}
 				for _, expectedNeed := range tt.expectNeeds {
-					found := false
-					for _, need := range job.Needs {
-						if need == expectedNeed {
-							found = true
-							break
-						}
-					}
+					found := slices.Contains(job.Needs, expectedNeed)
 					if !found {
 						t.Errorf("Expected need '%s' not found in job.Needs: %v", expectedNeed, job.Needs)
 					}
@@ -316,13 +311,7 @@ func TestConclusionJobIntegration(t *testing.T) {
 
 	// Verify job depends on the safe output jobs
 	for _, expectedNeed := range safeOutputJobNames {
-		found := false
-		for _, need := range job.Needs {
-			if need == expectedNeed {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(job.Needs, expectedNeed)
 		if !found {
 			t.Errorf("Expected conclusion job to depend on '%s'", expectedNeed)
 		}

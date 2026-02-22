@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -34,12 +35,7 @@ var SupportedSchemaVersions = []LockSchemaVersion{
 
 // IsSchemaVersionSupported checks if a schema version is supported
 func IsSchemaVersionSupported(version LockSchemaVersion) bool {
-	for _, v := range SupportedSchemaVersions {
-		if v == version {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(SupportedSchemaVersions, version)
 }
 
 // ExtractMetadataFromLockFile extracts structured metadata from a lock file's comment header

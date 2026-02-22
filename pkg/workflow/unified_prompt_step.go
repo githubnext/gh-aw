@@ -99,8 +99,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				yaml.WriteString("            cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
 				yaml.WriteString("            " + delimiter + "\n")
@@ -127,8 +127,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				// Write content directly to open heredoc
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("          " + line + "\n")
 				}
 			}
@@ -503,8 +503,8 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				yaml.WriteString("            cat << '" + delimiter + "'\n")
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
 				yaml.WriteString("            " + delimiter + "\n")
@@ -531,8 +531,8 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				// Write content directly to open heredoc
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("          " + line + "\n")
 				}
 			}
@@ -583,8 +583,8 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		// Each user prompt chunk is written as a separate heredoc
 		yaml.WriteString("          cat << '" + delimiter + "'\n")
 
-		lines := strings.Split(chunk, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(chunk, "\n")
+		for line := range lines {
 			yaml.WriteString("          ")
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')

@@ -157,7 +157,7 @@ This workflow tests that compilation is deterministic.
 `
 
 	results := make([]string, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		compiler := NewCompiler(
 			WithNoEmit(true),
 			WithSkipValidation(true),

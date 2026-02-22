@@ -687,8 +687,8 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 		}
 	} else {
 		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
-		lines := strings.Split(logContent, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(logContent, "\n")
+		for line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" || !strings.HasPrefix(line, "{") {
 				continue

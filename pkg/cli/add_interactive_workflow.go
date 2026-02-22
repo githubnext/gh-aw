@@ -29,7 +29,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 
 	// Try a few times to see the workflow in status
 	var workflowFound bool
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		// Wait 2 seconds before each check (including the first)
 		select {
 		case <-ctx.Done():

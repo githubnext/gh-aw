@@ -640,8 +640,8 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 // extractHashFromLockFile extracts the frontmatter-hash from a lock file content
 func extractHashFromLockFile(content string) string {
 	// Look for: # frontmatter-hash: <hash>
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(content, "\n")
+	for line := range lines {
 		if len(line) > 20 && line[:20] == "# frontmatter-hash: " {
 			return strings.TrimSpace(line[20:])
 		}

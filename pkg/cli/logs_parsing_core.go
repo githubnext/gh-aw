@@ -168,8 +168,8 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 		// After flattening, it's at logDir/sandbox/agent/logs/
 		// Strip /tmp/gh-aw/ prefix to get the relative path
 		const tmpGhAwPrefix = "/tmp/gh-aw/"
-		if strings.HasPrefix(logFileForParsing, tmpGhAwPrefix) {
-			relPath := strings.TrimPrefix(logFileForParsing, tmpGhAwPrefix)
+		if after, ok := strings.CutPrefix(logFileForParsing, tmpGhAwPrefix); ok {
+			relPath := after
 			flattenedDir := filepath.Join(logDir, relPath)
 			logsParsingCoreLog.Printf("Checking flattened location for logs: %s", flattenedDir)
 			if fileutil.DirExists(flattenedDir) {

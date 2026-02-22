@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -315,13 +316,7 @@ This uses reaction.
 
 	// Should track the lock file
 	lockFile := filepath.Join(tempDir, "test-workflow-with-reaction.lock.yml")
-	found := false
-	for _, file := range allFiles {
-		if file == lockFile {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(allFiles, lockFile)
 	if !found {
 		t.Errorf("Lock file %s should be tracked", lockFile)
 	}

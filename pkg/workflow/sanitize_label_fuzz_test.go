@@ -120,7 +120,7 @@ func FuzzSanitizeLabelContent(f *testing.F) {
 			// Verify ALL mentions are neutralized (wrapped in backticks)
 			if strings.Contains(text, "@") && !strings.Contains(text, "`@") {
 				// Check that result doesn't have bare mentions
-				for i := 0; i < len(result.Sanitized)-1; i++ {
+				for i := range len(result.Sanitized) - 1 {
 					if result.Sanitized[i] == '@' {
 						// Check if preceded by backtick
 						if i > 0 && result.Sanitized[i-1] == '`' {

@@ -347,7 +347,7 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 	iterations := 10
 	entryScripts := make([]string, iterations)
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		entryScripts[i] = generateSafeInputsMCPServerScript(config)
 	}
 
@@ -361,7 +361,7 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 	// Generate the tools config JSON multiple times and verify identical output
 	toolsConfigs := make([]string, iterations)
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		toolsConfigs[i] = generateSafeInputsToolsConfig(config)
 	}
 
@@ -405,7 +405,7 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 
 	// Test JavaScript tool script stability
 	jsScripts := make([]string, iterations)
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		jsScripts[i] = generateSafeInputJavaScriptToolScript(config.Tools["alpha-tool"])
 	}
 

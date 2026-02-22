@@ -23,8 +23,8 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	}
 
 	// Parse the output - each secret name is on its own line
-	secretNames := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, name := range secretNames {
+	secretNames := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+	for name := range secretNames {
 		name = strings.TrimSpace(name)
 		if name != "" {
 			c.existingSecrets[name] = true

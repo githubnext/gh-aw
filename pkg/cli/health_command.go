@@ -143,7 +143,7 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 	allRuns := make([]WorkflowRun, 0)
 
 	// Fetch runs in batches
-	for i := 0; i < MaxIterations; i++ {
+	for i := range MaxIterations {
 		runs, totalCount, err := listWorkflowRunsWithPagination(opts)
 		if err != nil {
 			return nil, err

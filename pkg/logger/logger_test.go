@@ -5,6 +5,7 @@ package logger
 import (
 	"bytes"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -289,11 +290,8 @@ func TestColorSelection(t *testing.T) {
 	color3 := selectColor("other:namespace")
 	// Just verify it's a valid color from palette or empty
 	found := color3 == ""
-	for _, c := range colorPalette {
-		if color3 == c {
-			found = true
-			break
-		}
+	if slices.Contains(colorPalette, color3) {
+		found = true
 	}
 	if !found {
 		t.Errorf("selectColor returned invalid color: %q", color3)

@@ -39,8 +39,8 @@ func resolveImportPath(importPath string, workflowPath string) string {
 	}
 
 	// If the import path is absolute (starts with /), use it as-is (relative to repo root)
-	if strings.HasPrefix(importPath, "/") {
-		return strings.TrimPrefix(importPath, "/")
+	if after, ok := strings.CutPrefix(importPath, "/"); ok {
+		return after
 	}
 
 	// Otherwise, resolve relative to the workflow file's directory

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -233,9 +234,7 @@ func (p *Permissions) RenderToYAML() string {
 	}
 
 	// Override with explicit permissions
-	for scope, level := range p.permissions {
-		allPerms[scope] = level
-	}
+	maps.Copy(allPerms, p.permissions)
 
 	if len(allPerms) == 0 {
 		// If explicitEmpty is true, render "permissions: {}"

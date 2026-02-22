@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -450,11 +451,8 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Check if tool is allowed
 	isAllowed := len(info.Config.Allowed) == 0 // Default to allowed if no allowlist
-	for _, allowed := range info.Config.Allowed {
-		if allowed == toolName {
-			isAllowed = true
-			break
-		}
+	if slices.Contains(info.Config.Allowed, toolName) {
+		isAllowed = true
 	}
 
 	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
@@ -569,12 +567,9 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		}
 
 		// Show first few blocked tools as examples (limit to 3 for readability)
-		exampleCount := len(blockedTools)
-		if exampleCount > 3 {
-			exampleCount = 3
-		}
+		exampleCount := min(len(blockedTools), 3)
 
-		for i := 0; i < exampleCount; i++ {
+		for i := range exampleCount {
 			fmt.Fprintf(os.Stderr, "      - %s\n", blockedTools[i])
 		}
 

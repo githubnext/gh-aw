@@ -118,7 +118,7 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string
-	for i := 0; i < len(args)-1; i++ {
+	for i := range len(args) - 1 {
 		if args[i] == "--add-dir" {
 			dirs = append(dirs, args[i+1])
 		}

@@ -42,6 +42,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -90,19 +91,15 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	}
 
 	// If allowed list contains "defaults", that's acceptable (this is the automatic default)
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "defaults" {
-			strictModeValidationLog.Printf("Network validation passed: allowed list contains 'defaults'")
-			return nil
-		}
+	if slices.Contains(networkPermissions.Allowed, "defaults") {
+		strictModeValidationLog.Printf("Network validation passed: allowed list contains 'defaults'")
+		return nil
 	}
 
 	// Check for wildcard "*" in allowed domains
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "*" {
-			strictModeValidationLog.Printf("Network validation failed: wildcard detected")
-			return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
-		}
+	if slices.Contains(networkPermissions.Allowed, "*") {
+		strictModeValidationLog.Printf("Network validation failed: wildcard detected")
+		return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
 	}
 
 	strictModeValidationLog.Printf("Network validation passed: allowed_count=%d", len(networkPermissions.Allowed))
@@ -551,11 +548,9 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 	// Check if allowed contains "*" (unrestricted network access)
 	// If it does, firewall is not required
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "*" {
-			strictModeValidationLog.Printf("Wildcard '*' in allowed domains, skipping firewall validation")
-			return nil
-		}
+	if slices.Contains(networkPermissions.Allowed, "*") {
+		strictModeValidationLog.Printf("Wildcard '*' in allowed domains, skipping firewall validation")
+		return nil
 	}
 
 	// At this point, we have network domains (or defaults) and copilot/codex engine

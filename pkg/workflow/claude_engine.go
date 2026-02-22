@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -385,17 +386,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
 
 	// Add custom environment variables from agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		for key, value := range agentConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, agentConfig.Env)
 		claudeLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 

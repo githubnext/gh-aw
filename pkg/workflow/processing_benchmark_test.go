@@ -41,8 +41,7 @@ Simple tool processing test.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -95,8 +94,7 @@ Complex tool configuration processing.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -135,8 +133,7 @@ Simple safe outputs configuration.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -190,8 +187,7 @@ Complex safe outputs configuration.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -232,8 +228,7 @@ Network permissions processing.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -273,8 +268,7 @@ Permission processing test.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -312,8 +306,7 @@ Role processing test.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }

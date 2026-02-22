@@ -77,6 +77,7 @@ package workflow
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -154,13 +155,7 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 	result = strings.ReplaceAll(result, " ", "-")
 
 	// Check if underscores should be preserved
-	preserveUnderscore := false
-	for _, char := range opts.PreserveSpecialChars {
-		if char == '_' {
-			preserveUnderscore = true
-			break
-		}
-	}
+	preserveUnderscore := slices.Contains(opts.PreserveSpecialChars, '_')
 
 	// Replace underscores with hyphens if not preserved
 	if !preserveUnderscore {
@@ -168,19 +163,20 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 	}
 
 	// Build character preservation pattern based on options
-	preserveChars := "a-z0-9-" // Always preserve alphanumeric and hyphens
+	var preserveChars strings.Builder
+	preserveChars.WriteString("a-z0-9-") // Always preserve alphanumeric and hyphens
 	if len(opts.PreserveSpecialChars) > 0 {
 		for _, char := range opts.PreserveSpecialChars {
 			// Escape special regex characters
 			switch char {
 			case '.', '_':
-				preserveChars += string(char)
+				preserveChars.WriteString(string(char))
 			}
 		}
 	}
 
 	// Create pattern for characters to remove/replace
-	pattern := regexp.MustCompile(`[^` + preserveChars + `]+`)
+	pattern := regexp.MustCompile(`[^` + preserveChars.String() + `]+`)
 
 	// Replace unwanted characters with hyphens or empty based on context
 	if len(opts.PreserveSpecialChars) > 0 {

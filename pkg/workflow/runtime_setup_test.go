@@ -505,13 +505,13 @@ func getRequirementIDs(requirements map[string]*RuntimeRequirement) []string {
 }
 
 func stepsToString(steps []GitHubActionStep) string {
-	var result string
+	var result strings.Builder
 	for _, step := range steps {
 		for _, line := range step {
-			result += line + "\n"
+			result.WriteString(line + "\n")
 		}
 	}
-	return result
+	return result.String()
 }
 
 func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {

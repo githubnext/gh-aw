@@ -293,8 +293,8 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	}
 
 	// Look for first H1 header
-	lines := strings.Split(result.Markdown, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(result.Markdown, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "# ") {
 			return strings.TrimSpace(line[2:]), nil

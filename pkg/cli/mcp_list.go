@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -277,10 +278,8 @@ func formatToolsCount(allowed []string) string {
 	}
 
 	// Check for wildcard
-	for _, tool := range allowed {
-		if tool == "*" {
-			return "All tools"
-		}
+	if slices.Contains(allowed, "*") {
+		return "All tools"
 	}
 
 	if len(allowed) == 1 {

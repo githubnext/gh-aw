@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 
@@ -97,11 +98,8 @@ func TestExecGH(t *testing.T) {
 			if tt.expectGHToken {
 				found := false
 				expectedEnv := "GH_TOKEN=" + tt.expectValue
-				for _, env := range cmd.Env {
-					if env == expectedEnv {
-						found = true
-						break
-					}
+				if slices.Contains(cmd.Env, expectedEnv) {
+					found = true
 				}
 				assert.True(t, found, "Expected environment to contain %s, but it wasn't found", expectedEnv)
 			} else {
@@ -141,13 +139,7 @@ func TestExecGHWithMultipleArgs(t *testing.T) {
 	}
 
 	// Verify environment contains GH_TOKEN
-	found := false
-	for _, env := range cmd.Env {
-		if env == "GH_TOKEN=test-token" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(cmd.Env, "GH_TOKEN=test-token")
 	assert.True(t, found, "Expected environment to contain GH_TOKEN=test-token")
 }
 
@@ -229,11 +221,8 @@ func TestExecGHContext(t *testing.T) {
 			if tt.expectGHToken {
 				found := false
 				expectedEnv := "GH_TOKEN=" + tt.expectValue
-				for _, env := range cmd.Env {
-					if env == expectedEnv {
-						found = true
-						break
-					}
+				if slices.Contains(cmd.Env, expectedEnv) {
+					found = true
 				}
 				assert.True(t, found, "Expected environment to contain %s, but it wasn't found", expectedEnv)
 			} else {
@@ -340,11 +329,8 @@ func TestSetupGHCommand(t *testing.T) {
 			if tt.expectGHToken {
 				found := false
 				expectedEnv := "GH_TOKEN=" + tt.expectValue
-				for _, env := range cmd.Env {
-					if env == expectedEnv {
-						found = true
-						break
-					}
+				if slices.Contains(cmd.Env, expectedEnv) {
+					found = true
 				}
 				assert.True(t, found, "Expected environment to contain %s", expectedEnv)
 			} else {

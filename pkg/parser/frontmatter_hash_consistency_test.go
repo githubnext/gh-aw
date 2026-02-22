@@ -217,7 +217,7 @@ Use ${{ env.TEST_VAR }} and ${{ vars.CONFIG }}
 
 	// Compute hash 10 times with Go
 	var goHashes []string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		hash, err := ComputeFrontmatterHashFromFile(workflowFile, cache)
 		require.NoError(t, err, "Should compute hash iteration %d", i+1)
 		goHashes = append(goHashes, hash)
@@ -231,7 +231,7 @@ Use ${{ env.TEST_VAR }} and ${{ vars.CONFIG }}
 
 	// Compute hash 10 times with JavaScript
 	var jsHashes []string
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		hash, err := computeHashViaNode(workflowFile)
 		if err != nil {
 			t.Logf("JavaScript not available, skipping JS stability test")

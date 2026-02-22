@@ -341,8 +341,8 @@ func extractConcurrencyGroupFromYAML(concurrencyYAML string) string {
 	if len(lines) > 0 {
 		firstLine := strings.TrimSpace(lines[0])
 		// Only match if it starts with "concurrency:"
-		if strings.HasPrefix(firstLine, "concurrency:") {
-			value := strings.TrimSpace(strings.TrimPrefix(firstLine, "concurrency:"))
+		if after, ok := strings.CutPrefix(firstLine, "concurrency:"); ok {
+			value := strings.TrimSpace(after)
 			// Remove quotes if present
 			value = strings.Trim(value, `"'`)
 			return value

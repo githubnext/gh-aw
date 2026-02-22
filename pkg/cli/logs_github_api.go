@@ -44,8 +44,8 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 
 	// Parse each line as a separate JSON object
 	failedJobs := 0
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+	for line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -89,8 +89,8 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 	}
 
 	var jobs []JobInfoWithDuration
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+	for line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}

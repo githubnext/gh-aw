@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 
@@ -23,10 +24,8 @@ func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]any {
 	// Features should be an object with any values (boolean or string)
 	if featuresMap, ok := value.(map[string]any); ok {
 		result := make(map[string]any)
-		for key, val := range featuresMap {
-			// Accept any value type (boolean, string, etc.)
-			result[key] = val
-		}
+		// Accept any value type (boolean, string, etc.)
+		maps.Copy(result, featuresMap)
 		frontmatterMetadataLog.Printf("Extracted %d features", len(result))
 		return result
 	}

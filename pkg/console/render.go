@@ -293,21 +293,21 @@ func parseConsoleTag(tag string) consoleTag {
 		return result
 	}
 
-	parts := strings.Split(tag, ",")
-	for _, part := range parts {
+	parts := strings.SplitSeq(tag, ",")
+	for part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "omitempty" {
 			result.omitempty = true
-		} else if strings.HasPrefix(part, "title:") {
-			result.title = strings.TrimPrefix(part, "title:")
-		} else if strings.HasPrefix(part, "header:") {
-			result.header = strings.TrimPrefix(part, "header:")
-		} else if strings.HasPrefix(part, "format:") {
-			result.format = strings.TrimPrefix(part, "format:")
-		} else if strings.HasPrefix(part, "default:") {
-			result.defaultVal = strings.TrimPrefix(part, "default:")
-		} else if strings.HasPrefix(part, "maxlen:") {
-			maxLenStr := strings.TrimPrefix(part, "maxlen:")
+		} else if after, ok := strings.CutPrefix(part, "title:"); ok {
+			result.title = after
+		} else if after, ok := strings.CutPrefix(part, "header:"); ok {
+			result.header = after
+		} else if after, ok := strings.CutPrefix(part, "format:"); ok {
+			result.format = after
+		} else if after, ok := strings.CutPrefix(part, "default:"); ok {
+			result.defaultVal = after
+		} else if after, ok := strings.CutPrefix(part, "maxlen:"); ok {
+			maxLenStr := after
 			if len, err := strconv.Atoi(maxLenStr); err == nil {
 				result.maxLen = len
 			}

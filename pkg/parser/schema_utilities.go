@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"slices"
+
 	"github.com/github/gh-aw/pkg/constants"
 )
 
@@ -22,27 +24,13 @@ func filterIgnoredFields(frontmatter map[string]any) map[string]any {
 	filtered := make(map[string]any)
 	for key, value := range frontmatter {
 		// Skip ignored fields
-		ignored := false
-		for _, ignoredField := range constants.IgnoredFrontmatterFields {
-			if key == ignoredField {
-				ignored = true
-				break
-			}
-		}
+		ignored := slices.Contains(constants.IgnoredFrontmatterFields, key)
 		if !ignored {
 			filtered[key] = value
 		}
 	}
 
 	return filtered
-}
-
-// min returns the smaller of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // removeDuplicates removes duplicate strings from a slice

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -154,16 +155,12 @@ func (s *WorkflowStep) Clone() *WorkflowStep {
 
 	if s.With != nil {
 		clone.With = make(map[string]any, len(s.With))
-		for k, v := range s.With {
-			clone.With[k] = v
-		}
+		maps.Copy(clone.With, s.With)
 	}
 
 	if s.Env != nil {
 		clone.Env = make(map[string]string, len(s.Env))
-		for k, v := range s.Env {
-			clone.Env[k] = v
-		}
+		maps.Copy(clone.Env, s.Env)
 	}
 
 	return clone

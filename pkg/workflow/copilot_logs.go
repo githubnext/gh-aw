@@ -238,9 +238,9 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			if hasTimestamp {
 				// Strip the timestamp and [DEBUG] prefix to see what remains
 				// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] {json content}"
-				debugIndex := strings.Index(line, "[DEBUG]")
-				if debugIndex != -1 {
-					cleanLine := strings.TrimSpace(line[debugIndex+7:]) // Skip "[DEBUG]"
+				_, after, ok := strings.Cut(line, "[DEBUG]")
+				if ok {
+					cleanLine := strings.TrimSpace(after) // Skip "[DEBUG]"
 
 					// If after stripping, the line starts with JSON characters, it's part of JSON
 					// Otherwise, it's a new log entry and we should end the block

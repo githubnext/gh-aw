@@ -72,7 +72,7 @@ func TestSanitizeErrorMessage(t *testing.T) {
 
 func BenchmarkSanitizeErrorMessage(b *testing.B) {
 	message := "Failed to use API_TOKEN and DATABASE_PASSWORD with GitHubToken"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeErrorMessage(message)
 	}
 }
@@ -292,14 +292,14 @@ func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
 
 func BenchmarkSanitizeErrorMessage_NoSecrets(b *testing.B) {
 	message := "This is a regular error message with no secrets to redact"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeErrorMessage(message)
 	}
 }
 
 func BenchmarkSanitizeErrorMessage_ManySecrets(b *testing.B) {
 	message := "Error with API_KEY, DATABASE_PASSWORD, AWS_SECRET, GitHubToken, and DeploySecret"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeErrorMessage(message)
 	}
 }
@@ -530,21 +530,21 @@ func TestSanitizeToolID(t *testing.T) {
 
 func BenchmarkSanitizeParameterName(b *testing.B) {
 	name := "my-complex-parameter.name"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeParameterName(name)
 	}
 }
 
 func BenchmarkSanitizePythonVariableName(b *testing.B) {
 	name := "my-complex-parameter.name"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizePythonVariableName(name)
 	}
 }
 
 func BenchmarkSanitizeToolID(b *testing.B) {
 	toolID := "mcp-notion-server-mcp"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeToolID(toolID)
 	}
 }

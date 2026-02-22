@@ -67,8 +67,8 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	if data.Description != "" {
 		cleanDescription := stringutil.StripANSI(data.Description)
 		// Split description into lines and prefix each with "# "
-		descriptionLines := strings.Split(strings.TrimSpace(cleanDescription), "\n")
-		for _, line := range descriptionLines {
+		descriptionLines := strings.SplitSeq(strings.TrimSpace(cleanDescription), "\n")
+		for line := range descriptionLines {
 			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
 		}
 	}
@@ -751,9 +751,9 @@ func processMarkdownBody(body string) ([]string, []*ExpressionMapping) {
 // so the workspace root is the directory that contains ".github/".
 func resolveWorkspaceRoot(markdownPath string) string {
 	normalized := filepath.ToSlash(markdownPath)
-	if idx := strings.Index(normalized, "/.github/"); idx != -1 {
+	if before, _, ok := strings.Cut(normalized, "/.github/"); ok {
 		// Absolute or non-root-relative path: strip everything from "/.github/" onward.
-		return filepath.FromSlash(normalized[:idx])
+		return filepath.FromSlash(before)
 	}
 	if strings.HasPrefix(normalized, ".github/") {
 		// Path already starts at the workspace root.

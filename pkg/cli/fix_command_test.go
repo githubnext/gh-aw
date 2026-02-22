@@ -532,8 +532,8 @@ This is a test workflow with slash command.
 	}
 
 	// Check that standalone "command" field was replaced (not part of slash_command)
-	lines := strings.Split(updatedStr, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(updatedStr, "\n")
+	for line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "command:") && !strings.Contains(line, "slash_command") {
 			t.Errorf("Found unreplaced 'command:' field: %s", line)

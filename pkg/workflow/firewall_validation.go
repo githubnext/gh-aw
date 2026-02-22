@@ -12,6 +12,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -51,11 +52,9 @@ func ValidateLogLevel(level string) error {
 	}
 
 	valid := []string{"debug", "info", "warn", "error"}
-	for _, v := range valid {
-		if level == v {
-			firewallValidationLog.Printf("Valid log-level: %s", level)
-			return nil
-		}
+	if slices.Contains(valid, level) {
+		firewallValidationLog.Printf("Valid log-level: %s", level)
+		return nil
 	}
 	firewallValidationLog.Printf("Invalid log-level: %s", level)
 	return fmt.Errorf("invalid log-level '%s', must be one of: %v", level, valid)

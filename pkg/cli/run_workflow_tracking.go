@@ -49,13 +49,10 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 	}
 
 	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if attempt > 0 {
 			// Calculate delay with exponential backoff, capped at maxDelay
-			delay := time.Duration(attempt) * initialDelay
-			if delay > maxDelay {
-				delay = maxDelay
-			}
+			delay := min(time.Duration(attempt)*initialDelay, maxDelay)
 
 			// Calculate elapsed time since start
 			elapsed := time.Since(startTime).Round(time.Second)

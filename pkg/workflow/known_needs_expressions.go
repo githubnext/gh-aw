@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -100,21 +102,21 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 func normalizeJobNameForEnvVar(jobName string) string {
 	// Already in the correct format for most job names
 	// Just uppercase and replace hyphens with underscores
-	result := ""
+	var result strings.Builder
 	for _, char := range jobName {
 		if char == '-' {
-			result += "_"
+			result.WriteString("_")
 		} else if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '_' {
 			if char >= 'a' && char <= 'z' {
-				result += string(char - 32) // Convert to uppercase
+				result.WriteString(string(char - 32)) // Convert to uppercase
 			} else if char >= 'A' && char <= 'Z' {
-				result += string(char)
+				result.WriteString(string(char))
 			} else {
-				result += string(char)
+				result.WriteString(string(char))
 			}
 		}
 	}
-	return result
+	return result.String()
 }
 
 // normalizeOutputNameForEnvVar converts an output name to a valid environment variable segment
@@ -213,13 +215,7 @@ func getCustomJobsBeforeActivation(data *WorkflowData) []string {
 		needsList := parseNeedsField(needsField)
 
 		// Check if it depends on pre_activation
-		dependsOnPreActivation := false
-		for _, dep := range needsList {
-			if dep == string(constants.PreActivationJobName) {
-				dependsOnPreActivation = true
-				break
-			}
-		}
+		dependsOnPreActivation := slices.Contains(needsList, string(constants.PreActivationJobName))
 
 		// Only include if it depends on pre_activation (and not on activation/agent/detection)
 		if dependsOnPreActivation {

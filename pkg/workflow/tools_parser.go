@@ -52,6 +52,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -74,9 +75,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 	}
 
 	// Copy raw map
-	for k, v := range toolsMap {
-		tools.raw[k] = v
-	}
+	maps.Copy(tools.raw, toolsMap)
 
 	// Extract and parse known tools
 	if val, exists := toolsMap["github"]; exists {

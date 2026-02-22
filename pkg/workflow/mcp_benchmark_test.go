@@ -15,8 +15,7 @@ func BenchmarkRenderPlaywrightMCPConfig(b *testing.B) {
 	}
 	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var yaml strings.Builder
 		renderPlaywrightMCPConfig(&yaml, playwrightConfig, true)
 	}
@@ -29,8 +28,7 @@ func BenchmarkGeneratePlaywrightDockerArgs(b *testing.B) {
 	}
 	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = generatePlaywrightDockerArgs(playwrightConfig)
 	}
 }
@@ -43,8 +41,7 @@ func BenchmarkRenderPlaywrightMCPConfig_Complex(b *testing.B) {
 	}
 	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var yaml strings.Builder
 		renderPlaywrightMCPConfig(&yaml, playwrightConfig, true)
 	}
@@ -54,8 +51,7 @@ func BenchmarkRenderPlaywrightMCPConfig_Complex(b *testing.B) {
 func BenchmarkExtractExpressionsFromPlaywrightArgs(b *testing.B) {
 	customArgs := []string{"--debug", "--timeout", "${{ github.event.inputs.timeout }}"}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = extractExpressionsFromPlaywrightArgs(customArgs)
 	}
 }

@@ -76,7 +76,7 @@ func TestDisplayStatsTable_LessThan10(t *testing.T) {
 func TestDisplayStatsTable_Exactly10(t *testing.T) {
 	// Create test stats with exactly 10 workflows
 	statsList := make([]*WorkflowStats, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		statsList[i] = &WorkflowStats{
 			Workflow:    fmt.Sprintf("workflow%d.lock.yml", i+1),
 			FileSize:    int64((10 - i) * 1000), // Descending sizes
@@ -121,7 +121,7 @@ func TestDisplayStatsTable_Exactly10(t *testing.T) {
 func TestDisplayStatsTable_MoreThan10(t *testing.T) {
 	// Create test stats with 15 workflows
 	statsList := make([]*WorkflowStats, 15)
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		statsList[i] = &WorkflowStats{
 			Workflow:    fmt.Sprintf("workflow%d.lock.yml", i+1),
 			FileSize:    int64((15 - i) * 1000), // Descending sizes
@@ -146,7 +146,7 @@ func TestDisplayStatsTable_MoreThan10(t *testing.T) {
 	output := buf.String()
 
 	// Should show top 10 workflows (largest sizes)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if !strings.Contains(output, statsList[i].Workflow) {
 			t.Errorf("Expected top 10 workflow %s to be displayed, but it wasn't found", statsList[i].Workflow)
 		}

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -131,9 +132,7 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	allExtraFields := make(map[string]string)
 
 	// Add runtime extra fields (already formatted)
-	for k, v := range runtime.ExtraWithFields {
-		allExtraFields[k] = v
-	}
+	maps.Copy(allExtraFields, runtime.ExtraWithFields)
 
 	// Add user extra fields (need formatting), these override runtime fields
 	for k, v := range req.ExtraFields {

@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -389,9 +390,7 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 
 	// Initialize result with main jobs or create empty map
 	result := make(map[string]any)
-	for k, v := range mainJobs {
-		result[k] = v
-	}
+	maps.Copy(result, mainJobs)
 
 	// Split by newlines to handle multiple JSON objects from different imports
 	lines := strings.Split(mergedJobsJSON, "\n")

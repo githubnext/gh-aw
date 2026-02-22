@@ -1,6 +1,10 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"maps"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var permissionsFactoryLog = logger.New("workflow:permissions_factory")
 
@@ -48,9 +52,7 @@ func NewPermissionsFromMap(perms map[PermissionScope]PermissionLevel) *Permissio
 		permissionsFactoryLog.Printf("Creating permissions from map: scope_count=%d", len(perms))
 	}
 	p := NewPermissions()
-	for scope, level := range perms {
-		p.permissions[scope] = level
-	}
+	maps.Copy(p.permissions, perms)
 	return p
 }
 

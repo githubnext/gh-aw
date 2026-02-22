@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -152,8 +153,8 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 				// Handle multi-line strings (especially for 'run' field)
 				if field == "run" && strings.Contains(v, "\n") {
 					fmt.Fprintf(yaml, "%s: |\n", field)
-					lines := strings.Split(v, "\n")
-					for _, line := range lines {
+					lines := strings.SplitSeq(v, "\n")
+					for line := range lines {
 						fmt.Fprintf(yaml, "%s    %s\n", indent, line)
 					}
 				} else {
@@ -174,13 +175,7 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 	// Add any remaining fields not in the predefined order
 	for field, value := range step {
 		// Skip fields we've already processed
-		skip := false
-		for _, f := range fieldOrder {
-			if f == field {
-				skip = true
-				break
-			}
-		}
+		skip := slices.Contains(fieldOrder, field)
 		if skip {
 			continue
 		}
@@ -195,8 +190,8 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 			// Handle multi-line strings
 			if strings.Contains(v, "\n") {
 				fmt.Fprintf(yaml, "%s: |\n", field)
-				lines := strings.Split(v, "\n")
-				for _, line := range lines {
+				lines := strings.SplitSeq(v, "\n")
+				for line := range lines {
 					fmt.Fprintf(yaml, "%s    %s\n", indent, line)
 				}
 			} else {

@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -129,7 +130,7 @@ func TestGetDomainEcosystem_Determinism(t *testing.T) {
 		{"static.crates.io", "rust"},
 	}
 	for _, c := range cases {
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			got := GetDomainEcosystem(c.domain)
 			if got != c.expected {
 				t.Errorf("call %d: GetDomainEcosystem(%q) = %q, want %q", i, c.domain, got, c.expected)
@@ -583,13 +584,7 @@ func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
 
 			// Check that expected domains are present
 			for _, expectedDomain := range tt.expectContains {
-				found := false
-				for _, domain := range domains {
-					if domain == expectedDomain {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(domains, expectedDomain)
 				if !found {
 					t.Errorf("Expected domain '%s' not found in result. Got: %v", expectedDomain, domains)
 				}
@@ -597,11 +592,8 @@ func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
 
 			// Check that unexpected domains are NOT present
 			for _, unexpectedDomain := range tt.expectNotContains {
-				for _, domain := range domains {
-					if domain == unexpectedDomain {
-						t.Errorf("Domain '%s' should not be in result, but was found", unexpectedDomain)
-						break
-					}
+				if slices.Contains(domains, unexpectedDomain) {
+					t.Errorf("Domain '%s' should not be in result, but was found", unexpectedDomain)
 				}
 			}
 
@@ -731,13 +723,7 @@ func TestNetworkPermissions_EdgeCases(t *testing.T) {
 			}
 
 			for _, expectedDomain := range tt.expectContains {
-				found := false
-				for _, domain := range domains {
-					if domain == expectedDomain {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(domains, expectedDomain)
 				if !found {
 					t.Errorf("Expected domain '%s' not found in result: %v", expectedDomain, domains)
 				}
@@ -872,13 +858,7 @@ func TestGetDomainsFromRuntimes(t *testing.T) {
 			}
 
 			for _, expected := range tt.expectContains {
-				found := false
-				for _, domain := range domains {
-					if domain == expected {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(domains, expected)
 				if !found {
 					t.Errorf("Expected domain '%s' not found in result: %v", expected, domains)
 				}

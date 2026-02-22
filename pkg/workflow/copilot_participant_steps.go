@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -44,13 +45,7 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 	steps = append(steps, "          persist-credentials: false\n")
 
 	// Check if any participant is "copilot" to determine token preference
-	hasCopilotParticipant := false
-	for _, participant := range config.Participants {
-		if participant == "copilot" {
-			hasCopilotParticipant = true
-			break
-		}
-	}
+	hasCopilotParticipant := slices.Contains(config.Participants, "copilot")
 
 	// Choose the first non-empty custom token for precedence
 	effectiveCustomToken := config.CustomToken

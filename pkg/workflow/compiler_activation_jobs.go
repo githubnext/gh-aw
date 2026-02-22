@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -328,9 +330,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Merge custom outputs from jobs.pre-activation if present
 	if len(customOutputs) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
-		for key, value := range customOutputs {
-			outputs[key] = value
-		}
+		maps.Copy(outputs, customOutputs)
 	}
 
 	// Pre-activation job uses the user's original if condition (data.If)
@@ -815,13 +815,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 
 		// Check if this job is already in depends
-		alreadyDepends := false
-		for _, dep := range depends {
-			if dep == jobName {
-				alreadyDepends = true
-				break
-			}
-		}
+		alreadyDepends := slices.Contains(depends, jobName)
 		// Add it if not already present
 		if !alreadyDepends {
 			depends = append(depends, jobName)

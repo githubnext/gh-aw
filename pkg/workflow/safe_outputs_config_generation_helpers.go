@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -186,9 +187,7 @@ func generateTargetConfigWithRepos(targetConfig SafeOutputTargetConfig, max *str
 	}
 
 	// Add any additional fields
-	for key, value := range additionalFields {
-		config[key] = value
-	}
+	maps.Copy(config, additionalFields)
 
 	return config
 }

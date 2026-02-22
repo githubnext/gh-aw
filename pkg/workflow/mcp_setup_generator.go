@@ -62,6 +62,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -142,13 +143,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Install gh-aw extension if agentic-workflows tool is enabled
-	hasAgenticWorkflows := false
-	for _, toolName := range mcpTools {
-		if toolName == "agentic-workflows" {
-			hasAgenticWorkflows = true
-			break
-		}
-	}
+	hasAgenticWorkflows := slices.Contains(mcpTools, "agentic-workflows")
 
 	// Check if shared/mcp/gh-aw.md is imported (which already installs gh-aw)
 	hasGhAwImport := false
@@ -221,7 +216,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		toolsDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_TOOLS")
 		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/tools.json << '" + toolsDelimiter + "'\n")
 		// Write each line of the indented JSON with proper YAML indentation
-		for _, line := range strings.Split(filteredToolsJSON, "\n") {
+		for line := range strings.SplitSeq(filteredToolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          " + toolsDelimiter + "\n")
@@ -247,7 +242,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		validationDelimiter := GenerateHeredocDelimiter("SAFE_OUTPUTS_VALIDATION")
 		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/validation.json << '" + validationDelimiter + "'\n")
 		// Write each line of the indented JSON with proper YAML indentation
-		for _, line := range strings.Split(validationConfigJSON, "\n") {
+		for line := range strings.SplitSeq(validationConfigJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          " + validationDelimiter + "\n")
@@ -315,7 +310,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		toolsJSON := generateSafeInputsToolsConfig(workflowData.SafeInputs)
 		toolsDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_TOOLS")
 		yaml.WriteString("          cat > /opt/gh-aw/safe-inputs/tools.json << '" + toolsDelimiter + "'\n")
-		for _, line := range strings.Split(toolsJSON, "\n") {
+		for line := range strings.SplitSeq(toolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          " + toolsDelimiter + "\n")
@@ -355,7 +350,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				toolScript := generateSafeInputShellToolScript(toolConfig)
 				shDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_SH_%s", strings.ToUpper(toolName)))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.sh << '%s'\n", toolName, shDelimiter)
-				for _, line := range strings.Split(toolScript, "\n") {
+				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", shDelimiter)
@@ -365,7 +360,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				toolScript := generateSafeInputPythonToolScript(toolConfig)
 				pyDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_PY_%s", strings.ToUpper(toolName)))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.py << '%s'\n", toolName, pyDelimiter)
-				for _, line := range strings.Split(toolScript, "\n") {
+				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", pyDelimiter)
@@ -375,7 +370,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				toolScript := generateSafeInputGoToolScript(toolConfig)
 				goDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_GO_%s", strings.ToUpper(toolName)))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.go << '%s'\n", toolName, goDelimiter)
-				for _, line := range strings.Split(toolScript, "\n") {
+				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", goDelimiter)
@@ -551,82 +546,83 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
 
-	containerCmd := "docker run -i --rm --network host"
-	containerCmd += " -v /var/run/docker.sock:/var/run/docker.sock" // Enable docker-in-docker for MCP gateway
+	var containerCmd strings.Builder
+	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString(" -v /var/run/docker.sock:/var/run/docker.sock") // Enable docker-in-docker for MCP gateway
 	// Pass required gateway environment variables
-	containerCmd += " -e MCP_GATEWAY_PORT"
-	containerCmd += " -e MCP_GATEWAY_DOMAIN"
-	containerCmd += " -e MCP_GATEWAY_API_KEY"
-	containerCmd += " -e MCP_GATEWAY_PAYLOAD_DIR"
-	containerCmd += " -e DEBUG"
+	containerCmd.WriteString(" -e MCP_GATEWAY_PORT")
+	containerCmd.WriteString(" -e MCP_GATEWAY_DOMAIN")
+	containerCmd.WriteString(" -e MCP_GATEWAY_API_KEY")
+	containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_DIR")
+	containerCmd.WriteString(" -e DEBUG")
 	// Pass environment variables that MCP servers reference in their config
 	// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time
 	// Environment variables used by MCP gateway
-	containerCmd += " -e MCP_GATEWAY_LOG_DIR"
+	containerCmd.WriteString(" -e MCP_GATEWAY_LOG_DIR")
 	// Environment variables used by safeoutputs MCP server
-	containerCmd += " -e GH_AW_MCP_LOG_DIR"
-	containerCmd += " -e GH_AW_SAFE_OUTPUTS"
-	containerCmd += " -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH"
-	containerCmd += " -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH"
-	containerCmd += " -e GH_AW_ASSETS_BRANCH"
-	containerCmd += " -e GH_AW_ASSETS_MAX_SIZE_KB"
-	containerCmd += " -e GH_AW_ASSETS_ALLOWED_EXTS"
-	containerCmd += " -e DEFAULT_BRANCH"
+	containerCmd.WriteString(" -e GH_AW_MCP_LOG_DIR")
+	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS")
+	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH")
+	containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH")
+	containerCmd.WriteString(" -e GH_AW_ASSETS_BRANCH")
+	containerCmd.WriteString(" -e GH_AW_ASSETS_MAX_SIZE_KB")
+	containerCmd.WriteString(" -e GH_AW_ASSETS_ALLOWED_EXTS")
+	containerCmd.WriteString(" -e DEFAULT_BRANCH")
 	// Environment variables used by GitHub MCP server
-	containerCmd += " -e GITHUB_MCP_SERVER_TOKEN"
+	containerCmd.WriteString(" -e GITHUB_MCP_SERVER_TOKEN")
 	// For Copilot engine with GitHub remote MCP, also pass GITHUB_PERSONAL_ACCESS_TOKEN
 	// This allows the gateway to expand ${GITHUB_PERSONAL_ACCESS_TOKEN} references in headers
 	if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
-		containerCmd += " -e GITHUB_PERSONAL_ACCESS_TOKEN"
+		containerCmd.WriteString(" -e GITHUB_PERSONAL_ACCESS_TOKEN")
 	}
-	containerCmd += " -e GITHUB_MCP_LOCKDOWN"
+	containerCmd.WriteString(" -e GITHUB_MCP_LOCKDOWN")
 	// Standard GitHub Actions environment variables (repository context)
-	containerCmd += " -e GITHUB_REPOSITORY"
-	containerCmd += " -e GITHUB_SERVER_URL"
-	containerCmd += " -e GITHUB_SHA"
-	containerCmd += " -e GITHUB_WORKSPACE"
-	containerCmd += " -e GITHUB_TOKEN"
+	containerCmd.WriteString(" -e GITHUB_REPOSITORY")
+	containerCmd.WriteString(" -e GITHUB_SERVER_URL")
+	containerCmd.WriteString(" -e GITHUB_SHA")
+	containerCmd.WriteString(" -e GITHUB_WORKSPACE")
+	containerCmd.WriteString(" -e GITHUB_TOKEN")
 	// GitHub Actions run context
-	containerCmd += " -e GITHUB_RUN_ID"
-	containerCmd += " -e GITHUB_RUN_NUMBER"
-	containerCmd += " -e GITHUB_RUN_ATTEMPT"
-	containerCmd += " -e GITHUB_JOB"
-	containerCmd += " -e GITHUB_ACTION"
+	containerCmd.WriteString(" -e GITHUB_RUN_ID")
+	containerCmd.WriteString(" -e GITHUB_RUN_NUMBER")
+	containerCmd.WriteString(" -e GITHUB_RUN_ATTEMPT")
+	containerCmd.WriteString(" -e GITHUB_JOB")
+	containerCmd.WriteString(" -e GITHUB_ACTION")
 	// GitHub Actions event context
-	containerCmd += " -e GITHUB_EVENT_NAME"
-	containerCmd += " -e GITHUB_EVENT_PATH"
+	containerCmd.WriteString(" -e GITHUB_EVENT_NAME")
+	containerCmd.WriteString(" -e GITHUB_EVENT_PATH")
 	// GitHub Actions actor context
-	containerCmd += " -e GITHUB_ACTOR"
-	containerCmd += " -e GITHUB_ACTOR_ID"
-	containerCmd += " -e GITHUB_TRIGGERING_ACTOR"
+	containerCmd.WriteString(" -e GITHUB_ACTOR")
+	containerCmd.WriteString(" -e GITHUB_ACTOR_ID")
+	containerCmd.WriteString(" -e GITHUB_TRIGGERING_ACTOR")
 	// GitHub Actions workflow context
-	containerCmd += " -e GITHUB_WORKFLOW"
-	containerCmd += " -e GITHUB_WORKFLOW_REF"
-	containerCmd += " -e GITHUB_WORKFLOW_SHA"
+	containerCmd.WriteString(" -e GITHUB_WORKFLOW")
+	containerCmd.WriteString(" -e GITHUB_WORKFLOW_REF")
+	containerCmd.WriteString(" -e GITHUB_WORKFLOW_SHA")
 	// GitHub Actions ref context
-	containerCmd += " -e GITHUB_REF"
-	containerCmd += " -e GITHUB_REF_NAME"
-	containerCmd += " -e GITHUB_REF_TYPE"
-	containerCmd += " -e GITHUB_HEAD_REF"
-	containerCmd += " -e GITHUB_BASE_REF"
+	containerCmd.WriteString(" -e GITHUB_REF")
+	containerCmd.WriteString(" -e GITHUB_REF_NAME")
+	containerCmd.WriteString(" -e GITHUB_REF_TYPE")
+	containerCmd.WriteString(" -e GITHUB_HEAD_REF")
+	containerCmd.WriteString(" -e GITHUB_BASE_REF")
 	// Environment variables used by safeinputs MCP server
 	// Only add if safe-inputs is actually enabled (has tools configured)
 	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
-		containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
+		containerCmd.WriteString(" -e GH_AW_SAFE_INPUTS_PORT")
+		containerCmd.WriteString(" -e GH_AW_SAFE_INPUTS_API_KEY")
 	}
 	// Environment variables used by safeoutputs MCP server
 	// Only add if safe-outputs is actually enabled (has tools configured)
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		containerCmd += " -e GH_AW_SAFE_OUTPUTS_PORT"
-		containerCmd += " -e GH_AW_SAFE_OUTPUTS_API_KEY"
+		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_PORT")
+		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_API_KEY")
 	}
 	if len(gatewayConfig.Env) > 0 {
 		// Using functional helper to extract map keys
 		envVarNames := sliceutil.MapToSlice(gatewayConfig.Env)
 		sort.Strings(envVarNames)
 		for _, envVarName := range envVarNames {
-			containerCmd += " -e " + envVarName
+			containerCmd.WriteString(" -e " + envVarName)
 		}
 	}
 
@@ -684,7 +680,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		sort.Strings(envVarNames)
 
 		for _, envVarName := range envVarNames {
-			containerCmd += " -e " + envVarName
+			containerCmd.WriteString(" -e " + envVarName)
 		}
 
 		if mcpSetupGeneratorLog.Enabled() && len(envVarNames) > 0 {
@@ -695,38 +691,38 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Add volume mounts
 	// First, add the payload directory mount (rw for both agent and gateway)
 	if payloadDir != "" {
-		containerCmd += " -v " + payloadDir + ":" + payloadDir + ":rw"
+		containerCmd.WriteString(" -v " + payloadDir + ":" + payloadDir + ":rw")
 	}
 
 	// Then add user-configured mounts
 	if len(gatewayConfig.Mounts) > 0 {
 		for _, mount := range gatewayConfig.Mounts {
-			containerCmd += " -v " + mount
+			containerCmd.WriteString(" -v " + mount)
 		}
 	}
 
 	// Add entrypoint override if specified
 	if gatewayConfig.Entrypoint != "" {
-		containerCmd += " --entrypoint " + shellEscapeArg(gatewayConfig.Entrypoint)
+		containerCmd.WriteString(" --entrypoint " + shellEscapeArg(gatewayConfig.Entrypoint))
 	}
 
-	containerCmd += " " + containerImage
+	containerCmd.WriteString(" " + containerImage)
 
 	if len(gatewayConfig.EntrypointArgs) > 0 {
 		for _, arg := range gatewayConfig.EntrypointArgs {
-			containerCmd += " " + shellEscapeArg(arg)
+			containerCmd.WriteString(" " + shellEscapeArg(arg))
 		}
 	}
 
 	if len(gatewayConfig.Args) > 0 {
 		for _, arg := range gatewayConfig.Args {
-			containerCmd += " " + shellEscapeArg(arg)
+			containerCmd.WriteString(" " + shellEscapeArg(arg))
 		}
 	}
 
 	// Build the export command with proper quoting that allows variable expansion
 	// We need to break out of quotes for ${GITHUB_WORKSPACE} variables
-	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd)
+	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd.String())
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")
 

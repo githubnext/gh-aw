@@ -727,7 +727,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 
 	// Create many chunks to simulate large prompt
 	userPromptChunks := make([]string, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		userPromptChunks[i] = fmt.Sprintf("# Section %d\n\nContent for section %d.", i+1, i+1)
 	}
 
@@ -737,14 +737,14 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 	output := yaml.String()
 
 	// Verify all chunks are present
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		assert.Contains(t, output, fmt.Sprintf("# Section %d", i+1),
 			"Should contain section %d", i+1)
 	}
 
 	// Verify chunks are in order
 	positions := make([]int, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		positions[i] = strings.Index(output, fmt.Sprintf("# Section %d", i+1))
 		require.NotEqual(t, -1, positions[i], "Section %d should be present", i+1)
 	}
@@ -756,7 +756,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 
 	// Verify all chunks come after system tag closes
 	systemClosePos := strings.Index(output, "</system>")
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		assert.Less(t, systemClosePos, positions[i],
 			"Section %d should come after system tag closes", i+1)
 	}

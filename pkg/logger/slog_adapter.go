@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 )
 
 // SlogHandler implements slog.Handler by wrapping a gh-aw Logger
@@ -32,7 +33,8 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 	}
 
 	// Format the message with attributes
-	msg := r.Message
+	var msg strings.Builder
+	msg.WriteString(r.Message)
 	if r.NumAttrs() > 0 {
 		attrs := make([]any, 0, r.NumAttrs()*2)
 		r.Attrs(func(a slog.Attr) bool {
@@ -46,7 +48,7 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 			if !ok {
 				key = fmt.Sprint(attrs[i])
 			}
-			msg += " " + key + "=" + formatSlogValue(attrs[i+1])
+			msg.WriteString(" " + key + "=" + formatSlogValue(attrs[i+1]))
 		}
 	}
 
@@ -63,7 +65,7 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 		levelPrefix = "[ERROR] "
 	}
 
-	h.logger.Print(levelPrefix + msg)
+	h.logger.Print(levelPrefix + msg.String())
 	return nil
 }
 

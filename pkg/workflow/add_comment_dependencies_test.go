@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -120,13 +121,7 @@ func TestAddCommentJobDependencies(t *testing.T) {
 				t.Errorf("Expected %d needs, got %d", len(tt.expectedNeeds), len(job.Needs))
 			}
 			for _, expectedNeed := range tt.expectedNeeds {
-				found := false
-				for _, need := range job.Needs {
-					if need == expectedNeed {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(job.Needs, expectedNeed)
 				if !found {
 					t.Errorf("Expected need '%s' not found in job.Needs: %v", expectedNeed, job.Needs)
 				}

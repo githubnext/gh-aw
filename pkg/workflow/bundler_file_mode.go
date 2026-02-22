@@ -294,8 +294,8 @@ func GenerateWriteScriptsStep(files []ScriptFile) []string {
 		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filePath, delimiter))
 
 		// Write content line by line
-		lines := strings.Split(file.Content, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(file.Content, "\n")
+		for line := range lines {
 			steps = append(steps, fmt.Sprintf("          %s\n", line))
 		}
 

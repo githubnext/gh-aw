@@ -204,7 +204,7 @@ func TestRenderSlice_DoublePointerToStructsAsTable(t *testing.T) {
 	pps2 := &ps2
 
 	// Create slice with reflect
-	sliceType := reflect.TypeOf((**SliceTestStruct)(nil))
+	sliceType := reflect.TypeFor[**SliceTestStruct]()
 	val := reflect.MakeSlice(reflect.SliceOf(sliceType), 0, 2)
 	val = reflect.Append(val, reflect.ValueOf(pps1))
 	val = reflect.Append(val, reflect.ValueOf(pps2))

@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -336,13 +338,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	)
 
 	// Check if add_comment job exists in the safe output jobs
-	hasAddCommentJob := false
-	for _, jobName := range safeOutputJobNames {
-		if jobName == "add_comment" {
-			hasAddCommentJob = true
-			break
-		}
-	}
+	hasAddCommentJob := slices.Contains(safeOutputJobNames, "add_comment")
 
 	// Build the condition based on whether add_comment job exists
 	var condition ConditionNode
@@ -461,15 +457,15 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 // toEnvVarCase converts a string to uppercase environment variable case
 func toEnvVarCase(s string) string {
 	// Convert to uppercase and keep underscores
-	result := ""
+	var result strings.Builder
 	for _, ch := range s {
 		if ch >= 'a' && ch <= 'z' {
-			result += string(ch - 32) // Convert to uppercase
+			result.WriteString(string(ch - 32)) // Convert to uppercase
 		} else if ch >= 'A' && ch <= 'Z' {
-			result += string(ch)
+			result.WriteString(string(ch))
 		} else if ch == '_' {
-			result += "_"
+			result.WriteString("_")
 		}
 	}
-	return result
+	return result.String()
 }

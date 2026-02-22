@@ -125,8 +125,8 @@ func isTypeConflictLine(line string) bool {
 	}
 	// Embedded form: "- at '/path': got X, want Y"
 	// Look for ": got " followed by ", want " later in the line
-	if idx := strings.Index(line, ": got "); idx >= 0 {
-		afterGot := line[idx+len(": got "):]
+	if _, after, ok := strings.Cut(line, ": got "); ok {
+		afterGot := after
 		return strings.Contains(afterGot, ", want ")
 	}
 	return false

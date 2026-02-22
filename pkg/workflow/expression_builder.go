@@ -321,8 +321,8 @@ func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent 
 	conditionStr := condition.Render()
 
 	// Format the condition with proper indentation
-	lines := strings.Split(conditionStr, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(conditionStr, "\n")
+	for line := range lines {
 		yaml.WriteString(indent + line + "\n")
 	}
 }

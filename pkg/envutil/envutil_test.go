@@ -385,8 +385,8 @@ func BenchmarkGetIntFromEnv_ValidValue(b *testing.B) {
 	defer os.Unsetenv(testEnvVar)
 
 	log := logger.New("benchmark")
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		GetIntFromEnv(testEnvVar, 10, 1, 100, log)
 	}
 }
@@ -396,8 +396,8 @@ func BenchmarkGetIntFromEnv_DefaultValue(b *testing.B) {
 	os.Unsetenv(testEnvVar)
 
 	log := logger.New("benchmark")
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		GetIntFromEnv(testEnvVar, 10, 1, 100, log)
 	}
 }
@@ -408,8 +408,8 @@ func BenchmarkGetIntFromEnv_InvalidValue(b *testing.B) {
 	defer os.Unsetenv(testEnvVar)
 
 	log := logger.New("benchmark")
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		GetIntFromEnv(testEnvVar, 10, 1, 100, log)
 	}
 }
@@ -419,8 +419,7 @@ func BenchmarkGetIntFromEnv_NoLogger(b *testing.B) {
 	os.Setenv(testEnvVar, "50")
 	defer os.Unsetenv(testEnvVar)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		GetIntFromEnv(testEnvVar, 10, 1, 100, nil)
 	}
 }

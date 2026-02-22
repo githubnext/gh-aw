@@ -213,7 +213,7 @@ func RemoveFieldFromOnTrigger(content, fieldName string) (string, error) {
 		skipNextLine := false
 		fieldIndentLevel := 0
 
-		for i := 0; i < len(result.FrontmatterLines); i++ {
+		for i := range len(result.FrontmatterLines) {
 			line := result.FrontmatterLines[i]
 			trimmedLine := strings.TrimSpace(line)
 
@@ -353,7 +353,7 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 		onIndentLevel := 0
 		fieldUpdated := false
 
-		for i := 0; i < len(result.FrontmatterLines); i++ {
+		for i := range len(result.FrontmatterLines) {
 			line := result.FrontmatterLines[i]
 			trimmedLine := strings.TrimSpace(line)
 

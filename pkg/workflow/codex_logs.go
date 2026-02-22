@@ -26,7 +26,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	var currentSequence []string                  // Track tool sequence
 	var lastToolName string                       // Track most recent tool for output size extraction
 
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		line := lines[i]
 
 		// Skip empty lines

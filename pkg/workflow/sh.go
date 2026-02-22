@@ -41,8 +41,8 @@ func WritePromptFileToYAML(yaml *strings.Builder, filename string, indent string
 
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
+	scriptLines := strings.SplitSeq(script, "\n")
+	for line := range scriptLines {
 		// Skip empty lines at the beginning or end
 		if strings.TrimSpace(line) != "" {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)

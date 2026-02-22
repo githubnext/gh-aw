@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -198,10 +199,8 @@ func isPathScannedBySecretRedaction(path string) bool {
 		if strings.HasPrefix(path, "/tmp/") && strings.Contains(path, "*") {
 			ext := filepath.Ext(path)
 			safeExtensions := []string{".txt", ".json", ".log", ".jsonl"}
-			for _, safeExt := range safeExtensions {
-				if ext == safeExt {
-					return true
-				}
+			if slices.Contains(safeExtensions, ext) {
+				return true
 			}
 		}
 
@@ -211,10 +210,8 @@ func isPathScannedBySecretRedaction(path string) bool {
 	// Path must have one of the scanned extensions: .txt, .json, .log, .jsonl
 	ext := filepath.Ext(path)
 	scannedExtensions := []string{".txt", ".json", ".log", ".jsonl"}
-	for _, scannedExt := range scannedExtensions {
-		if ext == scannedExt {
-			return true
-		}
+	if slices.Contains(scannedExtensions, ext) {
+		return true
 	}
 
 	// If path is a directory (ends with /), we assume it contains scannable files

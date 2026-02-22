@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -122,12 +123,7 @@ func TestNeutralToolsWithoutSafeOutputs(t *testing.T) {
 // Helper function to check if a tool is present in the comma-separated result
 func containsTool(result, tool string) bool {
 	tools := splitTools(result)
-	for _, t := range tools {
-		if t == tool {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tools, tool)
 }
 
 func splitTools(result string) []string {

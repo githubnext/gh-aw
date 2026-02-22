@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"time"
@@ -62,9 +63,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			// Check if there are other events to merge
 			if len(data.CommandOtherEvents) > 0 {
 				// Merge other events into command events
-				for key, value := range data.CommandOtherEvents {
-					commandEventsMap[key] = value
-				}
+				maps.Copy(commandEventsMap, data.CommandOtherEvents)
 			}
 
 			// Convert merged events to YAML
@@ -196,9 +195,7 @@ func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, 
 	}
 
 	// Add MCP servers to the tools collection
-	for serverName, serverConfig := range mcpServers {
-		result[serverName] = serverConfig
-	}
+	maps.Copy(result, mcpServers)
 
 	// Merge included tools
 	return c.MergeTools(result, includedTools)
@@ -210,14 +207,12 @@ func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map
 	result := make(map[string]any)
 
 	// Start with top-level runtimes
-	for id, config := range topRuntimes {
-		result[id] = config
-	}
+	maps.Copy(result, topRuntimes)
 
 	// Merge imported runtimes (newline-separated JSON objects)
 	if importedRuntimesJSON != "" {
-		lines := strings.Split(strings.TrimSpace(importedRuntimesJSON), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(strings.TrimSpace(importedRuntimesJSON), "\n")
+		for line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" || line == "{}" {
 				continue
@@ -229,9 +224,7 @@ func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map
 			}
 
 			// Merge imported runtimes - later imports override earlier ones
-			for id, config := range importedRuntimes {
-				result[id] = config
-			}
+			maps.Copy(result, importedRuntimes)
 		}
 	}
 

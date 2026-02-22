@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,9 +65,7 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			}
 			if tt.mcpServers != nil {
 				// Add mcp servers to tools map for the test
-				for name, config := range tt.mcpServers {
-					testTools[name] = config
-				}
+				maps.Copy(testTools, tt.mcpServers)
 			}
 
 			// Test generateExtractAccessLogs

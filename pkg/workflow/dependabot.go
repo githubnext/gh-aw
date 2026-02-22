@@ -487,8 +487,8 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 		}
 
 		// Parse existing requirements
-		lines := strings.Split(string(existingData), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(string(existingData), "\n")
+		for line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" || strings.HasPrefix(line, "#") {
 				continue
@@ -629,9 +629,9 @@ func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrit
 			return fmt.Errorf("failed to read existing go.mod: %w", err)
 		}
 
-		existingLines := strings.Split(string(existingData), "\n")
+		existingLines := strings.SplitSeq(string(existingData), "\n")
 		// Keep module declaration and go version
-		for _, line := range existingLines {
+		for line := range existingLines {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "go ") {
 				lines = append(lines, line)

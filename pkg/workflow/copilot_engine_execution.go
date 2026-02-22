@@ -23,6 +23,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -297,17 +298,13 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
 
 	// Add custom environment variables from agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		for key, value := range agentConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, agentConfig.Env)
 		copilotExecLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
