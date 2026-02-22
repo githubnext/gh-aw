@@ -158,6 +158,12 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		return nil
 	}
 
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config AddCommentsConfig
 	if err := unmarshalConfig(outputMap, "add-comment", &config, addCommentLog); err != nil {
@@ -167,8 +173,8 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)

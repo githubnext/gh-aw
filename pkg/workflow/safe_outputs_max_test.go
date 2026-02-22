@@ -27,29 +27,29 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreateIssues == nil {
 			t.Fatal("Expected CreateIssues to be parsed")
 		}
-		if config.CreateIssues.Max != 1 {
-			t.Errorf("Expected CreateIssues.Max to be 1 by default, got %d", config.CreateIssues.Max)
+		if templatableIntValue(config.CreateIssues.Max) != 1 {
+			t.Errorf("Expected CreateIssues.Max to be 1 by default, got %v", config.CreateIssues.Max)
 		}
 
 		if config.AddComments == nil {
 			t.Fatal("Expected AddComments to be parsed")
 		}
-		if config.AddComments.Max != 1 {
-			t.Errorf("Expected AddComments.Max to be 1 by default, got %d", config.AddComments.Max)
+		if templatableIntValue(config.AddComments.Max) != 1 {
+			t.Errorf("Expected AddComments.Max to be 1 by default, got %v", config.AddComments.Max)
 		}
 
 		if config.CreatePullRequests == nil {
 			t.Fatal("Expected CreatePullRequests to be parsed")
 		}
-		if config.CreatePullRequests.Max != 1 {
-			t.Errorf("Expected CreatePullRequests.Max to be 1 by default, got %d", config.CreatePullRequests.Max)
+		if templatableIntValue(config.CreatePullRequests.Max) != 1 {
+			t.Errorf("Expected CreatePullRequests.Max to be 1 by default, got %v", config.CreatePullRequests.Max)
 		}
 
 		if config.UpdateIssues == nil {
 			t.Fatal("Expected UpdateIssues to be parsed")
 		}
-		if config.UpdateIssues.Max != 1 {
-			t.Errorf("Expected UpdateIssues.Max to be 1 by default, got %d", config.UpdateIssues.Max)
+		if templatableIntValue(config.UpdateIssues.Max) != 1 {
+			t.Errorf("Expected UpdateIssues.Max to be 1 by default, got %v", config.UpdateIssues.Max)
 		}
 	})
 
@@ -80,29 +80,29 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreateIssues == nil {
 			t.Fatal("Expected CreateIssues to be parsed")
 		}
-		if config.CreateIssues.Max != 3 {
-			t.Errorf("Expected CreateIssues.Max to be 3, got %d", config.CreateIssues.Max)
+		if templatableIntValue(config.CreateIssues.Max) != 3 {
+			t.Errorf("Expected CreateIssues.Max to be 3, got %v", config.CreateIssues.Max)
 		}
 
 		if config.AddComments == nil {
 			t.Fatal("Expected AddComments to be parsed")
 		}
-		if config.AddComments.Max != 5 {
-			t.Errorf("Expected AddComments.Max to be 5, got %d", config.AddComments.Max)
+		if templatableIntValue(config.AddComments.Max) != 5 {
+			t.Errorf("Expected AddComments.Max to be 5, got %v", config.AddComments.Max)
 		}
 
 		if config.CreatePullRequests == nil {
 			t.Fatal("Expected CreatePullRequests to be parsed")
 		}
-		if config.CreatePullRequests.Max != 2 {
-			t.Errorf("Expected CreatePullRequests.Max to be 2, got %d", config.CreatePullRequests.Max)
+		if templatableIntValue(config.CreatePullRequests.Max) != 2 {
+			t.Errorf("Expected CreatePullRequests.Max to be 2, got %v", config.CreatePullRequests.Max)
 		}
 
 		if config.UpdateIssues == nil {
 			t.Fatal("Expected UpdateIssues to be parsed")
 		}
-		if config.UpdateIssues.Max != 4 {
-			t.Errorf("Expected UpdateIssues.Max to be 4, got %d", config.UpdateIssues.Max)
+		if templatableIntValue(config.UpdateIssues.Max) != 4 {
+			t.Errorf("Expected UpdateIssues.Max to be 4, got %v", config.UpdateIssues.Max)
 		}
 	})
 
@@ -142,8 +142,8 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreateIssues == nil {
 			t.Fatal("Expected CreateIssues to be parsed")
 		}
-		if config.CreateIssues.Max != 2 {
-			t.Errorf("Expected CreateIssues.Max to be 2, got %d", config.CreateIssues.Max)
+		if templatableIntValue(config.CreateIssues.Max) != 2 {
+			t.Errorf("Expected CreateIssues.Max to be 2, got %v", config.CreateIssues.Max)
 		}
 		if config.CreateIssues.TitlePrefix != "[Auto] " {
 			t.Errorf("Expected CreateIssues.TitlePrefix to be '[Auto] ', got '%s'", config.CreateIssues.TitlePrefix)
@@ -156,8 +156,8 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.AddComments == nil {
 			t.Fatal("Expected AddComments to be parsed")
 		}
-		if config.AddComments.Max != 3 {
-			t.Errorf("Expected AddComments.Max to be 3, got %d", config.AddComments.Max)
+		if templatableIntValue(config.AddComments.Max) != 3 {
+			t.Errorf("Expected AddComments.Max to be 3, got %v", config.AddComments.Max)
 		}
 		if config.AddComments.Target != "*" {
 			t.Errorf("Expected AddComments.Target to be '*', got '%s'", config.AddComments.Target)
@@ -167,8 +167,8 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreatePullRequests == nil {
 			t.Fatal("Expected CreatePullRequests to be parsed")
 		}
-		if config.CreatePullRequests.Max != 1 {
-			t.Errorf("Expected CreatePullRequests.Max to be 1, got %d", config.CreatePullRequests.Max)
+		if templatableIntValue(config.CreatePullRequests.Max) != 1 {
+			t.Errorf("Expected CreatePullRequests.Max to be 1, got %v", config.CreatePullRequests.Max)
 		}
 		if config.CreatePullRequests.TitlePrefix != "[Fix] " {
 			t.Errorf("Expected CreatePullRequests.TitlePrefix to be '[Fix] ', got '%s'", config.CreatePullRequests.TitlePrefix)
@@ -184,8 +184,8 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.UpdateIssues == nil {
 			t.Fatal("Expected UpdateIssues to be parsed")
 		}
-		if config.UpdateIssues.Max != 2 {
-			t.Errorf("Expected UpdateIssues.Max to be 2, got %d", config.UpdateIssues.Max)
+		if templatableIntValue(config.UpdateIssues.Max) != 2 {
+			t.Errorf("Expected UpdateIssues.Max to be 2, got %v", config.UpdateIssues.Max)
 		}
 		if config.UpdateIssues.Target != "456" {
 			t.Errorf("Expected UpdateIssues.Target to be '456', got '%s'", config.UpdateIssues.Target)

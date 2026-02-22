@@ -49,6 +49,12 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		}
 	}
 
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", discussionLog); err != nil {
+		discussionLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config CreateDiscussionsConfig
 	if err := unmarshalConfig(outputMap, "create-discussion", &config, discussionLog); err != nil {
@@ -58,8 +64,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Set default expires to 7 days (168 hours) if not specified and not explicitly disabled

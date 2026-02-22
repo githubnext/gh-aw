@@ -47,6 +47,12 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		}
 	}
 
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", createIssueLog); err != nil {
+		createIssueLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config CreateIssuesConfig
 	if err := unmarshalConfig(outputMap, "create-issue", &config, createIssueLog); err != nil {
@@ -66,8 +72,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)

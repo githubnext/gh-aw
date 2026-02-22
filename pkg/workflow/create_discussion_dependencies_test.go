@@ -39,7 +39,7 @@ func TestCreateDiscussionJobDependencies(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					CreateDiscussions: &CreateDiscussionsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 						Category: "general",
 					},

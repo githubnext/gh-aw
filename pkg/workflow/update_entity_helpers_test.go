@@ -166,7 +166,7 @@ func TestParseUpdateEntityConfigWithFields(t *testing.T) {
 			},
 			wantNil: false,
 			validateFunc: func(t *testing.T, cfg *UpdateEntityConfig) {
-				if cfg.Max != 2 {
+				if templatableIntValue(cfg.Max) != 2 {
 					t.Errorf("Expected max=2, got %d", cfg.Max)
 				}
 			},
@@ -194,7 +194,7 @@ func TestParseUpdateEntityConfigWithFields(t *testing.T) {
 			}(),
 			wantNil: false,
 			validateFunc: func(t *testing.T, cfg *UpdateEntityConfig) {
-				if cfg.Max != 3 {
+				if templatableIntValue(cfg.Max) != 3 {
 					t.Errorf("Expected max=3, got %d", cfg.Max)
 				}
 			},
@@ -219,7 +219,7 @@ func TestParseUpdateEntityConfigWithFields(t *testing.T) {
 			},
 			wantNil: false,
 			validateFunc: func(t *testing.T, cfg *UpdateEntityConfig) {
-				if cfg.Max != 1 {
+				if templatableIntValue(cfg.Max) != 1 {
 					t.Errorf("Expected max=1, got %d", cfg.Max)
 				}
 			},
@@ -283,7 +283,7 @@ func TestParseUpdateEntityConfigTyped(t *testing.T) {
 			configKey:  "update-issue",
 			wantNil:    false,
 			validateFunc: func(t *testing.T, cfg *UpdateIssuesConfig) {
-				if cfg.Max != 2 {
+				if templatableIntValue(cfg.Max) != 2 {
 					t.Errorf("Expected max=2, got %d", cfg.Max)
 				}
 				if cfg.Title == nil {

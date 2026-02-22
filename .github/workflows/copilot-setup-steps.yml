@@ -39,7 +39,7 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
     - name: Install uv
-      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
     - name: Install Go language server (gopls)
       run: go install golang.org/x/tools/gopls@latest
     - name: Install TypeScript language server

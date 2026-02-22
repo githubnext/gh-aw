@@ -1315,9 +1315,18 @@
                       "description": "GitHub search query string to check before running workflow. Query is automatically scoped to the current repository."
                     },
                     "max": {
-                      "type": "integer",
-                      "minimum": 1,
-                      "description": "Maximum number of items that must be matched for the workflow to be skipped. Defaults to 1 if not specified."
+                      "description": "Maximum number of items that must be matched for the workflow to be skipped. Defaults to 1 if not specified. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^\\$\\{\\{.*\\}\\}$",
+                          "description": "GitHub Actions expression that resolves to an integer at runtime"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false,
@@ -1387,12 +1396,12 @@
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["all"],
-                  "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+                  "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -2167,7 +2176,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -2551,7 +2560,7 @@
       ]
     },
     "plugins": {
-      "description": "\u26a0\ufe0f  EXPERIMENTAL: Plugin configuration for installing plugins before workflow execution. Supports array format (list of repos/plugin configs) and object format (repos + custom token). Note: Plugin support is experimental and may change in future releases.",
+      "description": "⚠️  EXPERIMENTAL: Plugin configuration for installing plugins before workflow execution. Supports array format (list of repos/plugin configs) and object format (repos + custom token). Note: Plugin support is experimental and may change in future releases.",
       "examples": [
         ["github/copilot-plugin", "acme/custom-tools"],
         [
@@ -2748,7 +2757,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -3990,10 +3999,19 @@
                   "description": "GitHub usernames to assign the created issue to. Can be a single username string or array of usernames. Use 'copilot' to assign to GitHub Copilot."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of issues to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of issues to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4084,10 +4102,19 @@
                   "description": "Base branch for the agent session pull request. Defaults to the current branch or repository default branch."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of agent sessions to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 1
+                  "description": "Maximum number of agent sessions to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4125,10 +4152,19 @@
                   "description": "Base branch for the agent session pull request. Defaults to the current branch or repository default branch."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of agent sessions to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 10
+                  "description": "Maximum number of agent sessions to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4163,10 +4199,19 @@
               "required": ["project"],
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of project operations to perform (default: 10). Each operation may add a project item, or update its fields.",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of project operations to perform (default: 10). Each operation may add a project item, or update its fields. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -4267,10 +4312,19 @@
               "description": "Configuration for creating new GitHub Projects boards. Enables agents to create new project boards with optional custom fields, views, and an initial item. Requires a Personal Access Token (PAT) or GitHub App token with Projects write permission (default GITHUB_TOKEN cannot be used). Agent output includes: title (project name), owner (org/user login, uses default if omitted), owner_type ('org' or 'user'), optional item_url (issue to add as first item), and optional field_definitions. Returns a temporary project ID for use in subsequent update_project operations.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of create operations to perform (default: 1).",
-                  "minimum": 1,
-                  "maximum": 10
+                  "description": "Maximum number of create operations to perform (default: 1). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -4372,10 +4426,19 @@
               "required": ["project"],
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of status updates to create (default: 1). Typically 1 per orchestrator run.",
-                  "minimum": 1,
-                  "maximum": 10
+                  "description": "Maximum number of status updates to create (default: 1). Typically 1 per orchestrator run. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -4436,10 +4499,19 @@
                   }
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of discussions to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of discussions to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4551,10 +4623,19 @@
                   "description": "Target for closing: 'triggering' (default, current discussion), or '*' (any discussion with discussion_number field)"
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of discussions to close (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of discussions to close (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4609,10 +4690,19 @@
                   "description": "Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones)."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of discussions to update (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of discussions to update (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4655,10 +4745,19 @@
                   "description": "Target for closing: 'triggering' (default, current issue), or '*' (any issue with issue_number field)"
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of issues to close (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of issues to close (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4712,10 +4811,19 @@
                   "description": "Target for closing: 'triggering' (default, current PR), or '*' (any PR with pull_request_number field)"
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of pull requests to close (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of pull requests to close (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4771,10 +4879,19 @@
                   "description": "Target for marking: 'triggering' (default, current PR), or '*' (any PR with pull_request_number field)"
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of pull requests to mark as ready (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of pull requests to mark as ready (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -4810,10 +4927,19 @@
               "description": "Configuration for automatically creating GitHub issue or pull request comments from AI workflow output. The main job does not need write permissions.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of comments to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of comments to create (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": "string",
@@ -4878,11 +5004,20 @@
               "description": "Configuration for creating GitHub pull requests from agentic workflow output. Supports creating multiple PRs in a single run when max > 1.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of pull requests to create (default: 1). Each PR requires distinct changes on a separate branch.",
-                  "minimum": 1,
-                  "maximum": 10,
-                  "default": 1
+                  "description": "Maximum number of pull requests to create (default: 1). Each PR requires distinct changes on a separate branch. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "title-prefix": {
                   "type": "string",
@@ -4919,7 +5054,11 @@
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
                 },
                 "draft": {
-                  "allOf": [{ "$ref": "#/$defs/templatable_boolean" }],
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/templatable_boolean"
+                    }
+                  ],
                   "description": "Whether to create pull request as draft (defaults to true). Accepts a boolean or a GitHub Actions expression.",
                   "default": true
                 },
@@ -5011,10 +5150,19 @@
               "description": "Configuration for creating GitHub pull request review comments from agentic workflow output",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of review comments to create (default: 10)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of review comments to create (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "side": {
                   "type": "string",
@@ -5057,10 +5205,19 @@
               "description": "Configuration for submitting a consolidated PR review with a status decision (APPROVE, REQUEST_CHANGES, COMMENT). All create-pull-request-review-comment outputs are collected and submitted as part of this review.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of reviews to submit (default: 1)",
-                  "minimum": 1,
-                  "maximum": 10
+                  "description": "Maximum number of reviews to submit (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "footer": {
                   "oneOf": [
@@ -5101,10 +5258,19 @@
               "description": "Configuration for replying to existing pull request review comments",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of replies to create (default: 10)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of replies to create (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": "string",
@@ -5144,13 +5310,22 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only — threads on other PRs cannot be resolved.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of review threads to resolve (default: 10)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -5173,9 +5348,18 @@
               "description": "Configuration for creating repository security advisories (SARIF format) from agentic workflow output",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of security findings to include (default: unlimited)",
-                  "minimum": 1
+                  "description": "Maximum number of security findings to include (default: unlimited) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "driver": {
                   "type": "string",
@@ -5202,9 +5386,18 @@
               "description": "Configuration for creating autofixes for code scanning alerts",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of autofixes to create (default: 10)",
-                  "minimum": 1
+                  "description": "Maximum number of autofixes to create (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -5249,9 +5442,18 @@
                   "maxItems": 50
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of labels to add (default: 3)",
-                  "minimum": 1
+                  "description": "Optional maximum number of labels to add (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": "string",
@@ -5307,9 +5509,18 @@
                   "maxItems": 50
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of labels to remove (default: 3)",
-                  "minimum": 1
+                  "description": "Optional maximum number of labels to remove (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": "string",
@@ -5349,9 +5560,18 @@
                   "maxItems": 50
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of reviewers to add (default: 3)",
-                  "minimum": 1
+                  "description": "Optional maximum number of reviewers to add (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": "string",
@@ -5391,9 +5611,18 @@
                   "maxItems": 50
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of milestone assignments (default: 1)",
-                  "minimum": 1
+                  "description": "Optional maximum number of milestone assignments (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -5443,9 +5672,18 @@
                   "description": "Optional list of allowed agent names. If specified, only these agents can be assigned. When configured, existing agent assignees not in the list are removed while regular user assignees are preserved."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of agent assignments (default: 1)",
-                  "minimum": 1
+                  "description": "Optional maximum number of agent assignments (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": ["string", "number"],
@@ -5510,9 +5748,18 @@
                   "description": "Optional list of blocked usernames or patterns (e.g., 'copilot', '*[bot]'). Users matching these patterns cannot be assigned. Supports exact matches and glob patterns."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of user assignments (default: 1)",
-                  "minimum": 1
+                  "description": "Optional maximum number of user assignments (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": ["string", "number"],
@@ -5562,9 +5809,18 @@
                   "description": "Optional list of blocked usernames or patterns (e.g., 'copilot', '*[bot]'). Users matching these patterns cannot be unassigned. Supports exact matches and glob patterns."
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Optional maximum number of unassignment operations (default: 1)",
-                  "minimum": 1
+                  "description": "Optional maximum number of unassignment operations (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target": {
                   "type": ["string", "number"],
@@ -5602,10 +5858,19 @@
               "description": "Configuration for linking issues as sub-issues from agentic workflow output",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of sub-issue links to create (default: 5)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of sub-issue links to create (default: 5) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "parent-required-labels": {
                   "type": "array",
@@ -5676,10 +5941,19 @@
                   "default": true
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of issues to update (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of issues to update (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -5728,10 +6002,19 @@
                   "default": true
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of pull requests to update (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of pull requests to update (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -5762,11 +6045,20 @@
               "description": "Configuration for pushing changes to a specific branch from agentic workflow output. Supports pushing to multiple PRs in a single run when max > 1.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of push operations to perform (default: 1). Each push targets a different pull request branch.",
-                  "minimum": 1,
-                  "maximum": 10,
-                  "default": 1
+                  "description": "Maximum number of push operations to perform (default: 1). Each push targets a different pull request branch. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "branch": {
                   "type": "string",
@@ -5822,10 +6114,19 @@
               "description": "Configuration for hiding comments on GitHub issues, pull requests, or discussions from agentic workflow output",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of comments to hide (default: 5)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of comments to hide (default: 5) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -5866,11 +6167,20 @@
                   "maxItems": 50
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of workflow dispatch operations per run (default: 1, max: 50)",
-                  "minimum": 1,
-                  "maximum": 50,
-                  "default": 1
+                  "description": "Maximum number of workflow dispatch operations per run (default: 1, max: 50) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -5900,9 +6210,18 @@
               "description": "Configuration for reporting missing tools from agentic workflow output",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of missing tool reports (default: unlimited)",
-                  "minimum": 1
+                  "description": "Maximum number of missing tool reports (default: unlimited) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "create-issue": {
                   "type": "boolean",
@@ -5948,9 +6267,18 @@
               "description": "Configuration for reporting missing data required to achieve workflow goals. Encourages AI agents to be truthful about data gaps instead of hallucinating information.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of missing data reports (default: unlimited)",
-                  "minimum": 1
+                  "description": "Maximum number of missing data reports (default: unlimited) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "create-issue": {
                   "type": "boolean",
@@ -5996,10 +6324,19 @@
               "description": "Configuration for no-op safe output (logging only, no GitHub API calls). Always available as a fallback to ensure human-visible artifacts.",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of noop messages (default: 1)",
-                  "minimum": 1,
-                  "default": 1
+                  "description": "Maximum number of noop messages (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -6052,10 +6389,19 @@
                   }
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of assets to upload (default: 10)",
-                  "minimum": 1,
-                  "maximum": 100
+                  "description": "Maximum number of assets to upload (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -6078,11 +6424,20 @@
               "description": "Configuration for updating GitHub release descriptions",
               "properties": {
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of releases to update (default: 1)",
-                  "minimum": 1,
-                  "maximum": 10,
-                  "default": 1
+                  "description": "Maximum number of releases to update (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10,
+                      "default": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 },
                 "target-repo": {
                   "type": "string",
@@ -6367,8 +6722,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
-              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
+              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -6382,18 +6737,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -6443,10 +6798,19 @@
                   }
                 },
                 "max": {
-                  "type": "integer",
-                  "description": "Maximum number of mentions allowed per message. Default: 50",
-                  "minimum": 1,
-                  "default": 50
+                  "description": "Maximum number of mentions allowed per message. Default: 50 Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "default": 50
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -6509,10 +6873,19 @@
       "required": ["max"],
       "properties": {
         "max": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10,
-          "description": "Maximum number of workflow runs allowed per user within the time window. Required field."
+          "description": "Maximum number of workflow runs allowed per user within the time window. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to an integer at runtime"
+            }
+          ]
         },
         "window": {
           "type": "integer",
@@ -6871,6 +7244,20 @@
           "type": "string",
           "pattern": "^\\$\\{\\{.*\\}\\}$",
           "description": "GitHub Actions expression that resolves to a boolean at runtime"
+        }
+      ]
+    },
+    "templatable_integer": {
+      "description": "A non-negative integer value that may also be specified as a GitHub Actions expression string that resolves to an integer at runtime (e.g. '${{ inputs.max-issues }}').",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{\\{.*\\}\\}$",
+          "description": "GitHub Actions expression that resolves to an integer at runtime"
         }
       ]
     },

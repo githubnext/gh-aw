@@ -46,7 +46,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -74,7 +74,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 				},
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 				},
 				AddLabels: &AddLabelsConfig{

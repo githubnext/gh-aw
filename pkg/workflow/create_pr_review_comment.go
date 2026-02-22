@@ -124,7 +124,7 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 	} else {
 		// If configData is nil or not a map (e.g., "create-pull-request-review-comment:" with no value),
 		// still set the default max
-		prReviewCommentsConfig.Max = 10
+		prReviewCommentsConfig.Max = defaultIntStr(10)
 	}
 
 	return prReviewCommentsConfig

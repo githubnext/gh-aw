@@ -274,6 +274,12 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 	}
 
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", createPRLog); err != nil {
+		createPRLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config CreatePullRequestsConfig
 	if err := unmarshalConfig(outputMap, "create-pull-request", &config, createPRLog); err != nil {
@@ -293,11 +299,11 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	// Set default max if not explicitly configured (default is 1)
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 		createPRLog.Print("Using default max count: 1")
 	} else {
-		createPRLog.Printf("Pull request max count configured: %d", config.Max)
+		createPRLog.Printf("Pull request max count configured: %s", *config.Max)
 	}
 
 	return &config

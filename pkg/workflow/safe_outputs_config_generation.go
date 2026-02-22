@@ -276,8 +276,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			missingToolConfig := make(map[string]any)
 
 			// Add max if set
-			if data.SafeOutputs.MissingTool.Max > 0 {
-				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			if data.SafeOutputs.MissingTool.Max != nil {
+				missingToolConfig["max"] = resolveMaxForConfig(data.SafeOutputs.MissingTool.Max, 0)
 			}
 
 			// Add issue creation config if enabled
@@ -303,8 +303,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			missingDataConfig := make(map[string]any)
 
 			// Add max if set
-			if data.SafeOutputs.MissingData.Max > 0 {
-				missingDataConfig["max"] = data.SafeOutputs.MissingData.Max
+			if data.SafeOutputs.MissingData.Max != nil {
+				missingDataConfig["max"] = resolveMaxForConfig(data.SafeOutputs.MissingData.Max, 0)
 			}
 
 			// Add issue creation config if enabled
@@ -470,11 +470,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 
 		// Include max count
-		maxValue := 1 // default
-		if data.SafeOutputs.DispatchWorkflow.Max > 0 {
-			maxValue = data.SafeOutputs.DispatchWorkflow.Max
-		}
-		dispatchWorkflowConfig["max"] = maxValue
+		dispatchWorkflowConfig["max"] = resolveMaxForConfig(data.SafeOutputs.DispatchWorkflow.Max, 1)
 
 		// Only add if it has fields
 		if len(dispatchWorkflowConfig) > 0 {

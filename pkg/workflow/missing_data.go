@@ -27,9 +27,9 @@ func (c *Compiler) buildCreateOutputMissingDataJob(data *WorkflowData, mainJobNa
 
 	// Build custom environment variables specific to missing-data
 	var customEnvVars []string
-	if data.SafeOutputs.MissingData.Max > 0 {
-		missingDataLog.Printf("Setting max missing data limit: %d", data.SafeOutputs.MissingData.Max)
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_DATA_MAX: %d\n", data.SafeOutputs.MissingData.Max))
+	if data.SafeOutputs.MissingData.Max != nil {
+		missingDataLog.Printf("Setting max missing data limit: %s", *data.SafeOutputs.MissingData.Max)
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_DATA_MAX", data.SafeOutputs.MissingData.Max)...)
 	}
 
 	// Add create-issue configuration

@@ -27,9 +27,9 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 
 	// Build custom environment variables specific to missing-tool
 	var customEnvVars []string
-	if data.SafeOutputs.MissingTool.Max > 0 {
-		missingToolLog.Printf("Setting max missing tools limit: %d", data.SafeOutputs.MissingTool.Max)
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
+	if data.SafeOutputs.MissingTool.Max != nil {
+		missingToolLog.Printf("Setting max missing tools limit: %s", *data.SafeOutputs.MissingTool.Max)
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
 	}
 
 	// Add create-issue configuration

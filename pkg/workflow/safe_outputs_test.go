@@ -509,7 +509,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					CreateIssues: &CreateIssuesConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 					},
 				},
 			},
@@ -520,7 +520,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					CreateAgentSessions: &CreateAgentSessionConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 					},
 				},
 			},
@@ -531,7 +531,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
 						Target:               "issue",
 					},
 				},
@@ -542,10 +542,10 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			name: "multiple safe outputs",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
-					CreateIssues:       &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-					AddComments:        &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
+					CreateIssues:       &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+					AddComments:        &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}},
 					CreatePullRequests: &CreatePullRequestsConfig{},
-					AddLabels:          &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
+					AddLabels:          &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
 				},
 			},
 			expectedKeys: []string{"create_issue", "add_comment", "create_pull_request", "add_labels"},
@@ -569,7 +569,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					CloseDiscussions: &CloseDiscussionsConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 						SafeOutputDiscussionFilterConfig: SafeOutputDiscussionFilterConfig{
 							RequiredCategory: "general",
 							SafeOutputFilterConfig: SafeOutputFilterConfig{
@@ -586,7 +586,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			name: "noop config",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
-					NoOp: &NoOpConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+					NoOp: &NoOpConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 				},
 			},
 			expectedKeys: []string{"noop"},
@@ -596,7 +596,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					UpdateProjects: &UpdateProjectConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 					},
 				},
 			},

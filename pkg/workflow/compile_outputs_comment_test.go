@@ -213,8 +213,8 @@ This workflow tests the add-comment max and target configuration parsing.
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddComments.Max != 3 {
-		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.AddComments.Max)
+	if templatableIntValue(workflowData.SafeOutputs.AddComments.Max) != 3 {
+		t.Fatalf("Expected max to be 3, got %v", workflowData.SafeOutputs.AddComments.Max)
 	}
 
 	if workflowData.SafeOutputs.AddComments.Target != "123" {

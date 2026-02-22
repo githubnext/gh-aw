@@ -11,15 +11,21 @@ var specializedOutputsLog = logger.New("workflow:compiler_safe_outputs_specializ
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignToAgent
-	specializedOutputsLog.Printf("Building assign-to-agent step config: max=%d, default_agent=%s", cfg.Max, cfg.DefaultAgent)
+	if cfg.Max != nil {
+		specializedOutputsLog.Printf("Building assign-to-agent step config: max=%s, default_agent=%s", *cfg.Max, cfg.DefaultAgent)
+	} else {
+		specializedOutputsLog.Printf("Building assign-to-agent step config: max=nil, default_agent=%s", cfg.DefaultAgent)
+	}
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
 
 	// Add max count environment variable for JavaScript to validate against
-	if cfg.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", cfg.Max))
+	if maxVal := templatableIntValue(cfg.Max); maxVal > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxVal))
+	} else if cfg.Max != nil {
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_AGENT_MAX_COUNT", cfg.Max)...)
 	}
 
 	// Add default agent environment variable

@@ -103,8 +103,8 @@ func TestMissingToolSafeOutput(t *testing.T) {
 				if safeOutputs.MissingTool == nil {
 					t.Fatal("Expected MissingTool config to be enabled, but it was nil")
 				}
-				if safeOutputs.MissingTool.Max != tt.expectMax {
-					t.Errorf("Expected max to be %d, got %d", tt.expectMax, safeOutputs.MissingTool.Max)
+				if templatableIntValue(safeOutputs.MissingTool.Max) != tt.expectMax {
+					t.Errorf("Expected max to be %d, got %v", tt.expectMax, safeOutputs.MissingTool.Max)
 				}
 			} else {
 				if safeOutputs != nil && safeOutputs.MissingTool != nil {
@@ -170,7 +170,7 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 	data := &WorkflowData{
 		MarkdownContent: "Test workflow content",
 		SafeOutputs: &SafeOutputsConfig{
-			MissingTool: &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
+			MissingTool: &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
 		},
 	}
 
@@ -336,8 +336,8 @@ func TestMissingToolConfigParsing(t *testing.T) {
 				if config == nil {
 					t.Fatal("Expected non-nil config")
 				}
-				if config.Max != tt.expectMax {
-					t.Errorf("Expected max %d, got %d", tt.expectMax, config.Max)
+				if templatableIntValue(config.Max) != tt.expectMax {
+					t.Errorf("Expected max %d, got %v", tt.expectMax, config.Max)
 				}
 				if config.CreateIssue != tt.expectCreateIssue {
 					t.Errorf("Expected create-issue %v, got %v", tt.expectCreateIssue, config.CreateIssue)

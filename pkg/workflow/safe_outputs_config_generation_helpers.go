@@ -1,6 +1,10 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var safeOutputsConfigGenLog = logger.New("workflow:safe_outputs_config_generation_helpers")
 
@@ -17,19 +21,33 @@ var safeOutputsConfigGenLog = logger.New("workflow:safe_outputs_config_generatio
 // The goal is to make generateSafeOutputsConfig more maintainable by
 // extracting repetitive code patterns into reusable functions.
 
-// generateMaxConfig creates a simple config map with just a max value
-func generateMaxConfig(max int, defaultMax int) map[string]any {
-	config := make(map[string]any)
-	maxValue := defaultMax
-	if max > 0 {
-		maxValue = max
+// resolveMaxForConfig resolves a templatable max *string to a config value.
+// For expression strings (e.g. "${{ inputs.max }}"), the expression is stored
+// as-is so GitHub Actions can resolve it at runtime.
+// For literal numeric strings, the parsed integer is used.
+// Falls back to defaultMax if max is nil or zero.
+func resolveMaxForConfig(max *string, defaultMax int) any {
+	if max != nil {
+		v := *max
+		if strings.HasPrefix(v, "${{") {
+			return v // expression: evaluated at runtime by GitHub Actions
+		}
+		if n := templatableIntValue(max); n > 0 {
+			return n
+		}
 	}
-	config["max"] = maxValue
+	return defaultMax
+}
+
+// generateMaxConfig creates a simple config map with just a max value
+func generateMaxConfig(max *string, defaultMax int) map[string]any {
+	config := make(map[string]any)
+	config["max"] = resolveMaxForConfig(max, defaultMax)
 	return config
 }
 
 // generateMaxWithAllowedLabelsConfig creates a config with max and optional allowed_labels
-func generateMaxWithAllowedLabelsConfig(max int, defaultMax int, allowedLabels []string) map[string]any {
+func generateMaxWithAllowedLabelsConfig(max *string, defaultMax int, allowedLabels []string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowedLabels) > 0 {
 		config["allowed_labels"] = allowedLabels
@@ -38,21 +56,17 @@ func generateMaxWithAllowedLabelsConfig(max int, defaultMax int, allowedLabels [
 }
 
 // generateMaxWithTargetConfig creates a config with max and optional target field
-func generateMaxWithTargetConfig(max int, defaultMax int, target string) map[string]any {
+func generateMaxWithTargetConfig(max *string, defaultMax int, target string) map[string]any {
 	config := make(map[string]any)
 	if target != "" {
 		config["target"] = target
 	}
-	maxValue := defaultMax
-	if max > 0 {
-		maxValue = max
-	}
-	config["max"] = maxValue
+	config["max"] = resolveMaxForConfig(max, defaultMax)
 	return config
 }
 
 // generateMaxWithAllowedConfig creates a config with max and optional allowed list
-func generateMaxWithAllowedConfig(max int, defaultMax int, allowed []string) map[string]any {
+func generateMaxWithAllowedConfig(max *string, defaultMax int, allowed []string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowed) > 0 {
 		config["allowed"] = allowed
@@ -61,7 +75,7 @@ func generateMaxWithAllowedConfig(max int, defaultMax int, allowed []string) map
 }
 
 // generateMaxWithAllowedAndBlockedConfig creates a config with max, optional allowed list, and optional blocked list
-func generateMaxWithAllowedAndBlockedConfig(max int, defaultMax int, allowed []string, blocked []string) map[string]any {
+func generateMaxWithAllowedAndBlockedConfig(max *string, defaultMax int, allowed []string, blocked []string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowed) > 0 {
 		config["allowed"] = allowed
@@ -73,7 +87,7 @@ func generateMaxWithAllowedAndBlockedConfig(max int, defaultMax int, allowed []s
 }
 
 // generateMaxWithDiscussionFieldsConfig creates a config with discussion-specific filter fields
-func generateMaxWithDiscussionFieldsConfig(max int, defaultMax int, requiredCategory string, requiredLabels []string, requiredTitlePrefix string) map[string]any {
+func generateMaxWithDiscussionFieldsConfig(max *string, defaultMax int, requiredCategory string, requiredLabels []string, requiredTitlePrefix string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 	if requiredCategory != "" {
 		config["required_category"] = requiredCategory
@@ -88,7 +102,7 @@ func generateMaxWithDiscussionFieldsConfig(max int, defaultMax int, requiredCate
 }
 
 // generateMaxWithReviewersConfig creates a config with max and optional reviewers list
-func generateMaxWithReviewersConfig(max int, defaultMax int, reviewers []string) map[string]any {
+func generateMaxWithReviewersConfig(max *string, defaultMax int, reviewers []string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 	if len(reviewers) > 0 {
 		config["reviewers"] = reviewers
@@ -97,20 +111,13 @@ func generateMaxWithReviewersConfig(max int, defaultMax int, reviewers []string)
 }
 
 // generateAssignToAgentConfig creates a config with optional max, default_agent, target, and allowed
-func generateAssignToAgentConfig(max int, defaultMax int, defaultAgent string, target string, allowed []string) map[string]any {
+func generateAssignToAgentConfig(max *string, defaultMax int, defaultAgent string, target string, allowed []string) map[string]any {
 	if safeOutputsConfigGenLog.Enabled() {
-		safeOutputsConfigGenLog.Printf("Generating assign-to-agent config: max=%d, defaultMax=%d, defaultAgent=%s, target=%s, allowed_count=%d",
+		safeOutputsConfigGenLog.Printf("Generating assign-to-agent config: max=%v, defaultMax=%d, defaultAgent=%s, target=%s, allowed_count=%d",
 			max, defaultMax, defaultAgent, target, len(allowed))
 	}
 	config := make(map[string]any)
-
-	// Apply default max if max is not specified
-	maxValue := defaultMax
-	if max > 0 {
-		maxValue = max
-	}
-	config["max"] = maxValue
-
+	config["max"] = resolveMaxForConfig(max, defaultMax)
 	if defaultAgent != "" {
 		config["default_agent"] = defaultAgent
 	}
@@ -124,8 +131,8 @@ func generateAssignToAgentConfig(max int, defaultMax int, defaultAgent string, t
 }
 
 // generatePullRequestConfig creates a config with max, allowed_labels, allow_empty, auto_merge, and expires
-func generatePullRequestConfig(max int, defaultMax int, allowedLabels []string, allowEmpty *string, autoMerge *string, expires int) map[string]any {
-	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%d, allowEmpty=%v, autoMerge=%v, expires=%d, labels_count=%d",
+func generatePullRequestConfig(max *string, defaultMax int, allowedLabels []string, allowEmpty *string, autoMerge *string, expires int) map[string]any {
+	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%v, allowEmpty=%v, autoMerge=%v, expires=%d, labels_count=%d",
 		max, allowEmpty, autoMerge, expires, len(allowedLabels))
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowedLabels) > 0 {
@@ -147,7 +154,7 @@ func generatePullRequestConfig(max int, defaultMax int, allowedLabels []string, 
 }
 
 // generateHideCommentConfig creates a config with max and optional allowed_reasons
-func generateHideCommentConfig(max int, defaultMax int, allowedReasons []string) map[string]any {
+func generateHideCommentConfig(max *string, defaultMax int, allowedReasons []string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowedReasons) > 0 {
 		config["allowed_reasons"] = allowedReasons
@@ -160,7 +167,7 @@ func generateHideCommentConfig(max int, defaultMax int, allowedReasons []string)
 // - "target-repo" uses hyphen to match frontmatter YAML format (key in config.json)
 // - "allowed_repos" uses underscore to match JavaScript handler expectations (see repo_helpers.cjs)
 // This inconsistency is intentional to maintain compatibility with existing handler code.
-func generateTargetConfigWithRepos(targetConfig SafeOutputTargetConfig, max int, defaultMax int, additionalFields map[string]any) map[string]any {
+func generateTargetConfigWithRepos(targetConfig SafeOutputTargetConfig, max *string, defaultMax int, additionalFields map[string]any) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
 
 	// Add target if specified

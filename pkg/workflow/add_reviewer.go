@@ -22,6 +22,15 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 
 	addReviewerLog.Print("Parsing add-reviewer configuration")
 
+	// Get config data for pre-processing before YAML unmarshaling
+	configData, _ := outputMap["add-reviewer"].(map[string]any)
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", addReviewerLog); err != nil {
+		addReviewerLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config AddReviewerConfig
 	if err := unmarshalConfig(outputMap, "add-reviewer", &config, addReviewerLog); err != nil {
@@ -31,8 +40,8 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 3
+	if config.Max == nil {
+		config.Max = defaultIntStr(3)
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed for safe outputs)

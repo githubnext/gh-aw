@@ -77,23 +77,13 @@ Actor: ${{ github.actor }}
 		t.Error("Prompt content should contain ${GH_AW_...} references for JavaScript interpolation")
 	}
 
-	// Verify the original expressions have been replaced in the prompt heredoc content
-	// Find the heredoc section by looking for the "cat " line and the GH_AW_PROMPT_EOF delimiter
-	heredocStart := strings.Index(compiledStr, "cat << 'GH_AW_PROMPT_EOF' > \"$GH_AW_PROMPT\"")
-	if heredocStart == -1 {
-		t.Error("Could not find prompt heredoc section")
-	} else {
-		// Find the end of the heredoc (GH_AW_PROMPT_EOF on its own line)
-		heredocEnd := strings.Index(compiledStr[heredocStart:], "\n          GH_AW_PROMPT_EOF\n")
-		if heredocEnd == -1 {
-			t.Error("Could not find end of prompt heredoc")
-		} else {
-			heredocContent := compiledStr[heredocStart : heredocStart+heredocEnd]
-			// Verify original expressions are NOT in the heredoc content
-			if strings.Contains(heredocContent, "Repository: ${{ github.repository }}") {
-				t.Error("Original GitHub expressions should be replaced with ${GH_AW_...} references in prompt heredoc")
-			}
-		}
+	// Verify the original expressions have been replaced in the prompt content
+	// With grouped redirects, heredocs inside the group have no individual redirects
+	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
+		t.Error("Original GitHub expressions should be replaced with ${GH_AW_...} references in prompt heredoc")
+	}
+	if !strings.Contains(compiledStr, "${GH_AW_") {
+		t.Error("Prompt content should contain ${GH_AW_...} references for JavaScript interpolation")
 	}
 
 	// Verify that the interpolation and template rendering step exists

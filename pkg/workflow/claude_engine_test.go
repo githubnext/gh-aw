@@ -433,7 +433,7 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 		Tools: map[string]any{},
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 			},
 		},
 	}

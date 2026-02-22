@@ -33,6 +33,12 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 		return nil
 	}
 
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", assignToUserLog); err != nil {
+		assignToUserLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config AssignToUserConfig
 	if err := unmarshalConfig(outputMap, "assign-to-user", &config, assignToUserLog); err != nil {
@@ -40,13 +46,13 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 		// For backward compatibility, use defaults
 		assignToUserLog.Print("Using default configuration")
 		config = AssignToUserConfig{
-			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
 		}
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)

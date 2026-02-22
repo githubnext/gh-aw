@@ -466,9 +466,9 @@ type WorkflowData struct {
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
 type BaseSafeOutputConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-	Staged      bool   `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls for this specific output type
+	Max         *string `yaml:"max,omitempty"`          // Maximum number of items to create (supports integer or GitHub Actions expression)
+	GitHubToken string  `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	Staged      bool    `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls for this specific output type
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes

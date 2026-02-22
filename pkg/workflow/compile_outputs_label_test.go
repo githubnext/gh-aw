@@ -402,9 +402,9 @@ This workflow tests the output labels null configuration parsing.
 		t.Errorf("Expected 0 allowed labels for null config, got %d", len(workflowData.SafeOutputs.AddLabels.Allowed))
 	}
 
-	// Verify max is 0 (will use default)
-	if workflowData.SafeOutputs.AddLabels.Max != 0 {
-		t.Errorf("Expected max to be 0 for null config, got %d", workflowData.SafeOutputs.AddLabels.Max)
+	// Verify max is nil (will use default)
+	if workflowData.SafeOutputs.AddLabels.Max != nil {
+		t.Errorf("Expected max to be nil for null config, got %v", workflowData.SafeOutputs.AddLabels.Max)
 	}
 }
 
@@ -472,8 +472,8 @@ This workflow tests the output labels max configuration parsing.
 
 	// Verify max
 	expectedMaxCount := 5
-	if workflowData.SafeOutputs.AddLabels.Max != expectedMaxCount {
-		t.Errorf("Expected max to be %d, got %d", expectedMaxCount, workflowData.SafeOutputs.AddLabels.Max)
+	if templatableIntValue(workflowData.SafeOutputs.AddLabels.Max) != expectedMaxCount {
+		t.Errorf("Expected max to be %d, got %v", expectedMaxCount, workflowData.SafeOutputs.AddLabels.Max)
 	}
 }
 
@@ -517,9 +517,9 @@ This workflow tests the default max behavior.
 		t.Fatalf("Unexpected error parsing workflow without max: %v", err)
 	}
 
-	// Verify max is 0 (will use default in job generation)
-	if workflowData.SafeOutputs.AddLabels.Max != 0 {
-		t.Errorf("Expected max to be 0 (default), got %d", workflowData.SafeOutputs.AddLabels.Max)
+	// Verify max is nil (will use default in job generation)
+	if workflowData.SafeOutputs.AddLabels.Max != nil {
+		t.Errorf("Expected max to be nil (default), got %v", workflowData.SafeOutputs.AddLabels.Max)
 	}
 }
 

@@ -151,6 +151,19 @@ func BuildMaxCountEnvVar(envVarName string, maxCount int) []string {
 	return []string{fmt.Sprintf("          %s: %d\n", envVarName, maxCount)}
 }
 
+// overrideEnvVarLine replaces the first env var line in lines that starts with keyPrefix
+// with newLine. If no match is found, newLine is appended.
+func overrideEnvVarLine(lines []string, keyPrefix string, newLine string) []string {
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, keyPrefix) {
+			lines[i] = newLine
+			return lines
+		}
+	}
+	return append(lines, newLine)
+}
+
 // BuildAllowedListEnvVar builds an allowed list environment variable line for safe-output jobs.
 // envVarName should be the full env var name like "GH_AW_LABELS_ALLOWED".
 // Always outputs the env var, even when empty (empty string means "allow all").
@@ -304,15 +317,24 @@ type ListJobBuilderConfig struct {
 func (c *Compiler) BuildListSafeOutputJob(data *WorkflowData, mainJobName string, listJobConfig ListJobConfig, baseSafeOutputConfig BaseSafeOutputConfig, builderConfig ListJobBuilderConfig) (*Job, error) {
 	safeOutputBuilderLog.Printf("Building list safe-output job: %s", builderConfig.JobName)
 
-	// Handle max count with default
+	// Handle max count with default – use literal integer if set, else fall back to DefaultMax
 	maxCount := builderConfig.DefaultMax
-	if baseSafeOutputConfig.Max > 0 {
-		maxCount = baseSafeOutputConfig.Max
+	if n := templatableIntValue(baseSafeOutputConfig.Max); n > 0 {
+		maxCount = n
 	}
 	safeOutputBuilderLog.Printf("Max count set to: %d", maxCount)
 
 	// Build custom environment variables using shared helpers
 	customEnvVars := BuildListJobEnvVars(builderConfig.EnvPrefix, listJobConfig, maxCount)
+
+	// If max is a GitHub Actions expression, override with the expression value
+	if baseSafeOutputConfig.Max != nil && templatableIntValue(baseSafeOutputConfig.Max) == 0 {
+		exprLine := buildTemplatableIntEnvVar(builderConfig.EnvPrefix+"_MAX_COUNT", baseSafeOutputConfig.Max)
+		if len(exprLine) > 0 {
+			prefix := builderConfig.EnvPrefix + "_MAX_COUNT:"
+			customEnvVars = overrideEnvVarLine(customEnvVars, prefix, exprLine[0])
+		}
+	}
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, listJobConfig.TargetRepoSlug)...)

@@ -28,7 +28,7 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 		// Handle the case where configData is nil (noop: with no value)
 		if configData == nil {
 			// Set default max for noop messages
-			noopConfig.Max = 1
+			noopConfig.Max = defaultIntStr(1)
 			// Set default report-as-issue to true
 			trueVal := "true"
 			noopConfig.ReportAsIssue = &trueVal
@@ -57,7 +57,9 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 				noopLog.Print("report-as-issue not specified, defaulting to true")
 			}
 
-			noopLog.Printf("Parsed noop configuration: max=%d, report-as-issue=%s", noopConfig.Max, *noopConfig.ReportAsIssue)
+			if noopConfig.Max != nil {
+				noopLog.Printf("Parsed noop configuration: max=%s, report-as-issue=%s", *noopConfig.Max, *noopConfig.ReportAsIssue)
+			}
 		}
 
 		return noopConfig

@@ -25,7 +25,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					AllowedLabels: []string{"bug", "feature"},
 					Labels:        []string{"ai-generated"},
@@ -44,7 +44,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 					Target:            "issue",
 					HideOlderComments: testStringPtr("true"),
@@ -61,7 +61,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 2,
+						Max: strPtr("2"),
 					},
 					Category:              "general",
 					TitlePrefix:           "[Discussion] ",
@@ -80,7 +80,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CloseIssues: &CloseEntityConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 10,
+						Max: strPtr("10"),
 					},
 				},
 			},
@@ -109,7 +109,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				UpdateIssues: &UpdateIssuesConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 5,
+							Max: strPtr("5"),
 						},
 					},
 					Status: testBoolPtr(true),
@@ -128,7 +128,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 					TitlePrefix: "[PR] ",
 					Labels:      []string{"automated"},
@@ -149,7 +149,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 1,
+						Max: strPtr("1"),
 					},
 					Reviewers: []string{"user1", "user2"},
 					Labels:    []string{"automated"},
@@ -167,7 +167,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					Target:            "pull_request",
 					TitlePrefix:       "[Update] ",
@@ -190,7 +190,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				},
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 				},
 				AddLabels: &AddLabelsConfig{
@@ -289,7 +289,7 @@ func TestHandlerConfigMaxValues(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 10,
+					Max: strPtr("10"),
 				},
 			},
 		},
@@ -721,7 +721,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -732,7 +732,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				MissingData: &MissingDataConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -743,12 +743,12 @@ func TestAutoEnabledHandlers(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 				MissingData: &MissingDataConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -762,7 +762,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 				},
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -842,7 +842,7 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					CreatePullRequests: &CreatePullRequestsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 						BaseBranch: tt.baseBranch,
 					},
@@ -890,7 +890,7 @@ func TestHandlerConfigAssignToUser(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AssignToUser: &AssignToUserConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 5,
+					Max: strPtr("5"),
 				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
 					Target:         "issues",
@@ -970,7 +970,7 @@ func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AssignToUser: &AssignToUserConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 3,
+					Max: strPtr("3"),
 				},
 				UnassignFirst: testStringPtr("true"),
 			},
@@ -1019,7 +1019,7 @@ func TestHandlerConfigUnassignFromUser(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			UnassignFromUser: &UnassignFromUserConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 10,
+					Max: strPtr("10"),
 				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
 					Target:         "issues",

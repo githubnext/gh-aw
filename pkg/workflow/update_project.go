@@ -35,7 +35,7 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 	if configData, exists := outputMap["update-project"]; exists {
 		updateProjectLog.Print("Parsing update-project configuration")
 		updateProjectConfig := &UpdateProjectConfig{}
-		updateProjectConfig.Max = 10 // Default max is 10
+		updateProjectConfig.Max = defaultIntStr(10) // Default max is 10
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)

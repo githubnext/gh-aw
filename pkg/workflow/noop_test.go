@@ -13,14 +13,14 @@ func TestParseNoOpConfig(t *testing.T) {
 		name           string
 		outputMap      map[string]any
 		expectedNil    bool
-		expectedMax    int
+		expectedMax    *string
 		expectedReport *string
 	}{
 		{
 			name:           "noop not present",
 			outputMap:      map[string]any{},
 			expectedNil:    true,
-			expectedMax:    0,
+			expectedMax:    nil,
 			expectedReport: nil,
 		},
 		{
@@ -29,7 +29,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				"noop": false,
 			},
 			expectedNil:    true,
-			expectedMax:    0,
+			expectedMax:    nil,
 			expectedReport: nil,
 		},
 		{
@@ -38,7 +38,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				"noop": nil,
 			},
 			expectedNil:    false,
-			expectedMax:    1,
+			expectedMax:    strPtr("1"),
 			expectedReport: testStringPtr("true"),
 		},
 		{
@@ -47,7 +47,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				"noop": map[string]any{},
 			},
 			expectedNil:    false,
-			expectedMax:    1,
+			expectedMax:    strPtr("1"),
 			expectedReport: testStringPtr("true"),
 		},
 		{
@@ -58,7 +58,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				},
 			},
 			expectedNil:    false,
-			expectedMax:    5,
+			expectedMax:    strPtr("5"),
 			expectedReport: testStringPtr("true"),
 		},
 		{
@@ -69,7 +69,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				},
 			},
 			expectedNil:    false,
-			expectedMax:    1,
+			expectedMax:    strPtr("1"),
 			expectedReport: testStringPtr("true"),
 		},
 		{
@@ -80,7 +80,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				},
 			},
 			expectedNil:    false,
-			expectedMax:    1,
+			expectedMax:    strPtr("1"),
 			expectedReport: testStringPtr("false"),
 		},
 		{
@@ -92,7 +92,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				},
 			},
 			expectedNil:    false,
-			expectedMax:    3,
+			expectedMax:    strPtr("3"),
 			expectedReport: testStringPtr("false"),
 		},
 		{
@@ -103,7 +103,7 @@ func TestParseNoOpConfig(t *testing.T) {
 				},
 			},
 			expectedNil:    false,
-			expectedMax:    2,
+			expectedMax:    strPtr("2"),
 			expectedReport: testStringPtr("true"),
 		},
 	}

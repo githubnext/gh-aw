@@ -143,7 +143,7 @@ func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params Upda
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
 		} else {
 			// If configData is nil or not a map, still set the default max
-			config.Max = 1
+			config.Max = defaultIntStr(1)
 		}
 
 		return config

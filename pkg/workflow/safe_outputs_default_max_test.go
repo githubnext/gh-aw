@@ -43,7 +43,7 @@ This workflow tests the default max for assign-to-agent.
 	// Verify assign-to-agent config exists and has default max of 1
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
 	require.NotNil(t, workflowData.SafeOutputs.AssignToAgent, "AssignToAgent should not be nil")
-	assert.Equal(t, 1, workflowData.SafeOutputs.AssignToAgent.Max, "Default max should be 1")
+	assert.Equal(t, strPtr("1"), workflowData.SafeOutputs.AssignToAgent.Max, "Default max should be 1")
 }
 
 // TestDispatchWorkflowDefaultMax tests that dispatch-workflow has a default max of 1
@@ -95,7 +95,7 @@ This workflow tests the default max for dispatch-workflow.
 	// Verify dispatch-workflow config exists and has default max of 1
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
 	require.NotNil(t, workflowData.SafeOutputs.DispatchWorkflow, "DispatchWorkflow should not be nil")
-	assert.Equal(t, 1, workflowData.SafeOutputs.DispatchWorkflow.Max, "Default max should be 1")
+	assert.Equal(t, strPtr("1"), workflowData.SafeOutputs.DispatchWorkflow.Max, "Default max should be 1")
 }
 
 // TestAssignToAgentExplicitMax tests that explicit max overrides the default
@@ -130,7 +130,7 @@ This workflow tests explicit max for assign-to-agent.
 	// Verify assign-to-agent config has explicit max of 5
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
 	require.NotNil(t, workflowData.SafeOutputs.AssignToAgent, "AssignToAgent should not be nil")
-	assert.Equal(t, 5, workflowData.SafeOutputs.AssignToAgent.Max, "Explicit max should be 5")
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.AssignToAgent.Max, "Explicit max should be 5")
 }
 
 // TestDispatchWorkflowExplicitMax tests that explicit max overrides the default
@@ -184,23 +184,23 @@ This workflow tests explicit max for dispatch-workflow.
 	// Verify dispatch-workflow config has explicit max of 3
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
 	require.NotNil(t, workflowData.SafeOutputs.DispatchWorkflow, "DispatchWorkflow should not be nil")
-	assert.Equal(t, 3, workflowData.SafeOutputs.DispatchWorkflow.Max, "Explicit max should be 3")
+	assert.Equal(t, strPtr("3"), workflowData.SafeOutputs.DispatchWorkflow.Max, "Explicit max should be 3")
 }
 
 // TestGenerateAssignToAgentConfigDefaultMax tests the config generation with default max
 func TestGenerateAssignToAgentConfigDefaultMax(t *testing.T) {
-	// Test with max=0 (should use default of 1)
-	config := generateAssignToAgentConfig(0, 1, "copilot", "", nil)
-	assert.Equal(t, 1, config["max"], "Should use default max of 1 when max is 0")
+	// Test with max=nil (should use default of 1)
+	config := generateAssignToAgentConfig(nil, 1, "copilot", "", nil)
+	assert.Equal(t, 1, config["max"], "Should use default max of 1 when max is nil")
 	assert.Equal(t, "copilot", config["default_agent"], "Should have default agent")
 
 	// Test with explicit max (should override default)
-	config = generateAssignToAgentConfig(5, 1, "copilot", "", nil)
+	config = generateAssignToAgentConfig(strPtr("5"), 1, "copilot", "", nil)
 	assert.Equal(t, 5, config["max"], "Should use explicit max of 5")
 	assert.Equal(t, "copilot", config["default_agent"], "Should have default agent")
 
 	// Test with target and allowed
-	config = generateAssignToAgentConfig(0, 1, "copilot", "issues", []string{"copilot", "custom"})
+	config = generateAssignToAgentConfig(nil, 1, "copilot", "issues", []string{"copilot", "custom"})
 	assert.Equal(t, 1, config["max"], "Should use default max of 1")
 	assert.Equal(t, "copilot", config["default_agent"], "Should have default agent")
 	assert.Equal(t, "issues", config["target"], "Should have target")

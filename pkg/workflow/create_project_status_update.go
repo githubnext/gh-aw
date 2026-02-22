@@ -18,7 +18,7 @@ func (c *Compiler) parseCreateProjectStatusUpdateConfig(outputMap map[string]any
 	if configData, exists := outputMap["create-project-status-update"]; exists {
 		createProjectStatusUpdateLog.Print("Parsing create-project-status-update configuration")
 		config := &CreateProjectStatusUpdateConfig{}
-		config.Max = 10 // Default max is 10
+		config.Max = defaultIntStr(10) // Default max is 10
 
 		if configMap, ok := configData.(map[string]any); ok {
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 10)

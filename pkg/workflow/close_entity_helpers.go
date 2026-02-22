@@ -95,6 +95,15 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 
 	logger.Printf("Parsing %s configuration", params.ConfigKey)
 
+	// Get config data for pre-processing before YAML unmarshaling
+	configData, _ := outputMap[params.ConfigKey].(map[string]any)
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", logger); err != nil {
+		logger.Printf("Invalid max value for %s: %v", params.ConfigKey, err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config CloseEntityConfig
 	if err := unmarshalConfig(outputMap, params.ConfigKey, &config, logger); err != nil {
@@ -104,8 +113,8 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 		logger.Printf("Set default max to 1 for %s", params.ConfigKey)
 	}
 
@@ -115,7 +124,7 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		return nil
 	}
 
-	logger.Printf("Parsed %s configuration: max=%d, target=%s", params.ConfigKey, config.Max, config.Target)
+	logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
 
 	return &config
 }

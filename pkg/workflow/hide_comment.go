@@ -48,7 +48,7 @@ func (c *Compiler) parseHideCommentConfig(outputMap map[string]any) *HideComment
 				hideCommentConfig.Max, hideCommentConfig.TargetRepoSlug)
 		} else {
 			// If configData is nil or not a map, still set the default max
-			hideCommentConfig.Max = 5
+			hideCommentConfig.Max = defaultIntStr(5)
 		}
 
 		return hideCommentConfig

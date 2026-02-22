@@ -34,7 +34,7 @@ jobs:
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			DispatchWorkflow: &DispatchWorkflowConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
 				Workflows:            []string{"ci"},
 				WorkflowFiles: map[string]string{
 					"ci": ".lock.yml",
@@ -64,7 +64,7 @@ func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			MissingTool: &MissingToolConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 				CreateIssue:          true,
 				TitlePrefix:          "[Missing Tool] ",
 				Labels:               []string{"bug"},

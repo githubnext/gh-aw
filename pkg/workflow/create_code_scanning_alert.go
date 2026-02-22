@@ -22,8 +22,10 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 
 	// Build custom environment variables specific to create-code-scanning-alert
 	var customEnvVars []string
-	if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateCodeScanningAlerts.Max))
+	if maxVal := templatableIntValue(data.SafeOutputs.CreateCodeScanningAlerts.Max); maxVal > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_MAX: %d\n", maxVal))
+	} else {
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_SECURITY_REPORT_MAX", data.SafeOutputs.CreateCodeScanningAlerts.Max)...)
 	}
 	// Pass the driver configuration, defaulting to frontmatter name
 	driverName := data.SafeOutputs.CreateCodeScanningAlerts.Driver
@@ -107,8 +109,8 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig, 0)
 	} else {
 		// If configData is nil or not a map (e.g., "create-code-scanning-alert:" with no value),
-		// still set the default max (0 = unlimited)
-		securityReportsConfig.Max = 0
+		// still set the default max (nil = unlimited)
+		securityReportsConfig.Max = nil
 	}
 
 	return securityReportsConfig
