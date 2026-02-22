@@ -38,7 +38,7 @@ safe-outputs:
   update-release:
 jobs:
   config:
-    needs: ["pre_activation"]
+    needs: ["pre_activation", "activation"]
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
@@ -144,7 +144,7 @@ jobs:
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
   release:
-    needs: ["pre_activation", "config"]
+    needs: ["pre_activation", "activation", "config"]
     runs-on: ubuntu-latest
     permissions:
       contents: write

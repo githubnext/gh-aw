@@ -239,7 +239,7 @@ Final content.`,
 	}
 
 	var yaml strings.Builder
-	compiler.generatePrompt(&yaml, data, false)
+	compiler.generatePrompt(&yaml, data, false, nil)
 
 	output := yaml.String()
 

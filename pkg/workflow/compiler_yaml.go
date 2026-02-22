@@ -254,7 +254,7 @@ func splitContentIntoChunks(content string) []string {
 	return chunks
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, preActivationJobCreated bool) {
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string) {
 	compilerYamlLog.Printf("Generating prompt for workflow: %s (markdown size: %d bytes)", data.Name, len(data.MarkdownContent))
 
 	// Collect built-in prompt sections (these should be prepended to user prompt)
@@ -342,6 +342,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 			expressionMappings = append(expressionMappings, mainExprMappings...)
 		}
 	}
+
+	// Filter out expression mappings referencing custom jobs that run AFTER activation.
+	// These jobs (which explicitly depend on activation) cannot have outputs available when
+	// the activation job builds and substitutes the prompt. Keeping them would cause actionlint
+	// errors because the jobs are not in activation's needs, yet their outputs would be
+	// referenced in activation's step env vars.
+	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
 
 	// Step 2: Add main workflow markdown content to the prompt
 	if c.inlinePrompt || data.InlinedImports {

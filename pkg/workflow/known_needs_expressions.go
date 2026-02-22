@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -107,6 +108,53 @@ func generateKnownNeedsExpressions(data *WorkflowData, preActivationJobCreated b
 
 	knownNeedsLog.Printf("Generated %d known needs.* expression mappings", len(mappings))
 	return mappings
+}
+
+// filterExpressionsForActivation filters expression mappings to remove any that reference
+// custom jobs NOT in beforeActivationJobs. This prevents actionlint errors when a custom job
+// explicitly depends on activation (and therefore runs AFTER activation) but the markdown body
+// contains expressions like ${{ needs.that_job.outputs.foo }} that would be impossible to
+// evaluate at activation time.
+//
+// If beforeActivationJobs is nil or empty, any expression referencing a custom job (one present
+// in customJobs) is dropped because no custom job runs before activation.
+//
+// Only expressions referencing jobs in customJobs are considered for filtering; standard
+// GitHub Actions contexts (github.*, env.*, etc.) and system job outputs (pre_activation) are
+// always kept.
+func filterExpressionsForActivation(mappings []*ExpressionMapping, customJobs map[string]any, beforeActivationJobs []string) []*ExpressionMapping {
+	if customJobs == nil || len(mappings) == 0 {
+		return mappings
+	}
+
+	beforeActivationSet := make(map[string]bool, len(beforeActivationJobs))
+	for _, j := range beforeActivationJobs {
+		beforeActivationSet[j] = true
+	}
+
+	filtered := make([]*ExpressionMapping, 0, len(mappings))
+	for _, m := range mappings {
+		// Only examine needs.* expressions
+		if !strings.HasPrefix(m.Content, "needs.") {
+			filtered = append(filtered, m)
+			continue
+		}
+		// Extract the job name (needs.<jobName>.*)
+		rest := m.Content[len("needs."):]
+		dotIdx := strings.Index(rest, ".")
+		if dotIdx < 0 {
+			filtered = append(filtered, m)
+			continue
+		}
+		jobName := rest[:dotIdx]
+		// If it's a custom job NOT in beforeActivationJobs, drop it
+		if _, isCustomJob := customJobs[jobName]; isCustomJob && !beforeActivationSet[jobName] {
+			knownNeedsLog.Printf("Filtered post-activation expression from activation substitution step: %s", m.Content)
+			continue
+		}
+		filtered = append(filtered, m)
+	}
+	return filtered
 }
 
 // normalizeJobNameForEnvVar converts a job name to a valid environment variable segment

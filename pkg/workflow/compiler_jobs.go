@@ -66,6 +66,23 @@ func jobDependsOnPreActivation(jobConfig map[string]any) bool {
 	return false
 }
 
+// jobDependsOnActivation checks if a job config has activation as a dependency.
+// Jobs that depend on activation run AFTER activation, not before it.
+func jobDependsOnActivation(jobConfig map[string]any) bool {
+	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
+		if needsList, ok := needs.([]any); ok {
+			for _, need := range needsList {
+				if needStr, ok := need.(string); ok && needStr == string(constants.ActivationJobName) {
+					return true
+				}
+			}
+		} else if needStr, ok := needs.(string); ok && needStr == string(constants.ActivationJobName) {
+			return true
+		}
+	}
+	return false
+}
+
 // jobDependsOnAgent checks if a job config has agent as a dependency.
 // Jobs that depend on agent should run AFTER the agent job, not before it.
 // The jobConfig parameter is expected to be a map representing the job's YAML configuration,
@@ -86,13 +103,15 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 	return false
 }
 
-// getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
-// These jobs run after pre_activation but before activation, and activation should depend on them.
+// getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation
+// but NOT on activation. These jobs run after pre_activation but before activation, and activation
+// should depend on them. Jobs that also depend on activation cannot run before activation.
 func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
 	compilerJobsLog.Printf("Finding custom jobs depending on pre_activation: total_custom_jobs=%d", len(customJobs))
 	deps := sliceutil.FilterMapKeys(customJobs, func(jobName string, jobConfig any) bool {
 		if configMap, ok := jobConfig.(map[string]any); ok {
-			return jobDependsOnPreActivation(configMap)
+			// Must depend on pre_activation AND must NOT depend on activation
+			return jobDependsOnPreActivation(configMap) && !jobDependsOnActivation(configMap)
 		}
 		return false
 	})

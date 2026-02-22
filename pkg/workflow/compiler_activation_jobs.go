@@ -680,7 +680,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Generate prompt in the activation job (before agent job runs)
 	compilerActivationJobsLog.Print("Generating prompt in activation job")
-	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated)
+	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
 	// Upload prompt.txt as an artifact for the agent job to download
 	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
@@ -976,14 +976,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 // generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
 // This creates the prompt.txt file that will be uploaded as an artifact and downloaded by the agent job
-func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool) {
+// beforeActivationJobs is the list of custom job names that run before (i.e., are dependencies of) activation.
+// Passing nil or an empty slice means no custom jobs run before activation; expressions referencing any
+// custom job will be filtered out of the substitution step to avoid actionlint errors.
+func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string) {
 	compilerActivationJobsLog.Print("Generating prompt steps in activation job")
 
 	// Use a string builder to collect the YAML
 	var yaml strings.Builder
 
 	// Call the existing generatePrompt method to get all the prompt steps
-	c.generatePrompt(&yaml, data, preActivationJobCreated)
+	c.generatePrompt(&yaml, data, preActivationJobCreated, beforeActivationJobs)
 
 	// Append the generated YAML content as a single string to steps
 	yamlContent := yaml.String()
