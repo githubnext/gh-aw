@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -372,26 +373,16 @@ imports:
 	assert.Empty(t, entries, "already-pinned workflowspec imports should not be downloaded")
 }
 
-// TestFetchAndSaveRemoteFrontmatterImports_FileTracking verifies that files saved by
-// the function are properly tracked (created vs modified).
-func TestFetchAndSaveRemoteFrontmatterImports_FileTracking(t *testing.T) {
-	// Use a temp dir that acts as the workflows directory.
-	tmpDir := t.TempDir()
-
-	// Pre-create one file so we can test the "modified" branch.
-	sharedDir := filepath.Join(tmpDir, "shared")
-	require.NoError(t, os.MkdirAll(sharedDir, 0755))
-	existingFile := filepath.Join(sharedDir, "existing.md")
-	require.NoError(t, os.WriteFile(existingFile, []byte("old content"), 0600))
-
+// TestFetchAndSaveRemoteFrontmatterImports_NoImportsNoOpTracker verifies that a workflow with
+// no imports field leaves the FileTracker completely untouched.
+func TestFetchAndSaveRemoteFrontmatterImports_NoImportsNoOpTracker(t *testing.T) {
 	// Build a minimal FileTracker without calling NewFileTracker (which requires a real
-	// git repository).  We only need the tracking lists populated.
+	// git repository). We only need the tracking lists populated.
 	tracker := &FileTracker{
 		OriginalContent: make(map[string][]byte),
-		gitRoot:         tmpDir,
+		gitRoot:         t.TempDir(),
 	}
 
-	// A workflow with no imports should leave the tracker empty.
 	content := `---
 engine: copilot
 ---
@@ -406,23 +397,25 @@ engine: copilot
 		WorkflowPath: ".github/workflows/test.md",
 	}
 
-	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, tracker)
+	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tracker.gitRoot, false, false, tracker)
 	require.NoError(t, err)
 	assert.Empty(t, tracker.CreatedFiles, "no files should be created when there are no imports")
 	assert.Empty(t, tracker.ModifiedFiles, "no files should be modified when there are no imports")
 }
 
-// TestFetchAndSaveRemoteFrontmatterImports_SectionSkipped verifies that imports
-// with a section reference (file.md#Section) have the section stripped but the
-// file path is still used for deduplication.
-func TestFetchAndSaveRemoteFrontmatterImports_SectionSkipped(t *testing.T) {
-	// Content with two imports that differ only in their #section fragment.
-	// Both should resolve to the same file (deduplication by file path).
+// TestFetchAndSaveRemoteFrontmatterImports_SectionStrippedDedup verifies that two imports
+// pointing to the same file via different #section fragments are treated as one file
+// (deduplication via the shared seen set).
+func TestFetchAndSaveRemoteFrontmatterImports_SectionStrippedDedup(t *testing.T) {
+	// Both imports resolve to the same base file after stripping the #section fragment.
+	// The first triggers a (failing) download attempt; the second is deduplicated and never
+	// even reaches the download step.  Both use relative paths so the workflowspec-format
+	// skip path is not taken.
 	content := `---
 engine: copilot
 imports:
-  - github/gh-aw/.github/workflows/shared/reporting.md@abc123
-  - github/gh-aw/.github/workflows/shared/reporting.md@abc123
+  - shared/reporting.md#SectionA
+  - shared/reporting.md#SectionB
 ---
 
 # Workflow
@@ -436,19 +429,20 @@ imports:
 	}
 
 	tmpDir := t.TempDir()
-	// Both entries are already workflowspec format – neither should trigger a download.
+	// No network in unit tests: the download attempt for the first import will fail silently
+	// (verbose=false).  The second import must be deduplicated without a second download.
 	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
-	require.NoError(t, err, "duplicate workflowspec imports should not error")
+	require.NoError(t, err, "section-fragment deduplication should not error")
 
 	entries, readErr := os.ReadDir(tmpDir)
 	require.NoError(t, readErr)
-	assert.Empty(t, entries, "workflowspec imports must not be downloaded")
+	assert.Empty(t, entries, "no files should be written (download fails in unit tests)")
 }
 
-// TestFetchAndSaveRemoteFrontmatterImports_SkipExistingWithoutForce verifies that
-// an import that is already present on disk is skipped when force=false.
+// TestFetchAndSaveRemoteFrontmatterImports_SkipExistingWithoutForce verifies that a relative
+// import whose target file already exists on disk is skipped (not re-downloaded) when force=false.
+// Because the existence check happens before the download, this test requires no network access.
 func TestFetchAndSaveRemoteFrontmatterImports_SkipExistingWithoutForce(t *testing.T) {
-	// Pre-create the shared file that the workflow would import.
 	tmpDir := t.TempDir()
 	sharedDir := filepath.Join(tmpDir, "shared")
 	require.NoError(t, os.MkdirAll(sharedDir, 0755))
@@ -461,13 +455,13 @@ func TestFetchAndSaveRemoteFrontmatterImports_SkipExistingWithoutForce(t *testin
 		gitRoot:         tmpDir,
 	}
 
-	// Use a content with a relative import that would resolve to the pre-created file.
-	// But since the import path is workflowspec-format, it's skipped regardless –
-	// this test verifies no modification is done to the pre-created file.
+	// Relative import: resolves to tmpDir/shared/ci-data-analysis.md which already exists.
+	// With force=false, the function detects the file via os.Stat *before* attempting a
+	// download, so no network call is made and the file is preserved unchanged.
 	content := `---
 engine: copilot
 imports:
-  - github/gh-aw/.github/workflows/shared/ci-data-analysis.md@abc123
+  - shared/ci-data-analysis.md
 ---
 # Workflow
 `
@@ -482,12 +476,58 @@ imports:
 	err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, tracker)
 	require.NoError(t, err)
 
-	// The existing file should not have been touched.
+	// The existing file must be untouched and not added to the tracker.
 	gotContent, readErr := os.ReadFile(existingFile)
 	require.NoError(t, readErr)
 	assert.Equal(t, existingContent, gotContent, "pre-existing file must not be modified when force=false")
-	assert.Empty(t, tracker.CreatedFiles)
-	assert.Empty(t, tracker.ModifiedFiles)
+	assert.Empty(t, tracker.CreatedFiles, "pre-existing file must not appear in CreatedFiles")
+	assert.Empty(t, tracker.ModifiedFiles, "pre-existing file must not appear in ModifiedFiles")
+}
+
+// TestFetchAndSaveRemoteFrontmatterImports_PathTraversal verifies that import paths that
+// attempt to escape the repository root via ".." sequences are rejected by the
+// remoteFilePath safety check (not just because of a download failure).
+// The workflow is placed at the repo root (WorkflowPath="ci-coach.md") so that
+// workflowBaseDir="" and path.Join("", "../etc/passwd") = "../etc/passwd", which
+// triggers the explicit ".." rejection before any network call.
+func TestFetchAndSaveRemoteFrontmatterImports_PathTraversal(t *testing.T) {
+	tests := []struct {
+		name       string
+		importPath string
+	}{
+		{name: "parent directory traversal", importPath: "../etc/passwd"},
+		{name: "deep traversal", importPath: "../../tmp/evil.md"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			content := fmt.Sprintf(`---
+engine: copilot
+imports:
+  - %s
+---
+# Workflow
+`, tc.importPath)
+			// WorkflowPath at repo root → workflowBaseDir="" → path.Join("","../etc/passwd")="../etc/passwd"
+			// which triggers the explicit ".." rejection before any network call.
+			spec := &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					RepoSlug: "github/gh-aw",
+					Version:  "v1.0.0",
+				},
+				WorkflowPath: "ci-coach.md",
+			}
+
+			tmpDir := t.TempDir()
+			err := fetchAndSaveRemoteFrontmatterImports(content, spec, tmpDir, false, false, nil)
+			require.NoError(t, err, "path traversal should be silently rejected, not return an error")
+
+			// No file must have been written anywhere
+			entries, readErr := os.ReadDir(tmpDir)
+			require.NoError(t, readErr)
+			assert.Empty(t, entries, "traversal import %q must not write any file", tc.importPath)
+		})
+	}
 }
 
 // TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug verifies that an invalid
