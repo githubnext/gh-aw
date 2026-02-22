@@ -243,6 +243,143 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 	return nil, section, fmt.Errorf("cannot resolve include path: %s (no base spec provided)", includePath)
 }
 
+// fetchAndSaveRemoteFrontmatterImports fetches and saves files referenced in the frontmatter
+// 'imports:' field of a remote workflow. These relative-path imports are resolved against
+// the workflow's location in the source repository and saved locally so compilation can find them.
+// This is analogous to fetchAndSaveRemoteIncludes, which handles @include directives in the
+// markdown body; this function handles the YAML frontmatter 'imports:' field.
+func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	if spec.RepoSlug == "" {
+		return nil
+	}
+
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil || result.Frontmatter == nil {
+		return nil
+	}
+
+	importsField, exists := result.Frontmatter["imports"]
+	if !exists {
+		return nil
+	}
+
+	var importPaths []string
+	switch v := importsField.(type) {
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				importPaths = append(importPaths, s)
+			}
+		}
+	case []string:
+		importPaths = v
+	}
+
+	if len(importPaths) == 0 {
+		return nil
+	}
+
+	parts := strings.SplitN(spec.RepoSlug, "/", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	owner, repo := parts[0], parts[1]
+	ref := spec.Version
+	if ref == "" {
+		ref = "main"
+	}
+
+	// Base directory of the workflow in the remote repo (e.g. ".github/workflows")
+	workflowBaseDir := getParentDir(spec.WorkflowPath)
+
+	seen := make(map[string]bool)
+
+	for _, importPath := range importPaths {
+		// Skip workflowspec-format imports (they already have an @-pinned ref)
+		if isWorkflowSpecFormat(importPath) {
+			continue
+		}
+
+		// Strip any section reference (file.md#Section)
+		filePath := importPath
+		if before, _, hasSec := strings.Cut(importPath, "#"); hasSec {
+			filePath = before
+		}
+		if filePath == "" || seen[filePath] {
+			continue
+		}
+		seen[filePath] = true
+
+		// Resolve the remote file path relative to the workflow's directory
+		var remoteFilePath string
+		if rest, ok := strings.CutPrefix(filePath, "/"); ok {
+			remoteFilePath = rest
+		} else if workflowBaseDir != "" {
+			remoteFilePath = workflowBaseDir + "/" + filePath
+		} else {
+			remoteFilePath = filePath
+		}
+
+		// Download from the source repository
+		importContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch import %s: %v", filePath, err)))
+			}
+			continue
+		}
+
+		// Target path in the user's repo: resolve relative to targetDir (the workflows directory)
+		targetPath := filepath.Join(targetDir, filepath.FromSlash(filePath))
+
+		// Create the target directory if needed
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for import %s: %v", filePath, err)))
+			}
+			continue
+		}
+
+		// Check whether the file already exists
+		fileExists := false
+		if _, err := os.Stat(targetPath); err == nil {
+			fileExists = true
+			if !force {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Import file already exists, skipping: "+targetPath))
+				}
+				continue
+			}
+		}
+
+		// Write the file
+		if err := os.WriteFile(targetPath, importContent, 0600); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write import %s: %v", filePath, err)))
+			}
+			continue
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched import: "+targetPath))
+		}
+
+		// Track the file for git staging and potential rollback
+		if tracker != nil {
+			if fileExists {
+				tracker.TrackModified(targetPath)
+			} else {
+				tracker.TrackCreated(targetPath)
+			}
+		}
+
+		// Recursively fetch any nested imports declared in this file
+		_ = fetchAndSaveRemoteFrontmatterImports(string(importContent), spec, targetDir, verbose, force, tracker)
+	}
+
+	return nil
+}
+
 // fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source
 func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())

@@ -457,6 +457,14 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
 			}
 		}
+		// Also fetch and save frontmatter 'imports:' dependencies so they are available
+		// locally during compilation. Keeping these as relative paths (not workflowspecs)
+		// ensures the compiler resolves them from disk rather than downloading from GitHub.
+		if err := fetchAndSaveRemoteFrontmatterImports(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
+			}
+		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {
 		// For local workflows, collect and copy include dependencies from local paths
 		// The source directory is derived from the workflow's path
@@ -501,15 +509,9 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 			content = updatedContent
 		}
 
-		// Process imports field and replace with workflowspec
-		processedImportsContent, err := processImportsWithWorkflowSpec(content, workflowSpec, commitSHA, opts.Verbose)
-		if err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
-			}
-		} else {
-			content = processedImportsContent
-		}
+		// Note: frontmatter 'imports:' are intentionally kept as relative paths here.
+		// fetchAndSaveRemoteFrontmatterImports already downloaded those files locally, so
+		// the compiler can resolve them from disk without any GitHub API calls.
 
 		// Process @include directives and replace with workflowspec
 		// For local workflows, use the workflow's directory as the base path
