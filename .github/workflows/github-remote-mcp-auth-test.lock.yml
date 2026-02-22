@@ -23,7 +23,7 @@
 #
 # Daily test of GitHub remote MCP authentication with GitHub Actions token
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"789146eb83886f75b2c5090eb54b6110874a7ab72021936a013a9b6395d7c8ca"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"db9f3ebc997b550ea21426bffe49626f5370c470f814cac5e5846ac09231c0c4"}
 
 name: "GitHub Remote MCP Authentication Test"
 "on":
@@ -392,7 +392,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_discussion":{"expires":168,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_discussion":{"expires":24,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -1117,7 +1117,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":168,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[auth-test] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[auth-test] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

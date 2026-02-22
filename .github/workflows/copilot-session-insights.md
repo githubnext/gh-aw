@@ -25,6 +25,7 @@ network:
 safe-outputs:
   upload-asset:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-session-insights] "
     category: "audits"
     max: 1

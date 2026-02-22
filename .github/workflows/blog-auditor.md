@@ -28,6 +28,7 @@ tools:
     - "test *"
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[audit] "
     category: "audits"
     max: 1

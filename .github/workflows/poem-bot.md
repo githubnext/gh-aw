@@ -65,6 +65,7 @@ safe-outputs:
 
   # Discussion creation for poem summaries and logs
   create-discussion:
+    expires: 1d
     title-prefix: "[📜 POETRY] "
     category: "audits"
     labels: [poetry, automation, ai-generated]

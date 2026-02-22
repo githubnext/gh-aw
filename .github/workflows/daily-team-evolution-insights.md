@@ -24,6 +24,7 @@ tools:
     toolsets: [repos, issues, pull_requests, discussions]
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     max: 1
     close-older-discussions: true

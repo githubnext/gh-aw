@@ -62,6 +62,7 @@ safe-outputs:
   link-sub-issue:
     max: 50
   create-discussion:
+    expires: 1d
     title-prefix: "[Issue Arborist] "
     category: "audits"
     close-older-discussions: true

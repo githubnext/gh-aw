@@ -34,6 +34,7 @@ sandbox:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     title-prefix: "[Firewall Escape] "
     max: 1

@@ -15,6 +15,7 @@ tools:
     toolsets: [default, actions]
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[workflow-analysis] "
     category: "audits"
     close-older-discussions: true

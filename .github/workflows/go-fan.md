@@ -27,6 +27,7 @@ imports:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[go-fan] "
     category: "audits"
     max: 1

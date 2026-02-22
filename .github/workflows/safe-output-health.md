@@ -20,6 +20,7 @@ steps:
     run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     max: 1
     close-older-discussions: true

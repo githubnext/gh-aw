@@ -26,6 +26,7 @@ imports:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[sergo] "
     category: "audits"
     max: 1

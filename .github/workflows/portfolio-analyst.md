@@ -26,6 +26,7 @@ steps:
       ./gh-aw logs --start-date -30d -c 5000 -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[portfolio] "
     category: "audits"
     close-older-discussions: true

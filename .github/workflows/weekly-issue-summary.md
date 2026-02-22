@@ -28,6 +28,7 @@ tools:
 safe-outputs:
   upload-asset:
   create-discussion:
+    expires: 1d
     title-prefix: "[Weekly Summary] "
     category: "audits"
     close-older-discussions: true

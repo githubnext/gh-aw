@@ -19,6 +19,7 @@ tools:
     key: schema-consistency-cache-${{ github.workflow }}
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     title-prefix: "[Schema Consistency] "
     max: 1

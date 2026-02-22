@@ -17,6 +17,7 @@ tools:
     allowed: [get_repository, list_issues, issue_read]
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[auth-test] "
     category: "audits"
     max: 1

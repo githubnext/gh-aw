@@ -28,6 +28,7 @@ imports:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "research"
     max: 1
 

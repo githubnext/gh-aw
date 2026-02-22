@@ -23,6 +23,7 @@ tools:
   edit:
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "dev"
     max: 1
 timeout-minutes: 30

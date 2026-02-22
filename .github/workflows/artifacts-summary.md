@@ -20,6 +20,7 @@ tools:
     toolsets: [actions, repos]
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "artifacts"
     max: 1
     close-older-discussions: true

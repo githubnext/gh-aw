@@ -36,6 +36,7 @@ tools:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-cli-research] "
     category: "research"
     max: 1

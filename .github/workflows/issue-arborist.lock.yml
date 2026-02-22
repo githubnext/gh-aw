@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/jqschema.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a6fa5d88ef1dfaf99ac706082628c1e3e906578a849d5ca6c1af8babd8a9afd0"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1f2a33fe267f0f46c6ccc56a29048e0710ca193557b58f725e47657db011d73c"}
 
 name: "Issue Arborist"
 "on":
@@ -416,7 +416,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_discussion":{"expires":168,"max":1},"create_issue":{"expires":48,"group":true,"max":5},"link_sub_issue":{"max":50},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_discussion":{"expires":24,"max":1},"create_issue":{"expires":48,"group":true,"max":5},"link_sub_issue":{"max":50},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -1244,7 +1244,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":168,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[Issue Arborist] \"},\"create_issue\":{\"expires\":48,\"group\":true,\"max\":5,\"title_prefix\":\"[Parent] \"},\"link_sub_issue\":{\"max\":50},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[Issue Arborist] \"},\"create_issue\":{\"expires\":48,\"group\":true,\"max\":5,\"title_prefix\":\"[Parent] \"},\"link_sub_issue\":{\"max\":50},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

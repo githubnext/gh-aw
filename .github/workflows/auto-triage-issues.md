@@ -29,6 +29,7 @@ safe-outputs:
   add-labels:
     max: 10
   create-discussion:
+    expires: 1d
     title-prefix: "[Auto-Triage] "
     category: "audits"
     close-older-discussions: true

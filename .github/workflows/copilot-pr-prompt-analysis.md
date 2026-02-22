@@ -24,6 +24,7 @@ sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[prompt-analysis] "
     category: "audits"
     max: 1

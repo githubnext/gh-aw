@@ -18,6 +18,7 @@ tools:
 safe-outputs:
   upload-asset:
   create-discussion:
+    expires: 1d
     category: "audits"
     close-older-discussions: true
 

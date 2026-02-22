@@ -13,6 +13,7 @@ tools:
     toolsets: [pull_requests, repos]
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[nitpick-report] "
     category: "audits"
     max: 1

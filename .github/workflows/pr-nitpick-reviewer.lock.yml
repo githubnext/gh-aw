@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e57f726190e6837e1238544a90f9ac53c4cde1865b1c4a805432f8f157de5fce"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a80495182f8b00cbd45aa46685d5cd2410e5d01d1fdaf261137ad49a1be16ffc"}
 
 name: "PR Nitpick Reviewer 🔍"
 "on":
@@ -482,7 +482,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_discussion":{"expires":168,"max":1},"create_pull_request_review_comment":{"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
+          {"create_discussion":{"expires":24,"max":1},"create_pull_request_review_comment":{"max":10},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -1395,7 +1395,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"expires\":168,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[nitpick-report] \"},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[nitpick-report] \"},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

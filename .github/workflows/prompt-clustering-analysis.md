@@ -21,6 +21,7 @@ network:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[prompt-clustering] "
     category: "audits"
     max: 1

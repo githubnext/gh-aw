@@ -13,6 +13,7 @@ tools:
   bash: true
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     max: 1
     close-older-discussions: true

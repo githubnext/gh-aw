@@ -25,6 +25,7 @@ safe-outputs:
     group: true
     labels: [cookie]
   create-discussion:
+    expires: 1d
     max: 2
   add-comment:
     max: 10

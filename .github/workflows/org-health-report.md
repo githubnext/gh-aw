@@ -23,6 +23,7 @@ tools:
     - "*"
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "reports"
     max: 1
     close-older-discussions: true

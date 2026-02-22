@@ -19,6 +19,7 @@ tools:
   timeout: 600
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "security"
     max: 1
     close-older-discussions: true

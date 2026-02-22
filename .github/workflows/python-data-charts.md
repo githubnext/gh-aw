@@ -16,6 +16,7 @@ imports:
 safe-outputs:
   upload-asset:
   create-discussion:
+    expires: 1d
     category: "artifacts"
     max: 1
 timeout-minutes: 15

@@ -18,6 +18,7 @@ tools:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "dev"
     max: 1
     close-older-discussions: true

@@ -23,6 +23,7 @@ network:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-agent-analysis] "
     category: "audits"
     max: 1

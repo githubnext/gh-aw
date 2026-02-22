@@ -24,6 +24,7 @@ tools:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-pr-merged-report] "
     category: "audits"
     max: 1

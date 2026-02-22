@@ -25,6 +25,7 @@ sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[nlp-analysis] "
     category: "audits"
     max: 1

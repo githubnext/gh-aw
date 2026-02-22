@@ -23,6 +23,7 @@ tools:
     key: mcp-response-analysis-${{ github.workflow }}
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     title-prefix: "[mcp-analysis] "
     max: 1
