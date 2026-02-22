@@ -1,17 +1,15 @@
 package cli
 
 import (
-	"archive/tar"
-	"bytes"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -42,7 +40,7 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 	}
 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
-	content, err := extractFileFromTar(archiveOutput, path)
+	content, err := fileutil.ExtractFileFromTar(archiveOutput, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
@@ -189,24 +187,4 @@ func decodeBase64FileContent(raw string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode file content: %w", err)
 	}
 	return content, nil
-}
-
-// extractFileFromTar extracts a single file from a tar archive.
-// Uses Go's standard archive/tar for cross-platform compatibility instead of
-// spawning an external tar process which may not be available on all platforms.
-func extractFileFromTar(data []byte, path string) ([]byte, error) {
-	tr := tar.NewReader(bytes.NewReader(data))
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read tar archive: %w", err)
-		}
-		if header.Name == path {
-			return io.ReadAll(tr)
-		}
-	}
-	return nil, fmt.Errorf("file %q not found in archive", path)
 }
