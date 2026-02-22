@@ -774,12 +774,15 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe("fixes #abc123def");
     });
 
-    it("should neutralize all unquoted references when there are more than 10", () => {
+    it("should neutralize excess references beyond the 10-occurrence threshold", () => {
       const input = Array.from({ length: 11 }, (_, i) => `fixes #${i + 1}`).join(" ");
       const result = sanitizeContent(input);
-      for (let i = 1; i <= 11; i++) {
-        expect(result).toContain(`\`fixes #${i}\``);
+      // First 10 are left unchanged
+      for (let i = 1; i <= 10; i++) {
+        expect(result).not.toContain(`\`fixes #${i}\``);
       }
+      // 11th is wrapped
+      expect(result).toContain("`fixes #11`");
     });
 
     it("should not requote already-quoted entries", () => {
@@ -792,10 +795,12 @@ describe("sanitize_content.cjs", () => {
       // The already-quoted entry must not be double-quoted
       expect(result).not.toContain("``fixes #1``");
       expect(result).toContain("`fixes #1`");
-      // The unquoted entries should be wrapped
-      for (let i = 2; i <= 12; i++) {
-        expect(result).toContain(`\`fixes #${i}\``);
+      // The first 10 unquoted entries are left unchanged (only the 11th is wrapped)
+      for (let i = 2; i <= 11; i++) {
+        expect(result).not.toContain(`\`fixes #${i}\``);
       }
+      // The 12th entry (11th unquoted) is wrapped
+      expect(result).toContain("`fixes #12`");
     });
   });
 
