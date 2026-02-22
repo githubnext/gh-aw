@@ -153,7 +153,7 @@ async function main() {
         fs.copyFileSync(assetSourcePath, targetFileName);
 
         // Add to git
-        await exec.exec(`git add "${targetFileName}"`);
+        await exec.exec("git", ["add", targetFileName]);
 
         uploadCount++;
         hasChanges = true;
