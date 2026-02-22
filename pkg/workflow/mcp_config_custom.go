@@ -86,6 +86,18 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
+	// For TOML format, stdio servers must use Docker containerization (MCP Gateway v0.1.5+).
+	// If a command is present and is not "docker", the server is not containerized and will
+	// be rejected by the gateway at startup.
+	if renderer.Format == "toml" && mcpConfig.Type == "stdio" && mcpConfig.Command != "" && mcpConfig.Command != "docker" {
+		return fmt.Errorf(
+			"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway v0.1.5+. "+
+				"Stdio servers must be containerized. Use 'container' with 'entrypoint' instead.\n\n"+
+				"Example:\ntools:\n  %s:\n    container: \"my-registry/my-tool:latest\"\n    entrypoint: \"my-tool\"\n    args: [\"--verbose\"]",
+			toolName, mcpConfig.Command, toolName,
+		)
+	}
+
 	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
 	var headerSecrets map[string]string
 	if mcpConfig.Type == "http" && renderer.RequiresCopilotFields {
@@ -99,7 +111,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	switch mcpType {
 	case "stdio":
 		if renderer.Format == "toml" {
-			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
+			propertyOrder = []string{"container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "env", "proxy-args", "registry"}
 		} else {
 			// JSON format - use MCP Gateway schema format (container-based) OR legacy command-based
 			// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio servers SHOULD be containerized
@@ -235,63 +247,93 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
 		case "container":
-			comma := ","
-			if isLast {
-				comma = ""
-			}
 			// Container field - per MCP Gateway Specification v1.0.0 section 4.1.2
 			// Required for stdio servers (containerized servers)
-			fmt.Fprintf(yaml, "%s\"container\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Container, comma)
-		case "entrypoint":
-			comma := ","
-			if isLast {
-				comma = ""
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%scontainer = \"%s\"\n", renderer.IndentLevel, mcpConfig.Container)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"container\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Container, comma)
 			}
+		case "entrypoint":
 			// Entrypoint field - per MCP Gateway Specification v1.0.0
 			// Optional entrypoint override for container
-			fmt.Fprintf(yaml, "%s\"entrypoint\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Entrypoint, comma)
-		case "entrypointArgs":
-			comma := ","
-			if isLast {
-				comma = ""
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sentrypoint = \"%s\"\n", renderer.IndentLevel, mcpConfig.Entrypoint)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"entrypoint\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Entrypoint, comma)
 			}
+		case "entrypointArgs":
 			// EntrypointArgs field - per MCP Gateway Specification v1.0.0
 			// Arguments passed to the container entrypoint
-			fmt.Fprintf(yaml, "%s\"entrypointArgs\": [\n", renderer.IndentLevel)
-			for argIndex, arg := range mcpConfig.EntrypointArgs {
-				argComma := ","
-				if argIndex == len(mcpConfig.EntrypointArgs)-1 {
-					argComma = ""
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sentrypointArgs = [", renderer.IndentLevel)
+				for argIndex, arg := range mcpConfig.EntrypointArgs {
+					if argIndex > 0 {
+						yaml.WriteString(", ")
+					}
+					fmt.Fprintf(yaml, "\"%s\"", arg)
 				}
-				// Replace template expressions with environment variable references
-				argValue := arg
-				if renderer.RequiresCopilotFields {
-					argValue = ReplaceTemplateExpressionsWithEnvVars(argValue)
+				yaml.WriteString("]\n")
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
 				}
-				fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, argValue, argComma)
+				fmt.Fprintf(yaml, "%s\"entrypointArgs\": [\n", renderer.IndentLevel)
+				for argIndex, arg := range mcpConfig.EntrypointArgs {
+					argComma := ","
+					if argIndex == len(mcpConfig.EntrypointArgs)-1 {
+						argComma = ""
+					}
+					// Replace template expressions with environment variable references
+					argValue := arg
+					if renderer.RequiresCopilotFields {
+						argValue = ReplaceTemplateExpressionsWithEnvVars(argValue)
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, argValue, argComma)
+				}
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
-			fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 		case "mounts":
-			comma := ","
-			if isLast {
-				comma = ""
-			}
 			// Mounts field - per MCP Gateway Specification v1.0.0
 			// Volume mounts for the container
-			fmt.Fprintf(yaml, "%s\"mounts\": [\n", renderer.IndentLevel)
-			for mountIndex, mount := range mcpConfig.Mounts {
-				mountComma := ","
-				if mountIndex == len(mcpConfig.Mounts)-1 {
-					mountComma = ""
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%smounts = [", renderer.IndentLevel)
+				for mountIndex, mount := range mcpConfig.Mounts {
+					if mountIndex > 0 {
+						yaml.WriteString(", ")
+					}
+					fmt.Fprintf(yaml, "\"%s\"", mount)
 				}
-				// Replace template expressions with environment variable references
-				mountValue := mount
-				if renderer.RequiresCopilotFields {
-					mountValue = ReplaceTemplateExpressionsWithEnvVars(mountValue)
+				yaml.WriteString("]\n")
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
 				}
-				fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, mountValue, mountComma)
+				fmt.Fprintf(yaml, "%s\"mounts\": [\n", renderer.IndentLevel)
+				for mountIndex, mount := range mcpConfig.Mounts {
+					mountComma := ","
+					if mountIndex == len(mcpConfig.Mounts)-1 {
+						mountComma = ""
+					}
+					// Replace template expressions with environment variable references
+					mountValue := mount
+					if renderer.RequiresCopilotFields {
+						mountValue = ReplaceTemplateExpressionsWithEnvVars(mountValue)
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, mountValue, mountComma)
+				}
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
-			fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 		case "command":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, mcpConfig.Command)
