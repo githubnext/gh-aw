@@ -50,24 +50,11 @@ on:
         default: staging
 ```
 
-**Supported input types:**
-- **`string`** - Free-form text input
-- **`boolean`** - True/false checkbox
-- **`choice`** - Dropdown selection with predefined options
-- **`environment`** - Dropdown selection of GitHub environments configured in the repository
+Supported input types: `string` (text), `boolean` (checkbox), `choice` (dropdown), `environment` (GitHub environments dropdown).
 
 ### Environment Input Type
 
-The `environment` input type provides a dropdown selector populated with environments configured in your repository. This is useful for workflows that need to target specific deployment environments or use environment-specific secrets and protection rules.
-
-**Key characteristics:**
-- Automatically populated from environments configured in repository Settings → Environments
-- Returns the environment name as a string value
-- Can specify a `default` value (must match an existing environment name)
-- Does not require an `options` list (populated automatically from repository configuration)
-- Does not enforce environment protection rules (see [Environment Approval Gates](#environment-approval-gates) below for that)
-
-**Example usage:**
+The `environment` type populates automatically from repository Settings → Environments, returning the selected name as a string. A `default` may be specified (must match an existing environment name). Unlike `choice`, no `options` list is needed.
 
 ```yaml
 on:
@@ -80,13 +67,11 @@ on:
         default: staging
 ```
 
-Access the selected environment in your workflow markdown:
-
 ```markdown
 Deploy to the ${{ github.event.inputs.target_env }} environment.
 ```
 
-**Note:** The `environment` input type only provides a selector for environment names. To enforce environment protection rules (approval gates, required reviewers, wait timers), use the `manual-approval:` field in your workflow frontmatter (see [Environment Approval Gates](#environment-approval-gates) below).
+**Note:** The `environment` type does not enforce protection rules. To require approval gates, reviewers, or wait timers, use the `manual-approval:` field (see [Environment Approval Gates](#environment-approval-gates) below).
 
 ## Security Model
 
@@ -158,11 +143,7 @@ The `gh aw run` command provides a faster way to trigger workflows from the comm
 gh aw run workflow
 ```
 
-The command:
-1. Finds the workflow by name (e.g., `research` matches `research.md`)
-2. Validates it has `workflow_dispatch:` trigger
-3. Triggers execution via GitHub Actions API
-4. Returns immediately with the run URL
+This matches workflows by filename prefix, validates `workflow_dispatch:`, and returns the run URL immediately.
 
 ### With Input Parameters
 
@@ -172,7 +153,6 @@ Pass inputs using the `--raw-field` or `-f` flag in `key=value` format:
 gh aw run research --raw-field topic="quantum computing"
 ```
 
-**Multiple inputs:**
 ```bash
 gh aw run scout \
   --raw-field topic="AI safety research" \
@@ -187,41 +167,19 @@ Monitor workflow execution and wait for results:
 gh aw run research --raw-field topic="AI agents" --wait
 ```
 
-The `--wait` flag:
-- Monitors workflow progress in real-time
-- Shows status updates
-- Waits for completion before returning
-- Exits with success/failure code based on workflow result
+`--wait` monitors progress in real-time and exits with a success/failure code on completion.
 
-### Branch Selection
-
-Run workflows from specific branches:
+### Additional Options
 
 ```bash
-gh aw run research --ref feature-branch
-```
-
-### Running Remote Workflows
-
-Execute workflows from other repositories:
-
-```bash
-gh aw run workflow --repo owner/repository
-```
-
-### Verbose Output
-
-See detailed execution information:
-
-```bash
-gh aw run research --raw-field topic="AI" --verbose
+gh aw run research --ref feature-branch              # Run from specific branch
+gh aw run workflow --repo owner/repository           # Run in another repository
+gh aw run research --raw-field topic="AI" --verbose  # Verbose output
 ```
 
 ## Declaring and Referencing Inputs
 
 ### Declaring Inputs in Frontmatter
-
-Define inputs in the `workflow_dispatch` section with clear descriptions:
 
 ```yaml
 on:
@@ -285,10 +243,7 @@ Analysis depth requested: ${{ github.event.inputs.depth }}
 Provide a ${{ github.event.inputs.depth }} analysis with key findings and recommendations.
 ```
 
-**Expression syntax:**
-- Use `${{ github.event.inputs.INPUT_NAME }}` to reference input values
-- Inputs are available throughout the entire workflow markdown
-- Values are interpolated at workflow compile time into the GitHub Actions YAML
+Reference inputs with `${{ github.event.inputs.INPUT_NAME }}`—values are interpolated at compile time throughout the workflow.
 
 ### Conditional Logic Based on Inputs
 
