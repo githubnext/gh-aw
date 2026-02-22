@@ -457,7 +457,7 @@ timeout-minutes: 30                  # Defaults to 20 minutes
 | `ubuntu-latest` | ✅ Default. Recommended for most workflows. |
 | `ubuntu-24.04` / `ubuntu-22.04` | ✅ Supported. |
 | `ubuntu-24.04-arm` | ✅ Supported. Linux ARM64 runner. |
-| `macos-*` | ❌ Not supported. Docker is unavailable on macOS runners (no nested virtualization). See [FAQ](/gh-aw/reference/faq/#why-dont-agentic-workflows-support-macos-runners). |
+| `macos-*` | ❌ Not supported. Docker is unavailable on macOS runners (no nested virtualization). See [FAQ](/gh-aw/reference/faq/). |
 | `windows-*` | ❌ Not supported. AWF requires Linux. |
 
 ### Workflow Concurrency Control (`concurrency:`)
