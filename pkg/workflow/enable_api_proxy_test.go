@@ -105,11 +105,12 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 		engine := NewGeminiEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		if len(steps) == 0 {
-			t.Fatal("Expected at least one execution step")
+		if len(steps) < 2 {
+			t.Fatal("Expected at least two execution steps (settings + execution)")
 		}
 
-		stepContent := strings.Join(steps[0], "\n")
+		// steps[0] = Write Gemini settings, steps[1] = Execute Gemini CLI
+		stepContent := strings.Join(steps[1], "\n")
 
 		if !strings.Contains(stepContent, "--enable-api-proxy") {
 			t.Error("Expected Gemini AWF command to contain '--enable-api-proxy' flag")

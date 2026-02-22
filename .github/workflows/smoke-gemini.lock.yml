@@ -970,6 +970,17 @@ jobs:
           path: /tmp/gh-aw/aw-prompts
       - name: Clean git credentials
         run: bash /opt/gh-aw/actions/clean_git_credentials.sh
+      - name: Write Gemini settings
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.gemini"
+          SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
+          BASE_CONFIG='{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","replace","run_shell_command","write_file"]}}'
+          if [ -f "$SETTINGS" ]; then
+            MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$SETTINGS")" '$existing * $base')
+            echo "$MERGED" > "$SETTINGS"
+          else
+            echo "$BASE_CONFIG" > "$SETTINGS"
+          fi
       - name: Execute Gemini CLI
         id: agentic_execution
         run: |
@@ -1298,6 +1309,17 @@ jobs:
           package-manager-cache: false
       - name: Install Gemini CLI
         run: npm install -g --silent @google/gemini-cli@0.29.0
+      - name: Write Gemini settings
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.gemini"
+          SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
+          BASE_CONFIG='{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","run_shell_command(cat)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(jq)","run_shell_command(ls)","run_shell_command(tail)","run_shell_command(wc)"]}}'
+          if [ -f "$SETTINGS" ]; then
+            MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$SETTINGS")" '$existing * $base')
+            echo "$MERGED" > "$SETTINGS"
+          else
+            echo "$BASE_CONFIG" > "$SETTINGS"
+          fi
       - name: Execute Gemini CLI
         id: agentic_execution
         run: |

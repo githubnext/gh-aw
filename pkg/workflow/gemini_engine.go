@@ -174,6 +174,12 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	var steps []GitHubActionStep
 
+	// Write .gemini/settings.json with context.includeDirectories and tools.core.
+	// This step runs after the MCP gateway setup (which may have written mcpServers config)
+	// and merges the context/tools settings into any existing settings.json.
+	settingsStep := e.generateGeminiSettingsStep(workflowData)
+	steps = append(steps, settingsStep)
+
 	// Build gemini CLI arguments based on configuration
 	var geminiArgs []string
 
