@@ -35,8 +35,8 @@ async function main() {
 
   core.info(`Adding Copilot as reviewer to PR #${prNumber}`);
 
+  const { owner, repo } = context.repo;
   try {
-    const { owner, repo } = context.repo;
     await github.rest.pulls.requestReviewers({
       owner,
       repo,
