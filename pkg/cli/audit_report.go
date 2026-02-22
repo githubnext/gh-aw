@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -261,6 +262,14 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	var errors []ErrorInfo
 	var warnings []ErrorInfo
 
+	// For failed workflows where the agent never ran (no agent-stdio.log),
+	// extract errors from step log files to surface the actual failure reason.
+	if run.Conclusion == "failure" && run.LogsPath != "" {
+		if stepErrors := extractPreAgentStepErrors(run.LogsPath); len(stepErrors) > 0 {
+			errors = stepErrors
+		}
+	}
+
 	// Build tool usage
 	var toolUsage []ToolUsageInfo
 	toolStats := make(map[string]*ToolUsageInfo)
@@ -496,6 +505,146 @@ func describeFile(filename string) string {
 func parseDurationString(s string) time.Duration {
 	d, _ := time.ParseDuration(s)
 	return d
+}
+
+// extractPreAgentStepErrors scans workflow step log files for failure content when the
+// agent never executed (no agent-stdio.log present). This surfaces errors from pre-agent
+// steps such as lockdown validation, binary installation, or repository checkout failures.
+//
+// Step log files are stored in workflow-logs/{job}/{step_num}_{step_name}.txt after
+// downloading via downloadWorkflowRunLogs. The function finds the last step that ran
+// (highest step number) as that is most likely the step that caused the failure.
+func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
+	// If agent-stdio.log exists, the agent ran - don't scan step logs
+	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
+	if _, err := os.Stat(agentStdioPath); err == nil {
+		auditReportLog.Printf("agent-stdio.log found, skipping pre-agent step error extraction")
+		return nil
+	}
+
+	// Look for step log files in workflow-logs subdirectory
+	workflowLogsDir := filepath.Join(logsPath, "workflow-logs")
+	if _, err := os.Stat(workflowLogsDir); err != nil {
+		auditReportLog.Printf("workflow-logs directory not found, skipping step log extraction")
+		return nil
+	}
+
+	// Find the last step log file by scanning job subdirectories.
+	// GitHub Actions log zip structure: {job_name}/{step_num}_{step_name}.txt
+	type stepLog struct {
+		path    string
+		num     int
+		stepKey string // job/step_name for display
+	}
+
+	var lastStep *stepLog
+
+	jobDirs, err := os.ReadDir(workflowLogsDir)
+	if err != nil {
+		return nil
+	}
+
+	for _, jobEntry := range jobDirs {
+		if !jobEntry.IsDir() {
+			continue
+		}
+		jobDir := filepath.Join(workflowLogsDir, jobEntry.Name())
+		stepFiles, err := os.ReadDir(jobDir)
+		if err != nil {
+			continue
+		}
+		for _, stepFile := range stepFiles {
+			if stepFile.IsDir() || !strings.HasSuffix(stepFile.Name(), ".txt") {
+				continue
+			}
+			num, stepName := parseStepFilename(stepFile.Name())
+			if num > 0 && (lastStep == nil || num > lastStep.num) {
+				lastStep = &stepLog{
+					path:    filepath.Join(jobDir, stepFile.Name()),
+					num:     num,
+					stepKey: jobEntry.Name() + "/" + stepName,
+				}
+			}
+		}
+	}
+
+	if lastStep == nil {
+		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
+		return nil
+	}
+
+	content, err := os.ReadFile(lastStep.path)
+	if err != nil {
+		auditReportLog.Printf("Failed to read step log %s: %v", lastStep.path, err)
+		return nil
+	}
+
+	message := stripGHALogTimestamps(strings.TrimSpace(string(content)))
+	if message == "" {
+		return nil
+	}
+
+	// Truncate to a reasonable size for the error summary
+	const maxMessageLen = 1500
+	if len(message) > maxMessageLen {
+		message = message[:maxMessageLen] + "..."
+	}
+
+	auditReportLog.Printf("Extracted pre-agent step error from %s (step %d)", lastStep.stepKey, lastStep.num)
+	return []ErrorInfo{{
+		Type:    "step_failure",
+		File:    lastStep.stepKey,
+		Message: message,
+	}}
+}
+
+// parseStepFilename extracts the step number and name from a GitHub Actions step log
+// filename in the format "{step_num}_{step_name}.txt" (e.g. "12_Validate lockdown mode.txt").
+// Returns (0, filename) if the filename does not match the expected format.
+func parseStepFilename(filename string) (int, string) {
+	base := strings.TrimSuffix(filename, ".txt")
+	idx := strings.IndexByte(base, '_')
+	if idx <= 0 {
+		return 0, base
+	}
+	num, err := strconv.Atoi(base[:idx])
+	if err != nil {
+		return 0, base
+	}
+	return num, base[idx+1:]
+}
+
+// stripGHALogTimestamps removes GitHub Actions timestamp prefixes from each line of a log.
+// GitHub Actions step log files prefix each line with an RFC3339 timestamp followed by a space,
+// e.g. "2024-01-01T10:00:00.1234567Z message here". This function strips those prefixes so the
+// returned string contains only the actual log content.
+func stripGHALogTimestamps(content string) string {
+	lines := strings.Split(content, "\n")
+	stripped := make([]string, 0, len(lines))
+	for _, line := range lines {
+		// GHA timestamp format: YYYY-MM-DDTHH:MM:SS[.sss...]Z<space>
+		// The 'T' separator is always at position 10. Search for the terminating 'Z' after 'T'
+		// in a generous window (positions 11-35) to handle any fractional seconds length.
+		if len(line) > 19 && line[4] == '-' && line[7] == '-' && line[10] == 'T' {
+			// Find the Z that ends the timestamp within a reasonable range
+			searchBound := 35
+			if searchBound > len(line) {
+				searchBound = len(line)
+			}
+			if zIdx := strings.IndexByte(line[11:searchBound], 'Z'); zIdx >= 0 {
+				zPos := 11 + zIdx
+				if zPos+1 <= len(line) {
+					line = line[zPos+1:]
+					// Skip leading space after the timestamp
+					if len(line) > 0 && line[0] == ' ' {
+						line = line[1:]
+					}
+				}
+			}
+		}
+		stripped = append(stripped, line)
+	}
+	return strings.Join(stripped, "\n")
 }
 
 // renderJSON outputs the audit data as JSON

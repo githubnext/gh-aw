@@ -1326,3 +1326,204 @@ not-valid-json
 		assert.Nil(t, items, "should return nil for empty manifest")
 	})
 }
+
+func TestParseStepFilename(t *testing.T) {
+	tests := []struct {
+		name         string
+		filename     string
+		expectedNum  int
+		expectedName string
+	}{
+		{
+			name:         "typical step filename",
+			filename:     "12_Validate lockdown mode requirements.txt",
+			expectedNum:  12,
+			expectedName: "Validate lockdown mode requirements",
+		},
+		{
+			name:         "single digit step",
+			filename:     "1_Set up job.txt",
+			expectedNum:  1,
+			expectedName: "Set up job",
+		},
+		{
+			name:         "step with underscores in name",
+			filename:     "5_Run_shell_script.txt",
+			expectedNum:  5,
+			expectedName: "Run_shell_script",
+		},
+		{
+			name:         "no underscore separator",
+			filename:     "nomatch.txt",
+			expectedNum:  0,
+			expectedName: "nomatch",
+		},
+		{
+			name:         "non-numeric prefix",
+			filename:     "abc_Step name.txt",
+			expectedNum:  0,
+			expectedName: "abc_Step name",
+		},
+		{
+			name:         "leading underscore only",
+			filename:     "_Step name.txt",
+			expectedNum:  0,
+			expectedName: "_Step name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			num, name := parseStepFilename(tt.filename)
+			assert.Equal(t, tt.expectedNum, num, "Step number should match")
+			assert.Equal(t, tt.expectedName, name, "Step name should match")
+		})
+	}
+}
+
+func TestStripGHALogTimestamps(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "typical GHA log line with timestamp",
+			input:    "2024-01-15T10:30:45.1234567Z This is the log message",
+			expected: "This is the log message",
+		},
+		{
+			name:     "short fractional seconds",
+			input:    "2024-01-15T10:30:45.123Z Short fractional message",
+			expected: "Short fractional message",
+		},
+		{
+			name:     "no fractional seconds",
+			input:    "2024-01-15T10:30:45Z No fractional message",
+			expected: "No fractional message",
+		},
+		{
+			name:     "multiple lines with timestamps",
+			input:    "2024-01-15T10:30:45.1234567Z Line one\n2024-01-15T10:30:46.9876543Z Line two",
+			expected: "Line one\nLine two",
+		},
+		{
+			name:     "line without timestamp unchanged",
+			input:    "This line has no timestamp",
+			expected: "This line has no timestamp",
+		},
+		{
+			name:     "mixed lines",
+			input:    "2024-01-15T10:30:45.1234567Z Timestamped\nNot timestamped",
+			expected: "Timestamped\nNot timestamped",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := stripGHALogTimestamps(tt.input)
+			assert.Equal(t, tt.expected, result, "Stripped content should match expected")
+		})
+	}
+}
+
+func TestExtractPreAgentStepErrors(t *testing.T) {
+	t.Run("returns nil when agent-stdio.log exists", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		// Create agent-stdio.log to indicate agent ran
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("agent output"), 0600))
+		// Create workflow-logs with a step log that has content
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode requirements.txt"), []byte("Error: lockdown failed"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		assert.Nil(t, errors, "Should return nil when agent-stdio.log exists")
+	})
+
+	t.Run("returns nil when workflow-logs directory missing", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		// No agent-stdio.log and no workflow-logs directory
+		errors := extractPreAgentStepErrors(dir)
+		assert.Nil(t, errors, "Should return nil when no workflow-logs directory")
+	})
+
+	t.Run("extracts error from last step log file", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		// No agent-stdio.log
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Create multiple step logs - last one should be selected
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "1_Set up job.txt"), []byte("Setup complete"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Install binary.txt"), []byte("Install complete"), 0600))
+		lockdownErr := "Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n\nPlease configure one of the following as a repository secret:\n  - GH_AW_GITHUB_TOKEN (recommended)"
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode requirements.txt"), []byte(lockdownErr), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should return errors from step logs")
+		require.Len(t, errors, 1, "Should return exactly one error info")
+		assert.Equal(t, "step_failure", errors[0].Type, "Error type should be step_failure")
+		assert.Equal(t, "agent/Validate lockdown mode requirements", errors[0].File, "File should include job and step name")
+		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain lockdown error text")
+		assert.Contains(t, errors[0].Message, "GH_AW_GITHUB_TOKEN", "Message should contain token suggestion")
+	})
+
+	t.Run("strips GHA timestamps from step log content", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Step log with GHA-style timestamps
+		logContent := "2024-01-15T10:30:45.1234567Z Error: something went wrong\n2024-01-15T10:30:46.9876543Z Please check your configuration"
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Run validation.txt"), []byte(logContent), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should extract errors from step log")
+		assert.Contains(t, errors[0].Message, "Error: something went wrong", "Should strip timestamps")
+		assert.NotContains(t, errors[0].Message, "2024-01-15T", "Should not contain timestamp prefix")
+	})
+
+	t.Run("truncates long step log content", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Create a very long log message
+		longContent := strings.Repeat("This is a very long error message. ", 100)
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "7_Long step.txt"), []byte(longContent), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should extract errors from long step log")
+		assert.LessOrEqual(t, len(errors[0].Message), 1503, "Message should be truncated to maxMessageLen (1500) + len(\"...\") (3)")
+		assert.True(t, strings.HasSuffix(errors[0].Message, "..."), "Truncated message should end with ellipsis")
+	})
+
+	t.Run("builds error summary from step errors in buildAuditData", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		// No agent-stdio.log
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode.txt"),
+			[]byte("Lockdown mode is enabled but no token configured"), 0600))
+
+		run := WorkflowRun{
+			DatabaseID:   123,
+			Conclusion:   "failure",
+			LogsPath:     dir,
+			WorkflowName: "Test Workflow",
+		}
+		processedRun := ProcessedRun{Run: run}
+		metrics := LogMetrics{}
+
+		data := buildAuditData(processedRun, metrics, nil)
+
+		require.NotNil(t, data.FailureAnalysis, "Should have failure analysis for failed run")
+		assert.NotEqual(t, "No specific errors identified", data.FailureAnalysis.ErrorSummary,
+			"Error summary should be extracted from step logs, not the default message")
+		assert.Contains(t, data.FailureAnalysis.ErrorSummary, "Lockdown mode is enabled",
+			"Error summary should contain the actual error from the step log")
+	})
+}

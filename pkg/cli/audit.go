@@ -632,6 +632,10 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
 		}
+		// Provide a human-readable error when the run ID doesn't exist
+		if strings.Contains(string(output), "Not Found") || strings.Contains(string(output), "404") {
+			return WorkflowRun{}, fmt.Errorf("workflow run %d not found. Please verify the run ID is correct and that you have access to the repository", runID)
+		}
 		return WorkflowRun{}, fmt.Errorf("failed to fetch run metadata: %w", err)
 	}
 
