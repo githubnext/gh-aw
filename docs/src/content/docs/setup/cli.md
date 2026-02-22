@@ -330,6 +330,8 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 
 Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level (job logs, specific step, or first failing step).
 
+When a workflow fails before the agent executes (for example, due to lockdown validation failures, missing secrets, or binary install failures), the audit report surfaces the actual error from the workflow step log files. The `failure_analysis.error_summary` field reflects the specific failure message rather than reporting "No specific errors identified". Providing an invalid run ID returns a human-readable error instead of a raw exit code.
+
 #### `health`
 
 Display workflow health metrics and success rates.
