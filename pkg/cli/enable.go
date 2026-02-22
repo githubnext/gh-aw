@@ -84,7 +84,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 
 	// Check if gh CLI is available
 	if !isGHCLIAvailable() {
-		return fmt.Errorf("GitHub CLI (gh) is required but not available")
+		return errors.New("GitHub CLI (gh) is required but not available")
 	}
 
 	// Get the core set of workflows from markdown files in .github/workflows
@@ -197,7 +197,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 		}
 
 		return errors.New(console.FormatErrorWithSuggestions(
-			fmt.Sprintf("workflows not found: %s", strings.Join(notFoundNames, ", ")),
+			"workflows not found: "+strings.Join(notFoundNames, ", "),
 			suggestions,
 		))
 	}

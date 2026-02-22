@@ -331,12 +331,12 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 			return false, nil, fmt.Errorf("failed to write file: %w", err)
 		}
 
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("✓ %s", fileName)))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage("✓ "+fileName))
 		for _, codemodName := range appliedCodemods {
 			fmt.Fprintf(os.Stderr, "    • %s\n", codemodName)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("⚠ %s", fileName)))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("⚠ "+fileName))
 		for _, codemodName := range appliedCodemods {
 			fmt.Fprintf(os.Stderr, "    • %s\n", codemodName)
 		}

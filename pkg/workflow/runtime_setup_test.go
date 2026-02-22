@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -662,7 +663,7 @@ func TestDeduplicateErrorMessageFormat(t *testing.T) {
 	}
 
 	// Create a sample error message as it would appear
-	sampleError := fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", fmt.Errorf("yaml marshal error"))
+	sampleError := fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", errors.New("yaml marshal error"))
 
 	errMsg := sampleError.Error()
 
@@ -901,12 +902,13 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 			}
 
 			// Join all steps into a single string for content checking
-			allSteps := ""
+			var allStepsSb strings.Builder
 			for _, step := range steps {
 				for _, line := range step {
-					allSteps += line + "\n"
+					allStepsSb.WriteString(line + "\n")
 				}
 			}
+			allSteps := allStepsSb.String()
 
 			for _, content := range tt.checkContent {
 				if !strings.Contains(allSteps, content) {

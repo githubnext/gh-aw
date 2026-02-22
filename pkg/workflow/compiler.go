@@ -182,7 +182,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
 		if groupExpr != "" {
 			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-				return formatCompilerError(markdownPath, "error", fmt.Sprintf("workflow-level concurrency validation failed: %s", err.Error()), err)
+				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
 			}
 		}
 	}
@@ -194,7 +194,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.EngineConfig.Concurrency)
 		if groupExpr != "" {
 			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-				return formatCompilerError(markdownPath, "error", fmt.Sprintf("engine.concurrency validation failed: %s", err.Error()), err)
+				return formatCompilerError(markdownPath, "error", "engine.concurrency validation failed: "+err.Error(), err)
 			}
 		}
 	}
@@ -354,7 +354,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return "", formattedErr
 	}
@@ -367,7 +367,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow with template injection risks written to: %s", console.ToRelativePath(invalidFile))))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return "", formattedErr
 	}
@@ -381,7 +381,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
 			return "", formattedErr
 		}

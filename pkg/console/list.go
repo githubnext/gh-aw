@@ -3,6 +3,7 @@
 package console
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -133,7 +134,7 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 	listLog.Printf("Showing interactive list: title=%s, items=%d", title, len(items))
 
 	if len(items) == 0 {
-		return "", fmt.Errorf("no items to display")
+		return "", errors.New("no items to display")
 	}
 
 	// Check if we're in a TTY environment
@@ -181,7 +182,7 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 	// Check if user cancelled
 	result := finalModel.(listModel)
 	if result.quitting && result.choice == "" {
-		return "", fmt.Errorf("selection cancelled")
+		return "", errors.New("selection cancelled")
 	}
 
 	listLog.Printf("Selected item: %s", result.choice)

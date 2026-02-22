@@ -19,6 +19,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -90,7 +91,7 @@ func validateBranchPrefix(prefix string) error {
 
 	// Cannot be "copilot"
 	if strings.ToLower(prefix) == "copilot" {
-		return fmt.Errorf("branch-prefix cannot be 'copilot' (reserved)")
+		return errors.New("branch-prefix cannot be 'copilot' (reserved)")
 	}
 
 	return nil
@@ -455,7 +456,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
 		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
@@ -491,7 +492,7 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Step: Push changes to repo-memory branch
 		fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
@@ -578,7 +579,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Step 1: Clone the repo-memory branch
 		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
@@ -655,7 +656,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			targetRepo = "${{ github.repository }}"
 		}
 
-		artifactDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		artifactDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Build file glob filter string
 		fileGlobFilter := ""
@@ -720,10 +721,10 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// Build outputs map for validation failures from all memory steps
 	outputs := make(map[string]string)
 	for _, memory := range data.RepoMemoryConfig.Memories {
-		stepID := fmt.Sprintf("push_repo_memory_%s", memory.ID)
+		stepID := "push_repo_memory_" + memory.ID
 		// Add outputs for each memory's validation status
-		outputs[fmt.Sprintf("validation_failed_%s", memory.ID)] = fmt.Sprintf("${{ steps.%s.outputs.validation_failed }}", stepID)
-		outputs[fmt.Sprintf("validation_error_%s", memory.ID)] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
+		outputs["validation_failed_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_failed }}", stepID)
+		outputs["validation_error_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
 	}
 
 	job := &Job{

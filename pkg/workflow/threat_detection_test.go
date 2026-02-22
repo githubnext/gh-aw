@@ -373,10 +373,11 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 	}
 
 	// Check that the custom prompt is included in the generated steps
-	stepsString := ""
+	var stepsStringSb strings.Builder
 	for _, step := range job.Steps {
-		stepsString += step
+		stepsStringSb.WriteString(step)
 	}
+	stepsString := stepsStringSb.String()
 
 	if !strings.Contains(stepsString, "CUSTOM_PROMPT") {
 		t.Error("Expected CUSTOM_PROMPT environment variable in steps")

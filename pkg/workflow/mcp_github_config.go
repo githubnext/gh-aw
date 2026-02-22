@@ -64,6 +64,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -241,11 +242,11 @@ func getGitHubDockerImageVersion(githubTool any) string {
 			case string:
 				githubDockerImageVersion = v
 			case int:
-				githubDockerImageVersion = fmt.Sprintf("%d", v)
+				githubDockerImageVersion = strconv.Itoa(v)
 			case int64:
-				githubDockerImageVersion = fmt.Sprintf("%d", v)
+				githubDockerImageVersion = strconv.FormatInt(v, 10)
 			case uint64:
-				githubDockerImageVersion = fmt.Sprintf("%d", v)
+				githubDockerImageVersion = strconv.FormatUint(v, 10)
 			case float64:
 				// Use %g to avoid trailing zeros and scientific notation for simple numbers
 				githubDockerImageVersion = fmt.Sprintf("%g", v)

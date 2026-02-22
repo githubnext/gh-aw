@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -132,7 +133,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	discussionLog.Printf("Building create_discussion job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
-		return nil, fmt.Errorf("safe-outputs.create-discussion configuration is required")
+		return nil, errors.New("safe-outputs.create-discussion configuration is required")
 	}
 
 	// Build custom environment variables specific to create-discussion using shared helpers

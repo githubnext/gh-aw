@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -106,7 +107,8 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		orchestratorEngineLog.Printf("Import processing failed: %v", err)
 		// Format ImportCycleError with detailed chain display
-		if cycleErr, ok := err.(*parser.ImportCycleError); ok {
+		var cycleErr *parser.ImportCycleError
+		if errors.As(err, &cycleErr) {
 			return nil, parser.FormatImportCycleError(cycleErr)
 		}
 		return nil, err // Error is already formatted with source location
@@ -225,7 +227,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 
 	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
 	if agenticEngine.IsExperimental() && c.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental engine: "+agenticEngine.GetDisplayName()))
 		c.IncrementWarningCount()
 	}
 

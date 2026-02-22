@@ -51,7 +51,7 @@ func (n *NotNode) Render() string {
 	// For simple function calls like cancelled(), render as !cancelled() instead of !(cancelled())
 	// This prevents GitHub Actions from interpreting the extra parentheses as an object structure
 	if _, isFunctionCall := n.Child.(*FunctionCallNode); isFunctionCall {
-		return fmt.Sprintf("!%s", n.Child.Render())
+		return "!" + n.Child.Render()
 	}
 	return fmt.Sprintf("!(%s)", n.Child.Render())
 }

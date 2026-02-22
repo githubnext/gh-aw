@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -72,7 +73,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	}
 
 	if len(result.Frontmatter) == 0 {
-		return nil, fmt.Errorf("no frontmatter found")
+		return nil, errors.New("no frontmatter found")
 	}
 
 	// Preprocess schedule fields

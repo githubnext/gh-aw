@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -65,7 +66,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 	// Check if it's a GitHub-like host
 	host := parsedURL.Host
 	if host == "" {
-		return nil, fmt.Errorf("URL must include a host")
+		return nil, errors.New("URL must include a host")
 	}
 
 	urlLog.Printf("Detected host: %s", host)
@@ -81,7 +82,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 
 	// Need at least owner and repo
 	if len(pathParts) < 2 {
-		return nil, fmt.Errorf("invalid GitHub URL format: path too short")
+		return nil, errors.New("invalid GitHub URL format: path too short")
 	}
 
 	owner := pathParts[0]
@@ -89,7 +90,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 
 	// Validate owner and repo are not empty
 	if owner == "" || repo == "" {
-		return nil, fmt.Errorf("invalid GitHub URL: owner and repo cannot be empty")
+		return nil, errors.New("invalid GitHub URL: owner and repo cannot be empty")
 	}
 
 	// Determine the type based on path structure
@@ -187,7 +188,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("unrecognized GitHub URL format")
+	return nil, errors.New("unrecognized GitHub URL format")
 }
 
 // parseRunURL parses the run ID portion of a GitHub Actions URL
@@ -198,7 +199,7 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 //   - /runs/12345678/attempts/2
 func parseRunURL(host, owner, repo string, parts []string) (*GitHubURLComponents, error) {
 	if len(parts) == 0 {
-		return nil, fmt.Errorf("missing run ID")
+		return nil, errors.New("missing run ID")
 	}
 
 	runID, err := strconv.ParseInt(parts[0], 10, 64)
@@ -262,7 +263,7 @@ func parseRawGitHubContentURL(parsedURL *url.URL) (*GitHubURLComponents, error) 
 
 	// Need at least: owner, repo, ref-or-sha, and filename
 	if len(pathParts) < 4 {
-		return nil, fmt.Errorf("invalid raw.githubusercontent.com URL format: path too short")
+		return nil, errors.New("invalid raw.githubusercontent.com URL format: path too short")
 	}
 
 	owner := pathParts[0]
@@ -276,7 +277,7 @@ func parseRawGitHubContentURL(parsedURL *url.URL) (*GitHubURLComponents, error) 
 		// Format: /owner/repo/refs/heads/branch/path/to/file
 		// or /owner/repo/refs/tags/tag/path/to/file
 		if len(pathParts) < 5 {
-			return nil, fmt.Errorf("invalid raw.githubusercontent.com URL format: refs path too short")
+			return nil, errors.New("invalid raw.githubusercontent.com URL format: refs path too short")
 		}
 		// pathParts[3] is "heads" or "tags"
 		ref = pathParts[4] // branch or tag name
@@ -289,7 +290,7 @@ func parseRawGitHubContentURL(parsedURL *url.URL) (*GitHubURLComponents, error) 
 
 	// Validate owner and repo
 	if owner == "" || repo == "" {
-		return nil, fmt.Errorf("invalid raw.githubusercontent.com URL: owner and repo cannot be empty")
+		return nil, errors.New("invalid raw.githubusercontent.com URL: owner and repo cannot be empty")
 	}
 
 	return &GitHubURLComponents{
@@ -325,7 +326,7 @@ func ParseRunURL(input string) (runID int64, owner, repo, hostname string, err e
 	}
 
 	if components.Type != URLTypeRun {
-		return 0, "", "", "", fmt.Errorf("URL is not a GitHub Actions run URL")
+		return 0, "", "", "", errors.New("URL is not a GitHub Actions run URL")
 	}
 
 	return components.Number, components.Owner, components.Repo, components.Host, nil
@@ -349,7 +350,7 @@ func ParseRunURLExtended(input string) (*GitHubURLComponents, error) {
 	}
 
 	if components.Type != URLTypeRun {
-		return nil, fmt.Errorf("URL is not a GitHub Actions run URL")
+		return nil, errors.New("URL is not a GitHub Actions run URL")
 	}
 
 	return components, nil
@@ -364,7 +365,7 @@ func ParsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 	}
 
 	if components.Type != URLTypePullRequest {
-		return "", "", 0, fmt.Errorf("URL is not a GitHub PR URL")
+		return "", "", 0, errors.New("URL is not a GitHub PR URL")
 	}
 
 	// Validate that Number fits in int range (important for 32-bit systems)
@@ -395,7 +396,7 @@ func ParseRepoFileURL(fileURL string) (owner, repo, ref, filePath string, err er
 	case URLTypeBlob, URLTypeTree, URLTypeRaw, URLTypeRawContent:
 		return components.Owner, components.Repo, components.Ref, components.Path, nil
 	default:
-		return "", "", "", "", fmt.Errorf("URL is not a GitHub file URL")
+		return "", "", "", "", errors.New("URL is not a GitHub file URL")
 	}
 }
 

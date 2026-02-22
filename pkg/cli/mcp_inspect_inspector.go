@@ -91,7 +91,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 				for _, config := range stdioServers {
 					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting server: %s", config.Name)))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting server: "+config.Name))
 					}
 
 					// Create the command for the MCP server

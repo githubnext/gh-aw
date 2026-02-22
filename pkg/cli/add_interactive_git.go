@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -51,7 +53,7 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 		if err := c.mergePullRequest(result.PRNumber); err != nil {
 			// Check if already merged
 			if strings.Contains(err.Error(), "already merged") || strings.Contains(err.Error(), "MERGED") {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Merged pull request %s", result.PRURL)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
 			} else {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", err)))
 				fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
@@ -76,11 +78,11 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 				if !continueAfterMerge {
 					fmt.Fprintln(os.Stderr, "")
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Stopped. You can continue later by merging the PR and running the workflow manually."))
-					return fmt.Errorf("user chose to stop after merge failure")
+					return errors.New("user chose to stop after merge failure")
 				}
 			}
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Merged pull request %s", result.PRURL)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
 		}
 	}
 
@@ -170,7 +172,7 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git stash        # Temporarily stash changes"))
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'wip'  # Commit changes"))
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf("working directory is not clean")
+		return errors.New("working directory is not clean")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Working directory is clean"))
@@ -179,7 +181,7 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
 
 // mergePullRequest merges the specified PR
 func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
-	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", fmt.Sprintf("%d", prNumber), "--repo", c.RepoOverride, "--merge")
+	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", strconv.Itoa(prNumber), "--repo", c.RepoOverride, "--merge")
 	if err != nil {
 		return fmt.Errorf("merge failed: %w (output: %s)", err, string(output))
 	}

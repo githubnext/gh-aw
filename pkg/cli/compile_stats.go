@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -150,9 +151,9 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		rows = append(rows, []string{
 			workflowName,
 			fileSize,
-			fmt.Sprintf("%d", stats.Jobs),
-			fmt.Sprintf("%d", stats.Steps),
-			fmt.Sprintf("%d", stats.ScriptCount),
+			strconv.Itoa(stats.Jobs),
+			strconv.Itoa(stats.Steps),
+			strconv.Itoa(stats.ScriptCount),
 		})
 	}
 

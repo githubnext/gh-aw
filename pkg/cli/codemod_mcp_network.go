@@ -276,7 +276,7 @@ func addTopLevelNetwork(lines []string, domains []string) []string {
 	networkLines = append(networkLines, "network:")
 	networkLines = append(networkLines, "  allowed:")
 	for _, domain := range domains {
-		networkLines = append(networkLines, fmt.Sprintf("    - %s", domain))
+		networkLines = append(networkLines, "    - "+domain)
 	}
 
 	// Insert at the determined position
@@ -393,7 +393,7 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 	if insertIndex > 0 {
 		// Insert allowed before the next top-level block
 		allowedLines := []string{
-			fmt.Sprintf("%s  allowed:", networkIndent),
+			networkIndent + "  allowed:",
 		}
 		for _, domain := range domains {
 			allowedLines = append(allowedLines, fmt.Sprintf("%s    - %s", networkIndent, domain))
@@ -411,7 +411,7 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 				break
 			}
 		}
-		result = append(result, fmt.Sprintf("%s  allowed:", networkIndentStr))
+		result = append(result, networkIndentStr+"  allowed:")
 		for _, domain := range domains {
 			result = append(result, fmt.Sprintf("%s    - %s", networkIndentStr, domain))
 		}

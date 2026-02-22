@@ -145,7 +145,7 @@ func saveActionCache(actionCache *workflow.ActionCache, verbose bool) error {
 
 	compilePostProcessingLog.Print("Action cache saved successfully")
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Action cache saved to "+actionCache.GetCachePath()))
 	}
 
 	return nil

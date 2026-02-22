@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -68,7 +69,7 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 
 	if c.strictMode {
 		// In strict mode, this is an error
-		return fmt.Errorf("strict mode: engine must support firewall when network restrictions (network.allowed) are set")
+		return errors.New("strict mode: engine must support firewall when network restrictions (network.allowed) are set")
 	}
 
 	// In non-strict mode, emit a warning
@@ -96,7 +97,7 @@ func (c *Compiler) checkFirewallDisable(engine CodingAgentEngine, networkPermiss
 
 			if c.strictMode {
 				// In strict mode, this is an error
-				return fmt.Errorf("strict mode: cannot disable firewall when network restrictions (network.allowed) are set")
+				return errors.New("strict mode: cannot disable firewall when network restrictions (network.allowed) are set")
 			}
 
 			// In non-strict mode, emit a warning

@@ -2,8 +2,10 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,7 +67,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	if len(eligiblePRs) == 0 {
 		prAutomergeLog.Print("No eligible PRs found for auto-merge")
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No pull requests found created after %s", createdAfter.Format(time.RFC3339))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No pull requests found created after "+createdAfter.Format(time.RFC3339)))
 		}
 		return nil
 	}
@@ -82,7 +84,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 		// Convert from draft to non-draft if necessary
 		if pr.IsDraft {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
-			if output, err := workflow.RunGHCombined("Converting draft to ready...", "pr", "ready", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug); err != nil {
+			if output, err := workflow.RunGHCombined("Converting draft to ready...", "pr", "ready", strconv.Itoa(pr.Number), "--repo", repoSlug); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
 				continue
 			}
@@ -96,7 +98,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 
 		// Auto-merge the PR
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
-		if output, err := workflow.RunGHCombined("Auto-merging pull request...", "pr", "merge", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug, "--auto", "--squash"); err != nil {
+		if output, err := workflow.RunGHCombined("Auto-merging pull request...", "pr", "merge", strconv.Itoa(pr.Number), "--repo", repoSlug, "--auto", "--squash"); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
 			continue
 		}
@@ -137,11 +139,11 @@ func WaitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbo
 				if strings.Contains(status, `"conclusion":"success"`) {
 					return PollSuccess, nil
 				} else if strings.Contains(status, `"conclusion":"failure"`) {
-					return PollFailure, fmt.Errorf("workflow failed")
+					return PollFailure, errors.New("workflow failed")
 				} else if strings.Contains(status, `"conclusion":"cancelled"`) {
-					return PollFailure, fmt.Errorf("workflow was cancelled")
+					return PollFailure, errors.New("workflow was cancelled")
 				} else {
-					return PollFailure, fmt.Errorf("workflow completed with unknown conclusion")
+					return PollFailure, errors.New("workflow completed with unknown conclusion")
 				}
 			}
 

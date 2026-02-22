@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -30,7 +31,7 @@ type AddCommentsConfig struct {
 func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string, createIssueJobName string, createDiscussionJobName string, createPullRequestJobName string) (*Job, error) {
 	addCommentLog.Printf("Building add_comment job: target=%s, discussion=%v", data.SafeOutputs.AddComments.Target, data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion)
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
-		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
+		return nil, errors.New("safe-outputs.add-comment configuration is required")
 	}
 
 	// Build pre-steps for debugging output

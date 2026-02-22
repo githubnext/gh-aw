@@ -50,17 +50,17 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 		if forceDeleteHostRepo {
 			// Force delete mode: delete the existing repository first
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Force deleting existing host repository: %s", repoSlug)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force deleting existing host repository: "+repoSlug))
 			}
 
 			if dryRun {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("[DRY RUN] Would delete repository: %s", repoSlug)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("[DRY RUN] Would delete repository: "+repoSlug))
 			} else {
 				if deleteOutput, deleteErr := workflow.RunGHCombined("Deleting repository...", "repo", "delete", repoSlug, "--yes"); deleteErr != nil {
 					return fmt.Errorf("failed to force delete existing host repository %s: %w (output: %s)", repoSlug, deleteErr, string(deleteOutput))
 				}
 
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Force deleted existing host repository: %s", repoSlug)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Force deleted existing host repository: "+repoSlug))
 			}
 
 			// Continue to create the repository below
@@ -71,7 +71,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 				if cloneRepoSlug != "" {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s (contents will be force-pushed)", repoSlug)))
 				} else {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s", repoSlug)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reusing existing host repository: "+repoSlug))
 				}
 			}
 			prefix := ""
@@ -96,7 +96,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("[DRY RUN] Would create repository with description: 'GitHub Agentic Workflows host repository'"))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("[DRY RUN] Would enable GitHub Actions permissions at: https://github.com/%s/settings/actions", repoSlug)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("[DRY RUN] Would enable discussions"))
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("[DRY RUN] Would create host repository: https://github.com/%s", repoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("[DRY RUN] Would create host repository: https://github.com/"+repoSlug))
 		return nil
 	}
 
@@ -109,16 +109,16 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 		if strings.Contains(outputStr, "name already exists") {
 			// Repository exists but gh repo view failed earlier - this is okay, reuse it
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Repository already exists (detected via create error): %s", repoSlug)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Repository already exists (detected via create error): "+repoSlug))
 			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing host repository: https://github.com/%s", repoSlug)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Using existing host repository: https://github.com/"+repoSlug))
 			return nil
 		}
 		return fmt.Errorf("failed to create host repository: %w (output: %s)", err, string(output))
 	}
 
 	// Show host repository creation message with URL
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created host repository: https://github.com/%s", repoSlug)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created host repository: https://github.com/"+repoSlug))
 
 	// Prompt user to enable GitHub Actions permissions
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
@@ -136,7 +136,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 
 	// Enable discussions in the repository as most workflows use them
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Enabling discussions in repository: %s", repoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Enabling discussions in repository: "+repoSlug))
 	}
 
 	if discussionsOutput, discussionsErr := workflow.RunGHCombined("Enabling discussions...", "repo", "edit", repoSlug, "--enable-discussions"); discussionsErr != nil {
@@ -154,7 +154,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 
 func cleanupTrialRepository(repoSlug string, verbose bool) error {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cleaning up host repository: %s", repoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up host repository: "+repoSlug))
 	}
 
 	// Use gh CLI to delete the repository with proper username/repo format
@@ -165,7 +165,7 @@ func cleanupTrialRepository(repoSlug string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Deleted host repository: %s", repoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Deleted host repository: "+repoSlug))
 	}
 
 	return nil
@@ -264,9 +264,9 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 
 	if opts.Verbose {
 		if fetched.IsLocal {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Copied local workflow to %s", result.DestPath)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Copied local workflow to "+result.DestPath))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Fetched remote workflow to %s", result.DestPath)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched remote workflow to "+result.DestPath))
 		}
 	}
 
@@ -392,7 +392,7 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 	}
 
 	// Find the workflow markdown file
-	workflowPath := filepath.Join(tempDir, constants.GetWorkflowDir(), fmt.Sprintf("%s.md", workflowName))
+	workflowPath := filepath.Join(tempDir, constants.GetWorkflowDir(), workflowName+".md")
 
 	// Validate workflow path
 	workflowPath, err := fileutil.ValidateAbsolutePath(workflowPath)
@@ -427,7 +427,7 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 				// Add the original uses line
 				newLines = append(newLines, fmt.Sprintf("%s%s%s", indentation, usesLine, remainder))
 				// Add the with clause at the same indentation level as uses
-				newLines = append(newLines, fmt.Sprintf("%swith:", indentation))
+				newLines = append(newLines, indentation+"with:")
 				newLines = append(newLines, fmt.Sprintf("%s  repository: %s", indentation, logicalRepoSlug))
 			} else {
 				newLines = append(newLines, line)

@@ -67,7 +67,7 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 		example := generateExampleJSONForPath(schemaDoc, jsonPath)
 		if example != "" {
 			schemaSuggestionsLog.Printf("Generated example JSON: length=%d bytes", len(example))
-			return fmt.Sprintf("Expected format: %s", example)
+			return "Expected format: " + example
 		}
 	}
 

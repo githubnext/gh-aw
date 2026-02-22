@@ -17,8 +17,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -150,7 +148,7 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 
 	stepLines := []string{
 		"      - name: Install awf binary",
-		fmt.Sprintf("        run: bash /opt/gh-aw/actions/install_awf_binary.sh %s", version),
+		"        run: bash /opt/gh-aw/actions/install_awf_binary.sh " + version,
 	}
 
 	return GitHubActionStep(stepLines)

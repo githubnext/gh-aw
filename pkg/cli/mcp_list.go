@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -88,7 +89,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 		}
 
 		tableConfig := console.TableConfig{
-			Title:   fmt.Sprintf("MCP servers in %s", filepath.Base(workflowPath)),
+			Title:   "MCP servers in " + filepath.Base(workflowPath),
 			Headers: headers,
 			Rows:    rows,
 		}
@@ -112,7 +113,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 		}
 
 		tableConfig := console.TableConfig{
-			Title:   fmt.Sprintf("MCP servers in %s", filepath.Base(workflowPath)),
+			Title:   "MCP servers in " + filepath.Base(workflowPath),
 			Headers: headers,
 			Rows:    rows,
 		}
@@ -191,7 +192,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 
 			rows = append(rows, []string{
 				workflow.name,
-				fmt.Sprintf("%d", workflow.serverCount),
+				strconv.Itoa(workflow.serverCount),
 				serverList,
 			})
 		}
@@ -209,7 +210,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		for _, workflow := range workflowData {
 			rows = append(rows, []string{
 				workflow.name,
-				fmt.Sprintf("%d", workflow.serverCount),
+				strconv.Itoa(workflow.serverCount),
 			})
 		}
 

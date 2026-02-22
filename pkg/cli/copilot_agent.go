@@ -154,7 +154,7 @@ func (d *CopilotCodingAgentDetector) hasAgentArtifacts() bool {
 		if _, err := os.Stat(artifactPath); err == nil {
 			if d.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-					fmt.Sprintf("Found agent artifact: %s", artifactName)))
+					"Found agent artifact: "+artifactName))
 			}
 			return true
 		}

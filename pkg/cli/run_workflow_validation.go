@@ -38,7 +38,7 @@ func IsRunnable(markdownPath string) (bool, error) {
 	// Check if the lock file exists
 	if _, err := os.Stat(cleanLockPath); os.IsNotExist(err) {
 		validationLog.Printf("Lock file does not exist: %s", cleanLockPath)
-		return false, fmt.Errorf("workflow has not been compiled yet - run 'gh aw compile' first")
+		return false, errors.New("workflow has not been compiled yet - run 'gh aw compile' first")
 	}
 
 	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
@@ -91,7 +91,7 @@ func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinitio
 	// Check if the lock file exists
 	if _, err := os.Stat(cleanLockPath); os.IsNotExist(err) {
 		validationLog.Printf("Lock file does not exist: %s", cleanLockPath)
-		return nil, fmt.Errorf("workflow has not been compiled yet - run 'gh aw compile' first")
+		return nil, errors.New("workflow has not been compiled yet - run 'gh aw compile' first")
 	}
 
 	// Read the lock file - path is sanitized using filepath.Clean() to prevent path traversal attacks.
@@ -222,11 +222,11 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 		var errorParts []string
 
 		if len(missingInputs) > 0 {
-			errorParts = append(errorParts, fmt.Sprintf("Missing required input(s): %s", strings.Join(missingInputs, ", ")))
+			errorParts = append(errorParts, "Missing required input(s): "+strings.Join(missingInputs, ", "))
 		}
 
 		if len(typos) > 0 {
-			errorParts = append(errorParts, fmt.Sprintf("Invalid input name(s):\n  %s", strings.Join(suggestions, "\n  ")))
+			errorParts = append(errorParts, "Invalid input name(s):\n  "+strings.Join(suggestions, "\n  "))
 		}
 
 		// Add helpful information about valid inputs
@@ -239,11 +239,11 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 				}
 				desc := ""
 				if def.Description != "" {
-					desc = fmt.Sprintf(": %s", def.Description)
+					desc = ": " + def.Description
 				}
 				inputDescriptions = append(inputDescriptions, fmt.Sprintf("  %s%s%s", name, required, desc))
 			}
-			errorParts = append(errorParts, fmt.Sprintf("\nValid inputs:\n%s", strings.Join(inputDescriptions, "\n")))
+			errorParts = append(errorParts, "\nValid inputs:\n"+strings.Join(inputDescriptions, "\n"))
 		}
 
 		return fmt.Errorf("%s", strings.Join(errorParts, "\n\n"))
@@ -267,7 +267,7 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 // This follows the principle that domain-specific validation belongs in domain files.
 func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bool) error {
 	if repoOverride == "" {
-		return fmt.Errorf("repository must be specified for remote workflow validation")
+		return errors.New("repository must be specified for remote workflow validation")
 	}
 
 	// Normalize workflow ID to handle both "workflow-name" and ".github/workflows/workflow-name.md" formats
@@ -283,7 +283,8 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	// Use gh CLI to list workflows in the target repository
 	output, err := workflow.RunGH("Listing workflows...", "workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
 			return fmt.Errorf("failed to list workflows in repository '%s': %s", repoOverride, string(exitError.Stderr))
 		}
 		return fmt.Errorf("failed to list workflows in repository '%s': %w", repoOverride, err)

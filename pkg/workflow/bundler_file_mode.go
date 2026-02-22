@@ -290,7 +290,7 @@ func GenerateWriteScriptsStep(files []ScriptFile) []string {
 
 		// Use heredoc to write file content safely
 		// Generate unique delimiter using file hash to avoid conflicts
-		delimiter := GenerateHeredocDelimiter(fmt.Sprintf("FILE_%s", file.Hash))
+		delimiter := GenerateHeredocDelimiter("FILE_" + file.Hash)
 		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filePath, delimiter))
 
 		// Write content line by line

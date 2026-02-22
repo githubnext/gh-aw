@@ -381,9 +381,9 @@ func formatFieldValue(val reflect.Value) string {
 			// Fallback for unexported fields
 			switch val.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				return fmt.Sprintf("%d", val.Int())
+				return strconv.FormatInt(val.Int(), 10)
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				return fmt.Sprintf("%d", val.Uint())
+				return strconv.FormatUint(val.Uint(), 10)
 			case reflect.Float32, reflect.Float64:
 				return fmt.Sprintf("%f", val.Float())
 			}
@@ -415,11 +415,11 @@ func formatFieldValue(val reflect.Value) string {
 		// For unexported fields, try to format based on kind
 		switch val.Kind() {
 		case reflect.Bool:
-			return fmt.Sprintf("%t", val.Bool())
+			return strconv.FormatBool(val.Bool())
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			return fmt.Sprintf("%d", val.Int())
+			return strconv.FormatInt(val.Int(), 10)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			return fmt.Sprintf("%d", val.Uint())
+			return strconv.FormatUint(val.Uint(), 10)
 		case reflect.Float32, reflect.Float64:
 			return fmt.Sprintf("%f", val.Float())
 		case reflect.String:
@@ -543,7 +543,7 @@ func FormatNumber(n int) string {
 	f := float64(n)
 
 	if f < 1000 {
-		return fmt.Sprintf("%d", n)
+		return strconv.Itoa(n)
 	} else if f < 1000000 {
 		// Format as thousands (k)
 		k := f / 1000

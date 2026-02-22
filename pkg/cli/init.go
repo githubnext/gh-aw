@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -54,14 +55,14 @@ func InitRepository(opts InitOptions) error {
 	// If creating a PR, check GitHub CLI is available
 	if opts.CreatePR {
 		if !isGHCLIAvailable() {
-			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
+			return errors.New("GitHub CLI (gh) is required for PR creation but not available")
 		}
 	}
 
 	// Ensure we're in a git repository
 	if !isGitRepo() {
 		initLog.Print("Not in a git repository, initialization failed")
-		return fmt.Errorf("not in a git repository")
+		return errors.New("not in a git repository")
 	}
 	initLog.Print("Verified git repository")
 

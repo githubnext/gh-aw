@@ -345,7 +345,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Add step to create cache-memory directory for this cache
@@ -482,7 +482,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Prepare allowed extensions array for JavaScript
@@ -540,7 +540,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Add upload-artifact step for each cache (runs always)
@@ -664,7 +664,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 		fmt.Fprintf(&cacheExamples, "- `%s/notes.txt` - general notes and observations\n", cacheDir)
 		fmt.Fprintf(&cacheExamples, "- `%s/notes.md` - markdown formatted notes\n", cacheDir)
@@ -715,14 +715,14 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			artifactName = "cache-memory"
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			artifactName = fmt.Sprintf("cache-memory-%s", cache.ID)
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			artifactName = "cache-memory-" + cache.ID
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Download artifact step
 		var downloadStep strings.Builder
 		// Generate a safe step ID from cache ID (replace hyphens with underscores)
-		downloadStepID := strings.ReplaceAll(fmt.Sprintf("download_cache_%s", cache.ID), "-", "_")
+		downloadStepID := strings.ReplaceAll("download_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
 		fmt.Fprintf(&downloadStep, "        id: %s\n", downloadStepID)
 		fmt.Fprintf(&downloadStep, "        uses: %s\n", GetActionPin("actions/download-artifact"))
@@ -734,7 +734,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Check if cache folder exists and is not empty
 		var checkStep strings.Builder
-		checkStepID := strings.ReplaceAll(fmt.Sprintf("check_cache_%s", cache.ID), "-", "_")
+		checkStepID := strings.ReplaceAll("check_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&checkStep, "      - name: Check if cache-memory folder has content (%s)\n", cache.ID)
 		fmt.Fprintf(&checkStep, "        id: %s\n", checkStepID)
 		checkStep.WriteString("        shell: bash\n")

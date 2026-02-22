@@ -57,7 +57,7 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 	}
 
 	return "", errors.New(console.FormatErrorWithSuggestions(
-		fmt.Sprintf("workflow file not found: %s", workflowPath),
+		"workflow file not found: "+workflowPath,
 		suggestions,
 	))
 }

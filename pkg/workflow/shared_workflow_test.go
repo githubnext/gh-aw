@@ -3,6 +3,7 @@
 package workflow_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,8 +47,8 @@ This is a reusable shared workflow component.
 		t.Fatal("Expected SharedWorkflowError, got nil")
 	}
 
-	sharedErr, ok := err.(*workflow.SharedWorkflowError)
-	if !ok {
+	var sharedErr *workflow.SharedWorkflowError
+	if !errors.As(err, &sharedErr) {
 		t.Fatalf("Expected *workflow.SharedWorkflowError, got %T: %v", err, err)
 	}
 
@@ -97,7 +98,7 @@ invalid_field: "This field should not be allowed"
 	}
 
 	// It should NOT be a SharedWorkflowError since validation failed
-	if _, ok := err.(*workflow.SharedWorkflowError); ok {
+	if errors.As(err, new(*workflow.SharedWorkflowError)) {
 		t.Fatal("Should not return SharedWorkflowError when validation fails")
 	}
 
@@ -183,7 +184,7 @@ steps:
 		t.Fatal("Expected SharedWorkflowError, got nil")
 	}
 
-	if _, ok := err.(*workflow.SharedWorkflowError); !ok {
+	if !errors.As(err, new(*workflow.SharedWorkflowError)) {
 		t.Fatalf("Expected *workflow.SharedWorkflowError, got %T: %v", err, err)
 	}
 }
@@ -219,7 +220,7 @@ mcp-servers:
 		t.Fatal("Expected SharedWorkflowError, got nil")
 	}
 
-	if _, ok := err.(*workflow.SharedWorkflowError); !ok {
+	if !errors.As(err, new(*workflow.SharedWorkflowError)) {
 		t.Fatalf("Expected *workflow.SharedWorkflowError, got %T: %v", err, err)
 	}
 }
@@ -252,8 +253,8 @@ mcp-servers:
 		t.Fatal("Expected SharedWorkflowError, got nil")
 	}
 
-	sharedErr, ok := err.(*workflow.SharedWorkflowError)
-	if !ok {
+	var sharedErr *workflow.SharedWorkflowError
+	if !errors.As(err, &sharedErr) {
 		t.Fatalf("Expected *workflow.SharedWorkflowError, got %T: %v", err, err)
 	}
 
@@ -294,7 +295,7 @@ engine: copilot
 	}
 
 	// It should be a "no markdown content" error, not SharedWorkflowError
-	if _, ok := err.(*workflow.SharedWorkflowError); ok {
+	if errors.As(err, new(*workflow.SharedWorkflowError)) {
 		t.Fatal("Should not return SharedWorkflowError for main workflow")
 	}
 

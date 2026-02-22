@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -60,7 +61,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 	timeDeltaLog.Printf("Parsing time delta: input=%s, allowMinutes=%v", deltaStr, allowMinutes)
 
 	if deltaStr == "" {
-		return nil, fmt.Errorf("empty time delta")
+		return nil, errors.New("empty time delta")
 	}
 
 	// Must start with '+'
@@ -73,7 +74,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 	deltaStr = deltaStr[1:]
 
 	if deltaStr == "" {
-		return nil, fmt.Errorf("empty time delta after '+'")
+		return nil, errors.New("empty time delta after '+'")
 	}
 
 	// Parse components using regex
@@ -306,7 +307,7 @@ func isRelativeDate(dateStr string) bool {
 // - -2w3d (2 weeks and 3 days ago)
 func parseRelativeDate(dateStr string) (*TimeDelta, bool, error) {
 	if dateStr == "" {
-		return nil, false, fmt.Errorf("empty date string")
+		return nil, false, errors.New("empty date string")
 	}
 
 	// Check if it's a relative date

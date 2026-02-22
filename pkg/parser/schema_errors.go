@@ -216,9 +216,9 @@ func rewriteAdditionalPropertiesError(message string) string {
 			properties = strings.ReplaceAll(properties, "'", "")
 
 			if strings.Contains(properties, ",") {
-				return fmt.Sprintf("Unknown properties: %s", properties)
+				return "Unknown properties: " + properties
 			} else {
-				return fmt.Sprintf("Unknown property: %s", properties)
+				return "Unknown property: " + properties
 			}
 		}
 	}

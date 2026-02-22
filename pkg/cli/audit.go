@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -415,7 +416,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	// Display logs location (only for console output)
 	if !jsonOutput {
 		absOutputDir, _ := filepath.Abs(runOutputDir)
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Audit complete. Logs saved to %s", absOutputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
 	}
 
 	return nil
@@ -444,11 +445,11 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 		args = append(args, "-R", fmt.Sprintf("%s/%s", owner, repo))
 	}
 
-	args = append(args, "--job", fmt.Sprintf("%d", jobID), "--log")
+	args = append(args, "--job", strconv.FormatInt(jobID, 10), "--log")
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching logs for job %d...", jobID)))
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
 	output, err := workflow.RunGHCombined("Fetching job logs...", args...)
@@ -465,7 +466,7 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Job log saved to %s", jobLogPath)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Job log saved to "+jobLogPath))
 	}
 
 	// If step number is specified, extract that step's output
@@ -503,7 +504,7 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 	// Display summary
 	if !jsonOutput {
 		absOutputDir, _ := filepath.Abs(outputDir)
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Job audit complete. Logs saved to %s", absOutputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Job audit complete. Logs saved to "+absOutputDir))
 
 		// Display file locations
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nDownloaded files:"))
@@ -624,7 +625,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 	)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
 	output, err := workflow.RunGHCombined("Fetching run metadata...", args...)

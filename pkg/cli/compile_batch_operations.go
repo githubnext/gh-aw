@@ -142,7 +142,7 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 			if err := os.Remove(orphanedFile); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned lock file: %s", filepath.Base(orphanedFile))))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed orphaned lock file: "+filepath.Base(orphanedFile)))
 			}
 		}
 		if verbose {
@@ -181,7 +181,7 @@ func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 		if err := os.Remove(invalidFile); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove invalid file %s: %v", filepath.Base(invalidFile), err)))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed invalid file: %s", filepath.Base(invalidFile))))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed invalid file: "+filepath.Base(invalidFile)))
 		}
 	}
 

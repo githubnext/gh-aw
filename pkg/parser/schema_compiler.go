@@ -289,10 +289,8 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				}
 
 				// Include every schema failure with path + line + column.
-				message := ""
-				if len(detailLines) == 1 {
-					message = detailLines[0]
-				} else {
+				message := detailLines[0]
+				if len(detailLines) != 1 {
 					message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
 				}
 

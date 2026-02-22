@@ -62,7 +62,7 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs in %s", logsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs in "+logsDir))
 	}
 
 	// Create a temporary directory for running the parser

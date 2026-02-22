@@ -18,7 +18,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 
 	// Search for all servers (empty query)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching available MCP servers from registry: %s", registryClient.registryURL)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching available MCP servers from registry: "+registryClient.registryURL))
 	}
 
 	servers, err := registryClient.SearchServers("")
@@ -70,7 +70,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 
 	// Create and render table
 	tableConfig := console.TableConfig{
-		Title:     fmt.Sprintf("MCP registry: %s", registryClient.registryURL),
+		Title:     "MCP registry: " + registryClient.registryURL,
 		Headers:   headers,
 		Rows:      rows,
 		ShowTotal: true,

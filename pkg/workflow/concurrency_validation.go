@@ -143,7 +143,7 @@ func validateExpressionSyntax(group string) error {
 			return NewValidationError(
 				"concurrency",
 				"empty expression content",
-				fmt.Sprintf("found empty expression '${{ }}' in concurrency group: %s", group),
+				"found empty expression '${{ }}' in concurrency group: "+group,
 				"Provide a valid GitHub Actions expression inside '${{ }}'. Example: '${{ github.ref }}'",
 			)
 		}
@@ -200,8 +200,8 @@ func validateExpressionContent(expr string, fullGroup string) error {
 			return NewValidationError(
 				"concurrency",
 				"invalid expression syntax",
-				fmt.Sprintf("failed to parse expression in concurrency group: %s", err.Error()),
-				fmt.Sprintf("Fix the syntax error in your concurrency group expression. Full expression: %s", fullGroup),
+				"failed to parse expression in concurrency group: "+err.Error(),
+				"Fix the syntax error in your concurrency group expression. Full expression: "+fullGroup,
 			)
 		}
 	}
@@ -248,7 +248,7 @@ func validateBalancedQuotes(expr string) error {
 				return NewValidationError(
 					"concurrency",
 					"unclosed single quote",
-					fmt.Sprintf("found unclosed single quote in expression: %s", expr),
+					"found unclosed single quote in expression: "+expr,
 					"Add the missing closing single quote (') to your expression.",
 				)
 			}
@@ -256,7 +256,7 @@ func validateBalancedQuotes(expr string) error {
 				return NewValidationError(
 					"concurrency",
 					"unclosed double quote",
-					fmt.Sprintf("found unclosed double quote in expression: %s", expr),
+					"found unclosed double quote in expression: "+expr,
 					"Add the missing closing double quote (\") to your expression.",
 				)
 			}
@@ -264,7 +264,7 @@ func validateBalancedQuotes(expr string) error {
 				return NewValidationError(
 					"concurrency",
 					"unclosed backtick",
-					fmt.Sprintf("found unclosed backtick in expression: %s", expr),
+					"found unclosed backtick in expression: "+expr,
 					"Add the missing closing backtick (`) to your expression.",
 				)
 			}

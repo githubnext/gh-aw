@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -94,7 +95,7 @@ func TestHandleCustomMCPToolInSwitch(t *testing.T) {
 			renderFunc := func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 				renderCalled = true
 				if tt.simulateError {
-					return fmt.Errorf("simulated render error")
+					return errors.New("simulated render error")
 				}
 				// Write some output to verify it was called
 				fmt.Fprintf(yaml, "rendered: %s, isLast: %v\n", toolName, isLast)

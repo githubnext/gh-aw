@@ -11,6 +11,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -53,7 +54,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		var job JobInfo
 		if err := json.Unmarshal([]byte(line), &job); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to parse job info: %s", line)))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Failed to parse job info: "+line))
 			}
 			continue
 		}
@@ -98,7 +99,7 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 		var job JobInfo
 		if err := json.Unmarshal([]byte(line), &job); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to parse job info: %s", line)))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Failed to parse job info: "+line))
 			}
 			continue
 		}
@@ -182,7 +183,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	}
 
 	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
 	// Start spinner for network operation
@@ -203,7 +204,8 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 
 		// Extract detailed error information including exit code
 		var exitCode int
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 			logsGitHubAPILog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
 			logsGitHubAPILog.Printf("combined output: %s", string(output))
@@ -235,7 +237,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
 			strings.Contains(combinedMsg, "authentication required") ||
 			strings.Contains(outputMsg, "gh auth login") {
-			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return nil, 0, errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 
 		if len(output) > 0 {

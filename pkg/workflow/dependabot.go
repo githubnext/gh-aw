@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -307,7 +308,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 	// Check if npm is available
 	npmPath, err := exec.LookPath("npm")
 	if err != nil {
-		return fmt.Errorf("npm command not found - cannot generate package-lock.json. Install Node.js/npm to enable this feature")
+		return errors.New("npm command not found - cannot generate package-lock.json. Install Node.js/npm to enable this feature")
 	}
 
 	if c.verbose {
@@ -326,7 +327,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 
 	lockfilePath := filepath.Join(workflowDir, "package-lock.json")
 	if _, err := os.Stat(lockfilePath); err != nil {
-		return fmt.Errorf("package-lock.json was not created")
+		return errors.New("package-lock.json was not created")
 	}
 
 	dependabotLog.Print("Successfully generated package-lock.json")

@@ -5,6 +5,7 @@ import (
 	"maps"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -163,9 +164,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Build custom args parameter if specified in engineConfig
 	var customArgsParam string
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		var customArgsParamSb strings.Builder
 		for _, arg := range workflowData.EngineConfig.Args {
-			customArgsParam += arg + " "
+			customArgsParamSb.WriteString(arg + " ")
 		}
+		customArgsParam += customArgsParamSb.String()
 	}
 
 	// Build the Codex command
@@ -261,12 +264,12 @@ mkdir -p "$CODEX_HOME/logs"
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {
-		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+		env["GH_AW_STARTUP_TIMEOUT"] = strconv.Itoa(workflowData.ToolsStartupTimeout)
 	}
 
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
-		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+		env["GH_AW_TOOL_TIMEOUT"] = strconv.Itoa(workflowData.ToolsTimeout)
 	}
 
 	// Set the model environment variable.
@@ -308,7 +311,7 @@ mkdir -p "$CODEX_HOME/logs"
 	stepName := "Execute Codex"
 	var stepLines []string
 
-	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "      - name: "+stepName)
 
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container

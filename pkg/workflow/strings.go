@@ -170,7 +170,7 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 			// Escape special regex characters
 			switch char {
 			case '.', '_':
-				preserveChars.WriteString(string(char))
+				preserveChars.WriteRune(char)
 			}
 		}
 	}

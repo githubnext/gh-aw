@@ -5,6 +5,7 @@ package parser
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -222,7 +223,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
 		remoteLog.Printf("Invalid workflowspec format: %s", spec)
-		return "", fmt.Errorf("invalid workflowspec: must be owner/repo/path[@ref]")
+		return "", errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
 	}
 
 	owner := slashParts[0]
@@ -337,7 +338,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	// Extract SHA from the first line
 	parts := strings.Fields(lines[0])
 	if len(parts) < 1 {
-		return "", fmt.Errorf("invalid git ls-remote output format")
+		return "", errors.New("invalid git ls-remote output format")
 	}
 
 	sha := parts[0]
@@ -371,7 +372,7 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
-				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %v", err, gitErr)
+				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
 			}
 			return sha, nil
 		}
@@ -648,7 +649,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
-				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %v", err, gitErr)
+				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
 			}
 			return content, nil
 		}
@@ -712,7 +713,7 @@ func ListWorkflowFiles(owner, repo, ref, workflowPath string) ([]string, error) 
 			files, gitErr := listWorkflowFilesViaGit(owner, repo, ref, workflowPath)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
-				return nil, fmt.Errorf("failed to list workflow files via GitHub API (auth error) and git fallback: API error: %w, Git error: %v", err, gitErr)
+				return nil, fmt.Errorf("failed to list workflow files via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
 			}
 			return files, nil
 		}

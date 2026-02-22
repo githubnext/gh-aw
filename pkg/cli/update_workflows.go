@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -31,9 +32,9 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 
 	if len(workflows) == 0 {
 		if len(workflowNames) > 0 {
-			return fmt.Errorf("no workflows found matching the specified names with source field")
+			return errors.New("no workflows found matching the specified names with source field")
 		}
-		return fmt.Errorf("no workflows found with source field")
+		return errors.New("no workflows found with source field")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) to update", len(workflows))))
@@ -61,7 +62,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 	showUpdateSummary(successfulUpdates, failedUpdates)
 
 	if len(successfulUpdates) == 0 {
-		return fmt.Errorf("no workflows were successfully updated")
+		return errors.New("no workflows were successfully updated")
 	}
 
 	return nil
@@ -224,7 +225,7 @@ func resolveLatestCommitFromDefaultBranch(repo, currentSHA string, verbose bool)
 
 // getRepoDefaultBranch fetches the default branch name for a repository.
 func getRepoDefaultBranch(repo string) (string, error) {
-	output, err := workflow.RunGH("Fetching repo info...", "api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
+	output, err := workflow.RunGH("Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
 	if err != nil {
 		return "", err
 	}
@@ -269,7 +270,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 
 	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(releases) == 0 || releases[0] == "" {
-		return "", fmt.Errorf("no releases found")
+		return "", errors.New("no releases found")
 	}
 
 	// Parse current version
@@ -278,7 +279,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 		// If current version is not a valid semantic version, just return the latest release
 		latestRelease := releases[0]
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Current version is not valid, using latest release: %s", latestRelease)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest release: "+latestRelease))
 		}
 		return latestRelease, nil
 	}
@@ -306,11 +307,11 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	if latestCompatible == "" {
-		return "", fmt.Errorf("no compatible release found")
+		return "", errors.New("no compatible release found")
 	}
 
 	if verbose && latestCompatible != currentRef {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found newer release: %s", latestCompatible)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found newer release: "+latestCompatible))
 	}
 
 	return latestCompatible, nil
@@ -321,8 +322,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source: %s", wf.SourceSpec)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nUpdating workflow: "+wf.Name))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Source: "+wf.SourceSpec))
 	}
 
 	// Parse source spec
@@ -353,8 +354,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current ref: %s", currentRef)))
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest ref: %s", latestRef)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Current ref: "+currentRef))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Latest ref: "+latestRef))
 	}
 
 	// Check if update is needed
@@ -524,7 +525,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		} else {
 			finalContent = updatedContent
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", stopAfter)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Set stop-after field to: "+stopAfter))
 			}
 		}
 	}

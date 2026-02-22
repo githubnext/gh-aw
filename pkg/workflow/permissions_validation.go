@@ -332,7 +332,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 		sort.Strings(toolsetsList)
 
 		for _, toolset := range toolsetsList {
-			lines = append(lines, fmt.Sprintf("  - %s", toolset))
+			lines = append(lines, "  - "+toolset)
 		}
 	}
 

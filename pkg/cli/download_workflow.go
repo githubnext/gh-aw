@@ -164,7 +164,7 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 			// Try fallback using git commands
 			content, gitErr := downloadWorkflowContentViaGit(repo, path, ref, verbose)
 			if gitErr != nil {
-				return nil, fmt.Errorf("failed to fetch file content via GitHub API and git: API error: %w, Git error: %v", err, gitErr)
+				return nil, fmt.Errorf("failed to fetch file content via GitHub API and git: API error: %w, Git error: %w", err, gitErr)
 			}
 			return content, nil
 		}

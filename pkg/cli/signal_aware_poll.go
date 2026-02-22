@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -81,7 +82,7 @@ func PollWithSignalHandling(options PollOptions) error {
 		case <-sigChan:
 			pollLog.Print("Received interrupt signal")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received interrupt signal, stopping wait..."))
-			return fmt.Errorf("interrupted by user")
+			return errors.New("interrupted by user")
 
 		case <-ticker.C:
 			// Check if timeout exceeded

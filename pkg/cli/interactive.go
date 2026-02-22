@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,7 +51,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 
 	// Assert this function is not running in automated unit tests
 	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
-		return fmt.Errorf("interactive workflow creation cannot be used in automated tests or CI environments")
+		return errors.New("interactive workflow creation cannot be used in automated tests or CI environments")
 	}
 
 	if verbose {
@@ -148,7 +149,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	}
 	if len(detectedNetworks) > 0 {
 		// Build a custom option that reflects what was auto-detected
-		label := fmt.Sprintf("detected - Auto-detected ecosystems: %s", strings.Join(detectedNetworks, ", "))
+		label := "detected - Auto-detected ecosystems: " + strings.Join(detectedNetworks, ", ")
 		networkOptions = append([]huh.Option[string]{huh.NewOption(label, strings.Join(append([]string{"defaults"}, detectedNetworks...), ","))}, networkOptions...)
 	}
 
@@ -270,7 +271,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 		}
 
 		if !overwrite {
-			return fmt.Errorf("workflow creation cancelled")
+			return errors.New("workflow creation cancelled")
 		}
 	}
 

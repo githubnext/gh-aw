@@ -128,7 +128,7 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 			// Create a test server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(200)
+				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(response))
 			}))
 			defer server.Close()

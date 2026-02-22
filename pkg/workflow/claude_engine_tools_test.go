@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -66,7 +65,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 				base := "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite"
 				var githubTools []string
 				for _, tool := range constants.DefaultGitHubTools {
-					githubTools = append(githubTools, fmt.Sprintf("mcp__github__%s", tool))
+					githubTools = append(githubTools, "mcp__github__"+tool)
 				}
 				// Sort the GitHub tools to match the expected output
 				sort.Strings(githubTools)

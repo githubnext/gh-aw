@@ -96,11 +96,11 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 			artifactUploadOutput := artifactUploadBuilder.String()
 
 			assert.Contains(t, artifactUploadOutput,
-				fmt.Sprintf("name: %s", tt.expectedArtifactName),
+				"name: "+tt.expectedArtifactName,
 				"Artifact upload should use correct artifact name")
 
 			assert.Contains(t, artifactUploadOutput,
-				fmt.Sprintf("path: %s", tt.expectedMemoryDir),
+				"path: "+tt.expectedMemoryDir,
 				"Artifact upload should use correct memory directory path (no trailing slash)")
 
 			// Verify no trailing slash in artifact path
@@ -114,11 +114,11 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 			cloneStepsOutput := cloneStepsBuilder.String()
 
 			assert.Contains(t, cloneStepsOutput,
-				fmt.Sprintf("MEMORY_DIR: %s", tt.expectedMemoryDir),
+				"MEMORY_DIR: "+tt.expectedMemoryDir,
 				"Clone step should use correct memory directory path")
 
 			assert.Contains(t, cloneStepsOutput,
-				fmt.Sprintf("BRANCH_NAME: %s", tt.branchName),
+				"BRANCH_NAME: "+tt.branchName,
 				"Clone step should use correct branch name")
 
 			// Test 4: Validate push job artifact download
@@ -130,23 +130,23 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 			pushJobOutput := strings.Join(pushJob.Steps, "\n")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("name: %s", tt.expectedArtifactName),
+				"name: "+tt.expectedArtifactName,
 				"Push job should download correct artifact")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("path: %s", tt.expectedMemoryDir),
+				"path: "+tt.expectedMemoryDir,
 				"Push job should download to correct memory directory")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("ARTIFACT_DIR: %s", tt.expectedMemoryDir),
+				"ARTIFACT_DIR: "+tt.expectedMemoryDir,
 				"Push job should pass correct artifact directory to JavaScript")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("MEMORY_ID: %s", tt.memoryID),
+				"MEMORY_ID: "+tt.memoryID,
 				"Push job should pass correct memory ID to JavaScript")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("BRANCH_NAME: %s", tt.branchName),
+				"BRANCH_NAME: "+tt.branchName,
 				"Push job should pass correct branch name to JavaScript")
 		})
 	}
@@ -297,7 +297,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 				Memories: []RepoMemoryEntry{
 					{
 						ID:         tt.memoryID,
-						BranchName: fmt.Sprintf("memory/%s", tt.memoryID),
+						BranchName: "memory/" + tt.memoryID,
 					},
 				},
 			}
@@ -311,7 +311,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 			generateRepoMemoryArtifactUpload(&uploadBuilder, data)
 			uploadOutput := uploadBuilder.String()
 
-			assert.Contains(t, uploadOutput, fmt.Sprintf("name: %s", tt.expectedName),
+			assert.Contains(t, uploadOutput, "name: "+tt.expectedName,
 				"Artifact upload should use correct naming convention")
 
 			// Check artifact download in push job
@@ -322,7 +322,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 
 			pushJobOutput := strings.Join(pushJob.Steps, "\n")
 
-			assert.Contains(t, pushJobOutput, fmt.Sprintf("name: %s", tt.expectedName),
+			assert.Contains(t, pushJobOutput, "name: "+tt.expectedName,
 				"Artifact download should use same naming convention")
 		})
 	}

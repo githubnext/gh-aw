@@ -2,9 +2,11 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -31,7 +33,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Add setup step to copy activation scripts (required - no inline fallback)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
-		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+		return nil, errors.New("setup action reference is required but could not be resolved")
 	}
 
 	// For dev mode (local action path), checkout the actions folder first
@@ -300,7 +302,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if len(conditions) == 0 {
 		// This should never happen - it means pre-activation job was created without any checks
 		// If we reach this point, it's a developer error in the compiler logic
-		return nil, fmt.Errorf("developer error: pre-activation job created without permission check or stop-time configuration")
+		return nil, errors.New("developer error: pre-activation job created without permission check or stop-time configuration")
 	} else if len(conditions) == 1 {
 		// Single condition
 		activatedNode = conditions[0]
@@ -454,7 +456,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add setup step to copy activation scripts (required - no inline fallback)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
-		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+		return nil, errors.New("setup action reference is required but could not be resolved")
 	}
 
 	// For dev mode (local action path), checkout the actions folder first
@@ -718,7 +720,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if data.ManualApproval != "" {
 		// Strip ANSI escape codes from manual-approval environment name
 		cleanManualApproval := stringutil.StripANSI(data.ManualApproval)
-		environment = fmt.Sprintf("environment: %s", cleanManualApproval)
+		environment = "environment: " + cleanManualApproval
 	}
 
 	job := &Job{
@@ -903,7 +905,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references
 		if data.SafeOutputs.UploadAssets != nil {
 			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-			env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 		} else {
 			// Set empty defaults when upload-assets is not configured

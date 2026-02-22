@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -107,9 +108,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'max-turns' field
 			if maxTurns, hasMaxTurns := engineObj["max-turns"]; hasMaxTurns {
 				if maxTurnsInt, ok := maxTurns.(int); ok {
-					config.MaxTurns = fmt.Sprintf("%d", maxTurnsInt)
+					config.MaxTurns = strconv.Itoa(maxTurnsInt)
 				} else if maxTurnsUint64, ok := maxTurns.(uint64); ok {
-					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
+					config.MaxTurns = strconv.FormatUint(maxTurnsUint64, 10)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
 				}

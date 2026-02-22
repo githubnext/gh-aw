@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,7 +108,7 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify that both artifacts are uploaded
-	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", constants.SafeOutputArtifactName)) {
+	if !strings.Contains(lockContent, "name: "+constants.SafeOutputArtifactName) {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS artifact name to be '%s'", constants.SafeOutputArtifactName)
 	}
 
@@ -186,7 +185,7 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 		t.Error("Codex workflow should reference GH_AW_SAFE_OUTPUTS environment variable")
 	}
 
-	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", constants.SafeOutputArtifactName)) {
+	if !strings.Contains(lockContent, "name: "+constants.SafeOutputArtifactName) {
 		t.Errorf("Codex workflow should reference %s artifact (GH_AW_SAFE_OUTPUTS)", constants.SafeOutputArtifactName)
 	}
 

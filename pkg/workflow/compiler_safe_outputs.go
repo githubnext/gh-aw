@@ -385,8 +385,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				}
 
 				// Add Git commands that aren't already present
-				newCommands := make([]any, len(existingCommands))
-				copy(newCommands, existingCommands)
+				newCommands := append([]any(nil), existingCommands...)
 				for _, gitCmd := range gitCommands {
 					if gitCmdStr, ok := gitCmd.(string); ok {
 						if !existingSet[gitCmdStr] {

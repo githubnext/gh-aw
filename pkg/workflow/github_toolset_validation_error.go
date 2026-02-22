@@ -47,7 +47,7 @@ func (e *GitHubToolsetValidationError) Error() string {
 		sort.Strings(tools)
 		lines = append(lines, fmt.Sprintf("  Toolset '%s' is required by:", toolset))
 		for _, tool := range tools {
-			lines = append(lines, fmt.Sprintf("    - %s", tool))
+			lines = append(lines, "    - "+tool)
 		}
 		lines = append(lines, "")
 	}
@@ -65,7 +65,7 @@ func (e *GitHubToolsetValidationError) Error() string {
 	allToolsets = append(allToolsets, toolsets...)
 
 	for _, toolset := range allToolsets {
-		lines = append(lines, fmt.Sprintf("      - %s", toolset))
+		lines = append(lines, "      - "+toolset)
 	}
 	lines = append(lines, "")
 	lines = append(lines, fmt.Sprintf("See: %s", constants.DocsGitHubToolsURL))

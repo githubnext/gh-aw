@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -17,7 +18,7 @@ func buildEventAwareCommandCondition(commandNames []string, commandEvents []stri
 		commandNames, len(commandEvents), hasOtherEvents)
 
 	if len(commandNames) == 0 {
-		return nil, fmt.Errorf("no command names provided")
+		return nil, errors.New("no command names provided")
 	}
 
 	// Get the filtered events where command should be active
@@ -42,7 +43,7 @@ func buildEventAwareCommandCondition(commandNames []string, commandEvents []stri
 	buildMultiCommandCheck := func(bodyAccessor string) ConditionNode {
 		var commandOrChecks []ConditionNode
 		for _, commandName := range commandNames {
-			commandText := fmt.Sprintf("/%s", commandName)
+			commandText := "/" + commandName
 			commandWithSpace := fmt.Sprintf("/%s ", commandName)
 
 			// Check for exact match (command without arguments)

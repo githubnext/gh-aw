@@ -53,6 +53,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -291,9 +292,9 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
 		} else if versionNum, ok := configMap["version"].(int); ok {
-			config.Version = fmt.Sprintf("%d", versionNum)
+			config.Version = strconv.Itoa(versionNum)
 		} else if versionNum, ok := configMap["version"].(int64); ok {
-			config.Version = fmt.Sprintf("%d", versionNum)
+			config.Version = strconv.FormatInt(versionNum, 10)
 		} else if versionNum, ok := configMap["version"].(float64); ok {
 			config.Version = fmt.Sprintf("%g", versionNum)
 		}

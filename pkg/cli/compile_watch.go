@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -157,7 +158,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
-				return fmt.Errorf("watcher channel closed")
+				return errors.New("watcher channel closed")
 			}
 
 			// Filter out Chmod events (noisy and usually not useful for workflow changes)
@@ -214,7 +215,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 		case err, ok := <-watcher.Errors:
 			if !ok {
-				return fmt.Errorf("watcher error channel closed")
+				return errors.New("watcher error channel closed")
 			}
 			compileWatchLog.Printf("Watcher error: %v", err)
 			if verbose {

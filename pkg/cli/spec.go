@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -148,7 +149,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		// Validate repository format (org/repo)
 		repoParts := strings.Split(repo, "/")
 		if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-			return nil, fmt.Errorf("repository must be in format 'owner/repo'. Example: github/gh-aw")
+			return nil, errors.New("repository must be in format 'owner/repo'. Example: github/gh-aw")
 		}
 	}
 
@@ -182,7 +183,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	// Must be a GitHub URL
 	if parsedURL.Host != "github.com" && parsedURL.Host != "raw.githubusercontent.com" {
 		specLog.Printf("Invalid host: %s", parsedURL.Host)
-		return nil, fmt.Errorf("URL must be from github.com or raw.githubusercontent.com")
+		return nil, errors.New("URL must be from github.com or raw.githubusercontent.com")
 	}
 
 	owner, repo, ref, filePath, err := parser.ParseRepoFileURL(spec)
@@ -195,7 +196,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 
 	// Ensure the file path ends with .md
 	if !strings.HasSuffix(filePath, ".md") {
-		return nil, fmt.Errorf("GitHub URL must point to a .md file")
+		return nil, errors.New("GitHub URL must point to a .md file")
 	}
 
 	// Validate owner and repo
@@ -261,7 +262,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	// Must have at least 3 parts: owner/repo/workflow-path
 	if len(slashParts) < 3 {
-		return nil, fmt.Errorf("workflow specification must be in format 'owner/repo/workflow-name[@version]'")
+		return nil, errors.New("workflow specification must be in format 'owner/repo/workflow-name[@version]'")
 	}
 
 	owner := slashParts[0]
@@ -287,7 +288,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	// Validate owner and repo parts are not empty
 	if owner == "" || repo == "" {
-		return nil, fmt.Errorf("invalid workflow specification: owner and repo cannot be empty")
+		return nil, errors.New("invalid workflow specification: owner and repo cannot be empty")
 	}
 
 	// Basic validation that owner and repo look like GitHub identifiers
@@ -363,7 +364,7 @@ func parseSourceSpec(source string) (*SourceSpec, error) {
 	// Parse path: owner/repo/path/to/workflow.md
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
-		return nil, fmt.Errorf("invalid source format: must be owner/repo/path[@ref]")
+		return nil, errors.New("invalid source format: must be owner/repo/path[@ref]")
 	}
 
 	spec := &SourceSpec{

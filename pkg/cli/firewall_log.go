@@ -339,7 +339,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 			logsDir := filepath.Join(runDir, name)
 			firewallLogLog.Printf("Found firewall logs directory: %s", name)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs directory: %s", name)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs directory: "+name))
 			}
 			return analyzeMultipleFirewallLogs(logsDir, verbose)
 		}
@@ -364,7 +364,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	if len(firewallLogs) == 0 {
 		firewallLogLog.Print("No firewall logs found")
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s", runDir)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No firewall logs found in "+runDir))
 		}
 		return nil, nil
 	}
@@ -372,7 +372,7 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	// Parse the first firewall log file found
 	firewallLogLog.Printf("Found %d firewall log files, analyzing first: %s", len(firewallLogs), filepath.Base(firewallLogs[0]))
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing firewall log: %s", filepath.Base(firewallLogs[0]))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Analyzing firewall log: "+filepath.Base(firewallLogs[0])))
 	}
 
 	return parseFirewallLog(firewallLogs[0], verbose)

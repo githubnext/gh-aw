@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,16 +74,16 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		// Format turns
 		turnsStr := ""
 		if run.Turns > 0 {
-			turnsStr = fmt.Sprintf("%d", run.Turns)
+			turnsStr = strconv.Itoa(run.Turns)
 			totalTurns += run.Turns
 		}
 
 		// Format errors
-		errorsStr := fmt.Sprintf("%d", run.ErrorCount)
+		errorsStr := strconv.Itoa(run.ErrorCount)
 		totalErrors += run.ErrorCount
 
 		// Format warnings
-		warningsStr := fmt.Sprintf("%d", run.WarningCount)
+		warningsStr := strconv.Itoa(run.WarningCount)
 		totalWarnings += run.WarningCount
 
 		// Format missing tools
@@ -100,7 +101,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 			}
 		} else {
 			// In normal mode, just show the count
-			missingToolsStr = fmt.Sprintf("%d", run.MissingToolCount)
+			missingToolsStr = strconv.Itoa(run.MissingToolCount)
 		}
 		totalMissingTools += run.MissingToolCount
 
@@ -119,7 +120,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 			}
 		} else {
 			// In normal mode, just show the count
-			missingDataStr = fmt.Sprintf("%d", run.MissingDataCount)
+			missingDataStr = strconv.Itoa(run.MissingDataCount)
 		}
 		totalMissingData += run.MissingDataCount
 
@@ -142,12 +143,12 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 			}
 		} else {
 			// In normal mode, just show the count
-			noopsStr = fmt.Sprintf("%d", run.NoopCount)
+			noopsStr = strconv.Itoa(run.NoopCount)
 		}
 		totalNoops += run.NoopCount
 
 		// Format safe items count
-		safeItemsStr := fmt.Sprintf("%d", run.SafeItemsCount)
+		safeItemsStr := strconv.Itoa(run.SafeItemsCount)
 		totalSafeItems += run.SafeItemsCount
 
 		// Truncate workflow name if too long
@@ -166,7 +167,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		}
 
 		row := []string{
-			fmt.Sprintf("%d", run.DatabaseID),
+			strconv.FormatInt(run.DatabaseID, 10),
 			workflowName,
 			statusStr,
 			durationStr,
@@ -193,13 +194,13 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		timeutil.FormatDuration(totalDuration),
 		console.FormatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
-		fmt.Sprintf("%d", totalTurns),
-		fmt.Sprintf("%d", totalErrors),
-		fmt.Sprintf("%d", totalWarnings),
-		fmt.Sprintf("%d", totalMissingTools),
-		fmt.Sprintf("%d", totalMissingData),
-		fmt.Sprintf("%d", totalNoops),
-		fmt.Sprintf("%d", totalSafeItems),
+		strconv.Itoa(totalTurns),
+		strconv.Itoa(totalErrors),
+		strconv.Itoa(totalWarnings),
+		strconv.Itoa(totalMissingTools),
+		strconv.Itoa(totalMissingData),
+		strconv.Itoa(totalNoops),
+		strconv.Itoa(totalSafeItems),
 		"",
 		"",
 	}

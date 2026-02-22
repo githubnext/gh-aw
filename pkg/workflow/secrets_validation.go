@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"regexp"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -21,7 +21,7 @@ var secretsExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Za-z_][
 func validateSecretsExpression(value string) error {
 	if !secretsExpressionPattern.MatchString(value) {
 		secretsValidationLog.Printf("Invalid secret expression detected")
-		return fmt.Errorf("invalid secrets expression: must be a GitHub Actions expression with secrets reference (e.g., '${{ secrets.MY_SECRET }}' or '${{ secrets.SECRET1 || secrets.SECRET2 }}')")
+		return errors.New("invalid secrets expression: must be a GitHub Actions expression with secrets reference (e.g., '${{ secrets.MY_SECRET }}' or '${{ secrets.SECRET1 || secrets.SECRET2 }}')")
 	}
 	secretsValidationLog.Printf("Valid secret expression validated")
 	return nil

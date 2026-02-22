@@ -169,8 +169,9 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				// If the closing bracket is not on the same line, accumulate subsequent lines
 				if !strings.Contains(trimmedLine, "]") {
 					j := i + 1
+					var sb strings.Builder
 					for j < len(lines) {
-						buf += "\n" + lines[j]
+						sb.WriteString("\n" + lines[j])
 						if strings.Contains(lines[j], "]") {
 							// Advance outer loop to the line we consumed
 							i = j
@@ -178,6 +179,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 						}
 						j++
 					}
+					buf += sb.String()
 				}
 
 				var arr []map[string]any
@@ -358,7 +360,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 											if command, exists := inputMap["command"]; exists {
 												if commandStr, ok := command.(string); ok {
 													// Create unique bash entry with command info, avoiding colons
-													uniqueBashName := fmt.Sprintf("bash_%s", ShortenCommand(commandStr))
+													uniqueBashName := "bash_" + ShortenCommand(commandStr)
 													prettifiedName = uniqueBashName
 												}
 											}
@@ -443,7 +445,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 											if command, exists := inputMap["command"]; exists {
 												if commandStr, ok := command.(string); ok {
 													// Create unique bash entry with command info, avoiding colons
-													uniqueBashName := fmt.Sprintf("bash_%s", ShortenCommand(commandStr))
+													uniqueBashName := "bash_" + ShortenCommand(commandStr)
 													prettifiedName = uniqueBashName
 												}
 											}

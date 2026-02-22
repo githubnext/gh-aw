@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -101,7 +102,7 @@ func RunHealth(config HealthConfig) error {
 	startDate := time.Now().AddDate(0, 0, -config.Days).Format("2006-01-02")
 
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching workflow runs since %s", startDate)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Fetching workflow runs since "+startDate))
 	}
 
 	// Fetch workflow runs from GitHub
@@ -250,14 +251,14 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 	}
 
 	details := []DetailedHealth{
-		{"Total Runs", fmt.Sprintf("%d", health.TotalRuns)},
-		{"Successful", fmt.Sprintf("%d", health.SuccessCount)},
-		{"Failed", fmt.Sprintf("%d", health.FailureCount)},
+		{"Total Runs", strconv.Itoa(health.TotalRuns)},
+		{"Successful", strconv.Itoa(health.SuccessCount)},
+		{"Failed", strconv.Itoa(health.FailureCount)},
 		{"Success Rate", health.DisplayRate},
 		{"Trend", health.Trend},
 		{"Avg Duration", health.DisplayDur},
 		{"Avg Tokens", health.DisplayTokens},
-		{"Avg Cost", fmt.Sprintf("$%s", health.DisplayCost)},
+		{"Avg Cost", "$" + health.DisplayCost},
 		{"Total Cost", fmt.Sprintf("$%.3f", health.TotalCost)},
 	}
 

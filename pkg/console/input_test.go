@@ -3,7 +3,7 @@
 package console
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,7 +64,7 @@ func TestPromptInputWithValidation(t *testing.T) {
 		placeholder := "Enter value"
 		validator := func(s string) error {
 			if len(s) < 3 {
-				return fmt.Errorf("must be at least 3 characters")
+				return errors.New("must be at least 3 characters")
 			}
 			return nil
 		}

@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -269,10 +271,10 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			case string:
 				version = v
 			case int:
-				version = fmt.Sprintf("%d", v)
+				version = strconv.Itoa(v)
 			case float64:
 				if v == float64(int(v)) {
-					version = fmt.Sprintf("%d", int(v))
+					version = strconv.Itoa(int(v))
 				} else {
 					version = fmt.Sprintf("%g", v)
 				}
@@ -417,7 +419,7 @@ func parsePluginsConfig(plugins any) ([]string, string, error) {
 		return repos, token, nil
 	}
 
-	return nil, "", fmt.Errorf("plugins must be either an array of strings or an object with 'repos' field")
+	return nil, "", errors.New("plugins must be either an array of strings or an object with 'repos' field")
 }
 
 // countRuntimes counts the number of non-nil runtimes in RuntimesConfig

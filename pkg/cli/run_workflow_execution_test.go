@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -106,7 +107,7 @@ func TestRunWorkflowOnGitHub_ContextCancellation(t *testing.T) {
 	}
 
 	// Check that it's a context cancellation error
-	if !strings.Contains(err.Error(), "context canceled") && err != context.Canceled {
+	if !strings.Contains(err.Error(), "context canceled") && !errors.Is(err, context.Canceled) {
 		t.Errorf("Expected context cancellation error, got: %v", err)
 	}
 }
@@ -181,7 +182,7 @@ func TestRunWorkflowsOnGitHub_ContextCancellation(t *testing.T) {
 	}
 
 	// Check that it's a context cancellation error
-	if !strings.Contains(err.Error(), "context canceled") && err != context.Canceled {
+	if !strings.Contains(err.Error(), "context canceled") && !errors.Is(err, context.Canceled) {
 		t.Errorf("Expected context cancellation error, got: %v", err)
 	}
 }

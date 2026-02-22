@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -86,7 +87,7 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 // buildCreateOutputAgentSessionJob creates the create_agent_session job
 func (c *Compiler) buildCreateOutputAgentSessionJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateAgentSessions == nil {
-		return nil, fmt.Errorf("safe-outputs.create-agent-session configuration is required")
+		return nil, errors.New("safe-outputs.create-agent-session configuration is required")
 	}
 
 	createAgentSessionLog.Printf("Building create-agent-session job: workflow=%s, main_job=%s, base=%s",

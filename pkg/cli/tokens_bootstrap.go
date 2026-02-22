@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -143,7 +144,7 @@ func getSecretRequirements(engineFilter string) ([]SecretRequirement, error) {
 		}
 
 		if len(workflowFiles) == 0 {
-			return nil, fmt.Errorf("no workflow files found in .github/workflows/")
+			return nil, errors.New("no workflow files found in .github/workflows/")
 		}
 
 		tokensBootstrapLog.Printf("Found %d workflow files, extracting secrets", len(workflowFiles))

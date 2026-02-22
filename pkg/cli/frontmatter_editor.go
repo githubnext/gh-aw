@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -30,8 +31,7 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 		frontmatterEditorLog.Printf("Using raw frontmatter lines for field update (%d lines)", len(result.FrontmatterLines))
 		// Look for existing field in the raw lines
 		fieldUpdated := false
-		frontmatterLines := make([]string, len(result.FrontmatterLines))
-		copy(frontmatterLines, result.FrontmatterLines)
+		frontmatterLines := append([]string(nil), result.FrontmatterLines...)
 
 		// Try to find and update the field in place
 		for i, line := range frontmatterLines {
@@ -139,8 +139,7 @@ func addFieldToFrontmatter(content, fieldName, fieldValue string) (string, error
 		}
 
 		// Field doesn't exist, add it manually to preserve formatting
-		frontmatterLines := make([]string, len(result.FrontmatterLines))
-		copy(frontmatterLines, result.FrontmatterLines)
+		frontmatterLines := append([]string(nil), result.FrontmatterLines...)
 
 		// Add field at the end of the frontmatter, preserving original formatting
 		newField := fmt.Sprintf("%s: %s", fieldName, fieldValue)
@@ -302,7 +301,7 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 	// Check if frontmatter exists
 	if result.Frontmatter == nil {
 		// No frontmatter, cannot set nested field without 'on' block
-		return "", fmt.Errorf("no frontmatter found, cannot set field in 'on' trigger")
+		return "", errors.New("no frontmatter found, cannot set field in 'on' trigger")
 	}
 
 	// Check if 'on' field exists
@@ -334,14 +333,14 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 		}
 
 		// No frontmatter lines, cannot create 'on' block
-		return "", fmt.Errorf("no frontmatter found, cannot set field in 'on' trigger")
+		return "", errors.New("no frontmatter found, cannot set field in 'on' trigger")
 	}
 
 	// Check if 'on' is an object (map)
 	_, isMap := onValue.(map[string]any)
 	if !isMap {
 		// 'on' is not a map (might be a string), cannot set field
-		return "", fmt.Errorf("'on' field is not an object, cannot set nested field")
+		return "", errors.New("'on' field is not an object, cannot set nested field")
 	}
 
 	// Work with raw frontmatter lines to preserve formatting
@@ -451,5 +450,5 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 
 	// This should rarely happen since we already checked for frontmatter existence
 	frontmatterEditorLog.Printf("No raw frontmatter lines available")
-	return "", fmt.Errorf("no frontmatter lines available to modify")
+	return "", errors.New("no frontmatter lines available to modify")
 }

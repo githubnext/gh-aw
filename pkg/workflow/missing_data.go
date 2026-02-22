@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,7 +23,7 @@ func (c *Compiler) buildCreateOutputMissingDataJob(data *WorkflowData, mainJobNa
 	missingDataLog.Printf("Building missing_data job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.MissingData == nil {
-		return nil, fmt.Errorf("safe-outputs.missing-data configuration is required")
+		return nil, errors.New("safe-outputs.missing-data configuration is required")
 	}
 
 	// Build custom environment variables specific to missing-data

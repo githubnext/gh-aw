@@ -3,7 +3,7 @@
 package console
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/tty"
@@ -14,12 +14,12 @@ import (
 func PromptSelect(title, description string, options []SelectOption) (string, error) {
 	// Validate inputs first
 	if len(options) == 0 {
-		return "", fmt.Errorf("no options provided")
+		return "", errors.New("no options provided")
 	}
 
 	// Check if stdin is a TTY - if not, we can't show interactive forms
 	if !tty.IsStderrTerminal() {
-		return "", fmt.Errorf("interactive selection not available (not a TTY)")
+		return "", errors.New("interactive selection not available (not a TTY)")
 	}
 
 	var selected string
@@ -52,12 +52,12 @@ func PromptSelect(title, description string, options []SelectOption) (string, er
 func PromptMultiSelect(title, description string, options []SelectOption, limit int) ([]string, error) {
 	// Validate inputs first
 	if len(options) == 0 {
-		return nil, fmt.Errorf("no options provided")
+		return nil, errors.New("no options provided")
 	}
 
 	// Check if stdin is a TTY - if not, we can't show interactive forms
 	if !tty.IsStderrTerminal() {
-		return nil, fmt.Errorf("interactive selection not available (not a TTY)")
+		return nil, errors.New("interactive selection not available (not a TTY)")
 	}
 
 	var selected []string

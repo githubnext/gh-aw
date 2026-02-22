@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -40,7 +41,7 @@ func (e *ImportCycleError) Error() string {
 	if len(e.Chain) == 0 {
 		return "circular import detected"
 	}
-	return fmt.Sprintf("circular import detected: %s", strings.Join(e.Chain, " → "))
+	return "circular import detected: " + strings.Join(e.Chain, " → ")
 }
 
 // FormatImportCycleError formats an import cycle error with a delightful multiline indented display
@@ -48,7 +49,7 @@ func FormatImportCycleError(err *ImportCycleError) error {
 	importErrorLog.Printf("Formatting import cycle error: chain=%v, workflow=%s", err.Chain, err.WorkflowFile)
 
 	if len(err.Chain) < 2 {
-		return fmt.Errorf("circular import detected (invalid chain)")
+		return errors.New("circular import detected (invalid chain)")
 	}
 
 	// Build a multiline, indented representation of the import chain

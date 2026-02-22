@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 	resolutionLog.Printf("Resolving workflows: count=%d", len(workflows))
 
 	if len(workflows) == 0 {
-		return nil, fmt.Errorf("at least one workflow name is required")
+		return nil, errors.New("at least one workflow name is required")
 	}
 
 	for i, workflow := range workflows {
@@ -166,7 +167,7 @@ func expandLocalWildcardWorkflows(specs []*WorkflowSpec, verbose bool) ([]*Workf
 			}
 
 			if len(discovered) == 0 {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found matching %s", spec.WorkflowPath)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflows found matching "+spec.WorkflowPath))
 			} else {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflow(s)", len(discovered))))
@@ -179,7 +180,7 @@ func expandLocalWildcardWorkflows(specs []*WorkflowSpec, verbose bool) ([]*Workf
 	}
 
 	if len(expandedWorkflows) == 0 {
-		return nil, fmt.Errorf("no workflows to add after expansion")
+		return nil, errors.New("no workflows to add after expansion")
 	}
 
 	return expandedWorkflows, nil

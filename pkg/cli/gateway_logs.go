@@ -13,6 +13,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -92,7 +93,7 @@ func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 		mcpLogsPath := filepath.Join(logDir, "mcp-logs", "gateway.jsonl")
 		if _, err := os.Stat(mcpLogsPath); os.IsNotExist(err) {
 			gatewayLogsLog.Printf("gateway.jsonl not found at: %s or %s", gatewayLogPath, mcpLogsPath)
-			return nil, fmt.Errorf("gateway.jsonl not found")
+			return nil, errors.New("gateway.jsonl not found")
 		}
 		gatewayLogPath = mcpLogsPath
 		gatewayLogsLog.Printf("Found gateway.jsonl in mcp-logs subdirectory")
@@ -406,7 +407,7 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		// Try mcp-logs subdirectory (new path after artifact download)
 		mcpLogsPath := filepath.Join(logDir, "mcp-logs", "gateway.jsonl")
 		if _, err := os.Stat(mcpLogsPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("gateway.jsonl not found")
+			return nil, errors.New("gateway.jsonl not found")
 		}
 		gatewayLogPath = mcpLogsPath
 	}

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 
@@ -83,7 +84,7 @@ func (s *WorkflowStep) ToMap() map[string]any {
 func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 	stepTypesLog.Printf("Converting map to workflow step: map_keys=%d", len(stepMap))
 	if stepMap == nil {
-		return nil, fmt.Errorf("step map is nil")
+		return nil, errors.New("step map is nil")
 	}
 
 	step := &WorkflowStep{}

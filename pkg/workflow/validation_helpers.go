@@ -30,6 +30,7 @@ package workflow
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -125,7 +126,7 @@ func ValidatePositiveInt(field string, value int) error {
 	if value <= 0 {
 		return NewValidationError(
 			field,
-			fmt.Sprintf("%d", value),
+			strconv.Itoa(value),
 			"value must be a positive integer",
 			fmt.Sprintf("Provide a positive integer value for '%s'", field),
 		)
@@ -138,7 +139,7 @@ func ValidateNonNegativeInt(field string, value int) error {
 	if value < 0 {
 		return NewValidationError(
 			field,
-			fmt.Sprintf("%d", value),
+			strconv.Itoa(value),
 			"value must be a non-negative integer",
 			fmt.Sprintf("Provide a non-negative integer value for '%s'", field),
 		)

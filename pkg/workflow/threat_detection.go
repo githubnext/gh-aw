@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -99,7 +100,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	threatLog.Printf("Building threat detection job for main job: %s", mainJobName)
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
-		return nil, fmt.Errorf("threat detection is not enabled")
+		return nil, errors.New("threat detection is not enabled")
 	}
 
 	// Build steps using a more structured approach

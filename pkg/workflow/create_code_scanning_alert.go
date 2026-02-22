@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -17,7 +18,7 @@ type CreateCodeScanningAlertsConfig struct {
 // buildCreateOutputCodeScanningAlertJob creates the create_code_scanning_alert job
 func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateCodeScanningAlerts == nil {
-		return nil, fmt.Errorf("safe-outputs.create-code-scanning-alert configuration is required")
+		return nil, errors.New("safe-outputs.create-code-scanning-alert configuration is required")
 	}
 
 	// Build custom environment variables specific to create-code-scanning-alert

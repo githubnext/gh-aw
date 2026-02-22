@@ -182,7 +182,7 @@ func getBotsToOnBotsCodemod() Codemod {
 									if len(parts) == 2 {
 										result = append(result, fmt.Sprintf("%sbots:%s", onItemIndent, parts[1]))
 									} else {
-										result = append(result, fmt.Sprintf("%sbots:", onItemIndent))
+										result = append(result, onItemIndent+"bots:")
 									}
 								} else {
 									// Array item line (e.g., "- dependabot")

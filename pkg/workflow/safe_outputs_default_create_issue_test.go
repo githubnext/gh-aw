@@ -325,7 +325,7 @@ func TestAutoInjectCreateIssueWithVariousWorkflowIDs(t *testing.T) {
 	}
 
 	for _, wfID := range workflowIDs {
-		t.Run(fmt.Sprintf("workflowID=%s", wfID), func(t *testing.T) {
+		t.Run("workflowID="+wfID, func(t *testing.T) {
 			workflowData := &WorkflowData{
 				WorkflowID: wfID,
 				SafeOutputs: &SafeOutputsConfig{

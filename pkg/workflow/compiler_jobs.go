@@ -463,7 +463,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// Extract other job properties
 			if runsOn, hasRunsOn := configMap["runs-on"]; hasRunsOn {
 				if runsOnStr, ok := runsOn.(string); ok {
-					job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
+					job.RunsOn = "runs-on: " + runsOnStr
 				}
 			}
 

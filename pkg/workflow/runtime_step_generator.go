@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -87,19 +88,19 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	}
 
 	step := GitHubActionStep{
-		fmt.Sprintf("      - name: Setup %s", runtime.Name),
-		fmt.Sprintf("        uses: %s", actionRef),
+		"      - name: Setup " + runtime.Name,
+		"        uses: " + actionRef,
 	}
 
 	// Add if condition if specified
 	if req.IfCondition != "" {
-		step = append(step, fmt.Sprintf("        if: %s", req.IfCondition))
+		step = append(step, "        if: "+req.IfCondition)
 	}
 
 	// Special handling for Go when go-mod-file is explicitly specified
 	if runtime.ID == "go" && req.GoModFile != "" {
 		step = append(step, "        with:")
-		step = append(step, fmt.Sprintf("          go-version-file: %s", req.GoModFile))
+		step = append(step, "          go-version-file: "+req.GoModFile)
 		step = append(step, "          cache: true")
 		// Add any extra fields from user's setup step (sorted for stable output)
 		var extraKeys []string
@@ -173,25 +174,25 @@ func formatYAMLValue(value any) string {
 		}
 		return "false"
 	case int:
-		return fmt.Sprintf("%d", v)
+		return strconv.Itoa(v)
 	case int8:
-		return fmt.Sprintf("%d", v)
+		return strconv.Itoa(int(v))
 	case int16:
-		return fmt.Sprintf("%d", v)
+		return strconv.Itoa(int(v))
 	case int32:
-		return fmt.Sprintf("%d", v)
+		return strconv.Itoa(int(v))
 	case int64:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatInt(v, 10)
 	case uint:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatUint(uint64(v), 10)
 	case uint8:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatUint(uint64(v), 10)
 	case uint16:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatUint(uint64(v), 10)
 	case uint32:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatUint(uint64(v), 10)
 	case uint64:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatUint(v, 10)
 	case float32:
 		return fmt.Sprintf("%v", v)
 	case float64:

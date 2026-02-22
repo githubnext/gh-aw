@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 )
@@ -33,7 +33,7 @@ func TestPollWithSignalHandling_Success(t *testing.T) {
 }
 
 func TestPollWithSignalHandling_Failure(t *testing.T) {
-	expectedErr := fmt.Errorf("poll failed")
+	expectedErr := errors.New("poll failed")
 	err := PollWithSignalHandling(PollOptions{
 		PollInterval: 10 * time.Millisecond,
 		Timeout:      1 * time.Second,
@@ -47,7 +47,7 @@ func TestPollWithSignalHandling_Failure(t *testing.T) {
 		t.Error("Expected error, got nil")
 	}
 
-	if err != expectedErr {
+	if !errors.Is(err, expectedErr) {
 		t.Errorf("Expected error %v, got %v", expectedErr, err)
 	}
 }

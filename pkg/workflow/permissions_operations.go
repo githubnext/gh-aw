@@ -207,7 +207,7 @@ func (p *Permissions) RenderToYAML() string {
 	}
 
 	if p.shorthand != "" {
-		return fmt.Sprintf("permissions: %s", p.shorthand)
+		return "permissions: " + p.shorthand
 	}
 
 	// Collect all permissions to render

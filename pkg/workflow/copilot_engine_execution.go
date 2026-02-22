@@ -24,6 +24,7 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"strconv"
 	"strings"
 	"time"
 
@@ -265,12 +266,12 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {
-		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+		env["GH_AW_STARTUP_TIMEOUT"] = strconv.Itoa(workflowData.ToolsStartupTimeout)
 	}
 
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
-		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+		env["GH_AW_TOOL_TIMEOUT"] = strconv.Itoa(workflowData.ToolsTimeout)
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
@@ -332,7 +333,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
 
-	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "      - name: "+stepName)
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
@@ -347,7 +348,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	if workflowData.TimeoutMinutes != "" {
 		// Strip timeout-minutes prefix
 		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
+		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
 	} else {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
 	}

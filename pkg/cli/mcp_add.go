@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -92,7 +93,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (Transport: %s)", selectedServer.Name, selectedServer.Transport)))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Will add as tool ID: %s", toolID)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Will add as tool ID: "+toolID))
 	}
 
 	// Read the workflow file
@@ -172,7 +173,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 		case "stdio", "http", "docker":
 			transport = preferredTransport
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using preferred transport: %s", transport)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using preferred transport: "+transport))
 			}
 		default:
 			return nil, fmt.Errorf("unsupported transport type: %s (supported: stdio, http, docker)", preferredTransport)
@@ -244,7 +245,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 			if url, hasURL := server.Config["url"]; hasURL {
 				mcpSection["url"] = url
 			} else {
-				return nil, fmt.Errorf("HTTP transport requires URL configuration")
+				return nil, errors.New("HTTP transport requires URL configuration")
 			}
 
 			// Add headers if present
@@ -252,7 +253,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 				mcpSection["headers"] = headers
 			}
 		} else {
-			return nil, fmt.Errorf("HTTP transport requires configuration")
+			return nil, errors.New("HTTP transport requires configuration")
 		}
 
 	case "docker":
@@ -261,7 +262,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 			if container, hasContainer := server.Config["container"]; hasContainer {
 				mcpSection["container"] = container
 			} else {
-				return nil, fmt.Errorf("docker transport requires container configuration")
+				return nil, errors.New("docker transport requires container configuration")
 			}
 
 			// Add environment variables if present
@@ -269,7 +270,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 				mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
 			}
 		} else {
-			return nil, fmt.Errorf("docker transport requires configuration")
+			return nil, errors.New("docker transport requires configuration")
 		}
 
 	default:
@@ -348,7 +349,7 @@ Registry URL defaults to: https://api.mcp.github.com/v0.1`,
 
 			// If only workflow ID/file is provided, show error (need both workflow and server)
 			if len(args) == 1 {
-				return fmt.Errorf("both workflow ID/file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
+				return errors.New("both workflow ID/file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
 			}
 
 			// If both arguments are provided, add the MCP tool

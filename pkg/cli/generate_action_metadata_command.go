@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,7 +70,7 @@ func GenerateActionMetadataCommand() error {
 		}
 		content := string(contentBytes)
 
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Processing: %s", filename)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n📦 Processing: "+filename))
 
 		// Extract metadata
 		metadata, err := extractActionMetadata(filename, content)
@@ -92,14 +93,14 @@ func GenerateActionMetadataCommand() error {
 
 		// Generate action.yml
 		if err := generateActionYml(actionDir, metadata); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to generate action.yml: %s", err.Error())))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("✗ Failed to generate action.yml: "+err.Error()))
 			continue
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated action.yml"))
 
 		// Generate README.md
 		if err := generateReadme(actionDir, metadata); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to generate README.md: %s", err.Error())))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("✗ Failed to generate README.md: "+err.Error()))
 			continue
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
@@ -115,7 +116,7 @@ func GenerateActionMetadataCommand() error {
 	}
 
 	if generatedCount == 0 {
-		return fmt.Errorf("no actions were generated")
+		return errors.New("no actions were generated")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("\n✨ Successfully generated %d action(s)", generatedCount)))
@@ -207,7 +208,7 @@ func extractInputs(content string) []ActionInput {
 			if !seen[inputName] {
 				inputs = append(inputs, ActionInput{
 					Name:        inputName,
-					Description: fmt.Sprintf("Input parameter: %s", inputName),
+					Description: "Input parameter: " + inputName,
 					Required:    false,
 					Default:     "",
 				})
@@ -239,7 +240,7 @@ func extractOutputs(content string) []ActionOutput {
 			if !seen[outputName] {
 				outputs = append(outputs, ActionOutput{
 					Name:        outputName,
-					Description: fmt.Sprintf("Output parameter: %s", outputName),
+					Description: "Output parameter: " + outputName,
 				})
 				seen[outputName] = true
 			}

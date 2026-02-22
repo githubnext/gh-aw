@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -60,7 +61,7 @@ func getRepository() (string, error) {
 
 	repo = strings.TrimSpace(string(output))
 	if repo == "" {
-		return "", fmt.Errorf("repository not found")
+		return "", errors.New("repository not found")
 	}
 
 	mcpLog.Printf("Got repository from gh repo view: %s", repo)
@@ -73,10 +74,10 @@ func getRepository() (string, error) {
 // Results are cached for 1 hour to avoid excessive API calls.
 func queryActorRole(ctx context.Context, actor string, repo string) (string, error) {
 	if actor == "" {
-		return "", fmt.Errorf("actor not specified")
+		return "", errors.New("actor not specified")
 	}
 	if repo == "" {
-		return "", fmt.Errorf("repository not specified")
+		return "", errors.New("repository not specified")
 	}
 
 	// Check cache first

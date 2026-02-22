@@ -320,7 +320,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 
 						if hasWildcard {
 							// For wildcard access, just add the server name with mcp__ prefix
-							allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s", toolName))
+							allowedTools = append(allowedTools, "mcp__"+toolName)
 						} else {
 							// For specific tools, add each one individually
 							for _, tool := range githubConfig.Allowed {
@@ -337,7 +337,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 							defaultTools = constants.DefaultGitHubToolsLocal
 						}
 						for _, defaultTool := range defaultTools {
-							allowedTools = append(allowedTools, fmt.Sprintf("mcp__github__%s", defaultTool))
+							allowedTools = append(allowedTools, "mcp__github__"+defaultTool)
 						}
 					}
 				} else if toolName == "playwright" || isCustomMCP {
@@ -355,7 +355,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 
 							if hasWildcard {
 								// For wildcard access, just add the server name with mcp__ prefix
-								allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s", toolName))
+								allowedTools = append(allowedTools, "mcp__"+toolName)
 							} else {
 								// For specific tools, add each one individually
 								for _, item := range allowedSlice {

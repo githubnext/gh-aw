@@ -64,6 +64,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -339,7 +340,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			if toolConfig.Script != "" {
 				// JavaScript tool
 				toolScript := generateSafeInputJavaScriptToolScript(toolConfig)
-				jsDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_JS_%s", strings.ToUpper(toolName)))
+				jsDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_JS_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.cjs << '%s'\n", toolName, jsDelimiter)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
 					yaml.WriteString(line)
@@ -348,7 +349,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			} else if toolConfig.Run != "" {
 				// Shell script tool
 				toolScript := generateSafeInputShellToolScript(toolConfig)
-				shDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_SH_%s", strings.ToUpper(toolName)))
+				shDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_SH_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.sh << '%s'\n", toolName, shDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
@@ -358,7 +359,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			} else if toolConfig.Py != "" {
 				// Python script tool
 				toolScript := generateSafeInputPythonToolScript(toolConfig)
-				pyDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_PY_%s", strings.ToUpper(toolName)))
+				pyDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_PY_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.py << '%s'\n", toolName, pyDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
@@ -368,7 +369,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			} else if toolConfig.Go != "" {
 				// Go script tool
 				toolScript := generateSafeInputGoToolScript(toolConfig)
-				goDelimiter := GenerateHeredocDelimiter(fmt.Sprintf("SAFE_INPUTS_GO_%s", strings.ToUpper(toolName)))
+				goDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_GO_" + strings.ToUpper(toolName))
 				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.go << '%s'\n", toolName, goDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
@@ -490,7 +491,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
-	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + fmt.Sprintf("%d", port) + "\"\n")
+	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
 
 	// Generate API key with proper error handling (avoid SC2155)

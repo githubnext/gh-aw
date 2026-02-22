@@ -78,7 +78,8 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 		// Extract detailed error information including exit code and stderr
 		var exitCode int
 		var stderr string
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 			stderr = string(exitErr.Stderr)
 			workflowsLog.Printf("gh workflow list command failed with exit code %d. Command: gh %v", exitCode, args)
@@ -97,7 +98,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 		if !verbose {
 			spinner.Stop()
 		}
-		return nil, fmt.Errorf("gh workflow list returned empty output - check if repository has workflows and gh CLI is authenticated")
+		return nil, errors.New("gh workflow list returned empty output - check if repository has workflows and gh CLI is authenticated")
 	}
 
 	// Validate JSON before unmarshaling
@@ -105,7 +106,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 		if !verbose {
 			spinner.Stop()
 		}
-		return nil, fmt.Errorf("gh workflow list returned invalid JSON - this may be due to network issues or authentication problems")
+		return nil, errors.New("gh workflow list returned invalid JSON - this may be due to network issues or authentication problems")
 	}
 
 	var workflows []GitHubWorkflow
@@ -201,7 +202,8 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 		// Extract detailed error information including exit code and stderr
 		var exitCode int
 		var stderr string
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 			stderr = string(exitErr.Stderr)
 			workflowsLog.Printf("gh workflow disable command failed with exit code %d. Command: gh %v", exitCode, args)
@@ -212,7 +214,7 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to restore workflow '%s' to disabled state: %v", workflowIdOrName, err)))
 		}
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Restored workflow to disabled state: %s", workflowIdOrName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Restored workflow to disabled state: "+workflowIdOrName))
 	}
 }
 

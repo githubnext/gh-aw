@@ -53,7 +53,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 		ref = GetVersion()
 		commandsLog.Printf("Using release tag: %s", ref)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using release version: %s", ref)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using release version: "+ref))
 		}
 	} else {
 		commandsLog.Print("Using main branch for dev build")
@@ -107,7 +107,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 	// Patch URLs to match the current version/ref
 	patchedContent := patchAgentFileURLs(contentStr, ref)
 	if patchedContent != contentStr && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Patched URLs to use ref: %s", ref)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patched URLs to use ref: "+ref))
 	}
 
 	commandsLog.Printf("Successfully downloaded agent file (%d bytes)", len(patchedContent))
@@ -134,7 +134,7 @@ func patchAgentFileURLs(content, ref string) string {
 // (e.g., for private repositories accessed from codespaces).
 func downloadAgentFileViaGHCLI(ref string) (string, error) {
 	output, err := workflow.RunGH("Downloading agent file...", "api",
-		fmt.Sprintf("/repos/github/gh-aw/contents/.github/agents/agentic-workflows.agent.md?ref=%s", url.QueryEscape(ref)),
+		"/repos/github/gh-aw/contents/.github/agents/agentic-workflows.agent.md?ref="+url.QueryEscape(ref),
 		"--header", "Accept: application/vnd.github.raw")
 	if err != nil {
 		return "", fmt.Errorf("gh api download failed: %w", err)
@@ -168,7 +168,7 @@ func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowD
 	// First, try to use it as a direct file path
 	if _, err := os.Stat(fileOrWorkflowName); err == nil {
 		commandsLog.Printf("Found workflow file at path: %s", fileOrWorkflowName)
-		console.LogVerbose(verbose, fmt.Sprintf("Found workflow file at path: %s", fileOrWorkflowName))
+		console.LogVerbose(verbose, "Found workflow file at path: "+fileOrWorkflowName)
 		// Return absolute path
 		absPath, err := filepath.Abs(fileOrWorkflowName)
 		if err != nil {
@@ -234,7 +234,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	workflowName = strings.TrimSuffix(workflowName, ".md")
 	commandsLog.Printf("Normalized workflow name: %s", workflowName)
 
-	console.LogVerbose(verbose, fmt.Sprintf("Creating new workflow: %s", workflowName))
+	console.LogVerbose(verbose, "Creating new workflow: "+workflowName)
 
 	// Get current working directory for .github/workflows
 	workingDir, err := os.Getwd()
@@ -284,7 +284,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow: %s", destFile)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created new workflow: "+destFile))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
 
 	return nil

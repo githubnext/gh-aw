@@ -79,9 +79,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	var checkoutToken string
 	var gitRemoteToken string
 	if data.SafeOutputs.App != nil {
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = "${{ steps.safe-outputs-app-token.outputs.token }}" //nolint:gosec
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = "${{ steps.safe-outputs-app-token.outputs.token }}"
 	} else {
 		// Use token precedence chain instead of hardcoded github.token
@@ -109,9 +109,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		}
 		// Get effective token (handles fallback to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
 		effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = effectiveToken
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = effectiveToken
 	}
 

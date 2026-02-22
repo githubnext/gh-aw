@@ -1,7 +1,7 @@
 package stringutil
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 )
 
@@ -89,11 +89,11 @@ func ValidateCopilotPAT(token string) error {
 	case PATTypeFineGrained:
 		return nil
 	case PATTypeClassic:
-		return fmt.Errorf("classic personal access tokens (ghp_...) are not supported for Copilot. Please create a fine-grained PAT at https://github.com/settings/personal-access-tokens/new")
+		return errors.New("classic personal access tokens (ghp_...) are not supported for Copilot. Please create a fine-grained PAT at https://github.com/settings/personal-access-tokens/new")
 	case PATTypeOAuth:
-		return fmt.Errorf("OAuth tokens (gho_...) are not supported for Copilot. Please create a fine-grained PAT at https://github.com/settings/personal-access-tokens/new")
+		return errors.New("OAuth tokens (gho_...) are not supported for Copilot. Please create a fine-grained PAT at https://github.com/settings/personal-access-tokens/new")
 	default:
-		return fmt.Errorf("unrecognized token format. Please create a fine-grained PAT (starting with 'github_pat_') at https://github.com/settings/personal-access-tokens/new")
+		return errors.New("unrecognized token format. Please create a fine-grained PAT (starting with 'github_pat_') at https://github.com/settings/personal-access-tokens/new")
 	}
 }
 

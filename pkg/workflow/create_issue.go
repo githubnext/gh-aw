@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -140,7 +141,7 @@ func buildCopilotCodingAgentAssignmentStep(configToken, safeOutputsToken string)
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
-		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
+		return nil, errors.New("safe-outputs.create-issue configuration is required")
 	}
 
 	if createIssueLog.Enabled() {

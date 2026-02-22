@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"strings"
@@ -34,7 +35,7 @@ type TriggerIR struct {
 func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return nil, fmt.Errorf("trigger shorthand cannot be empty")
+		return nil, errors.New("trigger shorthand cannot be empty")
 	}
 
 	triggerParserLog.Printf("Parsing trigger shorthand: %s", input)
@@ -309,7 +310,7 @@ func parseIssueDiscussionTrigger(input string) (*TriggerIR, error) {
 // parseIssueTrigger parses issue triggers
 func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("issue trigger requires an activity type. Expected format: 'issue <type>'. Valid types: opened, edited, closed, reopened, assigned, unassigned, labeled, unlabeled, deleted, transferred. Example: 'issue opened'")
+		return nil, errors.New("issue trigger requires an activity type. Expected format: 'issue <type>'. Valid types: opened, edited, closed, reopened, assigned, unassigned, labeled, unlabeled, deleted, transferred. Example: 'issue opened'")
 	}
 
 	activityType := tokens[1]
@@ -354,7 +355,7 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 // parseDiscussionTrigger parses discussion triggers
 func parseDiscussionTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("discussion trigger requires an activity type. Expected format: 'discussion <type>'. Valid types: created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered. Example: 'discussion created'")
+		return nil, errors.New("discussion trigger requires an activity type. Expected format: 'discussion <type>'. Valid types: created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered. Example: 'discussion created'")
 	}
 
 	activityType := tokens[1]
@@ -409,7 +410,7 @@ func parseManualTrigger(input string) (*TriggerIR, error) {
 			ir.AdditionalEvents["workflow_dispatch"] = map[string]any{
 				"inputs": map[string]any{
 					inputName: map[string]any{
-						"description": fmt.Sprintf("Input for %s", inputName),
+						"description": "Input for " + inputName,
 						"required":    false,
 						"type":        "string",
 					},
@@ -476,7 +477,7 @@ func parseReleaseRepositoryTrigger(input string) (*TriggerIR, error) {
 // parseReleaseTrigger parses release triggers
 func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("release trigger requires an activity type. Expected format: 'release <type>'. Valid types: published, unpublished, created, edited, deleted, prereleased, released. Example: 'release published'")
+		return nil, errors.New("release trigger requires an activity type. Expected format: 'release <type>'. Valid types: published, unpublished, created, edited, deleted, prereleased, released. Example: 'release published'")
 	}
 
 	activityType := tokens[1]
@@ -507,7 +508,7 @@ func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 // parseRepositoryTrigger parses repository lifecycle triggers
 func parseRepositoryTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("repository trigger requires an activity type. Expected format: 'repository <type>'. Valid types: starred, forked. Example: 'repository starred'")
+		return nil, errors.New("repository trigger requires an activity type. Expected format: 'repository <type>'. Valid types: starred, forked. Example: 'repository starred'")
 	}
 
 	activityType := tokens[1]

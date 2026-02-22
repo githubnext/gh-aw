@@ -40,6 +40,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -87,7 +88,7 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	// and to handle direct unit test calls.
 	if networkPermissions == nil {
 		strictModeValidationLog.Printf("Network configuration unexpectedly nil (defaults should have been applied)")
-		return fmt.Errorf("internal error: network permissions not initialized (this should not happen in normal operation)")
+		return errors.New("internal error: network permissions not initialized (this should not happen in normal operation)")
 	}
 
 	// If allowed list contains "defaults", that's acceptable (this is the automatic default)
@@ -99,7 +100,7 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	// Check for wildcard "*" in allowed domains
 	if slices.Contains(networkPermissions.Allowed, "*") {
 		strictModeValidationLog.Printf("Network validation failed: wildcard detected")
-		return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
+		return errors.New("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
 	}
 
 	strictModeValidationLog.Printf("Network validation passed: allowed_count=%d", len(networkPermissions.Allowed))
@@ -171,7 +172,7 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 			if mode, hasMode := serenaConfig["mode"]; hasMode {
 				if modeStr, ok := mode.(string); ok && modeStr == "local" {
 					strictModeValidationLog.Printf("Serena local mode validation failed")
-					return fmt.Errorf("strict mode: serena tool with 'mode: local' is not allowed for security reasons. Local mode runs the MCP server directly on the host without containerization, bypassing security isolation. Use 'mode: docker' (default) instead, which runs Serena in a container. See: https://github.github.com/gh-aw/reference/tools/#serena")
+					return errors.New("strict mode: serena tool with 'mode: local' is not allowed for security reasons. Local mode runs the MCP server directly on the host without containerization, bypassing security isolation. Use 'mode: docker' (default) instead, which runs Serena in a container. See: https://github.github.com/gh-aw/reference/tools/#serena")
 				}
 			}
 		}
@@ -185,7 +186,7 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 			if scope, hasScope := cacheMap["scope"]; hasScope {
 				if scopeStr, ok := scope.(string); ok && scopeStr == "repo" {
 					strictModeValidationLog.Printf("Cache-memory repo scope validation failed")
-					return fmt.Errorf("strict mode: cache-memory with 'scope: repo' is not allowed for security reasons. Repo scope allows cache sharing across all workflows in the repository, which can enable cross-workflow cache poisoning attacks. Use 'scope: workflow' (default) instead, which isolates caches to individual workflows. See: https://github.github.com/gh-aw/reference/tools/#cache-memory")
+					return errors.New("strict mode: cache-memory with 'scope: repo' is not allowed for security reasons. Repo scope allows cache sharing across all workflows in the repository, which can enable cross-workflow cache poisoning attacks. Use 'scope: workflow' (default) instead, which isolates caches to individual workflows. See: https://github.github.com/gh-aw/reference/tools/#cache-memory")
 				}
 			}
 			return nil
@@ -465,7 +466,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		if llmGatewayPort < 0 {
 			return fmt.Errorf("strict mode: engine '%s' does not support LLM gateway and requires 'sandbox.agent' to be enabled for security. Remove 'sandbox.agent: false' or set 'strict: false'. See: https://github.github.com/gh-aw/reference/sandbox/", engineID)
 		}
-		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
+		return errors.New("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
 	}
 
 	// In strict mode, suggest using ecosystem identifiers for domains that belong to known ecosystems
@@ -519,7 +520,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 				suggestions = append(suggestions, fmt.Sprintf("'%s' → '%s'", ds.domain, ds.ecosystem))
 			}
 
-			warningMsg := fmt.Sprintf("strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: %s", strings.Join(suggestions, ", "))
+			warningMsg := "strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: " + strings.Join(suggestions, ", ")
 
 			// Print warning message and increment warning count
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))

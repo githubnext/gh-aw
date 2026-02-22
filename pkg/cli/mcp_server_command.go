@@ -89,7 +89,7 @@ func checkAndLogGHVersion() {
 
 	// Extract just the first line for cleaner logging to stderr
 	firstLine := strings.Split(versionOutput, "\n")[0]
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("gh CLI: %s", firstLine)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("gh CLI: "+firstLine))
 }
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
@@ -104,7 +104,7 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 
 	if actor != "" {
 		mcpLog.Printf("Using actor: %s", actor)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Actor: %s", actor)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Actor: "+actor))
 	} else {
 		mcpLog.Print("No actor specified (GITHUB_ACTOR environment variable)")
 		if validateActor {
@@ -135,7 +135,7 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 	// Log current working directory
 	if cwd, err := os.Getwd(); err == nil {
 		mcpLog.Printf("Current working directory: %s", cwd)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Current working directory: %s", cwd)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current working directory: "+cwd))
 	} else {
 		mcpLog.Printf("WARNING: Failed to get current working directory: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get current working directory: %v", err)))

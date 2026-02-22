@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	if err != nil {
 		orchestratorFrontmatterLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
 		// Intentionally not wrapping to avoid exposing internal path details
-		return nil, fmt.Errorf("failed to read file: %v", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	log.Printf("File size: %d bytes", len(content))
@@ -57,7 +58,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 
 	if len(result.Frontmatter) == 0 {
 		orchestratorFrontmatterLog.Print("No frontmatter found in file")
-		return nil, fmt.Errorf("no frontmatter found")
+		return nil, errors.New("no frontmatter found")
 	}
 
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
@@ -94,7 +95,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	// For main workflows (with 'on' field), markdown content is required
 	if result.Markdown == "" {
 		orchestratorFrontmatterLog.Print("No markdown content found for main workflow")
-		return nil, fmt.Errorf("no markdown content found")
+		return nil, errors.New("no markdown content found")
 	}
 
 	// Validate main workflow frontmatter contains only expected entries

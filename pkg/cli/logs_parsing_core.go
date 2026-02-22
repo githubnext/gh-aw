@@ -49,7 +49,7 @@ func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
 		// It's a directory - look for nested aw_info.json
 		nestedPath := filepath.Join(cleanPath, "aw_info.json")
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file: %s", nestedPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("aw_info.json is a directory, trying nested file: "+nestedPath))
 		}
 		data, err = os.ReadFile(nestedPath)
 	} else {
@@ -99,7 +99,7 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 	if err != nil {
 		logsParsingCoreLog.Printf("Unknown engine: %s", info.EngineID)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", info.EngineID)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Unknown engine in aw_info.json: "+info.EngineID))
 		}
 		return nil
 	}

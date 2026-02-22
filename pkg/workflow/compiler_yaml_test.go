@@ -298,7 +298,7 @@ YAML error that demonstrates column position handling.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test file
-			testFile := filepath.Join(tmpDir, fmt.Sprintf("%s.md", tt.name))
+			testFile := filepath.Join(tmpDir, tt.name+".md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
 				t.Fatal(err)
 			}
@@ -424,7 +424,7 @@ Test content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testFile := filepath.Join(tmpDir, fmt.Sprintf("%s.md", tt.name))
+			testFile := filepath.Join(tmpDir, tt.name+".md")
 			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
 				t.Fatal(err)
 			}
@@ -440,7 +440,7 @@ Test content.`,
 
 			// Check for VSCode-compatible format on the first line: filename:line:column: error: message
 			// This should NOT include a duplicate [line:col] line
-			vscodeFormatPattern := fmt.Sprintf("%s: error:", tt.expectedLineCol[1:len(tt.expectedLineCol)-1])
+			vscodeFormatPattern := tt.expectedLineCol[1:len(tt.expectedLineCol)-1] + ": error:"
 			if !strings.Contains(errorStr, vscodeFormatPattern) {
 				t.Errorf("%s: error should contain VSCode format '%s', got: %s", tt.description, vscodeFormatPattern, errorStr)
 			}

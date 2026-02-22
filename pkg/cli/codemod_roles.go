@@ -182,7 +182,7 @@ func getRolesToOnRolesCodemod() Codemod {
 									if len(parts) == 2 {
 										result = append(result, fmt.Sprintf("%sroles:%s", onItemIndent, parts[1]))
 									} else {
-										result = append(result, fmt.Sprintf("%sroles:", onItemIndent))
+										result = append(result, onItemIndent+"roles:")
 									}
 								} else {
 									// Array item line (e.g., "- admin")

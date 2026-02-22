@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"path"
@@ -200,23 +201,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				// Object import with path and optional inputs
 				pathValue, hasPath := importItem["path"]
 				if !hasPath {
-					return nil, fmt.Errorf("import object must have a 'path' field")
+					return nil, errors.New("import object must have a 'path' field")
 				}
 				pathStr, ok := pathValue.(string)
 				if !ok {
-					return nil, fmt.Errorf("import 'path' must be a string")
+					return nil, errors.New("import 'path' must be a string")
 				}
 				var inputs map[string]any
 				if inputsValue, hasInputs := importItem["inputs"]; hasInputs {
 					if inputsMap, ok := inputsValue.(map[string]any); ok {
 						inputs = inputsMap
 					} else {
-						return nil, fmt.Errorf("import 'inputs' must be an object")
+						return nil, errors.New("import 'inputs' must be an object")
 					}
 				}
 				importSpecs = append(importSpecs, ImportSpec{Path: pathStr, Inputs: inputs})
 			default:
-				return nil, fmt.Errorf("import item must be a string or an object with 'path' field")
+				return nil, errors.New("import item must be a string or an object with 'path' field")
 			}
 		}
 	case []string:
@@ -224,7 +225,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			importSpecs = append(importSpecs, ImportSpec{Path: s})
 		}
 	default:
-		return nil, fmt.Errorf("imports field must be an array of strings or objects")
+		return nil, errors.New("imports field must be an array of strings or objects")
 	}
 
 	if len(importSpecs) == 0 {
@@ -322,7 +323,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					FilePath:   workflowFilePath,
 					Line:       line,
 					Column:     column,
-					Cause:      fmt.Errorf("cannot import .lock.yml files. Lock files are compiled outputs from gh-aw. Import the source .md file instead"),
+					Cause:      errors.New("cannot import .lock.yml files. Lock files are compiled outputs from gh-aw. Import the source .md file instead"),
 				}
 				return nil, FormatImportError(importErr, yamlContent)
 			}
@@ -1061,7 +1062,7 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		}
 
 		// Fallback error if we couldn't construct the path (shouldn't happen)
-		return nil, fmt.Errorf("circular import detected but could not determine cycle path")
+		return nil, errors.New("circular import detected but could not determine cycle path")
 	}
 
 	return result, nil

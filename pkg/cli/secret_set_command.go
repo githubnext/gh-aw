@@ -71,7 +71,7 @@ Examples:
 			if flagOwner != "" || flagRepo != "" {
 				// Both must be provided together when overriding the target repository
 				if flagOwner == "" || flagRepo == "" {
-					return fmt.Errorf("both --owner and --repo must be specified together when overriding the target repository")
+					return errors.New("both --owner and --repo must be specified together when overriding the target repository")
 				}
 				owner, repo = flagOwner, flagRepo
 				secretSetLog.Printf("Using explicit repository: %s/%s", owner, repo)

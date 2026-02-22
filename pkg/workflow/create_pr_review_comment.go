@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -24,7 +25,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	createPRReviewCommentLog.Printf("Building PR review comment job: main_job=%s", mainJobName)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequestReviewComments == nil {
-		return nil, fmt.Errorf("safe-outputs.create-pull-request-review-comment configuration is required")
+		return nil, errors.New("safe-outputs.create-pull-request-review-comment configuration is required")
 	}
 
 	// Log configuration details

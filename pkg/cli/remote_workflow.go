@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,7 +46,7 @@ func FetchWorkflowFromSource(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow
 // fetchLocalWorkflow reads a workflow file from the local filesystem
 func fetchLocalWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading local workflow: %s", spec.WorkflowPath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading local workflow: "+spec.WorkflowPath))
 	}
 
 	content, err := os.ReadFile(spec.WorkflowPath)
@@ -94,7 +95,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	} else {
 		remoteWorkflowLog.Printf("Resolved ref %s to SHA: %s", ref, commitSHA)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Resolved to commit: %s", commitSHA[:7])))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resolved to commit: "+commitSHA[:7]))
 		}
 	}
 
@@ -183,7 +184,7 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 		// Parse path: owner/repo/path/to/file.md
 		slashParts := strings.Split(pathPart, "/")
 		if len(slashParts) < 3 {
-			return nil, section, fmt.Errorf("invalid workflowspec: must be owner/repo/path[@ref]")
+			return nil, section, errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
 		}
 
 		owner := slashParts[0]
@@ -279,7 +280,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		if err != nil {
 			if isOptional {
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Optional include not found: %s", includePath)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Optional include not found: "+includePath))
 				}
 				continue
 			}
@@ -312,7 +313,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 			fileExists = true
 			if !force {
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Include file already exists, skipping: %s", targetPath)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Include file already exists, skipping: "+targetPath))
 				}
 				continue
 			}
@@ -324,7 +325,7 @@ func fetchAndSaveRemoteIncludes(content string, spec *WorkflowSpec, targetDir st
 		}
 
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Fetched include: %s", targetPath)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched include: "+targetPath))
 		}
 
 		// Track the file

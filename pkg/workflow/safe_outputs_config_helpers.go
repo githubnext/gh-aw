@@ -115,10 +115,10 @@ func getEnabledSafeOutputToolNamesReflection(safeOutputs *SafeOutputsConfig) []s
 // formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
 func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
 	if safeOutputs == nil || safeOutputs.RunsOn == "" {
-		return fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage)
+		return "runs-on: " + constants.DefaultActivationJobRunnerImage
 	}
 
-	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
+	return "runs-on: " + safeOutputs.RunsOn
 }
 
 // builtinSafeOutputFields contains the struct field names for the built-in safe output types

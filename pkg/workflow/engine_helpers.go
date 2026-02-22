@@ -87,7 +87,7 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 	// Determine step name - use InstallStepName if provided, otherwise default to "Install <Name>"
 	stepName := config.InstallStepName
 	if stepName == "" {
-		stepName = fmt.Sprintf("Install %s", config.Name)
+		stepName = "Install " + config.Name
 	}
 
 	// Add npm package installation steps

@@ -896,7 +896,7 @@ func writeSummaryFile(path string, data LogsData, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Wrote summary to %s", path)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Wrote summary to "+path))
 	}
 
 	reportLog.Printf("Successfully wrote summary file: %s", path)

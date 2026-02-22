@@ -89,7 +89,7 @@ func (ft *FileTracker) StageAllFiles(verbose bool) error {
 	console.LogVerbose(verbose, fmt.Sprintf("Staging %d files...", len(allFiles)))
 	if verbose {
 		for _, file := range allFiles {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  - %s", file)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  - "+file))
 		}
 	}
 
@@ -117,7 +117,7 @@ func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
 
 	var errors []string
 	for _, file := range ft.CreatedFiles {
-		console.LogVerbose(verbose, fmt.Sprintf("  - Deleting %s", file))
+		console.LogVerbose(verbose, "  - Deleting "+file)
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			fileTrackerLog.Printf("Failed to delete %s: %v", file, err)
 			errors = append(errors, fmt.Sprintf("failed to delete %s: %v", file, err))
@@ -142,7 +142,7 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 
 	var errors []string
 	for _, file := range ft.ModifiedFiles {
-		console.LogVerbose(verbose, fmt.Sprintf("  - Restoring %s", file))
+		console.LogVerbose(verbose, "  - Restoring "+file)
 
 		// Restore original content if we have it
 		if originalContent, exists := ft.OriginalContent[file]; exists {
@@ -152,7 +152,7 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 			}
 		} else {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No original content stored for %s", file)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No original content stored for "+file))
 			}
 		}
 	}

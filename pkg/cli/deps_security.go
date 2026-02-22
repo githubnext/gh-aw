@@ -57,7 +57,7 @@ func CheckSecurityAdvisories(verbose bool) ([]SecurityAdvisory, error) {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Reading go.mod from: %s", goModPath)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Reading go.mod from: "+goModPath))
 	}
 
 	// Parse go.mod to get dependencies
@@ -135,7 +135,7 @@ func querySecurityAdvisories(depVersions map[string]string, verbose bool) ([]Sec
 	url := "https://api.github.com/advisories?ecosystem=go&per_page=100"
 
 	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

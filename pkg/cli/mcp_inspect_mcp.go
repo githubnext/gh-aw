@@ -96,12 +96,12 @@ func buildConnectionString(config parser.MCPServerConfig) string {
 	switch config.Type {
 	case "stdio":
 		if config.Container != "" {
-			return fmt.Sprintf("docker: %s", config.Container)
+			return "docker: " + config.Container
 		}
 		if len(config.Args) > 0 {
 			return fmt.Sprintf("cmd: %s %s", config.Command, strings.Join(config.Args, " "))
 		}
-		return fmt.Sprintf("cmd: %s", config.Command)
+		return "cmd: " + config.Command
 	case "http":
 		return config.URL
 	default:
@@ -224,7 +224,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 // connectHTTPMCPServer connects to an HTTP-based MCP server using the Go SDK
 func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Connecting to HTTP MCP server: %s", config.URL)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Connecting to HTTP MCP server: "+config.URL))
 	}
 
 	// Create MCP client with logger for better debugging
@@ -455,7 +455,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 		isAllowed = true
 	}
 
-	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🛠️  Tool Details: "+foundTool.Name))
 
 	// Display basic information
 	fmt.Fprintf(os.Stderr, "📋 **Name:** %s\n", foundTool.Name)
@@ -580,7 +580,7 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		fmt.Fprintf(os.Stderr, "```\n")
 
 		if len(blockedTools) > 3 {
-			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage(fmt.Sprintf("📋 All blocked tools: %s", strings.Join(blockedTools, ", "))))
+			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📋 All blocked tools: "+strings.Join(blockedTools, ", ")))
 		}
 	} else if len(info.Config.Allowed) == 0 {
 		// No explicit allowed list - all tools are allowed by default

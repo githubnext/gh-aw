@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -266,7 +267,7 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 
 		row := []string{
 			stringutil.Truncate(tool.Name, 40),
-			fmt.Sprintf("%d", tool.CallCount),
+			strconv.Itoa(tool.CallCount),
 			inputStr,
 			outputStr,
 			durationStr,
@@ -298,15 +299,15 @@ func renderMCPToolUsageTable(mcpData *MCPToolUsageData) {
 			if durationStr == "" {
 				durationStr = "N/A"
 			}
-			errorStr := fmt.Sprintf("%d", server.ErrorCount)
+			errorStr := strconv.Itoa(server.ErrorCount)
 			if server.ErrorCount == 0 {
 				errorStr = "-"
 			}
 
 			row := []string{
 				stringutil.Truncate(server.ServerName, 25),
-				fmt.Sprintf("%d", server.RequestCount),
-				fmt.Sprintf("%d", server.ToolCallCount),
+				strconv.Itoa(server.RequestCount),
+				strconv.Itoa(server.ToolCallCount),
 				inputStr,
 				outputStr,
 				durationStr,
@@ -338,7 +339,7 @@ func renderMCPToolUsageTable(mcpData *MCPToolUsageData) {
 			row := []string{
 				stringutil.Truncate(tool.ServerName, 20),
 				stringutil.Truncate(tool.ToolName, 30),
-				fmt.Sprintf("%d", tool.CallCount),
+				strconv.Itoa(tool.CallCount),
 				totalInStr,
 				totalOutStr,
 				maxInStr,
@@ -410,7 +411,7 @@ func renderCreatedItemsTable(items []CreatedItemReport) {
 	for _, item := range items {
 		numberStr := ""
 		if item.Number > 0 {
-			numberStr = fmt.Sprintf("%d", item.Number)
+			numberStr = strconv.Itoa(item.Number)
 		}
 
 		row := []string{

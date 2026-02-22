@@ -460,9 +460,9 @@ func toEnvVarCase(s string) string {
 	var result strings.Builder
 	for _, ch := range s {
 		if ch >= 'a' && ch <= 'z' {
-			result.WriteString(string(ch - 32)) // Convert to uppercase
+			result.WriteRune(ch - 32) // Convert to uppercase
 		} else if ch >= 'A' && ch <= 'Z' {
-			result.WriteString(string(ch))
+			result.WriteRune(ch)
 		} else if ch == '_' {
 			result.WriteString("_")
 		}

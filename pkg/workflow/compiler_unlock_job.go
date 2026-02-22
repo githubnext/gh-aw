@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -29,7 +30,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	// Add setup step to copy scripts
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" && !c.actionMode.IsScript() {
-		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+		return nil, errors.New("setup action reference is required but could not be resolved")
 	}
 
 	// For dev mode (local action path), checkout the actions folder first

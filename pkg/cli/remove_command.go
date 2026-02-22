@@ -76,7 +76,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 	if len(filesToRemove) == 0 {
 		removeLog.Printf("No workflows matched pattern: %q", pattern)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No workflows found matching pattern: %s", pattern)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows found matching pattern: "+pattern))
 		return nil
 	}
 
@@ -138,7 +138,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		if err := os.Remove(file); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", file, err)))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed: %s", filepath.Base(file))))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed: "+filepath.Base(file)))
 			removedFiles = append(removedFiles, file)
 		}
 
@@ -148,7 +148,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 			if err := os.Remove(lockFile); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", lockFile, err)))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed: %s", filepath.Base(lockFile))))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed: "+filepath.Base(lockFile)))
 			}
 		}
 	}
@@ -248,7 +248,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned include %s: %v", include, err)))
 				}
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned include: %s", include)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed orphaned include: "+include))
 			}
 		}
 	}
@@ -374,7 +374,7 @@ func cleanupAllIncludes(verbose bool) error {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove include %s: %v", relPath, err)))
 					}
 				} else {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed include: %s", relPath)))
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed include: "+relPath))
 				}
 			}
 		}

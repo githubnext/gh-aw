@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,7 +45,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Inspecting MCP servers in: "+workflowPath))
 	}
 
 	// Use the compiler to parse the workflow file
@@ -55,7 +56,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		// Handle shared workflow error separately (not a fatal error for inspection)
-		if _, isSharedWorkflow := err.(*workflow.SharedWorkflowError); isSharedWorkflow {
+		if errors.As(err, new(*workflow.SharedWorkflowError)) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect shared/imported workflows directly - they must be imported by a main workflow"))
 			return nil
 		}
@@ -216,7 +217,7 @@ The command will:
 
 			// Validate that tool flag requires server flag
 			if toolFilter != "" && serverFilter == "" {
-				return fmt.Errorf("--tool flag requires --server flag to be specified")
+				return errors.New("--tool flag requires --server flag to be specified")
 			}
 
 			// Handle spawn inspector flag

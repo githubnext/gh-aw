@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"sort"
@@ -52,7 +53,7 @@ func NewJobManager() *JobManager {
 // AddJob adds a job to the manager
 func (jm *JobManager) AddJob(job *Job) error {
 	if job.Name == "" {
-		return fmt.Errorf("job name cannot be empty")
+		return errors.New("job name cannot be empty")
 	}
 
 	if _, exists := jm.jobs[job.Name]; exists {

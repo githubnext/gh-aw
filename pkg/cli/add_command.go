@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -228,12 +229,12 @@ func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows,
 	if opts.CreatePR {
 		// Check if GitHub CLI is available
 		if !isGHCLIAvailable() {
-			return nil, fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
+			return nil, errors.New("GitHub CLI (gh) is required for PR creation but not available")
 		}
 
 		// Check if we're in a git repository
 		if !isGitRepo() {
-			return nil, fmt.Errorf("not in a git repository - PR creation requires a git repository")
+			return nil, errors.New("not in a git repository - PR creation requires a git repository")
 		}
 
 		// Check no other changes are present
@@ -337,7 +338,7 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 		// Create commit message
 		var commitMessage string
 		if len(workflows) == 1 {
-			commitMessage = fmt.Sprintf("chore: add workflow %s", workflows[0].Spec.WorkflowName)
+			commitMessage = "chore: add workflow " + workflows[0].Spec.WorkflowName
 		} else {
 			commitMessage = fmt.Sprintf("chore: add %d workflows", len(workflows))
 		}
@@ -380,7 +381,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	sourceInfo := resolved.SourceInfo
 
 	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflowSpec.String())))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding workflow: "+workflowSpec.String()))
 		if opts.Force {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
 		}
@@ -479,7 +480,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
 			return nil
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Overwriting existing file: %s", destFile)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing file: "+destFile))
 	}
 
 	content := string(sourceContent)
@@ -548,7 +549,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		} else {
 			content = updatedContent
 			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", opts.StopAfter)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Set stop-after field to: "+opts.StopAfter))
 			}
 		}
 	}
@@ -563,7 +564,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		} else {
 			content = updatedContent
 			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set engine field to: %s", opts.EngineOverride)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Set engine field to: "+opts.EngineOverride))
 			}
 		}
 	}
@@ -592,7 +593,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 
 	// Show output
 	if !opts.Quiet {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added workflow: %s", destFile)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added workflow: "+destFile))
 
 		if description := ExtractWorkflowDescription(content); description != "" {
 			fmt.Fprintln(os.Stderr, "")

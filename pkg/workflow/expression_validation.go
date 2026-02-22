@@ -176,7 +176,7 @@ func validateExpressionSafety(markdownContent string) error {
 		return NewValidationError(
 			"expressions",
 			fmt.Sprintf("%d unauthorized expressions found", len(unauthorizedExpressions)),
-			fmt.Sprintf("expressions are not in the allowed list:%s", unauthorizedList.String()),
+			"expressions are not in the allowed list:"+unauthorizedList.String(),
 			fmt.Sprintf("Use only allowed expressions:%s\nFor more details, see the expression security documentation.", allowedList.String()),
 		)
 	}
@@ -480,7 +480,7 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) err
 		return NewValidationError(
 			"runtime-import",
 			fmt.Sprintf("%d files with errors", len(validationErrors)),
-			fmt.Sprintf("runtime-import files contain expression errors:\n\n%s", strings.Join(validationErrors, "\n\n")),
+			"runtime-import files contain expression errors:\n\n"+strings.Join(validationErrors, "\n\n"),
 			"Fix the expression errors in the imported files listed above. Each file must only use allowed GitHub Actions expressions. See expression security documentation for details.",
 		)
 	}

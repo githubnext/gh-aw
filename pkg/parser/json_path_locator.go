@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,7 +23,8 @@ type JSONPathLocation struct {
 func ExtractJSONPathFromValidationError(err error) []JSONPathInfo {
 	var paths []JSONPathInfo
 
-	if validationError, ok := err.(*jsonschema.ValidationError); ok {
+	var validationError *jsonschema.ValidationError
+	if errors.As(err, &validationError) {
 		// Process each cause (individual validation error)
 		for _, cause := range validationError.Causes {
 			path := JSONPathInfo{

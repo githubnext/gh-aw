@@ -2,6 +2,7 @@
 package fileutil
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,7 +33,7 @@ import (
 func ValidateAbsolutePath(path string) (string, error) {
 	// Check for empty path
 	if path == "" {
-		return "", fmt.Errorf("path cannot be empty")
+		return "", errors.New("path cannot be empty")
 	}
 
 	// Sanitize the filepath to prevent path traversal attacks

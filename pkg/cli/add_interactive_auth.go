@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -27,7 +28,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git init"))
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf("not in a git repository")
+		return errors.New("not in a git repository")
 	}
 
 	// Try to get the repository slug
@@ -49,7 +50,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 					Validate(func(s string) error {
 						parts := strings.Split(s, "/")
 						if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-							return fmt.Errorf("please enter in format 'owner/repo'")
+							return errors.New("please enter in format 'owner/repo'")
 						}
 						return nil
 					}),
@@ -66,7 +67,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 		c.RepoOverride = repoSlug
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Target repository: %s", repoSlug)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Target repository: "+repoSlug))
 	addInteractiveLog.Printf("Target repository: %s", repoSlug)
 
 	// Check if repository is public or private

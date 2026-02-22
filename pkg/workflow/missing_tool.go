@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,7 +23,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	missingToolLog.Printf("Building missing_tool job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.MissingTool == nil {
-		return nil, fmt.Errorf("safe-outputs.missing-tool configuration is required")
+		return nil, errors.New("safe-outputs.missing-tool configuration is required")
 	}
 
 	// Build custom environment variables specific to missing-tool

@@ -45,7 +45,7 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 			return fmt.Errorf("failed to write %s: %w", jsFile.name, err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Wrote %s", jsFile.name)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote "+jsFile.name))
 		}
 	}
 

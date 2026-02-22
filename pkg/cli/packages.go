@@ -66,7 +66,7 @@ func collectLocalIncludeDependencies(content, packagePath string, verbose bool) 
 	seen := make(map[string]bool)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Collecting package dependencies from: %s", packagePath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Collecting package dependencies from: "+packagePath))
 	}
 
 	err := collectLocalIncludeDependenciesRecursive(content, packagePath, &dependencies, seen, verbose)
@@ -191,7 +191,7 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 			}
 
 			// Force is enabled, overwrite
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Overwriting existing include file: %s", dep.TargetPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing include file: "+dep.TargetPath))
 		}
 
 		// Track the file based on whether it existed before (if tracker is available)

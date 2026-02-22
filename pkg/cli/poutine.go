@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -96,7 +97,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 		"docker",
 		"run",
 		"--rm",
-		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
+		"-v", gitRoot+":/workdir",
 		"-w", "/workdir",
 		"ghcr.io/boostsecurityio/poutine:latest",
 		"analyze_local",
@@ -139,7 +140,8 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	// Check if the error is due to findings or actual failure
 	if err != nil {
 		// poutine exits with non-zero code when findings are present
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
 			poutineLog.Printf("Poutine exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit code 1 typically indicates findings in the repository
@@ -196,7 +198,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		"docker",
 		"run",
 		"--rm",
-		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
+		"-v", gitRoot+":/workdir",
 		"-w", "/workdir",
 		"ghcr.io/boostsecurityio/poutine:latest",
 		"analyze_local",
@@ -239,7 +241,8 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	// Check if the error is due to findings or actual failure
 	if err != nil {
 		// poutine exits with non-zero code when findings are present
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
 			poutineLog.Printf("Poutine exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit code 1 typically indicates findings in the repository

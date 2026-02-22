@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -132,7 +133,7 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 
 on:
   schedule:
-    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + fmt.Sprintf("%d", minExpiresDays) + ` days)
+    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + strconv.Itoa(minExpiresDays) + ` days)
   workflow_dispatch:
 
 permissions: {}

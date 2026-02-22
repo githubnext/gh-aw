@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -39,7 +40,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting safe-inputs from: %s", workflowPath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Inspecting safe-inputs from: "+workflowPath))
 	}
 
 	// Use the workflow compiler to parse the file and resolve imports
@@ -56,7 +57,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	// This includes both direct and imported safe-inputs configurations
 	safeInputsConfig := workflowData.SafeInputs
 	if safeInputsConfig == nil || len(safeInputsConfig.Tools) == 0 {
-		return fmt.Errorf("no safe-inputs configuration found in workflow")
+		return errors.New("no safe-inputs configuration found in workflow")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d safe-input tool(s) to configure", len(safeInputsConfig.Tools))))
@@ -73,7 +74,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	}()
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Created temporary directory: "+tmpDir))
 	}
 
 	// Write safe-inputs files to temporary directory
@@ -84,7 +85,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	// Find an available port for the HTTP server
 	port := findAvailablePort(safeInputsStartPort, verbose)
 	if port == 0 {
-		return fmt.Errorf("failed to find an available port for the HTTP server")
+		return errors.New("failed to find an available port for the HTTP server")
 	}
 
 	if verbose {
@@ -111,7 +112,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 
 	// Wait for the server to start up
 	if !waitForServerReady(port, 5*time.Second, verbose) {
-		return fmt.Errorf("safe-inputs HTTP server failed to start within timeout")
+		return errors.New("safe-inputs HTTP server failed to start within timeout")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Safe-inputs HTTP server started successfully"))

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -48,7 +49,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 
 	// Assert this function is not running in automated unit tests or CI
 	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
-		return fmt.Errorf("interactive add cannot be used in automated tests or CI environments")
+		return errors.New("interactive add cannot be used in automated tests or CI environments")
 	}
 
 	config := &AddInteractiveConfig{
@@ -209,7 +210,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 
 	if !confirmed {
 		fmt.Fprintln(os.Stderr, "Operation cancelled.")
-		return fmt.Errorf("user cancelled the operation")
+		return errors.New("user cancelled the operation")
 	}
 
 	return nil

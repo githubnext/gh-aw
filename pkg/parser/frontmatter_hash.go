@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -438,7 +439,7 @@ func extractFrontmatterAndBodyText(content string) (string, string, error) {
 	}
 
 	if endIndex == -1 {
-		return "", "", fmt.Errorf("frontmatter not properly closed")
+		return "", "", errors.New("frontmatter not properly closed")
 	}
 
 	// Extract frontmatter text (lines between --- delimiters)

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -83,7 +84,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s, threat_detection=%v", data.Name, mainJobName, threatDetectionEnabled)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
-		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
+		return nil, errors.New("safe-outputs.upload-asset configuration is required")
 	}
 
 	var preSteps []string

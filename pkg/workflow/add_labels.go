@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -44,7 +44,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	addLabelsLog.Printf("Building add_labels job for workflow: %s, main_job: %s", data.Name, mainJobName)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.AddLabels == nil {
-		return nil, fmt.Errorf("safe-outputs configuration is required")
+		return nil, errors.New("safe-outputs configuration is required")
 	}
 
 	cfg := data.SafeOutputs.AddLabels

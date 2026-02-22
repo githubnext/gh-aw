@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -245,7 +246,7 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "%s %s\n",
 		"ℹ",
-		fmt.Sprintf("Existing file detected: %s", filePath))
+		"Existing file detected: "+filePath)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent integration, please add the following steps")
 	fmt.Fprintln(os.Stderr, "to the 'copilot-setup-steps' job in your .github/workflows/copilot-setup-steps.yml file:")
@@ -277,7 +278,7 @@ func upgradeSetupCliVersion(workflow *Workflow, actionMode workflow.ActionMode, 
 	// Find the copilot-setup-steps job
 	job, exists := workflow.Jobs["copilot-setup-steps"]
 	if !exists {
-		return false, fmt.Errorf("copilot-setup-steps job not found in workflow")
+		return false, errors.New("copilot-setup-steps job not found in workflow")
 	}
 
 	upgraded := false
@@ -293,7 +294,7 @@ func upgradeSetupCliVersion(workflow *Workflow, actionMode workflow.ActionMode, 
 			oldUses := step.Uses
 			if actionMode.IsRelease() {
 				// Update to the new version tag
-				newUses := fmt.Sprintf("github/gh-aw/actions/setup-cli%s", actionRef)
+				newUses := "github/gh-aw/actions/setup-cli" + actionRef
 				step.Uses = newUses
 
 				// Update the with.version parameter
@@ -330,7 +331,7 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 		}
 		installStep = CopilotWorkflowStep{
 			Name: "Install gh-aw extension",
-			Uses: fmt.Sprintf("github/gh-aw/actions/setup-cli%s", actionRef),
+			Uses: "github/gh-aw/actions/setup-cli" + actionRef,
 			With: map[string]any{
 				"version": version,
 			},
@@ -346,7 +347,7 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 	// Find the copilot-setup-steps job
 	job, exists := workflow.Jobs["copilot-setup-steps"]
 	if !exists {
-		return fmt.Errorf("copilot-setup-steps job not found in workflow")
+		return errors.New("copilot-setup-steps job not found in workflow")
 	}
 
 	// Insert the extension install step at the beginning

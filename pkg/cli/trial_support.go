@@ -140,7 +140,7 @@ func parseJSONArtifact(filePath string, verbose bool) map[string]any {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Parsed JSON artifact: %s", filepath.Base(filePath))))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Parsed JSON artifact: "+filepath.Base(filePath)))
 	}
 
 	return parsed

@@ -24,8 +24,8 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 	// Use the install_copilot_cli.sh script from actions/setup/sh
 	// This script includes retry logic for robustness against transient network failures
 	stepLines := []string{
-		fmt.Sprintf("      - name: %s", stepName),
-		fmt.Sprintf("        run: /opt/gh-aw/actions/install_copilot_cli.sh %s", version),
+		"      - name: " + stepName,
+		"        run: /opt/gh-aw/actions/install_copilot_cli.sh " + version,
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}
@@ -34,7 +34,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact.
 func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
-	artifactName := fmt.Sprintf("firewall-logs-%s", sanitizedName)
+	artifactName := "firewall-logs-" + sanitizedName
 	// Firewall logs are now at a known location in the sandbox folder structure
 	firewallLogsDir := "/tmp/gh-aw/sandbox/firewall/logs/"
 
@@ -42,10 +42,10 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 		"      - name: Upload Firewall Logs",
 		"        if: always()",
 		"        continue-on-error: true",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/upload-artifact")),
+		"        uses: " + GetActionPin("actions/upload-artifact"),
 		"        with:",
-		fmt.Sprintf("          name: %s", artifactName),
-		fmt.Sprintf("          path: %s", firewallLogsDir),
+		"          name: " + artifactName,
+		"          path: " + firewallLogsDir,
 		"          if-no-files-found: ignore",
 	}
 
@@ -62,7 +62,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        if: always()",
 		"        continue-on-error: true",
 		"        env:",
-		fmt.Sprintf("          AWF_LOGS_DIR: %s", firewallLogsDir),
+		"          AWF_LOGS_DIR: " + firewallLogsDir,
 		"        run: |",
 		"          # Fix permissions on firewall logs so they can be uploaded as artifacts",
 		"          # AWF runs with sudo, creating files owned by root",

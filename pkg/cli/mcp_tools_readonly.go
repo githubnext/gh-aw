@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os/exec"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -213,7 +214,8 @@ Returns JSON array with validation results for each workflow:
 			if len(outputStr) == 0 {
 				// Try to get stderr for error details
 				var stderr string
-				if exitErr, ok := err.(*exec.ExitError); ok {
+				var exitErr *exec.ExitError
+				if errors.As(err, &exitErr) {
 					stderr = string(exitErr.Stderr)
 				}
 				return nil, nil, &jsonrpc.Error{

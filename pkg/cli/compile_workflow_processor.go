@@ -22,6 +22,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -98,7 +99,8 @@ func compileWorkflowFile(
 	workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 	if err != nil {
 		// Check if this is a shared workflow (not an error, just info)
-		if sharedErr, ok := err.(*workflow.SharedWorkflowError); ok {
+		var sharedErr *workflow.SharedWorkflowError
+		if errors.As(err, &sharedErr) {
 			if !jsonOutput {
 				// Print info message instead of error
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(sharedErr.Error()))

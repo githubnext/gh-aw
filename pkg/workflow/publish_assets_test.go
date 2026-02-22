@@ -134,10 +134,11 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 	}
 
 	// Convert steps to string to check for expected patterns
-	stepsStr := ""
+	var stepsStrSb strings.Builder
 	for _, step := range job.Steps {
-		stepsStr += step
+		stepsStrSb.WriteString(step)
 	}
+	stepsStr := stepsStrSb.String()
 
 	// Verify artifact download steps are present
 	if !strings.Contains(stepsStr, "Download agent output artifact") {

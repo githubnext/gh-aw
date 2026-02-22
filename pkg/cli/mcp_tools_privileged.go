@@ -2,7 +2,7 @@ package cli
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -171,7 +171,8 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 			// Try to get stderr and exit code for detailed error reporting
 			var stderr string
 			var exitCode int
-			if exitErr, ok := err.(*exec.ExitError); ok {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
 				stderr = string(exitErr.Stderr)
 				exitCode = exitErr.ExitCode()
 			}
@@ -192,7 +193,7 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
-				Message: fmt.Sprintf("failed to download workflow logs: %s", err.Error()),
+				Message: "failed to download workflow logs: " + err.Error(),
 				Data:    mcpErrorData(errorData),
 			}
 		}
@@ -298,7 +299,8 @@ Returns JSON with the following structure:
 			// Try to get stderr and exit code for detailed error reporting
 			var stderr string
 			var exitCode int
-			if exitErr, ok := err.(*exec.ExitError); ok {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
 				stderr = string(exitErr.Stderr)
 				exitCode = exitErr.ExitCode()
 			}
@@ -317,7 +319,7 @@ Returns JSON with the following structure:
 
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
-				Message: fmt.Sprintf("failed to audit workflow run: %s", err.Error()),
+				Message: "failed to audit workflow run: " + err.Error(),
 				Data:    mcpErrorData(errorData),
 			}
 		}

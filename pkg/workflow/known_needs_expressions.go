@@ -142,12 +142,11 @@ func filterExpressionsForActivation(mappings []*ExpressionMapping, customJobs ma
 		}
 		// Extract the job name (needs.<jobName>.*)
 		rest := m.Content[len("needs."):]
-		dotIdx := strings.Index(rest, ".")
-		if dotIdx < 0 {
+		jobName, _, ok := strings.Cut(rest, ".")
+		if !ok {
 			filtered = append(filtered, m)
 			continue
 		}
-		jobName := rest[:dotIdx]
 		// If it's a custom job NOT in beforeActivationJobs, drop it
 		if _, isCustomJob := customJobs[jobName]; isCustomJob && !beforeActivationSet[jobName] {
 			knownNeedsLog.Printf("Filtered post-activation expression from activation substitution step: %s", m.Content)
@@ -169,11 +168,9 @@ func normalizeJobNameForEnvVar(jobName string) string {
 			result.WriteString("_")
 		} else if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '_' {
 			if char >= 'a' && char <= 'z' {
-				result.WriteString(string(char - 32)) // Convert to uppercase
-			} else if char >= 'A' && char <= 'Z' {
-				result.WriteString(string(char))
+				result.WriteRune(char - 32) // Convert to uppercase
 			} else {
-				result.WriteString(string(char))
+				result.WriteRune(char)
 			}
 		}
 	}

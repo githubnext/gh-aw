@@ -304,8 +304,8 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 		} `json:"data"`
 	}
 
-	stdOut, _, err := gh.Exec("api", "graphql", "-f", fmt.Sprintf("query=%s", query),
-		"-f", fmt.Sprintf("owner=%s", owner), "-f", fmt.Sprintf("name=%s", name))
+	stdOut, _, err := gh.Exec("api", "graphql", "-f", "query="+query,
+		"-f", "owner="+owner, "-f", "name="+name)
 	if err != nil {
 		return false, fmt.Errorf("failed to query discussions status: %w", err)
 	}
@@ -343,7 +343,7 @@ func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
 
 	// Fetch repository data using REST client
 	var response RepositoryResponse
-	err = client.Get(fmt.Sprintf("repos/%s", repo), &response)
+	err = client.Get("repos/"+repo, &response)
 	if err != nil {
 		return false, fmt.Errorf("failed to query repository: %w", err)
 	}

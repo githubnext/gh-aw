@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -295,7 +296,7 @@ func TestDownloadRunArtifactsParallelWithCancellation(t *testing.T) {
 		if !result.Skipped {
 			t.Errorf("Expected result for run %d to be skipped due to cancelled context", result.Run.DatabaseID)
 		}
-		if result.Error != context.Canceled {
+		if !errors.Is(result.Error, context.Canceled) {
 			t.Errorf("Expected error to be context.Canceled for run %d, got %v", result.Run.DatabaseID, result.Error)
 		}
 	}

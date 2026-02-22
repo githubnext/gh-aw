@@ -52,7 +52,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	if strings.TrimSpace(existingContent) == expectedContent {
 		copilotAgentsLog.Printf("Dispatcher agent is up-to-date: %s", targetPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Dispatcher agent is up-to-date: %s", targetPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatcher agent is up-to-date: "+targetPath))
 		}
 		return nil
 	}
@@ -67,12 +67,12 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	if existingContent == "" {
 		copilotAgentsLog.Printf("Created dispatcher agent: %s", targetPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created dispatcher agent: %s", targetPath)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent: "+targetPath))
 		}
 	} else {
 		copilotAgentsLog.Printf("Updated dispatcher agent: %s", targetPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated dispatcher agent: %s", targetPath)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated dispatcher agent: "+targetPath))
 		}
 	}
 
@@ -94,7 +94,7 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 			return fmt.Errorf("failed to remove old prompt file: %w", err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old prompt file: %s", oldPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed old prompt file: "+oldPath))
 		}
 	}
 
@@ -161,7 +161,7 @@ func deleteOldTemplateFiles(verbose bool) error {
 			}
 			removedCount++
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old template file: %s", path)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed old template file: "+path))
 			}
 		}
 	}
@@ -174,7 +174,7 @@ func deleteOldTemplateFiles(verbose bool) error {
 				return fmt.Errorf("failed to remove empty templates directory: %w", err)
 			}
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed empty templates directory: %s", templatesDir)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed empty templates directory: "+templatesDir))
 			}
 		}
 	}

@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +31,7 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage),
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 		{
 			name: "custom runs-on string",
@@ -143,7 +142,7 @@ This is a test workflow.`
 		if jobStart != -1 {
 			// Look for runs-on within the next 500 characters of this job
 			jobSection := yamlStr[jobStart : jobStart+500]
-			defaultRunsOn := fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage)
+			defaultRunsOn := "runs-on: " + constants.DefaultActivationJobRunnerImage
 			if strings.Contains(jobSection, defaultRunsOn) {
 				t.Errorf("Job %q still uses default %q instead of custom runner.\nJob section:\n%s", jobName, defaultRunsOn, jobSection)
 			}
@@ -165,14 +164,14 @@ func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
 		{
 			name:           "nil safe outputs config",
 			safeOutputs:    nil,
-			expectedRunsOn: fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage),
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 		{
 			name: "safe outputs config with nil runs-on",
 			safeOutputs: &SafeOutputsConfig{
 				RunsOn: "",
 			},
-			expectedRunsOn: fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage),
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 	}
 

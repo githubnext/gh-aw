@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -116,7 +117,7 @@ func (t *StepOrderTracker) ValidateStepOrdering() error {
 			"compile",
 			"workflow steps",
 			"artifact uploads without secret redaction",
-			fmt.Errorf("artifact uploads found but no secret redaction step was added"),
+			errors.New("artifact uploads found but no secret redaction step was added"),
 			"This is a critical security issue - a compiler bug. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
 		)
 	}

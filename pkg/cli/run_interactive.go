@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,7 +32,7 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 
 	// Check if running in CI environment
 	if IsRunningInCI() {
-		return fmt.Errorf("interactive mode cannot be used in CI environments")
+		return errors.New("interactive mode cannot be used in CI environments")
 	}
 
 	if verbose {
@@ -45,7 +46,7 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	}
 
 	if len(workflows) == 0 {
-		return fmt.Errorf("no runnable workflows found. Workflows must have 'workflow_dispatch' trigger")
+		return errors.New("no runnable workflows found. Workflows must have 'workflow_dispatch' trigger")
 	}
 
 	// Step 2: Let user select a workflow
@@ -74,7 +75,7 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	// Step 6: Build command string for display
 	cmdStr := buildCommandString(selectedWorkflow.Name, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("Equivalent command: %s", cmdStr)))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Step 7: Execute the workflow
@@ -234,7 +235,7 @@ func selectWorkflowNonInteractive(workflows []WorkflowOption) (*WorkflowOption, 
 // showWorkflowInfo displays information about the selected workflow
 func showWorkflowInfo(wf *WorkflowOption) {
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow: %s", wf.Name)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflow: "+wf.Name))
 
 	if len(wf.Inputs) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nWorkflow Inputs:"))
@@ -245,7 +246,7 @@ func showWorkflowInfo(wf *WorkflowOption) {
 			}
 			desc := ""
 			if input.Description != "" {
-				desc = fmt.Sprintf(" - %s", input.Description)
+				desc = " - " + input.Description
 			}
 			defaultVal := ""
 			if input.Default != "" {
@@ -303,7 +304,7 @@ func collectInputsWithMap(inputs map[string]*workflow.InputDefinition) ([]string
 		if inputDef.Required {
 			field = field.Validate(func(s string) error {
 				if s == "" {
-					return fmt.Errorf("this input is required")
+					return errors.New("this input is required")
 				}
 				return nil
 			})
@@ -413,7 +414,7 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	// Build command string for display
 	cmdStr := buildCommandString(workflowName, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("Equivalent command: %s", cmdStr)))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Execute the workflow

@@ -458,7 +458,7 @@ This test validates that command events filtering works correctly.
 			if onSectionEnd == -1 {
 				onSectionEnd = strings.Index(lockContentStr[onSectionStart:], "\njobs:")
 			}
-			onSection := ""
+			var onSection string
 			if onSectionEnd > 0 {
 				onSection = lockContentStr[onSectionStart : onSectionStart+onSectionEnd]
 			} else {

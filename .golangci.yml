@@ -17,6 +17,22 @@ linters:
     - testifylint    # Enforce testify best practices
     - intrange       # Suggest integer range in for loops
     - modernize      # Modernize Go code using modern language features
+    - errorlint      # Find error wrapping issues (type assertions, comparisons)
+    - usestdlibvars  # Use standard library variables/constants (e.g. http.MethodGet)
+    - mirror         # Avoid unnecessary allocations in bytes/strings operations
+    - nolintlint     # Report ill-formed or insufficient nolint directives
+    - wastedassign   # Find wasted assignment statements
+    - makezero       # Find slice declarations with non-zero initial length followed by append
+    - perfsprint     # Replace fmt.Sprintf with faster alternatives where possible
+    - bodyclose      # Check HTTP response bodies are closed
+    - gocheckcompilerdirectives  # Validate go compiler directive comments
+    - recvcheck      # Check receiver type consistency
+    - copyloopvar    # Detect loop variable copies
+    - exptostd       # Replace golang.org/x/exp functions with std equivalents
+    - durationcheck  # Check for two durations multiplied together
+    - fatcontext     # Detect nested contexts in loops and function literals
+    - nosprintfhostport  # Check for misuse of Sprintf to construct host:port URLs
+    - reassign       # Check that package variables are not reassigned
   disable:
     - errcheck       # Disabled due to exclude-functions not working properly in golangci-lint v2
     - gocritic       # Disabled due to disabled-checks not working properly in golangci-lint v2

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -111,10 +112,10 @@ func (am *ArtifactManager) GetCurrentJob() string {
 // RecordUpload records an artifact upload operation
 func (am *ArtifactManager) RecordUpload(upload *ArtifactUpload) error {
 	if upload.Name == "" {
-		return fmt.Errorf("artifact upload must have a name")
+		return errors.New("artifact upload must have a name")
 	}
 	if len(upload.Paths) == 0 {
-		return fmt.Errorf("artifact upload must have at least one path")
+		return errors.New("artifact upload must have at least one path")
 	}
 
 	// Set the job name if not already set
@@ -135,10 +136,10 @@ func (am *ArtifactManager) RecordUpload(upload *ArtifactUpload) error {
 // RecordDownload records an artifact download operation
 func (am *ArtifactManager) RecordDownload(download *ArtifactDownload) error {
 	if download.Name == "" && download.Pattern == "" {
-		return fmt.Errorf("artifact download must have either name or pattern")
+		return errors.New("artifact download must have either name or pattern")
 	}
 	if download.Path == "" {
-		return fmt.Errorf("artifact download must have a path")
+		return errors.New("artifact download must have a path")
 	}
 
 	// Set the job name if not already set

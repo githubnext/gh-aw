@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -21,7 +21,7 @@ func parseSlashCommandShorthand(input string) (commandName string, isSlashComman
 	// Extract command name (remove leading /)
 	commandName = strings.TrimPrefix(input, "/")
 	if commandName == "" {
-		return "", true, fmt.Errorf("slash command shorthand cannot be empty after '/'")
+		return "", true, errors.New("slash command shorthand cannot be empty after '/'")
 	}
 
 	slashCommandParserLog.Printf("Parsed slash command shorthand: /%s -> command name: %s", input, commandName)

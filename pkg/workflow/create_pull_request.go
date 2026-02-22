@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -39,7 +40,7 @@ type CreatePullRequestsConfig struct {
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil {
-		return nil, fmt.Errorf("safe-outputs.create-pull-request configuration is required")
+		return nil, errors.New("safe-outputs.create-pull-request configuration is required")
 	}
 
 	if createPRLog.Enabled() {

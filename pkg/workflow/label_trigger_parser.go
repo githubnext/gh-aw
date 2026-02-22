@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -51,7 +51,7 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 
 	// Extract label names
 	if len(tokens) <= startIdx {
-		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
+		return "", nil, true, errors.New("label trigger shorthand requires at least one label name")
 	}
 
 	// Process label names: handle both space-separated and comma-separated formats
@@ -69,7 +69,7 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 
 	// Validate we have at least one label after processing
 	if len(labelNames) == 0 {
-		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
+		return "", nil, true, errors.New("label trigger shorthand requires at least one label name")
 	}
 
 	labelTriggerParserLog.Printf("Parsed label trigger shorthand: %s -> entity: %s, labels: %v", input, entityType, labelNames)

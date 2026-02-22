@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -281,7 +282,7 @@ func formatTokens(tokens int) string {
 		return "-"
 	}
 	if tokens < 1000 {
-		return fmt.Sprintf("%d", tokens)
+		return strconv.Itoa(tokens)
 	}
 	if tokens < 1000000 {
 		return fmt.Sprintf("%.1fK", float64(tokens)/1000)

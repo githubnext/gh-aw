@@ -92,7 +92,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 
 	if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-			fmt.Sprintf("✓ Agent file exists: %s", agentPath)))
+			"✓ Agent file exists: "+agentPath))
 	}
 
 	return nil

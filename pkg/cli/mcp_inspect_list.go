@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -34,7 +35,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 		if os.IsNotExist(err) {
 			errMsg := "no .github/workflows directory found"
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-			return fmt.Errorf("no .github/workflows directory found")
+			return errors.New("no .github/workflows directory found")
 		}
 		return err
 	}

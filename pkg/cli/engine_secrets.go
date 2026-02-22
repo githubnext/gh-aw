@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -240,7 +241,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Classic PATs (ghp_...) are not supported. You must use a fine-grained PAT (github_pat_...)."))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Please create a token at:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s", req.KeyURL)))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Configure the token with:")
 	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
@@ -260,7 +261,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 				Value(&token).
 				Validate(func(s string) error {
 					if len(s) < 10 {
-						return fmt.Errorf("token appears to be too short")
+						return errors.New("token appears to be too short")
 					}
 					return stringutil.ValidateCopilotPAT(s)
 				}),
@@ -291,8 +292,8 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintf(os.Stderr, "%s requires a GitHub Personal Access Token (PAT).\n", req.Name)
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", req.WhenNeeded)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", req.Description)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("When needed: "+req.WhenNeeded))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommended scopes: "+req.Description))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Create a token at:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
@@ -308,7 +309,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 				Value(&token).
 				Validate(func(s string) error {
 					if len(s) < 10 {
-						return fmt.Errorf("token appears to be too short")
+						return errors.New("token appears to be too short")
 					}
 					return nil
 				}),
@@ -321,7 +322,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 
 	// Store in environment for later use
 	_ = os.Setenv(req.Name, token)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s token received", req.Name)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(req.Name+" token received"))
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
@@ -347,7 +348,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 	fmt.Fprintln(os.Stderr, "")
 	if req.KeyURL != "" {
 		fmt.Fprintln(os.Stderr, "Get your API key from:")
-		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s", req.KeyURL)))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
 		fmt.Fprintln(os.Stderr, "")
 	}
 
@@ -361,7 +362,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 				Value(&apiKey).
 				Validate(func(s string) error {
 					if len(s) < 10 {
-						return fmt.Errorf("API key appears to be too short")
+						return errors.New("API key appears to be too short")
 					}
 					return nil
 				}),
@@ -374,7 +375,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 
 	// Store in environment for later use
 	_ = os.Setenv(req.Name, apiKey)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s API key received", label)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(label+" API key received"))
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
@@ -402,7 +403,7 @@ func checkOptionalSecret(req SecretRequirement, config EngineSecretConfig) error
 		return nil
 	}
 
-	return fmt.Errorf("not configured")
+	return errors.New("not configured")
 }
 
 // uploadSecretToRepo uploads a secret to the repository if it doesn't already exist
@@ -555,9 +556,9 @@ func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Required secrets are missing:"))
 		for _, req := range requiredMissing {
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret: %s", req.Name)))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", req.WhenNeeded)))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", req.Description)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Secret: "+req.Name))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("When needed: "+req.WhenNeeded))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommended scopes: "+req.Description))
 			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secrets set %s --owner %s --repo %s", req.Name, cmdOwner, cmdRepo)))
 		}
 	}
@@ -568,8 +569,8 @@ func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 		for _, req := range optionalMissing {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret: %s (optional)", req.Name)))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", req.WhenNeeded)))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", req.Description)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("When needed: "+req.WhenNeeded))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommended scopes: "+req.Description))
 			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secrets set %s --owner %s --repo %s", req.Name, cmdOwner, cmdRepo)))
 		}
 	}

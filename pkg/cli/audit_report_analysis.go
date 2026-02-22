@@ -98,7 +98,7 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 			Category:    "tooling",
 			Severity:    "high",
 			Title:       "MCP Server Failures",
-			Description: fmt.Sprintf("Failed MCP servers: %s", strings.Join(serverNames, ", ")),
+			Description: "Failed MCP servers: " + strings.Join(serverNames, ", "),
 			Impact:      "Missing tools may limit workflow capabilities",
 		})
 	}
@@ -109,7 +109,7 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 		for i := 0; i < len(processedRun.MissingTools) && i < 3; i++ {
 			toolNames = append(toolNames, processedRun.MissingTools[i].Tool)
 		}
-		desc := fmt.Sprintf("Missing tools: %s", strings.Join(toolNames, ", "))
+		desc := "Missing tools: " + strings.Join(toolNames, ", ")
 		if len(processedRun.MissingTools) > 3 {
 			desc += fmt.Sprintf(" (and %d more)", len(processedRun.MissingTools)-3)
 		}
@@ -205,7 +205,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 			Priority: "medium",
 			Action:   "Add missing tools to workflow configuration",
 			Reason:   "Missing tools limit agent capabilities and may cause failures",
-			Example:  fmt.Sprintf("Add tools configuration for: %s", processedRun.MissingTools[0].Tool),
+			Example:  "Add tools configuration for: " + processedRun.MissingTools[0].Tool,
 		})
 	}
 
@@ -274,7 +274,7 @@ func generateFailureAnalysis(processedRun ProcessedRun, errors []ErrorInfo) *Fai
 	// Attempt to identify root cause
 	rootCause := ""
 	if len(processedRun.MCPFailures) > 0 {
-		rootCause = fmt.Sprintf("MCP server failure: %s", processedRun.MCPFailures[0].ServerName)
+		rootCause = "MCP server failure: " + processedRun.MCPFailures[0].ServerName
 	} else if len(errors) > 0 {
 		// Look for common error patterns
 		firstError := errors[0].Message
