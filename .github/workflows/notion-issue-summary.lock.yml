@@ -115,13 +115,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
-          
-          **Reporting Missing Data**
-          
-          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          Tools: missing_tool, missing_data
           
           </safe-output-tools>
           <github-context>

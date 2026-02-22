@@ -600,199 +600,139 @@ func generateSafeOutputsPerToolInstructions(b *strings.Builder, safeOutputs *Saf
 
 	safeOutputsPromptLog.Print("Generating safe outputs per-tool instructions")
 
+	// Build compact list of enabled tool names
+	var tools []string
 	if safeOutputs.AddComments != nil {
-		b.WriteString("**Adding a Comment to an Issue or Pull Request**\n\n")
-		fmt.Fprintf(b, "To add a comment to an issue or pull request, use the add_comment tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "add_comment")
 	}
-
 	if safeOutputs.CreateIssues != nil {
-		b.WriteString("**Creating an Issue**\n\n")
-		fmt.Fprintf(b, "To create an issue, use the create_issue tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-		if safeOutputs.AutoInjectedCreateIssue {
-			b.WriteString("**IMPORTANT**: Report your findings or results by creating a GitHub issue using the create_issue tool. If you have no meaningful results to report, call the noop tool instead.\n\n")
-		}
+		tools = append(tools, "create_issue")
 	}
-
 	if safeOutputs.CloseIssues != nil {
-		b.WriteString("**Closing an Issue**\n\n")
-		fmt.Fprintf(b, "To close an issue, use the close_issue tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "close_issue")
 	}
-
 	if safeOutputs.UpdateIssues != nil {
-		b.WriteString("**Updating an Issue**\n\n")
-		fmt.Fprintf(b, "To update an issue, use the update_issue tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "update_issue")
 	}
-
 	if safeOutputs.CreateDiscussions != nil {
-		b.WriteString("**Creating a Discussion**\n\n")
-		fmt.Fprintf(b, "To create a discussion, use the create_discussion tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "create_discussion")
 	}
-
 	if safeOutputs.UpdateDiscussions != nil {
-		b.WriteString("**Updating a Discussion**\n\n")
-		fmt.Fprintf(b, "To update a discussion, use the update_discussion tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "update_discussion")
 	}
-
 	if safeOutputs.CloseDiscussions != nil {
-		b.WriteString("**Closing a Discussion**\n\n")
-		fmt.Fprintf(b, "To close a discussion, use the close_discussion tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "close_discussion")
 	}
-
 	if safeOutputs.CreateAgentSessions != nil {
-		b.WriteString("**Creating an Agent Session**\n\n")
-		fmt.Fprintf(b, "To create a GitHub Copilot agent session, use the create_agent_session tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "create_agent_session")
 	}
-
 	if safeOutputs.CreatePullRequests != nil {
-		b.WriteString("**Creating a Pull Request**\n\n")
-		b.WriteString("To create a pull request:\n")
-		b.WriteString("1. Make any file changes directly in the working directory.\n")
-		b.WriteString("2. If you haven't done so already, create a local branch using an appropriate unique name.\n")
-		b.WriteString("3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Verify you haven't deleted or changed any files you didn't intend to.\n")
-		b.WriteString("4. Do not push your changes. That will be done by the tool.\n")
-		fmt.Fprintf(b, "5. Create the pull request with the create_pull_request tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "create_pull_request")
 	}
-
 	if safeOutputs.ClosePullRequests != nil {
-		b.WriteString("**Closing a Pull Request**\n\n")
-		fmt.Fprintf(b, "To close a pull request, use the close_pull_request tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "close_pull_request")
 	}
-
 	if safeOutputs.UpdatePullRequests != nil {
-		b.WriteString("**Updating a Pull Request**\n\n")
-		fmt.Fprintf(b, "To update a pull request title or body, use the update_pull_request tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "update_pull_request")
 	}
-
 	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
-		b.WriteString("**Marking a Pull Request as Ready for Review**\n\n")
-		fmt.Fprintf(b, "To mark a pull request as ready for review, use the mark_pull_request_as_ready_for_review tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "mark_pull_request_as_ready_for_review")
 	}
-
 	if safeOutputs.CreatePullRequestReviewComments != nil {
-		b.WriteString("**Creating a Pull Request Review Comment**\n\n")
-		fmt.Fprintf(b, "To create a pull request review comment, use the create_pull_request_review_comment tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "create_pull_request_review_comment")
 	}
-
 	if safeOutputs.SubmitPullRequestReview != nil {
-		b.WriteString("**Submitting a Pull Request Review**\n\n")
-		fmt.Fprintf(b, "To submit a pull request review (APPROVE, REQUEST_CHANGES, or COMMENT), use the submit_pull_request_review tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "submit_pull_request_review")
 	}
-
 	if safeOutputs.ReplyToPullRequestReviewComment != nil {
-		b.WriteString("**Replying to a Pull Request Review Comment**\n\n")
-		fmt.Fprintf(b, "To reply to an existing review comment on a pull request, use the reply_to_pull_request_review_comment tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "reply_to_pull_request_review_comment")
 	}
-
 	if safeOutputs.ResolvePullRequestReviewThread != nil {
-		b.WriteString("**Resolving a Pull Request Review Thread**\n\n")
-		fmt.Fprintf(b, "To resolve a review thread on a pull request, use the resolve_pull_request_review_thread tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "resolve_pull_request_review_thread")
 	}
-
 	if safeOutputs.AddLabels != nil {
-		b.WriteString("**Adding Labels to Issues or Pull Requests**\n\n")
-		fmt.Fprintf(b, "To add labels to an issue or pull request, use the add_labels tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "add_labels")
 	}
-
 	if safeOutputs.RemoveLabels != nil {
-		b.WriteString("**Removing Labels from Issues or Pull Requests**\n\n")
-		fmt.Fprintf(b, "To remove labels from an issue or pull request, use the remove_labels tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "remove_labels")
 	}
-
 	if safeOutputs.AddReviewer != nil {
-		b.WriteString("**Adding a Reviewer to a Pull Request**\n\n")
-		fmt.Fprintf(b, "To add a reviewer to a pull request, use the add_reviewer tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "add_reviewer")
 	}
-
 	if safeOutputs.AssignMilestone != nil {
-		b.WriteString("**Assigning a Milestone**\n\n")
-		fmt.Fprintf(b, "To assign a milestone to an issue or pull request, use the assign_milestone tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "assign_milestone")
 	}
-
 	if safeOutputs.AssignToAgent != nil {
-		b.WriteString("**Assigning to an Agent**\n\n")
-		fmt.Fprintf(b, "To assign an issue or pull request to a GitHub Copilot agent, use the assign_to_agent tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "assign_to_agent")
 	}
-
 	if safeOutputs.AssignToUser != nil {
-		b.WriteString("**Assigning to a User**\n\n")
-		fmt.Fprintf(b, "To assign an issue or pull request to a user, use the assign_to_user tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		tools = append(tools, "assign_to_user")
+	}
+	if safeOutputs.UnassignFromUser != nil {
+		tools = append(tools, "unassign_from_user")
+	}
+	if safeOutputs.PushToPullRequestBranch != nil {
+		tools = append(tools, "push_to_pull_request_branch")
+	}
+	if safeOutputs.CreateCodeScanningAlerts != nil {
+		tools = append(tools, "create_code_scanning_alert")
+	}
+	if safeOutputs.AutofixCodeScanningAlert != nil {
+		tools = append(tools, "autofix_code_scanning_alert")
+	}
+	if safeOutputs.UploadAssets != nil {
+		tools = append(tools, "upload_asset")
+	}
+	if safeOutputs.UpdateRelease != nil {
+		tools = append(tools, "update_release")
+	}
+	if safeOutputs.UpdateProjects != nil {
+		tools = append(tools, "update_project")
+	}
+	if safeOutputs.CreateProjects != nil {
+		tools = append(tools, "create_project")
+	}
+	if safeOutputs.CreateProjectStatusUpdates != nil {
+		tools = append(tools, "create_project_status_update")
+	}
+	if safeOutputs.LinkSubIssue != nil {
+		tools = append(tools, "link_sub_issue")
+	}
+	if safeOutputs.HideComment != nil {
+		tools = append(tools, "hide_comment")
+	}
+	if safeOutputs.DispatchWorkflow != nil {
+		tools = append(tools, "dispatch_workflow")
+	}
+	if safeOutputs.MissingTool != nil {
+		tools = append(tools, "missing_tool")
+	}
+	if safeOutputs.MissingData != nil {
+		tools = append(tools, "missing_data")
 	}
 
-	if safeOutputs.UnassignFromUser != nil {
-		b.WriteString("**Unassigning from a User**\n\n")
-		fmt.Fprintf(b, "To remove a user assignee from an issue or pull request, use the unassign_from_user tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+	if len(tools) == 0 {
+		return
+	}
+
+	fmt.Fprintf(b, "Tools: %s\n\n", strings.Join(tools, ", "))
+
+	// Special multi-step instructions for complex tools
+	if safeOutputs.CreatePullRequests != nil {
+		fmt.Fprintf(b, "create_pull_request: commit changes to a local branch (do not push), then call this tool from %s.\n\n", constants.SafeOutputsMCPServerID)
 	}
 
 	if safeOutputs.PushToPullRequestBranch != nil {
-		b.WriteString("**Pushing Changes to a Pull Request Branch**\n\n")
-		b.WriteString("To push changes to the branch of a pull request:\n")
-		b.WriteString("1. Make any file changes directly in the working directory.\n")
-		b.WriteString("2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and verify you haven't deleted or changed any files you didn't intend to.\n")
-		fmt.Fprintf(b, "3. Push the branch to the repo by using the push_to_pull_request_branch tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.CreateCodeScanningAlerts != nil {
-		b.WriteString("**Creating a Code Scanning Alert**\n\n")
-		fmt.Fprintf(b, "To create a code scanning alert, use the create_code_scanning_alert tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.AutofixCodeScanningAlert != nil {
-		b.WriteString("**Autofixing a Code Scanning Alert**\n\n")
-		fmt.Fprintf(b, "To autofix a code scanning alert, use the autofix_code_scanning_alert tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+		fmt.Fprintf(b, "push_to_pull_request_branch: commit changes locally (do not push), then call this tool from %s.\n\n", constants.SafeOutputsMCPServerID)
 	}
 
 	if safeOutputs.UploadAssets != nil {
-		b.WriteString("**Uploading Assets**\n\n")
-		b.WriteString("To upload files as URL-addressable assets:\n")
-		fmt.Fprintf(b, "1. Use the upload_asset tool from %s.\n", constants.SafeOutputsMCPServerID)
-		b.WriteString("2. Provide the path to the file you want to upload.\n")
-		b.WriteString("3. The tool will copy the file to a staging area and return a GitHub raw content URL.\n")
-		b.WriteString("4. Assets are uploaded to an orphaned git branch after workflow completion.\n\n")
+		fmt.Fprintf(b, "upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (%s).\n\n", constants.SafeOutputsMCPServerID)
 	}
 
-	if safeOutputs.UpdateRelease != nil {
-		b.WriteString("**Updating a Release**\n\n")
-		fmt.Fprintf(b, "To update a GitHub release description, use the update_release tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.UpdateProjects != nil {
-		b.WriteString("**Updating a Project**\n\n")
-		fmt.Fprintf(b, "To create, add items to, or update a project board, use the update_project tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.CreateProjects != nil {
-		b.WriteString("**Creating a Project**\n\n")
-		fmt.Fprintf(b, "To create a GitHub Projects V2 project, use the create_project tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.CreateProjectStatusUpdates != nil {
-		b.WriteString("**Creating a Project Status Update**\n\n")
-		fmt.Fprintf(b, "To create a project status update, use the create_project_status_update tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.LinkSubIssue != nil {
-		b.WriteString("**Linking a Sub-Issue**\n\n")
-		fmt.Fprintf(b, "To link an issue as a sub-issue of another issue, use the link_sub_issue tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.HideComment != nil {
-		b.WriteString("**Hiding a Comment**\n\n")
-		fmt.Fprintf(b, "To hide a comment, use the hide_comment tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.DispatchWorkflow != nil {
-		b.WriteString("**Dispatching a Workflow**\n\n")
-		fmt.Fprintf(b, "To dispatch a workflow_dispatch event to another workflow, use the dispatch_workflow tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.MissingTool != nil {
-		b.WriteString("**Reporting Missing Tools or Functionality**\n\n")
-		fmt.Fprintf(b, "To report a missing tool or capability, use the missing_tool tool from %s.\n\n", constants.SafeOutputsMCPServerID)
-	}
-
-	if safeOutputs.MissingData != nil {
-		b.WriteString("**Reporting Missing Data**\n\n")
-		fmt.Fprintf(b, "To report missing data required to achieve a goal, use the missing_data tool from %s.\n\n", constants.SafeOutputsMCPServerID)
+	// Auto-injected create_issue special notice
+	if safeOutputs.CreateIssues != nil && safeOutputs.AutoInjectedCreateIssue {
+		b.WriteString("**IMPORTANT**: Report your findings or results by creating a GitHub issue using the create_issue tool. If you have no meaningful results to report, call the noop tool instead.\n\n")
 	}
 }
 

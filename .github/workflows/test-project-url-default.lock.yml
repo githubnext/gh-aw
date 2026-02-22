@@ -104,21 +104,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          **Updating a Project**
-          
-          To create, add items to, or update a project board, use the update_project tool from safeoutputs.
-          
-          **Creating a Project Status Update**
-          
-          To create a project status update, use the create_project_status_update tool from safeoutputs.
-          
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
-          
-          **Reporting Missing Data**
-          
-          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          Tools: update_project, create_project_status_update, missing_tool, missing_data
           
           </safe-output-tools>
           <github-context>

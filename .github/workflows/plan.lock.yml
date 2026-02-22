@@ -135,21 +135,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          **Creating an Issue**
-          
-          To create an issue, use the create_issue tool from safeoutputs.
-          
-          **Closing a Discussion**
-          
-          To close a discussion, use the close_discussion tool from safeoutputs.
-          
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool or capability, use the missing_tool tool from safeoutputs.
-          
-          **Reporting Missing Data**
-          
-          To report missing data required to achieve a goal, use the missing_data tool from safeoutputs.
+          Tools: create_issue, close_discussion, missing_tool, missing_data
           
           </safe-output-tools>
           <github-context>

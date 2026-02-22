@@ -44,9 +44,6 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	if !strings.Contains(output, "create_issue") {
 		t.Error("Expected prompt to include create_issue tool name")
 	}
-	if !strings.Contains(output, "Creating an Issue") {
-		t.Error("Expected prompt to include 'Creating an Issue' heading")
-	}
 }
 
 func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
@@ -106,25 +103,11 @@ func TestSafeOutputsPrompt_IncludesPerToolInstructions(t *testing.T) {
 		t.Fatal("Expected <safe-output-tools> section in generated prompt")
 	}
 
-	// Verify per-tool instructions are present for each enabled tool
-	toolTests := []struct {
-		toolName    string
-		heading     string
-		description string
-	}{
-		{"create_issue", "Creating an Issue", "To create an issue, use the create_issue tool"},
-		{"add_comment", "Adding a Comment", "To add a comment to an issue or pull request, use the add_comment tool"},
-		{"create_discussion", "Creating a Discussion", "To create a discussion, use the create_discussion tool"},
-		{"update_issue", "Updating an Issue", "To update an issue, use the update_issue tool"},
-	}
-
-	for _, tt := range toolTests {
-		t.Run(tt.toolName, func(t *testing.T) {
-			if !strings.Contains(output, tt.toolName) {
-				t.Errorf("Expected per-tool instruction to include tool name %q", tt.toolName)
-			}
-			if !strings.Contains(output, tt.heading) {
-				t.Errorf("Expected per-tool instruction heading %q", tt.heading)
+	// Verify enabled tool names are present
+	for _, toolName := range []string{"create_issue", "add_comment", "create_discussion", "update_issue"} {
+		t.Run(toolName, func(t *testing.T) {
+			if !strings.Contains(output, toolName) {
+				t.Errorf("Expected per-tool instruction to include tool name %q", toolName)
 			}
 		})
 	}
