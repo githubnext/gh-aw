@@ -52,7 +52,7 @@ const mockCore = {
           }),
           it("should neutralize bot trigger phrases when count exceeds threshold", () => {
             const result = sanitizeIncomingTextFunction("fixes #1 closes #2 resolves #3 fixes #4 closes #5 resolves #6 fixes #7 closes #8 resolves #9 fixes #10 closes #11");
-            (expect(result).toContain("`fixes #1`"), expect(result).toContain("`closes #11`"));
+            (expect(result).not.toContain("`fixes #1`"), expect(result).toContain("`closes #11`"));
           }),
           it("should remove control characters", () => {
             const result = sanitizeIncomingTextFunction("Hello\0\bworld");

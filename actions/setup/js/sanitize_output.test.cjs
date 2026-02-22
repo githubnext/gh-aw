@@ -52,7 +52,7 @@ const mockCore = {
           }),
           it("should neutralize bot trigger phrases when count exceeds threshold", () => {
             const result = sanitizeContentFunction("fixes #1 closes #2 resolves #3 fixes #4 closes #5 resolves #6 fixes #7 closes #8 resolves #9 fixes #10 closes #11");
-            (expect(result).toContain("`fixes #1`"), expect(result).toContain("`closes #11`"), expect(result).toContain("`resolves #3`"));
+            (expect(result).not.toContain("`fixes #1`"), expect(result).not.toContain("`resolves #3`"), expect(result).toContain("`closes #11`"));
           }),
           it("should remove control characters except newlines and tabs", () => {
             const result = sanitizeContentFunction("Hello\0world\f\nNext line\tbad");
@@ -209,7 +209,7 @@ const mockCore = {
           }),
           it("should handle various bot trigger phrase formats when count exceeds threshold", () => {
             const result = sanitizeContentFunction("Fix #1, close #2, FIXES #3, resolves #4, fixes #5, close #6, fixes #7, closes #8, resolves #9, fix #10, close #11");
-            (expect(result).toContain("`Fix #1`"), expect(result).toContain("`close #2`"), expect(result).toContain("`FIXES #3`"), expect(result).toContain("`resolves #4`"), expect(result).toContain("`close #11`"));
+            (expect(result).not.toContain("`Fix #1`"), expect(result).not.toContain("`close #2`"), expect(result).not.toContain("`resolves #4`"), expect(result).toContain("`close #11`"));
           }),
           it("should handle edge cases in protocol filtering", () => {
             const result = sanitizeContentFunction(

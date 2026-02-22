@@ -412,11 +412,12 @@ const MAX_BOT_TRIGGER_REFERENCES = 10;
 
 /**
  * Neutralizes bot trigger phrases by wrapping them in backticks.
- * Filtering is only applied when there are more than `maxBotMentions`
- * unquoted trigger references. Already-quoted entries are never re-quoted.
+ * The first `maxBotMentions` unquoted trigger references are left unchanged;
+ * any occurrences beyond that threshold are wrapped in backticks.
+ * Already-quoted entries are never re-quoted.
  * @param {string} s - The string to process
- * @param {number} [maxBotMentions] - Max allowed references before filtering (default: MAX_BOT_TRIGGER_REFERENCES)
- * @returns {string} The string with neutralized bot triggers
+ * @param {number} [maxBotMentions] - Number of occurrences to allow before escaping (default: MAX_BOT_TRIGGER_REFERENCES)
+ * @returns {string} The string with excess bot triggers neutralized
  */
 function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
   // Match unquoted bot trigger phrases like "fixes #123", "closes #asdfs", etc.
@@ -426,7 +427,14 @@ function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
   if (!matches || matches.length <= maxBotMentions) {
     return s;
   }
-  return s.replace(pattern, (match, action, ref) => `\`${action} #${ref}\``);
+  let count = 0;
+  return s.replace(pattern, (match, action, ref) => {
+    count++;
+    if (count <= maxBotMentions) {
+      return match;
+    }
+    return `\`${action} #${ref}\``;
+  });
 }
 
 /**
