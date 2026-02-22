@@ -44,7 +44,7 @@ func TestGenerateUnifiedPromptCreationStep_OrderingBuiltinFirst(t *testing.T) {
 	// Find positions of different prompt sections in the output
 	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
 	playwrightPos := strings.Index(output, "playwright_prompt.md")
-	safeOutputsPos := strings.Index(output, "<safe-outputs>")
+	safeOutputsPos := strings.Index(output, "safe_outputs_prompt.md")
 	userPromptPos := strings.Index(output, "# User Prompt")
 
 	// Verify all sections are present
@@ -398,7 +398,7 @@ func TestGenerateUnifiedPromptCreationStep_SystemTags(t *testing.T) {
 	// Find positions of built-in content
 	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
 	playwrightPos := strings.Index(output, "playwright_prompt.md")
-	safeOutputsPos := strings.Index(output, "<safe-outputs>")
+	safeOutputsPos := strings.Index(output, "safe_outputs_prompt.md")
 
 	// Find position of user content
 	userTaskPos := strings.Index(output, "# User Task")
@@ -638,7 +638,7 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	assert.Contains(t, output, "playwright_prompt.md", "Should have playwright")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should have cache memory template")
 	assert.Contains(t, output, "repo_memory_prompt.md", "Should have repo memory template file")
-	assert.Contains(t, output, "<safe-outputs>", "Should have safe outputs")
+	assert.Contains(t, output, "safe_outputs_prompt.md", "Should have safe outputs file reference")
 	assert.Contains(t, output, "<github-context>", "Should have GitHub context")
 	assert.Contains(t, output, "pr_context_prompt.md", "Should have PR context")
 
@@ -899,16 +899,16 @@ Manage issues based on comments.`
 
 	lockStr := string(lockContent)
 
-	// Verify safe-outputs section is within system tags
+	// Verify safe-outputs file reference is within system tags
 	systemOpenPos := strings.Index(lockStr, "<system>")
 	systemClosePos := strings.Index(lockStr, "</system>")
-	safeOutputsPos := strings.Index(lockStr, "<safe-outputs>")
+	safeOutputsPos := strings.Index(lockStr, "safe_outputs_prompt.md")
 
-	require.NotEqual(t, -1, safeOutputsPos, "Should have safe-outputs section")
+	require.NotEqual(t, -1, safeOutputsPos, "Should reference safe_outputs_prompt.md")
 	assert.Less(t, systemOpenPos, safeOutputsPos, "Safe outputs should be after system tag opens")
 	assert.Less(t, safeOutputsPos, systemClosePos, "Safe outputs should be before system tag closes")
 
-	// Should mention the specific tools
+	// Should mention the specific tools (per-tool instructions are still inline)
 	assert.Contains(t, lockStr, "create_issue", "Should reference create_issue tool")
 	assert.Contains(t, lockStr, "update_issue", "Should reference update_issue tool")
 }

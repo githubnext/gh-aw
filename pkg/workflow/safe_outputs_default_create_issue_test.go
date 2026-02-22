@@ -297,7 +297,7 @@ func TestAutoInjectedCreateIssuePrompt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var b strings.Builder
-			generateSafeOutputsPromptSection(&b, tt.safeOutputs)
+			generateSafeOutputsPerToolInstructions(&b, tt.safeOutputs)
 			output := b.String()
 
 			specificInstruction := "**IMPORTANT**: Report your findings or results by creating a GitHub issue"

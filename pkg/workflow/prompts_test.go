@@ -36,16 +36,11 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	if !strings.Contains(output, "Create prompt with built-in context") {
 		t.Error("Expected unified prompt step to be generated when safe outputs enabled")
 	}
-	if !strings.Contains(output, "safe output tool") {
-		t.Error("Expected prompt to mention safe output tools")
+	// Static intro is now in safe_outputs_prompt.md (referenced by file, not inline)
+	if !strings.Contains(output, "safe_outputs_prompt.md") {
+		t.Error("Expected reference to safe_outputs_prompt.md for static safe outputs intro")
 	}
-	if !strings.Contains(output, "gh CLI is NOT authenticated") {
-		t.Error("Expected prompt to warn about gh CLI not being authenticated")
-	}
-	if !strings.Contains(output, "safeoutputs MCP server") {
-		t.Error("Expected prompt to mention safeoutputs MCP server")
-	}
-	// Verify per-tool instructions are included for create_issue
+	// Per-tool instructions are still inline
 	if !strings.Contains(output, "create_issue") {
 		t.Error("Expected prompt to include create_issue tool name")
 	}
@@ -68,7 +63,7 @@ func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
 
 	output := yaml.String()
 	// Should still have unified step (for temp folder), but not safe outputs
-	if strings.Contains(output, "<safe-outputs>") {
+	if strings.Contains(output, "safe_outputs_prompt.md") {
 		t.Error("Expected safe outputs section to NOT be in unified prompt when disabled")
 	}
 }
@@ -101,9 +96,14 @@ func TestSafeOutputsPrompt_IncludesPerToolInstructions(t *testing.T) {
 	compiler.generateUnifiedPromptStep(&yaml, data)
 	output := yaml.String()
 
-	// Verify safe outputs section exists
-	if !strings.Contains(output, "<safe-outputs>") {
-		t.Fatal("Expected safe outputs section in generated prompt")
+	// Static intro is now in safe_outputs_prompt.md (file reference, not inline)
+	if !strings.Contains(output, "safe_outputs_prompt.md") {
+		t.Fatal("Expected safe_outputs_prompt.md file reference in generated prompt")
+	}
+
+	// Per-tool instructions are wrapped in <safe-output-tools>
+	if !strings.Contains(output, "<safe-output-tools>") {
+		t.Fatal("Expected <safe-output-tools> section in generated prompt")
 	}
 
 	// Verify per-tool instructions are present for each enabled tool
@@ -127,11 +127,6 @@ func TestSafeOutputsPrompt_IncludesPerToolInstructions(t *testing.T) {
 				t.Errorf("Expected per-tool instruction heading %q", tt.heading)
 			}
 		})
-	}
-
-	// Verify the MCP server discovery instruction is also present
-	if !strings.Contains(output, "Discover available tools from the safeoutputs MCP server") {
-		t.Error("Expected prompt to instruct agent to query MCP server for tools")
 	}
 }
 

@@ -286,38 +286,18 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 7. Safe outputs instructions (if enabled)
 	if HasSafeOutputsEnabled(data.SafeOutputs) {
 		unifiedPromptLog.Print("Adding safe outputs section")
-		var safeOutputsBuilder strings.Builder
-		safeOutputsBuilder.WriteString(`<safe-outputs>
-<description>GitHub API Access Instructions</description>
-<important>
-The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
-</important>
-<instructions>
-To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
-
-Temporary IDs: Some safe output tools support a temporary ID field (usually named temporary_id) so you can reference newly-created items elsewhere in the SAME agent output (for example, using #aw_abc1 in a later body). 
-
-**IMPORTANT - temporary_id format rules:**
-- If you DON'T need to reference the item later, OMIT the temporary_id field entirely (it will be auto-generated if needed)
-- If you DO need cross-references/chaining, you MUST match this EXACT validation regex: /^aw_[A-Za-z0-9]{3,8}$/i
-- Format: aw_ prefix followed by 3 to 8 alphanumeric characters (A-Z, a-z, 0-9, case-insensitive)
-- Valid alphanumeric characters: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
-- INVALID examples: aw_ab (too short), aw_123456789 (too long), aw_test-id (contains hyphen), aw_id_123 (contains underscore)
-- VALID examples: aw_abc, aw_abc1, aw_Test123, aw_A1B2C3D4, aw_12345678
-- To generate valid IDs: use 3-8 random alphanumeric characters or omit the field to let the system auto-generate
-
-Do NOT invent other aw_* formats — downstream steps will reject them with validation errors matching against /^aw_[A-Za-z0-9]{3,8}$/i.
-
-Discover available tools from the safeoutputs MCP server.
-
-**Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
-
-**Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
-`)
-		generateSafeOutputsPromptSection(&safeOutputsBuilder, data.SafeOutputs)
-		safeOutputsBuilder.WriteString("</instructions>\n</safe-outputs>")
+		// Static intro from file (gh CLI warning, temporary ID rules, noop note)
 		sections = append(sections, PromptSection{
-			Content: safeOutputsBuilder.String(),
+			Content: safeOutputsPromptFile,
+			IsFile:  true,
+		})
+		// Per-tool instructions (dynamic, depends on which tools are enabled)
+		var perToolBuilder strings.Builder
+		perToolBuilder.WriteString("<safe-output-tools>\n")
+		generateSafeOutputsPerToolInstructions(&perToolBuilder, data.SafeOutputs)
+		perToolBuilder.WriteString("</safe-output-tools>")
+		sections = append(sections, PromptSection{
+			Content: perToolBuilder.String(),
 			IsFile:  false,
 		})
 	}
@@ -607,143 +587,18 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 var safeOutputsPromptLog = logger.New("workflow:safe_outputs_prompt")
 
-// generateSafeOutputsPromptSection appends per-tool usage instructions for each
-// configured safe-output capability.  It is called from collectPromptSections to
-// inject detailed guidance inside the <safe-outputs> XML block.
-func generateSafeOutputsPromptSection(b *strings.Builder, safeOutputs *SafeOutputsConfig) {
+// generateSafeOutputsPerToolInstructions appends per-tool usage instructions for each
+// configured safe-output capability. It is called from collectPromptSections to inject
+// tool-specific guidance inside the <safe-output-tools> XML block.
+//
+// The static intro (gh CLI warning, temporary ID rules, noop note) lives in
+// actions/setup/md/safe_outputs_prompt.md and is included separately via a file reference.
+func generateSafeOutputsPerToolInstructions(b *strings.Builder, safeOutputs *SafeOutputsConfig) {
 	if safeOutputs == nil {
 		return
 	}
 
-	safeOutputsPromptLog.Print("Generating safe outputs prompt section")
-
-	// Build heading that lists every enabled capability
-	b.WriteString("\n---\n\n## ")
-	written := false
-	write := func(label string) {
-		if written {
-			b.WriteString(", ")
-		}
-		b.WriteString(label)
-		written = true
-	}
-
-	if safeOutputs.AddComments != nil {
-		write("Adding a Comment to an Issue or Pull Request")
-	}
-	if safeOutputs.CreateIssues != nil {
-		write("Creating an Issue")
-	}
-	if safeOutputs.CloseIssues != nil {
-		write("Closing an Issue")
-	}
-	if safeOutputs.UpdateIssues != nil {
-		write("Updating Issues")
-	}
-	if safeOutputs.CreateDiscussions != nil {
-		write("Creating a Discussion")
-	}
-	if safeOutputs.UpdateDiscussions != nil {
-		write("Updating a Discussion")
-	}
-	if safeOutputs.CloseDiscussions != nil {
-		write("Closing a Discussion")
-	}
-	if safeOutputs.CreateAgentSessions != nil {
-		write("Creating an Agent Session")
-	}
-	if safeOutputs.CreatePullRequests != nil {
-		write("Creating a Pull Request")
-	}
-	if safeOutputs.ClosePullRequests != nil {
-		write("Closing a Pull Request")
-	}
-	if safeOutputs.UpdatePullRequests != nil {
-		write("Updating a Pull Request")
-	}
-	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
-		write("Marking a Pull Request as Ready for Review")
-	}
-	if safeOutputs.CreatePullRequestReviewComments != nil {
-		write("Creating a Pull Request Review Comment")
-	}
-	if safeOutputs.SubmitPullRequestReview != nil {
-		write("Submitting a Pull Request Review")
-	}
-	if safeOutputs.ReplyToPullRequestReviewComment != nil {
-		write("Replying to a Pull Request Review Comment")
-	}
-	if safeOutputs.ResolvePullRequestReviewThread != nil {
-		write("Resolving a Pull Request Review Thread")
-	}
-	if safeOutputs.AddLabels != nil {
-		write("Adding Labels to Issues or Pull Requests")
-	}
-	if safeOutputs.RemoveLabels != nil {
-		write("Removing Labels from Issues or Pull Requests")
-	}
-	if safeOutputs.AddReviewer != nil {
-		write("Adding a Reviewer to a Pull Request")
-	}
-	if safeOutputs.AssignMilestone != nil {
-		write("Assigning a Milestone")
-	}
-	if safeOutputs.AssignToAgent != nil {
-		write("Assigning to an Agent")
-	}
-	if safeOutputs.AssignToUser != nil {
-		write("Assigning to a User")
-	}
-	if safeOutputs.UnassignFromUser != nil {
-		write("Unassigning from a User")
-	}
-	if safeOutputs.PushToPullRequestBranch != nil {
-		write("Pushing Changes to Branch")
-	}
-	if safeOutputs.CreateCodeScanningAlerts != nil {
-		write("Creating a Code Scanning Alert")
-	}
-	if safeOutputs.AutofixCodeScanningAlert != nil {
-		write("Autofixing a Code Scanning Alert")
-	}
-	if safeOutputs.UploadAssets != nil {
-		write("Uploading Assets")
-	}
-	if safeOutputs.UpdateRelease != nil {
-		write("Updating a Release")
-	}
-	if safeOutputs.UpdateProjects != nil {
-		write("Updating a Project")
-	}
-	if safeOutputs.CreateProjects != nil {
-		write("Creating a Project")
-	}
-	if safeOutputs.CreateProjectStatusUpdates != nil {
-		write("Creating a Project Status Update")
-	}
-	if safeOutputs.LinkSubIssue != nil {
-		write("Linking a Sub-Issue")
-	}
-	if safeOutputs.HideComment != nil {
-		write("Hiding a Comment")
-	}
-	if safeOutputs.DispatchWorkflow != nil {
-		write("Dispatching a Workflow")
-	}
-	if safeOutputs.MissingTool != nil {
-		write("Reporting Missing Tools or Functionality")
-	}
-	if safeOutputs.MissingData != nil {
-		write("Reporting Missing Data")
-	}
-
-	if !written {
-		// No specific capabilities listed – nothing more to add.
-		return
-	}
-
-	b.WriteString("\n\n")
-	fmt.Fprintf(b, "**IMPORTANT**: To perform the actions listed above, use the **%s** tools. Do NOT use `gh`, do NOT call the GitHub API directly. You do not have write access to the GitHub repository.\n\n", constants.SafeOutputsMCPServerID)
+	safeOutputsPromptLog.Print("Generating safe outputs per-tool instructions")
 
 	if safeOutputs.AddComments != nil {
 		b.WriteString("**Adding a Comment to an Issue or Pull Request**\n\n")

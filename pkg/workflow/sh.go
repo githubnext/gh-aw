@@ -22,6 +22,7 @@ const (
 	cacheMemoryPromptMultiFile = "cache_memory_prompt_multi.md"
 	repoMemoryPromptFile       = "repo_memory_prompt.md"
 	repoMemoryPromptMultiFile  = "repo_memory_prompt_multi.md"
+	safeOutputsPromptFile      = "safe_outputs_prompt.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions

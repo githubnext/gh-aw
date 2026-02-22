@@ -52,7 +52,8 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	assert.Contains(t, output, "playwright_prompt.md", "Should include playwright instructions")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should include cache memory template file")
 	assert.Contains(t, output, "repo_memory_prompt.md", "Should include repo memory template file")
-	assert.Contains(t, output, "<safe-outputs>", "Should include safe outputs instructions")
+	assert.Contains(t, output, "safe_outputs_prompt.md", "Should include safe outputs file reference")
+	assert.Contains(t, output, "<safe-output-tools>", "Should include per-tool instructions")
 	assert.Contains(t, output, "<github-context>", "Should include GitHub context")
 
 	// Verify cache env vars are NOT in the prompt creation step
