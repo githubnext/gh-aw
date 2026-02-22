@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 23
+	expectedCount := 24
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -127,6 +127,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"engine-steps-to-top-level",
 		"assign-to-agent-default-agent-to-name",
 		"playwright-allowed-domains-migration",
+		"expires-integer-to-string",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")
