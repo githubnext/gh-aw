@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -173,9 +174,9 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 
 	// The content is base64 encoded, decode it
 	contentBase64 := strings.TrimSpace(string(output))
-	base64Cmd := exec.Command("base64", "-d")
-	base64Cmd.Stdin = strings.NewReader(contentBase64)
-	content, err := base64Cmd.Output()
+	// Remove newlines that GitHub API embeds in base64 content
+	contentBase64 = strings.ReplaceAll(contentBase64, "\n", "")
+	content, err := base64.StdEncoding.DecodeString(contentBase64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode file content: %w", err)
 	}
