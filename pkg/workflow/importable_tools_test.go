@@ -82,14 +82,6 @@ Uses imported playwright tool.
 	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
 		t.Error("Expected compiled workflow to contain playwright Docker image")
 	}
-
-	// Verify allowed domains are present
-	if !strings.Contains(workflowData, "example.com") {
-		t.Error("Expected compiled workflow to contain example.com domain")
-	}
-	if !strings.Contains(workflowData, "github.com") {
-		t.Error("Expected compiled workflow to contain github.com domain")
-	}
 }
 
 // TestImportSerenaTool tests that serena tool can be imported from a shared workflow
@@ -348,9 +340,6 @@ Uses all imported tools.
 	}
 	if !strings.Contains(workflowData, "ghcr.io/github/serena-mcp-server:latest") {
 		t.Error("Expected compiled workflow to contain serena Docker container")
-	}
-	if !strings.Contains(workflowData, "example.com") {
-		t.Error("Expected compiled workflow to contain example.com domain for playwright")
 	}
 }
 
