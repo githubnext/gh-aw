@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, and Codex with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, and Gemini with their specific configuration options.
 sidebar:
   order: 600
 ---
@@ -12,6 +12,7 @@ GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (no
 - [**Copilot CLI**](#using-copilot-cli)
 - [**Claude by Anthropic (Claude Code)**](#using-claude-by-anthropic-claude-code)
 - [**OpenAI Codex**](#using-openai-codex)
+- [**Google Gemini CLI**](#using-google-gemini-cli)
 
 ## Using Copilot CLI
 
@@ -75,6 +76,24 @@ To use [OpenAI Codex](https://openai.com/blog/openai-codex):
 
    ```bash wrap
    gh aw secrets set OPENAI_API_KEY --value "<your-openai-api-key>"
+   ```
+
+## Using Google Gemini CLI
+
+To use [Google Gemini CLI](https://github.com/google-gemini/gemini-cli):
+
+1. Request the use of the Gemini engine in your workflow frontmatter:
+
+   ```yaml wrap
+   engine: gemini
+   ```
+
+2. Configure `GEMINI_API_KEY` GitHub Actions secret.
+
+   [Create a Gemini API key](https://aistudio.google.com/apikey) and add it to your repository:
+
+   ```bash wrap
+   gh aw secrets set GEMINI_API_KEY --value "<your-gemini-api-key>"
    ```
 
 ## Extended Coding Agent Configuration

@@ -6899,7 +6899,7 @@
         {
           "type": "string",
           "enum": ["claude", "codex", "copilot", "gemini"],
-          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'gemini' (Google Gemini CLI - experimental)"
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'gemini' (Google Gemini CLI)"
         },
         {
           "type": "object",
@@ -6908,7 +6908,7 @@
             "id": {
               "type": "string",
               "enum": ["claude", "codex", "copilot", "gemini"],
-              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'gemini' (Google Gemini CLI - experimental)"
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'gemini' (Google Gemini CLI)"
             },
             "version": {
               "type": ["string", "number"],

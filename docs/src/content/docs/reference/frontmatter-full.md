@@ -1252,15 +1252,14 @@ post-steps: []
 # This field supports multiple formats (oneOf):
 
 # Option 1: Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub
-# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'gemini' (Google Gemini CLI -
-# experimental)
+# Copilot CLI), 'codex' (OpenAI Codex CLI), or 'gemini' (Google Gemini CLI)
 engine: "claude"
 
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
   # AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI),
-  # 'copilot' (GitHub Copilot CLI), or 'gemini' (Google Gemini CLI - experimental)
+  # 'copilot' (GitHub Copilot CLI), or 'gemini' (Google Gemini CLI)
   id: "claude"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has

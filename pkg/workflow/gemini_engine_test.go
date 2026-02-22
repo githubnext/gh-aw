@@ -17,7 +17,7 @@ func TestGeminiEngine(t *testing.T) {
 		assert.Equal(t, "gemini", engine.GetID(), "Engine ID should be 'gemini'")
 		assert.Equal(t, "Google Gemini CLI", engine.GetDisplayName(), "Display name should be 'Google Gemini CLI'")
 		assert.NotEmpty(t, engine.GetDescription(), "Description should not be empty")
-		assert.True(t, engine.IsExperimental(), "Gemini engine should be experimental")
+		assert.False(t, engine.IsExperimental(), "Gemini engine should not be experimental")
 	})
 
 	t.Run("capabilities", func(t *testing.T) {

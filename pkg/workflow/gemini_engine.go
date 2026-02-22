@@ -20,7 +20,7 @@ func NewGeminiEngine() *GeminiEngine {
 			id:                     "gemini",
 			displayName:            "Google Gemini CLI",
 			description:            "Google Gemini CLI with headless mode and LLM gateway support",
-			experimental:           true, // Marked as experimental as requested
+			experimental:           false,
 			supportsToolsAllowlist: true,
 			supportsMaxTurns:       false,
 			supportsWebFetch:       false,
