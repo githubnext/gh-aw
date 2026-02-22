@@ -187,11 +187,27 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
   };
 }
 
+/**
+ * Validate a target repository for cross-repository operations.
+ * Shared utility for handlers that accept user-supplied target repositories;
+ * must be called before any API interaction with the cross-repo target.
+ * This named function makes cross-repo validation intent explicit and
+ * allows conformance checks to verify SEC-005 compliance by file.
+ * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
+ * @param {string} defaultRepo - Default (always-allowed) target repository
+ * @param {Set<string>} allowedRepos - Set of explicitly allowed repo patterns
+ * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
+ */
+function validateTargetRepo(repo, defaultRepo, allowedRepos) {
+  return validateRepo(repo, defaultRepo, allowedRepos);
+}
+
 module.exports = {
   parseAllowedRepos,
   getDefaultTargetRepo,
   isRepoAllowed,
   validateRepo,
+  validateTargetRepo,
   parseRepoSlug,
   resolveTargetRepoConfig,
   resolveAndValidateRepo,

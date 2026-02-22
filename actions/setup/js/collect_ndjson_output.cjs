@@ -7,6 +7,7 @@ const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 const { parseIntTemplatable } = require("./templatable.cjs");
+const { parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
 
 async function main() {
   try {
@@ -217,6 +218,11 @@ async function main() {
     // indentation/pretty-printing, parsing will fail.
     const lines = outputContent.trim().split("\n");
 
+    // Resolve allowed repos for cross-repo targeting validation in the pre-scan loop.
+    // The triggering repository is always allowed; additional repos come from config.
+    const defaultTargetRepo = `${context.repo.owner}/${context.repo.repo}`;
+    const allowedRepos = parseAllowedRepos(safeOutputsConfig?.allowed_repos || safeOutputsConfig?.["allowed-repos"]);
+
     // Pre-scan: collect target issue authors from add_comment items with explicit item_number
     // so they are included in the first sanitization pass.
     // We do this before the main loop so the allowed mentions array can be extended.
@@ -230,10 +236,19 @@ async function main() {
           // Determine which repo to query (use explicit repo field or fall back to triggering repo)
           let targetOwner = context.repo.owner;
           let targetRepo = context.repo.repo;
-          if (typeof preview.repo === "string" && preview.repo.includes("/")) {
-            const parts = preview.repo.split("/");
-            targetOwner = parts[0];
-            targetRepo = parts[1];
+          if (typeof preview.repo === "string") {
+            const candidateRepo = preview.repo.trim();
+            if (candidateRepo.includes("/")) {
+              // Validate the user-supplied repo against allowedRepos before making API calls
+              const repoValidation = validateTargetRepo(candidateRepo, defaultTargetRepo, allowedRepos);
+              if (repoValidation.valid) {
+                const parts = candidateRepo.split("/");
+                targetOwner = parts[0];
+                targetRepo = parts[1];
+              } else {
+                core.info(`[MENTIONS] Skipping cross-repo mention lookup for '${candidateRepo}': ${repoValidation.error}`);
+              }
+            }
           }
           try {
             const { data: issueData } = await github.rest.issues.get({

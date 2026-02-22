@@ -254,6 +254,9 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * @returns {Promise<boolean>} True if successful
  */
 async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null, baseBranch = null) {
+  // SECURITY: pullRequestRepoId specifies a cross-repo target (targetRepositoryId).
+  // Callers MUST validate the corresponding repository slug against allowedRepos using
+  // validateTargetRepo (from repo_helpers.cjs) before invoking this function.
   // Filter current assignees based on allowed list (if configured)
   let filteredAssignees = currentAssignees;
   if (allowedAgents && allowedAgents.length > 0) {
