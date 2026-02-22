@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -81,8 +82,8 @@ type RunData struct {
 	MissingDataCount int       `json:"missing_data_count" console:"header:Missing Data"`
 	SafeItemsCount   int       `json:"safe_items_count,omitempty" console:"header:Safe Items,omitempty"`
 	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
-	StartedAt        time.Time `json:"started_at,omitempty" console:"-"`
-	UpdatedAt        time.Time `json:"updated_at,omitempty" console:"-"`
+	StartedAt        time.Time `json:"started_at,omitzero" console:"-"`
+	UpdatedAt        time.Time `json:"updated_at,omitzero" console:"-"`
 	URL              string    `json:"url" console:"-"`
 	LogsPath         string    `json:"logs_path" console:"header:Logs Path"`
 	Event            string    `json:"event" console:"-"`
@@ -376,10 +377,8 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 
 // addUniqueWorkflow adds a workflow to the list if it's not already present
 func addUniqueWorkflow(workflows []string, workflow string) []string {
-	for _, wf := range workflows {
-		if wf == workflow {
-			return workflows
-		}
+	if slices.Contains(workflows, workflow) {
+		return workflows
 	}
 	return append(workflows, workflow)
 }

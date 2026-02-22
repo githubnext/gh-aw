@@ -372,17 +372,10 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 			// Find first difference for debugging
 			for j := 0; j < len(toolsConfigs[0]) && j < len(toolsConfigs[i]); j++ {
 				if toolsConfigs[0][j] != toolsConfigs[i][j] {
-					start := j - 50
-					if start < 0 {
-						start = 0
-					}
+					start := max(j-50, 0)
 					end := j + 50
-					if end > len(toolsConfigs[0]) {
-						end = len(toolsConfigs[0])
-					}
-					if end > len(toolsConfigs[i]) {
-						end = len(toolsConfigs[i])
-					}
+					end = min(end, len(toolsConfigs[0]))
+					end = min(end, len(toolsConfigs[i]))
 					t.Errorf("First difference at position %d:\n  Expected: %q\n  Got: %q", j, toolsConfigs[0][start:end], toolsConfigs[i][start:end])
 					break
 				}

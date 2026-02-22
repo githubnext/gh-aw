@@ -701,7 +701,7 @@ func BenchmarkValidateConcurrencyGroupExpression(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = validateConcurrencyGroupExpression(tc)
 			}
 		})

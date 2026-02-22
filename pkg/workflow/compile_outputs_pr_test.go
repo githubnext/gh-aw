@@ -756,10 +756,7 @@ This workflow tests the create-pull-request with fallback-as-issue disabled.
 
 	// Find the next job after safe_outputs (to limit our search scope)
 	// Extract a large section after safe_outputs job (next 2000 chars should include all job details)
-	endIdx := safeOutputsJobStart + 2000
-	if endIdx > len(lockContentStr) {
-		endIdx = len(lockContentStr)
-	}
+	endIdx := min(safeOutputsJobStart+2000, len(lockContentStr))
 	safeOutputsJobSection := lockContentStr[safeOutputsJobStart:endIdx]
 
 	// Verify permissions in safe_outputs job
@@ -858,10 +855,7 @@ This workflow tests the create-pull-request with default fallback-as-issue behav
 	}
 
 	// Extract a large section after safe_outputs job (next 2000 chars should include all job details)
-	endIdx := safeOutputsJobStart + 2000
-	if endIdx > len(lockContentStr) {
-		endIdx = len(lockContentStr)
-	}
+	endIdx := min(safeOutputsJobStart+2000, len(lockContentStr))
 
 	safeOutputsJobSection := lockContentStr[safeOutputsJobStart:endIdx]
 

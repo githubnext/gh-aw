@@ -81,8 +81,8 @@ type OverviewData struct {
 	Status       string    `json:"status" console:"header:Status"`
 	Conclusion   string    `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
 	CreatedAt    time.Time `json:"created_at" console:"header:Created At"`
-	StartedAt    time.Time `json:"started_at,omitempty" console:"header:Started At,omitempty"`
-	UpdatedAt    time.Time `json:"updated_at,omitempty" console:"header:Updated At,omitempty"`
+	StartedAt    time.Time `json:"started_at,omitzero" console:"header:Started At,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitzero" console:"header:Updated At,omitempty"`
 	Duration     string    `json:"duration,omitempty" console:"header:Duration,omitempty"`
 	Event        string    `json:"event" console:"header:Event"`
 	Branch       string    `json:"branch" console:"header:Branch"`
@@ -627,10 +627,7 @@ func stripGHALogTimestamps(content string) string {
 		// in a generous window (positions 11-35) to handle any fractional seconds length.
 		if len(line) > 19 && line[4] == '-' && line[7] == '-' && line[10] == 'T' {
 			// Find the Z that ends the timestamp within a reasonable range
-			searchBound := 35
-			if searchBound > len(line) {
-				searchBound = len(line)
-			}
+			searchBound := min(35, len(line))
 			if zIdx := strings.IndexByte(line[11:searchBound], 'Z'); zIdx >= 0 {
 				zPos := 11 + zIdx
 				if zPos+1 <= len(line) {

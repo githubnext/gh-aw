@@ -183,10 +183,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			}
 
 			// Process slightly more than we need to account for skips due to filters.
-			chunkSize := max(remainingNeeded*3, remainingNeeded)
-			if chunkSize > len(runsRemaining) {
-				chunkSize = len(runsRemaining)
-			}
+			chunkSize := min(max(remainingNeeded*3, remainingNeeded), len(runsRemaining))
 
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]

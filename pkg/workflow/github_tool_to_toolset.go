@@ -112,10 +112,7 @@ func ValidateGitHubToolsAgainstToolsets(allowedTools []string, enabledToolsets [
 		}
 		sort.Strings(validTools)
 
-		exampleCount := 10
-		if len(validTools) < exampleCount {
-			exampleCount = len(validTools)
-		}
+		exampleCount := min(10, len(validTools))
 		errMsg.WriteString(fmt.Sprintf("Valid GitHub tools include: %s\n\n", formatList(validTools[:exampleCount])))
 		errMsg.WriteString("See all tools: https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_tool_to_toolset.json")
 

@@ -67,7 +67,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 
 	// Track the longest field name for alignment
 	maxFieldLen := 0
-	for i := 0; i < val.NumField(); i++ {
+	for i := range val.NumField() {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 		tag := parseConsoleTag(fieldType.Tag.Get("console"))
@@ -87,7 +87,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 	}
 
 	// Iterate through struct fields
-	for i := 0; i < val.NumField(); i++ {
+	for i := range val.NumField() {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 
@@ -173,7 +173,7 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 		output.WriteString(RenderTable(config))
 	} else {
 		// Render as list
-		for i := 0; i < val.Len(); i++ {
+		for i := range val.Len() {
 			elem := val.Index(i)
 			fmt.Fprintf(output, "  • %v\n", formatFieldValue(elem))
 		}
@@ -225,7 +225,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	var fieldIndices []int
 	var fieldTags []consoleTag
 
-	for i := 0; i < elemType.NumField(); i++ {
+	for i := range elemType.NumField() {
 		field := elemType.Field(i)
 		tag := parseConsoleTag(field.Tag.Get("console"))
 
@@ -248,7 +248,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	config.Headers = headers
 
 	// Build rows
-	for i := 0; i < val.Len(); i++ {
+	for i := range val.Len() {
 		elem := val.Index(i)
 		// Dereference pointer if needed
 		for elem.Kind() == reflect.Ptr {
