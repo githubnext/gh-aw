@@ -100,7 +100,7 @@ safe-outputs:
 
 #### Auto-Expiration
 
-The `expires` field auto-closes issues after a time period. Supports integers (days), relative formats (`2h`, `7d`, `2w`, `1m`, `1y`), or `false` to disable expiration. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
+The `expires` field auto-closes issues after a time period. Supports day-string format (`7d`, `2w`, `1m`, `1y`, `2h`) or `false` to disable expiration. Integer values (e.g., `expires: 7`) are also accepted as shorthand for days and can be migrated to string format with `gh aw fix --write`. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
 
 - 1 day or less → every 2 hours
 - 2 days → every 6 hours
@@ -1240,6 +1240,37 @@ safe-outputs:
 - `["repo"]` - Allow only the target repository's references
 - `["repo", "owner/other-repo"]` - Allow specific repositories
 - Not specified (default) - All references allowed
+
+### Bot Mention Limit (`max-bot-mentions:`)
+
+Agent output is automatically scanned for bot trigger phrases (e.g., `@copilot`, `@github-actions`) to prevent accidental automation triggering. By default, the first 10 occurrences are left unchanged and any excess are escaped with backticks. Entries already wrapped in backticks are skipped.
+
+Use `max-bot-mentions` to adjust this threshold:
+
+```yaml wrap
+safe-outputs:
+  max-bot-mentions: 3   # Allow 3 unescaped bot mentions per output
+  create-issue:
+```
+
+Accepts a literal integer or a GitHub Actions expression string (e.g., `${{ inputs.max-mentions }}`). Set to `0` to escape all bot trigger phrases. Default: 10.
+
+### Templatable Fields
+
+`max`, `expires`, and `max-bot-mentions` accept GitHub Actions expression strings in addition to literal integers, allowing workflow inputs or repository variables to control limits at runtime:
+
+```yaml wrap
+safe-outputs:
+  max-bot-mentions: ${{ inputs.max-mentions }}
+  create-issue:
+    max: ${{ inputs.max-issues }}
+    expires: ${{ inputs.expires-days }}
+  create-pull-request:
+    max: ${{ inputs.max-prs }}
+    draft: ${{ inputs.create-draft }}
+```
+
+Most boolean configuration fields also accept expression strings. Fields that influence permission computation (such as `add-comment.discussion` and `create-pull-request.fallback-as-issue`) remain literal booleans.
 
 ### Maximum Patch Size (`max-patch-size:`)
 

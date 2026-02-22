@@ -202,6 +202,8 @@ gh aw fix --list-codemods              # List available codemods
 
 **Options:** `--write`, `--list-codemods`
 
+Notable codemods include `expires-integer-to-string`, which converts bare integer `expires` values (e.g., `expires: 7`) to the preferred day-string format (e.g., `expires: 7d`) in all `safe-outputs` blocks. Run `gh aw fix --list-codemods` to see all available codemods.
+
 #### `compile`
 
 Compile Markdown workflows to GitHub Actions YAML. Remote imports cached in `.github/aw/imports/`.
