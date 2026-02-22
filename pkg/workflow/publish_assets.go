@@ -150,7 +150,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:       "upload_assets",
-		StepName:      "Upload assets to orphaned branch",
+		StepName:      "Push assets to orphaned branch",
 		StepID:        "upload_assets",
 		ScriptName:    "upload_assets",
 		MainJobName:   mainJobName,
