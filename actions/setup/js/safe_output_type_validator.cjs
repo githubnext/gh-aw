@@ -338,6 +338,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         normalizedResult = sanitizeContent(normalizedResult, {
           maxLength: validation.maxLength,
           allowedAliases: options?.allowedAliases || [],
+          maxBotMentions: options?.maxBotMentions,
         });
       }
       return { isValid: true, normalizedValue: normalizedResult };
@@ -350,6 +351,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
       const sanitized = sanitizeContent(processedValue, {
         maxLength: validation.maxLength || MAX_BODY_LENGTH,
         allowedAliases: options?.allowedAliases || [],
+        maxBotMentions: options?.maxBotMentions,
       });
       return { isValid: true, normalizedValue: sanitized };
     }
@@ -389,6 +391,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
             ? sanitizeContent(item, {
                 maxLength: validation.itemMaxLength || 128,
                 allowedAliases: options?.allowedAliases || [],
+                maxBotMentions: options?.maxBotMentions,
               })
             : item
         );
@@ -482,6 +485,7 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
  * @param {number} lineNum - Line number for error messages
  * @param {Object} [options] - Optional sanitization options
  * @param {string[]} [options.allowedAliases] - List of allowed @mentions
+ * @param {number} [options.maxBotMentions] - Maximum bot trigger references before neutralizing
  * @returns {{isValid: boolean, normalizedItem?: Object, error?: string}}
  */
 function validateItem(item, itemType, lineNum, options) {

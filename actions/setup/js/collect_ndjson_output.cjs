@@ -205,6 +205,8 @@ async function main() {
         if (rawMaxBotMentions > 0) {
           maxBotMentions = rawMaxBotMentions;
         }
+        // Remove global config keys so they are not treated as valid output types
+        delete expectedOutputTypes.max_bot_mentions;
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -292,7 +294,7 @@ async function main() {
 
         // Use the validation engine to validate the item
         if (hasValidationConfig(itemType)) {
-          const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions });
+          const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions, maxBotMentions });
           if (!validationResult.isValid) {
             if (validationResult.error) {
               errors.push(validationResult.error);
