@@ -18,6 +18,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -425,11 +426,52 @@ async function main(config = {}) {
       }
     }
 
+    // Collect parent issue/PR/discussion authors to allow in @mentions.
+    // The body was already sanitized in collect_ndjson_output with allowed mentions from the
+    // event payload (which includes the issue author). Re-sanitizing here without the same
+    // allowed aliases would neutralize those preserved mentions. We re-add the parent entity
+    // author so the second sanitization pass does not accidentally strip them.
+    const parentAuthors = [];
+    if (!isDiscussion) {
+      if (item.item_number !== undefined && item.item_number !== null) {
+        // Explicit item_number: fetch the issue/PR to get its author
+        try {
+          const { data: issueData } = await github.rest.issues.get({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: itemNumber,
+          });
+          if (issueData.user?.login && !isPayloadUserBot(issueData.user)) {
+            parentAuthors.push(issueData.user.login);
+          }
+        } catch (err) {
+          core.info(`Could not fetch parent issue/PR author for mention allowlist: ${getErrorMessage(err)}`);
+        }
+      } else {
+        // Triggering context: use the issue/PR author from the event payload
+        if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+          parentAuthors.push(context.payload.issue.user.login);
+        }
+        if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+          parentAuthors.push(context.payload.pull_request.user.login);
+        }
+      }
+    } else {
+      // Discussion: use the discussion author from the event payload
+      if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+        parentAuthors.push(context.payload.discussion.user.login);
+      }
+    }
+    if (parentAuthors.length > 0) {
+      core.info(`[MENTIONS] Allowing parent entity authors in comment: ${parentAuthors.join(", ")}`);
+    }
+
     // Replace temporary ID references in body
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, itemRepo);
 
-    // Sanitize content to prevent injection attacks
-    processedBody = sanitizeContent(processedBody);
+    // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
+    // so they can be @mentioned in the generated comment.
+    processedBody = sanitizeContent(processedBody, { allowedAliases: parentAuthors });
 
     // Enforce max limits before processing (validates user-provided content)
     try {

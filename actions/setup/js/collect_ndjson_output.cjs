@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
+const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 async function main() {
   try {
@@ -203,6 +204,47 @@ async function main() {
     // CRITICAL: This expects one JSON object per line. If JSON is formatted with
     // indentation/pretty-printing, parsing will fail.
     const lines = outputContent.trim().split("\n");
+
+    // Pre-scan: collect target issue authors from add_comment items with explicit item_number
+    // so they are included in the first sanitization pass.
+    // We do this before the main loop so the allowed mentions array can be extended.
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      try {
+        const preview = JSON.parse(trimmedLine);
+        const previewType = (preview?.type || "").replace(/-/g, "_");
+        if (previewType === "add_comment" && preview.item_number != null && typeof preview.item_number === "number") {
+          // Determine which repo to query (use explicit repo field or fall back to triggering repo)
+          let targetOwner = context.repo.owner;
+          let targetRepo = context.repo.repo;
+          if (typeof preview.repo === "string" && preview.repo.includes("/")) {
+            const parts = preview.repo.split("/");
+            targetOwner = parts[0];
+            targetRepo = parts[1];
+          }
+          try {
+            const { data: issueData } = await github.rest.issues.get({
+              owner: targetOwner,
+              repo: targetRepo,
+              issue_number: preview.item_number,
+            });
+            if (issueData.user?.login && !isPayloadUserBot(issueData.user)) {
+              const issueAuthor = issueData.user.login;
+              if (!allowedMentions.some(m => m.toLowerCase() === issueAuthor.toLowerCase())) {
+                allowedMentions.push(issueAuthor);
+                core.info(`[MENTIONS] Added target issue #${preview.item_number} author '${issueAuthor}' to allowed mentions`);
+              }
+            }
+          } catch (fetchErr) {
+            core.info(`[MENTIONS] Could not fetch issue #${preview.item_number} author for mention allowlist: ${getErrorMessage(fetchErr)}`);
+          }
+        }
+      } catch {
+        // Ignore parse errors - main loop will report them
+      }
+    }
+
     const parsedItems = [];
     const errors = [];
     for (let i = 0; i < lines.length; i++) {
