@@ -40,6 +40,8 @@ run-name: "Bot Detection"
 
 jobs:
   activation:
+    needs: precompute
+    if: needs.precompute.outputs.action != 'none'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1103,7 +1105,6 @@ jobs:
             await main();
 
   precompute:
-    needs: activation
     runs-on: ubuntu-latest
     permissions:
       actions: read

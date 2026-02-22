@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -617,6 +618,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Find custom jobs that depend on pre_activation - these run before activation
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
 
+	// Find custom jobs whose outputs are referenced in the markdown body but have no explicit needs.
+	// These jobs must run before activation so their outputs are available when the activation job
+	// builds the prompt. Without this, activation would reference their outputs while they haven't
+	// run yet, causing actionlint errors and incorrect prompt substitutions.
+	promptReferencedJobs := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
+	for _, jobName := range promptReferencedJobs {
+		if !sliceutil.Contains(customJobsBeforeActivation, jobName) {
+			customJobsBeforeActivation = append(customJobsBeforeActivation, jobName)
+			compilerActivationJobsLog.Printf("Added '%s' to activation dependencies: referenced in markdown body and has no explicit needs", jobName)
+		}
+	}
+
 	if preActivationJobCreated {
 		// Activation job depends on pre-activation job and checks the "activated" output
 		activationNeeds = []string{string(constants.PreActivationJobName)}
@@ -807,7 +820,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// through the activation job, if the workflow content directly references their outputs
 	// (e.g., ${{ needs.search_issues.outputs.* }}), we MUST add them as direct dependencies.
 	// This is required for GitHub Actions expression evaluation and actionlint validation.
-	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	// Also check custom steps from the frontmatter, which are also added to the agent job.
+	var contentBuilder strings.Builder
+	contentBuilder.WriteString(data.MarkdownContent)
+	if data.CustomSteps != "" {
+		contentBuilder.WriteByte('\n')
+		contentBuilder.WriteString(data.CustomSteps)
+	}
+	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
 		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {

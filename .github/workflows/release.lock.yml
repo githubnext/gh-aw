@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ec79dab32ab839039ad17c8de0bf76eba00547609fe0fbff497967153dd35069"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"51d800efab24f9ed75b360785ea56475e340f1fce4966f2360cb224dd28f8833"}
 
 name: "Release"
 "on":
@@ -50,7 +50,10 @@ run-name: "Release"
 
 jobs:
   activation:
-    needs: pre_activation
+    needs:
+      - config
+      - pre_activation
+      - release
     if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
@@ -973,7 +976,7 @@ jobs:
             await main();
 
   config:
-    needs: activation
+    needs: pre_activation
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
@@ -1219,8 +1222,8 @@ jobs:
 
   release:
     needs:
-      - activation
       - config
+      - pre_activation
     runs-on: ubuntu-latest
     permissions:
       attestations: write

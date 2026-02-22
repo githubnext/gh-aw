@@ -44,6 +44,8 @@ run-name: "CI Cleaner"
 
 jobs:
   activation:
+    needs: check_ci_status
+    if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -922,7 +924,6 @@ jobs:
           if-no-files-found: ignore
 
   check_ci_status:
-    needs: activation
     runs-on: ubuntu-latest
     permissions:
       actions: read

@@ -120,6 +120,38 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 	return refs
 }
 
+// getCustomJobsReferencedInPromptWithNoActivationDep returns custom jobs whose outputs are referenced
+// in the markdown body content but have no explicit needs (and therefore no activation dependency).
+// These jobs need to run before the activation job so their outputs are available when the
+// activation job builds the prompt. Without this, activation's prompt-building steps would reference
+// those job outputs before the jobs have run, causing actionlint errors and empty substitutions.
+//
+// Only jobs with NO explicit needs are returned - jobs that explicitly depend on activation/pre_activation/etc.
+// are excluded because they either already run before activation or cannot run before it.
+func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *WorkflowData) []string {
+	if data == nil || data.Jobs == nil || data.MarkdownContent == "" {
+		return nil
+	}
+
+	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	var result []string
+	for _, jobName := range referencedJobs {
+		jobConfig, ok := data.Jobs[jobName].(map[string]any)
+		if !ok {
+			continue
+		}
+		// Only include jobs with no explicit needs - those get activation auto-added normally.
+		// Jobs with explicit needs either already run before activation (pre_activation dependency)
+		// or explicitly depend on activation/agent and must run after.
+		if _, hasNeeds := jobConfig["needs"]; hasNeeds {
+			continue
+		}
+		result = append(result, jobName)
+		compilerJobsLog.Printf("Found custom job '%s' referenced in markdown body with no explicit needs: will run before activation", jobName)
+	}
+	return result
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager.
 // This function orchestrates the building of all job types by delegating to focused helper functions.
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
@@ -360,6 +392,15 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
+
+	// Pre-compute jobs referenced in the markdown body with no explicit needs.
+	// These run before activation (not after), so we must not auto-add activation to them.
+	promptReferencedJobsSlice := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
+	promptReferencedJobs := make(map[string]bool, len(promptReferencedJobsSlice))
+	for _, j := range promptReferencedJobsSlice {
+		promptReferencedJobs[j] = true
+	}
+
 	for jobName, jobConfig := range data.Jobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
 		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
@@ -389,10 +430,15 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			}
 
 			// If no explicit needs and activation job exists, automatically add activation as dependency
-			// This ensures custom jobs wait for workflow validation before executing
-			if !hasExplicitNeeds && activationJobCreated {
+			// This ensures custom jobs wait for workflow validation before executing.
+			// Exception: jobs whose outputs are referenced in the markdown body run before activation
+			// (so the activation job can include their outputs in the prompt).
+			isReferencedInMarkdown := promptReferencedJobs[jobName]
+			if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown {
 				job.Needs = append(job.Needs, string(constants.ActivationJobName))
 				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, string(constants.ActivationJobName))
+			} else if !hasExplicitNeeds && isReferencedInMarkdown {
+				compilerJobsLog.Printf("Custom job '%s' referenced in markdown body runs before activation (no auto-added dependency)", jobName)
 			}
 
 			// Extract other job properties
