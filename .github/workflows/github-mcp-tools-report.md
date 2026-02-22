@@ -163,6 +163,8 @@ Create a detailed markdown report with the following structure:
 - **Total Tools Discovered**: [NUMBER]
 - **Toolset Categories**: [NUMBER]
 - **Report Date**: [DATE]
+- **Source**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
+- **Instructions File**: [.github/instructions/github-mcp-server.instructions.md](https://github.com/github/gh-aw/blob/main/.github/instructions/github-mcp-server.instructions.md)
 - **Changes Since Last Report**: [If previous data exists, show changes summary]
   - **New Tools**: [NUMBER]
   - **Removed Tools**: [NUMBER]
@@ -186,7 +188,7 @@ Report any inconsistencies discovered during the systematic exploration:
 
 ### Discrepancies Between MCP Server and JSON Mapping
 
-Report on the comparison between the MCP server tools and the `pkg/workflow/data/github_toolsets_permissions.json` file:
+Report on the comparison between the MCP server tools and the [`pkg/workflow/data/github_toolsets_permissions.json`](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json) file:
 
 **Summary**:
 - **Total Discrepancies**: [NUMBER]
@@ -214,7 +216,7 @@ Report on the comparison between the MCP server tools and the `pkg/workflow/data
 |-----------|--------------|-------------|--------------|
 | [tool] | [old] | [new] | Updated in JSON mapping |
 
-**Action**: [If discrepancies were found and fixed, state: "Created pull request with updated JSON mapping." Otherwise: "No updates needed."]
+**Action**: [If discrepancies were found and fixed, state: "Created pull request [#NUMBER](URL) with updated JSON mapping." Otherwise: "No updates needed."]
 
 ## Changes Since Last Report
 
@@ -317,6 +319,8 @@ tools:
 - **MCP Configuration**: Remote mode with all toolsets enabled
 - **Categorization**: Based on GitHub API domains and functionality
 - **Documentation**: Derived from tool names, descriptions, and usage patterns
+- **JSON Mapping**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
+- **Instructions**: [.github/instructions/github-mcp-server.instructions.md](https://github.com/github/gh-aw/blob/main/.github/instructions/github-mcp-server.instructions.md)
 ```
 
 ## Important Guidelines
@@ -331,6 +335,7 @@ tools:
 - **Clear Structure**: Use tables and sections for readability
 - **Complete Coverage**: Don't miss any tools or toolsets
 - **Useful Reference**: Make the report helpful for developers
+- **Link Sources**: Always use full GitHub URLs (e.g., `https://github.com/github/gh-aw/blob/main/...`) when referencing files and PRs
 
 ### Tool Discovery
 - **Systematic Approach**: Methodically enumerate tools for EACH toolset individually
