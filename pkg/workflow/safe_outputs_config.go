@@ -437,6 +437,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle max-bot-mentions (templatable integer)
+			if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
+				safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
+			} else if maxBotMentions, exists := outputMap["max-bot-mentions"]; exists {
+				if maxBotMentionsStr, ok := maxBotMentions.(string); ok {
+					config.MaxBotMentions = &maxBotMentionsStr
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {

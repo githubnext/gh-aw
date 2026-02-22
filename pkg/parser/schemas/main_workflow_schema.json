@@ -6829,6 +6829,21 @@
           "default": false,
           "examples": [false, true]
         },
+        "max-bot-mentions": {
+          "description": "Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456') allowed in output before all of them are neutralized. Default: 10. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression that resolves to an integer at runtime"
+            }
+          ]
+        },
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"

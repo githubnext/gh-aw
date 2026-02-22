@@ -1,6 +1,10 @@
 package workflow
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+	"strings"
+)
 
 // ========================================
 // Safe Output Configuration Generation
@@ -475,6 +479,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		// Only add if it has fields
 		if len(dispatchWorkflowConfig) > 0 {
 			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
+		}
+	}
+
+	// Add max-bot-mentions if set (templatable integer)
+	if data.SafeOutputs.MaxBotMentions != nil {
+		v := *data.SafeOutputs.MaxBotMentions
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			safeOutputsConfig["max_bot_mentions"] = n
+		} else if strings.HasPrefix(v, "${{") {
+			safeOutputsConfig["max_bot_mentions"] = v
 		}
 	}
 

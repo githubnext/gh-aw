@@ -1228,7 +1228,7 @@ describe("collect_ndjson_output.cjs", () => {
           (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
-          expect(parsedOutput.items[0].body).toBe("This `fixes #123` and `closes #456`, also `resolves #789`");
+          expect(parsedOutput.items[0].body).toBe("This fixes #123 and closes #456, also resolves #789");
         }),
         it("should remove ANSI escape sequences", async () => {
           const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
@@ -1488,7 +1488,7 @@ describe("collect_ndjson_output.cjs", () => {
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
           const parsedOutput = JSON.parse(outputCall[1]);
-          (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].message).toContain("`@mention`"), expect(parsedOutput.items[0].message).toContain("`fixes #123`"));
+          (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].message).toContain("`@mention`"), expect(parsedOutput.items[0].message).toContain("fixes #123"));
         }),
         it("should handle multiple noop messages", async () => {
           const testFile = "/tmp/gh-aw/test-ndjson-output.txt",

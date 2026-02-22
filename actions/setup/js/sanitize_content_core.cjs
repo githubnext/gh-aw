@@ -412,17 +412,18 @@ const MAX_BOT_TRIGGER_REFERENCES = 10;
 
 /**
  * Neutralizes bot trigger phrases by wrapping them in backticks.
- * Filtering is only applied when there are more than MAX_BOT_TRIGGER_REFERENCES
+ * Filtering is only applied when there are more than `maxBotMentions`
  * unquoted trigger references. Already-quoted entries are never re-quoted.
  * @param {string} s - The string to process
+ * @param {number} [maxBotMentions] - Max allowed references before filtering (default: MAX_BOT_TRIGGER_REFERENCES)
  * @returns {string} The string with neutralized bot triggers
  */
-function neutralizeBotTriggers(s) {
+function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
   // Match unquoted bot trigger phrases like "fixes #123", "closes #asdfs", etc.
   // The negative lookbehind (?<!`) skips already-quoted entries.
   const pattern = /(?<!`)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi;
   const matches = s.match(pattern);
-  if (!matches || matches.length <= MAX_BOT_TRIGGER_REFERENCES) {
+  if (!matches || matches.length <= maxBotMentions) {
     return s;
   }
   return s.replace(pattern, (match, action, ref) => `\`${action} #${ref}\``);
@@ -730,9 +731,10 @@ function hardenUnicodeText(text) {
  * Core sanitization function without mention filtering
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
+ * @param {number} [maxBotMentions] - Max bot trigger references before filtering (default: MAX_BOT_TRIGGER_REFERENCES)
  * @returns {string} The sanitized content
  */
-function sanitizeContentCore(content, maxLength) {
+function sanitizeContentCore(content, maxLength, maxBotMentions) {
   if (!content || typeof content !== "string") {
     return "";
   }
@@ -781,7 +783,7 @@ function sanitizeContentCore(content, maxLength) {
   sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
 
   // Neutralize common bot trigger phrases
-  sanitized = neutralizeBotTriggers(sanitized);
+  sanitized = neutralizeBotTriggers(sanitized, maxBotMentions);
 
   // Neutralize template syntax delimiters (defense-in-depth)
   // This prevents potential issues if content is processed by downstream template engines

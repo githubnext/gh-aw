@@ -6,6 +6,7 @@ const { repairJson, sanitizePrototypePollution } = require("./json_repair_helper
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
+const { parseIntTemplatable } = require("./templatable.cjs");
 
 async function main() {
   try {
@@ -36,6 +37,10 @@ async function main() {
     // This determines which @mentions are allowed in the agent output
     const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
 
+    // maxBotMentions is populated after safeOutputsConfig is read below
+    /** @type {number | undefined} */
+    let maxBotMentions;
+
     function validateFieldWithInputSchema(value, fieldName, inputSchema, lineNum) {
       if (inputSchema.required && (value === undefined || value === null)) {
         return {
@@ -59,7 +64,7 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be a string`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
           break;
         case "boolean":
           if (typeof value !== "boolean") {
@@ -90,11 +95,11 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
           break;
         default:
           if (typeof value === "string") {
-            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
+            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
           }
           break;
       }
@@ -195,6 +200,11 @@ async function main() {
         expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
         core.info(`[INGESTION] Expected output types after normalization: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
         core.info(`[INGESTION] Expected output types full config: ${JSON.stringify(expectedOutputTypes)}`);
+        // Extract max-bot-mentions from config (defaults to undefined, using neutralizeBotTriggers default)
+        const rawMaxBotMentions = parseIntTemplatable(expectedOutputTypes.max_bot_mentions, 0);
+        if (rawMaxBotMentions > 0) {
+          maxBotMentions = rawMaxBotMentions;
+        }
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
