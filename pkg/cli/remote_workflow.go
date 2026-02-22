@@ -295,6 +295,8 @@ func fetchAndSaveRemoteFrontmatterImports(content string, spec *WorkflowSpec, ta
 		} else {
 			ref = defaultBranch
 		}
+		// Persist the resolved default ref so other callers do not need to re-resolve it
+		spec.Version = ref
 	}
 
 	// Base directory of the workflow in the remote repo (e.g. ".github/workflows")
