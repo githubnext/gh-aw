@@ -404,7 +404,7 @@ jobs:
               version: "",
               agent_version: "",
               workflow_name: "Smoke Gemini",
-              experimental: true,
+              experimental: false,
               supports_tools_allowlist: true,
               run_id: context.runId,
               run_number: context.runNumber,
