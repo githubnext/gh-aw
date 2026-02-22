@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -211,9 +212,7 @@ func rewriteAdditionalPropertiesError(message string) string {
 		match := re.FindStringSubmatch(message)
 
 		if len(match) >= 2 {
-			properties := match[1]
-			// Clean up the property list and make it more readable
-			properties = strings.ReplaceAll(properties, "'", "")
+			properties := normalizeAdditionalPropertyList(match[1])
 
 			if strings.Contains(properties, ",") {
 				return "Unknown properties: " + properties
@@ -224,4 +223,18 @@ func rewriteAdditionalPropertiesError(message string) string {
 	}
 
 	return message
+}
+
+func normalizeAdditionalPropertyList(raw string) string {
+	raw = strings.ReplaceAll(raw, "'", "")
+	parts := strings.Split(raw, ",")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	sort.Strings(cleaned)
+	return strings.Join(cleaned, ", ")
 }

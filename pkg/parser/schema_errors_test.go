@@ -274,3 +274,34 @@ func TestTranslateSchemaConstraintMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestRewriteAdditionalPropertiesErrorOrdering(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "sorts multiple unknown properties",
+			in:   "at '/safe-outputs': additional properties 'zeta', 'alpha', 'beta' not allowed",
+			want: "Unknown properties: alpha, beta, zeta",
+		},
+		{
+			name: "sorts and trims unquoted list",
+			in:   "additional properties zeta, alpha, beta not allowed",
+			want: "Unknown properties: alpha, beta, zeta",
+		},
+		{
+			name: "single unknown property remains singular",
+			in:   "additional property 'timeout_minutes' not allowed",
+			want: "Unknown property: timeout_minutes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := rewriteAdditionalPropertiesError(tt.in)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
