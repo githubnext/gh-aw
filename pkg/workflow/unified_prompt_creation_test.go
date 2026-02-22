@@ -322,9 +322,10 @@ func TestGenerateUnifiedPromptCreationStep_NoAppendSteps(t *testing.T) {
 		"Should not have old 'Append prompt (part N)' steps")
 }
 
-// TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate tests that
-// the first content uses ">" (create/overwrite) and subsequent content uses ">>" (append)
-func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) {
+// TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect tests that all prompt
+// content is written inside a grouped redirect ({ ... } > "$GH_AW_PROMPT") rather
+// than individual > / >> redirects per command (fixes SC2129).
+func TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect(t *testing.T) {
 	compiler := &Compiler{
 		trialMode:            false,
 		trialLogicalRepoSlug: "",
@@ -342,25 +343,19 @@ func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) 
 
 	output := yaml.String()
 
-	// Find the first cat command (should use > for create)
-	firstCatPos := strings.Index(output, `cat "`)
-	require.NotEqual(t, -1, firstCatPos, "Should have cat command")
+	// Verify the grouped redirect pattern is used (SC2129 fix)
+	assert.Contains(t, output, `} > "$GH_AW_PROMPT"`, "Should use grouped redirect to avoid SC2129")
 
-	// Extract the line containing the first cat command
-	firstCatLine := output[firstCatPos : firstCatPos+strings.Index(output[firstCatPos:], "\n")]
+	// Verify no individual >> redirects to the prompt file exist
+	assert.NotContains(t, output, `>> "$GH_AW_PROMPT"`, "Should not use individual >> redirects (SC2129)")
 
-	// Verify it uses > (create mode)
-	assert.Contains(t, firstCatLine, `> "$GH_AW_PROMPT"`,
-		"First content should use > (create mode): %s", firstCatLine)
+	// Verify no heredoc or file cat commands have individual > redirects (only the group closer should)
+	assert.NotContains(t, output, `' > "$GH_AW_PROMPT"`, "Heredoc cat commands should not have individual > redirects")
+	assert.NotContains(t, output, `.md\" > "$GH_AW_PROMPT"`, "File cat commands should not have individual > redirects")
 
-	// Find subsequent cat commands (should use >> for append)
+	// Verify cat commands inside group have no redirect
 	delimiter := GenerateHeredocDelimiter("PROMPT")
-	remainingOutput := output[firstCatPos+len(firstCatLine):]
-	if strings.Contains(remainingOutput, `cat "`) || strings.Contains(remainingOutput, "cat << '"+delimiter+"'") {
-		// Verify subsequent operations use >> (append mode)
-		assert.Contains(t, remainingOutput, `>> "$GH_AW_PROMPT"`,
-			"Subsequent content should use >> (append mode)")
-	}
+	require.Contains(t, output, "cat << '"+delimiter+"'\n", "Heredoc cat commands inside group should have no redirect")
 }
 
 // TestGenerateUnifiedPromptCreationStep_SystemTags tests that built-in prompts
