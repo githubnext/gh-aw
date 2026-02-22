@@ -25,7 +25,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"adf670f292e2b7e7be4e924c320b701211f75c0738f3e90180e61cb557dc8447","stop_time":"2026-03-03 16:27:58"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2e73a06704d587451536d20b6797a02cdfd8bac55c17d35c753dc35542dfe260","stop_time":"2026-03-03 16:27:58"}
 #
 # Effective stop-time: 2026-03-03 16:27:58
 
@@ -348,6 +348,13 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        name: Pre-download CI failure logs and apply heuristics
+        run: "set -e\nLOG_DIR=\"/tmp/ci-doctor/logs\"\nmkdir -p \"$LOG_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failed\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failed\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$LOG_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"$LOG_DIR/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"Log directory: $LOG_DIR\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files:\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    JOB_ID=$(basename \"$LOG_FILE\" .log | sed 's/^job-//')\n    HINTS_FILE=\"$LOG_DIR/job-${JOB_ID}-hints.txt\"\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n    if [ -s \"$HINTS_FILE\" ]; then\n      echo \"    Hints: $HINTS_FILE\"\n      echo \"    First matches:\"\n      head -5 \"$HINTS_FILE\" | sed 's/^/      /'\n    fi\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
+
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
