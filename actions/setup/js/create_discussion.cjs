@@ -306,7 +306,7 @@ async function main(config = {}) {
   const configCategory = config.category || "";
   const maxCount = config.max || 10;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
-  const fallbackToIssue = parseBoolTemplatable(config.fallback_to_issue, true);
+  const fallbackToIssue = config.fallback_to_issue !== false; // Default to true
   const closeOlderDiscussions = parseBoolTemplatable(config.close_older_discussions, false);
   const includeFooter = parseBoolTemplatable(config.footer, true);
 
