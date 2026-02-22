@@ -95,7 +95,7 @@ func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 	tests := []struct {
 		name            string
 		config          map[string]any
-		expectedExpires *string
+		expectedExpires int
 	}{
 		{
 			name: "No expires field - should default to 7 days (168 hours)",
@@ -104,7 +104,7 @@ func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 					"category": "general",
 				},
 			},
-			expectedExpires: strPtr("168"), // 7 days = 168 hours
+			expectedExpires: 168, // 7 days = 168 hours
 		},
 		{
 			name: "Explicit expires integer - should use provided value",
@@ -114,7 +114,7 @@ func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 					"expires":  14, // 14 days
 				},
 			},
-			expectedExpires: strPtr("336"), // 14 days = 336 hours
+			expectedExpires: 336, // 14 days = 336 hours
 		},
 		{
 			name: "Explicit expires string format - should use provided value",
@@ -124,7 +124,7 @@ func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 					"expires":  "7d",
 				},
 			},
-			expectedExpires: strPtr("168"), // 7 days = 168 hours
+			expectedExpires: 168, // 7 days = 168 hours
 		},
 		{
 			name: "Explicit expires zero - should use default",
@@ -134,7 +134,7 @@ func TestParseDiscussionsConfigDefaultExpiration(t *testing.T) {
 					"expires":  0,
 				},
 			},
-			expectedExpires: strPtr("168"), // Should default to 7 days
+			expectedExpires: 168, // Should default to 7 days
 		},
 	}
 

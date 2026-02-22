@@ -142,7 +142,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddTemplatableInt("expires", c.Expires).
+			AddIfPositive("expires", c.Expires).
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("assignees", c.Assignees).
@@ -179,7 +179,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddTemplatableBool("close_older_discussions", c.CloseOlderDiscussions).
 			AddIfNotEmpty("required_category", c.RequiredCategory).
-			AddTemplatableInt("expires", c.Expires).
+			AddIfPositive("expires", c.Expires).
 			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
@@ -449,7 +449,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddTemplatableBool("allow_empty", c.AllowEmpty).
 			AddTemplatableBool("auto_merge", c.AutoMerge).
-			AddTemplatableInt("expires", c.Expires).
+			AddIfPositive("expires", c.Expires).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddDefault("max_patch_size", maxPatchSize).

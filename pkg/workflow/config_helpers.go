@@ -37,8 +37,6 @@ package workflow
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -212,47 +210,6 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 			if log != nil {
 				log.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
 			}
-		}
-	}
-	return expiresDisabled
-}
-
-// preprocessExpiresFieldAsString handles the expires field preprocessing for struct fields typed as *string.
-// It handles GitHub Actions expression strings, integers (days), relative time format strings
-// (e.g. "48h"), and boolean false (to disable expiration).
-//
-// If the value is a GitHub Actions expression (e.g. "${{ inputs.expires }}"), it is kept as-is
-// so GitHub Actions can evaluate it at runtime.
-// Otherwise the value is normalized to hours and stored as a decimal string.
-//
-// Returns true if expires was explicitly disabled with false, false otherwise.
-func preprocessExpiresFieldAsString(configData map[string]any, log *logger.Logger) bool {
-	expiresDisabled := false
-	if configData == nil {
-		return false
-	}
-	if val, exists := configData["expires"]; exists {
-		// Check if it's a GitHub Actions expression – leave untouched so that the field
-		// is unmarshaled as a *string directly and evaluated at runtime.
-		if strVal, ok := val.(string); ok && strings.HasPrefix(strVal, "${{") && strings.HasSuffix(strVal, "}}") {
-			if log != nil {
-				log.Printf("Expires field is a GitHub Actions expression, keeping as is")
-			}
-			return false
-		}
-
-		// Not an expression – parse to hours using existing logic.
-		expiresInt := parseExpiresFromConfig(configData)
-		if expiresInt == -1 {
-			expiresDisabled = true
-			delete(configData, "expires") // clear so nil *string after unmarshal
-		} else if expiresInt > 0 {
-			configData["expires"] = strconv.Itoa(expiresInt)
-		} else {
-			delete(configData, "expires") // treat 0 as not-set
-		}
-		if log != nil {
-			log.Printf("Parsed expires value %v to %q hours (disabled=%t)", val, configData["expires"], expiresDisabled)
 		}
 	}
 	return expiresDisabled

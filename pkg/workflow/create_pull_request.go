@@ -29,7 +29,7 @@ type CreatePullRequestsConfig struct {
 	AllowEmpty           *string  `yaml:"allow-empty,omitempty"`       // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`       // Target repository in format "owner/repo" for cross-repository pull requests
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`     // List of additional repositories that pull requests can be created in (additionally to the target-repo)
-	Expires              *string  `yaml:"expires,omitempty"`           // Time until the pull request expires (integer days, relative format, or GitHub Actions expression)
+	Expires              int      `yaml:"expires,omitempty"`           // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 	AutoMerge            *string  `yaml:"auto-merge,omitempty"`        // Enable auto-merge for the pull request when all required checks pass
 	BaseBranch           string   `yaml:"base-branch,omitempty"`       // Base branch for the pull request (defaults to github.ref_name if not specified)
 	Footer               *string  `yaml:"footer,omitempty"`            // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
@@ -153,8 +153,8 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add expires value if set (only for same-repo PRs - when target-repo is not set)
-	if data.SafeOutputs.CreatePullRequests.Expires != nil && data.SafeOutputs.CreatePullRequests.TargetRepoSlug == "" {
-		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_PR_EXPIRES", data.SafeOutputs.CreatePullRequests.Expires)...)
+	if data.SafeOutputs.CreatePullRequests.Expires > 0 && data.SafeOutputs.CreatePullRequests.TargetRepoSlug == "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_EXPIRES: \"%d\"\n", data.SafeOutputs.CreatePullRequests.Expires))
 	}
 
 	// Add footer flag if explicitly set to false
@@ -251,8 +251,19 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 	}
 
-	// Pre-process the expires field (convert to hours string before unmarshaling, or keep as expression)
-	preprocessExpiresFieldAsString(configData, createPRLog)
+	// Pre-process the expires field if it's a string (convert to int before unmarshaling)
+	if configData != nil {
+		if expires, exists := configData["expires"]; exists {
+			if _, ok := expires.(string); ok {
+				// Parse the string format and replace with int
+				expiresInt := parseExpiresFromConfig(configData)
+				if expiresInt > 0 {
+					configData["expires"] = expiresInt
+					createPRLog.Printf("Converted expires from relative time format to hours: %d", expiresInt)
+				}
+			}
+		}
+	}
 
 	// Pre-process templatable bool fields: convert literal booleans to strings so that
 	// GitHub Actions expression strings (e.g. "${{ inputs.draft-prs }}") are also accepted.
@@ -283,8 +294,8 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	// Log expires if configured
-	if config.Expires != nil {
-		createPRLog.Printf("Pull request expiration configured: %s hours", *config.Expires)
+	if config.Expires > 0 {
+		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
 	}
 
 	// Set default max if not explicitly configured (default is 1)

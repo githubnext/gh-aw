@@ -87,7 +87,7 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 					Name: "test-workflow",
 					SafeOutputs: &SafeOutputsConfig{
 						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: strPtr("168"), // 7 days
+							Expires: 168, // 7 days
 						},
 					},
 				},
@@ -102,7 +102,7 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 					Name: "test-workflow-issues",
 					SafeOutputs: &SafeOutputsConfig{
 						CreateIssues: &CreateIssuesConfig{
-							Expires: strPtr("48"), // 2 days
+							Expires: 48, // 2 days
 						},
 					},
 				},
@@ -130,10 +130,10 @@ func TestGenerateMaintenanceWorkflow_WithExpires(t *testing.T) {
 					Name: "multi-expires-workflow",
 					SafeOutputs: &SafeOutputsConfig{
 						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: strPtr("168"),
+							Expires: 168,
 						},
 						CreateIssues: &CreateIssuesConfig{
-							Expires: strPtr("48"),
+							Expires: 48,
 						},
 					},
 				},
@@ -201,7 +201,7 @@ func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
 					Name: "test-workflow",
 					SafeOutputs: &SafeOutputsConfig{
 						CreateDiscussions: &CreateDiscussionsConfig{
-							Expires: strPtr("168"),
+							Expires: 168,
 						},
 					},
 				},
@@ -263,7 +263,7 @@ func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 			Name: "test-workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					Expires: strPtr("48"),
+					Expires: 48,
 				},
 			},
 		},

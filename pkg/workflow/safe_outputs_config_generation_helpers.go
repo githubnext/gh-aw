@@ -131,8 +131,8 @@ func generateAssignToAgentConfig(max *string, defaultMax int, defaultAgent strin
 }
 
 // generatePullRequestConfig creates a config with max, allowed_labels, allow_empty, auto_merge, and expires
-func generatePullRequestConfig(max *string, defaultMax int, allowedLabels []string, allowEmpty *string, autoMerge *string, expires *string) map[string]any {
-	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%v, allowEmpty=%v, autoMerge=%v, expires=%v, labels_count=%d",
+func generatePullRequestConfig(max *string, defaultMax int, allowedLabels []string, allowEmpty *string, autoMerge *string, expires int) map[string]any {
+	safeOutputsConfigGenLog.Printf("Generating pull request config: max=%v, allowEmpty=%v, autoMerge=%v, expires=%d, labels_count=%d",
 		max, allowEmpty, autoMerge, expires, len(allowedLabels))
 	config := generateMaxConfig(max, defaultMax)
 	if len(allowedLabels) > 0 {
@@ -146,13 +146,9 @@ func generatePullRequestConfig(max *string, defaultMax int, allowedLabels []stri
 	if autoMerge != nil && *autoMerge == "true" {
 		config["auto_merge"] = true
 	}
-	// Pass expires to configure pull request expiration (literal integer or expression)
-	if expires != nil {
-		if strings.HasPrefix(*expires, "${{") {
-			config["expires"] = *expires
-		} else if n := templatableIntValue(expires); n > 0 {
-			config["expires"] = n
-		}
+	// Pass expires to configure pull request expiration
+	if expires > 0 {
+		config["expires"] = expires
 	}
 	return config
 }

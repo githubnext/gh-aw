@@ -135,7 +135,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					Draft:       testStringPtr("true"),
 					IfNoChanges: "skip",
 					AllowEmpty:  testStringPtr("true"),
-					Expires:     strPtr("7"),
+					Expires:     7,
 				},
 			},
 			checkContains: []string{

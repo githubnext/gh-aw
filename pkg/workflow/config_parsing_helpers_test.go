@@ -1114,7 +1114,7 @@ func TestUnmarshalConfig(t *testing.T) {
 				if len(config.AllowedRepos) != 2 {
 					t.Errorf("expected 2 allowed-repos, got %d", len(config.AllowedRepos))
 				}
-				if templatableIntValue(config.Expires) != 7 {
+				if config.Expires != 7 {
 					t.Errorf("expected expires 7, got %d", config.Expires)
 				}
 				if templatableIntValue(config.Max) != 5 {

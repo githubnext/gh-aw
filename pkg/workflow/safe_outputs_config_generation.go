@@ -71,9 +71,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Group != nil && *data.SafeOutputs.CreateIssues.Group == "true" {
 				config["group"] = true
 			}
-			// Add expires value if set (nil means explicitly disabled or not set)
-			if data.SafeOutputs.CreateIssues.Expires != nil {
-				config["expires"] = resolveMaxForConfig(data.SafeOutputs.CreateIssues.Expires, 0)
+			// Add expires value if set (0 means explicitly disabled or not set)
+			if data.SafeOutputs.CreateIssues.Expires > 0 {
+				config["expires"] = data.SafeOutputs.CreateIssues.Expires
 			}
 			safeOutputsConfig["create_issue"] = config
 		}
@@ -105,9 +105,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				1, // default max
 				data.SafeOutputs.CreateDiscussions.AllowedLabels,
 			)
-			// Add expires value if set (nil means explicitly disabled or not set)
-			if data.SafeOutputs.CreateDiscussions.Expires != nil {
-				config["expires"] = resolveMaxForConfig(data.SafeOutputs.CreateDiscussions.Expires, 0)
+			// Add expires value if set (0 means explicitly disabled or not set)
+			if data.SafeOutputs.CreateDiscussions.Expires > 0 {
+				config["expires"] = data.SafeOutputs.CreateDiscussions.Expires
 			}
 			safeOutputsConfig["create_discussion"] = config
 		}
