@@ -26,7 +26,7 @@ runs-on: self-hosted
 Triage this issue.
 ```
 
-**Label array** — GitHub Actions picks the first available runner that matches any label in the list. Useful for high-availability pools with multiple runner groups:
+**Label array** — requires a runner that has *all* of the listed labels (logical AND). Useful for targeting pools constrained by multiple labels, such as OS and architecture:
 
 ```aw
 ---
@@ -53,48 +53,37 @@ Triage this issue.
 > [!NOTE]
 > The `runs-on` field only applies to the main agent job. Custom jobs defined in `jobs:` configure their own `runs-on` field independently.
 
-## Sharing Runner Configuration with Imports
+## Sharing Configuration with Imports
 
-When multiple workflows share the same runner requirements, define the `runs-on` configuration once in a shared file and import it. This avoids repeating runner labels across every workflow.
+When multiple workflows target the same self-hosted runners, they often share other configuration such as `network`, `tools`, or `safe-outputs`. You can define those shared settings once in a shared file and import it into each workflow.
+
+> [!NOTE]
+> `runs-on` itself must be specified in every workflow file — it is not merged from imports.
 
 Create a shared configuration file, for example `.github/workflows/shared/runner-config.md`:
 
 ```aw
 ---
-runs-on: [self-hosted, linux, x64]
+network:
+  allowed:
+    - defaults
+    - private-registry.example.com
+tools:
+  bash: {}
 ---
 ```
 
-> [!NOTE]
-> Shared files without an `on:` field are treated as shared workflow components and are not compiled into GitHub Actions workflows on their own.
-
-Then import this file in any workflow that needs it:
+Then import this file in any workflow that needs it, and set `runs-on` directly:
 
 ```aw
 ---
 on: issues
 imports:
   - shared/runner-config.md
-permissions:
-  issues: write
+runs-on: [self-hosted, linux, x64]
 ---
 
 Triage this issue and assign appropriate labels.
-```
-
-The compiler merges the `runs-on` field from the imported file into the workflow. The main workflow's `runs-on` always takes precedence over imported values — so you can import a default runner and override it per-workflow when needed:
-
-```aw
----
-on: issues
-imports:
-  - shared/runner-config.md
-runs-on: [self-hosted, linux, arm64]  # overrides the imported value
-permissions:
-  issues: write
----
-
-Triage this issue on the ARM runner.
 ```
 
 ## Runner Requirements
