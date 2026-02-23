@@ -128,10 +128,11 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	}
 
 	// Build entrypoint args for Playwright MCP server (goes after container image)
-	// --browser-arg --no-sandbox: Disables Chromium's process sandbox, which otherwise
+	// --no-sandbox: Disables Chromium's process sandbox, which otherwise
 	// creates a network namespace for renderer processes that cannot reach localhost.
 	// This is required for screenshot workflows that serve docs on localhost.
-	entrypointArgs := []string{"--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--browser-arg", "--no-sandbox"}
+	// Note: as of @playwright/mcp v0.0.26+, --no-sandbox is a direct top-level flag.
+	entrypointArgs := []string{"--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"}
 	// Append custom args if present
 	if len(customArgs) > 0 {
 		entrypointArgs = append(entrypointArgs, customArgs...)

@@ -152,15 +152,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	}
 
 	// Add allowed domains
-	// Pre-wrap in double quotes so shellEscapeArg preserves them (wildcards like *.domain.com
-	// are command arguments, not shell globs, and double quotes prevent SC1003 ShellCheck warnings)
-	awfArgs = append(awfArgs, "--allow-domains", "\""+config.AllowedDomains+"\"")
+	// Use double-quoted form (via shellDoubleQuoteArg) so wildcards like *.domain.com are
+	// treated as plain arguments rather than shell globs, fixing ShellCheck SC1003, while
+	// still escaping $, `, \, and " to prevent unintended shell expansion.
+	awfArgs = append(awfArgs, "--allow-domains", shellDoubleQuoteArg(config.AllowedDomains))
 
 	// Add blocked domains if specified
 	blockedDomains := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 	if blockedDomains != "" {
-		// Pre-wrap in double quotes for the same reason as --allow-domains above
-		awfArgs = append(awfArgs, "--block-domains", "\""+blockedDomains+"\"")
+		// Same double-quoting rationale as --allow-domains above
+		awfArgs = append(awfArgs, "--block-domains", shellDoubleQuoteArg(blockedDomains))
 		awfHelpersLog.Printf("Added blocked domains: %s", blockedDomains)
 	}
 
