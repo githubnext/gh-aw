@@ -76,17 +76,16 @@ If using Copilot as your AI engine, you need a GitHub Actions Secret set to a Gi
 Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new):
 
 1. Select your **user account**, not an organization.
-2. Choose **"Public repositories"**, even if you will be using it with private repositories. This is required for the "Copilot Requests" permission to be available.
-3. Click "Add permissions" and choose "Copilot Requests".
-4. Click "Generate token" and copy the token value.
+2. Choose **Public repositories**, even if you will be using it with private repositories. This is required for the "Copilot Requests" permission to be available.
+3. Click **Add permissions** and choose **Copilot Requests**.
+4. Click **Generate token** and copy the token value.
+5. Add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI (see video).
 
-You **must have "Public repositories" selected**; otherwise, the Copilot Requests permission option will not be available.
+   ```bash wrap
+   gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
+   ```
 
-Then add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI (see video).
-
-```bash wrap
-gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
-```
+**Troubleshooting**:
 
 If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
 
@@ -215,7 +214,7 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_MCP_PAT"
 
 ### `GH_AW_CI_TRIGGER_TOKEN`
 
-Pull requests and pushes made with `GITHUB_TOKEN` do not trigger `pull_request`, `push`, or `pull_request_target` events. This is a GitHub Actions feature to prevent recursive workflows.
+Pull requests and pushes made with `GITHUB_TOKEN` do not trigger `pull_request`, `push`, or `pull_request_target` events. This is a GitHub Actions feature to prevent event cascades.
 
 See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers on PRs created by workflows using `
 
