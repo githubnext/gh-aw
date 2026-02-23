@@ -2222,7 +2222,7 @@
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
             },
             "firewall": {
-              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
+              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, and gemini engines.",
               "deprecated": true,
               "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
               "oneOf": [
@@ -2274,6 +2274,10 @@
                         "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
                       },
                       "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
+                    },
+                    "cleanup-script": {
+                      "type": "string",
+                      "description": "Path to cleanup script run after AWF shuts down (default: ./scripts/ci/cleanup.sh)"
                     }
                   },
                   "additionalProperties": false

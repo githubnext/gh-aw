@@ -7,7 +7,7 @@ sidebar:
 
 Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution.
 
-> **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/sandbox/)).
+> **Note**: Network permissions are supported by all four engines: Copilot, Claude, Codex, and Gemini (via the AWF firewall). See the [Implementation](#implementation) section for engine-specific details.
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
@@ -37,7 +37,7 @@ network:
     - "api.example.com"      # Exact domain (also matches subdomains)
     - "*.cdn.example.com"    # Wildcard: matches any subdomain of cdn.example.com
 
-# Protocol-specific domain filtering (Copilot engine only)
+# Protocol-specific domain filtering (Copilot and Claude engines only)
 network:
   allowed:
     - "https://secure.api.example.com"   # HTTPS-only access
@@ -94,7 +94,7 @@ Network permissions follow the principle of least privilege with four access lev
 
 ## Protocol-Specific Domain Filtering
 
-Restrict domains to a specific protocol (HTTP or HTTPS only) for legacy systems, strict HTTPS enforcement, or gradual migration. Currently supported by the Copilot engine with AWF firewall enabled; domains without a protocol prefix allow both HTTP and HTTPS.
+Restrict domains to a specific protocol (HTTP or HTTPS only) for legacy systems, strict HTTPS enforcement, or gradual migration. Currently supported by the Copilot and Claude engines with AWF firewall enabled; domains without a protocol prefix allow both HTTP and HTTPS.
 
 ```yaml wrap
 engine: copilot
@@ -208,6 +208,35 @@ When enabled, AWF:
 - Supports wildcard patterns (e.g., `*.cdn.example.com` matches `img.cdn.example.com`)
 - Logs all network activity for audit purposes
 - Blocks access to domains not explicitly allowed
+
+### Claude, Codex, and Gemini Engines
+
+The Claude, Codex, and Gemini engines use the same AWF firewall as the Copilot engine. Configure network permissions using the same `network.allowed` / `network.blocked` fields:
+
+```yaml wrap
+# Claude
+engine: claude
+network:
+  allowed:
+    - defaults
+    - "api.example.com"
+
+# Codex
+engine: codex
+network:
+  allowed:
+    - defaults
+    - node
+
+# Gemini
+engine: gemini
+network:
+  allowed:
+    - defaults
+    - node
+```
+
+Each engine also has a built-in default domain list for its CLI authentication and operation. See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
 
 ### Firewall Log Level
 

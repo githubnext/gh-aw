@@ -41,7 +41,7 @@ tools:
 			strict:         false,
 			expectError:    false,
 			expectWarning:  true,
-			warningMessage: "Missing required permissions for github toolsets:",
+			warningMessage: "Missing required permissions for GitHub toolsets:",
 		},
 		{
 			name: "missing permissions in strict mode produces error",
@@ -214,7 +214,7 @@ tools:
 
 	// Check that the warning includes both options
 	expectedPhrases := []string{
-		"Missing required permissions for github toolsets:",
+		"Missing required permissions for GitHub toolsets:",
 		"Option 1: Add missing permissions to your workflow frontmatter:",
 		"Option 2: Reduce the required toolsets in your workflow:",
 		"issues",
