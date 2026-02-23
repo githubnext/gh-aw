@@ -99,7 +99,8 @@ type FrontmatterConfig struct {
 	TrackerID      string   `json:"tracker-id,omitempty"`
 	Version        string   `json:"version,omitempty"`
 	TimeoutMinutes int      `json:"timeout-minutes,omitempty"`
-	Strict         *bool    `json:"strict,omitempty"` // Pointer to distinguish unset from false
+	Strict         *bool    `json:"strict,omitempty"`  // Pointer to distinguish unset from false
+	Private        *bool    `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
 	Labels         []string `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs

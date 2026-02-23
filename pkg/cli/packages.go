@@ -267,6 +267,23 @@ func ExtractWorkflowEngine(content string) string {
 	return ""
 }
 
+// ExtractWorkflowPrivate extracts the private field from workflow content string.
+// Returns true if the workflow has private: true in its frontmatter.
+func ExtractWorkflowPrivate(content string) bool {
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return false
+	}
+
+	if private, ok := result.Frontmatter["private"]; ok {
+		if privateBool, ok := private.(bool); ok {
+			return privateBool
+		}
+	}
+
+	return false
+}
+
 // ExtractWorkflowDescriptionFromFile extracts the description field from a workflow file
 func ExtractWorkflowDescriptionFromFile(filePath string) string {
 	content, err := os.ReadFile(filePath)

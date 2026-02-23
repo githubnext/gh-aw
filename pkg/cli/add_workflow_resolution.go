@@ -28,6 +28,8 @@ type ResolvedWorkflow struct {
 	Engine string
 	// HasWorkflowDispatch indicates if the workflow has workflow_dispatch trigger
 	HasWorkflowDispatch bool
+	// IsPrivate indicates if the workflow has private: true in its frontmatter
+	IsPrivate bool
 }
 
 // ResolvedWorkflows contains all resolved workflows ready to be added
@@ -126,6 +128,12 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 		// Extract engine from content (if specified in frontmatter)
 		engine := ExtractWorkflowEngine(string(fetched.Content))
 
+		// Check if workflow is private - private workflows cannot be added to other repositories
+		isPrivate := ExtractWorkflowPrivate(string(fetched.Content))
+		if isPrivate {
+			return nil, fmt.Errorf("workflow '%s' is private and cannot be added to other repositories", spec.String())
+		}
+
 		// Check for workflow_dispatch trigger in content
 		workflowHasDispatch := checkWorkflowHasDispatchFromContent(string(fetched.Content))
 		if workflowHasDispatch {
@@ -139,6 +147,7 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 			Description:         description,
 			Engine:              engine,
 			HasWorkflowDispatch: workflowHasDispatch,
+			IsPrivate:           isPrivate,
 		})
 	}
 
