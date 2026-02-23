@@ -34,8 +34,6 @@ const publicKeySize = 32 // NaCl box public key size
 
 func newSecretsSetSubcommand() *cobra.Command {
 	var (
-		flagOwner    string
-		flagRepo     string
 		flagValue    string
 		flagValueEnv string
 		flagAPIBase  string
@@ -52,41 +50,42 @@ The secret value can be provided in three ways:
   3. From stdin (if neither flag is provided)
 
 Examples:
-  # From stdin
-  gh aw secrets set MY_SECRET --owner myorg --repo myrepo
+  # From stdin (uses current repository)
+  gh aw secrets set MY_SECRET
+
+  # Specify target repository
+  gh aw secrets set MY_SECRET --repo myorg/myrepo
 
   # From flag
-  gh aw secrets set MY_SECRET --value "secret123" --owner myorg --repo myrepo
+  gh aw secrets set MY_SECRET --value "secret123" --repo myorg/myrepo
 
   # From environment variable
   export MY_TOKEN="secret123"
-  gh aw secrets set MY_SECRET --value-from-env MY_TOKEN --owner myorg --repo myrepo`,
+  gh aw secrets set MY_SECRET --value-from-env MY_TOKEN --repo myorg/myrepo`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			secretName := args[0]
 			secretSetLog.Printf("Setting repository secret: name=%s", secretName)
 
-			// Determine target repository: explicit --owner/--repo or current repo by default
-			var owner, repo string
-			if flagOwner != "" || flagRepo != "" {
-				// Both must be provided together when overriding the target repository
-				if flagOwner == "" || flagRepo == "" {
-					return errors.New("both --owner and --repo must be specified together when overriding the target repository")
-				}
-				owner, repo = flagOwner, flagRepo
-				secretSetLog.Printf("Using explicit repository: %s/%s", owner, repo)
+			// Determine target repository: explicit --repo or current repo by default
+			flagRepo, _ := cmd.Flags().GetString("repo")
+			var repoSlug string
+			if flagRepo != "" {
+				repoSlug = flagRepo
+				secretSetLog.Printf("Using explicit repository: %s", repoSlug)
 			} else {
-				repoSlug, err := GetCurrentRepoSlug()
+				var err error
+				repoSlug, err = GetCurrentRepoSlug()
 				if err != nil {
 					secretSetLog.Printf("Failed to detect current repository: %v", err)
 					return fmt.Errorf("failed to detect current repository: %w", err)
 				}
-				var splitErr error
-				owner, repo, splitErr = SplitRepoSlug(repoSlug)
-				if splitErr != nil {
-					return fmt.Errorf("invalid current repository slug %q: %w", repoSlug, splitErr)
-				}
-				secretSetLog.Printf("Using current repository: %s/%s", owner, repo)
+				secretSetLog.Printf("Using current repository: %s", repoSlug)
+			}
+
+			owner, repo, splitErr := SplitRepoSlug(repoSlug)
+			if splitErr != nil {
+				return fmt.Errorf("invalid repository slug %q: %w", repoSlug, splitErr)
 			}
 
 			// Create GitHub REST client using go-gh
@@ -117,8 +116,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&flagOwner, "owner", "", "GitHub repository owner or organization (defaults to current repository)")
-	cmd.Flags().StringVar(&flagRepo, "repo", "", "GitHub repository name (defaults to current repository)")
+	addRepoFlag(cmd)
 	cmd.Flags().StringVar(&flagValue, "value", "", "Secret value (if empty, read from stdin)")
 	cmd.Flags().StringVar(&flagValueEnv, "value-from-env", "", "Environment variable to read secret value from")
 	cmd.Flags().StringVar(&flagAPIBase, "api-url", "", "GitHub API base URL (default: https://api.github.com or $GITHUB_API_URL)")
