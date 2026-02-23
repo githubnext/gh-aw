@@ -335,8 +335,21 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	modelExplicitlyConfigured := engineConfig != nil && engineConfig.Model != ""
 
 	if modelExplicitlyConfigured {
-		// Model is explicitly configured, use it as-is
-		detectionEngineConfig = engineConfig
+		// Model is explicitly configured — copy config but strip Agent:
+		// threat detection never runs as a custom agent (no repo checkout)
+		detectionEngineConfig = &EngineConfig{
+			ID:          engineConfig.ID,
+			Model:       engineConfig.Model,
+			Version:     engineConfig.Version,
+			MaxTurns:    engineConfig.MaxTurns,
+			Concurrency: engineConfig.Concurrency,
+			UserAgent:   engineConfig.UserAgent,
+			Env:         engineConfig.Env,
+			Config:      engineConfig.Config,
+			Args:        engineConfig.Args,
+			Firewall:    engineConfig.Firewall,
+			// Agent intentionally omitted — detection job has no repo checkout
+		}
 	} else {
 		// No model configured - create/update config but don't set model
 		// This allows the engine execution to use environment variables

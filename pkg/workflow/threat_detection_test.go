@@ -937,6 +937,68 @@ func TestDetectionJobSkipCondition(t *testing.T) {
 	}
 }
 
+// TestBuildEngineStepsStripsAgentField verifies that the Agent field from the
+// main engine config is never propagated to the detection engine config,
+// regardless of whether a model is explicitly configured.
+func TestBuildEngineStepsStripsAgentField(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name string
+		data *WorkflowData
+	}{
+		{
+			name: "agent field stripped when model is explicitly configured",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Model: "claude-opus-4.6",
+					Agent: "my-agent",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "agent field stripped when no model configured",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Agent: "my-agent",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := compiler.buildEngineSteps(tt.data)
+
+			if len(steps) == 0 {
+				t.Fatal("Expected non-empty steps")
+			}
+
+			allSteps := strings.Join(steps, "")
+
+			// The --agent flag must not appear in the threat detection steps
+			if strings.Contains(allSteps, "--agent") {
+				t.Errorf("Expected detection steps to NOT contain --agent flag, but found it.\nGenerated steps:\n%s", allSteps)
+			}
+
+			// Ensure the original engine config is not mutated
+			if tt.data.EngineConfig != nil && tt.data.EngineConfig.Agent != "my-agent" {
+				t.Errorf("Original EngineConfig.Agent was mutated; expected %q, got %q", "my-agent", tt.data.EngineConfig.Agent)
+			}
+		})
+	}
+}
+
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
 // default model gpt-5.1-codex-mini for the detection job when no model is specified
 func TestCopilotDetectionDefaultModel(t *testing.T) {
