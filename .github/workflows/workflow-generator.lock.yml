@@ -1313,7 +1313,7 @@ jobs:
       - agent
       - detection
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write

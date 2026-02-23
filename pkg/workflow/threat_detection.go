@@ -16,6 +16,7 @@ type ThreatDetectionConfig struct {
 	Steps          []any         `yaml:"steps,omitempty"`         // Array of extra job steps
 	EngineConfig   *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
 	EngineDisabled bool          `yaml:"-"`                       // Internal flag: true when engine is explicitly set to false
+	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
 }
 
 // parseThreatDetectionConfig handles threat-detection configuration
@@ -61,6 +62,13 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 			if steps, exists := configMap["steps"]; exists {
 				if stepsArray, ok := steps.([]any); ok {
 					threatConfig.Steps = stepsArray
+				}
+			}
+
+			// Parse runs-on field
+			if runOn, exists := configMap["runs-on"]; exists {
+				if runOnStr, ok := runOn.(string); ok {
+					threatConfig.RunsOn = runOnStr
 				}
 			}
 
@@ -141,7 +149,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	job := &Job{
 		Name:           string(constants.DetectionJobName),
 		If:             condition.Render(),
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatDetectionRunsOn(data.SafeOutputs, data.RunsOn),
 		Permissions:    permissions,
 		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
 		TimeoutMinutes: 10,

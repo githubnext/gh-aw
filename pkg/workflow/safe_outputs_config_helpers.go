@@ -121,6 +121,16 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 	return "runs-on: " + safeOutputs.RunsOn
 }
 
+// formatDetectionRunsOn resolves the runner for the detection job using the following priority:
+// 1. safe-outputs.detection.runs-on (detection-specific override)
+// 2. agentRunsOn (the agent job's runner, passed by the caller)
+func (c *Compiler) formatDetectionRunsOn(safeOutputs *SafeOutputsConfig, agentRunsOn string) string {
+	if safeOutputs != nil && safeOutputs.ThreatDetection != nil && safeOutputs.ThreatDetection.RunsOn != "" {
+		return "runs-on: " + safeOutputs.ThreatDetection.RunsOn
+	}
+	return agentRunsOn
+}
+
 // builtinSafeOutputFields contains the struct field names for the built-in safe output types
 // that are excluded from the "non-builtin" check. These are: noop, missing-data, missing-tool.
 var builtinSafeOutputFields = map[string]bool{

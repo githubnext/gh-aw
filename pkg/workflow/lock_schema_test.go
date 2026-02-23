@@ -46,9 +46,11 @@ name: test
 			content: `# frontmatter-hash: 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
 name: test
 `,
-			expectMetadata: nil,
-			expectLegacy:   true,
-			expectError:    false,
+			expectMetadata: &LockMetadata{
+				FrontmatterHash: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+			},
+			expectLegacy: true,
+			expectError:  false,
 		},
 		{
 			name: "no metadata",
@@ -426,7 +428,8 @@ on: push
 	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
 	require.NoError(t, err, "Should parse legacy lock file")
 	assert.True(t, isLegacy, "Should detect as legacy")
-	assert.Nil(t, metadata, "Should not extract metadata from legacy")
+	require.NotNil(t, metadata, "Should extract metadata with hash from legacy")
+	assert.Equal(t, "49266e50774d7e6a8b1c50f64b2f790c214dcdcf7b75b6bc8478bb43257b9863", metadata.FrontmatterHash, "Should extract hash from legacy")
 
 	// Legacy format should validate successfully
 	err = ValidateLockSchemaCompatibility(content, "legacy.lock.yml")

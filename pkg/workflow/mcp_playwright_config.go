@@ -30,16 +30,19 @@ func getPlaywrightMCPPackageVersion(playwrightConfig *PlaywrightToolConfig) stri
 
 // generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
 func generatePlaywrightDockerArgs(playwrightConfig *PlaywrightToolConfig) PlaywrightDockerArgs {
-	return PlaywrightDockerArgs{
+	args := PlaywrightDockerArgs{
 		ImageVersion:      getPlaywrightDockerImageVersion(playwrightConfig),
 		MCPPackageVersion: getPlaywrightMCPPackageVersion(playwrightConfig),
 	}
+	log.Printf("Playwright Docker args: image_version=%s, mcp_package_version=%s", args.ImageVersion, args.MCPPackageVersion)
+	return args
 }
 
 // extractExpressionsFromPlaywrightArgs extracts all GitHub Actions expressions from playwright arguments
 // Returns a map of environment variable names to their original expressions
 // Uses the same ExpressionExtractor as used for shell script security
 func extractExpressionsFromPlaywrightArgs(customArgs []string) map[string]string {
+	log.Printf("Extracting expressions from %d Playwright args", len(customArgs))
 	if len(customArgs) == 0 {
 		return make(map[string]string)
 	}
@@ -51,6 +54,7 @@ func extractExpressionsFromPlaywrightArgs(customArgs []string) map[string]string
 	extractor := NewExpressionExtractor()
 	mappings, err := extractor.ExtractExpressions(combined)
 	if err != nil {
+		log.Printf("Failed to extract expressions from Playwright args: %s", err)
 		return make(map[string]string)
 	}
 
@@ -60,6 +64,7 @@ func extractExpressionsFromPlaywrightArgs(customArgs []string) map[string]string
 		result[mapping.EnvVar] = mapping.Original
 	}
 
+	log.Printf("Extracted %d unique expressions from Playwright args", len(result))
 	return result
 }
 

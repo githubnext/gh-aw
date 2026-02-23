@@ -6611,6 +6611,10 @@
                   "items": {
                     "$ref": "#/$defs/githubActionsStep"
                   }
+                },
+                "runs-on": {
+                  "type": "string",
+                  "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
                 }
               },
               "additionalProperties": false

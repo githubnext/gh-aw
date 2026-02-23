@@ -92,7 +92,7 @@ func getSecretRequirementsForEngine(engine string, includeSystemSecrets bool, in
 func getEngineSecretDescription(opt *constants.EngineOption) string {
 	switch opt.Value {
 	case string(constants.CopilotEngine):
-		return "Fine-grained PAT with Copilot Requests permission and repo access where Copilot workflows run."
+		return "Fine-grained PAT with Copilot Requests permission."
 	case string(constants.ClaudeEngine):
 		return "API key from Anthropic Console for Claude API access."
 	case string(constants.CodexEngine):
@@ -237,8 +237,7 @@ func promptForSecret(req SecretRequirement, config EngineSecretConfig) error {
 // promptForCopilotPATUnified prompts the user for a Copilot PAT with detailed instructions
 func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig) error {
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with Copilot permissions.")
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Classic PATs (ghp_...) are not supported. You must use a fine-grained PAT (github_pat_...)."))
+	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with 'Copilot requests' permissions.")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Please create a token at:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  "+req.KeyURL))
@@ -247,9 +246,10 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
 	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
 	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting even for private repos)")
-	fmt.Fprintln(os.Stderr, "  • Account permissions → Copilot Requests: Read-only")
+	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting for Copilot Requests permission to appear)")
+	fmt.Fprintln(os.Stderr, "  • Add permissions → Copilot Requests: Read-only")
 	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
 
 	var token string
 	form := huh.NewForm(

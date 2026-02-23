@@ -184,3 +184,148 @@ func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestUnlockJobUsesRunsOn(t *testing.T) {
+	frontmatter := `---
+on:
+  issues:
+    types: [opened]
+    lock-for-agent: true
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: self-hosted
+---
+
+# Test Workflow
+
+This is a test workflow.`
+
+	tmpDir := testutil.TempDir(t, "workflow-unlock-runs-on-test")
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	yamlContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(yamlContent)
+
+	// Verify the unlock job uses the safe-outputs runs-on value
+	expectedRunsOn := "runs-on: self-hosted"
+	unlockJobPattern := "\n  unlock:"
+	unlockStart := strings.Index(yamlStr, unlockJobPattern)
+	if unlockStart == -1 {
+		t.Fatal("Expected unlock job to be present in compiled YAML")
+	}
+
+	unlockSection := yamlStr[unlockStart : unlockStart+500]
+	defaultRunsOn := "runs-on: " + constants.DefaultActivationJobRunnerImage
+	if strings.Contains(unlockSection, defaultRunsOn) {
+		t.Errorf("Unlock job uses default %q instead of safe-outputs runner.\nUnlock section:\n%s", defaultRunsOn, unlockSection)
+	}
+	if !strings.Contains(unlockSection, expectedRunsOn) {
+		t.Errorf("Unlock job does not use expected %q.\nUnlock section:\n%s", expectedRunsOn, unlockSection)
+	}
+}
+
+func TestDetectionJobRunsOnResolution(t *testing.T) {
+	tests := []struct {
+		name           string
+		frontmatter    string
+		expectedRunsOn string
+	}{
+		{
+			name: "detection uses agent runs-on by default (not safe-outputs runs-on)",
+			frontmatter: `---
+on: push
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: self-hosted
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name: "detection runs-on overrides agent runs-on",
+			frontmatter: `---
+on: push
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: self-hosted
+  threat-detection:
+    runs-on: detection-runner
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: detection-runner",
+		},
+		{
+			name: "detection falls back to agent runs-on (ubuntu-latest) when no runs-on configured",
+			frontmatter: `---
+on: push
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+---
+
+# Test Workflow
+
+This is a test workflow.`,
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "workflow-detection-runs-on-test")
+
+			testFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := filepath.Join(tmpDir, "test.lock.yml")
+			yamlContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			yamlStr := string(yamlContent)
+
+			// Verify the detection job uses the expected runs-on value
+			detectionJobPattern := "\n  detection:"
+			detectionStart := strings.Index(yamlStr, detectionJobPattern)
+			if detectionStart == -1 {
+				t.Fatal("Expected detection job to be present in compiled YAML")
+			}
+
+			detectionSection := yamlStr[detectionStart : detectionStart+500]
+			if !strings.Contains(detectionSection, tt.expectedRunsOn) {
+				t.Errorf("Detection job does not use expected %q.\nDetection section:\n%s", tt.expectedRunsOn, detectionSection)
+			}
+		})
+	}
+}
