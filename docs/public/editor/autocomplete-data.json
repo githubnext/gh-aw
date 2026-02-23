@@ -1490,6 +1490,12 @@
       "enum": [true, false],
       "leaf": true
     },
+    "private": {
+      "type": "boolean",
+      "desc": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'.",
+      "enum": [true, false],
+      "leaf": true
+    },
     "safe-inputs": {
       "type": "object",
       "desc": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."
@@ -1537,6 +1543,7 @@
     "bots",
     "rate-limit",
     "strict",
+    "private",
     "safe-inputs",
     "runtimes",
     "jobs"

@@ -565,9 +565,16 @@ on:
     query: "example-value"
 
     # Maximum number of items that must be matched for the workflow to be skipped.
-    # Defaults to 1 if not specified.
+    # Defaults to 1 if not specified. Supports integer or GitHub Actions expression
+    # (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
   # Conditionally skip workflow execution when a GitHub search query has no matches
   # (or fewer than minimum). Can be a string (query only, implies min=1) or an
@@ -1526,30 +1533,15 @@ tools:
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Enable Playwright tool with default settings (localhost access only
-  # for security)
+  # Option 1: Enable Playwright tool with default settings
   playwright: null
 
-  # Option 2: Playwright tool configuration with custom version and domain
-  # restrictions
+  # Option 2: Playwright tool configuration with custom version and arguments
   playwright:
     # Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric
     # values are automatically converted to strings at runtime.
     # (optional)
     version: null
-
-    # Domains allowed for Playwright browser network access. Defaults to localhost
-    # only for security.
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: List of allowed domains or patterns (e.g., ['github.com',
-    # '*.example.com'])
-    allowed_domains: []
-      # Array items: string
-
-    # Option 2: Single allowed domain (e.g., 'github.com')
-    allowed_domains: "example-value"
 
     # Optional additional arguments to append to the generated MCP server command
     # (optional)
@@ -1937,9 +1929,16 @@ safe-outputs:
     assignees: []
       # Array items: string
 
-    # Maximum number of issues to create (default: 1)
+    # Maximum number of issues to create (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository issue creation.
     # Takes precedence over trial target repo settings.
@@ -2006,9 +2005,16 @@ safe-outputs:
     # (optional)
     base: "example-value"
 
-    # Maximum number of agent sessions to create (default: 1)
+    # Maximum number of agent sessions to create (default: 1) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository agent session
     # creation. Takes precedence over trial target repo settings.
@@ -2045,9 +2051,16 @@ safe-outputs:
     # (optional)
     base: "example-value"
 
-    # Maximum number of agent sessions to create (default: 1)
+    # Maximum number of agent sessions to create (default: 1) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository agent session
     # creation. Takes precedence over trial target repo settings.
@@ -2091,9 +2104,16 @@ safe-outputs:
   # operation=create_fields), view (view config object when operation=create_view).
   update-project:
     # Maximum number of project operations to perform (default: 10). Each operation
-    # may add a project item, or update its fields.
+    # may add a project item, or update its fields. Supports integer or GitHub Actions
+    # expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -2163,9 +2183,16 @@ safe-outputs:
   # and optional field_definitions. Returns a temporary project ID for use in
   # subsequent update_project operations.
   create-project:
-    # Maximum number of create operations to perform (default: 1).
+    # Maximum number of create operations to perform (default: 1). Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Must have Projects write
     # permission. Overrides global github-token if specified.
@@ -2248,9 +2275,16 @@ safe-outputs:
   # inactive), dates, and progress details.
   create-project-status-update:
     # Maximum number of status updates to create (default: 1). Typically 1 per
-    # orchestrator run.
+    # orchestrator run. Supports integer or GitHub Actions expression (e.g. '${{
+    # inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified. Must have Projects: Read+Write permission.
@@ -2301,9 +2335,16 @@ safe-outputs:
     allowed-labels: []
       # Array of strings
 
-    # Maximum number of discussions to create (default: 1)
+    # Maximum number of discussions to create (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository discussion
     # creation. Takes precedence over trial target repo settings.
@@ -2386,9 +2427,16 @@ safe-outputs:
     # (optional)
     target: "example-value"
 
-    # Maximum number of discussions to close (default: 1)
+    # Maximum number of discussions to close (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository operations. Takes
     # precedence over trial target repo settings.
@@ -2430,9 +2478,16 @@ safe-outputs:
     allowed-labels: []
       # Array of strings
 
-    # Maximum number of discussions to update (default: 1)
+    # Maximum number of discussions to update (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository discussion
     # updates. Takes precedence over trial target repo settings.
@@ -2470,9 +2525,16 @@ safe-outputs:
     # (optional)
     target: "example-value"
 
-    # Maximum number of issues to close (default: 1)
+    # Maximum number of issues to close (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository operations. Takes
     # precedence over trial target repo settings.
@@ -2512,9 +2574,16 @@ safe-outputs:
     # (optional)
     target: "example-value"
 
-    # Maximum number of pull requests to close (default: 1)
+    # Maximum number of pull requests to close (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository operations. Takes
     # precedence over trial target repo settings.
@@ -2556,9 +2625,16 @@ safe-outputs:
     # (optional)
     target: "example-value"
 
-    # Maximum number of pull requests to mark as ready (default: 1)
+    # Maximum number of pull requests to mark as ready (default: 1) Supports integer
+    # or GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository operations. Takes
     # precedence over trial target repo settings.
@@ -2583,9 +2659,16 @@ safe-outputs:
   # Option 1: Configuration for automatically creating GitHub issue or pull request
   # comments from AI workflow output. The main job does not need write permissions.
   add-comment:
-    # Maximum number of comments to create (default: 1)
+    # Maximum number of comments to create (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target for comments: 'triggering' (default), '*' (any issue), or explicit issue
     # number
@@ -2636,9 +2719,16 @@ safe-outputs:
   # output. Supports creating multiple PRs in a single run when max > 1.
   create-pull-request:
     # Maximum number of pull requests to create (default: 1). Each PR requires
-    # distinct changes on a separate branch.
+    # distinct changes on a separate branch. Supports integer or GitHub Actions
+    # expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Optional prefix for the pull request title
     # (optional)
@@ -2673,9 +2763,10 @@ safe-outputs:
     reviewers: []
       # Array items: string
 
-    # Whether to create pull request as draft (defaults to true)
+    # Whether to create pull request as draft (defaults to true). Accepts a boolean or
+    # a GitHub Actions expression.
     # (optional)
-    draft: true
+    draft: null
 
     # Behavior when no changes to push: 'warn' (default - log warning but succeed),
     # 'error' (fail the action), or 'ignore' (silent success)
@@ -2756,9 +2847,16 @@ safe-outputs:
   # Option 1: Configuration for creating GitHub pull request review comments from
   # agentic workflow output
   create-pull-request-review-comment:
-    # Maximum number of review comments to create (default: 10)
+    # Maximum number of review comments to create (default: 10) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')
     # (optional)
@@ -2801,9 +2899,16 @@ safe-outputs:
   # create-pull-request-review-comment outputs are collected and submitted as part
   # of this review.
   submit-pull-request-review:
-    # Maximum number of reviews to submit (default: 1)
+    # Maximum number of reviews to submit (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Controls when AI-generated footer is added to the review body. Accepts boolean
     # (true/false) or string ('always', 'none', 'if-body'). The 'if-body' mode is
@@ -2841,9 +2946,16 @@ safe-outputs:
 
   # Option 1: Configuration for replying to existing pull request review comments
   reply-to-pull-request-review-comment:
-    # Maximum number of replies to create (default: 10)
+    # Maximum number of replies to create (default: 10) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target for replies: 'triggering' (default), '*' (any PR), or explicit PR number
     # (optional)
@@ -2880,9 +2992,16 @@ safe-outputs:
   # Resolution is scoped to the triggering PR only — threads on other PRs cannot be
   # resolved.
   resolve-pull-request-review-thread:
-    # Maximum number of review threads to resolve (default: 10)
+    # Maximum number of review threads to resolve (default: 10) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -2900,9 +3019,16 @@ safe-outputs:
   # Option 1: Configuration for creating repository security advisories (SARIF
   # format) from agentic workflow output
   create-code-scanning-alert:
-    # Maximum number of security findings to include (default: unlimited)
+    # Maximum number of security findings to include (default: unlimited) Supports
+    # integer or GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Driver name for SARIF tool.driver.name field (default: 'GitHub Agentic Workflows
     # Security Scanner')
@@ -2925,9 +3051,16 @@ safe-outputs:
 
   # Option 1: Configuration for creating autofixes for code scanning alerts
   autofix-code-scanning-alert:
-    # Maximum number of autofixes to create (default: 10)
+    # Maximum number of autofixes to create (default: 10) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -2964,9 +3097,16 @@ safe-outputs:
     blocked: []
       # Array of strings
 
-    # Optional maximum number of labels to add (default: 3)
+    # Optional maximum number of labels to add (default: 3) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit
     # issue/PR number
@@ -3014,9 +3154,16 @@ safe-outputs:
     blocked: []
       # Array of strings
 
-    # Optional maximum number of labels to remove (default: 3)
+    # Optional maximum number of labels to remove (default: 3) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit
     # issue/PR number
@@ -3049,9 +3196,16 @@ safe-outputs:
     reviewers: []
       # Array of strings
 
-    # Optional maximum number of reviewers to add (default: 3)
+    # Optional maximum number of reviewers to add (default: 3) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target for reviewers: 'triggering' (default), '*' (any PR), or explicit PR
     # number
@@ -3085,9 +3239,16 @@ safe-outputs:
     allowed: []
       # Array of strings
 
-    # Optional maximum number of milestone assignments (default: 1)
+    # Optional maximum number of milestone assignments (default: 1) Supports integer
+    # or GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository milestone
     # assignment. Takes precedence over trial target repo settings.
@@ -3137,9 +3298,16 @@ safe-outputs:
     allowed: []
       # Array of strings
 
-    # Optional maximum number of agent assignments (default: 1)
+    # Optional maximum number of agent assignments (default: 1) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target issue/PR to assign agents to. Use 'triggering' (default) for the
     # triggering issue/PR, '*' to require explicit issue_number/pull_number, or a
@@ -3210,9 +3378,16 @@ safe-outputs:
     blocked: []
       # Array of strings
 
-    # Optional maximum number of user assignments (default: 1)
+    # Optional maximum number of user assignments (default: 1) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target issue to assign users to. Use 'triggering' (default) for the triggering
     # issue, '*' to allow any issue, or a specific issue number.
@@ -3258,9 +3433,16 @@ safe-outputs:
     blocked: []
       # Array of strings
 
-    # Optional maximum number of unassignment operations (default: 1)
+    # Optional maximum number of unassignment operations (default: 1) Supports integer
+    # or GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target issue to unassign users from. Use 'triggering' (default) for the
     # triggering issue, '*' to allow any issue, or a specific issue number.
@@ -3294,9 +3476,16 @@ safe-outputs:
   # Option 2: Configuration for linking issues as sub-issues from agentic workflow
   # output
   link-sub-issue:
-    # Maximum number of sub-issue links to create (default: 5)
+    # Maximum number of sub-issue links to create (default: 5) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Optional list of labels that parent issues must have to be eligible for linking
     # (optional)
@@ -3358,9 +3547,16 @@ safe-outputs:
     # (optional)
     footer: true
 
-    # Maximum number of issues to update (default: 1)
+    # Maximum number of issues to update (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository issue updates.
     # Takes precedence over trial target repo settings.
@@ -3401,9 +3597,22 @@ safe-outputs:
     # (optional)
     operation: "append"
 
-    # Maximum number of pull requests to update (default: 1)
+    # Controls whether AI-generated footer is added when updating the pull request
+    # body. When false, the visible footer content is omitted but XML markers are
+    # still included. Defaults to true. Only applies when 'body' is enabled.
     # (optional)
+    footer: true
+
+    # Maximum number of pull requests to update (default: 1) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository pull request
     # updates. Takes precedence over trial target repo settings.
@@ -3432,9 +3641,16 @@ safe-outputs:
   # workflow output. Supports pushing to multiple PRs in a single run when max > 1.
   push-to-pull-request-branch:
     # Maximum number of push operations to perform (default: 1). Each push targets a
-    # different pull request branch.
+    # different pull request branch. Supports integer or GitHub Actions expression
+    # (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # The branch to push changes to (defaults to 'triggering')
     # (optional)
@@ -3487,9 +3703,16 @@ safe-outputs:
   # Option 2: Configuration for hiding comments on GitHub issues, pull requests, or
   # discussions from agentic workflow output
   hide-comment:
-    # Maximum number of comments to hide (default: 5)
+    # Maximum number of comments to hide (default: 5) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository in format 'owner/repo' for cross-repository comment hiding.
     # Takes precedence over trial target repo settings.
@@ -3523,8 +3746,15 @@ safe-outputs:
       # Array of strings
 
     # Maximum number of workflow dispatch operations per run (default: 1, max: 50)
+    # Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for dispatching workflows. Overrides global github-token if
     # specified.
@@ -3543,9 +3773,16 @@ safe-outputs:
 
   # Option 1: Configuration for reporting missing tools from agentic workflow output
   missing-tool:
-    # Maximum number of missing tool reports (default: unlimited)
+    # Maximum number of missing tool reports (default: unlimited) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Whether to create or update GitHub issues when tools are missing (default: true)
     # (optional)
@@ -3582,9 +3819,16 @@ safe-outputs:
   # goals. Encourages AI agents to be truthful about data gaps instead of
   # hallucinating information.
   missing-data:
-    # Maximum number of missing data reports (default: unlimited)
+    # Maximum number of missing data reports (default: unlimited) Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Whether to create or update GitHub issues when data is missing (default: true)
     # (optional)
@@ -3620,9 +3864,16 @@ safe-outputs:
   # Option 1: Configuration for no-op safe output (logging only, no GitHub API
   # calls). Always available as a fallback to ensure human-visible artifacts.
   noop:
-    # Maximum number of noop messages (default: 1)
+    # Maximum number of noop messages (default: 1) Supports integer or GitHub Actions
+    # expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -3661,9 +3912,16 @@ safe-outputs:
     allowed-exts: []
       # Array of strings
 
-    # Maximum number of assets to upload (default: 10)
+    # Maximum number of assets to upload (default: 10) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -3680,9 +3938,16 @@ safe-outputs:
 
   # Option 1: Configuration for updating GitHub release descriptions
   update-release:
-    # Maximum number of releases to update (default: 1)
+    # Maximum number of releases to update (default: 1) Supports integer or GitHub
+    # Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
     # Target repository for cross-repo release updates (format: owner/repo). If not
     # specified, updates releases in the workflow's repository.
@@ -3895,9 +4160,16 @@ safe-outputs:
     allowed: []
       # Array of strings
 
-    # Maximum number of mentions allowed per message. Default: 50
+    # Maximum number of mentions allowed per message. Default: 50 Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
     max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
 
   # Global footer control for all safe outputs. When false, omits visible
   # AI-generated footer content from all created/updated entities (issues, PRs,
@@ -3912,6 +4184,18 @@ safe-outputs:
   # unnecessary in smaller repositories. Defaults to false.
   # (optional)
   group-reports: true
+
+  # Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456')
+  # allowed in output before all of them are neutralized. Default: 10. Supports
+  # integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: integer
+  max-bot-mentions: 1
+
+  # Option 2: GitHub Actions expression that resolves to an integer at runtime
+  max-bot-mentions: "example-value"
 
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
@@ -3942,8 +4226,15 @@ bots: []
 # (optional)
 rate-limit:
   # Maximum number of workflow runs allowed per user within the time window.
-  # Required field.
+  # Required field. Supports integer or GitHub Actions expression (e.g. '${{
+  # inputs.max }}').
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: integer
   max: 1
+
+  # Option 2: GitHub Actions expression that resolves to an integer at runtime
+  max: "example-value"
 
   # Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180
   # (3 hours).
@@ -3979,6 +4270,12 @@ rate-limit:
 # https://github.github.com/gh-aw/reference/frontmatter/#strict-mode-strict
 # (optional)
 strict: true
+
+# Mark the workflow as private, preventing it from being added to other
+# repositories via 'gh aw add'. A workflow with private: true is not meant to be
+# shared outside its repository.
+# (optional)
+private: true
 
 # Safe inputs configuration for defining custom lightweight MCP tools as
 # JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
