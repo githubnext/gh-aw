@@ -54,22 +54,6 @@ func extractToolsFromContent(content string) (string, error) {
 	return strings.TrimSpace(string(extractedJSON)), nil
 }
 
-// extractSafeOutputsFromContent extracts safe-outputs section from frontmatter as JSON string
-func extractSafeOutputsFromContent(content string) (string, error) {
-	contentExtractorLog.Print("Extracting safe-outputs from content")
-	return extractFrontmatterField(content, "safe-outputs", "{}")
-}
-
-// extractSafeInputsFromContent extracts safe-inputs section from frontmatter as JSON string
-func extractSafeInputsFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "safe-inputs", "{}")
-}
-
-// extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string
-func extractMCPServersFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "mcp-servers", "{}")
-}
-
 // extractStepsFromContent extracts steps section from frontmatter as YAML string
 func extractStepsFromContent(content string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
@@ -90,16 +74,6 @@ func extractStepsFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(stepsYAML)), nil
-}
-
-// extractEngineFromContent extracts engine section from frontmatter as JSON string
-func extractEngineFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "engine", "")
-}
-
-// extractRuntimesFromContent extracts runtimes section from frontmatter as JSON string
-func extractRuntimesFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "runtimes", "{}")
 }
 
 // extractServicesFromContent extracts services section from frontmatter as YAML string
@@ -124,39 +98,9 @@ func extractServicesFromContent(content string) (string, error) {
 	return strings.TrimSpace(string(servicesYAML)), nil
 }
 
-// extractNetworkFromContent extracts network section from frontmatter as JSON string
-func extractNetworkFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "network", "{}")
-}
-
 // ExtractPermissionsFromContent extracts permissions section from frontmatter as JSON string
 func ExtractPermissionsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "permissions", "{}")
-}
-
-// extractSecretMaskingFromContent extracts secret-masking section from frontmatter as JSON string
-func extractSecretMaskingFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "secret-masking", "{}")
-}
-
-// extractBotsFromContent extracts bots section from frontmatter as JSON string
-func extractBotsFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "bots", "[]")
-}
-
-// extractSkipRolesFromContent extracts skip-roles from on: section as JSON string
-func extractSkipRolesFromContent(content string) (string, error) {
-	return extractOnSectionField(content, "skip-roles")
-}
-
-// extractSkipBotsFromContent extracts skip-bots from on: section as JSON string
-func extractSkipBotsFromContent(content string) (string, error) {
-	return extractOnSectionField(content, "skip-bots")
-}
-
-// extractPluginsFromContent extracts plugins section from frontmatter as JSON string
-func extractPluginsFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "plugins", "[]")
 }
 
 // extractPostStepsFromContent extracts post-steps section from frontmatter as YAML string
@@ -179,21 +123,6 @@ func extractPostStepsFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(postStepsYAML)), nil
-}
-
-// extractLabelsFromContent extracts labels section from frontmatter as JSON string
-func extractLabelsFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "labels", "[]")
-}
-
-// extractCacheFromContent extracts cache section from frontmatter as JSON string
-func extractCacheFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "cache", "{}")
-}
-
-// extractFeaturesFromContent extracts features section from frontmatter as JSON string
-func extractFeaturesFromContent(content string) (string, error) {
-	return extractFrontmatterField(content, "features", "{}")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string

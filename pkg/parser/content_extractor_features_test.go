@@ -19,7 +19,7 @@ features:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error on valid features")
 	assert.NotEmpty(t, result, "Should return non-empty result")
 	assert.Contains(t, result, "feature1", "Should contain feature1")
@@ -35,7 +35,7 @@ on: issues
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error when no features")
 	assert.Equal(t, "{}", result, "Should return empty object when no features")
 }
@@ -47,7 +47,7 @@ features: {}
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error on empty features")
 	assert.Equal(t, "{}", result, "Should return empty object for empty features")
 }
@@ -57,7 +57,7 @@ func TestExtractFeaturesFromContent_NoFrontmatter(t *testing.T) {
 
 This workflow has no frontmatter.
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error when no frontmatter")
 	assert.Equal(t, "{}", result, "Should return empty object when no frontmatter")
 }
@@ -78,7 +78,7 @@ features:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error on complex features")
 	assert.NotEmpty(t, result, "Should return non-empty result")
 	assert.Contains(t, result, "string-feature", "Should contain string-feature")
@@ -95,7 +95,7 @@ features: [this is not valid yaml
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	// Should return empty object on error, not propagate error
 	require.NoError(t, err, "Should not error on malformed YAML")
 	assert.Equal(t, "{}", result, "Should return empty object on malformed YAML")
@@ -112,7 +112,7 @@ features:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error on features with special characters")
 	assert.NotEmpty(t, result, "Should return non-empty result")
 	// The exact keys depend on YAML parsing, but we should get some features
@@ -127,7 +127,7 @@ features:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error")
 	assert.NotEmpty(t, result, "Should return features")
 	assert.Contains(t, result, "test-feature", "Should contain test-feature")
@@ -146,7 +146,7 @@ permissions:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error")
 	assert.NotEmpty(t, result, "Should return features")
 	assert.Contains(t, result, "test-feature", "Should contain test-feature")
@@ -169,7 +169,7 @@ features:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error")
 	assert.NotEmpty(t, result, "Should return features")
 	// All these should be parsed as boolean features
@@ -188,7 +188,7 @@ features:
 
 # Test Workflow
 `
-	result, err := extractFeaturesFromContent(content)
+	result, err := extractFrontmatterField(content, "features", "{}")
 	require.NoError(t, err, "Should not error")
 	assert.NotEmpty(t, result, "Should return features")
 	assert.Contains(t, result, "int-feature", "Should contain int-feature")

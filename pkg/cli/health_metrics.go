@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/timeutil"
 )
 
 var healthMetricsLog = logger.New("cli:health_metrics")
@@ -120,7 +121,7 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 
 	// Format display values
 	displayRate := fmt.Sprintf("%.0f%%  (%d/%d)", successRate, successCount, totalRuns)
-	displayDur := formatDuration(avgDuration)
+	displayDur := timeutil.FormatDuration(avgDuration)
 	displayTokens := formatTokens(avgTokens)
 	displayCost := formatCost(avgCost)
 
@@ -194,37 +195,6 @@ func calculateSuccessRate(runs []WorkflowRun) float64 {
 	}
 
 	return float64(successCount) / float64(len(runs)) * 100
-}
-
-// formatDuration formats a duration in a human-readable format
-func formatDuration(d time.Duration) string {
-	if d == 0 {
-		return "0s"
-	}
-
-	// Round to seconds
-	seconds := int(d.Seconds())
-	if seconds < 60 {
-		return fmt.Sprintf("%ds", seconds)
-	}
-
-	minutes := seconds / 60
-	remainingSeconds := seconds % 60
-
-	if minutes < 60 {
-		if remainingSeconds > 0 {
-			return fmt.Sprintf("%dm %ds", minutes, remainingSeconds)
-		}
-		return fmt.Sprintf("%dm", minutes)
-	}
-
-	hours := minutes / 60
-	remainingMinutes := minutes % 60
-
-	if remainingMinutes > 0 {
-		return fmt.Sprintf("%dh %dm", hours, remainingMinutes)
-	}
-	return fmt.Sprintf("%dh", hours)
 }
 
 // CalculateHealthSummary calculates aggregated health metrics across all workflows

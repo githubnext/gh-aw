@@ -632,25 +632,25 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract engines from imported file
-		engineContent, err := extractEngineFromContent(string(content))
+		engineContent, err := extractFrontmatterField(string(content), "engine", "")
 		if err == nil && engineContent != "" {
 			engines = append(engines, engineContent)
 		}
 
 		// Extract mcp-servers from imported file
-		mcpServersContent, err := extractMCPServersFromContent(string(content))
+		mcpServersContent, err := extractFrontmatterField(string(content), "mcp-servers", "{}")
 		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 			mcpServersBuilder.WriteString(mcpServersContent + "\n")
 		}
 
 		// Extract safe-outputs from imported file
-		safeOutputsContent, err := extractSafeOutputsFromContent(string(content))
+		safeOutputsContent, err := extractFrontmatterField(string(content), "safe-outputs", "{}")
 		if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
 			safeOutputs = append(safeOutputs, safeOutputsContent)
 		}
 
 		// Extract safe-inputs from imported file
-		safeInputsContent, err := extractSafeInputsFromContent(string(content))
+		safeInputsContent, err := extractFrontmatterField(string(content), "safe-inputs", "{}")
 		if err == nil && safeInputsContent != "" && safeInputsContent != "{}" {
 			safeInputs = append(safeInputs, safeInputsContent)
 		}
@@ -662,7 +662,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract runtimes from imported file
-		runtimesContent, err := extractRuntimesFromContent(string(content))
+		runtimesContent, err := extractFrontmatterField(string(content), "runtimes", "{}")
 		if err == nil && runtimesContent != "" && runtimesContent != "{}" {
 			runtimesBuilder.WriteString(runtimesContent + "\n")
 		}
@@ -674,7 +674,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract network from imported file
-		networkContent, err := extractNetworkFromContent(string(content))
+		networkContent, err := extractFrontmatterField(string(content), "network", "{}")
 		if err == nil && networkContent != "" && networkContent != "{}" {
 			networkBuilder.WriteString(networkContent + "\n")
 		}
@@ -686,13 +686,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract secret-masking from imported file
-		secretMaskingContent, err := extractSecretMaskingFromContent(string(content))
+		secretMaskingContent, err := extractFrontmatterField(string(content), "secret-masking", "{}")
 		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
 
 		// Extract and merge bots from imported file (merge into set to avoid duplicates)
-		botsContent, err := extractBotsFromContent(string(content))
+		botsContent, err := extractFrontmatterField(string(content), "bots", "[]")
 		if err == nil && botsContent != "" && botsContent != "[]" {
 			// Parse bots JSON array
 			var importedBots []string
@@ -707,7 +707,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract and merge skip-roles from imported file (merge into set to avoid duplicates)
-		skipRolesContent, err := extractSkipRolesFromContent(string(content))
+		skipRolesContent, err := extractOnSectionField(string(content), "skip-roles")
 		if err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
 			// Parse skip-roles JSON array
 			var importedSkipRoles []string
@@ -722,7 +722,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract and merge skip-bots from imported file (merge into set to avoid duplicates)
-		skipBotsContent, err := extractSkipBotsFromContent(string(content))
+		skipBotsContent, err := extractOnSectionField(string(content), "skip-bots")
 		if err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
 			// Parse skip-bots JSON array
 			var importedSkipBots []string
@@ -738,7 +738,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 		// Extract and merge plugins from imported file (merge into set to avoid duplicates)
 		// This now handles both simple string format and object format with MCP configs
-		pluginsContent, err := extractPluginsFromContent(string(content))
+		pluginsContent, err := extractFrontmatterField(string(content), "plugins", "[]")
 		if err == nil && pluginsContent != "" && pluginsContent != "[]" {
 			// Parse plugins - can be array of strings or objects
 			var pluginsRaw []any
@@ -772,7 +772,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract labels from imported file (merge into set to avoid duplicates)
-		labelsContent, err := extractLabelsFromContent(string(content))
+		labelsContent, err := extractFrontmatterField(string(content), "labels", "[]")
 		if err == nil && labelsContent != "" && labelsContent != "[]" {
 			// Parse labels JSON array
 			var importedLabels []string
@@ -787,13 +787,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract cache from imported file (append to list of caches)
-		cacheContent, err := extractCacheFromContent(string(content))
+		cacheContent, err := extractFrontmatterField(string(content), "cache", "{}")
 		if err == nil && cacheContent != "" && cacheContent != "{}" {
 			caches = append(caches, cacheContent)
 		}
 
 		// Extract features from imported file (parse as map structure)
-		featuresContent, err := extractFeaturesFromContent(string(content))
+		featuresContent, err := extractFrontmatterField(string(content), "features", "{}")
 		if err == nil && featuresContent != "" && featuresContent != "{}" {
 			// Parse JSON to map structure
 			var featuresMap map[string]any
