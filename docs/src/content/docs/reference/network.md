@@ -211,7 +211,7 @@ When enabled, AWF:
 
 ### Claude Engine
 
-The Claude engine supports network permissions through AWF (Agent Workflow Firewall), the same firewall infrastructure used by the Copilot engine.
+The Claude engine supports network permissions through AWF (Agent Workflow Firewall).
 
 Enable network permissions in your workflow:
 
