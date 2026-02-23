@@ -33,6 +33,7 @@ func translateSchemaConstraintMessage(message string) string {
 
 // cleanJSONSchemaErrorMessage removes unhelpful prefixes from jsonschema validation errors
 func cleanJSONSchemaErrorMessage(errorMsg string) string {
+	log.Printf("Cleaning JSON schema error message (%d chars)", len(errorMsg))
 	// Split the error message into lines
 	lines := strings.Split(errorMsg, "\n")
 
@@ -83,6 +84,7 @@ func cleanOneOfMessage(message string) string {
 		return message
 	}
 
+	log.Printf("Simplifying oneOf error message (%d lines)", len(strings.Split(message, "\n")))
 	lines := strings.Split(message, "\n")
 	var meaningful []string
 
@@ -213,6 +215,7 @@ func rewriteAdditionalPropertiesError(message string) string {
 
 		if len(match) >= 2 {
 			properties := normalizeAdditionalPropertyList(match[1])
+			log.Printf("Rewriting additional properties error: %s", properties)
 
 			if strings.Contains(properties, ",") {
 				return "Unknown properties: " + properties
