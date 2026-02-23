@@ -611,8 +611,12 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 		return false, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	// Extract hash from lock file
-	existingHash := extractHashFromLockFile(string(lockContent))
+	// Extract hash from lock file using the workflow package function
+	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(lockContent))
+	var existingHash string
+	if err == nil && metadata != nil {
+		existingHash = metadata.FrontmatterHash
+	}
 	if existingHash == "" {
 		runPushLog.Print("No frontmatter-hash found in lock file")
 		// No hash in lock file - consider it stale to regenerate with hash
@@ -637,25 +641,4 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 	}
 
 	return mismatch, nil
-}
-
-// extractHashFromLockFile extracts the frontmatter-hash from a lock file content.
-// Supports both the new JSON metadata format (# gh-aw-metadata: {...})
-// and the legacy format (# frontmatter-hash: <hash>).
-func extractHashFromLockFile(content string) string {
-	// First, try to extract from JSON metadata format using the proper workflow package function
-	if metadata, _, err := workflow.ExtractMetadataFromLockFile(content); err == nil && metadata != nil {
-		if metadata.FrontmatterHash != "" {
-			return metadata.FrontmatterHash
-		}
-	}
-
-	// Fallback to legacy format: # frontmatter-hash: <hash>
-	lines := strings.SplitSeq(content, "\n")
-	for line := range lines {
-		if len(line) > 20 && line[:20] == "# frontmatter-hash: " {
-			return strings.TrimSpace(line[20:])
-		}
-	}
-	return ""
 }
