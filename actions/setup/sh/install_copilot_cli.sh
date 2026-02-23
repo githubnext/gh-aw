@@ -87,11 +87,11 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-curl -fsSL -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
+curl -fsSL --retry 3 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
 
 # Download binary tarball
 echo "Downloading binary from ${TARBALL_URL}..."
-curl -fsSL -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
+curl -fsSL --retry 3 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
 
 # Verify checksum
 echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."
