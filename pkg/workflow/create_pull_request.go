@@ -171,6 +171,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		if extraEmptyCommitToken == "app" {
 			customEnvVars = append(customEnvVars, "          GH_AW_EXTRA_EMPTY_COMMIT_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
 			createPRLog.Print("Extra empty commit using GitHub App token")
+		} else if extraEmptyCommitToken == "default" {
+			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret as fallback
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_EXTRA_EMPTY_COMMIT_TOKEN: %s\n", getEffectiveCITriggerGitHubToken("")))
+			createPRLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
 		} else {
 			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_EXTRA_EMPTY_COMMIT_TOKEN: %s\n", extraEmptyCommitToken))
 			createPRLog.Printf("Extra empty commit using explicit token")

@@ -36,7 +36,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: "myorg/downstream-service"
     title-prefix: "[sync] "
@@ -71,7 +71,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     max: 3
     title-prefix: "[core-sync] "
@@ -103,7 +103,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: "myorg/production-service"
     title-prefix: "[upgrade] "
@@ -139,7 +139,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: "myorg/client-sdk"
     title-prefix: "[types] "
@@ -173,7 +173,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: "myorg/sister-project"
     title-prefix: "[config-sync] "
@@ -208,7 +208,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: "myorg/integration-tests"
     title-prefix: "[feature-test] "
@@ -238,7 +238,7 @@ tools:
   bash:
     - "git:*"
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: "myorg/downstream-fork"
     title-prefix: "[weekly-sync] "
@@ -260,7 +260,7 @@ Cross-repo sync workflows require authentication via PAT or GitHub App.
 Create a PAT with `repo`, `contents: write`, and `pull-requests: write` permissions, then store it as a repository secret:
 
 ```bash
-gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
+gh aw secrets set GH_AW_CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 ### GitHub App Configuration
@@ -272,4 +272,4 @@ For enhanced security, use GitHub App installation tokens. See [Using a GitHub A
 - [MultiRepoOps Design Pattern](/gh-aw/patterns/multi-repo-ops/) - Complete multi-repo overview
 - [Cross-Repo Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) - Issue management patterns
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Pull request configuration
-- [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - Repository access tools
+- [GitHub Tools](/gh-aw/reference/github-tools/) - Repository access tools

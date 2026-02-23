@@ -132,17 +132,6 @@ tools:
 ```
 Local mode runs the MCP server in a Docker container, useful for pinning specific versions or offline environments.
 
-### Authentication
-
-Tokens are used in order: `github-token` configuration field, [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) secret, then `GITHUB_TOKEN` (default).
-
-```yaml wrap
-tools:
-  github:
-    github-token: "${{ secrets.CUSTOM_PAT }}"  # Optional custom token
-    toolsets: [default]
-```
-
 ### Read-Only Mode
 
 Restrict operations to read-only for security-sensitive workflows:
@@ -314,7 +303,7 @@ gh aw compile my-workflow --validate --strict
 
 **Tool not found:** Run `gh aw mcp inspect my-workflow` to verify available tools. Ensure the correct toolset is enabled or that tool names in `allowed:` match exactly.
 
-**Authentication errors:** Verify the secret exists in repository settings and has required scopes. For remote mode, set [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) with a PAT.
+**Authentication errors:** Verify the secret exists in repository settings and has required scopes.
 
 **Connection failures:** Check URL syntax for HTTP servers, network configuration for containers, and verify Docker images exist.
 

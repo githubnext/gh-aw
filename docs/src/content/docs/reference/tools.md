@@ -52,75 +52,9 @@ tools:
 
 ## GitHub Tools (`github:`)
 
-Configure GitHub API operations.
+Configure GitHub API operations including toolsets, remote/local modes, and authentication.
 
-```yaml wrap
-tools:
-  github:                                      # Default read-only access
-  github:
-    toolsets: [repos, issues, pull_requests]   # Recommended: toolset groups
-    mode: remote                               # "local" (Docker) or "remote" (hosted)
-    read-only: true                            # Read-only operations
-    github-token: "${{ secrets.CUSTOM_PAT }}"  # Custom token
-```
-
-### GitHub Toolsets
-
-Enable specific API groups to improve tool selection and reduce context size:
-
-```yaml wrap
-tools:
-  github:
-    toolsets: [repos, issues, pull_requests, actions]
-```
-
-**Available**: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`
-
-**Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
-
-> [!NOTE]
-> GitHub Actions Compatibility
-> `toolsets: [default]` expands to `[context, repos, issues, pull_requests]` (excluding `users`) since `GITHUB_TOKEN` lacks user permissions. Use a PAT for the full default set.
-
-Key toolsets: **context** (user/team info), **repos** (repository operations, code search, commits, releases), **issues** (issue management, comments, reactions), **pull_requests** (PR operations), **actions** (workflows, runs, artifacts), **code_security** (scanning alerts), **discussions**, **labels**.
-
-### Remote vs Local Mode
-
-**Remote Mode**: Use hosted MCP server for faster startup (no Docker). Requires [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token):
-
-```yaml wrap
-tools:
-  github:
-    mode: remote  # Default: "local" (Docker)
-```
-
-**Local Mode**: Use Docker container for isolation. Requires `docker` tool and appropriate permissions:
-
-```yaml wrap
-tools:
-  docker:
-  github:
-    mode: local
-```
-
-### Lockdown Mode for Public Repositories
-
-Lockdown Mode is a security feature that filters public repository content to only show issues, PRs, and comments from users with push access. Automatically enabled for public repositories when using custom tokens. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete documentation.
-
-```yaml wrap
-tools:
-  github:
-    lockdown: true   # Force enable (automatic for public repos)
-    lockdown: false  # Disable (for workflows processing all user input)
-```
-
-### GitHub App Authentication
-
-Use GitHub App tokens for enhanced security with short-lived, automatically-revoked credentials. GitHub Apps provide on-demand token minting at workflow start, automatic revocation at workflow end (even on failure), and permissions automatically mapped from your job's `permissions` field.
-
-See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete setup, configuration details, and security benefits.
-
-**Token precedence**: GitHub App → `github-token` → [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_mcp_server_token) → [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) → `GITHUB_TOKEN`
+See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
 
 ## Playwright Tool (`playwright:`)
 
@@ -226,6 +160,7 @@ The `registry` field is informational and does not affect server execution. It c
 
 ## Related Documentation
 
+- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations, toolsets, and modes
 - [Safe Inputs](/gh-aw/reference/safe-inputs/) - Define custom inline tools with JavaScript or shell scripts
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
 - [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines

@@ -31,7 +31,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "myorg/central-tracker"
     title-prefix: "[component-alpha] "
@@ -66,7 +66,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   add-comment:
     target-repo: "myorg/central-tracker"
     target: "*"  # Find related tracking issue
@@ -99,7 +99,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     max: 3  # May create issues in multiple tracking repos
     target-repo: "myorg/central-tracker"
@@ -136,7 +136,7 @@ tools:
     toolsets: [issues]
   web-fetch:
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "myorg/dependency-tracker"
     title-prefix: "[upstream] "
@@ -168,7 +168,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     max: 2
     title-prefix: "[auto-triaged] "
@@ -197,7 +197,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-discussion:
     target-repo: "myorg/central-tracker"
     category: "Status Reports"
@@ -228,7 +228,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "myorg/central-tracker"
     title-prefix: "[linked] "
@@ -261,7 +261,7 @@ tools:
   github:
     toolsets: [issues]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     max: 1
     title-prefix: "[priority-routed] "
@@ -285,7 +285,7 @@ Cross-repo issue tracking requires appropriate authentication:
 
 ```bash
 # Create PAT with issues and repository read permissions
-gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
+gh aw secrets set GH_AW_CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 **Required Permissions:**
@@ -301,4 +301,4 @@ For enhanced security, use GitHub App installation tokens. See [Using a GitHub A
 - [MultiRepoOps Design Pattern](/gh-aw/patterns/multi-repo-ops/) - Complete multi-repo overview
 - [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) - Code sync patterns
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Issue creation configuration
-- [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - API access configuration
+- [GitHub Tools](/gh-aw/reference/github-tools/) - API access configuration

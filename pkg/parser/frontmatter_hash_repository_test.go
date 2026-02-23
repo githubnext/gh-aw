@@ -3,8 +3,10 @@
 package parser
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -117,7 +119,7 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 		require.NoError(t, err, "Should read lock file for %s", filepath.Base(lockFile))
 
 		// Extract hash from lock file comment
-		lockHash := extractHashFromLockFile(string(lockContent))
+		lockHash := extractHashFromLockFileContent(string(lockContent))
 
 		if lockHash == "" {
 			t.Logf("  ⚠ %s: No hash in lock file (may need recompilation)", filepath.Base(mdFile))
@@ -138,29 +140,25 @@ func TestHashConsistencyAcrossLockFiles(t *testing.T) {
 	t.Logf("\nVerified hash consistency for %d workflows", checkedCount)
 }
 
-// extractHashFromLockFile extracts the frontmatter-hash from a lock file
-func extractHashFromLockFile(content string) string {
-	// Look for: # frontmatter-hash: <hash>
-	lines := splitLines(content)
-	for _, line := range lines {
-		if len(line) > 20 && line[:20] == "# frontmatter-hash: " {
-			return line[20:]
+// extractHashFromLockFileContent extracts the frontmatter-hash from lock file content.
+// Supports both JSON metadata format (# gh-aw-metadata: {...}) and legacy format.
+func extractHashFromLockFileContent(content string) string {
+	// Try JSON metadata format first: # gh-aw-metadata: {...}
+	metadataPattern := regexp.MustCompile(`#\s*gh-aw-metadata:\s*(\{.+\})`)
+	if matches := metadataPattern.FindStringSubmatch(content); len(matches) >= 2 {
+		var metadata struct {
+			FrontmatterHash string `json:"frontmatter_hash"`
+		}
+		if err := json.Unmarshal([]byte(matches[1]), &metadata); err == nil && metadata.FrontmatterHash != "" {
+			return metadata.FrontmatterHash
 		}
 	}
-	return ""
-}
 
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := range len(s) {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
+	// Fallback to legacy format: # frontmatter-hash: <hash>
+	hashPattern := regexp.MustCompile(`#\s*frontmatter-hash:\s*([0-9a-f]{64})`)
+	if matches := hashPattern.FindStringSubmatch(content); len(matches) >= 2 {
+		return matches[1]
 	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
+
+	return ""
 }

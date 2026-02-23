@@ -345,7 +345,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. This uses the same token resolution as Copilot agent assignment: `github-token:`, [`GH_AW_AGENT_TOKEN`](/gh-aw/reference/auth/#gh_aw_agent_token) (or [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token), falling back to `GITHUB_TOKEN`).
+Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
 
 ### Assign Milestone (`assign-milestone:`)
 
@@ -440,7 +440,7 @@ Agent output includes `parent_issue_number` and `sub_issue_number`. Validation e
 
 ### Project Creation (`create-project:`)
 
-Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token))-default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
+Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
 
 ```yaml wrap
 safe-outputs:
@@ -496,7 +496,7 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 
 ### Project Board Updates (`update-project:`)
 
-Manages GitHub Projects boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token))-default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
+Manages GitHub Projects boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
 
 ```yaml wrap
 safe-outputs:
@@ -594,7 +594,7 @@ Views are created automatically during workflow execution. The workflow must inc
 
 ### Project Status Updates (`create-project-status-update:`)
 
-Creates status updates on GitHub Projects boards to communicate progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token))-default `GITHUB_TOKEN` lacks Projects v2 access.
+Creates status updates on GitHub Projects boards to communicate progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access.
 
 ```yaml wrap
 safe-outputs:
@@ -1104,13 +1104,11 @@ To respect GitHub API rate limits, the handler automatically enforces a 5-second
 
 ### Agent Session Creation (`create-agent-session:`)
 
-Creates Copilot coding agent sessions. Requires [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) or [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) PAT-default `GITHUB_TOKEN` lacks permissions.
+Creates Copilot coding agent sessions.
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as [`GH_AW_AGENT_TOKEN`](/gh-aw/reference/auth/#gh_aw_agent_token), or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
-
-Auto-resolves target from workflow context (issue/PR events) when `issue_number` or `pull_number` not explicitly provided. Restrict with `allowed` list. Target: `"triggering"` (default), `"*"` (any), or number.
+Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
 
 ```yaml wrap
 safe-outputs:
@@ -1129,29 +1127,9 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-**Target Issue or Pull Request:**
+See **[Assign to Copilot](/gh-aw/reference/assign-to-copilot/)** for complete configuration options and authorization setup.
 
-- `target: "triggering"` - Auto-resolves from `github.event.issue.number` or `github.event.pull_request.number`
-- `target: "*"` - Requires explicit `issue_number` or `pull_number` in agent output
-- `target: "123"` - Always uses issue/PR #123
-
-**Cross-Repository PR Creation:**
-
-The `pull-request-repo` parameter allows you to create pull requests in a different repository than where the issue lives. This is useful when:
-
-- Issues are tracked in a central repository but code lives in separate repositories
-- You want to separate issue tracking from code repositories
-
-When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
-
-The repository specified by `pull-request-repo` is automatically allowed - you don't need to list it in `allowed-pull-request-repos`. Use `allowed-pull-request-repos` to specify additional repositories where PRs can be created.
-
-Use `base-branch` to specify which branch in the target repository the pull request should target. When omitted, the target repository's actual default branch is used automatically. Only relevant when `pull-request-repo` is configured.
-
-**Assignee Filtering:**
-When `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.
-
-Use `assign-to-agent` when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
+If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
 
 ### Assign to User (`assign-to-user:`)
 
@@ -1184,13 +1162,13 @@ safe-outputs:
 
 ## Cross-Repository Operations
 
-Most safe outputs support `target-repo`. This will generally require an authorization option (`github-token` or `app:`)-to take effect.
+Most safe outputs support `target-repo`. This will generally require additional authentication (`github-token` or `app:`) to take effect.
 
 ```yaml wrap
 safe-outputs:
   create-issue:
     target-repo: "org/tracking-repo"
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
 ```
 
 ## Global Configuration Options

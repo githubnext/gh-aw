@@ -28,7 +28,7 @@ permissions:
   contents: read
   actions: read
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "org/tracking-repo"
     title-prefix: "[component-a] "
@@ -58,7 +58,7 @@ Configure a Personal Access Token with access to target repositories:
 
 ```yaml wrap
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "org/tracking-repo"
 ```
@@ -175,7 +175,7 @@ engine:
       uses: actions/checkout@v5
       with:
         repository: org/secondary-repo
-        token: ${{ secrets.CROSS_REPO_PAT }}
+        token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
         path: secondary-repo
 
     - name: Compare and sync
@@ -257,6 +257,6 @@ For organization-wide workflows:
 ## Related Documentation
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
-- [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - GitHub API toolsets
+- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API toolsets
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and token security
 - [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Sharing workflows across repos

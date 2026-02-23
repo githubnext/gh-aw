@@ -58,9 +58,10 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 
 	// Legacy format: look for frontmatter-hash without JSON metadata
 	hashPattern := regexp.MustCompile(`#\s*frontmatter-hash:\s*([0-9a-f]{64})`)
-	if hashPattern.MatchString(content) {
+	if matches := hashPattern.FindStringSubmatch(content); len(matches) >= 2 {
 		lockSchemaLog.Print("Legacy lock file detected (no schema version)")
-		return nil, true, nil
+		// Return a minimal metadata struct with just the hash for legacy files
+		return &LockMetadata{FrontmatterHash: matches[1]}, true, nil
 	}
 
 	// No metadata found at all

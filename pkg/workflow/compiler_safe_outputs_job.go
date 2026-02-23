@@ -419,6 +419,10 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		if extraEmptyCommitToken == "app" {
 			envVars["GH_AW_EXTRA_EMPTY_COMMIT_TOKEN"] = "${{ steps.safe-outputs-app-token.outputs.token || '' }}"
 			consolidatedSafeOutputsJobLog.Print("Extra empty commit using GitHub App token")
+		} else if extraEmptyCommitToken == "default" {
+			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret as fallback
+			envVars["GH_AW_EXTRA_EMPTY_COMMIT_TOKEN"] = getEffectiveCITriggerGitHubToken("")
+			consolidatedSafeOutputsJobLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
 		} else if extraEmptyCommitToken != "" {
 			envVars["GH_AW_EXTRA_EMPTY_COMMIT_TOKEN"] = extraEmptyCommitToken
 			consolidatedSafeOutputsJobLog.Print("Extra empty commit using explicit token")

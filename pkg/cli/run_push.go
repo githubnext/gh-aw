@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var runPushLog = logger.New("cli:run_push")
@@ -610,8 +611,12 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 		return false, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	// Extract hash from lock file
-	existingHash := extractHashFromLockFile(string(lockContent))
+	// Extract hash from lock file using the workflow package function
+	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(lockContent))
+	var existingHash string
+	if err == nil && metadata != nil {
+		existingHash = metadata.FrontmatterHash
+	}
 	if existingHash == "" {
 		runPushLog.Print("No frontmatter-hash found in lock file")
 		// No hash in lock file - consider it stale to regenerate with hash
@@ -636,16 +641,4 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 	}
 
 	return mismatch, nil
-}
-
-// extractHashFromLockFile extracts the frontmatter-hash from a lock file content
-func extractHashFromLockFile(content string) string {
-	// Look for: # frontmatter-hash: <hash>
-	lines := strings.SplitSeq(content, "\n")
-	for line := range lines {
-		if len(line) > 20 && line[:20] == "# frontmatter-hash: " {
-			return strings.TrimSpace(line[20:])
-		}
-	}
-	return ""
 }

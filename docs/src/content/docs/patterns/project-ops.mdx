@@ -15,7 +15,7 @@ Safe outputs handle all project operations in separate, scoped jobs with minimal
 
 1. **Create a Project**: Before you wire up a workflow, you must first create the Project in the GitHub UI (user or organization level). Keep the Project URL handy (you'll need to reference it in your workflow instructions).
 
-2. **Arrange access**: See [Projects authentication](/gh-aw/reference/auth/#gh_aw_project_github_token) for complete details.
+2. Add **Additional Authentication** to your workflow: See [Authentication (Projects)](/gh-aw/reference/auth-projects/) for setup instructions.
 
 ## Example: Smart Issue Triage
 
@@ -97,6 +97,10 @@ Each safe output operates in a separate job with minimal, scoped permissions. Se
 
 See the [Safe Outputs reference](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) for project field and view configuration.
 
+## Authentication for Project Operations
+
+Project operations require additional authentication since the default `GITHUB_TOKEN` lacks necessary permissions for the Projects API. See [Authentication (Projects)](/gh-aw/reference/auth-projects/).
+
 ## When to Use ProjectOps
 
 ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
@@ -113,7 +117,7 @@ ProjectOps complements [GitHub's built-in Projects automation](https://docs.gith
 
 **Field Name Mismatches**: Custom field names are case-sensitive. Use exact field names as defined in project settings. Field names are automatically normalized (e.g., `story_points` matches `Story Points`).
 
-**Token Scope**: Default `GITHUB_TOKEN` cannot access Projects. Store a PAT with Projects permissions in [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token) secret.
+**Token Scope**: Default `GITHUB_TOKEN` cannot access Projects. See [Authentication (Projects)](/gh-aw/reference/auth-projects/) for setup.
 
 **Project URL Format**: Use full project URLs (e.g., `https://github.com/orgs/myorg/projects/42`), not project numbers alone.
 
@@ -121,9 +125,10 @@ ProjectOps complements [GitHub's built-in Projects automation](https://docs.gith
 
 ## Additional Resources
 
+- [Authentication (Projects)](/gh-aw/reference/auth-projects/) - Project-specific authentication setup
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration and API details
 - [Projects & Monitoring](/gh-aw/patterns/monitoring/) - Design pattern guide
 - [Orchestration](/gh-aw/patterns/orchestration/) - Design pattern guide
 - [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration options
 - [IssueOps](/gh-aw/patterns/issue-ops/) - Related issue automation patterns
-- [Token Reference](/gh-aw/reference/auth/#gh_aw_project_github_token) - GitHub Projects token setup
+- [Authentication Reference](/gh-aw/reference/auth/) - All tokens and secrets

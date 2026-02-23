@@ -69,7 +69,7 @@ Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/n
 For classic PATs, use the `repo` scope. Store the token as a secret:
 
 ```bash
-gh aw secrets set MAIN_REPO_PAT --value "YOUR_PAT_HERE"
+gh aw secrets set GH_AW_MAIN_REPO_TOKEN --value "YOUR_PAT_HERE"
 ```
 
 > [!TIP]
@@ -101,7 +101,7 @@ permissions:
   contents: read
 
 safe-outputs:
-  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
   create-issue:
     target-repo: "my-org/main-repo"
     title-prefix: "[automation] "
@@ -147,7 +147,7 @@ permissions:
   contents: read
 
 safe-outputs:
-  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
   create-issue:
     target-repo: "my-org/main-repo"
     max: 5
@@ -192,14 +192,14 @@ For private repositories, your PAT must have explicit repository access with app
 
 ```yaml wrap
 safe-outputs:
-  github-token: ${{ secrets.MAIN_REPO_PAT }}  # Required for private repos
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}  # Required for private repos
   create-issue:
     target-repo: "my-org/private-main-repo"
 
 tools:
   github:
     mode: remote
-    github-token: ${{ secrets.MAIN_REPO_PAT }}  # Explicit token for tools
+    github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}  # Explicit token for tools
     toolsets: [repos, issues, pull_requests]
 ```
 
@@ -217,7 +217,7 @@ Run triage workflows on main repository issues:
 on: every 6h
 
 safe-outputs:
-  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
   add-labels:
     target-repo: "my-org/main-repo"
   add-comment:
@@ -243,7 +243,7 @@ Monitor main repository for quality issues:
 on: weekly on monday
 
 safe-outputs:
-  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
   create-issue:
     target-repo: "my-org/main-repo"
     labels: [code-quality, automation]
@@ -280,7 +280,7 @@ on:
         default: "docs/"
 
 safe-outputs:
-  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
   create-pull-request:
     target-repo: "my-org/main-repo"
     base-branch: main
@@ -302,7 +302,7 @@ Create a PR with suggested improvements.
 
 ### Authentication Failures
 
-If you see "Resource not accessible by integration" errors, verify your PAT has access to the target repository, check permissions include required scopes, ensure the PAT hasn't expired, and confirm `github-token: ${{ secrets.MAIN_REPO_PAT }}` is configured (not `GITHUB_TOKEN`).
+If you see "Resource not accessible by integration" errors, verify your PAT has access to the target repository, check permissions include required scopes, ensure the PAT hasn't expired, and confirm `github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}` is configured (not `GITHUB_TOKEN`).
 
 ### GitHub Tools Not Working
 
@@ -312,7 +312,7 @@ If the agent cannot read files from the main repository, use `mode: remote` for 
 tools:
   github:
     mode: remote
-    github-token: ${{ secrets.MAIN_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
     toolsets: [repos]
 ```
 
@@ -358,7 +358,7 @@ on:
         required: true
 
 safe-outputs:
-  github-token: ${{ secrets.MULTI_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_MULTI_REPO_PAT }}
   create-issue:
     target-repo: ${{ inputs.target_repo }}  # Dynamic target
 ---
@@ -385,7 +385,7 @@ on:
     types: [opened, labeled]
 
 safe-outputs:
-  github-token: ${{ secrets.SIDE_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_SIDE_REPO_TOKEN }}
   add-comment:
     target-repo: "my-org/automation-repo"
 ```
@@ -401,7 +401,7 @@ This creates a feedback loop where the side repository tracks automation effecti
 ## Related Documentation
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
-- [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - GitHub API toolsets
+- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API toolsets
 - [Authentication](/gh-aw/reference/auth/) - Token types and precedence
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and security
 - [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Sharing workflows

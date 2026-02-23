@@ -745,7 +745,7 @@ The YAML frontmatter supports these fields:
       update-release:
         max: 1                          # Optional: max releases (default: 1, max: 10)
         target-repo: "owner/repo"       # Optional: cross-repository
-        github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
+        github-token: ${{ secrets.GH_AW_UPDATE_RELEASE_TOKEN }}  # Optional: custom token
     ```
     Operation types: `replace`, `append`, `prepend`.
   - `upload-asset:` - Publish files to orphaned git branch
@@ -895,7 +895,7 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       create-issue:
       add-comment:
-      github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+      github-token: ${{ secrets.GH_AW_SAFE_OUTPUTS_TOKEN }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
   - `allowed-domains:` - Allowed domains for URLs in safe output content (array)

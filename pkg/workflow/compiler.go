@@ -301,8 +301,8 @@ Ensure proper audience validation and trust policies are configured.`
 		// (not when implied by "all", as users unlikely intend to use projects with "all")
 		originalToolsets := workflowData.ParsedTools.GitHub.Toolset.ToStringSlice()
 		if slices.Contains(originalToolsets, "projects") {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires a GitHub token with organization Projects permissions."))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/auth/#gh_aw_project_github_token-github-projects-v2"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires additional authentication."))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/auth-projects/"))
 		}
 	}
 

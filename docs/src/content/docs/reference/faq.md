@@ -181,11 +181,9 @@ See [Network Permissions](/gh-aw/reference/network/) for complete configuration 
 
 ### What is GitHub lockdown mode and when is it enabled?
 
-**GitHub lockdown mode** is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+[GitHub lockdown mode](/gh-aw/reference/lockdown-mode/) is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
 
-Lockdown is **automatically enabled** for public repositories if [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) or [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_mcp_server_token) is configured. It is not in effect for private or internal repositories.
-
-See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for detailed configuration guidance and security considerations.
+Lockdown mode is **automatically enabled** for public repositories if [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) is configured. It is not in effect for private or internal repositories.
 
 ## Configuration & Setup
 
@@ -305,31 +303,7 @@ See [Pull Request Creation](/gh-aw/reference/safe-outputs/#pull-request-creation
 
 This is expected GitHub Actions security behavior. Pull requests created using the default `GITHUB_TOKEN` or by the GitHub Actions bot user **do not trigger workflow runs** on `pull_request`, `pull_request_target`, or `push` events. This is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) designed to prevent accidental recursive workflow execution.
 
-GitHub Actions prevents the `GITHUB_TOKEN` from triggering new workflow runs to avoid infinite loops and uncontrolled automation chains. Without this protection, a workflow could create a PR, which triggers another workflow, which creates another PR, and so on indefinitely.
-
-If you need CI checks to run on PRs created by agentic workflows, you have several options:
-
-**Option 1: Use `github-token-for-extra-empty-commit` (Recommended)**
-
-Add a `github-token-for-extra-empty-commit` to your `create-pull-request` or `push-to-pull-request-branch` safe output. This pushes an empty commit using a different token after PR creation/push, which triggers CI events without changing the overall PR authorization.
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TRIGGER_PAT }}
-```
-
-See [Triggering CI](/gh-aw/reference/triggering-ci/) for details.
-
-**Option 2: Use different authorization for the entire safe output**
-
-Configure your [`create-pull-request` safe output](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) to use a PAT or a GitHub App for all operations. This allows PR creation to trigger CI workflows, but changes the authorization for the entire PR creation process. The user or app associated with the token will be the author of the PR.
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    github-token: ${{ secrets.CI_USER_PAT }}
-```
+See [Triggering CI](/gh-aw/reference/triggering-ci/) for details on how to configure workflows to run CI checks on PRs created by agentic workflows.
 
 ## Workflow Design
 
