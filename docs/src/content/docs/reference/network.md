@@ -209,83 +209,34 @@ When enabled, AWF:
 - Logs all network activity for audit purposes
 - Blocks access to domains not explicitly allowed
 
-### Claude Engine
+### Claude, Codex, and Gemini Engines
 
-The Claude engine supports network permissions through AWF (Agent Workflow Firewall).
-
-Enable network permissions in your workflow:
+The Claude, Codex, and Gemini engines use the same AWF firewall as the Copilot engine. Configure network permissions using the same `network.allowed` / `network.blocked` fields:
 
 ```yaml wrap
+# Claude
 engine: claude
-
 network:
   allowed:
-    - defaults             # Basic infrastructure
-    - python              # Python ecosystem
-    - "api.example.com"   # Custom domain
-```
+    - defaults
+    - "api.example.com"
 
-**Default domain list** – the following domains are always allowed for Claude CLI authentication and operation:
-
-- `*.githubusercontent.com`
-- `anthropic.com`, `api.anthropic.com`, `statsig.anthropic.com`
-- `api.github.com`, `github.com`, `codeload.github.com`, `lfs.github.com`
-- `raw.githubusercontent.com`, `objects.githubusercontent.com`, `github-cloud.githubusercontent.com`, `github-cloud.s3.amazonaws.com`
-- `ghcr.io`
-- `cdn.playwright.dev`, `playwright.download.prss.microsoft.com`
-- `files.pythonhosted.org`, `pypi.org`
-- `registry.npmjs.org`
-- `packages.microsoft.com`, `packages.cloud.google.com`
-- `archive.ubuntu.com`, `azure.archive.ubuntu.com`, `security.ubuntu.com`, `keyserver.ubuntu.com`
-- `ppa.launchpad.net`, `api.snapcraft.io`, `packagecloud.io`
-- `json-schema.org`, `json.schemastore.org`
-- `sentry.io`
-- Various certificate authority domains (CRL/OCSP endpoints)
-
-### Codex Engine
-
-The Codex engine supports network permissions through AWF (Agent Workflow Firewall).
-
-Enable network permissions in your workflow:
-
-```yaml wrap
+# Codex
 engine: codex
-
 network:
   allowed:
-    - defaults             # Basic infrastructure
-    - node                # Node.js ecosystem
-    - "api.example.com"   # Custom domain
-```
+    - defaults
+    - node
 
-**Default domain list** – the following domains are always allowed for Codex CLI operation:
-
-- `api.openai.com`, `openai.com` – OpenAI API endpoints
-- `host.docker.internal` – Docker host networking
-- `172.30.0.1` – AWF gateway IP (Codex resolves `host.docker.internal` to this IP for Rust DNS compatibility)
-
-### Gemini Engine
-
-The Gemini engine supports network permissions through AWF (Agent Workflow Firewall).
-
-Enable network permissions in your workflow:
-
-```yaml wrap
+# Gemini
 engine: gemini
-
 network:
   allowed:
-    - defaults             # Basic infrastructure
-    - node                # Node.js ecosystem
-    - "api.example.com"   # Custom domain
+    - defaults
+    - node
 ```
 
-**Default domain list** – the following domains are always allowed for Gemini CLI authentication and operation:
-
-- `*.googleapis.com`, `generativelanguage.googleapis.com` – Google API endpoints
-- `github.com`, `raw.githubusercontent.com` – GitHub access
-- `host.docker.internal` – Docker host networking
-- `registry.npmjs.org` – npm registry
+Each engine also has a built-in default domain list for its CLI authentication and operation. See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
 
 ### Firewall Log Level
 
