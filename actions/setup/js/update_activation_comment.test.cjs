@@ -58,6 +58,14 @@ const createTestableFunction = scriptContent => {
         },
       };
     }
+    if (module === "./templatable.cjs") {
+      return {
+        parseBoolTemplatable: (value, defaultValue = true) => {
+          if (value === undefined || value === null) return defaultValue;
+          return String(value) !== "false";
+        },
+      };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(

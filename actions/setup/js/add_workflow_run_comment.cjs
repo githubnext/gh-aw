@@ -7,6 +7,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMessages } = require("./messages_core.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -63,7 +64,7 @@ function setCommentOutputs(commentId, commentUrl) {
 async function main() {
   // Check if activation comments are disabled
   const messagesConfig = getMessages();
-  if (messagesConfig?.activationComments === false) {
+  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
     core.info("activation-comments is disabled: skipping activation comment creation");
     return;
   }

@@ -34,12 +34,10 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
-	if activationComments, exists := messagesMap["activation-comments"]; exists {
-		if enabled, ok := activationComments.(bool); ok {
-			config.ActivationComments = &enabled
-			safeOutputMessagesLog.Printf("Set activation-comments: %t", enabled)
-		}
+	if err := preprocessBoolFieldAsString(messagesMap, "activation-comments", safeOutputMessagesLog); err != nil {
+		safeOutputMessagesLog.Printf("Invalid activation-comments value: %v", err)
 	}
+	setStringFromMap(messagesMap, "activation-comments", &config.ActivationComments)
 
 	setStringFromMap(messagesMap, "footer", &config.Footer)
 	setStringFromMap(messagesMap, "footer-install", &config.FooterInstall)

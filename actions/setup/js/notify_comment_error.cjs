@@ -11,6 +11,7 @@ const { getMessages } = require("./messages_core.cjs");
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -61,7 +62,7 @@ async function main() {
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
 
   // If activation comments are disabled entirely, skip all comment updates
-  if (messagesConfig?.activationComments === false) {
+  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
     core.info("activation-comments is disabled: skipping completion comment update");
     return;
   }

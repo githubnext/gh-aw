@@ -6789,8 +6789,8 @@
               "default": false
             },
             "activation-comments": {
-              "type": "boolean",
-              "description": "When set to false, disables all activation and fallback comments entirely (run-started, run-success, run-failure, PR/issue creation links). Useful for silent automation workflows that create PRs or issues without posting informational bot comments. Default: true",
+              "type": ["boolean", "string"],
+              "description": "When set to false or \"false\", disables all activation and fallback comments entirely (run-started, run-success, run-failure, PR/issue creation links). Supports templatable boolean values including GitHub Actions expressions (e.g. ${{ inputs.activation-comments }}). Default: true",
               "default": true
             }
           },

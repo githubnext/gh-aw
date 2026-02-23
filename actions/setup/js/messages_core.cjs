@@ -40,7 +40,7 @@
  * @property {string} [agentFailureComment] - Custom footer template for comments on agent failure tracking issues
  * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
  * @property {boolean} [appendOnlyComments] - If true, create new comments instead of updating the activation comment
- * @property {boolean} [activationComments] - If false, disable all activation/fallback comments entirely (default: true)
+ * @property {string|boolean} [activationComments] - If false or "false", disable all activation/fallback comments entirely. Supports templatable boolean values (default: true)
  */
 
 /**

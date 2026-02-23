@@ -693,6 +693,18 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 	if !result.AppendOnlyComments && imported.AppendOnlyComments {
 		result.AppendOnlyComments = imported.AppendOnlyComments
 	}
+	if result.ActivationComments == "" && imported.ActivationComments != "" {
+		result.ActivationComments = imported.ActivationComments
+	}
+	if result.PullRequestCreated == "" && imported.PullRequestCreated != "" {
+		result.PullRequestCreated = imported.PullRequestCreated
+	}
+	if result.IssueCreated == "" && imported.IssueCreated != "" {
+		result.IssueCreated = imported.IssueCreated
+	}
+	if result.CommitPushed == "" && imported.CommitPushed != "" {
+		result.CommitPushed = imported.CommitPushed
+	}
 	return result
 }
 

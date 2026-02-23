@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPullRequestCreatedMessage, getIssueCreatedMessage, getCommitPushedMessage } = require("./messages_run_status.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Get the current workflow run ID from context or environment.
@@ -74,7 +75,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
 
   // Check if activation comments are disabled entirely
-  if (messagesConfig?.activationComments === false) {
+  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
     core.info("activation-comments is disabled: skipping activation comment update");
     return;
   }

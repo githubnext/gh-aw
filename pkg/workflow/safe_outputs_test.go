@@ -366,6 +366,33 @@ func TestParseMessagesConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "activation-comments bool false is stored as string",
+			input: map[string]any{
+				"activation-comments": false,
+			},
+			expected: &SafeOutputMessagesConfig{
+				ActivationComments: "false",
+			},
+		},
+		{
+			name: "activation-comments bool true is stored as string",
+			input: map[string]any{
+				"activation-comments": true,
+			},
+			expected: &SafeOutputMessagesConfig{
+				ActivationComments: "true",
+			},
+		},
+		{
+			name: "activation-comments string value is stored as-is",
+			input: map[string]any{
+				"activation-comments": "false",
+			},
+			expected: &SafeOutputMessagesConfig{
+				ActivationComments: "false",
+			},
+		},
+		{
 			name: "non-string values are ignored",
 			input: map[string]any{
 				"footer":      123, // Should be ignored
@@ -408,6 +435,9 @@ func TestParseMessagesConfig(t *testing.T) {
 			}
 			if result.RunFailure != tt.expected.RunFailure {
 				t.Errorf("RunFailure: got %q, want %q", result.RunFailure, tt.expected.RunFailure)
+			}
+			if result.ActivationComments != tt.expected.ActivationComments {
+				t.Errorf("ActivationComments: got %q, want %q", result.ActivationComments, tt.expected.ActivationComments)
 			}
 		})
 	}
