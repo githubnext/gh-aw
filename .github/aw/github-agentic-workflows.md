@@ -164,12 +164,28 @@ The YAML frontmatter supports these fields:
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
   - Strict mode enforces: no write permissions, explicit network config, pinned actions to SHAs, no wildcard domains
+- **`rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
+  - **`max:`** - Maximum runs allowed per user per time window (required, integer 1-10)
+  - **`window:`** - Time window in minutes (integer 1-180, default: 60)
+  - **`events:`** - Event types to apply rate limiting to (array; if omitted, applies to all programmatic events)
+    - Available: `workflow_dispatch`, `issue_comment`, `pull_request_review`, `pull_request_review_comment`, `issues`, `pull_request`, `discussion_comment`, `discussion`
+  - **`ignored-roles:`** - Roles exempt from rate limiting (array, default: `[admin, maintain, write]`). Set to `[]` to apply to all users.
+  - Example:
+    ```yaml
+    rate-limit:
+      max: 5
+      window: 60
+      ignored-roles: [admin, maintain]
+    ```
 - **`features:`** - Feature flags for experimental features (object)
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
   - Markdown files under `.github/agents/` are treated as custom agent files
   - Only one agent file is allowed per workflow
   - See [Imports Field](#imports-field) section for detailed documentation
+- **`inlined-imports:`** - Inline all imports at compile time (boolean, default: `false`)
+  - When `true`, all imports (including those without inputs) are inlined in the generated `.lock.yml` instead of using runtime-import macros
+  - The frontmatter hash covers the entire markdown body when enabled, so any content change invalidates the hash
 - **`mcp-servers:`** - MCP (Model Context Protocol) server definitions (object)
   - Defines custom MCP servers for additional tools beyond built-in ones
   - See [Custom MCP Tools](#custom-mcp-tools) section for detailed documentation
@@ -949,6 +965,20 @@ The YAML frontmatter supports these fields:
     - When `true`, emits step summary messages instead of making GitHub API calls; useful for testing without side effects
   - `env:` - Environment variables passed to all safe output jobs (object)
     - Values typically reference secrets: `MY_VAR: ${{ secrets.MY_SECRET }}`
+  - `max-bot-mentions:` - Maximum bot trigger references (e.g. `@copilot`, `@github-actions`) allowed in output before all excess are escaped with backticks (integer or expression, default: 10)
+    - Set to `0` to escape all bot trigger phrases
+    - Example: `max-bot-mentions: 3`
+
+  **Templatable Integer Fields**: The `max`, `expires`, and `max-bot-mentions` fields (and most other numeric/boolean fields) accept GitHub Actions expression strings in addition to literal values, enabling runtime-configured limits:
+  ```yaml
+  safe-outputs:
+    max-bot-mentions: ${{ inputs.max-mentions }}
+    create-issue:
+      max: ${{ inputs.max-issues }}
+      expires: ${{ inputs.expires-days }}
+  ```
+  Fields that influence permission computation (`add-comment.discussions`, `create-pull-request.fallback-as-issue`) remain literal booleans.
+
   - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
     - Patches exceeding this size are rejected to prevent accidental large changes
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
