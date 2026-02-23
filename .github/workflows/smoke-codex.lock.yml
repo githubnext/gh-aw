@@ -1118,7 +1118,9 @@ jobs:
                 ],
                 "entrypointArgs": [
                   "--output-dir",
-                  "/tmp/gh-aw/mcp-logs/playwright"
+                  "/tmp/gh-aw/mcp-logs/playwright",
+                  "--browser-arg",
+                  "--no-sandbox"
                 ],
                 "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"]
               },

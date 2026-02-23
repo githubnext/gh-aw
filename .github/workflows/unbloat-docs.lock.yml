@@ -792,6 +792,8 @@ jobs:
                 "entrypointArgs": [
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
+                  "--browser-arg",
+                  "--no-sandbox",
                   "--viewport-size",
                   "1920x1080"
                 ],
