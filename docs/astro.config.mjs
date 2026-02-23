@@ -114,10 +114,17 @@ export default defineConfig({
 						'claude': {
 							name: 'Claude',
 							url: 'https://claude.ai',
+							picture: '/gh-aw/claude.png',
 						},
 						'codex': {
 							name: 'Codex',
 							url: 'https://openai.com/index/openai-codex/',
+							picture: '/gh-aw/codex.png',
+						},
+						'gemini': {
+							name: 'Gemini',
+							url: 'https://gemini.google.com',
+							picture: '/gh-aw/gemini.png',
 						},
 						'copilot': {
 							name: 'Copilot',
