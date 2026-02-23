@@ -26,7 +26,7 @@ All multi-repo workflows require proper authentication:
 gh auth token
 
 # Store as repository or organization secret
-gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
+gh aw secrets set GH_AW_CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 The PAT needs permissions **only on target repositories** (not the source repository where the workflow runs): `repo` for private repos, `contents: write` for commits, `issues: write` for issues, and `pull-requests: write` for PRs.
@@ -92,7 +92,7 @@ Most safe output types support the `target-repo` parameter for cross-repository 
 
 ```yaml wrap
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "org/tracking-repo"  # Cross-repo: creates in tracking-repo
     title-prefix: "[component] "
@@ -141,7 +141,7 @@ engine:
       uses: actions/checkout@v5
       with:
         repository: org/secondary-repo
-        token: ${{ secrets.CROSS_REPO_PAT }}
+        token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
         path: secondary-repo
 ```
 

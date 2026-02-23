@@ -48,7 +48,7 @@ on:
 
 tools:
   github:
-    github-token: ${{ secrets.ORG_GITHUB_MCP_SERVER_TOKEN }}
+    github-token: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
     toolsets: [repos]
 
 safe-outputs:
@@ -81,7 +81,7 @@ Categorize and orchestrate Dependabot rollout across repositories.
 ```
 
 Compile this workflow to generate the lock file: `gh aw compile`.
-Create a fine-grained PAT `ORG_GITHUB_MCP_SERVER_TOKEN` with the organization as an owner,
+Create a fine-grained PAT `GH_AW_READ_ORG_TOKEN` with the organization as an owner,
 select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read-only`.
 Add this into your Actions repository secrets. This gives the orchestrator read access to all candidate repositories.
 
@@ -113,11 +113,11 @@ permissions:
 
 tools:
   github:
-    github-token: ${{ secrets.ORG_GITHUB_MCP_SERVER_TOKEN }}
+    github-token: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
     toolsets: [repos]
 
 safe-outputs:
-  github-token: ${{ secrets.REPO_SAFE_OUTPUTS_TOKEN }}
+  github-token: ${{ secretsGH_AW_CROSS_REPO_PAT }}
   create-pull-request:
     target-repo: ${{ github.event.inputs.target_repo }}
     title-prefix: '[dependabot] '

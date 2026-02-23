@@ -28,7 +28,7 @@ permissions:
   contents: read
   actions: read
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "org/tracking-repo"
     title-prefix: "[component-a] "
@@ -58,7 +58,7 @@ Configure a Personal Access Token with access to target repositories:
 
 ```yaml wrap
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     target-repo: "org/tracking-repo"
 ```
@@ -175,7 +175,7 @@ engine:
       uses: actions/checkout@v5
       with:
         repository: org/secondary-repo
-        token: ${{ secrets.CROSS_REPO_PAT }}
+        token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
         path: secondary-repo
 
     - name: Compare and sync

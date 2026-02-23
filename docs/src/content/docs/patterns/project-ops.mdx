@@ -32,11 +32,11 @@ permissions:
 tools:
   github:
     toolsets: [default, projects]
-    github-token: ${{ secrets.MY_PROJECT_TOKEN }}
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 safe-outputs:
   update-project:
     max: 1
-    github-token: ${{ secrets.MY_PROJECT_TOKEN }}
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
   add-comment:
     max: 1
 ---

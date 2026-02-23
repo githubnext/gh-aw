@@ -1168,7 +1168,7 @@ Most safe outputs support `target-repo`. This will generally require additional 
 safe-outputs:
   create-issue:
     target-repo: "org/tracking-repo"
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
 ```
 
 ## Global Configuration Options

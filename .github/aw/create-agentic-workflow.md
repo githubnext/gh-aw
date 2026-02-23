@@ -266,7 +266,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    **Authentication Setup:**
    ```yaml
    safe-outputs:
-     github-token: ${{ secrets.CROSS_REPO_PAT }}  # PAT with access to target repos
+     github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}  # PAT with access to target repos
      create-issue:
        max: 5
      add-comment:
@@ -618,7 +618,7 @@ Based on the parsed requirements, determine:
 If the workflow involves cross-repository operations, follow these additional guidelines:
 
 **Authentication Configuration:**
-- Add `safe-outputs.github-token: ${{ secrets.CROSS_REPO_PAT }}` for PAT authentication
+- Add `safe-outputs.github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}` for PAT authentication
 - Or use `safe-outputs.app` for GitHub App authentication
 - Document required PAT scopes in the workflow description
 
@@ -648,7 +648,7 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     max: 5
   add-comment:

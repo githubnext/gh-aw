@@ -213,13 +213,13 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+						GitHubToken: "${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 					},
 				},
 			},
 			checkContains: []string{
-				"token: ${{ secrets.CROSS_REPO_PAT }}",
-				"GIT_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 			},
 		},
 		{
@@ -238,15 +238,15 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+						GitHubToken: "${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 					},
 					TargetRepoSlug: "org/target-repo",
 				},
 			},
 			checkContains: []string{
 				"repository: org/target-repo",
-				"token: ${{ secrets.CROSS_REPO_PAT }}",
-				"GIT_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 				`REPO_NAME: "org/target-repo"`,
 			},
 		},
