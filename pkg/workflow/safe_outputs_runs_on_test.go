@@ -246,7 +246,7 @@ func TestDetectionJobRunsOnResolution(t *testing.T) {
 		expectedRunsOn string
 	}{
 		{
-			name: "detection uses safe-outputs runs-on when no detection run-on",
+			name: "detection uses agent runs-on by default (not safe-outputs runs-on)",
 			frontmatter: `---
 on: push
 safe-outputs:
@@ -258,10 +258,10 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: "runs-on: self-hosted",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "detection run-on overrides safe-outputs runs-on",
+			name: "detection runs-on overrides agent runs-on",
 			frontmatter: `---
 on: push
 safe-outputs:
@@ -269,7 +269,7 @@ safe-outputs:
     title-prefix: "[ai] "
   runs-on: self-hosted
   threat-detection:
-    run-on: detection-runner
+    runs-on: detection-runner
 ---
 
 # Test Workflow
@@ -278,7 +278,7 @@ This is a test workflow.`,
 			expectedRunsOn: "runs-on: detection-runner",
 		},
 		{
-			name: "detection falls back to ubuntu-latest when no runs-on configured",
+			name: "detection falls back to agent runs-on (ubuntu-latest) when no runs-on configured",
 			frontmatter: `---
 on: push
 safe-outputs:
@@ -289,7 +289,7 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 	}
 

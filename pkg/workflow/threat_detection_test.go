@@ -112,10 +112,10 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "object with run-on override",
+			name: "object with runs-on override",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
-					"run-on": "self-hosted",
+					"runs-on": "self-hosted",
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
@@ -159,51 +159,57 @@ func TestFormatDetectionRunsOn(t *testing.T) {
 	tests := []struct {
 		name           string
 		safeOutputs    *SafeOutputsConfig
+		agentRunsOn    string
 		expectedRunsOn string
 	}{
 		{
-			name:           "nil safe outputs returns default",
+			name:           "nil safe outputs uses agent runs-on",
 			safeOutputs:    nil,
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+			agentRunsOn:    "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "detection run-on takes priority over safe-outputs runs-on",
+			name: "detection runs-on takes priority over agent runs-on",
 			safeOutputs: &SafeOutputsConfig{
 				RunsOn: "self-hosted",
 				ThreatDetection: &ThreatDetectionConfig{
 					RunsOn: "detection-runner",
 				},
 			},
+			agentRunsOn:    "runs-on: ubuntu-latest",
 			expectedRunsOn: "runs-on: detection-runner",
 		},
 		{
-			name: "falls back to safe-outputs runs-on when detection run-on is empty",
+			name: "falls back to agent runs-on when detection runs-on is empty",
 			safeOutputs: &SafeOutputsConfig{
 				RunsOn:          "self-hosted",
 				ThreatDetection: &ThreatDetectionConfig{},
 			},
-			expectedRunsOn: "runs-on: self-hosted",
+			agentRunsOn:    "runs-on: my-agent-runner",
+			expectedRunsOn: "runs-on: my-agent-runner",
 		},
 		{
-			name: "falls back to default when both detection run-on and safe-outputs runs-on are empty",
+			name: "falls back to agent runs-on when both detection and safe-outputs runs-on are empty",
 			safeOutputs: &SafeOutputsConfig{
 				ThreatDetection: &ThreatDetectionConfig{},
 			},
-			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+			agentRunsOn:    "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name: "nil threat detection still uses safe-outputs runs-on",
+			name: "nil threat detection uses agent runs-on",
 			safeOutputs: &SafeOutputsConfig{
 				RunsOn:          "windows-latest",
 				ThreatDetection: nil,
 			},
-			expectedRunsOn: "runs-on: windows-latest",
+			agentRunsOn:    "runs-on: my-agent-runner",
+			expectedRunsOn: "runs-on: my-agent-runner",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.formatDetectionRunsOn(tt.safeOutputs)
+			result := compiler.formatDetectionRunsOn(tt.safeOutputs, tt.agentRunsOn)
 			if result != tt.expectedRunsOn {
 				t.Errorf("Expected runs-on %q, got %q", tt.expectedRunsOn, result)
 			}
@@ -235,6 +241,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 		{
 			name: "threat detection enabled should create job",
 			data: &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{},
 				},
@@ -246,6 +253,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 		{
 			name: "threat detection with custom steps should create job",
 			data: &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
 						Steps: []any{
@@ -295,14 +303,10 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 				if job.Name != string(constants.DetectionJobName) {
 					t.Errorf("Expected job name 'detection', got %q", job.Name)
 				}
-				// Detection job uses formatDetectionRunsOn: safe-outputs.detection.run-on > safe-outputs.runs-on > default
-				expectedRunsOn := "runs-on: " + constants.DefaultActivationJobRunnerImage
-				if tt.data.SafeOutputs != nil {
-					if tt.data.SafeOutputs.ThreatDetection != nil && tt.data.SafeOutputs.ThreatDetection.RunsOn != "" {
-						expectedRunsOn = "runs-on: " + tt.data.SafeOutputs.ThreatDetection.RunsOn
-					} else if tt.data.SafeOutputs.RunsOn != "" {
-						expectedRunsOn = "runs-on: " + tt.data.SafeOutputs.RunsOn
-					}
+				// Detection job uses formatDetectionRunsOn: safe-outputs.detection.runs-on > agent.runs-on
+				expectedRunsOn := tt.data.RunsOn
+				if tt.data.SafeOutputs != nil && tt.data.SafeOutputs.ThreatDetection != nil && tt.data.SafeOutputs.ThreatDetection.RunsOn != "" {
+					expectedRunsOn = "runs-on: " + tt.data.SafeOutputs.ThreatDetection.RunsOn
 				}
 				if job.RunsOn != expectedRunsOn {
 					t.Errorf("Expected %q runner, got %q", expectedRunsOn, job.RunsOn)
