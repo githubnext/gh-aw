@@ -257,6 +257,6 @@ For organization-wide workflows:
 ## Related Documentation
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
-- [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - GitHub API toolsets
+- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API toolsets
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and token security
 - [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Sharing workflows across repos

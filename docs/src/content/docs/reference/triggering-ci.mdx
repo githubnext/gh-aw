@@ -24,10 +24,10 @@ To trigger CI checks on PRs created by agentic workflows, configure a CI trigger
 
 1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with `Contents: Read & Write` scoped to the relevant repositories where pull requests will be created.
 
-2. Add the PAT as a repository secret (e.g., `GH_AW_CI_TRIGGER_TOKEN`) using
+2. Add the PAT as a repository secret (e.g., `MY_CI_TRIGGER_PAT`) using
 
    ```bash wrap
-   gh aw secrets set GH_AW_CI_TRIGGER_TOKEN --value "<your-pat-token>"
+   gh aw secrets set MY_CI_TRIGGER_PAT --value "<your-pat-token>"
    ```
 
 3. Reference it in your workflow:
@@ -35,7 +35,7 @@ To trigger CI checks on PRs created by agentic workflows, configure a CI trigger
    ```yaml wrap
    safe-outputs:
      create-pull-request:
-       github-token-for-extra-empty-commit: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_TRIGGER_PAT }}
    ```
 
    or
@@ -43,7 +43,7 @@ To trigger CI checks on PRs created by agentic workflows, configure a CI trigger
    ```yaml wrap
    safe-outputs:
      push-to-pull-request-branch:
-       github-token-for-extra-empty-commit: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_TRIGGER_PAT }}
    ```
 
 When configured, the token will be used to push an extra empty commit to the PR branch after PR creation. This will trigger `push` and `pull_request` events normally.

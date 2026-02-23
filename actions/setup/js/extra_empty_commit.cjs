@@ -9,7 +9,10 @@
  * GITHUB_TOKEN do not trigger other workflow runs.
  *
  * The token comes from `github-token-for-extra-empty-commit` in safe-outputs config
- * (passed as GH_AW_EXTRA_EMPTY_COMMIT_TOKEN env var), or `app` for GitHub App authentication.
+ * (passed as GH_AW_EXTRA_EMPTY_COMMIT_TOKEN env var). Supported values:
+ * - `app` - Use GitHub App token from safe-outputs-app-token step
+ * - `default` - Use the magic secret GH_AW_CI_TRIGGER_TOKEN
+ * - `${{ secrets.CUSTOM_TOKEN }}` - Use a custom PAT or secret
  */
 
 /**

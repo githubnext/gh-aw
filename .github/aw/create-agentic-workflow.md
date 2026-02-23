@@ -315,7 +315,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    **Documentation Reference:**
    - Full guide: https://github.github.com/gh-aw/patterns/multi-repo-ops/
    - Safe Outputs Reference: https://github.github.com/gh-aw/reference/safe-outputs/
-   - GitHub Tools: https://github.github.com/gh-aw/reference/tools/#github-tools-github
+   - GitHub Tools: https://github.github.com/gh-aw/reference/github-tools/
 
    **Custom Safe Output Jobs (for new safe outputs):**
 

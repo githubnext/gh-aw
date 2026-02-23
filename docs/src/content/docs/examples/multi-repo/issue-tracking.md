@@ -301,4 +301,4 @@ For enhanced security, use GitHub App installation tokens. See [Using a GitHub A
 - [MultiRepoOps Design Pattern](/gh-aw/patterns/multi-repo-ops/) - Complete multi-repo overview
 - [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) - Code sync patterns
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Issue creation configuration
-- [GitHub Tools](/gh-aw/reference/tools/#github-tools-github) - API access configuration
+- [GitHub Tools](/gh-aw/reference/github-tools/) - API access configuration

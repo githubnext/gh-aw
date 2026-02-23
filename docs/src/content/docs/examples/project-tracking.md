@@ -75,7 +75,9 @@ safe-outputs:
 
 See [Safe Outputs: Project Board Updates](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) for complete configuration details.
 
-## Prerequisites
+## Authentication
+
+See 
 
 ### 1. Create a GitHub Project
 
@@ -106,7 +108,7 @@ Use a **fine-grained PAT** with:
 gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_TOKEN"
 ```
 
-See the [GitHub Projects V2 authentication](/gh-aw/reference/auth/#gh_aw_project_github_token) for complete details.
+See [GitHub Projects authentication](/gh-aw/reference/auth-projects/) for complete details.
 
 ## Example: Issue Triage
 
@@ -314,6 +316,6 @@ Update the project item with the team field.
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe-outputs documentation
 - [update-project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed update-project configuration
 - [create-project-status-update](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update) - Status update configuration
-- [GitHub Projects V2 Authentication](/gh-aw/reference/auth/#gh_aw_project_github_token) - Token setup guide
+- [GitHub Projects Authentication](/gh-aw/reference/auth-projects/) - Token setup guide
 - [Projects & Monitoring](/gh-aw/patterns/monitoring/) - Design pattern guide
 - [Orchestration](/gh-aw/patterns/orchestration/) - Design pattern guide

@@ -276,7 +276,7 @@ Use an engine with firewall support (e.g., `copilot`), compile without `--strict
 
 After changing from `allowed:` to `toolsets:`, expected tools are not available. The tool may be in a different toolset than expected, or a narrower toolset was chosen.
 
-Check the [GitHub Toolsets](/gh-aw/reference/tools/#github-toolsets) documentation, use `gh aw mcp inspect <workflow>` to see available tools, then add the required toolset.
+Check the [GitHub Toolsets](/gh-aw/reference/github-tools/) documentation, use `gh aw mcp inspect <workflow>` to see available tools, then add the required toolset.
 
 ### Invalid Toolset Name
 

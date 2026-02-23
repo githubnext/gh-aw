@@ -115,7 +115,7 @@ Compilation hangs indicate circular imports. Remove circular references.
 
 ### GitHub Tools Not Available
 
-Configure using `toolsets:` ([tools reference](/gh-aw/reference/tools/)):
+Configure using `toolsets:` ([tools reference](/gh-aw/reference/github-tools/)):
 
 ```yaml wrap
 tools:
@@ -125,7 +125,7 @@ tools:
 
 ### Toolset Missing Expected Tools
 
-Check [GitHub Toolsets](/gh-aw/reference/tools/#github-toolsets), combine toolsets (`toolsets: [default, actions]`), or inspect with `gh aw mcp inspect <workflow>`.
+Check [GitHub Toolsets](/gh-aw/reference/github-tools/), combine toolsets (`toolsets: [default, actions]`), or inspect with `gh aw mcp inspect <workflow>`.
 
 ### MCP Server Connection Failures
 

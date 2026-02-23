@@ -63,13 +63,9 @@ func NewProjectNewCommand() *cobra.Command {
 
 The project can optionally be linked to a specific repository.
 
-Token Requirements:
-  The default GITHUB_TOKEN cannot create projects. You must use a PAT with:
-  - Classic PAT: 'project' scope (user projects) or 'project' + 'repo' (org projects)  
-  - Fine-grained PAT: Organization permissions → Projects: Read & Write
-
-  Set GH_AW_PROJECT_GITHUB_TOKEN environment variable or configure your gh CLI
-  with a token that has the required permissions.
+Authentication Requirements:
+  The default GITHUB_TOKEN cannot create projects. You must use additional authentication.
+  See https://github.github.com/gh-aw/reference/auth/.
 
 Project Setup:
 	Use --with-project-setup to automatically create:
