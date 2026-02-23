@@ -250,6 +250,14 @@ This token is used to trigger CI workflow runs on pull requests created by your 
      push-to-pull-request-branch:
        github-token-for-extra-empty-commit: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
    ```
+
+<Video
+  src="/gh-aw/videos/create-ci-trigger-token.mp4"
+  caption="Creating a CI trigger token for agentic workflows"
+  aspectRatio="16:9"
+  thumbnail="/gh-aw/videos/create-ci-trigger-token.png"
+/>
+
 ---
 
 ### `GH_AW_PROJECT_GITHUB_TOKEN`
@@ -300,7 +308,7 @@ This token is used to authenticate GitHub API operations related to [GitHub Proj
      github:
        toolsets: [default, projects]
        github-token: ${{ secrets.CUSTOM_PROJECT_TOKEN }}
-```
+   ```
 
 **For User-owned Projects**:
 

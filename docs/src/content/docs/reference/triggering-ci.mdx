@@ -5,9 +5,18 @@ sidebar:
   order: 805
 ---
 
+import Video from '../../../components/Video.astro';
+
 By default, pull requests created using the default `GITHUB_TOKEN` in GitHub Actions **do not trigger CI workflow runs**. This is a GitHub Actions feature to prevent event cascades.
 
 This applies to both [`create-pull-request`](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) and [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs/#push-to-pr-branch-push-to-pull-request-branch) safe outputs.
+
+<Video
+  src="/gh-aw/videos/create-ci-trigger-token.mp4"
+  caption="Creating a CI trigger token for agentic workflows"
+  aspectRatio="16:9"
+  thumbnail="/gh-aw/videos/create-ci-trigger-token.png"
+/>
 
 ## Solution: Authorize triggering CI on PRs created by workflows
 
