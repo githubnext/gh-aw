@@ -13,7 +13,7 @@ func LayoutInfoSection(label, value string) string {
 	return "  " + label + ": " + value
 }
 
-func LayoutEmphasisBox(content string, color interface{}) string {
+func LayoutEmphasisBox(content string, color any) string {
 	marker := strings.Repeat("!", len(content)+4)
 	return marker + "\n  " + content + "\n" + marker
 }
