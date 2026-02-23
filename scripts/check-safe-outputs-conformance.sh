@@ -111,8 +111,13 @@ check_max_limits() {
         # Skip test and utility files
         [[ "$handler" =~ (test|parse|buffer|factory) ]] && continue
         
-        # Check if handler enforces max limits
-        if ! grep -q "\.length.*>.*\.max\|enforceMaxLimit\|checkLimit\|max.*exceeded" "$handler"; then
+        # Only check files that perform GitHub API operations
+        if ! grep -q "octokit\." "$handler"; then
+            continue
+        fi
+        
+        # Check if handler enforces max limits using any recognized pattern
+        if ! grep -qE "\.length.*>.*\.max|enforceMaxLimit|checkLimit|max.*exceeded|enforceArrayLimit|tryEnforceArrayLimit|limit_enforcement_helpers" "$handler"; then
             log_medium "SEC-003: $handler may not enforce max limits"
             failed=1
         fi
