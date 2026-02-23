@@ -1582,6 +1582,16 @@
               "enum": ["read", "write", "none"],
               "description": "Permission level for pull requests (read/write/none). Controls access to create, edit, review, and manage pull requests."
             },
+            "repository-projects": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for repository projects (read/write/none). Controls access to manage repository-level GitHub Projects boards."
+            },
+            "organization-projects": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission level for organization projects (read/write/none). Controls access to manage organization-level GitHub Projects boards."
+            },
             "security-events": {
               "type": "string",
               "enum": ["read", "write", "none"],

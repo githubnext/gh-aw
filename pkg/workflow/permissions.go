@@ -44,11 +44,14 @@ func convertStringToPermissionScope(key string) PermissionScope {
 			return PermissionSecurityEvents
 		case "statuses":
 			return PermissionStatuses
+		case "all":
+			// "all" is a meta-key handled at the parser level; it is not a real scope
+			return ""
 		default:
 			return ""
 		}
 	}()
-	if scope == "" {
+	if scope == "" && key != "all" {
 		permissionsLog.Printf("Unknown permission scope key: %s", key)
 	}
 	return scope
