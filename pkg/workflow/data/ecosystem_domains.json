@@ -145,6 +145,7 @@
     "esm.sh",
     "googleapis.deno.dev",
     "googlechromelabs.github.io",
+    "storage.googleapis.com",
     "cdn.jsdelivr.net"
   ],
   "node-cdns": ["cdn.jsdelivr.net"],
