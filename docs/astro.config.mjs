@@ -241,6 +241,7 @@ export default defineConfig({
 						{ label: 'Templating', link: '/reference/templating/' },
 						{ label: 'Threat Detection', link: '/reference/threat-detection/' },
 						{ label: 'Tools', link: '/reference/tools/' },
+						{ label: 'Triggering CI', link: '/reference/triggering-ci/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },

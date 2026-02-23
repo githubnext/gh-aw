@@ -25,11 +25,13 @@ You will need one of the following GitHub Actions secrets configured in your rep
 
 Depending on what your workflow needs to do, you may need additional GitHub tokens added as repository secrets:
 
-- **Lockdown mode, cross-repo access, or remote GitHub tools** – Add [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token)
-- **Trigger CI on PRs created by workflows** – Use [`github-token-for-extra-empty-commit`](/gh-aw/reference/safe-outputs/#triggering-ci-on-created-pull-requests)
-- **GitHub Projects v2 operations** – Add [`GH_AW_PROJECT_GITHUB_TOKEN`](#gh_aw_project_github_token)
+- **Cross-repo access** – Add [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token)
+- **Trigger CI on PRs created by workflows** – Use [`GH_AW_CI_TRIGGER_TOKEN`](#gh_aw_ci_trigger_token)
 - **Assign Copilot coding agent to issues/PRs** – Add [`GH_AW_AGENT_TOKEN`](#gh_aw_agent_token)
-- **MCP server with special permissions** – Add [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](#gh_aw_github_mcp_server_token)
+- **Lockdown mode** – Add [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token)
+- **Remote GitHub tools mode** – Add [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token)
+- **GitHub Projects operations** – Add [`GH_AW_PROJECT_GITHUB_TOKEN`](#gh_aw_project_github_token)
+- **Give GitHub MCP server special permissions** – Add [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](#gh_aw_github_mcp_server_token)
 
 ## How do I add a GitHub Actions secret to my repository?
 
@@ -47,7 +49,7 @@ You can also check existing secrets with:
 gh aw secrets bootstrap
 ```
 
-> [!WARNING]
+> [!NOTE]
 > The `gh aw secrets set` command does not work in GitHub Codespaces. If you're working in Codespaces, use the GitHub UI method below to add secrets.
 
 ### Adding secrets using the GitHub UI
@@ -67,17 +69,17 @@ A reference for all GitHub Actions secrets and tokens used by GitHub Agentic Wor
 
 ### `COPILOT_GITHUB_TOKEN`
 
-If using the Copilot CLI, you need a GitHub Actions Secret set to a GitHub Personal Access Token (PAT) with the `copilot-requests` scope to authenticate Copilot CLI.
+If using Copilot as your AI engine, you need a GitHub Actions Secret set to a GitHub Personal Access Token (PAT) with the `copilot-requests` scope to authenticate Copilot CLI.
 
 **Setup**:
 
 Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new):
 
 1. Select your user account, not an organization.
-2. Choose "Public repositories" access, even if adding to a private repo.
+2. Choose **"Public repositories"** access, even if adding a workflow to a private repo.
 3. Enable "Copilot Requests" permissions.
 
-You **must** have "Public repositories" selected; otherwise, the Copilot Requests permission option will not appear.
+You **must have "Public repositories" selected**; otherwise, the Copilot Requests permission option will not appear.
 
 Then add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI (see video).
 
@@ -85,8 +87,7 @@ Then add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TO
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
-> [!TIP]
-> If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
+If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
 
 <Video
   src="/gh-aw/videos/create-pat-user-copilot.mp4"
@@ -139,10 +140,9 @@ A Personal Access Token (PAT) with appropriate scopes and permissions for enhanc
 
 **When Required**:
 
-- **Lockdown Mode**: This or a similar token is required when `lockdown: true` is set in workflow frontmatter. The workflow will fail at runtime if the token is not configured.
 - **Cross-repository operations**: Required for accessing other repositories beyond the current one.
+- **Lockdown Mode**: This or a similar token is required when `lockdown: true` is set in workflow frontmatter. The workflow will fail at runtime if the token is not configured.
 - **Remote GitHub tools mode**: Required for faster startup without Docker.
-- **Codex engine operations**: Required for GitHub MCP integration.
 
 Note that using `GH_AW_GITHUB_TOKEN` replaces the default behaviour of GitHub Agentic Workflows (which arranges temporary `GITHUB_TOKEN` GitHub Actions tokens appropriate to the `permissions:` you have declared).
 
@@ -194,33 +194,11 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_MCP_PAT"
 
 ---
 
-### Triggering CI on Created Pull Requests
+### `GH_AW_CI_TRIGGER_TOKEN`
 
 Pull requests and pushes made with `GITHUB_TOKEN` do not trigger `pull_request`, `push`, or `pull_request_target` events. This is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) to prevent recursive workflows.
 
-To trigger CI, add `github-token-for-extra-empty-commit` to your `create-pull-request` or `push-to-pull-request-branch` safe output configuration. This pushes an additional empty commit using the specified token, which triggers CI events.
-
-**Two ways to configure:**
-
-| Method | Configuration | Description |
-|--------|--------------|-------------|
-| **Explicit token** | `github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }}` | Use a specific PAT or token per safe output |
-| **GitHub App** | `github-token-for-extra-empty-commit: app` | Use the configured GitHub App installation token |
-
-**Example:**
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }}
-```
-
-**Required permissions**: Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with `Contents: Read & Write` scoped to the relevant repositories.
-
-> [!TIP]
-> Use a fine-grained PAT with `contents: write` permission scoped to your repository. This is the minimum permission needed to push commits.
-
-See [Triggering CI on Created Pull Requests](/gh-aw/reference/safe-outputs/#triggering-ci-on-created-pull-requests) for behavioral details.
+See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers on PRs created by workflows using `
 
 ---
 

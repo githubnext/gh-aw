@@ -703,24 +703,11 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-> [!NOTE]
-> PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
+PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
 
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
-#### Triggering CI on Created Pull Requests
-
-By default, pull requests created using `GITHUB_TOKEN` **do not trigger CI workflow runs** (this is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) to prevent event cascades). To trigger CI checks on PRs created by agentic workflows, configure a CI trigger token:
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }}  # PAT or token to trigger CI
-```
-
-When configured, an empty commit is pushed to the PR branch using the specified token after PR creation. Since this push comes from a different authentication context, it triggers `push` and `pull_request` events normally.
-
-Use a secret expression (e.g. `${{ secrets.CI_TOKEN }}`) or `app` for GitHub App auth. See the [Authentication reference](/gh-aw/reference/auth/) for token setup and required permissions.
+By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -853,7 +840,7 @@ safe-outputs:
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
-Like `create-pull-request`, pushes made with `GITHUB_TOKEN` do not trigger CI events. Use `github-token-for-extra-empty-commit` to trigger CI after pushing. See [Triggering CI on Created Pull Requests](#triggering-ci-on-created-pull-requests) for details.
+Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
 
 #### Fail-Fast on Code Push Failure
 

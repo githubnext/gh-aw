@@ -319,7 +319,7 @@ safe-outputs:
     github-token-for-extra-empty-commit: ${{ secrets.CI_TRIGGER_PAT }}
 ```
 
-See [Triggering CI on Created Pull Requests](/gh-aw/reference/safe-outputs/#triggering-ci-on-created-pull-requests) for details.
+See [Triggering CI](/gh-aw/reference/triggering-ci/) for details.
 
 **Option 2: Use different authorization for the entire safe output**
 
