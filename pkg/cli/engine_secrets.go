@@ -246,7 +246,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
 	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
 	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	fmt.Fprintln(os.Stderr, "  • Repository access: **\"Public repositories\"** (you must use this setting for Copilot Requests permission to appear)")
+	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting for Copilot Requests permission to appear)")
 	fmt.Fprintln(os.Stderr, "  • Add permissions → Copilot Requests: Read-only")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "If you run into trouble see https://github.github.com/gh-aw/reference/auth/#copilot_github_token.")
