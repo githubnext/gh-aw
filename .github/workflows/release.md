@@ -356,6 +356,20 @@ steps:
         echo "✓ Fetched $PR_COUNT pull requests"
       fi
       
+      # Fetch community-labeled issues
+      echo "Fetching issues with 'community' label..."
+      if ! gh issue list \
+        --label "community" \
+        --state all \
+        --limit 500 \
+        --json number,title,author,labels,closedAt,url \
+        > /tmp/gh-aw/release-data/community_issues.json; then
+        echo "[]" > /tmp/gh-aw/release-data/community_issues.json
+      fi
+      
+      COMMUNITY_COUNT=$(jq length "/tmp/gh-aw/release-data/community_issues.json")
+      echo "✓ Fetched $COMMUNITY_COUNT community-labeled issues"
+      
       # Get the CHANGELOG.md content around this version
       if [ -f "CHANGELOG.md" ]; then
         cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md
@@ -379,6 +393,7 @@ Generate an engaging release highlights summary for **${{ github.repository }}**
 All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 - `current_release.json` - Release metadata (tag, name, dates, existing body)
 - `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}` (empty array if first release)
+- `community_issues.json` - All issues labeled `community` (issue number, title, author, closedAt, url)
 - `CHANGELOG.md` - Full changelog for context (if exists)
 - `docs_files.txt` - Available documentation files for linking
 
@@ -402,6 +417,9 @@ cat /tmp/gh-aw/release-data/current_release.json | jq
 # List PRs (empty if first release)
 cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
 
+# List community issues
+cat /tmp/gh-aw/release-data/community_issues.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
+
 # Check CHANGELOG context
 head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
 
@@ -409,7 +427,21 @@ head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG
 cat /tmp/gh-aw/release-data/docs_files.txt
 ```
 
-### 2. Categorize & Prioritize
+### 2. Identify Community Contributions
+
+Cross-reference `community_issues.json` with `pull_requests.json` to find which community issues are resolved in this release.
+
+A community issue is considered resolved in this release if any PR in `pull_requests.json` references its number in the PR body (e.g., `Fixes #123`, `Closes #123`, `Resolves #123`).
+
+```bash
+# Extract PR bodies and cross-reference with community issue numbers
+cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[].body // ""' | \
+  grep -oP '(?i)(close[sd]?|fix(e[sd])?|resolve[sd]?)\s*#\K[0-9]+' | sort -u
+```
+
+For each community issue resolved in this release, note the **issue author** from `community_issues.json`. These are the community contributors to celebrate.
+
+### 3. Categorize & Prioritize
 
 Group PRs by category (omit categories with no items):
 - **✨ New Features** - User-facing capabilities
@@ -419,7 +451,7 @@ Group PRs by category (omit categories with no items):
 - **⚠️ Breaking Changes** - Requires user action (ALWAYS list first if present)
 - **🔧 Internal** - Refactoring, dependencies (usually omit from highlights)
 
-### 3. Write Highlights
+### 4. Write Highlights
 
 Structure:
 ```markdown
@@ -439,6 +471,12 @@ Structure:
 ### 📚 Documentation
 [Only if significant doc additions/improvements]
 
+### 🌍 Community Contributions
+[Only if any community-labeled issues are resolved in this release]
+A huge thank you to the community members who reported issues that were resolved in this release:
+- **@[author]** for [issue title] ([#number](url))
+[One entry per community issue author. Omit this section entirely if no community issues are resolved.]
+
 ---
 For complete details, see [CHANGELOG](https://github.com/github/gh-aw/blob/main/CHANGELOG.md).
 ```
@@ -448,9 +486,9 @@ For complete details, see [CHANGELOG](https://github.com/github/gh-aw/blob/main/
 - Be specific: "Reduced compilation time by 40%" not "Faster compilation"
 - Skip internal changes unless they have user impact
 - Use docs links: `[Learn more](https://github.github.com/gh-aw/path/)`
-- Keep breaking changes prominent with action items
+- Celebrate community contributors: thank each issue author by name with a link to their issue
 
-### 4. Handle Special Cases
+### 5. Handle Special Cases
 
 **First Release** (no `${PREV_RELEASE_TAG}`):
 ```markdown
