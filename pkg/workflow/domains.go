@@ -684,21 +684,17 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		engineID = data.AI
 	}
 
-	// Compute domains based on engine type
-	// For Copilot with firewall support, use GetCopilotAllowedDomains which merges
-	// Copilot defaults with network permissions
-	// For Codex with firewall support, use GetCodexAllowedDomains which merges
-	// Codex defaults with network permissions
-	// For Claude with firewall support, use GetClaudeAllowedDomains which merges
-	// Claude defaults with network permissions
-	// For other engines, use GetAllowedDomains which uses network permissions only
+	// Compute domains based on engine type, including tools and runtimes to match
+	// what's provided to the actual firewall at runtime
 	switch engineID {
 	case "copilot":
-		return GetCopilotAllowedDomains(data.NetworkPermissions)
+		return GetCopilotAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "codex":
-		return GetCodexAllowedDomains(data.NetworkPermissions)
+		return GetCodexAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "claude":
-		return GetClaudeAllowedDomains(data.NetworkPermissions)
+		return GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+	case "gemini":
+		return GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)

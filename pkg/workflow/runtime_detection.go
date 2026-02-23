@@ -202,7 +202,7 @@ func detectSerenaLanguageRuntimes(serenaConfig *SerenaToolConfig, requirements m
 		"javascript": "node",
 		"python":     "python",
 		"java":       "java",
-		"rust":       "rust", // rust is not in knownRuntimes yet, but including for completeness
+		"rust":       "rust", // rust is listed as a valid Serena language but has no knownRuntime entry, so no setup step is generated
 		"csharp":     "dotnet",
 	}
 

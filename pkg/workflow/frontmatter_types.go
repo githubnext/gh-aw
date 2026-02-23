@@ -13,19 +13,26 @@ var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 
 // RuntimeConfig represents the configuration for a single runtime
 type RuntimeConfig struct {
-	Version string `json:"version,omitempty"` // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
-	If      string `json:"if,omitempty"`      // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
+	Version       string `json:"version,omitempty"`        // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
+	If            string `json:"if,omitempty"`             // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
+	ActionRepo    string `json:"action-repo,omitempty"`    // Override the GitHub Actions repository (e.g., "actions/setup-node")
+	ActionVersion string `json:"action-version,omitempty"` // Override the action version (e.g., "v4")
 }
 
 // RuntimesConfig represents the configuration for all runtime environments
 // This provides type-safe access to runtime version overrides
 type RuntimesConfig struct {
-	Node   *RuntimeConfig `json:"node,omitempty"`   // Node.js runtime
-	Python *RuntimeConfig `json:"python,omitempty"` // Python runtime
-	Go     *RuntimeConfig `json:"go,omitempty"`     // Go runtime
-	UV     *RuntimeConfig `json:"uv,omitempty"`     // uv package installer
-	Bun    *RuntimeConfig `json:"bun,omitempty"`    // Bun runtime
-	Deno   *RuntimeConfig `json:"deno,omitempty"`   // Deno runtime
+	Node    *RuntimeConfig `json:"node,omitempty"`    // Node.js runtime
+	Python  *RuntimeConfig `json:"python,omitempty"`  // Python runtime
+	Go      *RuntimeConfig `json:"go,omitempty"`      // Go runtime
+	UV      *RuntimeConfig `json:"uv,omitempty"`      // uv package installer
+	Bun     *RuntimeConfig `json:"bun,omitempty"`     // Bun runtime
+	Deno    *RuntimeConfig `json:"deno,omitempty"`    // Deno runtime
+	Dotnet  *RuntimeConfig `json:"dotnet,omitempty"`  // .NET runtime
+	Elixir  *RuntimeConfig `json:"elixir,omitempty"`  // Elixir runtime
+	Haskell *RuntimeConfig `json:"haskell,omitempty"` // Haskell runtime
+	Java    *RuntimeConfig `json:"java,omitempty"`    // Java runtime
+	Ruby    *RuntimeConfig `json:"ruby,omitempty"`    // Ruby runtime
 }
 
 // PermissionsConfig represents GitHub Actions permissions configuration
@@ -292,10 +299,16 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			}
 		}
 
-		// Create runtime config with both version and if condition
+		// Extract action-repo and action-version overrides (optional)
+		actionRepo, _ := configMap["action-repo"].(string)
+		actionVersion, _ := configMap["action-version"].(string)
+
+		// Create runtime config with all fields
 		runtimeConfig := &RuntimeConfig{
-			Version: version,
-			If:      ifCondition,
+			Version:       version,
+			If:            ifCondition,
+			ActionRepo:    actionRepo,
+			ActionVersion: actionVersion,
 		}
 
 		// Map to specific runtime field
@@ -312,6 +325,16 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			config.Bun = runtimeConfig
 		case "deno":
 			config.Deno = runtimeConfig
+		case "dotnet":
+			config.Dotnet = runtimeConfig
+		case "elixir":
+			config.Elixir = runtimeConfig
+		case "haskell":
+			config.Haskell = runtimeConfig
+		case "java":
+			config.Java = runtimeConfig
+		case "ruby":
+			config.Ruby = runtimeConfig
 		}
 	}
 

@@ -274,7 +274,7 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			strict: false,
 			expectContains: []string{
-				"Missing required permissions for github toolsets:",
+				"Missing required permissions for GitHub toolsets:",
 				"contents: write (required by repos)",
 				"issues: write (required by issues)",
 				"Option 1: Add missing permissions to your workflow frontmatter:",
@@ -351,7 +351,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 				ReadOnly: false,
 			},
 			expectMsg: []string{
-				"Missing required permissions for github toolsets:",
+				"Missing required permissions for GitHub toolsets:",
 				"contents: write",
 				"issues: write",
 				"pull-requests: write",
@@ -365,7 +365,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 				ReadOnly: false,
 			},
 			expectMsg: []string{
-				"Missing required permissions for github toolsets:",
+				"Missing required permissions for GitHub toolsets:",
 				"discussions: write",
 			},
 		},
