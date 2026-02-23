@@ -6787,11 +6787,6 @@
               "type": "boolean",
               "description": "When enabled, workflow completion notifier creates a new comment instead of editing the activation comment. Creates an append-only timeline of workflow runs. Default: false",
               "default": false
-            },
-            "activation-comments": {
-              "type": ["boolean", "string"],
-              "description": "When set to false or \"false\", disables all activation and fallback comments entirely (run-started, run-success, run-failure, PR/issue creation links). Supports templatable boolean values including GitHub Actions expressions (e.g. ${{ inputs.activation-comments }}). Default: true",
-              "default": true
             }
           },
           "additionalProperties": false
@@ -6850,6 +6845,12 @@
           "description": "Global footer control for all safe outputs. When false, omits visible AI-generated footer content from all created/updated entities (issues, PRs, discussions, releases) while still including XML markers for searchability. Individual safe-output types (create-issue, update-issue, etc.) can override this by specifying their own footer field. Defaults to true.",
           "default": true,
           "examples": [false, true]
+        },
+        "activation-comments": {
+          "type": ["boolean", "string"],
+          "description": "When set to false or \"false\", disables all activation and fallback comments entirely (run-started, run-success, run-failure, PR/issue creation links). Supports templatable boolean values including GitHub Actions expressions (e.g. ${{ inputs.activation-comments }}). Default: true",
+          "default": true,
+          "examples": [false, true, "${{ inputs.activation-comments }}"]
         },
         "group-reports": {
           "type": "boolean",

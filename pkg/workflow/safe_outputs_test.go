@@ -366,33 +366,6 @@ func TestParseMessagesConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "activation-comments bool false is stored as string",
-			input: map[string]any{
-				"activation-comments": false,
-			},
-			expected: &SafeOutputMessagesConfig{
-				ActivationComments: "false",
-			},
-		},
-		{
-			name: "activation-comments bool true is stored as string",
-			input: map[string]any{
-				"activation-comments": true,
-			},
-			expected: &SafeOutputMessagesConfig{
-				ActivationComments: "true",
-			},
-		},
-		{
-			name: "activation-comments string value is stored as-is",
-			input: map[string]any{
-				"activation-comments": "false",
-			},
-			expected: &SafeOutputMessagesConfig{
-				ActivationComments: "false",
-			},
-		},
-		{
 			name: "non-string values are ignored",
 			input: map[string]any{
 				"footer":      123, // Should be ignored
@@ -435,9 +408,6 @@ func TestParseMessagesConfig(t *testing.T) {
 			}
 			if result.RunFailure != tt.expected.RunFailure {
 				t.Errorf("RunFailure: got %q, want %q", result.RunFailure, tt.expected.RunFailure)
-			}
-			if result.ActivationComments != tt.expected.ActivationComments {
-				t.Errorf("ActivationComments: got %q, want %q", result.ActivationComments, tt.expected.ActivationComments)
 			}
 		})
 	}
@@ -517,6 +487,62 @@ func TestSerializeMessagesConfigComprehensive(t *testing.T) {
 // ========================================
 // GenerateSafeOutputsConfig Tests
 // ========================================
+
+// TestExtractSafeOutputsConfigActivationComments tests activation-comments parsing at top-level safe-outputs
+func TestExtractSafeOutputsConfigActivationComments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		expected string
+	}{
+		{
+			name: "activation-comments bool false is stored as string in Messages",
+			input: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-pull-requests": map[string]any{},
+					"activation-comments":  false,
+				},
+			},
+			expected: "false",
+		},
+		{
+			name: "activation-comments bool true is stored as string in Messages",
+			input: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-pull-requests": map[string]any{},
+					"activation-comments":  true,
+				},
+			},
+			expected: "true",
+		},
+		{
+			name: "activation-comments string value is stored as-is in Messages",
+			input: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-pull-requests": map[string]any{},
+					"activation-comments":  "false",
+				},
+			},
+			expected: "false",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Compiler{}
+			result := c.extractSafeOutputsConfig(tt.input)
+			if result == nil {
+				t.Fatal("expected non-nil SafeOutputsConfig")
+			}
+			if result.Messages == nil {
+				t.Fatal("expected non-nil Messages in SafeOutputsConfig")
+			}
+			if result.Messages.ActivationComments != tt.expected {
+				t.Errorf("Messages.ActivationComments: got %q, want %q", result.Messages.ActivationComments, tt.expected)
+			}
+		})
+	}
+}
 
 // TestGenerateSafeOutputsConfig tests the generateSafeOutputsConfig function
 func TestGenerateSafeOutputsConfig(t *testing.T) {

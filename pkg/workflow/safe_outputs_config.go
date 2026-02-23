@@ -416,6 +416,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle activation-comments at safe-outputs top level (templatable boolean)
+			if err := preprocessBoolFieldAsString(outputMap, "activation-comments", safeOutputsConfigLog); err != nil {
+				safeOutputsConfigLog.Printf("activation-comments: %v", err)
+			}
+			if activationComments, exists := outputMap["activation-comments"]; exists {
+				if activationCommentsStr, ok := activationComments.(string); ok && activationCommentsStr != "" {
+					if config.Messages == nil {
+						config.Messages = &SafeOutputMessagesConfig{}
+					}
+					config.Messages.ActivationComments = activationCommentsStr
+				}
+			}
+
 			// Handle mentions configuration
 			if mentions, exists := outputMap["mentions"]; exists {
 				config.Mentions = parseMentionsConfig(mentions)
