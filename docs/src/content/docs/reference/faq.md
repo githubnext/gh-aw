@@ -208,6 +208,10 @@ When the workflow runs, the prompt itself is taken from the markdown file at run
 
 When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [Authentication](/gh-aw/reference/auth/).
 
+### Can I use `CLAUDE_CODE_OAUTH_TOKEN` with the Claude engine?
+
+No. `CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), which must be configured as a GitHub Actions secret. Provider-based OAuth authentication for Claude (such as billing through a Claude Teams subscription) is not supported. See [Authentication](/gh-aw/reference/auth/) and [AI Engines](/gh-aw/reference/engines/#using-claude-by-anthropic-claude-code) for setup instructions.
+
 ### What hidden runtime dependencies does this have?
 
 The executing agentic workflow uses your nominated coding agent (defaulting to GitHub Copilot CLI), a GitHub Actions VM with NodeJS, pinned Actions from [github/gh-aw](https://github.com/github/gh-aw) releases, and an Agent Workflow Firewall container for network control (optional but default). The exact YAML workflow can be inspected in the compiled `.lock.yml` file - there's no hidden configuration.
