@@ -176,11 +176,11 @@ async function main(config = {}) {
 
   /**
    * Message handler function that processes a single close_discussion message
-   * @param {Object} message - The close_discussion message to process
+   * @param {Object} item - The close_discussion message to process
    * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
    * @returns {Promise<Object>} Result with success/error status
    */
-  return async function handleCloseDiscussion(message, resolvedTemporaryIds) {
+  return async function handleCloseDiscussion(item, resolvedTemporaryIds) {
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping close_discussion: max count of ${maxCount} reached`);
@@ -191,8 +191,6 @@ async function main(config = {}) {
     }
 
     processedCount++;
-
-    const item = message;
 
     // Determine discussion number
     let discussionNumber;
