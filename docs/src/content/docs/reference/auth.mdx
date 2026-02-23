@@ -10,7 +10,7 @@ import Video from '../../../components/Video.astro';
 
 This page describes authentication settings for GitHub Agentic Workflows.
 
-## Which GitHub Actions secrets do I need?
+## Authenticating Your Coding Agent (AI Engine)
 
 You will need one of the following GitHub Actions secrets configured in your repository to authenticate the AI engine you choose:
 
@@ -19,7 +19,11 @@ You will need one of the following GitHub Actions secrets configured in your rep
 - **Codex by OpenAI** – Add [`OPENAI_API_KEY`](#openai_api_key)
 - **Gemini by Google** – Add [`GEMINI_API_KEY`](#gemini_api_key)
 
-Apart from that, most workflows will run without any additional secrets or additional authentication. However, depending on your workflow, you may need additional GitHub tokens. These can be added as secrets and referenced in your workflow, or GitHub App authentication can be used as a more secure alternative.
+Most workflows will run without any additional secrets or additional authentication.
+
+## Additional Authentication
+
+Some workflows need additional authentication. These can be tokens added as secrets and referenced in your workflow, or GitHub App can be used.
 
 Workflows using the following **read** operations from GitHub require [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools), via either a secret containing a PAT or GitHub App:
 - **Read from multiple repositories**
