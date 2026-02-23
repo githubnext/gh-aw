@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7d48bac6df7757e4815d5c43bf8bc9072daed18816f793b91d734c6b752705f2"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fbb9ed29477ed621b1c3827b01a8f7bf0052063618b2900bb1e739453a3aa770"}
 
 name: "Smoke Codex"
 "on":
@@ -418,7 +418,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.2 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.2 ghcr.io/github/gh-aw-firewall/squid:0.20.2 ghcr.io/github/gh-aw-mcpg:v0.1.5 ghcr.io/github/github-mcp-server:v0.31.0 ghcr.io/github/serena-mcp-server:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.20.2 ghcr.io/github/gh-aw-firewall/api-proxy:0.20.2 ghcr.io/github/gh-aw-firewall/squid:0.20.2 ghcr.io/github/gh-aw-mcpg:v0.1.5 ghcr.io/github/github-mcp-server:v0.31.0 ghcr.io/github/serena-mcp-server:latest mcp/fetch mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -1091,6 +1091,9 @@ jobs:
             "${GITHUB_WORKSPACE}"
           ]
           mounts = ["${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"]
+          
+          [mcp_servers."web-fetch"]
+          container = "mcp/fetch"
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
@@ -1153,6 +1156,9 @@ jobs:
                   "\${GITHUB_WORKSPACE}"
                 ],
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"]
+              },
+              "web-fetch": {
+                "container": "mcp/fetch"
               }
             },
             "gateway": {
