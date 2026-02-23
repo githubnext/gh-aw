@@ -99,6 +99,10 @@ The required token type and permissions depend on whether you own the repository
 
 Alternatively, you can use a GitHub App with appropriate permissions instead of a PAT for enhanced security.
 
+**Using a magic secret**:
+
+Alternatively, you can set the magic secret `GH_AW_AGENT_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+
 <Video
     src="/gh-aw/videos/create-pat-org-agent.mp4"
     caption="Creating a fine-grained PAT for organization-owned repositories with permissions for agent assignment"

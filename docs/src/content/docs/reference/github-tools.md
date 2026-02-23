@@ -121,7 +121,7 @@ Alternatively, you can use a GitHub App for enhanced security. See [Using a GitH
 
 **Using a magic secret**:
 
-Alternatively, you can set the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` to a PAT, see the above guide for creating a suitable PAT. This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+Alternatively, you can set the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
 
 ## Related Documentation
 
