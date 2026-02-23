@@ -653,7 +653,7 @@ jobs:
                 "type": "stdio",
                 "container": "mcr.microsoft.com/playwright/mcp",
                 "args": ["--init", "--network", "host", "--security-opt", "seccomp=unconfined", "--ipc=host"],
-                "entrypointArgs": ["--output-dir", "/tmp/gh-aw/mcp-logs/playwright"],
+                "entrypointArgs": ["--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--browser-arg", "--no-sandbox"],
                 "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"]
               },
               "safeoutputs": {
