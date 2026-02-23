@@ -330,47 +330,17 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	// 3. Default detection model from the engine (as environment variable fallback)
 	detectionEngineConfig := engineConfig
 
-	// Only copy the engine config if a model is explicitly configured
-	// If no model is configured, we'll let the environment variable mechanism handle it
-	modelExplicitlyConfigured := engineConfig != nil && engineConfig.Model != ""
-
-	if modelExplicitlyConfigured {
-		// Model is explicitly configured — copy config but strip Agent:
-		// threat detection never runs as a custom agent (no repo checkout)
-		detectionEngineConfig = &EngineConfig{
-			ID:          engineConfig.ID,
-			Model:       engineConfig.Model,
-			Version:     engineConfig.Version,
-			MaxTurns:    engineConfig.MaxTurns,
-			Concurrency: engineConfig.Concurrency,
-			UserAgent:   engineConfig.UserAgent,
-			Env:         engineConfig.Env,
-			Config:      engineConfig.Config,
-			Args:        engineConfig.Args,
-			Firewall:    engineConfig.Firewall,
-			// Agent intentionally omitted — detection job has no repo checkout
-		}
+	// Build a minimal detection engine config: only ID and Model are inherited.
+	// All other fields (Version, MaxTurns, Concurrency, UserAgent, Env, Config, Args,
+	// Firewall, Agent, …) are intentionally omitted — the detection job is a simple
+	// threat-analysis invocation and should never run as a custom agent or carry
+	// agent-specific execution parameters.
+	if detectionEngineConfig == nil {
+		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
-		// No model configured - create/update config but don't set model
-		// This allows the engine execution to use environment variables
-		if detectionEngineConfig == nil {
-			detectionEngineConfig = &EngineConfig{
-				ID: engineSetting,
-			}
-		} else {
-			// Create a copy without setting the model
-			detectionEngineConfig = &EngineConfig{
-				ID:          detectionEngineConfig.ID,
-				Model:       "", // Explicitly leave empty for env var mechanism
-				Version:     detectionEngineConfig.Version,
-				MaxTurns:    detectionEngineConfig.MaxTurns,
-				Concurrency: detectionEngineConfig.Concurrency,
-				UserAgent:   detectionEngineConfig.UserAgent,
-				Env:         detectionEngineConfig.Env,
-				Config:      detectionEngineConfig.Config,
-				Args:        detectionEngineConfig.Args,
-				Firewall:    detectionEngineConfig.Firewall,
-			}
+		detectionEngineConfig = &EngineConfig{
+			ID:    detectionEngineConfig.ID,
+			Model: detectionEngineConfig.Model,
 		}
 	}
 
