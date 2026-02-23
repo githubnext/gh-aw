@@ -38,7 +38,7 @@ The PAT needs permissions **only on target repositories** (not the source reposi
 
 For enhanced security, use GitHub Apps for automatic token minting and revocation. GitHub App tokens are minted on-demand, automatically revoked after job completion, and provide better security than long-lived PATs.
 
-See [GitHub App for Safe Outputs](/gh-aw/reference/auth/#github-app-for-safe-outputs) for complete configuration examples including specific repository scoping and org-wide access.
+See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete configuration examples including specific repository scoping and org-wide access.
 
 ## Common Patterns
 

@@ -1219,11 +1219,11 @@ safe-outputs:
     github-token: ${{ secrets.PR_PAT }}    # per-output
 ```
 
-### GitHub App Token (`app:`)
+### Using a GitHub App for Authentication (`app:`)
 
 Use GitHub App tokens for enhanced security: on-demand token minting, automatic revocation, fine-grained permissions, and better attribution.
 
-See [GitHub App for Safe Outputs](/gh-aw/reference/auth/#github-app-for-safe-outputs) for configuration details and security benefits.
+See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
 
 ### Text Sanitization (`allowed-domains:`, `allowed-github-references:`)
 

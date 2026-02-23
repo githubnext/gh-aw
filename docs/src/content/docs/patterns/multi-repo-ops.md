@@ -78,7 +78,7 @@ The PAT needs permissions **only on target repositories** where you want to crea
 
 For enhanced security, use GitHub Apps with automatic token revocation. GitHub App tokens provide per-job minting, automatic revocation after job completion, fine-grained permissions, and better attribution than long-lived PATs.
 
-See [GitHub App for Safe Outputs](/gh-aw/reference/auth/#github-app-for-safe-outputs) for complete configuration including specific repository scoping and org-wide access.
+See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete configuration including specific repository scoping and org-wide access.
 
 ## Common MultiRepoOps Patterns
 
