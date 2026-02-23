@@ -8,53 +8,48 @@ var permissionsLog = logger.New("workflow:permissions")
 
 // convertStringToPermissionScope converts a string key to a PermissionScope
 func convertStringToPermissionScope(key string) PermissionScope {
-	scope := func() PermissionScope {
-		switch key {
-		case "actions":
-			return PermissionActions
-		case "attestations":
-			return PermissionAttestations
-		case "checks":
-			return PermissionChecks
-		case "contents":
-			return PermissionContents
-		case "deployments":
-			return PermissionDeployments
-		case "discussions":
-			return PermissionDiscussions
-		case "id-token":
-			return PermissionIdToken
-		case "issues":
-			return PermissionIssues
-		case "metadata":
-			return PermissionMetadata
-		case "models":
-			return PermissionModels
-		case "packages":
-			return PermissionPackages
-		case "pages":
-			return PermissionPages
-		case "pull-requests":
-			return PermissionPullRequests
-		case "repository-projects":
-			return PermissionRepositoryProj
-		case "organization-projects":
-			return PermissionOrganizationProj
-		case "security-events":
-			return PermissionSecurityEvents
-		case "statuses":
-			return PermissionStatuses
-		case "all":
-			// "all" is a meta-key handled at the parser level; it is not a real scope
-			return ""
-		default:
-			return ""
-		}
-	}()
-	if scope == "" && key != "all" {
+	switch key {
+	case "actions":
+		return PermissionActions
+	case "attestations":
+		return PermissionAttestations
+	case "checks":
+		return PermissionChecks
+	case "contents":
+		return PermissionContents
+	case "deployments":
+		return PermissionDeployments
+	case "discussions":
+		return PermissionDiscussions
+	case "id-token":
+		return PermissionIdToken
+	case "issues":
+		return PermissionIssues
+	case "metadata":
+		return PermissionMetadata
+	case "models":
+		return PermissionModels
+	case "packages":
+		return PermissionPackages
+	case "pages":
+		return PermissionPages
+	case "pull-requests":
+		return PermissionPullRequests
+	case "repository-projects":
+		return PermissionRepositoryProj
+	case "organization-projects":
+		return PermissionOrganizationProj
+	case "security-events":
+		return PermissionSecurityEvents
+	case "statuses":
+		return PermissionStatuses
+	case "all":
+		// "all" is a meta-key handled at the parser level; it is not a real scope
+		return ""
+	default:
 		permissionsLog.Printf("Unknown permission scope key: %s", key)
+		return ""
 	}
-	return scope
 }
 
 // PermissionLevel represents the level of access (read, write, none)
