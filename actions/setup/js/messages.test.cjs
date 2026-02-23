@@ -31,6 +31,8 @@ describe("messages.cjs", () => {
     delete process.env.GH_AW_ENGINE_VERSION;
     delete process.env.GH_AW_ENGINE_MODEL;
     delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_RUN_ID;
+    delete process.env.GH_AW_WORKFLOW_ID;
     // Clear cache by reimporting
     vi.resetModules();
   });
