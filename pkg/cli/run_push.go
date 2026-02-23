@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var runPushLog = logger.New("cli:run_push")
@@ -638,9 +639,18 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 	return mismatch, nil
 }
 
-// extractHashFromLockFile extracts the frontmatter-hash from a lock file content
+// extractHashFromLockFile extracts the frontmatter-hash from a lock file content.
+// Supports both the new JSON metadata format (# gh-aw-metadata: {...})
+// and the legacy format (# frontmatter-hash: <hash>).
 func extractHashFromLockFile(content string) string {
-	// Look for: # frontmatter-hash: <hash>
+	// First, try to extract from JSON metadata format using the proper workflow package function
+	if metadata, _, err := workflow.ExtractMetadataFromLockFile(content); err == nil && metadata != nil {
+		if metadata.FrontmatterHash != "" {
+			return metadata.FrontmatterHash
+		}
+	}
+
+	// Fallback to legacy format: # frontmatter-hash: <hash>
 	lines := strings.SplitSeq(content, "\n")
 	for line := range lines {
 		if len(line) > 20 && line[:20] == "# frontmatter-hash: " {
