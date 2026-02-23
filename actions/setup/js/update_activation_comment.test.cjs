@@ -66,6 +66,11 @@ const createTestableFunction = scriptContent => {
         },
       };
     }
+    if (module === "./generate_footer.cjs") {
+      return {
+        generateXMLMarker: (workflowName, runUrl) => `<!-- gh-aw-agentic-workflow: ${workflowName}, run: ${runUrl} -->`,
+      };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(

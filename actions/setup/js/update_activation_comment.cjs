@@ -6,14 +6,17 @@ const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPullRequestCreatedMessage, getIssueCreatedMessage, getCommitPushedMessage } = require("./messages_run_status.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { generateXMLMarker } = require("./generate_footer.cjs");
 
 /**
- * Get the current workflow run ID from context or environment.
+ * Build the workflow run URL from context and environment.
  * @param {any} context - GitHub Actions context
- * @returns {string} The run ID, or empty string if not available
+ * @returns {string} The workflow run URL
  */
-function getRunId(context) {
-  return String(context.runId || process.env.GITHUB_RUN_ID || "");
+function getRunUrl(context) {
+  const runId = context.runId || process.env.GITHUB_RUN_ID || "";
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+  return context.payload?.repository?.html_url ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 }
 
 /**
@@ -27,12 +30,10 @@ function getRunId(context) {
  */
 async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
-  const runId = getRunId(context);
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const runUrl = getRunUrl(context);
   const body = itemType === "issue" ? getIssueCreatedMessage({ itemNumber, itemUrl }) : getPullRequestCreatedMessage({ itemNumber, itemUrl });
-  let linkMessage = `\n\n${body}`;
-  if (runId) {
-    linkMessage += `\n\n<!-- gh-aw-run-id: ${runId} -->`;
-  }
+  const linkMessage = `\n\n${body}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, { targetIssueNumber: itemNumber });
 }
 
@@ -48,11 +49,9 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
  */
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
-  const runId = getRunId(context);
-  let message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}`;
-  if (runId) {
-    message += `\n\n<!-- gh-aw-run-id: ${runId} -->`;
-  }
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const runUrl = getRunUrl(context);
+  const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
 }
 
