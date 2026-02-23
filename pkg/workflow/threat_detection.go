@@ -330,17 +330,20 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	// 3. Default detection model from the engine (as environment variable fallback)
 	detectionEngineConfig := engineConfig
 
-	// Build a minimal detection engine config: only ID and Model are inherited.
-	// All other fields (Version, MaxTurns, Concurrency, UserAgent, Env, Config, Args,
-	// Firewall, Agent, …) are intentionally omitted — the detection job is a simple
-	// threat-analysis invocation and should never run as a custom agent or carry
-	// agent-specific execution parameters.
+	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args.
+	// MaxTurns, Concurrency, UserAgent, Firewall, and Agent are intentionally omitted —
+	// the detection job is a simple threat-analysis invocation and must never run as a
+	// custom agent (no repo checkout, agent file unavailable).
 	if detectionEngineConfig == nil {
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:    detectionEngineConfig.ID,
-			Model: detectionEngineConfig.Model,
+			ID:      detectionEngineConfig.ID,
+			Model:   detectionEngineConfig.Model,
+			Version: detectionEngineConfig.Version,
+			Env:     detectionEngineConfig.Env,
+			Config:  detectionEngineConfig.Config,
+			Args:    detectionEngineConfig.Args,
 		}
 	}
 
