@@ -28,6 +28,36 @@ const createTestableFunction = scriptContent => {
       // Mock sanitizeContent to return input as-is for testing
       return { sanitizeContent: content => content };
     }
+    if (module === "./messages_run_status.cjs") {
+      const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      const messages = messagesEnv ? JSON.parse(messagesEnv) : null;
+      const renderTmpl = (tmpl, ctx) => tmpl.replace(/\{(\w+)\}/g, (m, k) => (ctx[k] !== undefined ? String(ctx[k]) : m));
+      const toSnake = obj => {
+        const r = {};
+        for (const [k, v] of Object.entries(obj)) {
+          r[k.replace(/([A-Z])/g, "_$1").toLowerCase()] = v;
+          r[k] = v;
+        }
+        return r;
+      };
+      return {
+        getPullRequestCreatedMessage: ctx => {
+          const tc = toSnake(ctx);
+          const def = "Pull request created: [#{item_number}]({item_url})";
+          return messages?.pullRequestCreated ? renderTmpl(messages.pullRequestCreated, tc) : renderTmpl(def, tc);
+        },
+        getIssueCreatedMessage: ctx => {
+          const tc = toSnake(ctx);
+          const def = "Issue created: [#{item_number}]({item_url})";
+          return messages?.issueCreated ? renderTmpl(messages.issueCreated, tc) : renderTmpl(def, tc);
+        },
+        getCommitPushedMessage: ctx => {
+          const tc = toSnake(ctx);
+          const def = "Commit pushed: [`{short_sha}`]({commit_url})";
+          return messages?.commitPushed ? renderTmpl(messages.commitPushed, tc) : renderTmpl(def, tc);
+        },
+      };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(
@@ -56,7 +86,7 @@ describe("update_activation_comment.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           issue_number: 42,
-          body: expect.stringContaining("✅ Pull request created: [#42]"),
+          body: expect.stringContaining("Pull request created: [#42]"),
         })
       );
       expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with pull request link on #42");
@@ -83,7 +113,7 @@ describe("update_activation_comment.cjs", () => {
         expect(mockDependencies.github.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456 })),
         expect(mockDependencies.github.request).toHaveBeenCalledWith(
           "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-          expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456, body: expect.stringContaining("✅ Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)") })
+          expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456, body: expect.stringContaining("Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)") })
         ),
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with pull request link"));
     }),
@@ -102,7 +132,7 @@ describe("update_activation_comment.cjs", () => {
         expect(mockDependencies.github.graphql).toHaveBeenCalledWith(expect.stringContaining("query($commentId: ID!)"), expect.objectContaining({ commentId: "DC_kwDOABCDEF4ABCDEF" })),
         expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
           expect.stringContaining("mutation($commentId: ID!, $body: String!)"),
-          expect.objectContaining({ commentId: "DC_kwDOABCDEF4ABCDEF", body: expect.stringContaining("✅ Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)") })
+          expect.objectContaining({ commentId: "DC_kwDOABCDEF4ABCDEF", body: expect.stringContaining("Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)") })
         ),
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with pull request link"));
     }),
@@ -175,7 +205,7 @@ describe("update_activation_comment.cjs", () => {
       (await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/issues/99", 99, "issue"),
         expect(mockDependencies.github.request).toHaveBeenCalledWith(
           "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-          expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456, body: expect.stringContaining("✅ Issue created: [#99](https://github.com/testowner/testrepo/issues/99)") })
+          expect.objectContaining({ owner: "testowner", repo: "testrepo", comment_id: 123456, body: expect.stringContaining("Issue created: [#99](https://github.com/testowner/testrepo/issues/99)") })
         ),
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with issue link"));
     }),
@@ -193,7 +223,7 @@ describe("update_activation_comment.cjs", () => {
       (await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/issues/99", 99, "issue"),
         expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
           expect.stringContaining("mutation($commentId: ID!, $body: String!)"),
-          expect.objectContaining({ commentId: "DC_kwDOABCDEF4ABCDEF", body: expect.stringContaining("✅ Issue created: [#99](https://github.com/testowner/testrepo/issues/99)") })
+          expect.objectContaining({ commentId: "DC_kwDOABCDEF4ABCDEF", body: expect.stringContaining("Issue created: [#99](https://github.com/testowner/testrepo/issues/99)") })
         ),
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with issue link"));
     }),
@@ -219,7 +249,7 @@ describe("update_activation_comment.cjs", () => {
             owner: "testowner",
             repo: "testrepo",
             issue_number: 225,
-            body: expect.stringContaining("✅ Commit pushed:"),
+            body: expect.stringContaining("Commit pushed:"),
           })
         );
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with commit link on #225");
@@ -307,7 +337,7 @@ describe("update_activation_comment.cjs", () => {
             owner: "testowner",
             repo: "testrepo",
             issue_number: 42,
-            body: expect.stringContaining("✅ Pull request created: [#99]"),
+            body: expect.stringContaining("Pull request created: [#99]"),
           })
         );
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Append-only-comments enabled: creating a new comment");
@@ -358,7 +388,7 @@ describe("update_activation_comment.cjs", () => {
           expect.stringContaining("mutation"),
           expect.objectContaining({
             dId: "D_kwDOABCDEF4ABCDEF",
-            body: expect.stringContaining("✅ Pull request created: [#99]"),
+            body: expect.stringContaining("Pull request created: [#99]"),
           })
         );
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created append-only discussion comment with pull request link");

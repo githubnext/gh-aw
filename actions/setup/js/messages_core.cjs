@@ -33,6 +33,9 @@
  * @property {string} [runSuccess] - Custom workflow success message template
  * @property {string} [runFailure] - Custom workflow failure message template
  * @property {string} [detectionFailure] - Custom detection job failure message template
+ * @property {string} [pullRequestCreated] - Custom template for pull request creation link. Placeholders: {item_number}, {item_url}
+ * @property {string} [issueCreated] - Custom template for issue creation link. Placeholders: {item_number}, {item_url}
+ * @property {string} [commitPushed] - Custom template for commit push link. Placeholders: {commit_sha}, {short_sha}, {commit_url}
  * @property {string} [agentFailureIssue] - Custom footer template for agent failure tracking issues
  * @property {string} [agentFailureComment] - Custom footer template for comments on agent failure tracking issues
  * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated

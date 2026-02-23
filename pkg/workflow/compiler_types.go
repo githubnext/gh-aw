@@ -542,6 +542,9 @@ type SafeOutputMessagesConfig struct {
 	RunSuccess                     string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`                                           // Custom workflow success message template
 	RunFailure                     string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`                                           // Custom workflow failure message template
 	DetectionFailure               string `yaml:"detection-failure,omitempty" json:"detectionFailure,omitempty"`                               // Custom detection job failure message template
+	PullRequestCreated             string `yaml:"pull-request-created,omitempty" json:"pullRequestCreated,omitempty"`                          // Custom message template for pull request creation link. Placeholders: {item_number}, {item_url}
+	IssueCreated                   string `yaml:"issue-created,omitempty" json:"issueCreated,omitempty"`                                       // Custom message template for issue creation link. Placeholders: {item_number}, {item_url}
+	CommitPushed                   string `yaml:"commit-pushed,omitempty" json:"commitPushed,omitempty"`                                       // Custom message template for commit push link. Placeholders: {commit_sha}, {short_sha}, {commit_url}
 	AgentFailureIssue              string `yaml:"agent-failure-issue,omitempty" json:"agentFailureIssue,omitempty"`                            // Custom footer template for agent failure tracking issues
 	AgentFailureComment            string `yaml:"agent-failure-comment,omitempty" json:"agentFailureComment,omitempty"`                        // Custom footer template for comments on agent failure tracking issues
 }

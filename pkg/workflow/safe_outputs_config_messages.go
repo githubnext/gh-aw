@@ -51,6 +51,9 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	setStringFromMap(messagesMap, "run-success", &config.RunSuccess)
 	setStringFromMap(messagesMap, "run-failure", &config.RunFailure)
 	setStringFromMap(messagesMap, "detection-failure", &config.DetectionFailure)
+	setStringFromMap(messagesMap, "pull-request-created", &config.PullRequestCreated)
+	setStringFromMap(messagesMap, "issue-created", &config.IssueCreated)
+	setStringFromMap(messagesMap, "commit-pushed", &config.CommitPushed)
 	setStringFromMap(messagesMap, "agent-failure-issue", &config.AgentFailureIssue)
 	setStringFromMap(messagesMap, "agent-failure-comment", &config.AgentFailureComment)
 

@@ -4,6 +4,16 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { getPullRequestCreatedMessage, getIssueCreatedMessage, getCommitPushedMessage } = require("./messages_run_status.cjs");
+
+/**
+ * Get the current workflow run ID from context or environment.
+ * @param {any} context - GitHub Actions context
+ * @returns {string} The run ID, or empty string if not available
+ */
+function getRunId(context) {
+  return String(context.runId || process.env.GITHUB_RUN_ID || "");
+}
 
 /**
  * Update the activation comment with a link to the created pull request or issue
@@ -16,7 +26,12 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
  */
 async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
-  const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+  const runId = getRunId(context);
+  const body = itemType === "issue" ? getIssueCreatedMessage({ itemNumber, itemUrl }) : getPullRequestCreatedMessage({ itemNumber, itemUrl });
+  let linkMessage = `\n\n${body}`;
+  if (runId) {
+    linkMessage += `\n\n<!-- gh-aw-run-id: ${runId} -->`;
+  }
   await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, { targetIssueNumber: itemNumber });
 }
 
@@ -32,7 +47,11 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
  */
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
-  const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+  const runId = getRunId(context);
+  let message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}`;
+  if (runId) {
+    message += `\n\n<!-- gh-aw-run-id: ${runId} -->`;
+  }
   await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
 }
 
