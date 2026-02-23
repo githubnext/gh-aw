@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"31e69cc88ff6a146131dbcfb6e9c73f801d513f4f035ac412598a0c76b5d98f0"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"58b9c667bf6db3acec9c27027d1346b4cd6bb700b508ed533569938971852631"}
 
 name: "Semantic Function Refactoring"
 "on":
@@ -148,6 +149,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/semantic-function-refactor.md}}

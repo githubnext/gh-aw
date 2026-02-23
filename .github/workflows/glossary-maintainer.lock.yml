@@ -27,8 +27,9 @@
 #   Imports:
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
+#     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d2dbd57349dcb88bac2d2b508acf33e76616d86086e44554d7d6805c3b0887a0"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"08dcdc5b5ba8dec921cd60fdced8e0fdcdbefbc60f9e28ee4d9264e060d1d15b"}
 
 name: "Glossary Maintainer"
 "on":
@@ -155,6 +156,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/agents/technical-doc-writer.agent.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/glossary-maintainer.md}}

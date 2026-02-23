@@ -17,6 +17,7 @@ engine: copilot
 imports:
   - shared/reporting.md
   - shared/safe-output-app.md
+  - shared/mcp/serena-go.md
 
 safe-outputs:
   create-issue:
@@ -26,7 +27,6 @@ safe-outputs:
     max: 1
 
 tools:
-  serena: ["go"]
   repo-memory:
     branch-name: memory/testify-expert
     description: "Tracks processed test files to avoid duplicates"

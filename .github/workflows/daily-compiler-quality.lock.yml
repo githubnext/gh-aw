@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"91f3b0110588aca617b7e6aefb2ecab879c1289de471f373b4f5f34069680caf"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"109a17ec8c0c8ad3ad5991b31907360bf8423c6e5ebc705367d2497645b83732"}
 
 name: "Daily Compiler Quality Check"
 "on":
@@ -146,6 +147,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}

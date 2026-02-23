@@ -36,12 +36,13 @@
 #     - shared/mcp/microsoft-docs.md
 #     - shared/mcp/notion.md
 #     - shared/mcp/sentry.md
+#     - shared/mcp/serena-go.md
 #     - shared/mcp/server-memory.md
 #     - shared/mcp/slack.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e4a15d3009950212f8eb789320363a21a23e68ac8e264b69ddad8e403c4ceb18"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a47d738441d992624473007ef6642d81da6062c254d4f043ac1438370a169ef4"}
 
 name: "MCP Inspector Agent"
 "on":
@@ -205,6 +206,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/mcp-inspector.md}}

@@ -23,7 +23,11 @@
 #
 # Identifies duplicate code patterns across the codebase and suggests refactoring opportunities
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e13c6df501076c50e55eacfb19d3f2cf4d16f9764ec57af5993a2a7479148bbe"}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/serena-go.md
+#
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fcd0677bc45a2e116662616286ca59ac108757b01a1588e6c83c767465fc9871"}
 
 name: "Duplicate Code Detector"
 "on":
@@ -142,6 +146,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/duplicate-code-detector.md}}

@@ -23,7 +23,11 @@
 #
 # Generates Mermaid diagrams to visualize issue and pull request relationships when invoked with the /archie command
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"aafd7d30bf0dccade8d477ff7f03be6078b66cde589e505568c5d4310066f0e3"}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/serena-go.md
+#
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"47dec680d9e162f20708b2f4c2392459179d920a4198d550376cc3c73c6338d3"}
 
 name: "Archie"
 "on":
@@ -181,6 +185,9 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/archie.md}}

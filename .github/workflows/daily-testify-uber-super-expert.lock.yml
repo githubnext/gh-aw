@@ -25,10 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7d8e53e9fb651ca8ed59f03635300d5be979b8a42ffc4a3a78bce5e8d641bb6d"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"35a67822a3c4bc44363e37e6a1130fec1e278348b485c840d73f790acc49d82c"}
 
 name: "Daily Testify Uber Super Expert"
 "on":
@@ -156,6 +157,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/safe-output-app.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/daily-testify-uber-super-expert.md}}

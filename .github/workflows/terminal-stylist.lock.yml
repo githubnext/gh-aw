@@ -23,7 +23,11 @@
 #
 # Analyzes and improves console output styling and formatting in the codebase
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"65c1e7191c69de2adc68b7bdc175b8b5d1f50e033b4eb59869f33356e2f5b0d0"}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/serena-go.md
+#
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"94c758fe26224b557e793dbf2a020c24db55906e549a9e2f81e4c1cefd47d242"}
 
 name: "Terminal Stylist"
 "on":
@@ -141,6 +145,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/terminal-stylist.md}}

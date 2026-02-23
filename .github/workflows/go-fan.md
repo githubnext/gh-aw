@@ -24,6 +24,7 @@ network:
 
 imports:
   - shared/reporting.md
+  - shared/mcp/serena-go.md
 
 safe-outputs:
   create-discussion:
@@ -34,7 +35,6 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  serena: ["go"]
   cache-memory: true
   github:
     toolsets: [default]

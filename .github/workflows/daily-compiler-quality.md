@@ -10,8 +10,10 @@ permissions:
   pull-requests: read
 tracker-id: daily-compiler-quality
 engine: copilot
+imports:
+  - shared/mcp/serena-go.md
+  - shared/reporting.md
 tools:
-  serena: ["go"]
   github:
     toolsets:
       - default
@@ -31,8 +33,6 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 30
 strict: true
-imports:
-  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

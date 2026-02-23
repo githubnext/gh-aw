@@ -25,6 +25,7 @@ network:
 imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
+  - shared/mcp/serena-go.md
 
 safe-outputs:
   create-pull-request:
@@ -34,7 +35,6 @@ safe-outputs:
     draft: false
 
 tools:
-  serena: ["go"]
   cache-memory: true
   github:
     toolsets: [default]

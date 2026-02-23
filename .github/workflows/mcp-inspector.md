@@ -43,9 +43,9 @@ imports:
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/reporting.md
+  - shared/mcp/serena-go.md
 tools:
   agentic-workflows:
-  serena: ["go"]
   edit:
   bash: true
   cache-memory: true

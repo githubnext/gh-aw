@@ -9,8 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
-tools:
-  serena: ["go"]
+imports:
+  - shared/mcp/serena-go.md
 safe-outputs:
   create-issue:
     expires: 2d

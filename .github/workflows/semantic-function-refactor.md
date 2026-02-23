@@ -14,6 +14,7 @@ engine: claude
 
 imports:
   - shared/reporting.md
+  - shared/mcp/serena-go.md
 
 safe-outputs:
   close-issue:
@@ -27,7 +28,6 @@ safe-outputs:
     max: 1
 
 tools:
-  serena: ["go"]
   github:
     toolsets: [default, issues]
   edit:

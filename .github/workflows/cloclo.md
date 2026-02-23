@@ -19,9 +19,9 @@ engine:
   max-turns: 100
 imports:
   - shared/jqschema.md
+  - shared/mcp/serena-go.md
 tools:
   agentic-workflows:
-  serena: ["go"]
   edit:
   playwright:
   bash: true

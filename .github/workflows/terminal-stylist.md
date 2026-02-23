@@ -14,8 +14,10 @@ timeout-minutes: 10
 
 strict: true
 
+imports:
+  - shared/mcp/serena-go.md
+
 tools:
-  serena: ["go"]
   github:
     toolsets: [repos]
   edit:

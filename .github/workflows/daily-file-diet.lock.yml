@@ -25,10 +25,11 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c0409c152ec3e87335fed24573951a6c5fea4a8aa0fc40821b7022059b4e48ec"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f91fe579a02080177458b5639a51ee1096b40f90b9f94529e142bda919d58dfb"}
 
 name: "Daily File Diet"
 "on":
@@ -154,6 +155,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/safe-output-app.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/daily-file-diet.md}}

@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fa0c09d4f2ffac81a922f2744cee945c89592c07438390697241858ea02a1841"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3ca391548ba08c8a271413f4cf5a5ec319865e7da8f0a921a2d070743534688d"}
 
 name: "Go Fan"
 "on":
@@ -148,6 +149,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/go-fan.md}}

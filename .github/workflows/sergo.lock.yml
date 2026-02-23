@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"40482f28b466978bc450b02f69bfdd387cdfaafe616e4fa28a39b15b48efc608"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"02bf772df769e1b8dcee8170592780e7f1203860768210b7bf353632372b9d86"}
 
 name: "Sergo - Serena Go Expert"
 "on":
@@ -149,6 +150,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/sergo.md}}

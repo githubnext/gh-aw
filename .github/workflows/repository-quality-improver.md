@@ -10,8 +10,10 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+imports:
+  - shared/reporting.md
+  - shared/mcp/serena-go.md
 tools:
-  serena: ["go"]
   edit:
   bash: ["*"]
   cache-memory:
@@ -28,8 +30,6 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 20
 strict: true
-imports:
-  - shared/reporting.md
 
 ---
 

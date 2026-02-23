@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3d891b421e756ea93e07cf25858d1feb8afa3e2b540d5fce900b788fd7ea3d3a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6bb1a0d4a4a46eebdfbddfe915d6345a17575dd0489817be13e208c9921460da"}
 
 name: "Repository Quality Improvement Agent"
 "on":
@@ -148,6 +149,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/repository-quality-improver.md}}

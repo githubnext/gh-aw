@@ -25,8 +25,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
+#     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0b8eaee22834d6b3e9e86eb0b40c98d401bcbc52de0305ceaaa385dd25a6cbd9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9c9cd0d4f68fbedcbb012f1b424efca362e2fe0307125aa2d86a6fac79f79152"}
 
 name: "/cloclo"
 "on":
@@ -218,6 +219,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/jqschema.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/cloclo.md}}

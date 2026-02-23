@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4a503980ce77b740beb8eaa316edef00ef437b7e0788a1402afdb73e50b2ddec"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a84f1d31ef089afc1ac4110815e97c8509584a617fb3384a318fe01d5e960c67"}
 
 name: "Typist - Go Type Analysis"
 "on":
@@ -147,6 +148,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/typist.md}}

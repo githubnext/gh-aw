@@ -23,7 +23,11 @@
 #
 # Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"390a5b87bb8b3381e4de70dac11de15aa56ad7567daf9d1754ceed8bd56865c0"}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/serena-go.md
+#
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3d877629b8dbdc70c876f0006e969ffbcbf171447cebd877f2cd15883e36b7ff"}
 
 name: "Q"
 "on":
@@ -208,6 +212,9 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/q.md}}

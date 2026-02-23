@@ -25,9 +25,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5fd7b9b55e4f886542078a40004e7935f30d07293fc177d5f36313141d9c1e39"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fd13d49c5ea89ae0018ad18fa3283f32c323a71e7c28d56d74645be5ceeb85d4"}
 
 name: "Developer Documentation Consolidator"
 "on":
@@ -152,6 +153,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/reporting.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/mcp/serena-go.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/developer-docs-consolidator.md}}

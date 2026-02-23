@@ -13,9 +13,10 @@ permissions:
   pull-requests: read
   discussions: read
 engine: copilot
+imports:
+  - shared/mcp/serena-go.md
 tools:
   agentic-workflows:
-  serena: ["go"]
   github:
     toolsets:
       - default
