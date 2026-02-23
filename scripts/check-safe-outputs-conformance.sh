@@ -108,6 +108,9 @@ check_max_limits() {
     local failed=0
     
     for handler in actions/setup/js/*.cjs; do
+        # Skip test and utility files
+        [[ "$handler" =~ (test|parse|buffer|factory) ]] && continue
+        
         # Only check files that perform GitHub API operations
         if ! grep -q "octokit\." "$handler"; then
             continue
