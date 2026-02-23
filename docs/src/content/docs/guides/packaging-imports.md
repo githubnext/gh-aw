@@ -40,6 +40,9 @@ Use `--name`, `--pr`, `--force`, `--engine`, or `--verbose` flags to customize i
 > [!NOTE]
 > Check carefully that the workflow comes from a trusted source and is appropriate for your use in your repository. Review the workflow's content and understand what it does before adding it to your repository.
 
+> [!NOTE]
+> Workflows marked with `private: true` in their frontmatter cannot be added to other repositories. Attempting to do so will fail with an error. See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private) for details.
+
 ## Updating Workflows
 
 When you add a workflow, a tracking `source:` entry remembers where it came from. You can keep workflows synchronized with their source repositories:

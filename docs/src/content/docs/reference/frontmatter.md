@@ -54,6 +54,25 @@ Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated 
 source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 ```
 
+### Private Workflows (`private:`)
+
+Mark a workflow as private to prevent it from being installed into other repositories via `gh aw add`.
+
+```yaml wrap
+private: true
+```
+
+When `private: true` is set, attempting to add the workflow from another repository will fail with an error:
+
+```
+workflow 'owner/repo/internal-tooling' is private and cannot be added to other repositories
+```
+
+Use this field for internal tooling, sensitive automation, or workflows that depend on repository-specific context and are not intended for external reuse.
+
+> [!NOTE]
+> The `private:` field only blocks installation via `gh aw add`. It does not affect the visibility of the workflow file itself — that is controlled by your repository's access settings.
+
 ### Labels (`labels:`)
 
 Optional array of strings for categorizing and organizing workflows. Labels are displayed in `gh aw status` command output and can be filtered using the `--label` flag.
