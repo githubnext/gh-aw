@@ -54,6 +54,12 @@ async function updateActivationCommentWithMessage(github, context, core, message
   const messagesConfig = getMessages();
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
 
+  // Check if activation comments are disabled entirely
+  if (messagesConfig?.activationComments === false) {
+    core.info("activation-comments is disabled: skipping activation comment update");
+    return;
+  }
+
   // Parse comment repo (format: "owner/repo") with validation
   let repoOwner = context.repo.owner;
   let repoName = context.repo.repo;

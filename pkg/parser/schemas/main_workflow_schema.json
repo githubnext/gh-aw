@@ -6772,6 +6772,11 @@
               "type": "boolean",
               "description": "When enabled, workflow completion notifier creates a new comment instead of editing the activation comment. Creates an append-only timeline of workflow runs. Default: false",
               "default": false
+            },
+            "activation-comments": {
+              "type": "boolean",
+              "description": "When set to false, disables all activation and fallback comments entirely (run-started, run-success, run-failure, PR/issue creation links). Useful for silent automation workflows that create PRs or issues without posting informational bot comments. Default: true",
+              "default": true
             }
           },
           "additionalProperties": false

@@ -34,6 +34,13 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 		}
 	}
 
+	if activationComments, exists := messagesMap["activation-comments"]; exists {
+		if enabled, ok := activationComments.(bool); ok {
+			config.ActivationComments = &enabled
+			safeOutputMessagesLog.Printf("Set activation-comments: %t", enabled)
+		}
+	}
+
 	setStringFromMap(messagesMap, "footer", &config.Footer)
 	setStringFromMap(messagesMap, "footer-install", &config.FooterInstall)
 	setStringFromMap(messagesMap, "footer-workflow-recompile", &config.FooterWorkflowRecompile)

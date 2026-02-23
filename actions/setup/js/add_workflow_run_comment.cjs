@@ -6,6 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { getMessages } = require("./messages_core.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -60,6 +61,13 @@ function setCommentOutputs(commentId, commentUrl) {
  * Use add_reaction.cjs in the pre-activation job to add reactions first for immediate feedback.
  */
 async function main() {
+  // Check if activation comments are disabled
+  const messagesConfig = getMessages();
+  if (messagesConfig?.activationComments === false) {
+    core.info("activation-comments is disabled: skipping activation comment creation");
+    return;
+  }
+
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;

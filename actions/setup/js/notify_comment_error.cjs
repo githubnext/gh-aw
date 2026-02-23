@@ -60,6 +60,12 @@ async function main() {
   const messagesConfig = getMessages();
   const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
 
+  // If activation comments are disabled entirely, skip all comment updates
+  if (messagesConfig?.activationComments === false) {
+    core.info("activation-comments is disabled: skipping completion comment update");
+    return;
+  }
+
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment Repo: ${commentRepo}`);
   core.info(`Run URL: ${runUrl}`);
