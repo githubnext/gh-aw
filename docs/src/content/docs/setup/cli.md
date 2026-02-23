@@ -162,12 +162,13 @@ Manage GitHub Actions secrets and tokens.
 Create or update a repository secret (from stdin, flag, or environment variable).
 
 ```bash wrap
-gh aw secrets set MY_SECRET                                    # From stdin
+gh aw secrets set MY_SECRET                                    # From stdin (current repo)
+gh aw secrets set MY_SECRET --repo myorg/myrepo                # Specify target repo
 gh aw secrets set MY_SECRET --value "secret123"                # From flag
 gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From env var
 ```
 
-**Options:** `--owner`, `--repo`, `--value`, `--value-from-env`, `--api-url`
+**Options:** `--repo`, `--value`, `--value-from-env`, `--api-url`
 
 ##### `secrets bootstrap`
 
