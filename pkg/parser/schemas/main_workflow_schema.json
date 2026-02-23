@@ -2275,7 +2275,7 @@
                       },
                       "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
                     },
-                    "cleanup_script": {
+                    "cleanup-script": {
                       "type": "string",
                       "description": "Path to cleanup script run after AWF shuts down (default: ./scripts/ci/cleanup.sh)"
                     }
