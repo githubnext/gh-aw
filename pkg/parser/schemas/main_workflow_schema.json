@@ -6611,6 +6611,10 @@
                   "items": {
                     "$ref": "#/$defs/githubActionsStep"
                   }
+                },
+                "run-on": {
+                  "type": "string",
+                  "description": "Runner specification for the detection job. Overrides safe-outputs.runs-on for the detection job only. Defaults to safe-outputs.runs-on, then ubuntu-latest."
                 }
               },
               "additionalProperties": false

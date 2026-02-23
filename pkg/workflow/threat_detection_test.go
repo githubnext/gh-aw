@@ -111,6 +111,17 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "object with run-on override",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"run-on": "self-hosted",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				RunsOn: "self-hosted",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -133,6 +144,68 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 
 			if len(result.Steps) != len(tt.expectedConfig.Steps) {
 				t.Errorf("Expected %d steps, got %d", len(tt.expectedConfig.Steps), len(result.Steps))
+			}
+
+			if result.RunsOn != tt.expectedConfig.RunsOn {
+				t.Errorf("Expected RunsOn %q, got %q", tt.expectedConfig.RunsOn, result.RunsOn)
+			}
+		})
+	}
+}
+
+func TestFormatDetectionRunsOn(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		expectedRunsOn string
+	}{
+		{
+			name:           "nil safe outputs returns default",
+			safeOutputs:    nil,
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+		{
+			name: "detection run-on takes priority over safe-outputs runs-on",
+			safeOutputs: &SafeOutputsConfig{
+				RunsOn: "self-hosted",
+				ThreatDetection: &ThreatDetectionConfig{
+					RunsOn: "detection-runner",
+				},
+			},
+			expectedRunsOn: "runs-on: detection-runner",
+		},
+		{
+			name: "falls back to safe-outputs runs-on when detection run-on is empty",
+			safeOutputs: &SafeOutputsConfig{
+				RunsOn:          "self-hosted",
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			expectedRunsOn: "runs-on: self-hosted",
+		},
+		{
+			name: "falls back to default when both detection run-on and safe-outputs runs-on are empty",
+			safeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
+		},
+		{
+			name: "nil threat detection still uses safe-outputs runs-on",
+			safeOutputs: &SafeOutputsConfig{
+				RunsOn:          "windows-latest",
+				ThreatDetection: nil,
+			},
+			expectedRunsOn: "runs-on: windows-latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.formatDetectionRunsOn(tt.safeOutputs)
+			if result != tt.expectedRunsOn {
+				t.Errorf("Expected runs-on %q, got %q", tt.expectedRunsOn, result)
 			}
 		})
 	}
@@ -222,8 +295,17 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 				if job.Name != string(constants.DetectionJobName) {
 					t.Errorf("Expected job name 'detection', got %q", job.Name)
 				}
-				if job.RunsOn != "runs-on: ubuntu-latest" {
-					t.Errorf("Expected ubuntu-latest runner, got %q", job.RunsOn)
+				// Detection job uses formatDetectionRunsOn: safe-outputs.detection.run-on > safe-outputs.runs-on > default
+				expectedRunsOn := "runs-on: " + constants.DefaultActivationJobRunnerImage
+				if tt.data.SafeOutputs != nil {
+					if tt.data.SafeOutputs.ThreatDetection != nil && tt.data.SafeOutputs.ThreatDetection.RunsOn != "" {
+						expectedRunsOn = "runs-on: " + tt.data.SafeOutputs.ThreatDetection.RunsOn
+					} else if tt.data.SafeOutputs.RunsOn != "" {
+						expectedRunsOn = "runs-on: " + tt.data.SafeOutputs.RunsOn
+					}
+				}
+				if job.RunsOn != expectedRunsOn {
+					t.Errorf("Expected %q runner, got %q", expectedRunsOn, job.RunsOn)
 				}
 				// In dev mode (default), detection job should have contents: read permission for checkout
 				// In release mode, it should have empty permissions
