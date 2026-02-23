@@ -65,21 +65,13 @@ When an `allowed` list is configured, existing agent assignees not in the list a
 
 This safe output requires a fine-grained PAT to authenticate the agent assignment operation. The default `GITHUB_TOKEN` lacks the necessary permissions.
 
-### Token Precedence
-
-The safe output uses tokens in this order:
-
-1. `GH_AW_AGENT_TOKEN` (recommended)
-2. `GH_AW_GITHUB_TOKEN` (fallback)
-3. `GITHUB_TOKEN` (will fail - lacks required permissions)
-
-### `GH_AW_AGENT_TOKEN` Setup
+**Using a Personal Access Token (PAT)**:
 
 The required token type and permissions depend on whether you own the repository or an organization owns it.
 
-**For User-owned Repositories:**
+1. **Create the PAT**:
 
-1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   For User-owned Repositories, [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
    - **Resource owner**: Your user account
    - **Repository access**: "Public repositories" or select specific repos
    - **Repository permissions**:
@@ -88,11 +80,7 @@ The required token type and permissions depend on whether you own the repository
      - Issues: Write
      - Pull requests: Write
 
-**For Organization-owned Repositories:**
-
-When an organization owns the repository, you need a fine-grained PAT with the resource owner set to the organization:
-
-1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   For Organization-owned Repositories: [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
    - **Resource owner**: The organization that owns the repository
    - **Repository access**: Select the specific repositories that will use the workflow
    - **Repository permissions**:
@@ -100,29 +88,23 @@ When an organization owns the repository, you need a fine-grained PAT with the r
      - Contents: Write
      - Issues: Write
      - Pull requests: Write
-   - **Important**: You must set the resource owner to the organization during token creation
-
-<Video
-  src="/gh-aw/videos/create-pat-org-agent.mp4"
-  caption="Creating a fine-grained PAT for organization-owned repositories with permissions for agent assignment"
-  aspectRatio="16:9"
-  silenced={true}
-/>
 
 2. Add to repository secrets:
 
-```bash wrap
-gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
-```
+   ```bash wrap
+   gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+   ```
 
-### Resource Owner Requirements
+**Using a GitHub App**:
 
-The token's resource owner must match the repository ownership:
+Alternatively, you can use a GitHub App with appropriate permissions instead of a PAT for enhanced security.
 
-- **User-owned repositories**: Use a token where the resource owner is your user account
-- **Organization-owned repositories**: Use a token where the resource owner is the organization
-
-This ensures the token has the appropriate permissions to assign agents to issues and pull requests in the repository.
+<Video
+    src="/gh-aw/videos/create-pat-org-agent.mp4"
+    caption="Creating a fine-grained PAT for organization-owned repositories with permissions for agent assignment"
+    aspectRatio="16:9"
+    silenced={true}
+/>
 
 ## Related Documentation
 
