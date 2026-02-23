@@ -152,12 +152,15 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	}
 
 	// Add allowed domains
-	awfArgs = append(awfArgs, "--allow-domains", config.AllowedDomains)
+	// Pre-wrap in double quotes so shellEscapeArg preserves them (wildcards like *.domain.com
+	// are command arguments, not shell globs, and double quotes prevent SC1003 ShellCheck warnings)
+	awfArgs = append(awfArgs, "--allow-domains", "\""+config.AllowedDomains+"\"")
 
 	// Add blocked domains if specified
 	blockedDomains := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 	if blockedDomains != "" {
-		awfArgs = append(awfArgs, "--block-domains", blockedDomains)
+		// Pre-wrap in double quotes for the same reason as --allow-domains above
+		awfArgs = append(awfArgs, "--block-domains", "\""+blockedDomains+"\"")
 		awfHelpersLog.Printf("Added blocked domains: %s", blockedDomains)
 	}
 
