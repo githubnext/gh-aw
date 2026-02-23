@@ -81,36 +81,17 @@ sha256_hash() {
   fi
 }
 
-# Download a URL to a file with exponential backoff retry (3 attempts: 0s, 5s, 10s)
-curl_with_retry() {
-  local url="$1"
-  local output="$2"
-  local delay=5
-  for attempt in 1 2 3; do
-    if curl -fsSL -o "$output" "$url"; then
-      return 0
-    fi
-    if [ "$attempt" -lt 3 ]; then
-      echo "Download attempt $attempt failed, retrying in ${delay}s..."
-      sleep "$delay"
-      delay=$((delay * 2))
-    fi
-  done
-  echo "ERROR: Failed to download ${url} after 3 attempts"
-  return 1
-}
-
 # Create temp directory with cleanup on exit
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-curl_with_retry "${CHECKSUMS_URL}" "${TEMP_DIR}/SHA256SUMS.txt"
+curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
 
 # Download binary tarball
 echo "Downloading binary from ${TARBALL_URL}..."
-curl_with_retry "${TARBALL_URL}" "${TEMP_DIR}/${TARBALL_NAME}"
+curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
 
 # Verify checksum
 echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."

@@ -59,28 +59,9 @@ sha256_hash() {
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Download a URL to a file with exponential backoff retry (3 attempts: 0s, 5s, 10s)
-curl_with_retry() {
-  local url="$1"
-  local output="$2"
-  local delay=5
-  for attempt in 1 2 3; do
-    if curl -fsSL -o "$output" "$url"; then
-      return 0
-    fi
-    if [ "$attempt" -lt 3 ]; then
-      echo "Download attempt $attempt failed, retrying in ${delay}s..."
-      sleep "$delay"
-      delay=$((delay * 2))
-    fi
-  done
-  echo "ERROR: Failed to download ${url} after 3 attempts"
-  return 1
-}
-
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL@Q}..."
-curl_with_retry "${CHECKSUMS_URL}" "${TEMP_DIR}/checksums.txt"
+curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
 
 verify_checksum() {
   local file="$1"
@@ -118,7 +99,7 @@ install_linux_binary() {
 
   local binary_url="${BASE_URL}/${awf_binary}"
   echo "Downloading binary from ${binary_url@Q}..."
-  curl_with_retry "${binary_url}" "${TEMP_DIR}/${awf_binary}"
+  curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
@@ -143,7 +124,7 @@ install_darwin_binary() {
 
   local binary_url="${BASE_URL}/${awf_binary}"
   echo "Downloading binary from ${binary_url@Q}..."
-  curl_with_retry "${binary_url}" "${TEMP_DIR}/${awf_binary}"
+  curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
