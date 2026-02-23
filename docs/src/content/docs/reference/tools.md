@@ -129,11 +129,10 @@ Configure Playwright for browser automation and testing:
 ```yaml wrap
 tools:
   playwright:
-    allowed_domains: ["defaults", "github", "*.custom.com"]
     version: "1.56.1"  # Optional: defaults to 1.56.1, use "latest" for newest
 ```
 
-**Domain Access**: Uses `network:` ecosystem bundles (`defaults`, `github`, `node`, `python`, etc.). Defaults to `["localhost", "127.0.0.1"]`. Domains auto-include subdomains.
+**Domain Access**: Controlled by the top-level [`network:`](/gh-aw/reference/network/) field. Uses ecosystem bundles (`defaults`, `github`, `node`, `python`, etc.). Defaults to `["localhost", "127.0.0.1"]`. Domains auto-include subdomains.
 
 **GitHub Actions Compatibility**: Playwright runs in a Docker container with security flags required for Chromium to function on GitHub Actions runners (`--security-opt seccomp=unconfined` and `--ipc=host`). These flags are automatically configured by gh-aw version 0.41.0 and later.
 

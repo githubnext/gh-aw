@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -801,7 +802,12 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// so the agent job gets them transitively through activation
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
+		jobNames := make([]string, 0, len(data.Jobs))
 		for jobName := range data.Jobs {
+			jobNames = append(jobNames, jobName)
+		}
+		sort.Strings(jobNames)
+		for _, jobName := range jobNames {
 			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
 			if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 				continue
