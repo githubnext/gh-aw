@@ -302,12 +302,12 @@ This token is used to authenticate GitHub API operations related to [GitHub Proj
    ```yaml wrap
    safe-outputs:
      update-project:
-       github-token: ${{ secrets.CUSTOM_PROJECT_TOKEN }}
+       github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 
    tools:
      github:
        toolsets: [default, projects]
-       github-token: ${{ secrets.CUSTOM_PROJECT_TOKEN }}
+       github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
    ```
 
 **For User-owned Projects**:

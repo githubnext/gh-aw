@@ -7,7 +7,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var log = logger.New("fileutil:fileutil")
 
 // ValidateAbsolutePath validates that a file path is absolute and safe to use.
 // It performs the following security checks:
@@ -76,14 +80,17 @@ func IsDirEmpty(path string) bool {
 
 // CopyFile copies a file from src to dst using buffered IO.
 func CopyFile(src, dst string) error {
+	log.Printf("Copying file: src=%s, dst=%s", src, dst)
 	in, err := os.Open(src)
 	if err != nil {
+		log.Printf("Failed to open source file: %s", err)
 		return err
 	}
 	defer in.Close()
 
 	out, err := os.Create(dst)
 	if err != nil {
+		log.Printf("Failed to create destination file: %s", err)
 		return err
 	}
 	defer func() { _ = out.Close() }()
@@ -91,11 +98,13 @@ func CopyFile(src, dst string) error {
 	if _, err = io.Copy(out, in); err != nil {
 		return err
 	}
+	log.Printf("File copied successfully: src=%s, dst=%s", src, dst)
 	return out.Sync()
 }
 
 // CalculateDirectorySize recursively calculates the total size of files in a directory.
 func CalculateDirectorySize(dirPath string) int64 {
+	log.Printf("Calculating directory size: %s", dirPath)
 	var totalSize int64
 
 	_ = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
@@ -108,5 +117,6 @@ func CalculateDirectorySize(dirPath string) int64 {
 		return nil
 	})
 
+	log.Printf("Directory size: path=%s, size=%d bytes", dirPath, totalSize)
 	return totalSize
 }
