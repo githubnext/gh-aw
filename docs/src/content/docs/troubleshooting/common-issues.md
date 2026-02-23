@@ -142,12 +142,13 @@ mcp-servers:
 
 ### Playwright Network Access Denied
 
-Add domains to `allowed_domains`:
+Add domains to `network.allowed`:
 
 ```yaml wrap
-tools:
-  playwright:
-    allowed_domains: ["github.com", "*.github.io"]
+network:
+  allowed:
+    - github.com
+    - "*.github.io"
 ```
 
 ### Cannot Find Module 'playwright'
