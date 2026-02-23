@@ -64,8 +64,6 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 ```
 
-### Configuration Fields
-
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `project` | string | (required) | GitHub Project URL for update-project or create-project-status-update |
@@ -75,40 +73,9 @@ safe-outputs:
 
 See [Safe Outputs: Project Board Updates](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) for complete configuration details.
 
-## Authentication
+### Authentication
 
-See 
-
-### 1. Create a GitHub Project
-
-Create a Projects V2 board in the GitHub UI before configuring your workflow. You'll need the Project URL from the browser address bar.
-
-### 2. Set Up Authentication
-
-#### For User-Owned Projects
-
-Use a **classic PAT** with scopes:
-- `project` (required)
-- `repo` (if accessing private repositories)
-
-#### For Organization-Owned Projects
-
-Use a **fine-grained PAT** with:
-- Repository access: Select specific repos
-- Repository permissions:
-  - Contents: Read
-  - Issues: Read (if workflow triggers on issues)
-  - Pull requests: Read (if workflow triggers on pull requests)
-- Organization permissions:
-  - Projects: Read & Write
-
-### 3. Store the Token
-
-```bash
-gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_TOKEN"
-```
-
-See [GitHub Projects authentication](/gh-aw/reference/auth-projects/) for complete details.
+See [Authentication (Projects)](/gh-aw/reference/auth-projects/).
 
 ## Example: Issue Triage
 

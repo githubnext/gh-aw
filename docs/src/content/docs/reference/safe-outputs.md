@@ -345,7 +345,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/safe-outputs/#assign-to-agent-assign-to-agent).
+Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-agent/).
 
 ### Assign Milestone (`assign-milestone:`)
 
