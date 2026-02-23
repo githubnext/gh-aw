@@ -1,9 +1,10 @@
 // This file provides command-line interface functionality for gh-aw.
 // This file (gateway_logs.go) contains functions for parsing and analyzing
-// MCP gateway logs from gateway.jsonl files.
+// MCP gateway logs from gateway.jsonl or rpc-messages.jsonl files.
 //
 // Key responsibilities:
-//   - Parsing gateway.jsonl JSONL format logs
+//   - Parsing gateway.jsonl JSONL format logs (preferred)
+//   - Parsing rpc-messages.jsonl JSONL format logs (canonical fallback)
 //   - Extracting server and tool usage metrics
 //   - Aggregating gateway statistics
 //   - Rendering gateway metrics tables
@@ -28,6 +29,9 @@ import (
 )
 
 var gatewayLogsLog = logger.New("cli:gateway_logs")
+
+// maxScannerBufferSize is the maximum scanner buffer for large JSONL payloads (1 MB).
+const maxScannerBufferSize = 1024 * 1024
 
 // GatewayLogEntry represents a single log entry from gateway.jsonl
 type GatewayLogEntry struct {
@@ -80,7 +84,218 @@ type GatewayMetrics struct {
 	TotalDuration  float64 // in milliseconds
 }
 
-// parseGatewayLogs parses a gateway.jsonl file and extracts metrics
+// RPCMessageEntry represents a single entry from rpc-messages.jsonl.
+// This file is written by the Copilot CLI and contains raw JSON-RPC protocol messages
+// exchanged between the AI engine and MCP servers.
+type RPCMessageEntry struct {
+	Timestamp string          `json:"timestamp"`
+	Direction string          `json:"direction"` // "IN" = received from server, "OUT" = sent to server
+	Type      string          `json:"type"`      // "REQUEST" or "RESPONSE"
+	ServerID  string          `json:"server_id"`
+	Payload   json.RawMessage `json:"payload"`
+}
+
+// rpcRequestPayload represents the JSON-RPC request payload fields we care about.
+type rpcRequestPayload struct {
+	Method string          `json:"method"`
+	ID     any             `json:"id"`
+	Params json.RawMessage `json:"params"`
+}
+
+// rpcToolCallParams represents the params for a tools/call request.
+type rpcToolCallParams struct {
+	Name string `json:"name"`
+}
+
+// rpcResponsePayload represents the JSON-RPC response payload fields we care about.
+type rpcResponsePayload struct {
+	ID    any       `json:"id"`
+	Error *rpcError `json:"error,omitempty"`
+}
+
+// rpcError represents a JSON-RPC error object.
+type rpcError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// rpcPendingRequest tracks an in-flight tool call for duration calculation.
+type rpcPendingRequest struct {
+	ServerID  string
+	ToolName  string
+	Timestamp time.Time
+}
+
+// parseRPCMessages parses a rpc-messages.jsonl file and extracts GatewayMetrics.
+// This is the canonical fallback when gateway.jsonl is not available.
+func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
+	gatewayLogsLog.Printf("Parsing rpc-messages.jsonl from: %s", logPath)
+
+	file, err := os.Open(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open rpc-messages.jsonl: %w", err)
+	}
+	defer file.Close()
+
+	metrics := &GatewayMetrics{
+		Servers: make(map[string]*GatewayServerMetrics),
+	}
+
+	// Track pending requests by (serverID, id) for duration calculation.
+	// Key format: "<serverID>/<id>"
+	pendingRequests := make(map[string]*rpcPendingRequest)
+
+	scanner := bufio.NewScanner(file)
+	// Increase scanner buffer for large payloads
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		var entry RPCMessageEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			gatewayLogsLog.Printf("Failed to parse rpc-messages.jsonl line %d: %v", lineNum, err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Failed to parse rpc-messages.jsonl line %d: %v", lineNum, err)))
+			}
+			continue
+		}
+
+		// Update time range
+		if entry.Timestamp != "" {
+			if t, err := time.Parse(time.RFC3339Nano, entry.Timestamp); err == nil {
+				if metrics.StartTime.IsZero() || t.Before(metrics.StartTime) {
+					metrics.StartTime = t
+				}
+				if metrics.EndTime.IsZero() || t.After(metrics.EndTime) {
+					metrics.EndTime = t
+				}
+			}
+		}
+
+		if entry.ServerID == "" {
+			continue
+		}
+
+		switch {
+		case entry.Direction == "OUT" && entry.Type == "REQUEST":
+			// Outgoing request from AI engine to MCP server
+			var req rpcRequestPayload
+			if err := json.Unmarshal(entry.Payload, &req); err != nil {
+				continue
+			}
+			if req.Method != "tools/call" {
+				continue
+			}
+
+			// Extract tool name
+			var params rpcToolCallParams
+			if err := json.Unmarshal(req.Params, &params); err != nil || params.Name == "" {
+				continue
+			}
+
+			metrics.TotalRequests++
+			server := getOrCreateServer(metrics, entry.ServerID)
+			server.RequestCount++
+			metrics.TotalToolCalls++
+			server.ToolCallCount++
+
+			tool := getOrCreateTool(server, params.Name)
+			tool.CallCount++
+
+			// Store pending request for duration calculation
+			if req.ID != nil && entry.Timestamp != "" {
+				if t, err := time.Parse(time.RFC3339Nano, entry.Timestamp); err == nil {
+					key := fmt.Sprintf("%s/%v", entry.ServerID, req.ID)
+					pendingRequests[key] = &rpcPendingRequest{
+						ServerID:  entry.ServerID,
+						ToolName:  params.Name,
+						Timestamp: t,
+					}
+				}
+			}
+
+		case entry.Direction == "IN" && entry.Type == "RESPONSE":
+			// Incoming response from MCP server to AI engine
+			var resp rpcResponsePayload
+			if err := json.Unmarshal(entry.Payload, &resp); err != nil {
+				continue
+			}
+
+			// Track errors
+			if resp.Error != nil {
+				metrics.TotalErrors++
+				server := getOrCreateServer(metrics, entry.ServerID)
+				server.ErrorCount++
+			}
+
+			// Calculate duration by matching with pending request
+			if resp.ID != nil && entry.Timestamp != "" {
+				key := fmt.Sprintf("%s/%v", entry.ServerID, resp.ID)
+				if pending, ok := pendingRequests[key]; ok {
+					delete(pendingRequests, key)
+					if t, err := time.Parse(time.RFC3339Nano, entry.Timestamp); err == nil {
+						durationMs := float64(t.Sub(pending.Timestamp).Milliseconds())
+						if durationMs >= 0 {
+							server := getOrCreateServer(metrics, entry.ServerID)
+							server.TotalDuration += durationMs
+							metrics.TotalDuration += durationMs
+
+							tool := getOrCreateTool(server, pending.ToolName)
+							tool.TotalDuration += durationMs
+							if tool.MaxDuration == 0 || durationMs > tool.MaxDuration {
+								tool.MaxDuration = durationMs
+							}
+							if tool.MinDuration == 0 || durationMs < tool.MinDuration {
+								tool.MinDuration = durationMs
+							}
+
+							if resp.Error != nil {
+								tool.ErrorCount++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading rpc-messages.jsonl: %w", err)
+	}
+
+	calculateGatewayAggregates(metrics)
+
+	gatewayLogsLog.Printf("Successfully parsed rpc-messages.jsonl: %d servers, %d total requests",
+		len(metrics.Servers), metrics.TotalRequests)
+
+	return metrics, nil
+}
+
+// findRPCMessagesPath returns the path to rpc-messages.jsonl if it exists, or "" if not found.
+func findRPCMessagesPath(logDir string) string {
+	// Check mcp-logs subdirectory (standard location)
+	mcpLogsPath := filepath.Join(logDir, "mcp-logs", "rpc-messages.jsonl")
+	if _, err := os.Stat(mcpLogsPath); err == nil {
+		return mcpLogsPath
+	}
+	// Check root directory as fallback
+	rootPath := filepath.Join(logDir, "rpc-messages.jsonl")
+	if _, err := os.Stat(rootPath); err == nil {
+		return rootPath
+	}
+	return ""
+}
+
+// parseGatewayLogs parses a gateway.jsonl file and extracts metrics.
+// Falls back to rpc-messages.jsonl (canonical fallback) when gateway.jsonl is not present.
 func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 	// Try root directory first (for older logs where gateway.jsonl was in the root)
 	gatewayLogPath := filepath.Join(logDir, "gateway.jsonl")
@@ -92,6 +307,12 @@ func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 		// /tmp/gh-aw/ is stripped during artifact upload, resulting in mcp-logs/gateway.jsonl after download
 		mcpLogsPath := filepath.Join(logDir, "mcp-logs", "gateway.jsonl")
 		if _, err := os.Stat(mcpLogsPath); os.IsNotExist(err) {
+			// Fall back to rpc-messages.jsonl (canonical fallback when gateway.jsonl is missing)
+			rpcPath := findRPCMessagesPath(logDir)
+			if rpcPath != "" {
+				gatewayLogsLog.Printf("gateway.jsonl not found; falling back to rpc-messages.jsonl: %s", rpcPath)
+				return parseRPCMessages(rpcPath, verbose)
+			}
 			gatewayLogsLog.Printf("gateway.jsonl not found at: %s or %s", gatewayLogPath, mcpLogsPath)
 			return nil, errors.New("gateway.jsonl not found")
 		}
@@ -376,12 +597,144 @@ func getSortedServerNames(metrics *GatewayMetrics) []string {
 	return names
 }
 
+// buildToolCallsFromRPCMessages reads rpc-messages.jsonl and builds MCPToolCall records.
+// Duration is computed by pairing outgoing requests with incoming responses.
+// Input/output sizes are not available in rpc-messages.jsonl and will be 0.
+func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
+	file, err := os.Open(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open rpc-messages.jsonl: %w", err)
+	}
+	defer file.Close()
+
+	type pendingCall struct {
+		serverID  string
+		toolName  string
+		timestamp time.Time
+	}
+	pending := make(map[string]*pendingCall) // key: "<serverID>/<id>"
+
+	// Collect requests first to pair with responses
+	type rawEntry struct {
+		entry RPCMessageEntry
+		req   rpcRequestPayload
+		resp  rpcResponsePayload
+		valid bool
+	}
+	var entries []rawEntry
+
+	scanner := bufio.NewScanner(file)
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var e RPCMessageEntry
+		if err := json.Unmarshal([]byte(line), &e); err != nil {
+			continue
+		}
+		entries = append(entries, rawEntry{entry: e, valid: true})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading rpc-messages.jsonl: %w", err)
+	}
+
+	// First pass: index outgoing tool-call requests by (serverID, id)
+	for i := range entries {
+		e := &entries[i]
+		if e.entry.Direction != "OUT" || e.entry.Type != "REQUEST" {
+			continue
+		}
+		if err := json.Unmarshal(e.entry.Payload, &e.req); err != nil || e.req.Method != "tools/call" {
+			continue
+		}
+		var params rpcToolCallParams
+		if err := json.Unmarshal(e.req.Params, &params); err != nil || params.Name == "" {
+			continue
+		}
+		if e.req.ID == nil {
+			continue
+		}
+		t, err := time.Parse(time.RFC3339Nano, e.entry.Timestamp)
+		if err != nil {
+			continue
+		}
+		key := fmt.Sprintf("%s/%v", e.entry.ServerID, e.req.ID)
+		pending[key] = &pendingCall{
+			serverID:  e.entry.ServerID,
+			toolName:  params.Name,
+			timestamp: t,
+		}
+	}
+
+	// Second pass: build MCPToolCall records
+	var toolCalls []MCPToolCall
+	processedKeys := make(map[string]bool)
+
+	for i := range entries {
+		e := &entries[i]
+		switch {
+		case e.entry.Direction == "OUT" && e.entry.Type == "REQUEST":
+			// Outgoing tool-call request – we'll emit the record when we see the response
+			// (or after if no response found)
+		case e.entry.Direction == "IN" && e.entry.Type == "RESPONSE":
+			if err := json.Unmarshal(e.entry.Payload, &e.resp); err != nil {
+				continue
+			}
+			if e.resp.ID == nil {
+				continue
+			}
+			key := fmt.Sprintf("%s/%v", e.entry.ServerID, e.resp.ID)
+			p, ok := pending[key]
+			if !ok {
+				continue
+			}
+			processedKeys[key] = true
+
+			call := MCPToolCall{
+				Timestamp:  p.timestamp.Format(time.RFC3339Nano),
+				ServerName: p.serverID,
+				ToolName:   p.toolName,
+				Status:     "success",
+			}
+			if e.resp.Error != nil {
+				call.Status = "error"
+				call.Error = e.resp.Error.Message
+			}
+			if t, err := time.Parse(time.RFC3339Nano, e.entry.Timestamp); err == nil {
+				d := t.Sub(p.timestamp)
+				if d >= 0 {
+					call.Duration = timeutil.FormatDuration(d)
+				}
+			}
+			toolCalls = append(toolCalls, call)
+		}
+	}
+
+	// Emit any requests that never received a response
+	for key, p := range pending {
+		if !processedKeys[key] {
+			toolCalls = append(toolCalls, MCPToolCall{
+				Timestamp:  p.timestamp.Format(time.RFC3339Nano),
+				ServerName: p.serverID,
+				ToolName:   p.toolName,
+				Status:     "unknown",
+			})
+		}
+	}
+
+	return toolCalls, nil
+}
+
 // extractMCPToolUsageData creates detailed MCP tool usage data from gateway metrics
 func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, error) {
-	// Parse gateway logs
+	// Parse gateway logs (falls back to rpc-messages.jsonl automatically)
 	gatewayMetrics, err := parseGatewayLogs(logDir, verbose)
 	if err != nil {
-		// Return nil if gateway.jsonl doesn't exist (not an error for workflows without MCP)
+		// Return nil if no log file exists (not an error for workflows without MCP)
 		if strings.Contains(err.Error(), "not found") {
 			return nil, nil
 		}
@@ -398,72 +751,87 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		Servers:   []MCPServerStats{},
 	}
 
-	// Read gateway.jsonl again to get individual tool call records
-	// Try root directory first (for older logs where gateway.jsonl was in the root)
+	// Read the log file again to get individual tool call records.
+	// Prefer gateway.jsonl; fall back to rpc-messages.jsonl when not available.
 	gatewayLogPath := filepath.Join(logDir, "gateway.jsonl")
+	usingRPCMessages := false
 
-	// Check if gateway.jsonl exists in root
 	if _, err := os.Stat(gatewayLogPath); os.IsNotExist(err) {
-		// Try mcp-logs subdirectory (new path after artifact download)
 		mcpLogsPath := filepath.Join(logDir, "mcp-logs", "gateway.jsonl")
 		if _, err := os.Stat(mcpLogsPath); os.IsNotExist(err) {
-			return nil, errors.New("gateway.jsonl not found")
-		}
-		gatewayLogPath = mcpLogsPath
-	}
-
-	file, err := os.Open(gatewayLogPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open gateway.jsonl: %w", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-
-		var entry GatewayLogEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue // Skip malformed lines
-		}
-
-		// Only process tool call events
-		if entry.Event == "tool_call" || entry.Event == "rpc_call" || entry.Event == "request" {
-			toolName := entry.ToolName
-			if toolName == "" {
-				toolName = entry.Method
+			// Fall back to rpc-messages.jsonl
+			rpcPath := findRPCMessagesPath(logDir)
+			if rpcPath == "" {
+				return nil, errors.New("gateway.jsonl not found")
 			}
+			gatewayLogPath = rpcPath
+			usingRPCMessages = true
+		} else {
+			gatewayLogPath = mcpLogsPath
+		}
+	}
 
-			// Skip entries without tool information
-			if entry.ServerName == "" || toolName == "" {
+	if usingRPCMessages {
+		// Build tool call records from rpc-messages.jsonl
+		toolCalls, err := buildToolCallsFromRPCMessages(gatewayLogPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read rpc-messages.jsonl: %w", err)
+		}
+		mcpData.ToolCalls = toolCalls
+	} else {
+		file, err := os.Open(gatewayLogPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open gateway.jsonl: %w", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
 				continue
 			}
 
-			// Create individual tool call record
-			toolCall := MCPToolCall{
-				Timestamp:  entry.Timestamp,
-				ServerName: entry.ServerName,
-				ToolName:   toolName,
-				Method:     entry.Method,
-				InputSize:  entry.InputSize,
-				OutputSize: entry.OutputSize,
-				Status:     entry.Status,
-				Error:      entry.Error,
+			var entry GatewayLogEntry
+			if err := json.Unmarshal([]byte(line), &entry); err != nil {
+				continue // Skip malformed lines
 			}
 
-			if entry.Duration > 0 {
-				toolCall.Duration = timeutil.FormatDuration(time.Duration(entry.Duration * float64(time.Millisecond)))
-			}
+			// Only process tool call events
+			if entry.Event == "tool_call" || entry.Event == "rpc_call" || entry.Event == "request" {
+				toolName := entry.ToolName
+				if toolName == "" {
+					toolName = entry.Method
+				}
 
-			mcpData.ToolCalls = append(mcpData.ToolCalls, toolCall)
+				// Skip entries without tool information
+				if entry.ServerName == "" || toolName == "" {
+					continue
+				}
+
+				// Create individual tool call record
+				toolCall := MCPToolCall{
+					Timestamp:  entry.Timestamp,
+					ServerName: entry.ServerName,
+					ToolName:   toolName,
+					Method:     entry.Method,
+					InputSize:  entry.InputSize,
+					OutputSize: entry.OutputSize,
+					Status:     entry.Status,
+					Error:      entry.Error,
+				}
+
+				if entry.Duration > 0 {
+					toolCall.Duration = timeutil.FormatDuration(time.Duration(entry.Duration * float64(time.Millisecond)))
+				}
+
+				mcpData.ToolCalls = append(mcpData.ToolCalls, toolCall)
+			}
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading gateway.jsonl: %w", err)
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("error reading gateway.jsonl: %w", err)
+		}
 	}
 
 	// Build summary statistics from aggregated metrics
