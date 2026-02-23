@@ -237,6 +237,7 @@ Analyze issue and break down into implementation tasks
 - **GitHub Copilot** (default, recommended)
 - **Claude Code**
 - **Codex**
+- **Gemini CLI**
 
 ```yaml
 engine: copilot  # sensible defaults
