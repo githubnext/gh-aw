@@ -194,7 +194,8 @@ func TestMCPRegistryClient_LiveResponseStructure(t *testing.T) {
 	servers, err := client.SearchServers("")
 	if err != nil {
 		if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
-			strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") {
+			strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") ||
+			strings.Contains(err.Error(), "stream") || strings.Contains(err.Error(), "CANCEL") {
 			t.Skipf("Skipping due to network restrictions: %v", err)
 			return
 		}
