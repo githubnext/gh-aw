@@ -93,6 +93,10 @@ Automated security analysis that scans agent output and code changes for potenti
 
 A preview mode where workflows simulate actions without making changes. The AI generates output showing what would happen, but no GitHub API write operations are performed. Use for testing before production runs.
 
+### Lockdown Mode
+
+A security feature of the GitHub MCP server that filters content in public repositories to only surface items (issues, pull requests, comments, discussions) from users with push access. Protects agentic workflows from processing potentially malicious or misleading content submitted by untrusted users. Enabled via `lockdown: true` in the `tools.github` section. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/).
+
 ### Permissions
 
 Access controls defining workflow operations. Workflows follow least privilege, starting with read-only access by default. Write operations are typically handled through safe outputs.
@@ -201,6 +205,10 @@ A compilation target allowing the gh-aw compiler to run in browser environments 
 
 ## Advanced Features
 
+### AWF (Agent Workflow Firewall)
+
+The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
 ### Cache Memory
 
 Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Cache Memory](/gh-aw/reference/cache-memory/).
@@ -224,6 +232,10 @@ Configuration section in frontmatter defining environment variables for the work
 ### Repo Memory
 
 Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. See [Repo Memory](/gh-aw/reference/repo-memory/).
+
+### Sandbox
+
+Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 
