@@ -294,22 +294,24 @@ Create a comprehensive report using the **reporting MCP** with the following str
 
 ### Report Template
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. The discussion title serves as h1, so start section headers at h3.
+
 ```markdown
-# 🎯 Repository Quality Improvement Report - [FOCUS AREA]
+### 🎯 Repository Quality Improvement Report - [FOCUS AREA]
 
 **Analysis Date**: [DATE]  
 **Focus Area**: [SELECTED AREA]  
 **Strategy Type**: [Custom/Standard/Reused]
 **Custom Area**: [Yes/No - If yes, explain the rationale for this specific focus]
 
-## Executive Summary
+### Executive Summary
 
 [2-3 paragraphs summarizing the analysis findings and key recommendations]
 
 <details>
 <summary><b>Full Analysis Report</b></summary>
 
-## Focus Area: [AREA NAME]
+### Focus Area: [AREA NAME]
 
 ### Current State Assessment
 
