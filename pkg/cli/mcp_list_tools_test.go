@@ -99,7 +99,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("find_workflows_with_safe_outputs", func(t *testing.T) {
 		// Test searching for workflows containing safe-outputs
-		err := ListToolsForMCP("", constants.SafeOutputsMCPServerID, false)
+		err := ListToolsForMCP("", constants.SafeOutputsMCPServerID.String(), false)
 		// This should not error, but should output info about finding workflows
 		if err != nil {
 			t.Errorf("ListToolsForMCP safe-outputs search failed: %v", err)
@@ -206,7 +206,7 @@ tools:
 
 	t.Run("find_safe_outputs_server", func(t *testing.T) {
 		// Should find workflow2 (has safe-outputs)
-		err := findWorkflowsWithMCPServer(workflowsDir, constants.SafeOutputsMCPServerID, false)
+		err := findWorkflowsWithMCPServer(workflowsDir, constants.SafeOutputsMCPServerID.String(), false)
 		if err != nil {
 			t.Errorf("findWorkflowsWithMCPServer for safe-outputs failed: %v", err)
 		}

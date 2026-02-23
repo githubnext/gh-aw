@@ -644,17 +644,37 @@ const AgentOutputArtifactName = "agent-output"
 // AgentOutputFilename is the filename of the agent output JSON file
 const AgentOutputFilename = "agent_output.json"
 
+// MCPServerID represents a built-in MCP server identifier.
+// This semantic type distinguishes MCP server IDs from arbitrary strings,
+// preventing accidental mixing of server identifiers with other string types.
+//
+// Example usage:
+//
+//	const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
+//	func GetServer(id MCPServerID) (*Server, error) { ... }
+type MCPServerID string
+
+// String returns the string representation of the MCP server ID
+func (m MCPServerID) String() string {
+	return string(m)
+}
+
+// IsValid returns true if the MCP server ID is non-empty
+func (m MCPServerID) IsValid() bool {
+	return len(m) > 0
+}
+
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
-const SafeOutputsMCPServerID = "safeoutputs"
+const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
 
 // SafeInputsMCPServerID is the identifier for the safe-inputs MCP server
-const SafeInputsMCPServerID = "safeinputs"
+const SafeInputsMCPServerID MCPServerID = "safeinputs"
 
 // SafeInputsMCPVersion is the version of the safe-inputs MCP server
 const SafeInputsMCPVersion = "1.0.0"
 
 // AgenticWorkflowsMCPServerID is the identifier for the agentic-workflows MCP server
-const AgenticWorkflowsMCPServerID = "agenticworkflows"
+const AgenticWorkflowsMCPServerID MCPServerID = "agenticworkflows"
 
 // Feature flag identifiers
 const (

@@ -350,11 +350,11 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	}
 
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\"\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + ".headers]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
 	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 }
 
@@ -375,7 +375,7 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 // Uses HTTP transport exclusively
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 
 	// Determine host based on whether agent is disabled
@@ -411,7 +411,7 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID.String() + "]\n")
 
 	containerImage := constants.DefaultAlpineImage
 	var entrypoint string

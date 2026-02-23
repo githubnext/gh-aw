@@ -727,7 +727,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	}
 	if safeOutputs.UploadAssets != nil {
 		sections = append(sections, PromptSection{
-			Content: "\nupload_asset: provide a file path; returns a URL; assets are published after the workflow completes (" + constants.SafeOutputsMCPServerID + ").",
+			Content: "\nupload_asset: provide a file path; returns a URL; assets are published after the workflow completes (" + constants.SafeOutputsMCPServerID.String() + ").",
 			IsFile:  false,
 		})
 	}

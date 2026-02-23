@@ -115,7 +115,7 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 			result := yaml.String()
 
 			// Verify the MCP config contains agentic-workflows
-			assert.Contains(t, result, constants.AgenticWorkflowsMCPServerID,
+			assert.Contains(t, result, constants.AgenticWorkflowsMCPServerID.String(),
 				"%s engine should generate MCP config with agenticworkflows server name", e.name)
 			assert.Contains(t, result, "gh",
 				"%s engine MCP config should use gh CLI command for agentic-workflows", e.name)

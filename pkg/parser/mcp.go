@@ -110,14 +110,14 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
 		mcpLog.Print("Found safe-outputs configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "stdio",
 					Command: "node",
 					Env:     make(map[string]string),
 				},
-				Name: constants.SafeOutputsMCPServerID,
+				Name: constants.SafeOutputsMCPServerID.String(),
 				// Command and args will be set up dynamically when the server is started
 			}
 
@@ -159,11 +159,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
 		mcpLog.Print("Found safe-jobs configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			// Find existing safe-outputs config or create new one
 			var config *MCPServerConfig
 			for i := range configs {
-				if configs[i].Name == constants.SafeOutputsMCPServerID {
+				if configs[i].Name == constants.SafeOutputsMCPServerID.String() {
 					config = &configs[i]
 					break
 				}
@@ -176,7 +176,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						Command: "node",
 						Env:     make(map[string]string),
 					},
-					Name: constants.SafeOutputsMCPServerID,
+					Name: constants.SafeOutputsMCPServerID.String(),
 				}
 				configs = append(configs, newConfig)
 				config = &configs[len(configs)-1]
@@ -195,14 +195,14 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if safeInputsSection, hasSafeInputs := frontmatter["safe-inputs"]; hasSafeInputs {
 		mcpLog.Print("Found safe-inputs configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeInputsMCPServerID, strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeInputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "http",
 					Command: "",
 					Env:     make(map[string]string),
 				},
-				Name: constants.SafeInputsMCPServerID,
+				Name: constants.SafeInputsMCPServerID.String(),
 			}
 
 			// Parse safe-inputs configuration to determine enabled tools

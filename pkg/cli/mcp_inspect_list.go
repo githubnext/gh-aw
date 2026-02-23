@@ -18,7 +18,7 @@ var mcpInspectListLog = logger.New("cli:mcp_inspect_list")
 func filterOutSafeOutputs(configs []parser.MCPServerConfig) []parser.MCPServerConfig {
 	var filteredConfigs []parser.MCPServerConfig
 	for _, config := range configs {
-		if config.Name != constants.SafeOutputsMCPServerID {
+		if config.Name != constants.SafeOutputsMCPServerID.String() {
 			filteredConfigs = append(filteredConfigs, config)
 		}
 	}
