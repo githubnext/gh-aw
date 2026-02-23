@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -115,6 +116,7 @@ func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]a
 		}
 		return false
 	})
+	sort.Strings(deps)
 	compilerJobsLog.Printf("Found %d custom jobs depending on pre_activation: %v", len(deps), deps)
 	return deps
 }
@@ -133,6 +135,7 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 	refs := sliceutil.FilterMapKeys(customJobs, func(jobName string, _ any) bool {
 		return strings.Contains(content, fmt.Sprintf("needs.%s.", jobName))
 	})
+	sort.Strings(refs)
 	if len(refs) > 0 {
 		compilerJobsLog.Printf("Found %d custom job references: %v", len(refs), refs)
 	}
