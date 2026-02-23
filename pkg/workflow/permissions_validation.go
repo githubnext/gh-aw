@@ -299,7 +299,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 		}
 	}
 
-	lines = append(lines, "Missing required permissions for github toolsets:")
+	lines = append(lines, "Missing required permissions for GitHub toolsets:")
 	lines = append(lines, permLines...)
 	lines = append(lines, "")
 	lines = append(lines, "To fix this, you can either:")
