@@ -31,9 +31,7 @@ safe-outputs:
     close-older-discussions: true
 
 imports:
-  - shared/jqschema.md
-  - shared/reporting.md
-  - shared/copilot-pr-data-fetch.md
+  - shared/copilot-pr-analysis-base.md
 
 tools:
   repo-memory:
@@ -41,10 +39,6 @@ tools:
     description: "Historical prompt pattern analysis"
     file-glob: ["memory/prompt-analysis/*.json", "memory/prompt-analysis/*.jsonl", "memory/prompt-analysis/*.csv", "memory/prompt-analysis/*.md"]
     max-file-size: 102400  # 100KB
-  edit:
-  github:
-    toolsets: [default]
-  bash: ["*"]
 
 timeout-minutes: 15
 

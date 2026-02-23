@@ -30,9 +30,7 @@ safe-outputs:
     close-older-discussions: true
 
 imports:
-  - shared/jqschema.md
-  - shared/reporting.md
-  - shared/copilot-pr-data-fetch.md
+  - shared/copilot-pr-analysis-base.md
 
 tools:
   repo-memory:
@@ -40,18 +38,6 @@ tools:
     description: "Historical agent performance metrics"
     file-glob: ["memory/copilot-agent-analysis/*.json", "memory/copilot-agent-analysis/*.jsonl", "memory/copilot-agent-analysis/*.csv", "memory/copilot-agent-analysis/*.md"]
     max-file-size: 102400  # 100KB
-  github:
-    toolsets: [default]
-  bash:
-    - "find .github -name '*.md'"
-    - "find .github -type f -exec cat {} +"
-    - "find .github -maxdepth 1 -ls"
-    - "git log --oneline"
-    - "git diff"
-    - "gh pr list *"
-    - "gh search prs *"
-    - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
 
 timeout-minutes: 15
 

@@ -32,10 +32,8 @@ safe-outputs:
     close-older-discussions: true
 
 imports:
-  - shared/jqschema.md
+  - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
-  - shared/reporting.md
-  - shared/copilot-pr-data-fetch.md
 
 tools:
   repo-memory:
@@ -43,10 +41,6 @@ tools:
     description: "Historical NLP analysis results"
     file-glob: ["memory/nlp-analysis/*.json", "memory/nlp-analysis/*.jsonl", "memory/nlp-analysis/*.csv", "memory/nlp-analysis/*.md"]
     max-file-size: 102400  # 100KB
-  edit:
-  github:
-    toolsets: [default]
-  bash: ["*"]
 
 steps:
   - name: Fetch PR comments for detailed analysis

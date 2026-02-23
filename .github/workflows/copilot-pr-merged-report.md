@@ -18,9 +18,6 @@ strict: false
 
 tools:
   github: false
-  edit:
-  bash:
-    - "*"
 
 safe-outputs:
   create-discussion:
@@ -38,7 +35,7 @@ network:
 
 imports:
   - shared/gh.md
-  - shared/reporting.md
+  - shared/copilot-pr-analysis-base.md
 
 timeout-minutes: 10
 ---
