@@ -471,7 +471,20 @@ download-github-actions-schema:
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
 	@echo "Formatting schema with prettier..."
 	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
+	@$(MAKE) patch-github-actions-schema
 	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
+
+# Patch the GitHub Actions workflow schema with custom permissions not yet in SchemaStore.
+# This must be run after download-github-actions-schema to preserve local additions.
+.PHONY: patch-github-actions-schema
+patch-github-actions-schema:
+	@echo "Patching GitHub Actions schema with copilot-requests permission..."
+	@tmpfile=$$(mktemp) && \
+		jq '.definitions["permissions-event"].properties["copilot-requests"] = {"type": "string", "enum": ["write", "none"]}' \
+			pkg/workflow/schemas/github-workflow.json > "$$tmpfile" && \
+		mv "$$tmpfile" pkg/workflow/schemas/github-workflow.json
+	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
+	@echo "✓ Patched GitHub Actions schema with copilot-requests permission"
 
 # Run linter (full repository scan)
 .PHONY: golint
