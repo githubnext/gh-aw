@@ -1505,3 +1505,55 @@ func TestGenerateCopilotSessionFileCopyStep(t *testing.T) {
 		t.Error("Step should be marked continue-on-error")
 	}
 }
+
+func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("engine env overrides default token expression", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// engine.env override should replace the default token expression
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}") {
+			t.Errorf("Expected engine.env to override COPILOT_GITHUB_TOKEN, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("Default COPILOT_GITHUB_TOKEN expression should be replaced by engine.env override, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("engine env adds extra environment variables", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CUSTOM_VAR": "custom-value",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
+			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
+		}
+	})
+}

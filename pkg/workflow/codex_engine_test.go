@@ -770,3 +770,55 @@ func TestCodexEngineSkipInstallationWithCommand(t *testing.T) {
 		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
 	}
 }
+
+func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("engine env overrides default token expression", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CODEX_API_KEY": "${{ secrets.MY_ORG_CODEX_KEY }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// engine.env override should replace the default token expression
+		if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.MY_ORG_CODEX_KEY }}") {
+			t.Errorf("Expected engine.env to override CODEX_API_KEY, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
+			t.Errorf("Default CODEX_API_KEY expression should be replaced by engine.env override, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("engine env adds extra environment variables", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CUSTOM_VAR": "custom-value",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
+			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
+		}
+	})
+}
