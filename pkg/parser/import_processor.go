@@ -539,7 +539,9 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 						resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
 							item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
-						nestedRemoteOrigin = item.remoteOrigin
+						// Parse a new remoteOrigin from resolvedPath to get the correct BasePath
+						// for THIS file's nested imports, not the parent's BasePath
+						nestedRemoteOrigin = parseRemoteOrigin(resolvedPath)
 						importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
 					} else if isWorkflowSpec(nestedFilePath) {
 						// Nested import is itself a workflowspec - parse its remote origin
