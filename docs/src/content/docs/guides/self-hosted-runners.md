@@ -65,9 +65,27 @@ runs-on: [self-hosted, linux, x64]
 Triage this issue.
 ```
 
+## Configuring the detection job runner
+
+When [threat detection](/gh-aw/reference/threat-detection/) is enabled, the detection job runs on the agent job's runner by default. Override it with `safe-outputs.threat-detection.runs-on`:
+
+```aw
+---
+on: issues
+runs-on: [self-hosted, linux, x64]
+safe-outputs:
+  create-issue: {}
+  threat-detection:
+    runs-on: ubuntu-latest
+---
+```
+
+This is useful when your self-hosted runner lacks outbound internet access for AI detection, or when you want to run the detection job on a cheaper runner.
+
 ## Related documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-timeout-minutes) — `runs-on` syntax reference
 - [Imports](/gh-aw/reference/imports/) — importable fields and merge semantics
+- [Threat Detection](/gh-aw/reference/threat-detection/) — detection job configuration
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions
 - [Sandbox](/gh-aw/reference/sandbox/) — container and Docker requirements
