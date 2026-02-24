@@ -71,12 +71,16 @@ steps:
         echo "Downloading full data for PR #$pr_number..."
         
         # Download full PR data with essential fields only
-        gh pr view "$pr_number" \
+        # Use error handling to skip individual PR failures (e.g. deleted PRs, rate limits)
+        if gh pr view "$pr_number" \
           --repo "${{ github.repository }}" \
           --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
-          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json"
-        
-        echo "Downloaded PR #$pr_number"
+          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err; then
+          echo "Downloaded PR #$pr_number"
+        else
+          echo "Warning: Failed to download PR #$pr_number (skipping)"
+          rm -f "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err"
+        fi
       done
       
       # Create an index file listing all downloaded PRs
