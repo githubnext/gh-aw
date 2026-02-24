@@ -1861,6 +1861,12 @@ jobs:
             echo "run_detection=false" >> "$GITHUB_OUTPUT"
             echo "Detection skipped: no agent outputs or patches to analyze"
           fi
+      - name: Clear MCP configuration for detection
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        run: |
+          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json
+          rm -f /home/runner/.copilot/mcp-config.json
+          rm -f "$GITHUB_WORKSPACE/.gemini/settings.json"
       - name: Prepare threat detection files
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
