@@ -439,7 +439,10 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 // secretNames: slice of secret names to validate (e.g., []string{"CODEX_API_KEY", "OPENAI_API_KEY"})
 // engineName: the display name of the engine (e.g., "Codex")
 // docsURL: URL to the documentation page for setting up the secret
-func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string) GitHubActionStep {
+// envOverrides: optional map of env var key to expression override (from engine.env); when set,
+// the overridden expression is used instead of the default "${{ secrets.KEY }}" so the
+// validation step checks the user-provided secret reference rather than the default one.
+func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string, envOverrides map[string]string) GitHubActionStep {
 	if len(secretNames) == 0 {
 		// This is a programming error - engine configurations should always provide secrets
 		// Log the error and return empty step to avoid breaking compilation
@@ -463,9 +466,17 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		"        env:",
 	}
 
-	// Add env section with all secrets
+	// Add env section with all secrets. When engine.env provides an override for a key,
+	// use that expression (e.g. "${{ secrets.MY_ORG_TOKEN }}") so the validation step
+	// validates the user-supplied secret instead of the default one.
 	for _, secretName := range secretNames {
-		stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName))
+		expr := fmt.Sprintf("${{ secrets.%s }}", secretName)
+		if envOverrides != nil {
+			if override, ok := envOverrides[secretName]; ok {
+				expr = override
+			}
+		}
+		stepLines = append(stepLines, fmt.Sprintf("          %s: %s", secretName, expr))
 	}
 
 	return GitHubActionStep(stepLines)

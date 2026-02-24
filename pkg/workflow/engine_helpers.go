@@ -61,6 +61,16 @@ type EngineInstallConfig struct {
 	InstallStepName string
 }
 
+// getEngineEnvOverrides returns the engine.env map from workflowData, or nil if not set.
+// This is used to pass user-provided env overrides to steps such as secret validation,
+// so that overridden token expressions are used instead of the default "${{ secrets.KEY }}".
+func getEngineEnvOverrides(workflowData *WorkflowData) map[string]string {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return nil
+	}
+	return workflowData.EngineConfig.Env
+}
+
 // GetBaseInstallationSteps returns the common installation steps for an engine.
 // This includes secret validation and npm package installation steps that are
 // shared across all engines.
@@ -81,6 +91,7 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 		config.Secrets,
 		config.Name,
 		config.DocsURL,
+		getEngineEnvOverrides(workflowData),
 	)
 	steps = append(steps, secretValidation)
 
