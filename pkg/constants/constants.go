@@ -321,7 +321,7 @@ const PublicGitHubHost URL = "https://github.com"
 const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.51"
+const DefaultClaudeCodeVersion Version = "2.1.52"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
