@@ -21,22 +21,22 @@ LOW_FAILURES=0
 # Logging functions
 log_critical() {
     echo -e "${RED}[CRITICAL]${NC} $1"
-    ((CRITICAL_FAILURES++))
+    ((CRITICAL_FAILURES += 1))
 }
 
 log_high() {
     echo -e "${RED}[HIGH]${NC} $1"
-    ((HIGH_FAILURES++))
+    ((HIGH_FAILURES += 1))
 }
 
 log_medium() {
     echo -e "${YELLOW}[MEDIUM]${NC} $1"
-    ((MEDIUM_FAILURES++))
+    ((MEDIUM_FAILURES += 1))
 }
 
 log_low() {
     echo -e "${BLUE}[LOW]${NC} $1"
-    ((LOW_FAILURES++))
+    ((LOW_FAILURES += 1))
 }
 
 log_pass() {
@@ -284,7 +284,7 @@ check_type_completeness() {
         # Check for required sections
         for section in "MCP Tool Schema" "Operational Semantics" "Configuration Parameters" "Security Requirements" "Required Permissions"; do
             if grep -A 200 "^#### Type: $type_name" "$spec_file" 2>/dev/null | grep -q "**$section**"; then
-                ((sections_found++))
+                ((sections_found += 1))
             fi
         done
         
