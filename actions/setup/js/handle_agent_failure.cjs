@@ -266,14 +266,19 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
 /**
  * Build a context string describing code-push failures for inclusion in failure issue/comment bodies.
  * @param {string} codePushFailureErrors - Newline-separated list of "type:error" entries
+ * @param {{number: number, html_url: string} | null} pullRequest - PR info if available
  * @returns {string} Formatted context string, or empty string if no failures
  */
-function buildCodePushFailureContext(codePushFailureErrors) {
+function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) {
   if (!codePushFailureErrors) {
     return "";
   }
 
-  let context = "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.\n\n**Code Push Errors:**\n";
+  let context = "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.";
+  if (pullRequest) {
+    context += `\n\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+  }
+  context += "\n\n**Code Push Errors:**\n";
   const errorLines = codePushFailureErrors.split("\n").filter(line => line.trim());
   for (const errorLine of errorLines) {
     const colonIndex = errorLine.indexOf(":");
@@ -515,7 +520,7 @@ async function main() {
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
         // Build code-push failure context
-        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors) : "";
+        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors, pullRequest) : "";
 
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
@@ -615,7 +620,7 @@ async function main() {
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
         // Build code-push failure context
-        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors) : "";
+        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors, pullRequest) : "";
 
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
