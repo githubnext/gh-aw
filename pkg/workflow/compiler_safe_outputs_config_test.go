@@ -1084,3 +1084,103 @@ func TestHandlerConfigUnassignFromUser(t *testing.T) {
 		}
 	}
 }
+
+// TestHandlerConfigAssignToUserWithBlocked tests that blocked patterns are included in assign_to_user handler config
+func TestHandlerConfigAssignToUserWithBlocked(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AssignToUser: &AssignToUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "microsoft/vscode",
+				},
+				Blocked: []string{"copilot", "*[bot]"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				assignConfig, ok := config["assign_to_user"]
+				require.True(t, ok, "Should have assign_to_user handler")
+
+				blocked, ok := assignConfig["blocked"]
+				require.True(t, ok, "Should have blocked field")
+				blockedSlice, ok := blocked.([]any)
+				require.True(t, ok, "Blocked should be an array")
+				assert.Len(t, blockedSlice, 2, "Should have 2 blocked patterns")
+				assert.Equal(t, "copilot", blockedSlice[0], "First blocked pattern should be copilot")
+				assert.Equal(t, "*[bot]", blockedSlice[1], "Second blocked pattern should be *[bot]")
+			}
+		}
+	}
+}
+
+// TestHandlerConfigUnassignFromUserWithBlocked tests that blocked patterns are included in unassign_from_user handler config
+func TestHandlerConfigUnassignFromUserWithBlocked(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UnassignFromUser: &UnassignFromUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("2"),
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "microsoft/vscode",
+				},
+				Blocked: []string{"copilot", "*[bot]"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				unassignConfig, ok := config["unassign_from_user"]
+				require.True(t, ok, "Should have unassign_from_user handler")
+
+				blocked, ok := unassignConfig["blocked"]
+				require.True(t, ok, "Should have blocked field")
+				blockedSlice, ok := blocked.([]any)
+				require.True(t, ok, "Blocked should be an array")
+				assert.Len(t, blockedSlice, 2, "Should have 2 blocked patterns")
+				assert.Equal(t, "copilot", blockedSlice[0], "First blocked pattern should be copilot")
+				assert.Equal(t, "*[bot]", blockedSlice[1], "Second blocked pattern should be *[bot]")
+			}
+		}
+	}
+}

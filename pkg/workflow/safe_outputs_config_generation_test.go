@@ -328,3 +328,40 @@ func TestGenerateCustomJobToolDefinitionJSONSerializable(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &parsed), "JSON should be parseable back")
 	assert.Equal(t, "deploy", parsed["name"], "name should round-trip through JSON")
 }
+
+// TestGenerateSafeOutputsConfigAddLabelsBlocked tests that the blocked field is included
+// in config.json for add_labels.
+func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			AddLabels: &AddLabelsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "microsoft/vscode",
+				},
+				Allowed: []string{"bug", "enhancement"},
+				Blocked: []string{"[*]*", "~spam", "stale", "triage-needed"},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	addLabelsConfig, ok := parsed["add_labels"].(map[string]any)
+	require.True(t, ok, "Expected add_labels key in config")
+
+	blocked, ok := addLabelsConfig["blocked"]
+	require.True(t, ok, "Expected blocked field in add_labels config")
+	blockedSlice, ok := blocked.([]any)
+	require.True(t, ok, "Blocked should be an array")
+	assert.Len(t, blockedSlice, 4, "Should have 4 blocked patterns")
+	assert.Equal(t, "[*]*", blockedSlice[0], "First blocked pattern should match")
+	assert.Equal(t, "~spam", blockedSlice[1], "Second blocked pattern should match")
+	assert.Equal(t, "stale", blockedSlice[2], "Third blocked pattern should match")
+	assert.Equal(t, "triage-needed", blockedSlice[3], "Fourth blocked pattern should match")
+}
