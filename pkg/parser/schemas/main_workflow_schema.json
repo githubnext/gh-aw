@@ -5169,7 +5169,7 @@
                 },
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
-                  "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}'), 'app' for GitHub App auth, or 'default' to use the magic secret GH_AW_CI_TRIGGER_TOKEN."
+                  "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
                 }
               },
               "additionalProperties": false,
@@ -6150,7 +6150,7 @@
                 },
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
-                  "description": "Token used to push an empty commit after pushing changes to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}'), 'app' for GitHub App auth, or 'default' to use the magic secret GH_AW_CI_TRIGGER_TOKEN."
+                  "description": "Token used to push an empty commit after pushing changes to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
                 }
               },
               "additionalProperties": false

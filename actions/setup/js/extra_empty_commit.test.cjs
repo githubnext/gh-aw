@@ -7,7 +7,7 @@ describe("extra_empty_commit.cjs", () => {
   let originalEnv;
 
   beforeEach(() => {
-    originalEnv = process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN;
+    originalEnv = process.env.GH_AW_CI_TRIGGER_TOKEN;
 
     mockCore = {
       info: vi.fn(),
@@ -30,9 +30,9 @@ describe("extra_empty_commit.cjs", () => {
 
   afterEach(() => {
     if (originalEnv !== undefined) {
-      process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN = originalEnv;
+      process.env.GH_AW_CI_TRIGGER_TOKEN = originalEnv;
     } else {
-      delete process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN;
+      delete process.env.GH_AW_CI_TRIGGER_TOKEN;
     }
     delete global.core;
     delete global.exec;
@@ -59,7 +59,7 @@ describe("extra_empty_commit.cjs", () => {
 
   describe("when no extra empty commit token is set", () => {
     it("should skip and return success with skipped=true", async () => {
-      delete process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN;
+      delete process.env.GH_AW_CI_TRIGGER_TOKEN;
       ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
 
       const result = await pushExtraEmptyCommit({
@@ -74,7 +74,7 @@ describe("extra_empty_commit.cjs", () => {
     });
 
     it("should skip when token is empty string", async () => {
-      process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN = "";
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "";
       ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
 
       const result = await pushExtraEmptyCommit({
@@ -87,7 +87,7 @@ describe("extra_empty_commit.cjs", () => {
     });
 
     it("should skip when token is whitespace only", async () => {
-      process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN = "   ";
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "   ";
       ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
 
       const result = await pushExtraEmptyCommit({
@@ -106,7 +106,7 @@ describe("extra_empty_commit.cjs", () => {
 
   describe("when token is set and no cycle issues", () => {
     beforeEach(() => {
-      process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN = "ghp_test_token_123";
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
       // Simulate git log showing 5 commits, all with file changes (non-empty)
       const logOutput = ["COMMIT:aaa111", "file1.txt", "", "COMMIT:bbb222", "file2.txt", "file3.txt", "", "COMMIT:ccc333", "file4.txt", "", "COMMIT:ddd444", "file5.txt", "", "COMMIT:eee555", "file6.txt", ""].join("\n");
       mockGitLogOutput(logOutput);
@@ -187,7 +187,7 @@ describe("extra_empty_commit.cjs", () => {
 
   describe("cycle prevention", () => {
     beforeEach(() => {
-      process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN = "ghp_test_token_123";
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
       ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
     });
 
@@ -327,7 +327,7 @@ describe("extra_empty_commit.cjs", () => {
 
   describe("error handling", () => {
     beforeEach(() => {
-      process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN = "ghp_test_token_123";
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
       // No empty commits in log
       mockGitLogOutput("COMMIT:abc123\nfile.txt\n");
       ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
