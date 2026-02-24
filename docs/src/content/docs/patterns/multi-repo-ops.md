@@ -165,27 +165,28 @@ For direct repository access without agent involvement, use an AI engine with cu
 ---
 engine:
   id: claude
-  steps:
-    - name: Checkout main repo
-      uses: actions/checkout@v5
-      with:
-        path: main-repo
 
-    - name: Checkout secondary repo
-      uses: actions/checkout@v5
-      with:
-        repository: org/secondary-repo
-        token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
-        path: secondary-repo
+steps:
+  - name: Checkout main repo
+    uses: actions/checkout@v5
+    with:
+      path: main-repo
 
-    - name: Compare and sync
-      run: |
-        # Deterministic sync logic
-        rsync -av main-repo/shared/ secondary-repo/shared/
-        cd secondary-repo
-        git add .
-        git commit -m "Sync from main repo"
-        git push
+  - name: Checkout secondary repo
+    uses: actions/checkout@v5
+    with:
+      repository: org/secondary-repo
+      token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
+      path: secondary-repo
+
+  - name: Compare and sync
+    run: |
+      # Deterministic sync logic
+      rsync -av main-repo/shared/ secondary-repo/shared/
+      cd secondary-repo
+      git add .
+      git commit -m "Sync from main repo"
+      git push
 ---
 
 # Deterministic Feature Sync
