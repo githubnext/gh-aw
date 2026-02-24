@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e80e3063f89f684f455ee1c0c3c02b6083ce1ac83296feff6badfce595a23d40"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"96fd9a0074cc690873b004a8a2f47366af9de05c96c06e7cf8e96c75dbd67818"}
 
 name: "Organization Health Report"
 "on":
@@ -281,7 +281,7 @@ jobs:
       - name: Install Python scientific libraries
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
-        name: Upload generated charts
+        name: Upload charts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn
