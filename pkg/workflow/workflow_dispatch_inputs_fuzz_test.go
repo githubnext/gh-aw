@@ -111,6 +111,7 @@ func FuzzParseInputDefinition(f *testing.F) {
 	f.Add(`{"type":"choice","options":[1,2,3]}`)
 	f.Add(`{"type":"choice","options":[true,false]}`)
 	f.Add(`{"type":"choice","options":["",""]}`)
+	f.Add(`{"options":[" ]`) // malformed: truncated before closing quote/bracket
 
 	// Run the fuzzer
 	f.Fuzz(func(t *testing.T, jsonStr string) {
@@ -219,7 +220,7 @@ func FuzzParseInputDefinition(f *testing.F) {
 					options := []string{}
 					for _, part := range parts {
 						part = strings.TrimSpace(part)
-						if strings.HasPrefix(part, `"`) && strings.HasSuffix(part, `"`) {
+						if len(part) >= 2 && strings.HasPrefix(part, `"`) && strings.HasSuffix(part, `"`) {
 							options = append(options, part[1:len(part)-1])
 						}
 					}
