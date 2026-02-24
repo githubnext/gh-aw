@@ -22,6 +22,10 @@ safe-outputs:
     reviewers: [copilot]
     expires: 1d
 
+network:
+  allowed:
+    - go
+
 tools:
   github:
     toolsets: [default]
