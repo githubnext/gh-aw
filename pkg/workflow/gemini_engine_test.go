@@ -259,6 +259,44 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-2.0-flash", "Should set GEMINI_MODEL when model is explicitly configured")
 	})
 
+	t.Run("engine env overrides default token expression", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"GEMINI_API_KEY": "${{ secrets.MY_ORG_GEMINI_KEY }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+
+		// The user-provided value should override the default token expression
+		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "engine.env should override the default GEMINI_API_KEY expression")
+		assert.NotContains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Default GEMINI_API_KEY expression should be replaced by engine.env")
+	})
+
+	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CUSTOM_VAR": "custom-value",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+
+		assert.Contains(t, stepContent, "CUSTOM_VAR: custom-value", "engine.env non-secret vars should be included")
+	})
+
 	t.Run("settings step is first", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
