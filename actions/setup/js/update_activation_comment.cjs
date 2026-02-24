@@ -36,7 +36,7 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
   const body = itemType === "issue" ? getIssueCreatedMessage({ itemNumber, itemUrl }) : getPullRequestCreatedMessage({ itemNumber, itemUrl });
   const footerMessage = getFooterMessage({ workflowName, runUrl });
   const linkMessage = `\n\n${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
-  await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, { targetIssueNumber: itemNumber });
+  await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, {});
 }
 
 /**

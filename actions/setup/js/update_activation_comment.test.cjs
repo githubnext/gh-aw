@@ -90,24 +90,32 @@ describe("update_activation_comment.cjs", () => {
     ((createFunctionFromScript = createTestableFunction(scriptContent)),
       (mockDependencies = { github: { graphql: vi.fn(), request: vi.fn() }, core: { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() }, context: { repo: { owner: "testowner", repo: "testrepo" } }, process: { env: {} } }));
   }),
-    it("should create new comment on target PR when GH_AW_COMMENT_ID is not set", async () => {
+    it("should skip comment when no activation comment ID or triggering context exists", async () => {
       mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+      const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+      await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set)");
+      expect(mockDependencies.github.request).not.toHaveBeenCalled();
+    }),
+    it("should create new comment on triggering PR when GH_AW_COMMENT_ID is not set", async () => {
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+      mockDependencies.context.payload = { pull_request: { number: 10 } };
       mockDependencies.github.request.mockResolvedValue({
-        data: { id: 789012, html_url: "https://github.com/testowner/testrepo/issues/42#issuecomment-789012" },
+        data: { id: 789012, html_url: "https://github.com/testowner/testrepo/issues/10#issuecomment-789012" },
       });
       const { updateActivationComment } = createFunctionFromScript(mockDependencies);
       await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #42");
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #10");
       expect(mockDependencies.github.request).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
         expect.objectContaining({
           owner: "testowner",
           repo: "testrepo",
-          issue_number: 42,
+          issue_number: 10,
           body: expect.stringContaining("Pull request created: [#42]"),
         })
       );
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with pull request link on #42");
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with pull request link on #10");
     }),
     it("should skip update when GH_AW_COMMENT_ID is not set and no target issue number", async () => {
       mockDependencies.process.env.GH_AW_COMMENT_ID = "";
