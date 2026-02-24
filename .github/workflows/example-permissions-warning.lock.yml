@@ -204,8 +204,6 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: examplepermissionswarning
     outputs:
