@@ -346,8 +346,8 @@ echo "Running IMP-002: Permission Computation Accuracy..."
 check_permission_computation() {
     # Check if permission computation file exists and is well-formed
     if [ -f "pkg/workflow/safe_outputs_permissions.go" ]; then
-        # Basic check that it defines computePermissionsForSafeOutputs
-        if grep -q "computePermissionsForSafeOutputs" "pkg/workflow/safe_outputs_permissions.go"; then
+        # Basic check that it defines ComputePermissionsForSafeOutputs
+        if grep -q "ComputePermissionsForSafeOutputs" "pkg/workflow/safe_outputs_permissions.go"; then
             log_pass "IMP-002: Permission computation function exists"
         else
             log_high "IMP-002: Permission computation function not found"

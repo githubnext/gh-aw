@@ -409,22 +409,23 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// This token is used to push an empty commit after code changes to trigger CI events,
 	// working around the GITHUB_TOKEN limitation where events don't trigger other workflows.
 	if data.SafeOutputs != nil {
-		var extraEmptyCommitToken string
+		var ciTriggerToken string
 		if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit != "" {
-			extraEmptyCommitToken = data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
+			ciTriggerToken = data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
 		} else if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit != "" {
-			extraEmptyCommitToken = data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit
+			ciTriggerToken = data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit
 		}
 
-		if extraEmptyCommitToken == "app" {
-			envVars["GH_AW_EXTRA_EMPTY_COMMIT_TOKEN"] = "${{ steps.safe-outputs-app-token.outputs.token || '' }}"
+		switch ciTriggerToken {
+		case "app":
+			envVars["GH_AW_CI_TRIGGER_TOKEN"] = "${{ steps.safe-outputs-app-token.outputs.token || '' }}"
 			consolidatedSafeOutputsJobLog.Print("Extra empty commit using GitHub App token")
-		} else if extraEmptyCommitToken == "default" {
-			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret as fallback
-			envVars["GH_AW_EXTRA_EMPTY_COMMIT_TOKEN"] = getEffectiveCITriggerGitHubToken("")
+		case "default", "":
+			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)
+			envVars["GH_AW_CI_TRIGGER_TOKEN"] = getEffectiveCITriggerGitHubToken("")
 			consolidatedSafeOutputsJobLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
-		} else if extraEmptyCommitToken != "" {
-			envVars["GH_AW_EXTRA_EMPTY_COMMIT_TOKEN"] = extraEmptyCommitToken
+		default:
+			envVars["GH_AW_CI_TRIGGER_TOKEN"] = ciTriggerToken
 			consolidatedSafeOutputsJobLog.Print("Extra empty commit using explicit token")
 		}
 	}

@@ -9,10 +9,12 @@
  * GITHUB_TOKEN do not trigger other workflow runs.
  *
  * The token comes from `github-token-for-extra-empty-commit` in safe-outputs config
- * (passed as GH_AW_EXTRA_EMPTY_COMMIT_TOKEN env var). Supported values:
- * - `app` - Use GitHub App token from safe-outputs-app-token step
- * - `default` - Use the magic secret GH_AW_CI_TRIGGER_TOKEN
- * - `${{ secrets.CUSTOM_TOKEN }}` - Use a custom PAT or secret
+ * and is passed in as the GH_AW_CI_TRIGGER_TOKEN environment variable.
+ * By the time this script runs, GH_AW_CI_TRIGGER_TOKEN must contain an actual
+ * GitHub authentication token (for example, a GitHub App token or a PAT).
+ * Any selection or defaulting behavior (such as resolving `app`, `default`,
+ * or a specific secret reference) is handled in the workflow compiler/config
+ * layer before this script is invoked.
  */
 
 /**
@@ -28,7 +30,7 @@
  * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
  */
 async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage }) {
-  const token = process.env.GH_AW_EXTRA_EMPTY_COMMIT_TOKEN;
+  const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
 
   if (!token || !token.trim()) {
     core.info("No extra empty commit token configured - skipping");

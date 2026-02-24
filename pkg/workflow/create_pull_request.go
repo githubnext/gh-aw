@@ -165,20 +165,20 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		createPRLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
 	}
 
-	// Add extra empty commit token if configured (for pushing an empty commit to trigger CI)
-	extraEmptyCommitToken := data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
-	if extraEmptyCommitToken != "" {
-		if extraEmptyCommitToken == "app" {
-			customEnvVars = append(customEnvVars, "          GH_AW_EXTRA_EMPTY_COMMIT_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
-			createPRLog.Print("Extra empty commit using GitHub App token")
-		} else if extraEmptyCommitToken == "default" {
-			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret as fallback
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_EXTRA_EMPTY_COMMIT_TOKEN: %s\n", getEffectiveCITriggerGitHubToken("")))
-			createPRLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
-		} else {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_EXTRA_EMPTY_COMMIT_TOKEN: %s\n", extraEmptyCommitToken))
-			createPRLog.Printf("Extra empty commit using explicit token")
-		}
+	// Add extra empty commit token (for pushing an empty commit to trigger CI)
+	// Defaults to GH_AW_CI_TRIGGER_TOKEN when not explicitly configured
+	ciTriggerToken := data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
+	switch ciTriggerToken {
+	case "app":
+		customEnvVars = append(customEnvVars, "          GH_AW_CI_TRIGGER_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
+		createPRLog.Print("Extra empty commit using GitHub App token")
+	case "default", "":
+		// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", getEffectiveCITriggerGitHubToken("")))
+		createPRLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
+	default:
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", ciTriggerToken))
+		createPRLog.Printf("Extra empty commit using explicit token")
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)

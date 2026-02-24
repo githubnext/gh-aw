@@ -512,8 +512,10 @@ func parseDurationString(s string) time.Duration {
 // steps such as lockdown validation, binary installation, or repository checkout failures.
 //
 // Step log files are stored in workflow-logs/{job}/{step_num}_{step_name}.txt after
-// downloading via downloadWorkflowRunLogs. The function finds the last step that ran
-// (highest step number) as that is most likely the step that caused the failure.
+// downloading via downloadWorkflowRunLogs. The function first scans all step logs for
+// ##[error] annotations (GitHub Actions error annotations), which are the most precise
+// failure indicators. If none are found, it falls back to the content of the last step
+// (highest step number) as a general failure indicator.
 func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 	// If agent-stdio.log exists, the agent ran - don't scan step logs
 	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
@@ -529,7 +531,8 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		return nil
 	}
 
-	// Find the last step log file by scanning job subdirectories.
+	// Scan all job step log files in a single pass, collecting both ##[error] annotations
+	// and tracking the last step for fallback use.
 	// GitHub Actions log zip structure: {job_name}/{step_num}_{step_name}.txt
 	type stepLog struct {
 		path    string
@@ -537,7 +540,10 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		stepKey string // job/step_name for display
 	}
 
+	const maxMessageLen = 1500
+
 	var lastStep *stepLog
+	var errorAnnotations []ErrorInfo
 
 	jobDirs, err := os.ReadDir(workflowLogsDir)
 	if err != nil {
@@ -558,16 +564,59 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 				continue
 			}
 			num, stepName := parseStepFilename(stepFile.Name())
-			if num > 0 && (lastStep == nil || num > lastStep.num) {
+			if num <= 0 {
+				continue
+			}
+			stepFilePath := filepath.Join(jobDir, stepFile.Name())
+			stepKey := jobEntry.Name() + "/" + stepName
+
+			// Track the last step (highest step number) for fallback
+			if lastStep == nil || num > lastStep.num {
 				lastStep = &stepLog{
-					path:    filepath.Join(jobDir, stepFile.Name()),
+					path:    stepFilePath,
 					num:     num,
-					stepKey: jobEntry.Name() + "/" + stepName,
+					stepKey: stepKey,
 				}
+			}
+
+			// Scan this step for ##[error] annotations
+			content, err := os.ReadFile(stepFilePath)
+			if err != nil {
+				auditReportLog.Printf("Failed to read step log %s: %v", stepFilePath, err)
+				continue
+			}
+
+			var errorLines []string
+			for line := range strings.SplitSeq(string(content), "\n") {
+				if strings.Contains(line, "##[error]") {
+					stripped := stripGHALogTimestamps(line)
+					if stripped != "" {
+						errorLines = append(errorLines, stripped)
+					}
+				}
+			}
+
+			if len(errorLines) > 0 {
+				message := strings.Join(errorLines, "\n")
+				if len(message) > maxMessageLen {
+					message = message[:maxMessageLen] + "..."
+				}
+				auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
+				errorAnnotations = append(errorAnnotations, ErrorInfo{
+					Type:    "step_failure",
+					File:    stepKey,
+					Message: message,
+				})
 			}
 		}
 	}
 
+	// Prefer ##[error] annotations over generic last-step content
+	if len(errorAnnotations) > 0 {
+		return errorAnnotations
+	}
+
+	// Fallback: return the content of the last step that ran
 	if lastStep == nil {
 		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
 		return nil
@@ -584,13 +633,11 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		return nil
 	}
 
-	// Truncate to a reasonable size for the error summary
-	const maxMessageLen = 1500
 	if len(message) > maxMessageLen {
 		message = message[:maxMessageLen] + "..."
 	}
 
-	auditReportLog.Printf("Extracted pre-agent step error from %s (step %d)", lastStep.stepKey, lastStep.num)
+	auditReportLog.Printf("Extracted pre-agent step error from %s (step %d) as fallback", lastStep.stepKey, lastStep.num)
 	return []ErrorInfo{{
 		Type:    "step_failure",
 		File:    lastStep.stepKey,
