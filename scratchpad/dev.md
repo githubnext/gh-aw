@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 2.8
-**Last Updated**: 2026-02-23
+**Version**: 2.9
+**Last Updated**: 2026-02-24
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -197,7 +197,27 @@ Rationale:
 - New engines added without affecting existing ones
 - Clear boundaries reduce merge conflicts
 
-**3. Test Organization Pattern**
+**3. Engine Interface Architecture**
+
+The engine system implements Interface Segregation Principle (ISP) with 7 focused interfaces composed into a single composite interface (`CodingAgentEngine`):
+
+```
+CodingAgentEngine (composite)
+├── Engine            – core identity (GetID, GetDisplayName, IsExperimental)
+├── CapabilityProvider – feature flags (SupportsFirewall, SupportsMaxTurns, ...)
+├── WorkflowExecutor  – GitHub Actions step generation
+├── MCPConfigProvider – MCP server configuration rendering
+├── LogParser         – log metric extraction
+└── SecurityProvider  – secret names and detection model
+```
+
+`BaseEngine` provides default implementations for `CapabilityProvider`, `LogParser`, and `SecurityProvider`. New engines embed `BaseEngine` and override only the methods they need to customize.
+
+**Engine Registry**: `EngineRegistry` provides centralized registration, lookup by ID or prefix, and plugin-support validation. Use it rather than direct struct instantiation.
+
+**Adding a new engine**: For the full implementation checklist including interface compliance tests, see `scratchpad/adding-new-engines.md`.
+
+**4. Test Organization Pattern**
 
 Pattern: Tests live alongside implementation with descriptive names
 
@@ -1209,6 +1229,39 @@ func SanitizeLabel(label string) string {
 }
 ```
 
+### JavaScript Content Sanitization Pipeline
+
+The JavaScript sanitization module (`actions/setup/js/sanitize_content_core.cjs`) applies a multi-stage pipeline to all incoming content before it is written to GitHub resources:
+
+```
+Input Text
+    │
+    ▼ hardenUnicodeText()
+    ├─ Unicode normalization (NFC)
+    ├─ HTML entity decoding           ← prevents entity-encoded bypass attacks
+    ├─ Zero-width character removal
+    ├─ Bidirectional control removal
+    └─ Full-width ASCII conversion
+    │
+    ▼ ANSI escape sequence removal
+    │
+    ▼ neutralizeTemplateDelimiters()  ← T24 defense-in-depth
+    ├─ Jinja2/Liquid: {{ }} → \{\{
+    ├─ ERB: <%= %> → \<%=
+    ├─ JS template literals: ${ } → \$\{
+    └─ Jekyll/Liquid directives: {% %} → \{%
+    │
+    ▼ neutralizeMentions()
+    │
+    ▼ Output (safe text)
+```
+
+**HTML Entity Decoding**: Before @mention detection, all entity variants are decoded—named (`&commat;`), decimal (`&#64;`), hexadecimal (`&#x40;`), and double-encoded (`&amp;#64;`). This prevents attackers from using entity-encoded `@` symbols to trigger unwanted user notifications.
+
+**Template Delimiter Neutralization (T24)**: Template syntax delimiters are escaped as a defense-in-depth measure. GitHub's markdown rendering does not evaluate these patterns, but explicit neutralization documents the defense and protects against future integration scenarios where content might reach a template engine. Logs a warning when patterns are detected.
+
+Both defenses are automatic and apply unconditionally to `sanitizeIncomingText()`, `sanitizeContentCore()`, and `sanitizeContent()`.
+
 ### Template Injection Prevention
 
 **Safe Template Evaluation**:
@@ -1475,6 +1528,32 @@ func routeWorkflow(event Event) (string, error) {
         return "", errors.New("unable to route workflow")
     }
 }
+```
+
+### Activation Output Transformations
+
+The compiler automatically rewrites three specific `needs.activation.outputs.*` expressions to `steps.sanitized.outputs.*` when they appear inside the activation job itself. A GitHub Actions job cannot reference its own outputs via `needs.<job-name>.*`—those references are only valid in downstream jobs.
+
+**Transformed expressions** (within the activation job only):
+
+| From | To |
+|------|----|
+| `needs.activation.outputs.text` | `steps.sanitized.outputs.text` |
+| `needs.activation.outputs.title` | `steps.sanitized.outputs.title` |
+| `needs.activation.outputs.body` | `steps.sanitized.outputs.body` |
+
+**Not transformed** (remain as `needs.activation.outputs.*` since they are consumed by later jobs):
+`comment_id`, `comment_repo`, `slash_command`, `issue_locked`
+
+**Why this matters for runtime-import**: When a workflow uses `{{#runtime-import}}` to include an external file at runtime (without recompiling), any new references to `needs.activation.outputs.{text|title|body}` introduced by that file will work correctly because the compiler pre-generates all known expressions and applies the transformation before execution.
+
+**Implementation**: `pkg/workflow/expression_extraction.go::transformActivationOutputs()`
+
+The transformation uses word-boundary checking to prevent partial matches—for example `needs.activation.outputs.text_custom` is not transformed, but `needs.activation.outputs.text` embedded in a larger expression is.
+
+Enable debug logging to trace transformations:
+```bash
+DEBUG=workflow:expression_extraction gh aw compile workflow.md
 ```
 
 ---
@@ -1925,6 +2004,10 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [GitHub Actions Security](./github-actions-security-best-practices.md) - Security guidelines
 - [Code Organization](./code-organization.md) - Detailed file organization patterns
 - [Template Injection Prevention](./template-injection-prevention.md) - Template injection defense patterns
+- [Adding New Engines](./adding-new-engines.md) - Step-by-step guide for implementing new agentic engines
+- [Activation Output Transformations](./activation-output-transformations.md) - Compiler expression transformation details
+- [HTML Entity Mention Bypass Fix](./html-entity-mention-bypass-fix.md) - Security fix: entity-encoded @mention bypass
+- [Template Syntax Sanitization](./template-syntax-sanitization.md) - T24: template delimiter neutralization
 
 ### External References
 
@@ -1936,6 +2019,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v2.9 (2026-02-24): Added Engine Interface Architecture (ISP 7-interface design, BaseEngine, EngineRegistry), JavaScript Content Sanitization Pipeline with HTML entity bypass fix (T24 template delimiter neutralization), and Activation Output Transformations compiler behavior; added 4 new Related Documentation links
 - v2.8 (2026-02-23): Documented PR #17769 features: unassign-from-user safe output, blocked deny-list for assign/unassign, standardized error code registry, templatable integer fields, safe outputs prompt template system, XPIA defense policy, MCP template expression escaping, status-comment decoupling, sandbox.agent migration, agent instruction files in .github/agents/
 - v2.6 (2026-02-20): Fixed 8 tone issues across 4 spec files, documented post-processing extraction pattern and CLI flag propagation rule from PR #17316, analyzed 61 files
 - v2.5 (2026-02-19): Fixed 6 tone issues in engine review docs, added Engine-Specific MCP Config Delivery section (Gemini pattern), analyzed 61 files
