@@ -171,8 +171,9 @@
         "checks": {
           "$ref": "#/definitions/permissions-level"
         },
-        "copilot-requests": {
-          "$ref": "#/definitions/permissions-level"
+        "copilot-requests":  {
+          "type": "string",
+          "enum": ["write", "none"]
         },
         "contents": {
           "$ref": "#/definitions/permissions-level"
