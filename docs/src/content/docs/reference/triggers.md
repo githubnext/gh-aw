@@ -92,25 +92,14 @@ Run workflows on a recurring schedule using human-friendly expressions or [cron 
 
 **Fuzzy Scheduling (Recommended):**
 
-To distribute workflow execution times and prevent load spikes, use fuzzy schedules that let the compiler automatically scatter execution times:
+Use fuzzy schedules to automatically scatter execution times and avoid load spikes:
 
 ```yaml wrap
 on:
-  schedule: hourly  # Compiler scatters minute offset deterministically
+  schedule: daily  # Compiler assigns a unique scattered time per workflow
 ```
 
-```yaml wrap
-on:
-  schedule: daily  # Compiler scatters execution time deterministically
-```
-
-```yaml wrap
-on:
-  schedule:
-    - cron: daily  # Each workflow gets a different scattered time
-```
-
-For workflows that need to run around a specific time (with some flexibility), use the `around` constraint:
+Use the `around` constraint for a preferred time with flexibility:
 
 ```yaml wrap
 on:
@@ -124,44 +113,9 @@ on:
   schedule: daily between 9:00 and 17:00  # Scatters within 9am-5pm range
 ```
 
-```yaml wrap
-on:
-  schedule: daily between 9am and 5pm utc-5  # Business hours in EST timezone
-```
+The compiler assigns each workflow a unique, deterministic execution time based on the file path, ensuring load distribution and consistency across recompiles. UTC offsets are supported on any time expression (e.g., `daily between 9am and 5pm utc-5`).
 
-The compiler deterministically assigns each workflow a unique execution time based on the workflow file path. This ensures:
-- **Load distribution**: Workflows run at different times, reducing server load spikes
-- **Consistency**: The same workflow always gets the same execution time across recompiles
-- **Simplicity**: No need to manually coordinate schedules across multiple workflows
-- **Flexibility with constraints**: Use `around` to hint preferred times or `between` to restrict to time ranges
-
-> [!TIP]
-> Complete Schedule Syntax Reference
-> See the [Schedule Syntax reference](/gh-aw/reference/schedule-syntax/) for complete documentation of all supported schedule formats, including:
-> - Fuzzy schedules (daily, hourly, weekly)
-> - Time constraints (around, between)
-> - Fixed schedules
-> - Monthly and interval schedules
-> - UTC offset support
-> - Standard cron expressions
-
-**Human-Friendly Format:**
-
-```yaml wrap
-on: daily  # Recommended: automatically scattered
-```
-
-```yaml wrap
-on: weekly on monday  # Recommended: scattered time on Mondays
-```
-
-```yaml wrap
-on: every 6h  # Run every 6 hours
-```
-
-**Fixed-Time Cron Format:**
-
-For workflows that must run at a specific fixed time, use standard cron syntax:
+For a fixed time, use standard cron syntax:
 
 ```yaml wrap
 on:
@@ -169,12 +123,6 @@ on:
     - cron: "30 6 * * 1"  # Monday at 06:30 UTC
     - cron: "0 9 15 * *"  # 15th of month at 09:00 UTC
 ```
-
-> [!TIP]
-> Use Fuzzy Schedules
-> Use fuzzy schedules like `daily`, `weekly`, `hourly`, or `every Nh` to automatically distribute execution times and avoid load spikes.
-
-**Supported Formats:**
 
 | Format | Example | Result | Notes |
 |--------|---------|--------|-------|
@@ -193,14 +141,7 @@ on:
 **Time formats:** `HH:MM` (24-hour), `midnight`, `noon`, `1pm`-`12pm`, `1am`-`12am`
 **UTC offsets:** Add `utc+N` or `utc-N` to any time (e.g., `daily around 14:00 utc-5`)
 
-The human-friendly format is automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
-
-**Standard Cron Format:**
-
-```yaml wrap
-on: weekly on monday
-  stop-after: "+7d"      # Stop after a week
-```
+Human-friendly formats are automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
 
 ### Issue Triggers (`issues:`)
 
@@ -223,18 +164,9 @@ on:
     lock-for-agent: true
 ```
 
-When enabled:
-- The issue is **locked** at the start of the workflow (in the activation job)
-- The issue is **unlocked** after workflow completion (in the conclusion job)
-- If safe-outputs are configured, the issue is unlocked before safe output processing to allow comments/updates
-- The unlock step runs with `always()` condition to ensure unlocking even if the workflow fails
+When enabled, the issue is locked at workflow start and unlocked after completion (or before safe-output processing). The unlock step uses `always()` to ensure cleanup even on failure. Useful for workflows that make multiple sequential updates to an issue or need to prevent race conditions.
 
-**When to use `lock-for-agent`:**
-- Workflows that make multiple sequential updates to an issue
-- Preventing race conditions when multiple workflow runs might modify the same issue
-- Ensuring consistent state during complex issue processing
-
-**Requirements and behavior:**
+**Requirements:**
 - Requires `issues: write` permission (automatically added to activation and conclusion jobs)
 - Pull requests are silently skipped (they cannot be locked via the issues API)
 - Already-locked issues are skipped without error
@@ -338,35 +270,22 @@ on:
 
 Workflows with `workflow_run` triggers include automatic security protections:
 
-**Automatic repository and fork validation:** The compiler automatically injects repository ID and fork checks to prevent cross-repository attacks and fork execution. This safety condition ensures workflows only execute when triggered by workflow runs from the same repository and not from forked repositories.
+- **Repository/fork validation:** The compiler injects repository ID and fork checks, rejecting cross-repository or fork-triggered runs.
+- **Branch restrictions required:** Include `branches` to limit triggering branches; without them the compiler warns (or errors in strict mode).
 
-**Branch restrictions required:** Include `branches` to limit which branch workflows can trigger the event. Without branch restrictions, the compiler emits warnings (or errors in strict mode). This prevents unexpected execution for workflow runs on all branches.
-
-See the [Security Architecture](/gh-aw/introduction/architecture/) for detailed security behavior and implementation.
+See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 ### Command Triggers (`slash_command:`)
 
 The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
 
-**Basic Configuration:**
+Three equivalent forms are supported — full syntax, string shorthand (`on: slash_command: "my-bot"`), or ultra-short (`on: /my-bot`, which also adds `workflow_dispatch`):
+
 ```yaml wrap
 on:
   slash_command:
     name: my-bot
 ```
-
-**Shorthand Format (String):**
-```yaml wrap
-on:
-  slash_command: "my-bot"
-```
-
-**Shorthand Format (Slash Command):**
-```yaml wrap
-on: /my-bot
-```
-
-This ultra-short syntax automatically expands to include `slash_command` and `workflow_dispatch` triggers, similar to how `on: daily` expands to include schedule and workflow_dispatch.
 
 **With Event Filtering:**
 ```yaml wrap
@@ -467,9 +386,7 @@ on:
   manual-approval: production
 ```
 
-The `manual-approval` field sets the `environment` on the activation job, enabling manual approval gates configured in repository or organization settings. This provides human-in-the-loop control for sensitive operations.
-
-The field accepts a string environment name that must match a configured environment in the repository. Configure approval rules, required reviewers, and wait timers in repository Settings → Environments. See [GitHub's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) for environment configuration details.
+Sets the `environment` on the activation job for human-in-the-loop approval before execution. The value must match a configured environment in repository Settings → Environments (approval rules, required reviewers, wait timers). See [GitHub's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) for configuration details.
 
 ### Skip-If-Match Condition (`skip-if-match:`)
 
@@ -506,7 +423,7 @@ on:
     min: 3  # Only run if 3 or more issues match
 ```
 
-A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions. Supports all standard GitHub search qualifiers.
+A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions.
 
 ## Related Documentation
 
