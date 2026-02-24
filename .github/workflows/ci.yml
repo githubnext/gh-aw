@@ -1306,7 +1306,7 @@ jobs:
             local output_file="fuzz-results/${fuzz_name}.txt"
             
             echo "Running ${fuzz_name}..."
-            if go test -run='^$' -fuzz="${fuzz_name}" -fuzztime=10s "${package}" 2>&1 | tee "${output_file}"; then
+            if go test -run='^$' -fuzz="^${fuzz_name}$" -fuzztime=10s "${package}" 2>&1 | tee "${output_file}"; then
               echo "✅ ${fuzz_name} completed successfully"
               return 0
             else
