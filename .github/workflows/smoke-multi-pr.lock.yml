@@ -1232,6 +1232,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
       GH_AW_WORKFLOW_ID: "smoke-multi-pr"

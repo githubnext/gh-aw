@@ -1246,6 +1246,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
       GH_AW_TRACKER_ID: "delight-daily"

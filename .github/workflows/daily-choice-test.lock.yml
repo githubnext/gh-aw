@@ -1054,6 +1054,7 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "claude"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
       GH_AW_TRACKER_ID: "daily-choice-test"

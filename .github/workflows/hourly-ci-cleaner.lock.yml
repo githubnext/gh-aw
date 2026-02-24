@@ -1173,6 +1173,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_TRACKER_ID: "hourly-ci-cleaner"
       GH_AW_WORKFLOW_ID: "hourly-ci-cleaner"

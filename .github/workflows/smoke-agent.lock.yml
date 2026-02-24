@@ -1151,6 +1151,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "codex"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-agent"
