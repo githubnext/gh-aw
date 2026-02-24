@@ -237,6 +237,32 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Add all safe output configuration env vars (still needed by individual handlers)
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
 
+	// Add extra empty commit token if create-pull-request or push-to-pull-request-branch is configured.
+	// This token is used to push an empty commit after code changes to trigger CI events,
+	// working around the GITHUB_TOKEN limitation where events don't trigger other workflows.
+	// Only emit this env var when one of these safe outputs is actually configured.
+	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
+		var ciTriggerToken string
+		if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit != "" {
+			ciTriggerToken = data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
+		} else if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit != "" {
+			ciTriggerToken = data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit
+		}
+
+		switch ciTriggerToken {
+		case "app":
+			steps = append(steps, "          GH_AW_CI_TRIGGER_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
+			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using GitHub App token")
+		case "default", "":
+			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)
+			steps = append(steps, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", getEffectiveCITriggerGitHubToken("")))
+			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
+		default:
+			steps = append(steps, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", ciTriggerToken))
+			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using explicit token")
+		}
+	}
+
 	// Add GH_AW_PROJECT_URL and GH_AW_PROJECT_GITHUB_TOKEN environment variables for project operations
 	// These are set from the project URL and token configured in any project-related safe-output:
 	// - update-project

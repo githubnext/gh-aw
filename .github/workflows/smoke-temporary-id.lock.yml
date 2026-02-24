@@ -1230,7 +1230,6 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-temporary-id"

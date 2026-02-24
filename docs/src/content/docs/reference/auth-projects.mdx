@@ -12,58 +12,44 @@ Project operations require additional authentication since the default `GITHUB_T
 
 ## Using a Personal Access Token (PAT)
 
-### 1. Create the PAT
+1. Create the PAT
 
-**For User-owned Projects**:
+   **For User-owned Projects**:
 
-Create a [classic PAT](https://github.com/settings/tokens/new) with scopes:
-- `project` (required for user Projects)
-- `repo` (required if accessing private repositories)
+   Create a [classic PAT](https://github.com/settings/tokens/new) with scopes:
+   - `project` (required for user Projects)
+   - `repo` (required if accessing private repositories)
 
-<Video
-  src="/gh-aw/videos/create-pat-user-project.mp4"
-  caption="Creating a classic PAT for user-owned private projects"
-  aspectRatio="16:9"
-  silenced={true}
-/>
+   **For Organization-owned Projects (v2)**:
 
-**For Organization-owned Projects (v2)**:
+   Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Repository access**: Select specific repos that will use the workflow
+   - **Repository permissions**:
+     - Contents: Read
+     - Issues: Read (if needed for issue-triggered workflows)
+     - Pull requests: Read (if needed for PR-triggered workflows)
+   - **Organization permissions** (must be explicitly granted):
+     - Projects: Read & Write (required for updating org Projects)
+   - **Important**: You must explicitly grant organization access during token creation
 
-Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
-- **Repository access**: Select specific repos that will use the workflow
-- **Repository permissions**:
-  - Contents: Read
-  - Issues: Read (if needed for issue-triggered workflows)
-  - Pull requests: Read (if needed for PR-triggered workflows)
-- **Organization permissions** (must be explicitly granted):
-  - Projects: Read & Write (required for updating org Projects)
-- **Important**: You must explicitly grant organization access during token creation
+2. Add the token to repository secrets
 
-<Video
-  src="/gh-aw/videos/create-pat-org-project.mp4"
-  caption="Creating a fine-grained PAT for organization-owned projects"
-  aspectRatio="16:9"
-  silenced={true}
-/>
+   ```bash wrap
+   gh aw secrets set MY_PROJECT_TOKEN --value "YOUR_PROJECT_PAT"
+   ```
 
-### 2. Add the token to repository secrets
+3. Configure in your workflow frontmatter
 
-```bash wrap
-gh aw secrets set MY_PROJECT_TOKEN --value "YOUR_PROJECT_PAT"
-```
+   ```yaml wrap
+   safe-outputs:
+     update-project:
+       github-token: ${{ secrets.MY_PROJECT_TOKEN }}
 
-### 3. Configure in your workflow frontmatter
-
-```yaml wrap
-safe-outputs:
-  update-project:
-    github-token: ${{ secrets.MY_PROJECT_TOKEN }}
-
-tools:
-  github:
-    toolsets: [default, projects]
-    github-token: ${{ secrets.MY_PROJECT_TOKEN }}
-```
+   tools:
+     github:
+       toolsets: [default, projects]
+       github-token: ${{ secrets.MY_PROJECT_TOKEN }}
+   ```
 
 ## Using a GitHub App
 
@@ -72,6 +58,24 @@ Alternatively, you can use a GitHub App for enhanced security. See [Using a GitH
 ## Using a magic secret
 
 Alternatively, you can set the magic GitHub Actions secret `GH_AW_PROJECT_GITHUB_TOKEN` to a suitable PAT (see the above guide for creating a suitable PAT). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+
+```bash wrap
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "<your-pat-token>"
+```
+
+<Video
+  src="/gh-aw/videos/create-pat-user-project.mp4"
+  caption="Creating a classic PAT for user-owned private projects"
+  aspectRatio="16:9"
+  silenced={true}
+/>
+
+<Video
+  src="/gh-aw/videos/create-pat-org-project.mp4"
+  caption="Creating a fine-grained PAT for organization-owned projects"
+  aspectRatio="16:9"
+  silenced={true}
+/>
 
 ## Debugging: who owns a GitHub token?
 

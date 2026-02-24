@@ -72,7 +72,7 @@ In some circumstances you must use a GitHub PAT or GitHub app to give the GitHub
 
 This authentication relates to **reading** information from GitHub. Additional authentication to write to GitHub is handled separately through various [Safe Outputs](/gh-aw/reference/safe-outputs/).
 
-**When Required**:
+This is required when your workflow requires any of the following:
 
 - Read access to GitHub org or user information
 - Read access to other private repos
@@ -80,7 +80,7 @@ This authentication relates to **reading** information from GitHub. Additional a
 - GitHub tools [Lockdown Mode](/gh-aw/reference/lockdown-mode/)
 - GitHub tools [Remote Mode](#remote-vs-local-mode)
 
-**Using a Personal Access Token (PAT)**:
+### Using a Personal Access Token (PAT)
 
 If additional authentication is required, one way is to create a fine-grained PAT with appropriate permissions, add it as a repository secret, and reference it in your workflow:
 
@@ -115,13 +115,17 @@ If additional authentication is required, one way is to create a fine-grained PA
        github-token: ${{ secrets.MY_PAT_FOR_GITHUB_TOOLS }}
    ```
 
-**Using a GitHub App**:
+### Using a GitHub App
 
 Alternatively, you can use a GitHub App for enhanced security. See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete setup instructions.
 
-**Using a magic secret**:
+### Using a magic secret
 
 Alternatively, you can set the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+
+```bash wrap
+gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-pat-token>"
+```
 
 ## Related Documentation
 

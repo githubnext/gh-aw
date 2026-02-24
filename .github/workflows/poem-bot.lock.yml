@@ -1831,7 +1831,6 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -1903,6 +1902,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"close_pull_request\":{\"max\":2,\"required_labels\":[\"poetry\",\"automation\"],\"required_title_prefix\":\"[🎨 POETRY]\",\"target\":\"*\"},\"create_agent_session\":{\"base\":\"main\",\"max\":1},\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[📜 POETRY] \"},\"create_issue\":{\"expires\":48,\"group\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[🎭 POEM-BOT] \"},\"create_pull_request\":{\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"draft\":false,\"expires\":48,\"labels\":[\"poetry\",\"automation\",\"creative-writing\"],\"max\":1,\"max_patch_size\":1024,\"reviewers\":[\"copilot\"],\"title_prefix\":\"[🎨 POETRY] \"},\"create_pull_request_review_comment\":{\"max\":2,\"side\":\"RIGHT\"},\"link_sub_issue\":{\"max\":3,\"parent_required_labels\":[\"poetry\",\"epic\"],\"parent_title_prefix\":\"[🎭 POEM-BOT]\",\"sub_required_labels\":[\"poetry\"],\"sub_title_prefix\":\"[🎭 POEM-BOT]\"},\"missing_data\":{},\"missing_tool\":{},\"push_to_pull_request_branch\":{\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"if_no_changes\":\"warn\",\"max_patch_size\":1024},\"update_issue\":{\"allow_body\":true,\"allow_status\":true,\"allow_title\":true,\"max\":2,\"target\":\"*\"}}"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

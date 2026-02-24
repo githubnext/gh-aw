@@ -1429,7 +1429,6 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "claude"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🗜️ *Compressed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}...\",\"runSuccess\":\"🗜️ Docs on a diet! [{workflow_name}]({run_url}) has removed the bloat. Lean and mean! 💪\",\"runFailure\":\"📦 Unbloating paused! [{workflow_name}]({run_url}) {status}. The docs remain... fluffy.\"}"
       GH_AW_WORKFLOW_ID: "unbloat-docs"
@@ -1496,6 +1495,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{\"auto_merge\":true,\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"draft\":true,\"expires\":48,\"fallback_as_issue\":false,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"max_patch_size\":1024,\"reviewers\":[\"copilot\"],\"title_prefix\":\"[docs] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
