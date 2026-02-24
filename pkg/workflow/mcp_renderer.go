@@ -126,9 +126,10 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// Get lockdown value - use detected value if lockdown wasn't explicitly set
 	lockdown := getGitHubLockdown(githubTool)
 
-	// Check if automatic lockdown determination step will be generated
-	// The step is always generated when lockdown is not explicitly set
-	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool)
+	// Check if automatic lockdown determination step will be generated.
+	// The step is skipped when lockdown is explicitly set, or when a GitHub App is configured
+	// (app tokens are already repo-scoped, so automatic lockdown detection is not needed).
+	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool) && !hasGitHubApp(githubTool)
 
 	if shouldUseStepOutput {
 		// Use the detected lockdown value from the step output

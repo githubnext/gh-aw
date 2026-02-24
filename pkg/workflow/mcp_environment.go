@@ -66,13 +66,10 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		githubTool := tools["github"]
 
 		// Check if GitHub App is configured for token minting
-		hasGitHubApp := false
-		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.App != nil {
-			hasGitHubApp = true
-		}
+		appConfigured := hasGitHubApp(githubTool)
 
 		// If GitHub App is configured, use the app token (overrides other tokens)
-		if hasGitHubApp {
+		if appConfigured {
 			mcpEnvironmentLog.Print("Using GitHub App token for GitHub MCP server (overrides custom and default tokens)")
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
 		} else {
@@ -82,10 +79,12 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 		}
 
-		// Add lockdown value if it's determined from step output
+		// Add lockdown value if it's determined from step output.
+		// Skip when a GitHub App is configured — in that case, the determine-automatic-lockdown
+		// step is not generated, so there is no step output to reference.
 		// Security: Pass step output through environment variable to prevent template injection
 		// Convert "true"/"false" to "1"/"0" at the source to avoid shell conversion in templates
-		if !hasGitHubLockdownExplicitlySet(githubTool) {
+		if !hasGitHubLockdownExplicitlySet(githubTool) && !appConfigured {
 			envVars["GITHUB_MCP_LOCKDOWN"] = "${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}"
 		}
 	}

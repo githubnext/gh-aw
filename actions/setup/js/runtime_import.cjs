@@ -377,6 +377,30 @@ function processExpressions(content, source) {
   const expressionRegex = /\$\{\{([\s\S]*?)\}\}/g;
 
   const matches = [...content.matchAll(expressionRegex)];
+
+  // Reject malformed/truncated expressions containing secrets that bypass the
+  // expression regex (e.g. "${{ secrets.TOKEN }T" where "}}" is missing or broken).
+  // The expression regex only matches well-formed ${{ ... }} blocks, so a partial
+  // "${{ secrets." sequence slips through and must be caught here as a security violation.
+  // We check whether any captured expression content (m[1]) contains "secrets." to
+  // distinguish a well-formed ${{ secrets.X }} (already handled below) from a malformed one.
+  const partialSecretsRegex = /\$\{\{[^}]*secrets\./;
+  if (partialSecretsRegex.test(content)) {
+    const wellFormedSecretsMatched = matches.some(m => /secrets\./.test(m[1]));
+    if (!wellFormedSecretsMatched) {
+      throw new Error(
+        `${ERR_VALIDATION}: ${source} contains unauthorized GitHub Actions expressions:\n` +
+          `  - (partial or malformed secrets expression)\n\n` +
+          "Only expressions from the safe list can be used in runtime imports.\n" +
+          "Safe expressions include:\n" +
+          "  - github.actor, github.repository, github.run_id, etc.\n" +
+          "  - github.event.issue.number, github.event.pull_request.number, etc.\n" +
+          "  - needs.*, steps.*, env.*, inputs.*\n\n" +
+          "See documentation for the complete list of allowed expressions."
+      );
+    }
+  }
+
   if (matches.length === 0) {
     return content;
   }
