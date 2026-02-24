@@ -259,8 +259,10 @@ func getGitHubDockerImageVersion(githubTool any) string {
 // generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
 // for GitHub MCP server based on repository visibility and token availability.
 // This step is added when:
-// - GitHub tool is enabled AND
-// - lockdown field is not explicitly specified in the workflow configuration
+//   - GitHub tool is enabled AND
+//   - lockdown field is not explicitly specified in the workflow configuration AND
+//   - tools.github.app is NOT configured (GitHub App tokens are already repo-scoped, so
+//     automatic lockdown detection is unnecessary and skipped)
 //
 // Lockdown mode is automatically enabled for public repositories when any custom GitHub token
 // is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, or custom github-token).
@@ -274,6 +276,15 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Check if lockdown is already explicitly set
 	if hasGitHubLockdownExplicitlySet(githubTool) {
 		githubConfigLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
+		return
+	}
+
+	// Skip automatic lockdown detection when a GitHub App is configured.
+	// GitHub App tokens are already scoped to specific repositories, so automatic
+	// lockdown detection is not needed — the token's access is inherently bounded
+	// by the app installation and the listed repositories.
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.App != nil {
+		githubConfigLog.Print("GitHub App configured, skipping automatic lockdown determination (app tokens are already repo-scoped)")
 		return
 	}
 
@@ -293,22 +304,6 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Extract custom github-token if present
 	customToken := getGitHubToken(githubTool)
 
-	// Determine if a GitHub App is configured and how many repositories it covers.
-	// This context helps the lockdown detection make correct security decisions:
-	// - Single-repo app on a public repo: treat as custom token → enable lockdown
-	// - Multi-repo app on a public repo: cross-repo access is intentional → no lockdown
-	var appConfigured string
-	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.App != nil {
-		app := data.ParsedTools.GitHub.App
-		// Wildcard (*) means org-wide access, treated the same as multi-repo
-		if len(app.Repositories) > 1 || (len(app.Repositories) == 1 && app.Repositories[0] == "*") {
-			appConfigured = "multi"
-		} else {
-			// Single repo or no repos specified (defaults to current repo)
-			appConfigured = "single"
-		}
-	}
-
 	// Generate the step using the determine_automatic_lockdown.cjs action
 	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP Server\n")
 	yaml.WriteString("        id: determine-automatic-lockdown\n")
@@ -318,9 +313,6 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
 	if customToken != "" {
 		fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
-	}
-	if appConfigured != "" {
-		fmt.Fprintf(yaml, "          GH_AW_GITHUB_APP_CONFIGURED: %s\n", appConfigured)
 	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
