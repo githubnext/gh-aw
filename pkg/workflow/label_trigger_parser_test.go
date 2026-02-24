@@ -253,6 +253,53 @@ func TestParseLabelTriggerShorthand(t *testing.T) {
 	}
 }
 
+// TestParseLabelTriggerShorthandEntityTypeOnError is a regression test verifying that
+// parseLabelTriggerShorthand preserves entityType even when an error is returned.
+// This ensures the fuzz invariant "isLabelTrigger=true implies entityType != ”" holds.
+func TestParseLabelTriggerShorthandEntityTypeOnError(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		wantEntityType string
+		wantIsLabel    bool
+	}{
+		{
+			name:           "pull_request labeled with only commas returns entityType",
+			input:          "pull_request labeled ,",
+			wantEntityType: "pull_request",
+			wantIsLabel:    true,
+		},
+		{
+			name:           "issue labeled with only commas returns entityType",
+			input:          "issue labeled ,",
+			wantEntityType: "issues",
+			wantIsLabel:    true,
+		},
+		{
+			name:           "discussion labeled with only commas returns entityType",
+			input:          "discussion labeled ,",
+			wantEntityType: "discussion",
+			wantIsLabel:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entityType, _, isLabel, err := parseLabelTriggerShorthand(tt.input)
+
+			if err == nil {
+				t.Errorf("parseLabelTriggerShorthand(%q) expected error but got none", tt.input)
+			}
+			if isLabel != tt.wantIsLabel {
+				t.Errorf("parseLabelTriggerShorthand(%q) isLabel = %v, want %v", tt.input, isLabel, tt.wantIsLabel)
+			}
+			if entityType != tt.wantEntityType {
+				t.Errorf("parseLabelTriggerShorthand(%q) entityType = %q, want %q", tt.input, entityType, tt.wantEntityType)
+			}
+		})
+	}
+}
+
 func TestExpandLabelTriggerShorthand(t *testing.T) {
 	tests := []struct {
 		name             string
