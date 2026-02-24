@@ -86,6 +86,7 @@ safe-outputs:
 | `enabled` | boolean | Enable or disable detection (default: `true` when safe-outputs exist) |
 | `prompt` | string | Custom instructions appended to default detection prompt |
 | `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
+| `runs-on` | string/array/object | Runner for the detection job (default: inherits from workflow `runs-on`) |
 | `steps` | array | Additional GitHub Actions steps to run after AI analysis |
 
 ## AI-Based Detection (Default)

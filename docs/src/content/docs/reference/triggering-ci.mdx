@@ -72,7 +72,7 @@ safe-outputs:
 Alternatively, you can set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
 
 ```bash wrap
-gh aw secrets set MY_CI_TRIGGER_PAT --value "<your-pat-token>"
+gh aw secrets set GH_AW_CI_TRIGGER_TOKEN --value "<your-pat-token>"
 ```
 
 ## Alternative: Full Token Override
