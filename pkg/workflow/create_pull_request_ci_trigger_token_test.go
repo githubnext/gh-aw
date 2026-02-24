@@ -116,8 +116,7 @@ This workflow tests the GH_AW_CI_TRIGGER_TOKEN env var generation.
 
 			if tt.notExpected != "" {
 				// Find the GH_AW_CI_TRIGGER_TOKEN line and verify it doesn't contain the unexpected value
-				lines := strings.Split(lockContentStr, "\n")
-				for _, line := range lines {
+				for line := range strings.SplitSeq(lockContentStr, "\n") {
 					if strings.Contains(line, "GH_AW_CI_TRIGGER_TOKEN:") {
 						assert.NotContains(t, line, tt.notExpected,
 							"GH_AW_CI_TRIGGER_TOKEN should not contain %q", tt.notExpected)
