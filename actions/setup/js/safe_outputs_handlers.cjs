@@ -281,6 +281,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Handler for push_to_pull_request_branch tool
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes
+   *
+   * Note: Fork PR detection is handled by push_to_pull_request_branch.cjs handler
+   * which fetches the PR and calls detectForkPR() with full PR data.
    */
   const pushToPullRequestBranchHandler = args => {
     const entry = { ...args, type: "push_to_pull_request_branch" };
@@ -300,9 +303,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       entry.branch = detectedBranch;
     }
 
-    // Generate git patch
-    server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
-    const patchResult = generateGitPatch(entry.branch);
+    // Generate git patch in incremental mode
+    // Incremental mode only includes commits since origin/branchName,
+    // preventing patches that include already-existing commits
+    server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+    const patchResult = generateGitPatch(entry.branch, { mode: "incremental" });
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty

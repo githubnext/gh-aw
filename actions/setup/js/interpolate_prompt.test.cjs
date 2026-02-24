@@ -112,7 +112,11 @@ describe("interpolate_prompt", () => {
           core.setFailed.mockClear());
       }),
         afterEach(() => {
-          (tmpDir && fs.existsSync(tmpDir) && fs.rmSync(tmpDir, { recursive: !0, force: !0 }), (process.env = originalEnv));
+          (tmpDir && fs.existsSync(tmpDir) && fs.rmSync(tmpDir, { recursive: !0, force: !0 }),
+            Object.keys(process.env).forEach(k => {
+              if (!(k in originalEnv)) delete process.env[k];
+            }),
+            Object.assign(process.env, originalEnv));
         }),
         it("should fail when GH_AW_PROMPT is not set", () => {
           delete process.env.GH_AW_PROMPT;

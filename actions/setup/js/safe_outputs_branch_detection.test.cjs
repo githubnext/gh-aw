@@ -15,7 +15,11 @@ describe("safe_outputs_mcp_server.cjs branch detection", () => {
       (process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile));
   }),
     afterEach(() => {
-      ((process.env = originalEnv), fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
+      (Object.keys(process.env).forEach(k => {
+        if (!(k in originalEnv)) delete process.env[k];
+      }),
+        Object.assign(process.env, originalEnv),
+        fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
     }),
     it("should use git branch when provided branch equals base branch", () => {
       const testRepoDir = path.join(tempOutputDir, "test_repo");

@@ -826,6 +826,10 @@ safe-outputs:
 
 Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
 
+:::caution[Fork PRs Not Supported]
+This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
+:::
+
 ```yaml wrap
 safe-outputs:
   push-to-pull-request-branch:

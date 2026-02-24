@@ -15,6 +15,7 @@ describe("checkout_pr_branch.cjs", () => {
       setOutput: vi.fn(),
       startGroup: vi.fn(),
       endGroup: vi.fn(),
+      exportVariable: vi.fn(),
       summary: {
         addRaw: vi.fn().mockReturnThis(),
         write: vi.fn().mockResolvedValue(undefined),

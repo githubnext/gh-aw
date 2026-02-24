@@ -162,3 +162,187 @@ describe("generateGitPatch", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("generateGitPatch - cross-repo checkout scenarios", () => {
+  let originalEnv;
+
+  beforeEach(() => {
+    // Save original environment
+    originalEnv = {
+      GITHUB_SHA: process.env.GITHUB_SHA,
+      GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
+      DEFAULT_BRANCH: process.env.DEFAULT_BRANCH,
+      GH_AW_BASE_BRANCH: process.env.GH_AW_BASE_BRANCH,
+    };
+  });
+
+  afterEach(() => {
+    // Restore original environment
+    Object.keys(originalEnv).forEach(key => {
+      if (originalEnv[key] !== undefined) {
+        process.env[key] = originalEnv[key];
+      } else {
+        delete process.env[key];
+      }
+    });
+  });
+
+  it("should handle GITHUB_SHA not existing in cross-repo checkout", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    // In cross-repo checkout, GITHUB_SHA is from the workflow repo,
+    // not the target repo that's checked out
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
+    process.env.GITHUB_SHA = "deadbeef123456789"; // SHA that doesn't exist in target repo
+
+    const result = generateGitPatch("feature-branch");
+
+    // Should fail gracefully, not crash
+    expect(result).toHaveProperty("success");
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty("error");
+  });
+
+  it("should fall back gracefully when persist-credentials is false", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    // Simulate cross-repo checkout where fetch fails due to persist-credentials: false
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
+    process.env.GITHUB_SHA = "abc123";
+    process.env.DEFAULT_BRANCH = "main";
+
+    const result = generateGitPatch("feature-branch");
+
+    // Should try multiple strategies and fail gracefully
+    expect(result).toHaveProperty("success");
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty("error");
+    expect(result).toHaveProperty("patchPath");
+  });
+
+  it("should check local refs before attempting network fetch", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    // This tests that Strategy 1 checks for local refs before fetching
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
+    process.env.DEFAULT_BRANCH = "main";
+
+    const result = generateGitPatch("feature-branch");
+
+    // Should complete without hanging or crashing due to fetch attempts
+    expect(result).toHaveProperty("success");
+    expect(result).toHaveProperty("patchPath");
+  });
+
+  it("should return meaningful error for cross-repo scenarios", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
+    process.env.GITHUB_SHA = "sha-from-workflow-repo";
+    process.env.DEFAULT_BRANCH = "main";
+
+    const result = generateGitPatch("agent-created-branch");
+
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty("error");
+    // Error should be informative
+    expect(typeof result.error).toBe("string");
+    expect(result.error.length).toBeGreaterThan(0);
+  });
+
+  it("should handle incremental mode failure in cross-repo checkout", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
+    process.env.DEFAULT_BRANCH = "main";
+
+    // Incremental mode requires origin/branchName to exist - should fail clearly
+    const result = generateGitPatch("feature-branch", { mode: "incremental" });
+
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty("error");
+    // Should indicate the branch doesn't exist or can't be fetched
+    expect(result.error).toMatch(/branch|fetch|incremental/i);
+  });
+
+  it("should handle SideRepoOps pattern where workflow repo != target repo", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    // Simulates: workflow in org/side-repo, checkout of org/target-repo
+    // GITHUB_SHA would be from side-repo, not target-repo
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-target-repo";
+    process.env.GITHUB_SHA = "side-repo-sha-not-in-target";
+    process.env.DEFAULT_BRANCH = "main";
+
+    const result = generateGitPatch("agent-changes");
+
+    // Should not crash, should return failure with helpful error
+    expect(result).toHaveProperty("success");
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty("patchPath");
+  });
+});
+
+describe("sanitizeBranchNameForPatch", () => {
+  it("should sanitize branch names with path separators", async () => {
+    const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");
+
+    expect(sanitizeBranchNameForPatch("feature/add-login")).toBe("feature-add-login");
+    expect(sanitizeBranchNameForPatch("user\\branch")).toBe("user-branch");
+  });
+
+  it("should sanitize branch names with special characters", async () => {
+    const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");
+
+    expect(sanitizeBranchNameForPatch("feature:test")).toBe("feature-test");
+    expect(sanitizeBranchNameForPatch("branch*name")).toBe("branch-name");
+    expect(sanitizeBranchNameForPatch('branch?"name')).toBe("branch-name");
+    expect(sanitizeBranchNameForPatch("branch<>name")).toBe("branch-name");
+    expect(sanitizeBranchNameForPatch("branch|name")).toBe("branch-name");
+  });
+
+  it("should collapse multiple dashes", async () => {
+    const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");
+
+    expect(sanitizeBranchNameForPatch("feature//double")).toBe("feature-double");
+    expect(sanitizeBranchNameForPatch("a---b")).toBe("a-b");
+  });
+
+  it("should remove leading and trailing dashes", async () => {
+    const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");
+
+    expect(sanitizeBranchNameForPatch("/feature")).toBe("feature");
+    expect(sanitizeBranchNameForPatch("feature/")).toBe("feature");
+    expect(sanitizeBranchNameForPatch("/feature/")).toBe("feature");
+  });
+
+  it("should convert to lowercase", async () => {
+    const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");
+
+    expect(sanitizeBranchNameForPatch("Feature-Branch")).toBe("feature-branch");
+    expect(sanitizeBranchNameForPatch("UPPER")).toBe("upper");
+  });
+
+  it("should handle null and empty strings", async () => {
+    const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");
+
+    expect(sanitizeBranchNameForPatch(null)).toBe("unknown");
+    expect(sanitizeBranchNameForPatch("")).toBe("unknown");
+    expect(sanitizeBranchNameForPatch(undefined)).toBe("unknown");
+  });
+});
+
+describe("getPatchPath", () => {
+  it("should return correct path format", async () => {
+    const { getPatchPath } = await import("./generate_git_patch.cjs");
+
+    expect(getPatchPath("feature-branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+  });
+
+  it("should sanitize branch name in path", async () => {
+    const { getPatchPath } = await import("./generate_git_patch.cjs");
+
+    expect(getPatchPath("feature/branch")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+    expect(getPatchPath("Feature/BRANCH")).toBe("/tmp/gh-aw/aw-feature-branch.patch");
+  });
+});

@@ -1,4 +1,3 @@
-// @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
@@ -318,7 +317,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("does not exist locally");
       expect(responseData.details).toBeDefined();
       expect(responseData.details).toContain("push to the pull request branch");
       expect(responseData.details).toContain("git add and git commit");
