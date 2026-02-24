@@ -56,7 +56,7 @@ steps:
       
       echo "All scientific libraries installed successfully"
 
-  - name: Upload generated charts
+  - name: Upload charts
     if: always()
     uses: actions/upload-artifact@v6
     with:

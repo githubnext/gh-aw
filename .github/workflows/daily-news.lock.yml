@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c43322cfc2de7afacb76171471420ff8d8416b9ae60f650ba05bbbd2e6dbd1a9"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"44f6b9f0ac736913cae00d8b8588041de233f3a8036200a0a121cf35e764f4f6"}
 
 name: "Daily News"
 "on":
@@ -301,7 +301,7 @@ jobs:
       - name: Install Python scientific libraries
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
-        name: Upload generated charts
+        name: Upload charts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn
@@ -322,7 +322,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: check-cache
-        name: Setup directories and check cache
+        name: Setup working directories
         run: "set -e\n\n# Create directories\nmkdir -p /tmp/gh-aw/daily-news-data\nmkdir -p /tmp/gh-aw/repo-memory/default/daily-news-data\n\n# Check if cached data exists and is recent (< 24 hours old)\nCACHE_VALID=false\nCACHE_TIMESTAMP_FILE=\"/tmp/gh-aw/repo-memory/default/daily-news-data/.timestamp\"\n\nif [ -f \"$CACHE_TIMESTAMP_FILE\" ]; then\n  CACHE_AGE=$(($(date +%s) - $(cat \"$CACHE_TIMESTAMP_FILE\")))\n  # 24 hours = 86400 seconds\n  if [ $CACHE_AGE -lt 86400 ]; then\n    echo \"✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)\"\n    CACHE_VALID=true\n  else\n    echo \"⚠ Cached data is stale (age: ${CACHE_AGE}s, more than 24h)\"\n  fi\nelse\n  echo \"ℹ No cached data found, will fetch fresh data\"\nfi\n\n# Use cached data if valid\nif [ \"$CACHE_VALID\" = true ]; then\n  echo \"📦 Using cached data from previous run\"\n  cp -r /tmp/gh-aw/repo-memory/default/daily-news-data/* /tmp/gh-aw/daily-news-data/\n  echo \"✅ Cached data restored to working directory\"\n  echo \"cache_valid=true\" >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"🔄 Will fetch fresh data from GitHub API...\"\n  echo \"cache_valid=false\" >> \"$GITHUB_OUTPUT\"\n  \n  # Calculate date range (last 30 days)\n  END_DATE=$(date -u +%Y-%m-%d)\n  START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)\n  echo \"Fetching data from $START_DATE to $END_DATE\"\nfi\n"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
