@@ -50,7 +50,7 @@ type RepoMemoryEntry struct {
 	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
 	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 10KB)
 	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
-	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB)
+	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 100KB)
 	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
 	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
@@ -283,7 +283,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 						entry.MaxPatchSize = int(sizeUint64)
 					}
 					// Validate max-patch-size bounds
-					if err := validateIntRange(entry.MaxPatchSize, 1, 104857600, "max-patch-size"); err != nil {
+					if err := validateIntRange(entry.MaxPatchSize, 1, 102400, "max-patch-size"); err != nil {
 						return nil, err
 					}
 				}
@@ -424,7 +424,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 				entry.MaxPatchSize = int(sizeUint64)
 			}
 			// Validate max-patch-size bounds
-			if err := validateIntRange(entry.MaxPatchSize, 1, 104857600, "max-patch-size"); err != nil {
+			if err := validateIntRange(entry.MaxPatchSize, 1, 102400, "max-patch-size"); err != nil {
 				return nil, err
 			}
 		}

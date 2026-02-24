@@ -41,7 +41,7 @@ tools:
 
 **File Type Restrictions**: Use `allowed-extensions` to restrict which file types can be stored (default: empty/all files allowed). When specified, only files with listed extensions (e.g., `[".json", ".txt", ".md"]`) can be saved. Files with disallowed extensions will trigger validation failures.
 
-**Patch Size Limit**: Use `max-patch-size` to limit the total size of changes in a single push (default: 10KB). The total size of the git diff (all staged changes combined) must not exceed this value. If it does, the push is rejected with an error. Use this to prevent large unintentional memory updates.
+**Patch Size Limit**: Use `max-patch-size` to limit the total size of changes in a single push (default: 10KB, max: 100KB). The total size of the git diff (all staged changes combined) must not exceed this value. If it does, the push is rejected with an error. Use this to prevent large unintentional memory updates.
 
 **Note**: File glob patterns must include the full branch path structure. For branch `memory/custom-agent-for-aw`, use patterns like `memory/custom-agent-for-aw/*.json` to match files stored at that path within the branch.
 
