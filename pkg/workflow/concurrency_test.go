@@ -106,6 +106,36 @@ tools:
 			shouldHaveCancel: false,
 			description:      "Issue workflows use global concurrency with engine ID and slot",
 		},
+		{
+			name: "slash_command workflow should have dynamic concurrency with issue/PR number",
+			frontmatter: `---
+on:
+  slash_command:
+    name: test-bot
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename: "slash-command-workflow.md",
+			expectedConcurrency: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
+			shouldHaveCancel: false,
+			description:      "slash_command workflows should use dynamic concurrency with issue/PR number without cancellation",
+		},
+		{
+			name: "slash_command shorthand workflow should have dynamic concurrency with issue/PR number",
+			frontmatter: `---
+on: /test-bot
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename: "slash-command-shorthand-workflow.md",
+			expectedConcurrency: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
+			shouldHaveCancel: false,
+			description:      "slash_command shorthand workflows should use dynamic concurrency with issue/PR number without cancellation",
+		},
 	}
 
 	for _, tt := range tests {
@@ -294,6 +324,33 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
   group: "custom-group"`,
 			description: "Existing concurrency configuration should be preserved",
 		},
+		{
+			name: "slash_command input YAML should have dynamic concurrency with issue/PR number",
+			workflowData: &WorkflowData{
+				On: `on:
+  slash_command: test-bot
+  workflow_dispatch:`,
+				Concurrency: "",
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
+			description: "slash_command (input-level YAML) should use issue/PR number, same as command trigger",
+		},
+		{
+			name: "slash_command rendered YAML (issue_comment + workflow_dispatch) should have dynamic concurrency",
+			workflowData: &WorkflowData{
+				On: `on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:`,
+				Concurrency: "",
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"`,
+			description: "Rendered slash_command YAML (issue_comment + workflow_dispatch) uses issue number via isIssueWorkflow",
+		},
 	}
 
 	for _, tt := range tests {
@@ -398,6 +455,24 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			expected: `concurrency:
   group: "gh-aw-copilot-${{ github.workflow }}"`,
 			description: "workflow_dispatch combined with schedule should still get default concurrency (not workflow_dispatch-only)",
+		},
+		{
+			name: "No default concurrency for slash_command input YAML (pre-rendered)",
+			workflowData: &WorkflowData{
+				On:           "on:\n  slash_command: test-bot\n  workflow_dispatch:",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expected:    "",
+			description: "slash_command in input YAML should NOT get default concurrency (isSlashCommandWorkflow detects the synthetic event)",
+		},
+		{
+			name: "No default concurrency for slash_command rendered YAML (issue_comment + workflow_dispatch)",
+			workflowData: &WorkflowData{
+				On:           "on:\n  issue_comment:\n    types: [created]\n  workflow_dispatch:",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expected:    "",
+			description: "Rendered slash_command YAML (issue_comment + workflow_dispatch) should NOT get default concurrency (isIssueWorkflow detects it)",
 		},
 	}
 
@@ -740,6 +815,17 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 			expected:       []string{"gh-aw", "${{ github.workflow }}"},
 			description:    "Other workflows should use just workflow name",
 		},
+		{
+			name: "slash_command input YAML should include issue/PR number",
+			workflowData: &WorkflowData{
+				On: `on:
+  slash_command: test-bot
+  workflow_dispatch:`,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.event.pull_request.number }}"},
+			description:    "slash_command (input-level YAML) should include issue/PR number in concurrency group",
+		},
 	}
 
 	for _, tt := range tests {
@@ -832,6 +918,194 @@ func TestShouldEnableCancelInProgress(t *testing.T) {
 			result := shouldEnableCancelInProgress(tt.workflowData, tt.isAliasTrigger)
 			if result != tt.expected {
 				t.Errorf("shouldEnableCancelInProgress() for %s = %v, expected %v", tt.description, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsWorkflowDispatchOnly(t *testing.T) {
+	tests := []struct {
+		name     string
+		on       string
+		expected bool
+		desc     string
+	}{
+		{
+			name:     "Pure workflow_dispatch should be identified as dispatch-only",
+			on:       "on:\n  workflow_dispatch:",
+			expected: true,
+			desc:     "A workflow with only workflow_dispatch is dispatch-only",
+		},
+		{
+			name: "workflow_dispatch with inputs should be identified as dispatch-only",
+			on: `on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment"`,
+			expected: true,
+			desc:     "workflow_dispatch with inputs is still dispatch-only",
+		},
+		{
+			name: "No workflow_dispatch should not be identified as dispatch-only",
+			on: `on:
+  schedule:
+    - cron: "0 9 * * 1"`,
+			expected: false,
+			desc:     "A workflow without workflow_dispatch is not dispatch-only",
+		},
+		{
+			name: "workflow_dispatch combined with schedule should not be dispatch-only",
+			on: `on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"`,
+			expected: false,
+			desc:     "schedule is a real trigger so the workflow is not dispatch-only",
+		},
+		{
+			name: "workflow_dispatch combined with push should not be dispatch-only",
+			on: `on:
+  workflow_dispatch:
+  push:
+    branches: [main]`,
+			expected: false,
+			desc:     "push makes the workflow not dispatch-only",
+		},
+		{
+			name: "workflow_dispatch combined with pull_request should not be dispatch-only",
+			on: `on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened]`,
+			expected: false,
+			desc:     "pull_request makes the workflow not dispatch-only",
+		},
+		{
+			name: "workflow_dispatch combined with issues should not be dispatch-only",
+			on: `on:
+  workflow_dispatch:
+  issues:
+    types: [opened]`,
+			expected: false,
+			desc:     "issues makes the workflow not dispatch-only",
+		},
+		{
+			name: "slash_command with workflow_dispatch should not be dispatch-only",
+			on: `on:
+  slash_command: test-bot
+  workflow_dispatch:`,
+			expected: false,
+			desc:     "slash_command is a synthetic event that expands to issue_comment; its presence means the workflow is not dispatch-only",
+		},
+		{
+			name: "slash_command map format with workflow_dispatch should not be dispatch-only",
+			on: `on:
+  slash_command:
+    name: test-bot
+  workflow_dispatch:`,
+			expected: false,
+			desc:     "slash_command in map format is still a synthetic event that makes the workflow not dispatch-only",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isWorkflowDispatchOnly(tt.on)
+			if result != tt.expected {
+				t.Errorf("isWorkflowDispatchOnly() for %q = %v, want %v: %s", tt.name, result, tt.expected, tt.desc)
+			}
+		})
+	}
+}
+
+func TestHasSpecialTriggers(t *testing.T) {
+	tests := []struct {
+		name     string
+		on       string
+		expected bool
+		desc     string
+	}{
+		{
+			name: "Issue workflow is a special trigger",
+			on: `on:
+  issues:
+    types: [opened]`,
+			expected: true,
+			desc:     "issues trigger should be detected as special",
+		},
+		{
+			name: "PR workflow is a special trigger",
+			on: `on:
+  pull_request:
+    types: [opened]`,
+			expected: true,
+			desc:     "pull_request trigger should be detected as special",
+		},
+		{
+			name: "Push workflow is a special trigger",
+			on: `on:
+  push:
+    branches: [main]`,
+			expected: true,
+			desc:     "push trigger should be detected as special",
+		},
+		{
+			name: "Discussion workflow is a special trigger",
+			on: `on:
+  discussion:
+    types: [created]`,
+			expected: true,
+			desc:     "discussion trigger should be detected as special",
+		},
+		{
+			name:     "workflow_dispatch-only is a special trigger",
+			on:       "on:\n  workflow_dispatch:",
+			expected: true,
+			desc:     "workflow_dispatch-only is treated as special (explicit user intent)",
+		},
+		{
+			name: "slash_command input YAML is a special trigger",
+			on: `on:
+  slash_command: test-bot
+  workflow_dispatch:`,
+			expected: true,
+			desc:     "slash_command is a synthetic event that should be detected as special",
+		},
+		{
+			name: "slash_command map format is a special trigger",
+			on: `on:
+  slash_command:
+    name: test-bot
+  workflow_dispatch:`,
+			expected: true,
+			desc:     "slash_command in map format should also be detected as special",
+		},
+		{
+			name: "schedule-only is NOT a special trigger",
+			on: `on:
+  schedule:
+    - cron: "0 9 * * 1"`,
+			expected: false,
+			desc:     "schedule alone is not a special trigger and should receive default job concurrency",
+		},
+		{
+			name: "schedule + workflow_dispatch is NOT a special trigger",
+			on: `on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:`,
+			expected: false,
+			desc:     "schedule + workflow_dispatch is not a special trigger and should receive default job concurrency",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wd := &WorkflowData{On: tt.on}
+			result := hasSpecialTriggers(wd)
+			if result != tt.expected {
+				t.Errorf("hasSpecialTriggers() for %q = %v, want %v: %s", tt.name, result, tt.expected, tt.desc)
 			}
 		})
 	}

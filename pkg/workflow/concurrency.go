@@ -76,7 +76,7 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 
 // hasSpecialTriggers checks if the workflow has special trigger types that require
 // workflow-level concurrency handling (issues, PRs, discussions, push, command,
-// or workflow_dispatch-only)
+// slash_command, or workflow_dispatch-only)
 func hasSpecialTriggers(workflowData *WorkflowData) bool {
 	// Check for specific trigger types that have special concurrency handling
 	on := workflowData.On
@@ -98,6 +98,11 @@ func hasSpecialTriggers(workflowData *WorkflowData) bool {
 
 	// Check for push triggers
 	if isPushWorkflow(on) {
+		return true
+	}
+
+	// Check for slash_command triggers (synthetic event that expands to issue_comment + workflow_dispatch)
+	if isSlashCommandWorkflow(on) {
 		return true
 	}
 
@@ -129,6 +134,8 @@ func isDiscussionWorkflow(on string) bool {
 
 // isWorkflowDispatchOnly returns true when workflow_dispatch is the only trigger in the
 // "on" section, indicating the workflow is always started by explicit user intent.
+// It handles both rendered YAML (standard GitHub Actions events) and input YAML
+// (which may contain synthetic events like slash_command before they are expanded).
 func isWorkflowDispatchOnly(on string) bool {
 	if !strings.Contains(on, "workflow_dispatch") {
 		return false
@@ -137,6 +144,9 @@ func isWorkflowDispatchOnly(on string) bool {
 	// workflow_dispatch-only workflow. We check for the trigger name followed by
 	// ':' (YAML key in object form) or as the sole inline value to avoid false
 	// matches from input parameter names (e.g., "push_branch" ≠ "push" trigger).
+	// slash_command is included here because it is a synthetic event that expands
+	// to issue_comment + workflow_dispatch at compile time; its presence means the
+	// workflow is not triggered solely by explicit user dispatch.
 	otherTriggers := []string{
 		"push", "pull_request", "pull_request_review", "pull_request_review_comment",
 		"pull_request_target", "issues", "issue_comment", "discussion",
@@ -144,6 +154,7 @@ func isWorkflowDispatchOnly(on string) bool {
 		"create", "delete", "release", "deployment", "fork", "gollum",
 		"label", "milestone", "page_build", "public", "registry_package",
 		"status", "watch", "merge_group", "check_run", "check_suite",
+		"slash_command",
 	}
 	for _, trigger := range otherTriggers {
 		// Trigger in object format: "push:" / "  push:"
@@ -163,12 +174,21 @@ func isPushWorkflow(on string) bool {
 	return strings.Contains(on, "push")
 }
 
+// isSlashCommandWorkflow checks if a workflow's "on" section contains the slash_command
+// synthetic trigger. slash_command is an input-level event that expands to
+// issue_comment + workflow_dispatch at compile time. Detecting it here allows
+// the concurrency helpers to produce correct results even when they are called
+// with the pre-rendered "on" YAML (before the event expansion has taken place).
+func isSlashCommandWorkflow(on string) bool {
+	return strings.Contains(on, "slash_command")
+}
+
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
 
-	if isCommandTrigger {
-		// For command workflows: use issue/PR number
+	if isCommandTrigger || isSlashCommandWorkflow(workflowData.On) {
+		// For command/slash_command workflows: use issue/PR number
 		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number }}")
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
 		// Mixed workflows with both issue and PR triggers: use issue/PR number

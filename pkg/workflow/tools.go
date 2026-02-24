@@ -23,18 +23,24 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	if data.On == "" {
-		// Check the original frontmatter for command trigger
-		content, err := os.ReadFile(markdownPath)
-		if err == nil {
-			result, err := parser.ExtractFrontmatterFromContent(string(content))
+		// parseOnSection may have already detected the command trigger and populated data.Command
+		// (this covers slash_command map format, slash_command shorthand "on: /name", and deprecated "command:")
+		if len(data.Command) > 0 {
+			isCommandTrigger = true
+		} else {
+			// Check the original frontmatter for command trigger
+			content, err := os.ReadFile(markdownPath)
 			if err == nil {
-				if onValue, exists := result.Frontmatter["on"]; exists {
-					// Check for slash_command or command (deprecated)
-					if onMap, ok := onValue.(map[string]any); ok {
-						if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
-							isCommandTrigger = true
-						} else if _, hasCommand := onMap["command"]; hasCommand {
-							isCommandTrigger = true
+				result, err := parser.ExtractFrontmatterFromContent(string(content))
+				if err == nil {
+					if onValue, exists := result.Frontmatter["on"]; exists {
+						// Check for slash_command or command (deprecated)
+						if onMap, ok := onValue.(map[string]any); ok {
+							if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
+								isCommandTrigger = true
+							} else if _, hasCommand := onMap["command"]; hasCommand {
+								isCommandTrigger = true
+							}
 						}
 					}
 				}
