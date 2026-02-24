@@ -45,7 +45,7 @@ Available codemods:
   • safe-inputs-mode-removal: Removes deprecated 'safe-inputs.mode' field
   • schedule-at-to-around-migration: Converts 'daily at TIME' to 'daily around TIME'
   • delete-schema-file: Deletes deprecated .github/aw/schemas/agentic-workflow.json
-  • delete-old-agents: Deletes old .agent.md files moved to .github/aw/
+  • delete-old-agents: Deletes old workflow-specific .agent.md files from .github/agents/
   • delete-old-templates: Removes old template files from pkg/cli/templates/
 
 If no workflows are specified, all Markdown files in .github/workflows will be processed.
@@ -55,10 +55,9 @@ The command will:
   2. Apply relevant codemods to fix issues
   3. Report what was changed in each file
   4. Write updated files back to disk (with --write flag)
-  5. Update prompt and agent files to latest templates (similar to 'init' command)
-  6. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists
-  7. Delete old template files from pkg/cli/templates/ (with --write flag)
-  8. Delete old .agent.md files that have been moved to .github/aw/ (with --write flag)
+  5. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists
+  6. Delete old template files from pkg/cli/templates/ (with --write flag)
+  7. Delete old workflow-specific .agent.md files from .github/agents/ (with --write flag)
 
 ` + WorkflowIDExplanation + `
 

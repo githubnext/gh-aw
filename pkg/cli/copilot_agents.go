@@ -182,7 +182,7 @@ func deleteOldTemplateFiles(verbose bool) error {
 	return nil
 }
 
-// deleteOldAgentFiles deletes old .agent.md files that have been moved to .github/aw/
+// deleteOldAgentFiles deletes old workflow-specific .agent.md files from .github/agents/
 func deleteOldAgentFiles(verbose bool) error {
 	gitRoot, err := findGitRoot()
 	if err != nil {
