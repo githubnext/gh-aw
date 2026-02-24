@@ -213,3 +213,9 @@ This PR updates the documentation based on features merged in the last 24 hours.
 - Focus on user-facing features and changes that affect the developer experience
 
 Good luck! Your documentation updates help keep our project accessible and up-to-date.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

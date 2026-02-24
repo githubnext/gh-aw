@@ -385,3 +385,9 @@ Append your techniques to the log (use `- [x]` for completed techniques):
 **Instructions**: Replace `[YOUR_RUN_ID]` with the actual GitHub run ID and `[TODAY'S_DATE]` with the current date. Document all techniques you attempted with their results. Use checked boxes `- [x]` since these are completed attempts.
 
 **Remember: This is authorized security testing. Study the implementation, think creatively, reference prior attempts, and try your absolute best to break out with NEW innovative techniques!**
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

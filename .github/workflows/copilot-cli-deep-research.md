@@ -507,3 +507,9 @@ A successful research report should:
 - ✅ Consider security, performance, and developer experience
 
 **Remember**: The goal is to help the team make better use of Copilot CLI's capabilities and improve the overall quality of agentic workflows in this repository.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -486,3 +486,9 @@ If you cannot find the "Included Software" URL in logs:
    - Find the "Included Software" line with the URL
 
 Good luck! Your analysis helps developers understand and replicate the GitHub Actions runner environment.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

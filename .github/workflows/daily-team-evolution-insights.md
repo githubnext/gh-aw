@@ -345,3 +345,9 @@ Always create a GitHub Discussion with your findings using this structure:
 - Keep it concise but comprehensive (aim for 800-1500 words)
 
 Begin your analysis now. Gather the data, identify the patterns, and create an insightful discussion about the team's evolution.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

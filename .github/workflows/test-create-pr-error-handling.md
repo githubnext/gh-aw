@@ -47,3 +47,9 @@ Please call the `create_pull_request` tool with:
 - body: "This is a test PR that should fail due to no commits"
 
 Then report the exact error message you received.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

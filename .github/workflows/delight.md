@@ -531,3 +531,9 @@ For additional examples, see the [tools documentation](/tools/overview).
 ---
 
 Begin your targeted analysis now! Select 1-2 files per category, evaluate them against enterprise software design principles, create a focused report, and generate 1-2 single-file improvement tasks.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

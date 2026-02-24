@@ -615,3 +615,9 @@ A successful consolidation run:
 - ✅ **Makes actual file changes that will be included in the automatic PR**
 
 Begin the consolidation process now. Use Serena for analysis, **directly apply changes** to adjust tone and formatting, add helpful Mermaid diagrams, consolidate into the instructions file, and report your findings through both a discussion and pull request.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

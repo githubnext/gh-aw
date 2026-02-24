@@ -174,3 +174,9 @@ You've successfully completed this task if you:
 - Identified specific pain points with examples
 - Provided actionable recommendations
 - Created a discussion with clear findings and screenshots
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

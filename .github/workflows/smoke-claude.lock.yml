@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ede2fec60fd2b3a5ef0b98f74ae9793996ccd5ad3755f6bf6c3aac7df7779e57"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"44795abbc68aff36a88e78da3acdaacdd1156a7f0abf1600e5a60943fa23edb3"}
 
 name: "Smoke Claude"
 "on":
@@ -526,6 +526,12 @@ jobs:
              - If step 9 failed to extract a discussion number, skip this step
           
           If all non-skipped tests pass, use the `add_labels` tool to add the label `smoke-claude` to the pull request (omit the `item_number` parameter to auto-target the triggering PR if this workflow was triggered by a pull_request event).
+          
+          **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+          
+          ```json
+          {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+          ```
           
           GH_AW_PROMPT_EOF
           } > "$GH_AW_PROMPT"

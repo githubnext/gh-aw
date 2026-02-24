@@ -188,3 +188,9 @@ Use the safe-outputs capabilities to:
 ## Begin Your Poetic Journey!
 
 Examine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -886,6 +886,10 @@ git checkout --orphan my-custom-branch && git rm -rf . && git commit --allow-emp
 
 ### No-Op Logging (`noop:`)
 
+:::danger[Required when no action is taken]
+**`noop` MUST be called when no GitHub action is needed.** This is the #1 runtime failure mode for safe-output workflows. If the agent finishes without calling any safe-output tool, the workflow fails silently with no output. Always call `noop` when your analysis concludes that no action is required.
+:::
+
 Enabled by default. Allows agents to produce completion messages when no actions are needed, preventing silent workflow completion.
 
 ```yaml wrap
@@ -894,7 +898,24 @@ safe-outputs:
   noop: false       # explicitly disable
 ```
 
-Agent output: `{"type": "noop", "message": "Analysis complete - no issues found"}`. Messages appear in the workflow conclusion comment or step summary.
+**When to call `noop`**: Any time the agent's analysis concludes that no GitHub action (issue, comment, PR, label, etc.) is needed. Examples:
+- No issues found during a code scan
+- No breaking changes detected in recent commits
+- Repository is already in the desired state
+- Condition for action was not met (e.g., no new issues to triage)
+
+**When NOT to call `noop`**: If the agent created an issue, posted a comment, opened a PR, or performed any other safe-output action, do NOT also call `noop`.
+
+**Failure mode**: If an agent completes its analysis without calling any safe-output tool, the workflow will fail with an error like `agent did not produce any safe outputs`. This is the most common cause of safe-output workflow failures.
+
+Agent output: `{"noop": {"message": "No action needed: analysis complete - no issues found"}}`. Messages appear in the workflow conclusion comment or step summary.
+
+**Always include explicit `noop` instructions in your workflow prompts:**
+
+```markdown
+If no action is needed, you MUST call the `noop` tool with a message explaining why:
+{"noop": {"message": "No action needed: [brief explanation]"}}
+```
 
 ### Missing Tool Reporting (`missing-tool:`)
 

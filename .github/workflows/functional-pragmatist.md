@@ -1468,3 +1468,9 @@ Begin your functional/immutability analysis now:
 3. **Systematically identify opportunities** for immutability, functional initialization, and transformative operations
 4. **Apply tasteful, moderate improvements** that enhance clarity and safety while maintaining Go's pragmatic style
 5. **Update cache** with the processed package before finishing
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```
