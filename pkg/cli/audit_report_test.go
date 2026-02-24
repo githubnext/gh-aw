@@ -1501,6 +1501,64 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		assert.True(t, strings.HasSuffix(errors[0].Message, "..."), "Truncated message should end with ellipsis")
 	})
 
+	t.Run("prioritizes ##[error] annotations over last step fallback", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Step 3 has a ##[error] annotation (the real failure)
+		lockdownLog := "2026-02-23T23:46:10.9523559Z ##[error]Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n2026-02-23T23:46:10.9523560Z Please configure GH_AW_GITHUB_TOKEN"
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Validate lockdown mode.txt"), []byte(lockdownLog), 0600))
+		// Step 15 is the "Complete job" step with unrelated cleanup content (higher step number)
+		completeJobLog := "2026-02-23T23:46:13.5790741Z Evaluate and set job outputs\n2026-02-23T23:46:13.5790742Z Set output 'checkout_pr_success'\n2026-02-23T23:46:13.5790743Z Set output 'has_patch'"
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "15_Complete job.txt"), []byte(completeJobLog), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should return errors from ##[error] annotations")
+		require.Len(t, errors, 1, "Should return one error for the step with ##[error]")
+		assert.Equal(t, "agent/Validate lockdown mode", errors[0].File, "Should reference the step with ##[error], not Complete job")
+		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain the actual ##[error] annotation content")
+		assert.NotContains(t, errors[0].Message, "Evaluate and set job outputs", "Message should not contain Complete job cleanup content")
+		assert.NotContains(t, errors[0].Message, "2026-02-23T", "Should strip GHA timestamps from ##[error] lines")
+	})
+
+	t.Run("returns ##[error] annotations from multiple steps", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Two steps each with ##[error] annotations
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Step A.txt"),
+			[]byte("2024-01-01T00:00:01Z ##[error]First error"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Step B.txt"),
+			[]byte("2024-01-01T00:00:02Z ##[error]Second error"), 0600))
+		// Higher-numbered step with no ##[error]
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "10_Complete job.txt"),
+			[]byte("Cleanup content"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should return errors")
+		assert.Len(t, errors, 2, "Should return one ErrorInfo per step with ##[error] annotations")
+		// All returned errors should be from steps with ##[error], not the cleanup step
+		for _, e := range errors {
+			assert.NotEqual(t, "agent/Complete job", e.File, "Should not include cleanup step in errors")
+		}
+	})
+
+	t.Run("falls back to last step when no ##[error] annotations exist", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Step 3 has non-annotated error content
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Some step.txt"), []byte("Some content"), 0600))
+		// Step 7 is the last step and has the actual failure (no ##[error] prefix)
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "7_Failing step.txt"), []byte("Error: installation failed"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should fall back to last step content")
+		require.Len(t, errors, 1, "Fallback should return one error")
+		assert.Equal(t, "agent/Failing step", errors[0].File, "Fallback should use the last step")
+		assert.Contains(t, errors[0].Message, "Error: installation failed", "Fallback should use last step content")
+	})
+
 	t.Run("builds error summary from step errors in buildAuditData", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log
