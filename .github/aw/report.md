@@ -10,11 +10,11 @@ Consult this file when creating an agentic workflow that generates reports — r
 
 | Use case | Recommended output |
 |---|---|
-| Recurring status / audit report | `create-discussion` with `close-older-discussions` |
-| One-off finding or analysis | `create-issue` with `close-older-issues` |
+| Report (default) | `create-issue` with `close-older-issues` |
 | Inline update on an existing issue or PR | `add-comment` with `hide-older-comments` |
+| Discussion-based report (only when explicitly requested) | `create-discussion` with `close-older-discussions` |
 
-Use `create-discussion` (not `create-issue`) for reports — discussions signal "status / informational" intent, keep the issue tracker clean, and support the `close-older-discussions` cleanup mechanism out of the box.
+Use `create-issue` by default for reports — issues are familiar, searchable, and support the full close/expire cleanup mechanism. Only use `create-discussion` when the user explicitly asks for it.
 
 ## Automatic Cleanup
 
@@ -25,14 +25,14 @@ Reports accumulate over time. Always configure automatic cleanup when the workfl
 - **`close-older-discussions: true`**: Closes older discussions with the same title prefix or labels as "OUTDATED". Requires `title-prefix` or `labels`.
 - **`hide-older-comments: true`**: Minimizes previous comments from the same workflow before posting a new one. Useful for rolling status updates on the same issue or PR.
 
-**Default recommendation for recurring reports:** use `create-discussion` with `close-older-discussions: true` and a stable `title-prefix` so only the latest report is visible.
+**Default recommendation for recurring reports:** use `create-issue` with `close-older-issues: true` and a stable `title-prefix` so only the latest report is active.
 
 ```yaml
 safe-outputs:
-  create-discussion:
+  create-issue:
     title-prefix: "Weekly Status:"
-    category: "Reports"
-    close-older-discussions: true
+    labels: [report]
+    close-older-issues: true
     expires: 30
 ```
 
