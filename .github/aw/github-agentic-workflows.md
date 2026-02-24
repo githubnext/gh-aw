@@ -462,9 +462,12 @@ The YAML frontmatter supports these fields:
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
         fallback-as-issue: false        # Optional: create issue if PR creation fails (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
+        github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
     ```
 
     **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
+
+    **CI Triggering**: By default, PRs created with `GITHUB_TOKEN` do not trigger CI workflow runs. To trigger CI, set `github-token-for-extra-empty-commit` to a PAT with `Contents: Read & Write` permission, or to `"app"` to use the configured GitHub App. Alternatively, set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT — this is automatically used without requiring explicit configuration in the workflow.
 
     When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
   - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
@@ -724,8 +727,9 @@ The YAML frontmatter supports these fields:
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
         commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
         staged: true                    # Optional: preview mode (default: follows global staged)
+        github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
     ```
-    Not supported for cross-repository operations.
+    Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
   - `update-discussion:` - Update discussion title, body, or labels
     ```yaml
     safe-outputs:
@@ -933,6 +937,10 @@ The YAML frontmatter supports these fields:
       - `staged-title:` - Staged mode preview title
       - `staged-description:` - Staged mode preview description
       - `append-only-comments:` - Create new comments instead of editing existing ones (boolean, default: false)
+      - `activation-comments:` - Set to `"false"` to disable all activation/fallback comments entirely (supports templatable boolean: literal `"true"`/`"false"` or GitHub Actions expressions)
+      - `pull-request-created:` - Custom message when a PR is created. Placeholders: `{item_number}`, `{item_url}`
+      - `issue-created:` - Custom message when an issue is created. Placeholders: `{item_number}`, `{item_url}`
+      - `commit-pushed:` - Custom message when a commit is pushed. Placeholders: `{commit_sha}`, `{short_sha}`, `{commit_url}`
     - Example:
       ```yaml
       safe-outputs:
