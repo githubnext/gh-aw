@@ -181,6 +181,24 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		}
 		data.Permissions = strings.Join(lines, "\n")
 	}
+
+	// When the copilot-requests feature is enabled, inject copilot-requests: write permission.
+	// This is required so that the GitHub Actions token has the necessary scope
+	// to authenticate with the Copilot API.
+	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data) {
+		perms := NewPermissionsParser(data.Permissions).ToPermissions()
+		perms.Set(PermissionCopilotRequests, PermissionWrite)
+		yaml := perms.RenderToYAML()
+		// Adjust from job-level indentation (6 spaces) to workflow-level (2 spaces)
+		lines := strings.Split(yaml, "\n")
+		for i := 1; i < len(lines); i++ {
+			if strings.HasPrefix(lines[i], "      ") {
+				lines[i] = "  " + lines[i][6:]
+			}
+		}
+		data.Permissions = strings.Join(lines, "\n")
+	}
+
 	return nil
 }
 

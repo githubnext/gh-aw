@@ -686,6 +686,10 @@ const (
 	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt
 	DisableXPIAPromptFeatureFlag FeatureFlag = "disable-xpia-prompt"
+	// CopilotRequestsFeatureFlag is the feature flag name for enabling copilot-requests mode.
+	// When enabled: no secret validation step is generated, copilot-requests: write permission is added,
+	// and the GitHub Actions token is used as the agentic engine secret.
+	CopilotRequestsFeatureFlag FeatureFlag = "copilot-requests"
 )
 
 // Step IDs for pre-activation job
