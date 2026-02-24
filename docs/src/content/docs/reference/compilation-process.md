@@ -323,8 +323,10 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 | `gh aw compile --actionlint --zizmor --poutine` | Run security scanners |
 | `gh aw compile --purge` | Remove orphaned `.lock.yml` files |
 | `gh aw compile --output /path/to/output` | Custom output directory |
-| `gh aw verify` | Verify all workflows (compile + all linters, no file output) |
-| `gh aw verify my-workflow` | Verify a specific workflow |
+| `gh aw validate` | Validate all workflows (compile + all linters, no file output) |
+| `gh aw validate my-workflow` | Validate a specific workflow |
+| `gh aw validate --json` | Validate and output results in JSON format |
+| `gh aw validate --strict` | Validate with strict mode enforced |
 
 > [!TIP]
 > Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.

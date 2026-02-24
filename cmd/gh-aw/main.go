@@ -615,7 +615,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()
 	checksCmd := cli.NewChecksCommand()
-	verifyCmd := cli.NewVerifyCommand()
+	validateCmd := cli.NewValidateCommand(validateEngine)
 
 	// Assign commands to groups
 	// Setup Commands
@@ -629,7 +629,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 	// Development Commands
 	compileCmd.GroupID = "development"
-	verifyCmd.GroupID = "development"
+	validateCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
 	listCmd.GroupID = "development"
@@ -680,7 +680,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(secretsCmd)
 	rootCmd.AddCommand(fixCmd)
-	rootCmd.AddCommand(verifyCmd)
+	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)
