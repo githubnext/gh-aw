@@ -253,3 +253,55 @@ Test org-wide GitHub MCP app token.
 	assert.Contains(t, lockContent, "owner:", "Should include owner field")
 	assert.Contains(t, lockContent, "app-id:", "Should include app-id field")
 }
+
+// TestGitHubMCPAppTokenNoLockdownDetectionStep tests that determine-automatic-lockdown
+// step is NOT generated when a GitHub App is configured.
+// GitHub App tokens are already scoped to specific repositories, so automatic lockdown
+// detection is unnecessary.
+func TestGitHubMCPAppTokenNoLockdownDetectionStep(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+strict: false
+tools:
+  github:
+    mode: local
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      repositories:
+        - "repo1"
+        - "repo2"
+---
+
+# Test Workflow
+
+Test that determine-automatic-lockdown is not generated when app is configured.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	// The automatic lockdown detection step must NOT be present when app is configured
+	assert.NotContains(t, lockContent, "Determine automatic lockdown mode", "determine-automatic-lockdown step should not be generated when app is configured")
+	assert.NotContains(t, lockContent, "id: determine-automatic-lockdown", "determine-automatic-lockdown step ID should not be present")
+	assert.NotContains(t, lockContent, "steps.determine-automatic-lockdown.outputs.lockdown", "lockdown step output reference should not be present")
+
+	// App token should still be minted and used
+	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should still be generated")
+	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "App token should be used for MCP server")
+}
