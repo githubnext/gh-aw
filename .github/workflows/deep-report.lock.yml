@@ -1353,6 +1353,7 @@ jobs:
           BRANCH_NAME: memory/deep-report
           MAX_FILE_SIZE: 1048576
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/deep-report/*.md"
         with:

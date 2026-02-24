@@ -1228,6 +1228,7 @@ jobs:
           BRANCH_NAME: memory/copilot-agent-analysis
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/copilot-agent-analysis/*.json memory/copilot-agent-analysis/*.jsonl memory/copilot-agent-analysis/*.csv memory/copilot-agent-analysis/*.md"
         with:

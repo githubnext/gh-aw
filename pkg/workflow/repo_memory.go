@@ -50,6 +50,7 @@ type RepoMemoryEntry struct {
 	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
 	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 10KB)
 	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
+	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB)
 	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
 	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
@@ -130,6 +131,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 				BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 				MaxFileSize:       10240, // 10KB
 				MaxFileCount:      100,
+				MaxPatchSize:      10240, // 10KB
 				CreateOrphan:      true,
 				AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 			},
@@ -148,6 +150,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 					BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 					MaxFileSize:       10240, // 10KB
 					MaxFileCount:      100,
+					MaxPatchSize:      10240, // 10KB
 					CreateOrphan:      true,
 					AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 				},
@@ -185,6 +188,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 				entry := RepoMemoryEntry{
 					MaxFileSize:  10240, // 10KB default
 					MaxFileCount: 100,   // 100 files default
+					MaxPatchSize: 10240, // 10KB default
 					CreateOrphan: true,  // create orphan by default
 				}
 
@@ -269,6 +273,21 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 					}
 				}
 
+				// Parse max-patch-size
+				if maxPatchSize, exists := memoryMap["max-patch-size"]; exists {
+					if sizeInt, ok := maxPatchSize.(int); ok {
+						entry.MaxPatchSize = sizeInt
+					} else if sizeFloat, ok := maxPatchSize.(float64); ok {
+						entry.MaxPatchSize = int(sizeFloat)
+					} else if sizeUint64, ok := maxPatchSize.(uint64); ok {
+						entry.MaxPatchSize = int(sizeUint64)
+					}
+					// Validate max-patch-size bounds
+					if err := validateIntRange(entry.MaxPatchSize, 1, 104857600, "max-patch-size"); err != nil {
+						return nil, err
+					}
+				}
+
 				// Parse description
 				if description, exists := memoryMap["description"]; exists {
 					if descStr, ok := description.(string); ok {
@@ -332,6 +351,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 			BranchName:   generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 			MaxFileSize:  10240, // 10KB default
 			MaxFileCount: 100,   // 100 files default
+			MaxPatchSize: 10240, // 10KB default
 			CreateOrphan: true,  // create orphan by default
 		}
 
@@ -390,6 +410,21 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 			}
 			// Validate max-file-count bounds
 			if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+				return nil, err
+			}
+		}
+
+		// Parse max-patch-size
+		if maxPatchSize, exists := configMap["max-patch-size"]; exists {
+			if sizeInt, ok := maxPatchSize.(int); ok {
+				entry.MaxPatchSize = sizeInt
+			} else if sizeFloat, ok := maxPatchSize.(float64); ok {
+				entry.MaxPatchSize = int(sizeFloat)
+			} else if sizeUint64, ok := maxPatchSize.(uint64); ok {
+				entry.MaxPatchSize = int(sizeUint64)
+			}
+			// Validate max-patch-size bounds
+			if err := validateIntRange(entry.MaxPatchSize, 1, 104857600, "max-patch-size"); err != nil {
 				return nil, err
 			}
 		}
@@ -680,6 +715,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		fmt.Fprintf(&step, "          BRANCH_NAME: %s\n", memory.BranchName)
 		fmt.Fprintf(&step, "          MAX_FILE_SIZE: %d\n", memory.MaxFileSize)
 		fmt.Fprintf(&step, "          MAX_FILE_COUNT: %d\n", memory.MaxFileCount)
+		fmt.Fprintf(&step, "          MAX_PATCH_SIZE: %d\n", memory.MaxPatchSize)
 		// Pass allowed extensions as JSON array
 		allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions)
 		fmt.Fprintf(&step, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)

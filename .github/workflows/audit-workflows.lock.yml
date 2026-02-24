@@ -1356,6 +1356,7 @@ jobs:
           BRANCH_NAME: memory/audit-workflows
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/audit-workflows/*.json memory/audit-workflows/*.jsonl memory/audit-workflows/*.csv memory/audit-workflows/*.md"
         with:

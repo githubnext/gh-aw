@@ -1254,6 +1254,7 @@ jobs:
           BRANCH_NAME: memory/token-metrics
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/token-metrics/*.json memory/token-metrics/*.jsonl memory/token-metrics/*.csv memory/token-metrics/*.md"
         with:

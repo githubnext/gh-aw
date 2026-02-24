@@ -1307,6 +1307,7 @@ jobs:
           BRANCH_NAME: memory/session-insights
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/session-insights/*.json memory/session-insights/*.jsonl memory/session-insights/*.csv memory/session-insights/*.md"
         with:

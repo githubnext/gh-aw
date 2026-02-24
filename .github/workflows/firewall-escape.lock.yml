@@ -1228,6 +1228,7 @@ jobs:
           BRANCH_NAME: memory/firewall-escape
           MAX_FILE_SIZE: 524288
           MAX_FILE_COUNT: 50
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
         with:
           script: |
