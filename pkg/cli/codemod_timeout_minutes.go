@@ -20,34 +20,25 @@ func getTimeoutMinutesCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-
-			// Replace the field in raw lines while preserving formatting
-			var modified bool
-			result := make([]string, len(frontmatterLines))
-			for i, line := range frontmatterLines {
-				replacedLine, didReplace := findAndReplaceInLine(line, "timeout_minutes", "timeout-minutes")
-				if didReplace {
-					result[i] = replacedLine
-					modified = true
-					timeoutMinutesCodemodLog.Printf("Replaced timeout_minutes with timeout-minutes on line %d", i+1)
-				} else {
-					result[i] = line
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				result := make([]string, len(lines))
+				var modified bool
+				for i, line := range lines {
+					replacedLine, didReplace := findAndReplaceInLine(line, "timeout_minutes", "timeout-minutes")
+					if didReplace {
+						result[i] = replacedLine
+						modified = true
+						timeoutMinutesCodemodLog.Printf("Replaced timeout_minutes with timeout-minutes on line %d", i+1)
+					} else {
+						result[i] = line
+					}
 				}
+				return result, modified
+			})
+			if applied {
+				timeoutMinutesCodemodLog.Printf("Applied timeout_minutes migration (value: %v)", value)
 			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			timeoutMinutesCodemodLog.Printf("Applied timeout_minutes migration (value: %v)", value)
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

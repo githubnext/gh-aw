@@ -91,6 +91,24 @@ func findAndReplaceInLine(line, oldKey, newKey string) (string, bool) {
 	return fmt.Sprintf("%s%s:%s", leadingSpace, newKey, valueAndComment), true
 }
 
+// applyFrontmatterLineTransform parses frontmatter from content, applies a transform
+// function to the frontmatter lines, and reconstructs the content if any changes were made.
+// The transform function receives the frontmatter lines and returns the modified lines
+// and a boolean indicating whether any changes were made.
+func applyFrontmatterLineTransform(content string, transform func([]string) ([]string, bool)) (string, bool, error) {
+	frontmatterLines, markdown, err := parseFrontmatterLines(content)
+	if err != nil {
+		return content, false, err
+	}
+
+	result, modified := transform(frontmatterLines)
+	if !modified {
+		return content, false, nil
+	}
+
+	return reconstructContent(result, markdown), true, nil
+}
+
 // removeFieldFromBlock removes a field and its nested content from a YAML block
 // Returns the modified lines and whether any changes were made
 func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) ([]string, bool) {

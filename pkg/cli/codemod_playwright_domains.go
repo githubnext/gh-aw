@@ -59,20 +59,6 @@ func getPlaywrightDomainsCodemod() Codemod {
 				domains = []string{v}
 			}
 
-			// Parse frontmatter lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-
-			// Remove allowed_domains from the tools.playwright block
-			result, modified := removeFieldFromPlaywright(frontmatterLines, "allowed_domains")
-			if !modified {
-				return content, false, nil
-			}
-
-			playwrightDomainsCodemodLog.Printf("Removed allowed_domains from tools.playwright (%d domain(s))", len(domains))
-
 			// Merge with existing network.allowed
 			existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
 			var existingAllowed []string
@@ -95,16 +81,25 @@ func getPlaywrightDomainsCodemod() Codemod {
 
 			mergedDomains := sliceutil.Deduplicate(append(existingAllowed, domains...))
 
-			if hasTopLevelNetwork {
-				result = updateNetworkAllowed(result, mergedDomains)
-				playwrightDomainsCodemodLog.Printf("Updated top-level network.allowed with %d domain(s)", len(mergedDomains))
-			} else {
-				result = addTopLevelNetwork(result, mergedDomains)
-				playwrightDomainsCodemodLog.Printf("Added top-level network.allowed with %d domain(s)", len(mergedDomains))
-			}
+			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				// Remove allowed_domains from the tools.playwright block
+				result, modified := removeFieldFromPlaywright(lines, "allowed_domains")
+				if !modified {
+					return lines, false
+				}
 
-			newContent := reconstructContent(result, markdown)
-			return newContent, true, nil
+				playwrightDomainsCodemodLog.Printf("Removed allowed_domains from tools.playwright (%d domain(s))", len(domains))
+
+				if hasTopLevelNetwork {
+					result = updateNetworkAllowed(result, mergedDomains)
+					playwrightDomainsCodemodLog.Printf("Updated top-level network.allowed with %d domain(s)", len(mergedDomains))
+				} else {
+					result = addTopLevelNetwork(result, mergedDomains)
+					playwrightDomainsCodemodLog.Printf("Added top-level network.allowed with %d domain(s)", len(mergedDomains))
+				}
+
+				return result, true
+			})
 		},
 	}
 }

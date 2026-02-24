@@ -52,22 +52,11 @@ func getExpiresIntegerToStringCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
+			newContent, applied, err := applyFrontmatterLineTransform(content, convertExpiresIntegersToDayStrings)
+			if applied {
+				expiresIntegerCodemodLog.Print("Applied expires integer-to-string migration")
 			}
-
-			// Convert integer expires values to day strings within safe-outputs blocks
-			result, modified := convertExpiresIntegersToDayStrings(frontmatterLines)
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			expiresIntegerCodemodLog.Print("Applied expires integer-to-string migration")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

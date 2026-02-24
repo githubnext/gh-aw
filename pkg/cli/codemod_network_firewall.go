@@ -36,64 +36,62 @@ func getNetworkFirewallCodemod() Codemod {
 			// Note: We no longer set sandbox.agent: false since the firewall is mandatory
 			// The firewall is always enabled via the default sandbox.agent: awf
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-
-			// Remove the firewall field from the network block
-			result, modified := removeFieldFromBlock(frontmatterLines, "firewall", "network")
-			if !modified {
-				return content, false, nil
-			}
-
-			// Add sandbox.agent if not already present AND if firewall was explicitly true
-			// (no need to add sandbox.agent: awf if firewall was false, since awf is now the default)
 			_, hasSandbox := frontmatter["sandbox"]
-			if !hasSandbox && firewallValue == true {
-				// Only add sandbox.agent: awf if firewall was explicitly set to true
-				sandboxLines := []string{
-					"sandbox:",
-					"  agent: awf  # Firewall enabled (migrated from network.firewall)",
+
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				// Remove the firewall field from the network block
+				result, modified := removeFieldFromBlock(lines, "firewall", "network")
+				if !modified {
+					return lines, false
 				}
 
-				// Try to place it after network block
-				insertIndex := -1
-				inNet := false
-				for i, line := range result {
-					trimmed := strings.TrimSpace(line)
-					if strings.HasPrefix(trimmed, "network:") {
-						inNet = true
-					} else if inNet && len(trimmed) > 0 {
-						// Check if this is a top-level key (no leading whitespace)
-						if isTopLevelKey(line) {
-							// Found next top-level key
-							insertIndex = i
-							break
+				// Add sandbox.agent if not already present AND if firewall was explicitly true
+				// (no need to add sandbox.agent: awf if firewall was false, since awf is now the default)
+				if !hasSandbox && firewallValue == true {
+					// Only add sandbox.agent: awf if firewall was explicitly set to true
+					sandboxLines := []string{
+						"sandbox:",
+						"  agent: awf  # Firewall enabled (migrated from network.firewall)",
+					}
+
+					// Try to place it after network block
+					insertIndex := -1
+					inNet := false
+					for i, line := range result {
+						trimmed := strings.TrimSpace(line)
+						if strings.HasPrefix(trimmed, "network:") {
+							inNet = true
+						} else if inNet && len(trimmed) > 0 {
+							// Check if this is a top-level key (no leading whitespace)
+							if isTopLevelKey(line) {
+								// Found next top-level key
+								insertIndex = i
+								break
+							}
 						}
 					}
+
+					if insertIndex >= 0 {
+						// Insert after network block
+						newLines := make([]string, 0, len(result)+len(sandboxLines))
+						newLines = append(newLines, result[:insertIndex]...)
+						newLines = append(newLines, sandboxLines...)
+						newLines = append(newLines, result[insertIndex:]...)
+						result = newLines
+					} else {
+						// Append at the end
+						result = append(result, sandboxLines...)
+					}
+
+					networkFirewallCodemodLog.Print("Added sandbox.agent: awf (firewall was explicitly enabled)")
 				}
 
-				if insertIndex >= 0 {
-					// Insert after network block
-					newLines := make([]string, 0, len(result)+len(sandboxLines))
-					newLines = append(newLines, result[:insertIndex]...)
-					newLines = append(newLines, sandboxLines...)
-					newLines = append(newLines, result[insertIndex:]...)
-					result = newLines
-				} else {
-					// Append at the end
-					result = append(result, sandboxLines...)
-				}
-
-				networkFirewallCodemodLog.Print("Added sandbox.agent: awf (firewall was explicitly enabled)")
+				return result, true
+			})
+			if applied {
+				networkFirewallCodemodLog.Printf("Applied network.firewall removal (firewall: %v removed, firewall now always enabled via sandbox.agent: awf default)", firewallValue)
 			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			networkFirewallCodemodLog.Printf("Applied network.firewall removal (firewall: %v removed, firewall now always enabled via sandbox.agent: awf default)", firewallValue)
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

@@ -44,22 +44,11 @@ func getMCPModeToTypeCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
+			newContent, applied, err := applyFrontmatterLineTransform(content, renameModeToTypeInMCPServers)
+			if applied {
+				mcpModeToTypeCodemodLog.Print("Applied MCP mode-to-type migration")
 			}
-
-			// Rename 'mode' to 'type' in all MCP servers
-			result, modified := renameModeToTypeInMCPServers(frontmatterLines)
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			mcpModeToTypeCodemodLog.Print("Applied MCP mode-to-type migration")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

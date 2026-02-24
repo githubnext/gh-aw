@@ -85,28 +85,6 @@ func getMCPNetworkMigrationCodemod() Codemod {
 			// Remove duplicates from collected domains
 			allAllowedDomains = sliceutil.Deduplicate(allAllowedDomains)
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-
-			// Remove network fields from all MCP servers
-			result := frontmatterLines
-			var modified bool
-			for serverName := range serversWithNetwork {
-				var serverModified bool
-				result, serverModified = removeFieldFromMCPServer(result, serverName, "network")
-				if serverModified {
-					modified = true
-					mcpNetworkCodemodLog.Printf("Removed network configuration from MCP server '%s'", serverName)
-				}
-			}
-
-			if !modified {
-				return content, false, nil
-			}
-
 			// Check if top-level network configuration already exists
 			existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
 			var existingAllowed []string
@@ -129,24 +107,39 @@ func getMCPNetworkMigrationCodemod() Codemod {
 			}
 
 			// Merge existing and new domains, remove duplicates
-			mergedDomains := append(existingAllowed, allAllowedDomains...)
-			mergedDomains = sliceutil.Deduplicate(mergedDomains)
+			mergedDomains := sliceutil.Deduplicate(append(existingAllowed, allAllowedDomains...))
 
-			// Add or update top-level network configuration
-			if hasTopLevelNetwork {
-				// Update existing network.allowed
-				result = updateNetworkAllowed(result, mergedDomains)
-				mcpNetworkCodemodLog.Printf("Updated top-level network.allowed with %d domains", len(mergedDomains))
-			} else {
-				// Add new top-level network configuration
-				result = addTopLevelNetwork(result, mergedDomains)
-				mcpNetworkCodemodLog.Printf("Added top-level network.allowed with %d domains", len(mergedDomains))
-			}
+			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				// Remove network fields from all MCP servers
+				result := lines
+				var modified bool
+				for serverName := range serversWithNetwork {
+					var serverModified bool
+					result, serverModified = removeFieldFromMCPServer(result, serverName, "network")
+					if serverModified {
+						modified = true
+						mcpNetworkCodemodLog.Printf("Removed network configuration from MCP server '%s'", serverName)
+					}
+				}
 
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			mcpNetworkCodemodLog.Print("Applied MCP network migration to top-level")
-			return newContent, true, nil
+				if !modified {
+					return lines, false
+				}
+
+				// Add or update top-level network configuration
+				if hasTopLevelNetwork {
+					// Update existing network.allowed
+					result = updateNetworkAllowed(result, mergedDomains)
+					mcpNetworkCodemodLog.Printf("Updated top-level network.allowed with %d domains", len(mergedDomains))
+				} else {
+					// Add new top-level network configuration
+					result = addTopLevelNetwork(result, mergedDomains)
+					mcpNetworkCodemodLog.Printf("Added top-level network.allowed with %d domains", len(mergedDomains))
+				}
+
+				mcpNetworkCodemodLog.Print("Applied MCP network migration to top-level")
+				return result, true
+			})
 		},
 	}
 }

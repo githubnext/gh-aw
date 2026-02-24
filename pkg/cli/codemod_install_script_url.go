@@ -16,12 +16,6 @@ func getInstallScriptURLCodemod() Codemod {
 		Description:  "Updates install script URLs in job steps from the older githubnext/gh-aw location to the new github/gh-aw location",
 		IntroducedIn: "0.9.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-
 			// Define patterns to search and replace
 			// Order matters: Check URL patterns first (with slash), then general patterns
 			oldPatterns := []string{
@@ -34,32 +28,26 @@ func getInstallScriptURLCodemod() Codemod {
 				"github/gh-aw",
 			}
 
-			modified := false
-			result := make([]string, len(frontmatterLines))
-
-			for i, line := range frontmatterLines {
-				modifiedLine := line
-
-				// Try to replace each old pattern with the new one in all lines
-				for j, oldPattern := range oldPatterns {
-					if strings.Contains(modifiedLine, oldPattern) {
-						modifiedLine = strings.ReplaceAll(modifiedLine, oldPattern, newReplacements[j])
-						modified = true
-						installScriptURLCodemodLog.Printf("Replaced '%s' with '%s' on line %d", oldPattern, newReplacements[j], i+1)
+			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				modified := false
+				result := make([]string, len(lines))
+				for i, line := range lines {
+					modifiedLine := line
+					// Try to replace each old pattern with the new one in all lines
+					for j, oldPattern := range oldPatterns {
+						if strings.Contains(modifiedLine, oldPattern) {
+							modifiedLine = strings.ReplaceAll(modifiedLine, oldPattern, newReplacements[j])
+							modified = true
+							installScriptURLCodemodLog.Printf("Replaced '%s' with '%s' on line %d", oldPattern, newReplacements[j], i+1)
+						}
 					}
+					result[i] = modifiedLine
 				}
-
-				result[i] = modifiedLine
-			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			installScriptURLCodemodLog.Print("Applied install script URL migration")
-			return newContent, true, nil
+				if modified {
+					installScriptURLCodemodLog.Print("Applied install script URL migration")
+				}
+				return result, modified
+			})
 		},
 	}
 }
