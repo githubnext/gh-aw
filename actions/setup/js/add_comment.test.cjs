@@ -527,6 +527,71 @@ describe("add_comment", () => {
       // Clean up
       delete process.env.GH_AW_WORKFLOW_ID;
     });
+
+    it("should hide older comments with combined XML marker format (workflow_id inside gh-aw-agentic-workflow)", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+
+      let hideCommentsWasCalled = false;
+      let listCommentsCalls = 0;
+
+      mockGithub.rest.issues.listComments = async () => {
+        listCommentsCalls++;
+        return {
+          data: [
+            {
+              id: 999,
+              node_id: "IC_kwDOTest999",
+              body: "Old comment\n\n<!-- gh-aw-agentic-workflow: Test Workflow, engine: copilot, id: 12345, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/12345 -->",
+            },
+          ],
+        };
+      };
+
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("minimizeComment")) {
+          hideCommentsWasCalled = true;
+        }
+        return {
+          minimizeComment: {
+            minimizedComment: {
+              isMinimized: true,
+            },
+          },
+        };
+      };
+
+      let capturedComment = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedComment = params;
+        return {
+          data: {
+            id: 12346,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12346`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ hide_older_comments: true }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "New comment - should hide combined-marker old ones",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(hideCommentsWasCalled).toBe(true);
+      expect(listCommentsCalls).toBeGreaterThan(0);
+      expect(capturedComment).toBeTruthy();
+      expect(capturedComment.body).toContain("New comment - should hide combined-marker old ones");
+
+      // Clean up
+      delete process.env.GH_AW_WORKFLOW_ID;
+    });
   });
 
   describe("404 error handling", () => {
