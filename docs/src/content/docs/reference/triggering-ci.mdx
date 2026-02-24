@@ -12,10 +12,10 @@ By default, pull requests created using the default `GITHUB_TOKEN` in GitHub Act
 This applies to both [`create-pull-request`](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) and [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs/#push-to-pr-branch-push-to-pull-request-branch) safe outputs.
 
 > [!NOTE]
-> The ultra-easy way to fix this problem is to set a secret `GH_AW_CI_TRIGGER_TOKEN` with a Personal Access Token (PAT) with 'Contents: Read & Write' permission to your repo.
+> The easiest way to fix this problem is to set a secret `GH_AW_CI_TRIGGER_TOKEN` with a Personal Access Token (PAT) with 'Contents: Read & Write' permission to your repo.
 >
 > ```bash wrap
-> gh aw secrets set MY_CI_TRIGGER_PAT --value "<your-pat-token>"
+> gh aw secrets set GH_AW_CI_TRIGGER_TOKEN --value "<your-pat-token>"
 > ```
 
 <Video
