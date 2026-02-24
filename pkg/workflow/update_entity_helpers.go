@@ -319,6 +319,8 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 	outputMap map[string]any,
 	opts UpdateEntityParseOptions,
 ) (*UpdateEntityConfig, map[string]any) {
+	updateEntityHelpersLog.Printf("Parsing update entity config with fields: entity=%s, config_key=%s, fields=%d", opts.EntityType, opts.ConfigKey, len(opts.Fields))
+
 	// Parse base configuration using helper
 	baseConfig, configMap := c.parseUpdateEntityBase(
 		outputMap,
@@ -348,6 +350,7 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 		opts.CustomParser(configMap)
 	}
 
+	updateEntityHelpersLog.Printf("Completed parsing update entity config: entity=%s", opts.EntityType)
 	return baseConfig, configMap
 }
 
