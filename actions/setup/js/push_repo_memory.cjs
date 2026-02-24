@@ -345,10 +345,10 @@ async function main() {
     const patchContent = execGitSync(["diff", "--cached"], { stdio: "pipe" });
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-    const maxPatchSizeKb = Math.ceil(maxPatchSize / 1024);
-    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxPatchSizeKb} KB)`);
+    const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
+    core.info(`Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (maximum allowed: ${maxPatchSizeKb} KB (${maxPatchSize} bytes))`);
     if (patchSizeBytes > maxPatchSize) {
-      core.setFailed(`Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxPatchSizeKb} KB). Reduce the number or size of changes, or increase max-patch-size.`);
+      core.setFailed(`Patch size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds maximum allowed size (${maxPatchSizeKb} KB, ${maxPatchSize} bytes). Reduce the number or size of changes, or increase max-patch-size.`);
       return;
     }
   } catch (error) {

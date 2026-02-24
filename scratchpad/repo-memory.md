@@ -396,7 +396,7 @@ The total size of all changes (git diff) in a single repo-memory push MUST not e
 
 **Error message format**:
 ```
-Patch size (N KB) exceeds maximum allowed size (M KB). Reduce the number or size of changes, or increase max-patch-size.
+Patch size (N KB, X bytes) exceeds maximum allowed size (M KB, Y bytes). Reduce the number or size of changes, or increase max-patch-size.
 ```
 
 **Configuration example**:

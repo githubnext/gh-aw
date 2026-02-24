@@ -30,7 +30,7 @@ tools:
     file-glob: ["memory/custom-agent-for-aw/*.md", "memory/custom-agent-for-aw/*.json"]
     max-file-size: 1048576  # 1MB (default 10KB)
     max-file-count: 50      # default 100
-    max-patch-size: 51200   # 50KB (default 10KB)
+    max-patch-size: 102400  # 100KB max (default 10KB)
     target-repo: "owner/repository"
     create-orphan: true     # default
     allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
