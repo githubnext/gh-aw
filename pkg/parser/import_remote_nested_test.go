@@ -323,6 +323,63 @@ func TestRemoteOriginPropagation(t *testing.T) {
 			"SHA ref should be preserved for nested imports with BasePath",
 		)
 	})
+
+	// Regression test for githubnext/agentics#182
+	// Tests the scenario where:
+	// - workflows/workflow.md imports shared/file1.md
+	// - workflows/shared/file1.md imports file2.md (relative to its own directory)
+	// - File2.md should resolve to workflows/shared/file2.md, not workflows/file2.md
+	t.Run("two-level nested imports resolve relative to immediate parent", func(t *testing.T) {
+		// Scenario:
+		// top-level workflow: githubnext/agentics/workflows/workflow.md@main
+		// → workflow.md imports: shared/file1.md
+		// → file1.md imports: file2.md (should resolve to shared/file2.md)
+
+		// Step 1: Top-level workflow import produces this remoteOrigin
+		topLevelOrigin := parseRemoteOrigin("githubnext/agentics/workflows/workflow.md@main")
+		require.NotNil(t, topLevelOrigin, "Should parse top-level workflow")
+		assert.Equal(t, "workflows", topLevelOrigin.BasePath, "Top-level BasePath should be 'workflows'")
+
+		// Step 2: When workflow.md imports shared/file1.md, we construct the resolvedPath
+		firstNestedPath := "shared/file1.md"
+		basePath := topLevelOrigin.BasePath
+		if basePath == "" {
+			basePath = ".github/workflows"
+		}
+		file1ResolvedSpec := fmt.Sprintf("%s/%s/%s/%s@%s",
+			topLevelOrigin.Owner, topLevelOrigin.Repo, basePath, firstNestedPath, topLevelOrigin.Ref)
+
+		assert.Equal(t,
+			"githubnext/agentics/workflows/shared/file1.md@main",
+			file1ResolvedSpec,
+			"First nested import should resolve correctly",
+		)
+
+		// Step 3: Parse the remoteOrigin from file1's resolved spec
+		// This is the KEY fix - file1's origin should have BasePath="workflows/shared"
+		file1Origin := parseRemoteOrigin(file1ResolvedSpec)
+		require.NotNil(t, file1Origin, "Should parse file1's remote origin from resolved spec")
+		assert.Equal(t, "githubnext", file1Origin.Owner, "File1 Owner")
+		assert.Equal(t, "agentics", file1Origin.Repo, "File1 Repo")
+		assert.Equal(t, "main", file1Origin.Ref, "File1 Ref")
+		assert.Equal(t, "workflows/shared", file1Origin.BasePath,
+			"File1's BasePath should be 'workflows/shared' - includes the subdirectory")
+
+		// Step 4: When file1.md imports file2.md, use file1's origin (not top-level origin!)
+		secondNestedPath := "file2.md"
+		file1BasePath := file1Origin.BasePath
+		if file1BasePath == "" {
+			file1BasePath = ".github/workflows"
+		}
+		file2ResolvedSpec := fmt.Sprintf("%s/%s/%s/%s@%s",
+			file1Origin.Owner, file1Origin.Repo, file1BasePath, secondNestedPath, file1Origin.Ref)
+
+		assert.Equal(t,
+			"githubnext/agentics/workflows/shared/file2.md@main",
+			file2ResolvedSpec,
+			"Second nested import should resolve relative to file1's directory (workflows/shared), not top-level (workflows)",
+		)
+	})
 }
 
 func TestImportQueueItemRemoteOriginField(t *testing.T) {

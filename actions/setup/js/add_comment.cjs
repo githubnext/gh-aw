@@ -72,9 +72,18 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    // Filter comments that contain the workflow-id and are NOT reaction comments
+    // Filter comments that contain the workflow-id and are NOT reaction comments.
+    // Supports both the standalone marker format (<!-- gh-aw-workflow-id: value -->)
+    // and the combined XML marker format (<!-- gh-aw-agentic-workflow: ..., workflow_id: value, ... -->).
     const filteredComments = data
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
+      .filter(comment => {
+        if (!comment.body || comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`)) return false;
+        // Standalone marker: <!-- gh-aw-workflow-id: value -->
+        if (comment.body.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`)) return true;
+        // Combined XML marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: value, ... -->
+        if (comment.body.includes(`<!-- gh-aw-agentic-workflow:`) && (comment.body.includes(`workflow_id: ${workflowId},`) || comment.body.includes(`workflow_id: ${workflowId} -->`))) return true;
+        return false;
+      })
       .map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
@@ -129,7 +138,14 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     }
 
     const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
+      .filter(comment => {
+        if (!comment.body || comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`)) return false;
+        // Standalone marker: <!-- gh-aw-workflow-id: value -->
+        if (comment.body.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`)) return true;
+        // Combined XML marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: value, ... -->
+        if (comment.body.includes(`<!-- gh-aw-agentic-workflow:`) && (comment.body.includes(`workflow_id: ${workflowId},`) || comment.body.includes(`workflow_id: ${workflowId} -->`))) return true;
+        return false;
+      })
       .map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);

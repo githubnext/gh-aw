@@ -237,6 +237,8 @@ func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte
 //	orderedPerms := OrderMapFields(permissions, []string{})
 //	// orderedPerms will have: contents, issues, pull-requests
 func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice {
+	yamlLog.Printf("Ordering map fields: total=%d, priority=%d", len(data), len(priorityFields))
+
 	var orderedData yaml.MapSlice
 
 	// Phase 1: Add priority fields in the specified order

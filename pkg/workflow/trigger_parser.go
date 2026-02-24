@@ -187,6 +187,7 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) >= 3 && tokens[1] == "to" {
 		// "push to <branch>"
 		branch := strings.Join(tokens[2:], " ")
+		triggerParserLog.Printf("Parsed push-to-branch trigger: branch=%s", branch)
 		return &TriggerIR{
 			Event: "push",
 			Filters: map[string]any{
@@ -201,6 +202,7 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) >= 3 && tokens[1] == "tags" {
 		// "push tags <pattern>"
 		pattern := strings.Join(tokens[2:], " ")
+		triggerParserLog.Printf("Parsed push-tags trigger: pattern=%s", pattern)
 		return &TriggerIR{
 			Event: "push",
 			Filters: map[string]any{
@@ -242,6 +244,7 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 
 	// Special case: "merged" is not a real type, it's a condition on "closed"
 	if activityType == "merged" {
+		triggerParserLog.Print("Parsed pull_request merged trigger (maps to closed with merge condition)")
 		return &TriggerIR{
 			Event:      "pull_request",
 			Types:      []string{"closed"},
@@ -344,9 +347,12 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 	// Check for label filter: "issue opened labeled <label>"
 	if len(tokens) >= 4 && tokens[2] == "labeled" {
 		label := strings.Join(tokens[3:], " ")
+		triggerParserLog.Printf("Parsed issue trigger with label filter: type=%s, label=%s", activityType, label)
 		ir.Conditions = []string{
 			fmt.Sprintf("contains(github.event.issue.labels.*.name, '%s')", label),
 		}
+	} else {
+		triggerParserLog.Printf("Parsed issue trigger: type=%s", activityType)
 	}
 
 	return ir, nil
@@ -407,6 +413,7 @@ func parseManualTrigger(input string) (*TriggerIR, error) {
 		// Check for input specification: "manual with input <name>"
 		if len(tokens) >= 4 && tokens[1] == "with" && tokens[2] == "input" {
 			inputName := tokens[3]
+			triggerParserLog.Printf("Parsed manual trigger with input: %s", inputName)
 			ir.AdditionalEvents["workflow_dispatch"] = map[string]any{
 				"inputs": map[string]any{
 					inputName: map[string]any{
@@ -416,6 +423,8 @@ func parseManualTrigger(input string) (*TriggerIR, error) {
 					},
 				},
 			}
+		} else {
+			triggerParserLog.Print("Parsed manual trigger (workflow_dispatch)")
 		}
 
 		return ir, nil
