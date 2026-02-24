@@ -30,6 +30,13 @@ import (
 
 var repoMemoryLog = logger.New("workflow:repo_memory")
 
+const (
+	// defaultRepoMemoryMaxPatchSize is the default maximum total patch size in bytes (10KB).
+	defaultRepoMemoryMaxPatchSize = 10240
+	// maxRepoMemoryPatchSize is the maximum allowed value for max-patch-size (100KB).
+	maxRepoMemoryPatchSize = 102400
+)
+
 // Pre-compiled regexes for performance (avoid recompilation in hot paths)
 var (
 	// branchPrefixValidPattern matches valid branch prefix characters (alphanumeric, hyphens, underscores)
@@ -131,7 +138,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 				BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 				MaxFileSize:       10240, // 10KB
 				MaxFileCount:      100,
-				MaxPatchSize:      10240, // 10KB
+				MaxPatchSize:      defaultRepoMemoryMaxPatchSize, // 10KB
 				CreateOrphan:      true,
 				AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 			},
@@ -150,7 +157,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 					BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 					MaxFileSize:       10240, // 10KB
 					MaxFileCount:      100,
-					MaxPatchSize:      10240, // 10KB
+					MaxPatchSize:      defaultRepoMemoryMaxPatchSize, // 10KB
 					CreateOrphan:      true,
 					AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 				},
@@ -186,10 +193,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 		for _, item := range memoryArray {
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
-					MaxFileSize:  10240, // 10KB default
-					MaxFileCount: 100,   // 100 files default
-					MaxPatchSize: 10240, // 10KB default
-					CreateOrphan: true,  // create orphan by default
+					MaxFileSize:  10240,                         // 10KB default
+					MaxFileCount: 100,                           // 100 files default
+					MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
+					CreateOrphan: true,                          // create orphan by default
 				}
 
 				// ID is required for array notation
@@ -283,7 +290,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 						entry.MaxPatchSize = int(sizeUint64)
 					}
 					// Validate max-patch-size bounds
-					if err := validateIntRange(entry.MaxPatchSize, 1, 102400, "max-patch-size"); err != nil {
+					if err := validateIntRange(entry.MaxPatchSize, 1, maxRepoMemoryPatchSize, "max-patch-size"); err != nil {
 						return nil, err
 					}
 				}
@@ -349,10 +356,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 		entry := RepoMemoryEntry{
 			ID:           "default",
 			BranchName:   generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
-			MaxFileSize:  10240, // 10KB default
-			MaxFileCount: 100,   // 100 files default
-			MaxPatchSize: 10240, // 10KB default
-			CreateOrphan: true,  // create orphan by default
+			MaxFileSize:  10240,                         // 10KB default
+			MaxFileCount: 100,                           // 100 files default
+			MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
+			CreateOrphan: true,                          // create orphan by default
 		}
 
 		// Parse target-repo
@@ -424,7 +431,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 				entry.MaxPatchSize = int(sizeUint64)
 			}
 			// Validate max-patch-size bounds
-			if err := validateIntRange(entry.MaxPatchSize, 1, 102400, "max-patch-size"); err != nil {
+			if err := validateIntRange(entry.MaxPatchSize, 1, maxRepoMemoryPatchSize, "max-patch-size"); err != nil {
 				return nil, err
 			}
 		}

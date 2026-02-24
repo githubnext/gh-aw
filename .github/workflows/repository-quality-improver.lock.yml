@@ -173,15 +173,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ALLOWED_EXTENSIONS: ''
-          GH_AW_CACHE_EXAMPLES: '- `/tmp/gh-aw/cache-memory-focus-areas/notes.txt` - general notes and observations
-- `/tmp/gh-aw/cache-memory-focus-areas/notes.md` - markdown formatted notes
-- `/tmp/gh-aw/cache-memory-focus-areas/preferences.json` - user preferences and settings
-- `/tmp/gh-aw/cache-memory-focus-areas/history.jsonl` - activity history in JSON Lines format
-- `/tmp/gh-aw/cache-memory-focus-areas/data.csv` - tabular data
-- `/tmp/gh-aw/cache-memory-focus-areas/state/` - organized state files in subdirectories (with allowed file types)
-'
-          GH_AW_CACHE_LIST: '- **focus-areas**: `/tmp/gh-aw/cache-memory-focus-areas/`
-'
+          GH_AW_CACHE_EXAMPLES: "- `/tmp/gh-aw/cache-memory-focus-areas/notes.txt` - general notes and observations\n- `/tmp/gh-aw/cache-memory-focus-areas/notes.md` - markdown formatted notes\n- `/tmp/gh-aw/cache-memory-focus-areas/preferences.json` - user preferences and settings\n- `/tmp/gh-aw/cache-memory-focus-areas/history.jsonl` - activity history in JSON Lines format\n- `/tmp/gh-aw/cache-memory-focus-areas/data.csv` - tabular data\n- `/tmp/gh-aw/cache-memory-focus-areas/state/` - organized state files in subdirectories (with allowed file types)\n"
+          GH_AW_CACHE_LIST: "- **focus-areas**: `/tmp/gh-aw/cache-memory-focus-areas/`\n"
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}

@@ -346,9 +346,14 @@ async function main() {
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
     const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
-    core.info(`Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (maximum allowed: ${maxPatchSizeKb} KB (${maxPatchSize} bytes))`);
-    if (patchSizeBytes > maxPatchSize) {
-      core.setFailed(`Patch size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds maximum allowed size (${maxPatchSizeKb} KB, ${maxPatchSize} bytes). Reduce the number or size of changes, or increase max-patch-size.`);
+    // Allow 20% overhead to account for git diff format (headers, context lines, etc.)
+    const effectiveMaxPatchSize = Math.floor(maxPatchSize * 1.2);
+    const effectiveMaxPatchSizeKb = Math.floor(effectiveMaxPatchSize / 1024);
+    core.info(`Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (configured limit: ${maxPatchSizeKb} KB (${maxPatchSize} bytes), effective with 20% overhead: ${effectiveMaxPatchSizeKb} KB (${effectiveMaxPatchSize} bytes))`);
+    if (patchSizeBytes > effectiveMaxPatchSize) {
+      core.setFailed(
+        `Patch size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds maximum allowed size (${effectiveMaxPatchSizeKb} KB, ${effectiveMaxPatchSize} bytes, configured limit: ${maxPatchSizeKb} KB with 20% overhead allowance). Reduce the number or size of changes, or increase max-patch-size.`
+      );
       return;
     }
   } catch (error) {

@@ -40,7 +40,7 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 		// The value is either "\n" (blank line only) or "\n\n**Constraints:**\n...\n"
 		// so that the template line __GH_AW_MEMORY_CONSTRAINTS__\nExamples... renders correctly.
 		constraintsText := "\n"
-		if len(memory.FileGlob) > 0 || memory.MaxFileSize > 0 || memory.MaxFileCount > 0 {
+		if len(memory.FileGlob) > 0 || memory.MaxFileSize > 0 || memory.MaxFileCount > 0 || memory.MaxPatchSize > 0 {
 			var constraints strings.Builder
 			constraints.WriteString("\n\n**Constraints:**\n")
 			if len(memory.FileGlob) > 0 {
@@ -51,6 +51,9 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 			}
 			if memory.MaxFileCount > 0 {
 				fmt.Fprintf(&constraints, "- **Max File Count**: %d files per commit\n", memory.MaxFileCount)
+			}
+			if memory.MaxPatchSize > 0 {
+				fmt.Fprintf(&constraints, "- **Max Patch Size**: %d bytes (%d KB) total per push (max: %d KB)\n", memory.MaxPatchSize, memory.MaxPatchSize/1024, maxRepoMemoryPatchSize/1024)
 			}
 			constraintsText = constraints.String()
 		}
