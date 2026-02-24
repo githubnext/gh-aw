@@ -6,7 +6,8 @@
  * and custom token availability.
  *
  * Lockdown mode is automatically enabled for public repositories when ANY custom GitHub token
- * is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, or custom github-token).
+ * is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, custom github-token, or
+ * a single-repo GitHub App token).
  * This prevents unauthorized access to private repositories that the token may have access to.
  *
  * For public repositories WITHOUT custom tokens, lockdown mode is disabled (false) as
@@ -14,6 +15,12 @@
  *
  * For private repositories, lockdown mode is not necessary (false) as there is no risk
  * of exposing private repository access.
+ *
+ * GitHub App tokens (GH_AW_GITHUB_APP_CONFIGURED):
+ * - "single": A GitHub App token scoped to a single repository. Treated as a custom token
+ *   for lockdown purposes on public repositories.
+ * - "multi": A GitHub App token scoped to multiple repositories. Cross-repo access is
+ *   intentional, so lockdown is NOT enabled (it would break the multi-repo use case).
  *
  * @param {any} github - GitHub API client
  * @param {any} context - GitHub context
@@ -43,11 +50,18 @@ async function determineAutomaticLockdown(github, context, core) {
     const hasGhAwToken = !!process.env.GH_AW_GITHUB_TOKEN;
     const hasGhAwMcpToken = !!process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN;
     const hasCustomToken = !!process.env.CUSTOM_GITHUB_TOKEN;
-    const hasAnyCustomToken = hasGhAwToken || hasGhAwMcpToken || hasCustomToken;
+
+    // GitHub App token: only treat single-repo apps as a "custom token" for lockdown purposes.
+    // Multi-repo apps intentionally access multiple repos, so lockdown would break their use case.
+    const appConfigured = process.env.GH_AW_GITHUB_APP_CONFIGURED || "";
+    const hasAppToken = appConfigured === "single";
+
+    const hasAnyCustomToken = hasGhAwToken || hasGhAwMcpToken || hasCustomToken || hasAppToken;
 
     core.info(`GH_AW_GITHUB_TOKEN configured: ${hasGhAwToken}`);
     core.info(`GH_AW_GITHUB_MCP_SERVER_TOKEN configured: ${hasGhAwMcpToken}`);
     core.info(`Custom github-token configured: ${hasCustomToken}`);
+    core.info(`GitHub App configured: ${appConfigured || "no"}`);
     core.info(`Any custom token configured: ${hasAnyCustomToken}`);
 
     // Set lockdown based on visibility AND custom token availability

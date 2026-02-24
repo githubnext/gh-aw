@@ -177,8 +177,10 @@ Test workflow with app token minting and repository restrictions.
 	// Convert steps to string for easier assertion
 	stepsStr := strings.Join(job.Steps, "")
 
-	// Verify repositories are included in the minting step
-	assert.Contains(t, stepsStr, "repositories: repo1,repo2", "Should include repositories")
+	// Verify repositories are included in the minting step using block scalar format
+	assert.Contains(t, stepsStr, "repositories: |-", "Should use block scalar format for multiple repositories")
+	assert.Contains(t, stepsStr, "repo1", "Should include first repository")
+	assert.Contains(t, stepsStr, "repo2", "Should include second repository")
 }
 
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
