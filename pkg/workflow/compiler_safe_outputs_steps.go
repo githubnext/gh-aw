@@ -197,6 +197,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          git config --global am.keepcr true\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
 		"          git remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
