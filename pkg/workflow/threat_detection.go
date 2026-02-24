@@ -357,6 +357,8 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 
 	// Create minimal WorkflowData for threat detection
 	// Configure bash read tools for accessing the agent output file
+	// Features are inherited from the main workflow data so feature flags
+	// (e.g. copilot-requests) apply consistently to both agent and detection jobs.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
@@ -365,6 +367,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		Network:      "",
 		EngineConfig: detectionEngineConfig,
 		AI:           engineSetting,
+		Features:     data.Features,
 	}
 
 	var steps []string
