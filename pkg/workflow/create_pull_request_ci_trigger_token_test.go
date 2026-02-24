@@ -21,34 +21,34 @@ import (
 // - explicit token: uses the specified token value
 func TestCreatePullRequestCITriggerToken(t *testing.T) {
 	tests := []struct {
-		name              string
-		tokenConfig       string // value for github-token-for-extra-empty-commit
-		expectedContains  string // expected substring in GH_AW_CI_TRIGGER_TOKEN env var
-		notExpected       string // should NOT contain this string
+		name             string
+		tokenConfig      string // value for github-token-for-extra-empty-commit
+		expectedContains string // expected substring in GH_AW_CI_TRIGGER_TOKEN env var
+		notExpected      string // should NOT contain this string
 	}{
 		{
-			name:              "unset config uses secrets.GH_AW_CI_TRIGGER_TOKEN",
-			tokenConfig:       "",
-			expectedContains:  "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}",
-			notExpected:       "safe-outputs-app-token",
+			name:             "unset config uses secrets.GH_AW_CI_TRIGGER_TOKEN",
+			tokenConfig:      "",
+			expectedContains: "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}",
+			notExpected:      "safe-outputs-app-token",
 		},
 		{
-			name:              "default config uses secrets.GH_AW_CI_TRIGGER_TOKEN",
-			tokenConfig:       "default",
-			expectedContains:  "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}",
-			notExpected:       "safe-outputs-app-token",
+			name:             "default config uses secrets.GH_AW_CI_TRIGGER_TOKEN",
+			tokenConfig:      "default",
+			expectedContains: "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}",
+			notExpected:      "safe-outputs-app-token",
 		},
 		{
-			name:              "app config uses app token step output",
-			tokenConfig:       "app",
-			expectedContains:  "${{ steps.safe-outputs-app-token.outputs.token || '' }}",
-			notExpected:       "secrets.GH_AW_CI_TRIGGER_TOKEN",
+			name:             "app config uses app token step output",
+			tokenConfig:      "app",
+			expectedContains: "${{ steps.safe-outputs-app-token.outputs.token || '' }}",
+			notExpected:      "secrets.GH_AW_CI_TRIGGER_TOKEN",
 		},
 		{
-			name:              "explicit token uses provided value",
-			tokenConfig:       "${{ secrets.MY_CUSTOM_PAT }}",
-			expectedContains:  "${{ secrets.MY_CUSTOM_PAT }}",
-			notExpected:       "safe-outputs-app-token",
+			name:             "explicit token uses provided value",
+			tokenConfig:      "${{ secrets.MY_CUSTOM_PAT }}",
+			expectedContains: "${{ secrets.MY_CUSTOM_PAT }}",
+			notExpected:      "safe-outputs-app-token",
 		},
 	}
 
