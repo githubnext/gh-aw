@@ -48,14 +48,14 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 		return workflowData.EngineConfig.Concurrency
 	}
 
-	// Check if this workflow has special trigger handling (issues, PRs, discussions, push, command)
-	// For these cases, no default concurrency should be applied at agent level
+	// Check if this workflow has special trigger handling (issues, PRs, discussions, push, command,
+	// or workflow_dispatch-only). For these cases, no default concurrency should be applied at agent level
 	if hasSpecialTriggers(workflowData) {
 		concurrencyLog.Print("Workflow has special triggers, skipping default job concurrency")
 		return ""
 	}
 
-	// For generic triggers like workflow_dispatch, apply default concurrency
+	// For remaining generic triggers like schedule, apply default concurrency
 	// Pattern: gh-aw-{engine-id}-${{ github.workflow }}
 	engineID := ""
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
@@ -75,7 +75,8 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 }
 
 // hasSpecialTriggers checks if the workflow has special trigger types that require
-// workflow-level concurrency handling (issues, PRs, discussions, push, command)
+// workflow-level concurrency handling (issues, PRs, discussions, push, command,
+// or workflow_dispatch-only)
 func hasSpecialTriggers(workflowData *WorkflowData) bool {
 	// Check for specific trigger types that have special concurrency handling
 	on := workflowData.On
@@ -100,8 +101,14 @@ func hasSpecialTriggers(workflowData *WorkflowData) bool {
 		return true
 	}
 
+	// workflow_dispatch-only workflows represent explicit user intent, so the
+	// top-level workflow concurrency group is sufficient – no engine-level group needed
+	if isWorkflowDispatchOnly(on) {
+		return true
+	}
+
 	// If none of the special triggers are detected, return false
-	// This means workflow_dispatch and other generic triggers will get default concurrency
+	// This means other generic triggers (e.g. schedule) will get default concurrency
 	return false
 }
 
@@ -118,6 +125,37 @@ func isIssueWorkflow(on string) bool {
 // isDiscussionWorkflow checks if a workflow's "on" section contains discussion-related triggers
 func isDiscussionWorkflow(on string) bool {
 	return strings.Contains(on, "discussion")
+}
+
+// isWorkflowDispatchOnly returns true when workflow_dispatch is the only trigger in the
+// "on" section, indicating the workflow is always started by explicit user intent.
+func isWorkflowDispatchOnly(on string) bool {
+	if !strings.Contains(on, "workflow_dispatch") {
+		return false
+	}
+	// If any other common trigger is present as a YAML key, this is not a
+	// workflow_dispatch-only workflow. We check for the trigger name followed by
+	// ':' (YAML key in object form) or as the sole inline value to avoid false
+	// matches from input parameter names (e.g., "push_branch" ≠ "push" trigger).
+	otherTriggers := []string{
+		"push", "pull_request", "pull_request_review", "pull_request_review_comment",
+		"pull_request_target", "issues", "issue_comment", "discussion",
+		"discussion_comment", "schedule", "repository_dispatch", "workflow_run",
+		"create", "delete", "release", "deployment", "fork", "gollum",
+		"label", "milestone", "page_build", "public", "registry_package",
+		"status", "watch", "merge_group", "check_run", "check_suite",
+	}
+	for _, trigger := range otherTriggers {
+		// Trigger in object format: "push:" / "  push:"
+		if strings.Contains(on, trigger+":") {
+			return false
+		}
+		// Trigger in inline format: "on: push" (no colon, trigger is the last token)
+		if strings.HasSuffix(strings.TrimSpace(on), " "+trigger) {
+			return false
+		}
+	}
+	return true
 }
 
 // isPushWorkflow checks if a workflow's "on" section contains push triggers

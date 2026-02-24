@@ -185,8 +185,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: withimports
     outputs:

@@ -316,24 +316,22 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 		description  string
 	}{
 		{
-			name: "Default concurrency for workflow_dispatch with copilot engine",
+			name: "No default concurrency for workflow_dispatch-only with copilot engine",
 			workflowData: &WorkflowData{
 				On:           "on:\n  workflow_dispatch:",
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
-			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.workflow }}"`,
-			description: "Copilot with workflow_dispatch should get default concurrency",
+			expected:    "",
+			description: "Copilot with workflow_dispatch-only should NOT get default concurrency (user intent, top-level group is sufficient)",
 		},
 		{
-			name: "Default concurrency for workflow_dispatch with claude engine",
+			name: "No default concurrency for workflow_dispatch-only with claude engine",
 			workflowData: &WorkflowData{
 				On:           "on:\n  workflow_dispatch:",
 				EngineConfig: &EngineConfig{ID: "claude"},
 			},
-			expected: `concurrency:
-  group: "gh-aw-claude-${{ github.workflow }}"`,
-			description: "Claude with workflow_dispatch should get default concurrency",
+			expected:    "",
+			description: "Claude with workflow_dispatch-only should NOT get default concurrency (user intent, top-level group is sufficient)",
 		},
 		{
 			name: "No default concurrency for push workflows",
@@ -390,6 +388,16 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			expected: `concurrency:
   group: "gh-aw-codex-${{ github.workflow }}"`,
 			description: "Codex with schedule should get default concurrency",
+		},
+		{
+			name: "Default concurrency for workflow_dispatch combined with schedule",
+			workflowData: &WorkflowData{
+				On:           "on:\n  workflow_dispatch:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}"`,
+			description: "workflow_dispatch combined with schedule should still get default concurrency (not workflow_dispatch-only)",
 		},
 	}
 
