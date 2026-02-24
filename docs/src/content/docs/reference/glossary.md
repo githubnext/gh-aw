@@ -97,6 +97,14 @@ A preview mode where workflows simulate actions without making changes. The AI g
 
 A security feature of the GitHub MCP server that filters content in public repositories to only surface items (issues, pull requests, comments, discussions) from users with push access. Protects agentic workflows from processing potentially malicious or misleading content submitted by untrusted users. Enabled via `lockdown: true` in the `tools.github` section. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/).
 
+### Status Comment
+
+A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Must be explicitly enabled — it is not automatically bundled with `ai-reaction`.
+
+### XPIA (Cross-Prompt Injection Attack)
+
+A security attack where malicious instructions embedded in external data (issue bodies, PR descriptions, file contents) attempt to hijack an AI agent's behavior. GitHub Agentic Workflows mitigates XPIA through system prompt hardening and [Threat Detection](#threat-detection) scanning. See also [Lockdown Mode](#lockdown-mode).
+
 ### Permissions
 
 Access controls defining workflow operations. Workflows follow least privilege, starting with read-only access by default. Write operations are typically handled through safe outputs.
@@ -235,7 +243,7 @@ Persistent file storage via Git branches with unlimited retention. Unlike cache-
 
 ### Sandbox
 
-Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. To disable only the agent firewall while keeping the MCP Gateway active, use `sandbox.agent: false`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 
