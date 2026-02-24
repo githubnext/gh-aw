@@ -1079,6 +1079,7 @@ jobs:
       security-events: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "daily-semgrep-scan"
       GH_AW_WORKFLOW_NAME: "Daily Semgrep Scan"

@@ -1139,6 +1139,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
       GH_AW_WORKFLOW_ID: "archie"

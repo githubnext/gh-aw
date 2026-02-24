@@ -1163,6 +1163,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"runSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"runFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
       GH_AW_WORKFLOW_ID: "craft"

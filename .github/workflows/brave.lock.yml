@@ -1124,6 +1124,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
       GH_AW_WORKFLOW_ID: "brave"

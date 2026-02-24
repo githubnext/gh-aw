@@ -1090,6 +1090,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧹 Starting draft PR cleanup... [{workflow_name}]({run_url}) is reviewing draft PRs for staleness\",\"runSuccess\":\"✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts.\",\"runFailure\":\"❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed.\"}"
       GH_AW_WORKFLOW_ID: "draft-pr-cleanup"

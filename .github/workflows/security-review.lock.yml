@@ -1280,6 +1280,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
       GH_AW_WORKFLOW_ID: "security-review"

@@ -1228,6 +1228,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📄 *Summary compiled by [{workflow_name}]({run_url})*\",\"runStarted\":\"📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}...\",\"runSuccess\":\"📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨\",\"runFailure\":\"📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized...\"}"
       GH_AW_WORKFLOW_ID: "pdf-summary"

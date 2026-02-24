@@ -1096,6 +1096,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "claude"
       GH_AW_WORKFLOW_ID: "commit-changes-analyzer"
       GH_AW_WORKFLOW_NAME: "Commit Changes Analyzer"

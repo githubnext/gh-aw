@@ -1085,6 +1085,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "codex"
       GH_AW_WORKFLOW_ID: "duplicate-code-detector"
       GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"
