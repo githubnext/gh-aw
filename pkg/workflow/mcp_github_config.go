@@ -81,6 +81,15 @@ func hasGitHubTool(parsedTools *Tools) bool {
 	return parsedTools.GitHub != nil
 }
 
+// hasGitHubApp checks if a GitHub App is configured in the (merged) GitHub tool configuration
+func hasGitHubApp(githubTool any) bool {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		_, exists := toolConfig["app"]
+		return exists
+	}
+	return false
+}
+
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)
 func getGitHubType(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
@@ -283,7 +292,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// GitHub App tokens are already scoped to specific repositories, so automatic
 	// lockdown detection is not needed — the token's access is inherently bounded
 	// by the app installation and the listed repositories.
-	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.App != nil {
+	if hasGitHubApp(githubTool) {
 		githubConfigLog.Print("GitHub App configured, skipping automatic lockdown determination (app tokens are already repo-scoped)")
 		return
 	}
