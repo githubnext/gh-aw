@@ -124,27 +124,30 @@ func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
 	// Step 1: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
 
-	// Step 2: Prepare files - copies agent output files to expected paths
+	// Step 2: Clear MCP configuration files so the detection engine runs without MCP servers
+	steps = append(steps, c.buildClearMCPConfigStep()...)
+
+	// Step 3: Prepare files - copies agent output files to expected paths
 	steps = append(steps, c.buildPrepareDetectionFilesStep()...)
 
-	// Step 3: Setup threat detection (github-script)
+	// Step 4: Setup threat detection (github-script)
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
-	// Step 4: Engine execution (AWF, no network)
+	// Step 5: Engine execution (AWF, no network)
 	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
 
-	// Step 5: Custom steps if configured
+	// Step 6: Custom steps if configured
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 6: Parse threat detection results
+	// Step 7: Parse threat detection results
 	steps = append(steps, c.buildParsingStep()...)
 
-	// Step 7: Upload detection log artifact
+	// Step 8: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
 
-	// Step 8: Detection conclusion - sets final detection_success and detection_conclusion outputs
+	// Step 9: Detection conclusion - sets final detection_success and detection_conclusion outputs
 	steps = append(steps, c.buildDetectionConclusionStep()...)
 
 	threatLog.Printf("Generated %d inline detection step lines", len(steps))
@@ -169,6 +172,20 @@ func (c *Compiler) buildDetectionGuardStep() []string {
 		"            echo \"run_detection=false\" >> \"$GITHUB_OUTPUT\"\n",
 		"            echo \"Detection skipped: no agent outputs or patches to analyze\"\n",
 		"          fi\n",
+	}
+}
+
+// buildClearMCPConfigStep creates a step that removes MCP configuration files written by
+// the main agent job. This ensures the detection engine runs without any MCP servers,
+// even if the main agent had MCP servers configured.
+func (c *Compiler) buildClearMCPConfigStep() []string {
+	return []string{
+		"      - name: Clear MCP configuration for detection\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        run: |\n",
+		"          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json\n",
+		"          rm -f /home/runner/.copilot/mcp-config.json\n",
+		"          rm -f \"$GITHUB_WORKSPACE/.gemini/settings.json\"\n",
 	}
 }
 
