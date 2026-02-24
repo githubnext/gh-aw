@@ -99,12 +99,23 @@ on:
         required: true
         type: string
 
+run-name: Dependabot rollout for ${{ github.event.inputs.target_repo }}
+
+concurrency:
+  group: gh-aw-${{ github.workflow }}-${{ github.event.inputs.target_repo }}
+
+engine:
+  id: copilot
+  concurrency:
+    group: gh-aw-copilot-${{ github.workflow }}-${{ github.event.inputs.target_repo }}
+
 steps:
   - name: Checkout target repository
     uses: actions/checkout@v5
     with:
       token: ${{ secrets.ORG_REPO_CHECKOUT_TOKEN }}
       repository: ${{ github.event.inputs.target_repo }}
+      persist-credentials: false
 
 permissions:
   contents: read
