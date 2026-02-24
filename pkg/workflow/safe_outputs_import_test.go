@@ -1823,3 +1823,111 @@ safe-outputs:
 	assert.Equal(t, "Shared started", workflowData.SafeOutputs.Messages.RunStarted, "RunStarted should come from shared")
 	assert.Equal(t, "Shared failure", workflowData.SafeOutputs.Messages.RunFailure, "RunFailure should come from shared")
 }
+
+// TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden tests that when the main workflow
+// explicitly disables threat-detection, imported fragments with no threat-detection key (which
+// would auto-enable it) do not override the explicit disable.
+func TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Simulate main workflow that explicitly disabled threat-detection.
+	// The ThreatDetectionExplicitlyDisabled flag is set by extractSafeOutputsConfig
+	// when threat-detection: false (or enabled: false) is in the frontmatter.
+	topConfig := &SafeOutputsConfig{
+		ThreatDetection:                   nil,  // threat-detection: false → parseThreatDetectionConfig returns nil
+		ThreatDetectionExplicitlyDisabled: true, // set by extractSafeOutputsConfig when the key exists but is disabled
+		AddComments:                       &AddCommentsConfig{},
+	}
+
+	// Import fragment that has safe-outputs but no threat-detection key.
+	// extractSafeOutputsConfig auto-enables ThreatDetection for such fragments,
+	// so importedConfig.ThreatDetection will be &ThreatDetectionConfig{}.
+	importedJSON := []string{
+		`{"add-comment":{"max":1}}`,
+	}
+
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	require.NoError(t, err, "MergeSafeOutputs should not error")
+	require.NotNil(t, result, "Result should not be nil")
+
+	// The explicit disable must survive the merge: threat detection must remain nil.
+	assert.Nil(t, result.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
+}
+
+// TestMergeSafeOutputsThreatDetectionImportedWhenMainHasNone tests that when the main workflow
+// has no safe-outputs (topSafeOutputs == nil), threat detection can still be set by an import.
+func TestMergeSafeOutputsThreatDetectionImportedWhenMainHasNone(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Import fragment with safe-outputs that will auto-enable ThreatDetection.
+	importedJSON := []string{
+		`{"add-comment":{"max":1}}`,
+	}
+
+	result, err := compiler.MergeSafeOutputs(nil, importedJSON)
+	require.NoError(t, err, "MergeSafeOutputs should not error")
+	require.NotNil(t, result, "Result should not be nil")
+
+	// With no explicit disable from main, threat detection should be auto-enabled by the import.
+	assert.NotNil(t, result.ThreatDetection, "ThreatDetection should be auto-enabled from import when main has no safe-outputs")
+}
+
+// TestSafeOutputsImportDoesNotReenableThreatDetection is an integration test that reproduces
+// the bug where an imported fragment re-enables threat-detection that was explicitly disabled
+// in the main workflow. This caused a compilation error when sandbox.agent was also false.
+func TestSafeOutputsImportDoesNotReenableThreatDetection(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Fragment with safe-outputs but no threat-detection key (mimics safe-output-add-comment.md)
+	sharedWorkflow := `---
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+# Shared Add Comment Fragment
+`
+
+	sharedFile := filepath.Join(workflowsDir, "safe-output-add-comment.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Main workflow: sandbox.agent disabled + threat-detection explicitly disabled
+	mainWorkflow := `---
+on: issues
+engine: copilot
+strict: false
+sandbox:
+  agent: false
+imports:
+  - ./safe-output-add-comment.md
+safe-outputs:
+  activation-comments: false
+  threat-detection: false
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error when threat-detection is explicitly disabled")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// The explicit disable must survive the import merge.
+	assert.Nil(t, workflowData.SafeOutputs.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
+}

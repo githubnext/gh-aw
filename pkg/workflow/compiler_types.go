@@ -473,59 +473,60 @@ type BaseSafeOutputConfig struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
-	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
-	UpdateDiscussions               *UpdateDiscussionsConfig               `yaml:"update-discussion,omitempty"`
-	CloseDiscussions                *CloseDiscussionsConfig                `yaml:"close-discussion,omitempty"`
-	CloseIssues                     *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
-	ClosePullRequests               *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
-	MarkPullRequestAsReadyForReview *MarkPullRequestAsReadyForReviewConfig `yaml:"mark-pull-request-as-ready-for-review,omitempty"`
-	AddComments                     *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
-	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
-	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
-	SubmitPullRequestReview         *SubmitPullRequestReviewConfig         `yaml:"submit-pull-request-review,omitempty"`           // Submit a PR review with status (APPROVE, REQUEST_CHANGES, COMMENT)
-	ReplyToPullRequestReviewComment *ReplyToPullRequestReviewCommentConfig `yaml:"reply-to-pull-request-review-comment,omitempty"` // Reply to existing review comments on PRs
-	ResolvePullRequestReviewThread  *ResolvePullRequestReviewThreadConfig  `yaml:"resolve-pull-request-review-thread,omitempty"`   // Resolve a review thread on a pull request
-	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
-	AutofixCodeScanningAlert        *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
-	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
-	RemoveLabels                    *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
-	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
-	AssignMilestone                 *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
-	AssignToAgent                   *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
-	AssignToUser                    *AssignToUserConfig                    `yaml:"assign-to-user,omitempty"`     // Assign users to issues
-	UnassignFromUser                *UnassignFromUserConfig                `yaml:"unassign-from-user,omitempty"` // Remove assignees from issues
-	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
-	UpdatePullRequests              *UpdatePullRequestsConfig              `yaml:"update-pull-request,omitempty"` // Update GitHub pull request title/body
-	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
-	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
-	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`               // Update GitHub release descriptions
-	CreateAgentSessions             *CreateAgentSessionConfig              `yaml:"create-agent-session,omitempty"`         // Create GitHub Copilot coding agent sessions
-	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`               // Smart project board management (create/add/update)
-	CreateProjects                  *CreateProjectsConfig                  `yaml:"create-project,omitempty"`               // Create GitHub Projects V2
-	CreateProjectStatusUpdates      *CreateProjectStatusUpdateConfig       `yaml:"create-project-status-update,omitempty"` // Create GitHub project status updates
-	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`               // Link issues as sub-issues
-	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                 // Hide comments
-	DispatchWorkflow                *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"`            // Dispatch workflow_dispatch events to other workflows
-	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`                 // Optional for reporting missing functionality
-	MissingData                     *MissingDataConfig                     `yaml:"missing-data,omitempty"`                 // Optional for reporting missing data required to achieve goals
-	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`                         // No-op output for logging only (always available as fallback)
-	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`             // Threat detection configuration
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
-	App                             *GitHubAppConfig                       `yaml:"app,omitempty"`                          // GitHub App credentials for token minting
-	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
-	AllowGitHubReferences           []string                               `yaml:"allowed-github-references,omitempty"` // Allowed repositories for GitHub references (e.g., ["repo", "org/repo2"])
-	Staged                          bool                                   `yaml:"staged,omitempty"`                    // If true, emit step summary messages instead of making GitHub API calls
-	Env                             map[string]string                      `yaml:"env,omitempty"`                       // Environment variables to pass to safe output jobs
-	GitHubToken                     string                                 `yaml:"github-token,omitempty"`              // GitHub token for safe output jobs
-	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"`            // Maximum allowed patch size in KB (defaults to 1024)
-	RunsOn                          string                                 `yaml:"runs-on,omitempty"`                   // Runner configuration for safe-outputs jobs
-	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                  // Custom message templates for footer and notifications
-	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`                  // Configuration for @mention filtering in safe outputs
-	Footer                          *bool                                  `yaml:"footer,omitempty"`                    // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
-	GroupReports                    bool                                   `yaml:"group-reports,omitempty"`             // If true, create parent "Failed runs" issue for agent failures (default: false)
-	MaxBotMentions                  *string                                `yaml:"max-bot-mentions,omitempty"`          // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
-	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                   // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
+	CreateIssues                      *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
+	CreateDiscussions                 *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
+	UpdateDiscussions                 *UpdateDiscussionsConfig               `yaml:"update-discussion,omitempty"`
+	CloseDiscussions                  *CloseDiscussionsConfig                `yaml:"close-discussion,omitempty"`
+	CloseIssues                       *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
+	ClosePullRequests                 *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
+	MarkPullRequestAsReadyForReview   *MarkPullRequestAsReadyForReviewConfig `yaml:"mark-pull-request-as-ready-for-review,omitempty"`
+	AddComments                       *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
+	CreatePullRequests                *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
+	CreatePullRequestReviewComments   *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
+	SubmitPullRequestReview           *SubmitPullRequestReviewConfig         `yaml:"submit-pull-request-review,omitempty"`           // Submit a PR review with status (APPROVE, REQUEST_CHANGES, COMMENT)
+	ReplyToPullRequestReviewComment   *ReplyToPullRequestReviewCommentConfig `yaml:"reply-to-pull-request-review-comment,omitempty"` // Reply to existing review comments on PRs
+	ResolvePullRequestReviewThread    *ResolvePullRequestReviewThreadConfig  `yaml:"resolve-pull-request-review-thread,omitempty"`   // Resolve a review thread on a pull request
+	CreateCodeScanningAlerts          *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
+	AutofixCodeScanningAlert          *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
+	AddLabels                         *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
+	RemoveLabels                      *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
+	AddReviewer                       *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`
+	AssignMilestone                   *AssignMilestoneConfig                 `yaml:"assign-milestone,omitempty"`
+	AssignToAgent                     *AssignToAgentConfig                   `yaml:"assign-to-agent,omitempty"`
+	AssignToUser                      *AssignToUserConfig                    `yaml:"assign-to-user,omitempty"`     // Assign users to issues
+	UnassignFromUser                  *UnassignFromUserConfig                `yaml:"unassign-from-user,omitempty"` // Remove assignees from issues
+	UpdateIssues                      *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
+	UpdatePullRequests                *UpdatePullRequestsConfig              `yaml:"update-pull-request,omitempty"` // Update GitHub pull request title/body
+	PushToPullRequestBranch           *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
+	UploadAssets                      *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
+	UpdateRelease                     *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`               // Update GitHub release descriptions
+	CreateAgentSessions               *CreateAgentSessionConfig              `yaml:"create-agent-session,omitempty"`         // Create GitHub Copilot coding agent sessions
+	UpdateProjects                    *UpdateProjectConfig                   `yaml:"update-project,omitempty"`               // Smart project board management (create/add/update)
+	CreateProjects                    *CreateProjectsConfig                  `yaml:"create-project,omitempty"`               // Create GitHub Projects V2
+	CreateProjectStatusUpdates        *CreateProjectStatusUpdateConfig       `yaml:"create-project-status-update,omitempty"` // Create GitHub project status updates
+	LinkSubIssue                      *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`               // Link issues as sub-issues
+	HideComment                       *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                 // Hide comments
+	DispatchWorkflow                  *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"`            // Dispatch workflow_dispatch events to other workflows
+	MissingTool                       *MissingToolConfig                     `yaml:"missing-tool,omitempty"`                 // Optional for reporting missing functionality
+	MissingData                       *MissingDataConfig                     `yaml:"missing-data,omitempty"`                 // Optional for reporting missing data required to achieve goals
+	NoOp                              *NoOpConfig                            `yaml:"noop,omitempty"`                         // No-op output for logging only (always available as fallback)
+	ThreatDetection                   *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`             // Threat detection configuration
+	Jobs                              map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
+	App                               *GitHubAppConfig                       `yaml:"app,omitempty"`                          // GitHub App credentials for token minting
+	AllowedDomains                    []string                               `yaml:"allowed-domains,omitempty"`
+	AllowGitHubReferences             []string                               `yaml:"allowed-github-references,omitempty"` // Allowed repositories for GitHub references (e.g., ["repo", "org/repo2"])
+	Staged                            bool                                   `yaml:"staged,omitempty"`                    // If true, emit step summary messages instead of making GitHub API calls
+	Env                               map[string]string                      `yaml:"env,omitempty"`                       // Environment variables to pass to safe output jobs
+	GitHubToken                       string                                 `yaml:"github-token,omitempty"`              // GitHub token for safe output jobs
+	MaximumPatchSize                  int                                    `yaml:"max-patch-size,omitempty"`            // Maximum allowed patch size in KB (defaults to 1024)
+	RunsOn                            string                                 `yaml:"runs-on,omitempty"`                   // Runner configuration for safe-outputs jobs
+	Messages                          *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`                  // Custom message templates for footer and notifications
+	Mentions                          *MentionsConfig                        `yaml:"mentions,omitempty"`                  // Configuration for @mention filtering in safe outputs
+	Footer                            *bool                                  `yaml:"footer,omitempty"`                    // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
+	GroupReports                      bool                                   `yaml:"group-reports,omitempty"`             // If true, create parent "Failed runs" issue for agent failures (default: false)
+	MaxBotMentions                    *string                                `yaml:"max-bot-mentions,omitempty"`          // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
+	AutoInjectedCreateIssue           bool                                   `yaml:"-"`                                   // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
+	ThreatDetectionExplicitlyDisabled bool                                   `yaml:"-"`                                   // Internal: true when threat-detection was explicitly disabled in frontmatter (e.g. threat-detection: false)
 }
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages

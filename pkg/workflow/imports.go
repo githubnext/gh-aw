@@ -630,7 +630,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.NoOp == nil && importedConfig.NoOp != nil {
 		result.NoOp = importedConfig.NoOp
 	}
-	if result.ThreatDetection == nil && importedConfig.ThreatDetection != nil {
+	// ThreatDetection is a workflow-level concern. Only merge from import when the main workflow
+	// has not explicitly disabled it (threat-detection: false / enabled: false).
+	if !result.ThreatDetectionExplicitlyDisabled && result.ThreatDetection == nil && importedConfig.ThreatDetection != nil {
 		result.ThreatDetection = importedConfig.ThreatDetection
 	}
 
