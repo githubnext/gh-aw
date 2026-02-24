@@ -231,7 +231,8 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	// that the runtime replaces with actual values. The strings "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	// and "${{ github.token }}" are placeholders, not actual credentials.
 	var copilotGitHubToken string
-	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
+	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
+	if useCopilotRequests {
 		copilotGitHubToken = "${{ github.token }}"
 		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (copilot-requests feature enabled)")
 	} else {
@@ -246,6 +247,12 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
 		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
 		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
+	}
+
+	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
+	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
+	if useCopilotRequests {
+		env["S2STOKENS"] = "true"
 	}
 
 	// Always add GH_AW_PROMPT for agentic workflows
