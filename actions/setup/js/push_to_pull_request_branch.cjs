@@ -474,8 +474,8 @@ async function main(config = {}) {
     if (hasChanges) {
       const ciTriggerResult = await pushExtraEmptyCommit({
         branchName,
-        repoOwner: repoParts.owner,  
-        repoName: repoParts.repo,  
+        repoOwner: repoParts.owner,
+        repoName: repoParts.repo,
         newCommitCount,
       });
       if (ciTriggerResult.success && !ciTriggerResult.skipped) {
