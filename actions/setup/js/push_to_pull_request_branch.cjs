@@ -6,7 +6,6 @@ const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { updateActivationCommentWithCommit } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
@@ -438,8 +437,9 @@ async function main(config = {}) {
     const commitSha = commitShaRes.stdout.trim();
 
     // Get repository base URL and construct URLs
+    // For cross-repo scenarios, use repoParts (the target repo) not context.repo (the workflow repo)
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const repoUrl = context.payload.repository ? context.payload.repository.html_url : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+    const repoUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}`;
     const pushUrl = `${repoUrl}/tree/${branchName}`;
     const commitUrl = `${repoUrl}/commit/${commitSha}`;
 
