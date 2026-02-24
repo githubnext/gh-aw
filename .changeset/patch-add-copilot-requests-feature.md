@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Added the `features.copilot-requests` feature flag so GitHub Actions token authentication and threat detection jobs honor the new Copilot requests flow.
+Documented the `features.copilot-requests` feature flag so GitHub Actions token authentication, threat detection permissions, and the Copilot CLI execution environment honor the Copilot requests flow (injecting `copilot-requests: write` permissions and enabling `S2STOKENS=true`).
