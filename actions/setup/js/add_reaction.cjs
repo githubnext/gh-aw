@@ -31,7 +31,7 @@ async function main() {
 
   try {
     switch (eventName) {
-      case "issues":
+      case "issues": {
         const issueNumber = context.payload?.issue?.number;
         if (!issueNumber) {
           core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
@@ -39,8 +39,9 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
         break;
+      }
 
-      case "issue_comment":
+      case "issue_comment": {
         const commentId = context.payload?.comment?.id;
         if (!commentId) {
           core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
@@ -48,8 +49,9 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
         break;
+      }
 
-      case "pull_request":
+      case "pull_request": {
         const prNumber = context.payload?.pull_request?.number;
         if (!prNumber) {
           core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
@@ -58,8 +60,9 @@ async function main() {
         // PRs are "issues" for the reactions endpoint
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
         break;
+      }
 
-      case "pull_request_review_comment":
+      case "pull_request_review_comment": {
         const reviewCommentId = context.payload?.comment?.id;
         if (!reviewCommentId) {
           core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
@@ -67,19 +70,21 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
         break;
+      }
 
-      case "discussion":
+      case "discussion": {
         const discussionNumber = context.payload?.discussion?.number;
         if (!discussionNumber) {
           core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
           return;
         }
         // Discussions use GraphQL API - get the node ID
-        const discussion = await getDiscussionId(owner, repo, discussionNumber);
-        await addDiscussionReaction(discussion.id, reaction);
+        const discussionNodeId = await getDiscussionNodeId(owner, repo, discussionNumber);
+        await addDiscussionReaction(discussionNodeId, reaction);
         return; // Early return for discussion events
+      }
 
-      case "discussion_comment":
+      case "discussion_comment": {
         const commentNodeId = context.payload?.comment?.node_id;
         if (!commentNodeId) {
           core.setFailed(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
@@ -87,6 +92,7 @@ async function main() {
         }
         await addDiscussionReaction(commentNodeId, reaction);
         return; // Early return for discussion comment events
+      }
 
       default:
         core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
@@ -181,16 +187,15 @@ async function addDiscussionReaction(subjectId, reaction) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} discussionNumber - Discussion number
- * @returns {Promise<{id: string, url: string}>} Discussion details
+ * @returns {Promise<string>} Discussion node ID
  */
-async function getDiscussionId(owner, repo, discussionNumber) {
+async function getDiscussionNodeId(owner, repo, discussionNumber) {
   const { repository } = await github.graphql(
     `
     query($owner: String!, $repo: String!, $num: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $num) { 
           id 
-          url
         }
       }
     }`,
@@ -201,10 +206,7 @@ async function getDiscussionId(owner, repo, discussionNumber) {
     throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
   }
 
-  return {
-    id: repository.discussion.id,
-    url: repository.discussion.url,
-  };
+  return repository.discussion.id;
 }
 
 module.exports = { main };

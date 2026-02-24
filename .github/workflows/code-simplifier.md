@@ -394,3 +394,9 @@ Your output MUST either:
 3. **If simplifications made**: Create a PR with the changes using safe-outputs
 
 Begin your code simplification analysis now. Find recently modified code, assess simplification opportunities, apply improvements while preserving functionality, validate changes, and create a PR if beneficial.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

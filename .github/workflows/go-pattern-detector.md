@@ -164,3 +164,9 @@ If ast-grep doesn't find any problematic patterns:
 ## Security Note
 
 Treat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

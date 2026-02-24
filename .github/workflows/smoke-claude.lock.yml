@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ede2fec60fd2b3a5ef0b98f74ae9793996ccd5ad3755f6bf6c3aac7df7779e57"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"44795abbc68aff36a88e78da3acdaacdd1156a7f0abf1600e5a60943fa23edb3"}
 
 name: "Smoke Claude"
 "on":
@@ -527,6 +527,12 @@ jobs:
           
           If all non-skipped tests pass, use the `add_labels` tool to add the label `smoke-claude` to the pull request (omit the `item_number` parameter to auto-target the triggering PR if this workflow was triggered by a pull_request event).
           
+          **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+          
+          ```json
+          {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+          ```
+          
           GH_AW_PROMPT_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
@@ -698,6 +704,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -728,7 +735,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.50",
+              agent_version: "2.1.51",
               workflow_name: "Smoke Claude",
               experimental: false,
               supports_tools_allowlist: true,
@@ -772,7 +779,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.2
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.50
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.51
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2289,6 +2296,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -2604,7 +2612,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.50
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.51
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -2723,7 +2731,6 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "claude"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*\",\"runStarted\":\"💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*\",\"runSuccess\":\"🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨\",\"runFailure\":\"💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges...\"}"
       GH_AW_WORKFLOW_ID: "smoke-claude"
@@ -2781,6 +2788,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -2791,6 +2799,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-claude\"]},\"add_reviewer\":{\"max\":2,\"target\":\"*\"},\"close_pull_request\":{\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\",\"target\":\"*\"},\"missing_data\":{},\"missing_tool\":{},\"push_to_pull_request_branch\":{\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"if_no_changes\":\"warn\",\"max_patch_size\":1024,\"target\":\"*\"},\"resolve_pull_request_review_thread\":{\"max\":5},\"submit_pull_request_review\":{\"footer\":\"always\",\"max\":1},\"update_pull_request\":{\"allow_body\":true,\"allow_title\":true,\"max\":1,\"target\":\"*\"}}"
+          GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

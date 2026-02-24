@@ -280,6 +280,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -310,7 +311,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5.1-codex-mini",
               version: "",
-              agent_version: "0.0.414",
+              agent_version: "0.0.415",
               workflow_name: "Issue Monster",
               experimental: false,
               supports_tools_allowlist: true,
@@ -347,7 +348,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.414
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.415
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.2
       - name: Validate lockdown mode requirements
@@ -734,6 +735,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -1032,7 +1034,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.414
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.415
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -1148,7 +1150,6 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5.1-codex-mini"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"

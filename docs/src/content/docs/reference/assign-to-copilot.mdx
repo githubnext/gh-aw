@@ -65,7 +65,7 @@ When an `allowed` list is configured, existing agent assignees not in the list a
 
 This safe output requires a fine-grained PAT to authenticate the agent assignment operation. The default `GITHUB_TOKEN` lacks the necessary permissions.
 
-**Using a Personal Access Token (PAT)**:
+### Using a Personal Access Token (PAT)
 
 The required token type and permissions depend on whether you own the repository or an organization owns it.
 
@@ -95,13 +95,17 @@ The required token type and permissions depend on whether you own the repository
    gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
    ```
 
-**Using a GitHub App**:
+### Using a GitHub App
 
 Alternatively, you can use a GitHub App with appropriate permissions instead of a PAT for enhanced security.
 
-**Using a magic secret**:
+### Using a magic secret
 
 Alternatively, you can set the magic secret `GH_AW_AGENT_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+
+```bash wrap
+gh aw secrets set GH_AW_AGENT_TOKEN --value "<your-pat-token>"
+```
 
 <Video
     src="/gh-aw/videos/create-pat-org-agent.mp4"

@@ -544,3 +544,9 @@ This workflow uses safe-input tools imported from `shared/github-queries-safe-in
 4. Call tools with parameters like: `github-pr-query with state: "all", limit: 1000, jq: "."`
 
 Begin your analysis now. **Use the safe-input tools** to gather data, run Python analysis, generate charts, and create the discussion report.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -129,6 +129,15 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		permissions = NewPermissionsEmpty().RenderToYAML()
 	}
 
+	// When the copilot-requests feature is enabled, inject copilot-requests: write permission.
+	// This is required so the GitHub Actions token has the necessary scope to authenticate
+	// with the Copilot API in the detection job (mirrors the agent job logic in tools.go).
+	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data) {
+		perms := NewPermissionsParser(permissions).ToPermissions()
+		perms.Set(PermissionCopilotRequests, PermissionWrite)
+		permissions = perms.RenderToYAML()
+	}
+
 	// Generate agent concurrency configuration (same as main agent job)
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
@@ -357,6 +366,8 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 
 	// Create minimal WorkflowData for threat detection
 	// Configure bash read tools for accessing the agent output file
+	// Features are inherited from the main workflow data so feature flags
+	// (e.g. copilot-requests) apply consistently to both agent and detection jobs.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
@@ -365,6 +376,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		Network:      "",
 		EngineConfig: detectionEngineConfig,
 		AI:           engineSetting,
+		Features:     data.Features,
 	}
 
 	var steps []string

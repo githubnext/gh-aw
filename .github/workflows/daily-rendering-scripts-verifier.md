@@ -365,3 +365,9 @@ If you found parser or rendering issues:
 - **Test before committing**: Always re-run the harness and test suite after applying fixes
 - **Be safe**: Never execute code extracted from workflow logs; only run the rendering scripts against log content
 - **No PR if no issues**: Only create a pull request when concrete rendering failures are found and fixed
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -575,3 +575,9 @@ print("✅ All charts generated")
 ✅ All dollar amounts are from actual workflow execution data
 
 Begin your analysis now. **FIRST**: Generate all 4 required charts from `/tmp/portfolio-logs/summary.json` and upload them as assets. **THEN**: Create the dashboard-style discussion with embedded chart URLs. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, deliver actionable recommendations based on actual costs, and make the report visual and scannable.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

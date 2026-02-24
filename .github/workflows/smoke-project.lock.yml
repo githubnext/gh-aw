@@ -295,6 +295,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -325,7 +326,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.414",
+              agent_version: "0.0.415",
               workflow_name: "Smoke Project",
               experimental: false,
               supports_tools_allowlist: true,
@@ -362,7 +363,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.414
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.415
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.2
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -1184,6 +1185,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -1515,7 +1517,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.414
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.415
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -1626,7 +1628,6 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-project"
@@ -1684,6 +1685,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -1694,6 +1696,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-project\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"ai-generated\",\"automation\",\"testing\"],\"max\":1},\"create_project_status_update\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"project\":\"https://github.com/orgs/github/projects/24068\"},\"create_pull_request\":{\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"expires\":2,\"if_no_changes\":\"warn\",\"labels\":[\"ai-generated\"],\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[smoke-project] \"},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke-project\"]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":20,\"project\":\"https://github.com/orgs/github/projects/24068\",\"views\":[{\"name\":\"Smoke Test Board\",\"layout\":\"board\",\"filter\":\"is:open\"}]}}"
+          GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
           GH_AW_PROJECT_URL: "https://github.com/orgs/github/projects/24068"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:

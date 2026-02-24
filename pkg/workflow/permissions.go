@@ -43,6 +43,8 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionSecurityEvents
 	case "statuses":
 		return PermissionStatuses
+	case "copilot-requests":
+		return PermissionCopilotRequests
 	case "all":
 		// "all" is a meta-key handled at the parser level; it is not a real scope
 		return ""
@@ -82,6 +84,9 @@ const (
 	PermissionOrganizationProj PermissionScope = "organization-projects"
 	PermissionSecurityEvents   PermissionScope = "security-events"
 	PermissionStatuses         PermissionScope = "statuses"
+	// PermissionCopilotRequests is a GitHub Actions permission scope used with the copilot-requests feature.
+	// It enables use of the GitHub Actions token as the Copilot authentication token.
+	PermissionCopilotRequests PermissionScope = "copilot-requests"
 )
 
 // GetAllPermissionScopes returns all available permission scopes

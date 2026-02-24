@@ -314,3 +314,9 @@ When running on schedule, create a discussion report following the formatting gu
 - Median time to first label: <5 minutes for new issues
 - Label accuracy: ≥90% (minimal maintainer corrections needed)
 - False positive rate: <10%
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -405,30 +405,9 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		}
 	}
 
-	// Add extra empty commit token if configured on create-pull-request or push-to-pull-request-branch.
-	// This token is used to push an empty commit after code changes to trigger CI events,
-	// working around the GITHUB_TOKEN limitation where events don't trigger other workflows.
-	if data.SafeOutputs != nil {
-		var ciTriggerToken string
-		if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit != "" {
-			ciTriggerToken = data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
-		} else if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit != "" {
-			ciTriggerToken = data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit
-		}
-
-		switch ciTriggerToken {
-		case "app":
-			envVars["GH_AW_CI_TRIGGER_TOKEN"] = "${{ steps.safe-outputs-app-token.outputs.token || '' }}"
-			consolidatedSafeOutputsJobLog.Print("Extra empty commit using GitHub App token")
-		case "default", "":
-			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)
-			envVars["GH_AW_CI_TRIGGER_TOKEN"] = getEffectiveCITriggerGitHubToken("")
-			consolidatedSafeOutputsJobLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
-		default:
-			envVars["GH_AW_CI_TRIGGER_TOKEN"] = ciTriggerToken
-			consolidatedSafeOutputsJobLog.Print("Extra empty commit using explicit token")
-		}
-	}
+	// Note: GH_AW_CI_TRIGGER_TOKEN is added at the step level (in buildHandlerManagerStep)
+	// rather than job level, since only the Process Safe Outputs step needs it,
+	// and only when create-pull-request or push-to-pull-request-branch is configured.
 
 	// Note: Asset upload configuration is not needed here because upload_assets
 	// is now handled as a separate job (see buildUploadAssetsJob)

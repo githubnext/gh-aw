@@ -29,22 +29,13 @@ func getGrepToolRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				return removeFieldFromBlock(lines, "grep", "tools")
+			})
+			if applied {
+				grepToolCodemodLog.Print("Applied grep tool removal")
 			}
-
-			// Remove the grep field from the tools block
-			modifiedLines, modified := removeFieldFromBlock(frontmatterLines, "grep", "tools")
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(modifiedLines, markdown)
-			grepToolCodemodLog.Print("Applied grep tool removal")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

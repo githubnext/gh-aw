@@ -505,3 +505,9 @@ This analysis is successful when:
 7. ✅ Recommendations are prioritized by impact and effort
 
 **Objective**: Improve type safety and code maintainability by identifying and recommending fixes for duplicated type definitions and untyped usages in the Go codebase.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

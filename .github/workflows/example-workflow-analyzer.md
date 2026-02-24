@@ -51,3 +51,9 @@ Analyze the collected data and provide:
 - **Optimization Opportunities**: Suggestions for improving workflow efficiency
 
 Create a discussion with your findings and actionable recommendations for improving CI/CD reliability and performance.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -225,11 +225,19 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
-	// Use COPILOT_GITHUB_TOKEN
-	// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
-	// that GitHub Actions runtime replaces with the actual secret value. The string "${{ secrets.COPILOT_GITHUB_TOKEN }}"
-	// is a placeholder, not an actual credential.
-	copilotGitHubToken := "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
+	// Actions token directly (${{ github.token }}). Otherwise use the COPILOT_GITHUB_TOKEN secret.
+	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
+	// that the runtime replaces with actual values. The strings "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	// and "${{ github.token }}" are placeholders, not actual credentials.
+	var copilotGitHubToken string
+	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
+	if useCopilotRequests {
+		copilotGitHubToken = "${{ github.token }}"
+		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (copilot-requests feature enabled)")
+	} else {
+		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	}
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -239,6 +247,12 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
 		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
 		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
+	}
+
+	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
+	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
+	if useCopilotRequests {
+		env["S2STOKENS"] = "true"
 	}
 
 	// Always add GH_AW_PROMPT for agentic workflows

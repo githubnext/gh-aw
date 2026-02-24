@@ -256,6 +256,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -286,7 +287,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.414",
+              agent_version: "0.0.415",
               workflow_name: "Draft PR Cleanup",
               experimental: false,
               supports_tools_allowlist: true,
@@ -323,7 +324,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.414
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.415
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.2
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -733,6 +734,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
@@ -1030,7 +1032,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.414
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.415
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -1090,7 +1092,6 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧹 Starting draft PR cleanup... [{workflow_name}]({run_url}) is reviewing draft PRs for staleness\",\"runSuccess\":\"✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts.\",\"runFailure\":\"❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed.\"}"
       GH_AW_WORKFLOW_ID: "draft-pr-cleanup"

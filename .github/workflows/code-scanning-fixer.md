@@ -218,3 +218,9 @@ If any step fails:
 - **Track Progress**: Cache ensures no duplicate work
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

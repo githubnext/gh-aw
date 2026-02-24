@@ -115,3 +115,9 @@ If any tool is missing:
 1. Report which tool(s) are unavailable
 2. Mark overall status as FAIL
 3. Include the error message from the failed version check
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

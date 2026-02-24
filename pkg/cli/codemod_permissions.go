@@ -35,52 +35,42 @@ func getPermissionsReadCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				var modified bool
+				result := make([]string, len(lines))
+				for i, line := range lines {
+					trimmedLine := strings.TrimSpace(line)
 
-			// Find and replace invalid shorthand permissions
-			var modified bool
-			result := make([]string, len(frontmatterLines))
-
-			for i, line := range frontmatterLines {
-				trimmedLine := strings.TrimSpace(line)
-
-				// Check for permissions line with shorthand
-				if strings.HasPrefix(trimmedLine, "permissions:") {
-					// Handle shorthand on same line: "permissions: read" or "permissions: write"
-					if strings.Contains(trimmedLine, ": read") && !strings.Contains(trimmedLine, "read-all") && !strings.Contains(trimmedLine, ": read\n") {
-						// Make sure it's "permissions: read" and not "contents: read"
-						if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
-							result[i] = strings.Replace(line, ": read", ": read-all", 1)
-							modified = true
-							permissionsReadCodemodLog.Printf("Replaced 'permissions: read' with 'permissions: read-all' on line %d", i+1)
-							continue
-						}
-					} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
-						// Make sure it's "permissions: write" and not "contents: write"
-						if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
-							result[i] = strings.Replace(line, ": write", ": write-all", 1)
-							modified = true
-							permissionsReadCodemodLog.Printf("Replaced 'permissions: write' with 'permissions: write-all' on line %d", i+1)
-							continue
+					// Check for permissions line with shorthand
+					if strings.HasPrefix(trimmedLine, "permissions:") {
+						// Handle shorthand on same line: "permissions: read" or "permissions: write"
+						if strings.Contains(trimmedLine, ": read") && !strings.Contains(trimmedLine, "read-all") && !strings.Contains(trimmedLine, ": read\n") {
+							// Make sure it's "permissions: read" and not "contents: read"
+							if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
+								result[i] = strings.Replace(line, ": read", ": read-all", 1)
+								modified = true
+								permissionsReadCodemodLog.Printf("Replaced 'permissions: read' with 'permissions: read-all' on line %d", i+1)
+								continue
+							}
+						} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
+							// Make sure it's "permissions: write" and not "contents: write"
+							if strings.TrimSpace(strings.Split(line, ":")[0]) == "permissions" {
+								result[i] = strings.Replace(line, ": write", ": write-all", 1)
+								modified = true
+								permissionsReadCodemodLog.Printf("Replaced 'permissions: write' with 'permissions: write-all' on line %d", i+1)
+								continue
+							}
 						}
 					}
+
+					result[i] = line
 				}
-
-				result[i] = line
+				return result, modified
+			})
+			if applied {
+				permissionsReadCodemodLog.Print("Applied permissions read/write to read-all/write-all migration")
 			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			permissionsReadCodemodLog.Print("Applied permissions read/write to read-all/write-all migration")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }
@@ -125,81 +115,70 @@ func getWritePermissionsCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				var modified bool
+				var inPermissionsBlock bool
+				var permissionsIndent string
+				result := make([]string, len(lines))
+				for i, line := range lines {
+					trimmedLine := strings.TrimSpace(line)
 
-			// Find and replace write permissions
-			var modified bool
-			var inPermissionsBlock bool
-			var permissionsIndent string
+					// Track if we're in the permissions block
+					if strings.HasPrefix(trimmedLine, "permissions:") {
+						inPermissionsBlock = true
+						permissionsIndent = getIndentation(line)
 
-			result := make([]string, len(frontmatterLines))
+						// Handle shorthand on same line: "permissions: write-all" or "permissions: write"
+						if strings.Contains(trimmedLine, ": write-all") {
+							result[i] = strings.Replace(line, ": write-all", ": read-all", 1)
+							modified = true
+							writePermissionsCodemodLog.Printf("Replaced permissions: write-all with permissions: read-all on line %d", i+1)
+							continue
+						} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
+							result[i] = strings.Replace(line, ": write", ": read", 1)
+							modified = true
+							writePermissionsCodemodLog.Printf("Replaced permissions: write with permissions: read on line %d", i+1)
+							continue
+						}
 
-			for i, line := range frontmatterLines {
-				trimmedLine := strings.TrimSpace(line)
-
-				// Track if we're in the permissions block
-				if strings.HasPrefix(trimmedLine, "permissions:") {
-					inPermissionsBlock = true
-					permissionsIndent = getIndentation(line)
-
-					// Handle shorthand on same line: "permissions: write-all" or "permissions: write"
-					if strings.Contains(trimmedLine, ": write-all") {
-						result[i] = strings.Replace(line, ": write-all", ": read-all", 1)
-						modified = true
-						writePermissionsCodemodLog.Printf("Replaced permissions: write-all with permissions: read-all on line %d", i+1)
-						continue
-					} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
-						result[i] = strings.Replace(line, ": write", ": read", 1)
-						modified = true
-						writePermissionsCodemodLog.Printf("Replaced permissions: write with permissions: read on line %d", i+1)
+						result[i] = line
 						continue
 					}
 
-					result[i] = line
-					continue
-				}
-
-				// Check if we've left the permissions block
-				if inPermissionsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
-					if hasExitedBlock(line, permissionsIndent) {
-						inPermissionsBlock = false
+					// Check if we've left the permissions block
+					if inPermissionsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+						if hasExitedBlock(line, permissionsIndent) {
+							inPermissionsBlock = false
+						}
 					}
-				}
 
-				// Replace write with read if in permissions block
-				if inPermissionsBlock && strings.Contains(trimmedLine, ": write") {
-					// Preserve indentation and everything else
-					// Extract the key, value, and any trailing comment
-					parts := strings.SplitN(line, ":", 2)
-					if len(parts) >= 2 {
-						key := parts[0]
-						valueAndComment := parts[1]
+					// Replace write with read if in permissions block
+					if inPermissionsBlock && strings.Contains(trimmedLine, ": write") {
+						// Preserve indentation and everything else
+						// Extract the key, value, and any trailing comment
+						parts := strings.SplitN(line, ":", 2)
+						if len(parts) >= 2 {
+							key := parts[0]
+							valueAndComment := parts[1]
 
-						// Replace "write" with "read" in the value part
-						newValueAndComment := strings.Replace(valueAndComment, " write", " read", 1)
-						result[i] = fmt.Sprintf("%s:%s", key, newValueAndComment)
-						modified = true
-						writePermissionsCodemodLog.Printf("Replaced write with read on line %d", i+1)
+							// Replace "write" with "read" in the value part
+							newValueAndComment := strings.Replace(valueAndComment, " write", " read", 1)
+							result[i] = fmt.Sprintf("%s:%s", key, newValueAndComment)
+							modified = true
+							writePermissionsCodemodLog.Printf("Replaced write with read on line %d", i+1)
+						} else {
+							result[i] = line
+						}
 					} else {
 						result[i] = line
 					}
-				} else {
-					result[i] = line
 				}
+				return result, modified
+			})
+			if applied {
+				writePermissionsCodemodLog.Print("Applied write permissions to read migration")
 			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			writePermissionsCodemodLog.Print("Applied write permissions to read migration")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

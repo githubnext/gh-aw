@@ -1,6 +1,10 @@
 package cli
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var bashAnonymousCodemodLog = logger.New("cli:codemod_bash_anonymous")
 
@@ -34,22 +38,11 @@ func getBashAnonymousRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
+			newContent, applied, err := applyFrontmatterLineTransform(content, replaceBashAnonymousWithTrue)
+			if applied {
+				bashAnonymousCodemodLog.Print("Applied bash anonymous removal, replaced with 'bash: true'")
 			}
-
-			// Replace the bash field from anonymous to explicit true
-			modifiedLines, modified := replaceBashAnonymousWithTrue(frontmatterLines)
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(modifiedLines, markdown)
-			bashAnonymousCodemodLog.Print("Applied bash anonymous removal, replaced with 'bash: true'")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }
@@ -62,10 +55,7 @@ func replaceBashAnonymousWithTrue(lines []string) ([]string, bool) {
 	var toolsIndent string
 
 	for _, line := range lines {
-		trimmedLine := line
-
-		// Trim to check content but preserve original spacing
-		trimmed := trimLine(trimmedLine)
+		trimmed := strings.TrimSpace(line)
 
 		// Track if we're in the tools block
 		if trimmed == "tools:" {
@@ -76,14 +66,14 @@ func replaceBashAnonymousWithTrue(lines []string) ([]string, bool) {
 		}
 
 		// Check if we've left the tools block
-		if inToolsBlock && len(trimmed) > 0 && !startsWith(trimmed, "#") {
+		if inToolsBlock && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, toolsIndent) {
 				inToolsBlock = false
 			}
 		}
 
 		// Replace bash: with bash: true if in tools block
-		if inToolsBlock && (trimmed == "bash:" || startsWith(trimmed, "bash: ")) {
+		if inToolsBlock && (trimmed == "bash:" || strings.HasPrefix(trimmed, "bash: ")) {
 			// Check if it's just 'bash:' with nothing after the colon
 			if trimmed == "bash:" {
 				indent := getIndentation(line)
@@ -98,22 +88,4 @@ func replaceBashAnonymousWithTrue(lines []string) ([]string, bool) {
 	}
 
 	return result, modified
-}
-
-// Helper function to trim whitespace
-func trimLine(s string) string {
-	start := 0
-	for start < len(s) && (s[start] == ' ' || s[start] == '\t') {
-		start++
-	}
-	end := len(s)
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
-		end--
-	}
-	return s[start:end]
-}
-
-// Helper function to check if string starts with prefix
-func startsWith(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

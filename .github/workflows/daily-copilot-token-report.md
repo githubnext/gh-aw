@@ -722,3 +722,9 @@ Your output MUST:
 8. Use the collapsible details format from the reporting.md import
 
 Begin your analysis now. The logs have been pre-downloaded to `/tmp/gh-aw/copilot-logs.json` - process the data systematically, generate insightful visualizations, and create a comprehensive report that helps optimize Copilot token consumption across all workflows.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

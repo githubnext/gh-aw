@@ -393,3 +393,9 @@ The CI Coach workflow must NEVER alter test code (`*_test.go` files) in ways tha
 ✅ Completed analysis in under 30 minutes
 
 Begin your analysis now. Study the CI configuration, analyze the run data, and identify concrete opportunities to make the test suite more efficient while minimizing costs. If you propose changes to the CI workflow, validate them by running the build, lint, and test commands before creating a pull request. Only create a PR if all validations pass.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

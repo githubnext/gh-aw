@@ -162,3 +162,9 @@ strict: true
 If all tests pass:
 - Use the `add_labels` safe-output tool to add the label `smoke-copilot-arm` to the pull request
 - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -447,3 +447,9 @@ After completing your analysis, provide a brief summary:
 - **Failure**: Cache memory corruption (create new cache)
 
 Good luck! Your work helps maintain a consistent, professional codebase with clear, accurate step names that align with project terminology.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```
