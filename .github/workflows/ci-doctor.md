@@ -51,7 +51,7 @@ tools:
 timeout-minutes: 20
 
 steps:
-  - name: Pre-download CI failure logs and artifacts, apply heuristics
+  - name: Download CI failure logs and artifacts
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RUN_ID: ${{ github.event.workflow_run.id }}

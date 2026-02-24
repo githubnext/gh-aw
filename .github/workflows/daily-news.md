@@ -48,7 +48,7 @@ tools:
 # Pre-download GitHub data in steps to avoid excessive MCP calls
 # Uses repo-memory to persist data across runs and avoid re-fetching
 steps:
-  - name: Setup directories and check cache
+  - name: Setup working directories
     id: check-cache
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

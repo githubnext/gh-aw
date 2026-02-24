@@ -304,7 +304,7 @@ jobs:
           provenance: mode=max
 
 steps:
-  - name: Setup environment and fetch release data
+  - name: Setup release environment
     env:
       RELEASE_ID: ${{ needs.release.outputs.release_id }}
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
