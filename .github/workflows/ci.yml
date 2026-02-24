@@ -1324,6 +1324,8 @@ jobs:
           # Run fuzz tests and capture output
           run_fuzz_test "FuzzParseFrontmatter" "./pkg/parser/"
           run_fuzz_test "FuzzScheduleParser" "./pkg/parser/"
+          run_fuzz_test "FuzzRuntimeImportExpressionValidation" "./pkg/parser/"
+          run_fuzz_test "FuzzRuntimeImportProcessExpressions" "./pkg/parser/"
           run_fuzz_test "FuzzExpressionParser" "./pkg/workflow/"
           run_fuzz_test "FuzzMentionsFiltering" "./pkg/workflow/"
           run_fuzz_test "FuzzSanitizeOutput" "./pkg/workflow/"
@@ -1335,6 +1337,15 @@ jobs:
           run_fuzz_test "FuzzInputValidation" "./pkg/workflow/"
           run_fuzz_test "FuzzNetworkPermissions" "./pkg/workflow/"
           run_fuzz_test "FuzzSafeJobConfig" "./pkg/workflow/"
+          run_fuzz_test "FuzzParseLabelTriggerShorthand" "./pkg/workflow/"
+          run_fuzz_test "FuzzExpandLabelTriggerShorthand" "./pkg/workflow/"
+          run_fuzz_test "FuzzValidateNoTemplateInjection" "./pkg/workflow/"
+          run_fuzz_test "FuzzRemoveHeredocContent" "./pkg/workflow/"
+          run_fuzz_test "FuzzMarkdownCodeRegionBalancer" "./pkg/workflow/"
+          run_fuzz_test "FuzzParseTriggerShorthand" "./pkg/workflow/"
+          run_fuzz_test "FuzzTriggerIRToYAMLMap" "./pkg/workflow/"
+          run_fuzz_test "FuzzParseInputDefinition" "./pkg/workflow/"
+          run_fuzz_test "FuzzParseInputDefinitions" "./pkg/workflow/"
           
           # Copy fuzz corpus data (testdata/fuzz directories)
           echo "Copying fuzz corpus data..."
