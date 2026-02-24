@@ -171,6 +171,9 @@
         "checks": {
           "$ref": "#/definitions/permissions-level"
         },
+        "copilot-requests": {
+          "$ref": "#/definitions/permissions-level"
+        },
         "contents": {
           "$ref": "#/definitions/permissions-level"
         },
