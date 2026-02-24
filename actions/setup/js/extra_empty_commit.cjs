@@ -27,13 +27,21 @@
  * @param {string} options.repoOwner - Repository owner
  * @param {string} options.repoName - Repository name
  * @param {string} [options.commitMessage] - Custom commit message (default: "ci: trigger CI checks")
+ * @param {number} [options.newCommitCount] - Number of new commits being pushed. Only pushes the
+ *   empty commit when exactly 1 new commit was pushed, preventing accidental workflow-file
+ *   modifications on multi-commit branches and reducing loop risk.
  * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
  */
-async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage }) {
+async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount }) {
   const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
 
   if (!token || !token.trim()) {
     core.info("No extra empty commit token configured - skipping");
+    return { success: true, skipped: true };
+  }
+
+  if (newCommitCount !== undefined && newCommitCount !== 1) {
+    core.info(`Skipping extra empty commit: ${newCommitCount} new commit(s) pushed (only triggers for exactly 1 commit)`);
     return { success: true, skipped: true };
   }
 

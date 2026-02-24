@@ -283,6 +283,25 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Generates git patch for the changes
    */
   const pushToPullRequestBranchHandler = args => {
+    // Check if this is a fork PR - fail early with clear error message
+    // GH_AW_IS_FORK_PR is set by checkout_pr_branch.cjs during PR checkout
+    const isForkPR = process.env.GH_AW_IS_FORK_PR === "true";
+    if (isForkPR) {
+      server.debug("Rejecting push_to_pull_request_branch: fork PR detected");
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `${ERR_VALIDATION}: Cannot push to fork PR branches. The push_to_pull_request_branch tool only works for PRs from branches within the same repository. Fork PRs require contributors to push to their own fork.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
     const entry = { ...args, type: "push_to_pull_request_branch" };
     const baseBranch = getBaseBranch();
 
@@ -300,9 +319,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       entry.branch = detectedBranch;
     }
 
-    // Generate git patch
-    server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
-    const patchResult = generateGitPatch(entry.branch);
+    // Generate git patch in incremental mode
+    // Incremental mode only includes commits since origin/branchName,
+    // preventing patches that include already-existing commits
+    server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+    const patchResult = generateGitPatch(entry.branch, { mode: "incremental" });
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty

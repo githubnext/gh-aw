@@ -17,7 +17,12 @@ import { spawn } from "child_process";
     fs.writeFileSync(toolsJsonPath, toolsJsonContent);
   }),
     afterEach(() => {
-      ((process.env = originalEnv), fs.existsSync(tempConfigFile) && fs.unlinkSync(tempConfigFile), fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
+      (Object.keys(process.env).forEach(k => {
+        if (!(k in originalEnv)) delete process.env[k];
+      }),
+        Object.assign(process.env, originalEnv),
+        fs.existsSync(tempConfigFile) && fs.unlinkSync(tempConfigFile),
+        fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
     }),
     it("should use default output file when GH_AW_SAFE_OUTPUTS is not set", async () => {
       (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/opt/gh-aw/safeoutputs") || fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }));

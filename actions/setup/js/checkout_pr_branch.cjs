@@ -112,6 +112,11 @@ async function main() {
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
 
+    // Export fork status as environment variable for downstream jobs/steps
+    // This allows safe output collectors to reject fork PRs early
+    core.exportVariable("GH_AW_IS_FORK_PR", isFork ? "true" : "false");
+    core.info(`Exported GH_AW_IS_FORK_PR=${isFork ? "true" : "false"}`);
+
     if (eventName === "pull_request") {
       // For pull_request events, we run in the merge commit context
       // The PR branch is already available, so we can use direct git commands

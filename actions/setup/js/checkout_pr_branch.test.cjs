@@ -15,6 +15,7 @@ describe("checkout_pr_branch.cjs", () => {
       setOutput: vi.fn(),
       startGroup: vi.fn(),
       endGroup: vi.fn(),
+      exportVariable: vi.fn(),
       summary: {
         addRaw: vi.fn().mockReturnThis(),
         write: vi.fn().mockResolvedValue(undefined),
@@ -488,6 +489,29 @@ If the pull request is still open, verify that:
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Head repo information not available (repo may be deleted)");
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head repository deleted (was likely a fork))");
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
+    });
+
+    it("should export GH_AW_IS_FORK_PR=true for fork PRs", async () => {
+      mockContext.eventName = "pull_request_target";
+      mockContext.payload.pull_request.head.repo.full_name = "fork-owner/test-repo";
+
+      await runScript();
+
+      // Verify environment variable is exported
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_IS_FORK_PR", "true");
+      expect(mockCore.info).toHaveBeenCalledWith("Exported GH_AW_IS_FORK_PR=true");
+    });
+
+    it("should export GH_AW_IS_FORK_PR=false for same-repo PRs", async () => {
+      mockContext.eventName = "pull_request";
+      mockContext.payload.pull_request.head.repo.full_name = "test-owner/test-repo";
+      mockContext.payload.pull_request.head.repo.fork = false;
+
+      await runScript();
+
+      // Verify environment variable is exported
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_IS_FORK_PR", "false");
+      expect(mockCore.info).toHaveBeenCalledWith("Exported GH_AW_IS_FORK_PR=false");
     });
 
     it("should log detailed PR context with startGroup/endGroup", async () => {

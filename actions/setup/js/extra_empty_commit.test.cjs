@@ -322,6 +322,78 @@ describe("extra_empty_commit.cjs", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // newCommitCount restriction
+  // ──────────────────────────────────────────────────────
+
+  describe("newCommitCount restriction", () => {
+    beforeEach(() => {
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
+      // No empty commits in log (so cycle prevention doesn't interfere)
+      mockGitLogOutput("COMMIT:abc123\nfile.txt\n");
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+    });
+
+    it("should proceed when newCommitCount is exactly 1", async () => {
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+        newCommitCount: 1,
+      });
+
+      expect(result).toEqual({ success: true });
+      // Should have committed and pushed
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+    });
+
+    it("should skip when newCommitCount is 0", async () => {
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+        newCommitCount: 0,
+      });
+
+      expect(result).toEqual({ success: true, skipped: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("0 new commit(s)"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("only triggers for exactly 1 commit"));
+      // Should NOT have committed
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeUndefined();
+    });
+
+    it("should skip when newCommitCount is 2", async () => {
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+        newCommitCount: 2,
+      });
+
+      expect(result).toEqual({ success: true, skipped: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("2 new commit(s)"));
+      // Should NOT have committed
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeUndefined();
+    });
+
+    it("should proceed when newCommitCount is not provided (backward compatibility)", async () => {
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+        // newCommitCount omitted
+      });
+
+      expect(result).toEqual({ success: true });
+      // Should have committed (no restriction when parameter is absent)
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Error handling
   // ──────────────────────────────────────────────────────
 

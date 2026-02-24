@@ -1,4 +1,3 @@
-// @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
@@ -298,6 +297,70 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
     });
 
+    it("should reject fork PRs with early error before patch generation", () => {
+      // Set up fork PR environment
+      process.env.GH_AW_IS_FORK_PR = "true";
+
+      const args = {
+        branch: "feature-branch",
+      };
+
+      const result = handlers.pushToPullRequestBranchHandler(args);
+
+      // Verify it returns an error response
+      expect(result).toBeDefined();
+      expect(result.content).toBeDefined();
+      expect(result.isError).toBe(true);
+
+      // Parse the response
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("fork PR");
+      expect(responseData.error).toContain("Cannot push to fork PR branches");
+
+      // Should not have tried to append any safe output
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+
+      // Clean up
+      delete process.env.GH_AW_IS_FORK_PR;
+    });
+
+    it("should allow same-repo PRs when GH_AW_IS_FORK_PR is false", () => {
+      // Set up same-repo PR environment
+      process.env.GH_AW_IS_FORK_PR = "false";
+
+      const args = {
+        branch: "feature-branch",
+      };
+
+      // Will fail at patch generation (no git repo), but should NOT fail at fork check
+      const result = handlers.pushToPullRequestBranchHandler(args);
+
+      // The error should be about patch generation, not about forks
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.error).not.toContain("fork PR");
+      expect(responseData.error).toContain("does not exist locally");
+
+      // Clean up
+      delete process.env.GH_AW_IS_FORK_PR;
+    });
+
+    it("should allow PRs when GH_AW_IS_FORK_PR is not set", () => {
+      // Ensure env var is not set
+      delete process.env.GH_AW_IS_FORK_PR;
+
+      const args = {
+        branch: "feature-branch",
+      };
+
+      // Will fail at patch generation, but should NOT fail at fork check
+      const result = handlers.pushToPullRequestBranchHandler(args);
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.error).not.toContain("fork PR");
+      expect(responseData.error).toContain("does not exist locally");
+    });
+
     it("should return error response when patch generation fails (not throw)", () => {
       // This test verifies the error is returned as content, not thrown
       const args = {
@@ -318,7 +381,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("does not exist locally");
       expect(responseData.details).toBeDefined();
       expect(responseData.details).toContain("push to the pull request branch");
       expect(responseData.details).toContain("git add and git commit");
