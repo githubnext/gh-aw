@@ -191,13 +191,13 @@ A typical compiled workflow contains these post-agent jobs:
 
 ```mermaid
 flowchart TD
-    activation["activation\nubuntu-slim\ncontents: read"] --> agent["agent\nubuntu-latest\nREAD-ONLY permissions\nconcurrency group"]
-    agent --> detection["detection\nubuntu-latest\ncontents: read\nconcurrency group\nRUNS AI ENGINE"]
-    agent --> conclusion["conclusion\nubuntu-slim\nissues: write\npr: write"]
-    detection --> safe_outputs["safe_outputs\nubuntu-slim\ncontents: write\nissues: write\npr: write"]
+    activation["activation<br/>ubuntu-slim<br/>contents: read"] --> agent["agent<br/>ubuntu-latest<br/>READ-ONLY permissions<br/>concurrency group"]
+    agent --> detection["detection<br/>ubuntu-latest<br/>contents: read<br/>concurrency group<br/>RUNS AI ENGINE"]
+    agent --> conclusion["conclusion<br/>ubuntu-slim<br/>issues: write<br/>pr: write"]
+    detection --> safe_outputs["safe_outputs<br/>ubuntu-slim<br/>contents: write<br/>issues: write<br/>pr: write"]
     detection --> conclusion
     safe_outputs --> conclusion
-    detection --> update_cache_memory["update_cache_memory\nubuntu-latest\ncontents: read"]
+    detection --> update_cache_memory["update_cache_memory<br/>ubuntu-latest<br/>contents: read"]
     update_cache_memory --> conclusion
     activation --> safe_outputs
     activation --> conclusion
