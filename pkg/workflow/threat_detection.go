@@ -129,6 +129,15 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		permissions = NewPermissionsEmpty().RenderToYAML()
 	}
 
+	// When the copilot-requests feature is enabled, inject copilot-requests: write permission.
+	// This is required so the GitHub Actions token has the necessary scope to authenticate
+	// with the Copilot API in the detection job (mirrors the agent job logic in tools.go).
+	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data) {
+		perms := NewPermissionsParser(permissions).ToPermissions()
+		perms.Set(PermissionCopilotRequests, PermissionWrite)
+		permissions = perms.RenderToYAML()
+	}
+
 	// Generate agent concurrency configuration (same as main agent job)
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 

@@ -154,8 +154,10 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	data.ParsedTools = NewTools(data.Tools)
 
 	// Check if permissions is explicitly empty ({}) - this means user wants no permissions
-	// In this case, we should NOT apply default read-all
-	if data.Permissions == "permissions: {}" {
+	// In this case, we should NOT apply default read-all.
+	// Exception: if copilot-requests feature is enabled, we still need to fall through
+	// so the injection block below can add copilot-requests: write.
+	if data.Permissions == "permissions: {}" && !isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data) {
 		// Explicitly empty permissions - preserve the empty state
 		// The agent job in dev mode will add contents: read if needed for local actions
 		return nil
