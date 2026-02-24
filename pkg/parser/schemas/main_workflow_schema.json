@@ -1396,12 +1396,12 @@
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",
                   "enum": ["all"],
-                  "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+                  "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -2186,7 +2186,7 @@
     },
     "network": {
       "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain standalone wildcard '*' in allowed domains (but patterns like '*.example.com' ARE allowed). This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' — 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Supports wildcard patterns like '*.example.com' to match any subdomain. Controls web fetch and search capabilities. IMPORTANT: For workflows that build/install/test code, always include the language ecosystem identifier alongside 'defaults' \u2014 'defaults' alone only covers basic infrastructure, not package registries. Key ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (Bundler), 'rust' (Cargo), 'swift' (Swift PM). Example: a .NET project needs network: { allowed: [defaults, dotnet] }.",
       "examples": [
         "defaults",
         {
@@ -2574,7 +2574,7 @@
       ]
     },
     "plugins": {
-      "description": "⚠️  EXPERIMENTAL: Plugin configuration for installing plugins before workflow execution. Supports array format (list of repos/plugin configs) and object format (repos + custom token). Note: Plugin support is experimental and may change in future releases.",
+      "description": "\u26a0\ufe0f  EXPERIMENTAL: Plugin configuration for installing plugins before workflow execution. Supports array format (list of repos/plugin configs) and object format (repos + custom token). Note: Plugin support is experimental and may change in future releases.",
       "examples": [
         ["github/copilot-plugin", "acme/custom-tools"],
         [
@@ -2771,7 +2771,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -5361,7 +5361,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only — threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
               "properties": {
                 "max": {
                   "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -6795,8 +6795,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -6810,18 +6810,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "agent-failure-issue": {
               "type": "string",
@@ -7272,6 +7272,22 @@
         }
       },
       "additionalProperties": false
+    },
+    "checkout": {
+      "description": "Checkout configuration for the agent job. Controls how actions/checkout is invoked. Can be a single checkout configuration or an array for multiple checkouts.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/checkoutConfig",
+          "description": "Single checkout configuration for the default workspace"
+        },
+        {
+          "type": "array",
+          "description": "Multiple checkout configurations",
+          "items": {
+            "$ref": "#/$defs/checkoutConfig"
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -7792,6 +7808,60 @@
           "required": ["run"]
         }
       ]
+    },
+    "checkoutConfig": {
+      "type": "object",
+      "description": "Configuration for a single actions/checkout step",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "type": "string",
+          "description": "Repository to checkout in owner/repo format. Defaults to the current repository.",
+          "examples": ["owner/repo", "github/gh-aw"]
+        },
+        "ref": {
+          "type": "string",
+          "description": "Branch, tag, or SHA to checkout. Defaults to the ref that triggered the workflow.",
+          "examples": ["main", "v1.0.0", "feature/my-branch"]
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path within GITHUB_WORKSPACE to place the checkout. Defaults to the workspace root.",
+          "examples": [".", "./libs/other-repo", "./workspace"]
+        },
+        "token": {
+          "type": "string",
+          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Credentials are always removed after checkout (persist-credentials: false is enforced).",
+          "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.GITHUB_TOKEN }}"]
+        },
+        "fetch-depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of commits to fetch. 0 fetches all history. 1 (default) is a shallow clone. When multiple configs target the same path, the deepest value is used.",
+          "examples": [0, 1, 10]
+        },
+        "sparse-checkout": {
+          "type": "string",
+          "description": "Enable sparse-checkout with newline-separated patterns. When multiple configs target the same path, patterns are merged.",
+          "examples": [".github/\nsrc/", "docs/"]
+        },
+        "submodules": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["recursive", "true", "false"]
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "description": "Controls submodule checkout. Use \"recursive\" for all submodules, \"true\" for immediate submodules, or \"false\" to skip."
+        },
+        "lfs": {
+          "type": "boolean",
+          "description": "Whether to download Git LFS objects. Defaults to false."
+        }
+      }
     }
   }
 }

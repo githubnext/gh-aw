@@ -462,6 +462,7 @@ type WorkflowData struct {
 	ActionMode            ActionMode           // action mode for workflow compilation (dev, release, script)
 	HasExplicitGitHubTool bool                 // true if tools.github was explicitly configured in frontmatter
 	InlinedImports        bool                 // if true, inline all imports at compile time (from inlined-imports frontmatter field)
+	CheckoutConfigs       []*CheckoutConfig    // user-configured checkout settings from frontmatter
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types

@@ -15,24 +15,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)
 
+	// Build a CheckoutManager with any user-configured checkouts
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+
 	// Add checkout step first if needed
 	if needsCheckout {
-		yaml.WriteString("      - name: Checkout repository\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
-		// Always add with section for persist-credentials
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          persist-credentials: false\n")
-		// In trial mode without cloning, checkout the logical repo if specified
-		if c.trialMode {
-			if c.trialLogicalRepoSlug != "" {
-				fmt.Fprintf(yaml, "          repository: %s\n", c.trialLogicalRepoSlug)
-				// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
-				// if len(trialTargetRepoName) == 2 {
-				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-				// }
-			}
-			effectiveToken := getEffectiveGitHubToken("")
-			fmt.Fprintf(yaml, "          token: %s\n", effectiveToken)
+		// Emit the default workspace checkout, applying any user-supplied overrides
+		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
+			c.trialMode,
+			c.trialLogicalRepoSlug,
+			GetActionPin,
+		)
+		for _, line := range defaultLines {
+			yaml.WriteString(line)
 		}
 
 		// Add CLI build steps in dev mode (after automatic checkout, before other steps)
@@ -46,6 +41,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				compilerYamlLog.Printf("Skipping CLI build steps in dev mode (agentic-workflows tool not enabled)")
 			}
 		}
+	}
+
+	// Emit additional (non-default) user-configured checkouts
+	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(GetActionPin)
+	for _, line := range additionalLines {
+		yaml.WriteString(line)
 	}
 
 	// Add checkout steps for repository imports

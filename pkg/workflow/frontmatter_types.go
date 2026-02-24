@@ -164,6 +164,12 @@ type FrontmatterConfig struct {
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
+
+	// Checkout configuration for the agent job.
+	// Controls how actions/checkout is invoked.
+	// Can be a single CheckoutConfig object or an array of CheckoutConfig objects.
+	Checkout        any               `json:"checkout,omitempty"` // Raw value (object or array)
+	CheckoutConfigs []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 }
 
 // unmarshalFromMap converts a value from a map[string]any to a destination variable
@@ -254,6 +260,15 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 			if len(repos) > 0 {
 				frontmatterTypesLog.Printf("Parsed plugins config: %d repos, custom_token=%v", len(repos), token != "")
 			}
+		}
+	}
+
+	// Parse checkout field - supports single object or array of objects
+	if config.Checkout != nil {
+		checkoutConfigs, err := ParseCheckoutConfigs(config.Checkout)
+		if err == nil {
+			config.CheckoutConfigs = checkoutConfigs
+			frontmatterTypesLog.Printf("Parsed checkout config: %d entries", len(checkoutConfigs))
 		}
 	}
 
