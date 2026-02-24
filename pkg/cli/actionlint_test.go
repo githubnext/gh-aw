@@ -3,32 +3,12 @@
 package cli
 
 import (
-	"bytes"
-	"os"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// captureStderr runs fn and returns what was written to stderr.
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-	r, w, err := os.Pipe()
-	require.NoError(t, err, "should create pipe for stderr capture")
-
-	origStderr := os.Stderr
-	os.Stderr = w
-	t.Cleanup(func() { os.Stderr = origStderr })
-
-	fn()
-
-	w.Close()
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(r)
-	require.NoError(t, err, "should read stderr output")
-	return buf.String()
-}
 
 func TestParseAndDisplayActionlintOutput(t *testing.T) {
 	tests := []struct {
@@ -117,7 +97,7 @@ func TestParseAndDisplayActionlintOutput(t *testing.T) {
 			var kinds map[string]int
 			var err error
 
-			output := captureStderr(t, func() {
+			output := testutil.CaptureStderr(t, func() {
 				count, kinds, err = parseAndDisplayActionlintOutput(tt.stdout, tt.verbose)
 			})
 
@@ -221,7 +201,7 @@ func TestDisplayActionlintSummary(t *testing.T) {
 			defer func() { actionlintStats = originalStats }()
 			actionlintStats = tt.stats
 
-			output := captureStderr(t, displayActionlintSummary)
+			output := testutil.CaptureStderr(t, displayActionlintSummary)
 
 			for _, expected := range tt.expectedContains {
 				assert.Contains(t, output, expected,
