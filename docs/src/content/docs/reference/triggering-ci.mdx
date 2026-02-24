@@ -11,6 +11,13 @@ By default, pull requests created using the default `GITHUB_TOKEN` in GitHub Act
 
 This applies to both [`create-pull-request`](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) and [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs/#push-to-pr-branch-push-to-pull-request-branch) safe outputs.
 
+> [!NOTE]
+> The easiest way to fix this problem is to set a secret `GH_AW_CI_TRIGGER_TOKEN` with a Personal Access Token (PAT) with 'Contents: Read & Write' permission to your repo.
+>
+> ```bash wrap
+> gh aw secrets set GH_AW_CI_TRIGGER_TOKEN --value "<your-pat-token>"
+> ```
+
 <Video
   src="/gh-aw/videos/create-ci-trigger-token.mp4"
   caption="Creating a CI trigger token for agentic workflows"
@@ -18,11 +25,11 @@ This applies to both [`create-pull-request`](/gh-aw/reference/safe-outputs/#pull
   thumbnail="/gh-aw/videos/create-ci-trigger-token.png"
 />
 
-## Solution: Authorize triggering CI on PRs created by workflows
+## Authorizing Triggering CI on PRs Created by Agentic Workflows
 
 To trigger CI checks on PRs created by agentic workflows, configure additional authentication for the PR creation safe outputs.
 
-**Using a Personal Access Token (PAT)**:
+### Using a Personal Access Token (PAT)
 
 1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with `Contents: Read & Write` scoped to the relevant repositories where pull requests will be created.
 
@@ -50,7 +57,7 @@ To trigger CI checks on PRs created by agentic workflows, configure additional a
 
 When configured, the token will be used to push an extra empty commit to the PR branch after PR creation. This will trigger `push` and `pull_request` events normally.
 
-**Using a GitHub App**:
+### Using a GitHub App
 
 You can also use `app` to authenticate via [the GitHub App configured for the workflow](/gh-aw/reference/auth/).
 
@@ -60,9 +67,13 @@ safe-outputs:
     github-token-for-extra-empty-commit: app
 ```
 
-**Using a magic secret**:
+### Using a magic secret
 
 Alternatively, you can set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+
+```bash wrap
+gh aw secrets set MY_CI_TRIGGER_PAT --value "<your-pat-token>"
+```
 
 ## Alternative: Full Token Override
 

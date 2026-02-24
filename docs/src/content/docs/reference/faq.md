@@ -303,7 +303,9 @@ See [Pull Request Creation](/gh-aw/reference/safe-outputs/#pull-request-creation
 
 This is expected GitHub Actions security behavior. Pull requests created using the default `GITHUB_TOKEN` or by the GitHub Actions bot user **do not trigger workflow runs** on `pull_request`, `pull_request_target`, or `push` events. This is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) designed to prevent accidental recursive workflow execution.
 
-See [Triggering CI](/gh-aw/reference/triggering-ci/) for details on how to configure workflows to run CI checks on PRs created by agentic workflows.
+The easy way to fix this problem is to set a secret `GH_AW_CI_TRIGGER_TOKEN` with a Personal Access Token (PAT) with 'Contents: Read & Write' permission to your repo.
+
+See [Triggering CI](/gh-aw/reference/triggering-ci/) for more details on how to configure workflows to run CI checks on PRs created by agentic workflows.
 
 ## Workflow Design
 
