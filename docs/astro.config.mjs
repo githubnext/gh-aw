@@ -7,29 +7,7 @@ import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightBlog from 'starlight-blog';
 import mermaid from 'astro-mermaid';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, writeFileSync } from 'node:fs';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
-
-const LLMS_TXT_FOOTER = `
-
-## Quick Links for Agents
-
-- Create a new workflow: https://raw.githubusercontent.com/github/gh-aw/main/create.md
-- Install gh-aw: https://raw.githubusercontent.com/github/gh-aw/main/install.md
-- Reference: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
-`;
-
-/** @type {import('astro').AstroIntegration} */
-const llmsTxtFooter = {
-	name: 'llms-txt-footer',
-	hooks: {
-		'astro:build:done': ({ dir }) => {
-			const llmsTxtPath = new URL('llms.txt', dir);
-			const content = readFileSync(llmsTxtPath, 'utf-8');
-			writeFileSync(llmsTxtPath, content.trimEnd() + LLMS_TXT_FOOTER);
-		},
-	},
-};
 
 /**
  * Creates blog authors config with GitHub profile pictures
@@ -280,6 +258,5 @@ export default defineConfig({
 				{ label: 'Editors', link: '/reference/editors/' },
 			],
 		}),
-		llmsTxtFooter,
 	],
 });
