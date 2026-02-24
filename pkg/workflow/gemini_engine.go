@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -111,6 +112,7 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		config.Secrets,
 		config.Name,
 		config.DocsURL,
+		getEngineEnvOverrides(workflowData),
 	)
 	steps = append(steps, secretValidation)
 
@@ -276,6 +278,20 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if modelConfigured {
 		geminiLog.Printf("Setting %s env var for model: %s", constants.GeminiCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.GeminiCLIModelEnvVar] = workflowData.EngineConfig.Model
+	}
+
+	// Add custom environment variables from engine config.
+	// This allows users to override the default engine token expression (e.g.
+	// GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}) via engine.env.
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		maps.Copy(env, workflowData.EngineConfig.Env)
+	}
+
+	// Add custom environment variables from agent config
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Env) > 0 {
+		maps.Copy(env, agentConfig.Env)
+		geminiLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
 	// Generate the execution step

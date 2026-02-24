@@ -63,6 +63,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 			config.Secrets,
 			config.Name,
 			config.DocsURL,
+			getEngineEnvOverrides(workflowData),
 		)
 		steps = append(steps, secretValidation)
 	} else {
