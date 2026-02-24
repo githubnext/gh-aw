@@ -16,7 +16,7 @@ This guide walks you through upgrading your agentic workflows to the latest vers
 
 The upgrade process updates three key areas:
 
-1. **Agent and prompt files** - GitHub Copilot instructions, dispatcher agent, and workflow creation prompts
+1. **Dispatcher agent file** - Updates `.github/agents/agentic-workflows.agent.md` to the latest template
 2. **Workflow syntax** - Automatically migrates deprecated fields and applies the latest configuration patterns
 3. **Workflow compilation** - Automatically compiles all workflows to generate up-to-date `.lock.yml` files
 
@@ -67,17 +67,13 @@ gh aw upgrade
 
 This command performs three main operations:
 
-### 3.1 Updates Agent and Prompt Files
+### 3.1 Updates Dispatcher Agent File
 
-The upgrade updates these files to the latest templates (similar to running `gh aw init`):
+The upgrade updates the dispatcher agent file to the latest template (similar to running `gh aw init`):
 
-- `.github/aw/github-agentic-workflows.md` - GitHub Copilot custom instructions
 - `.github/agents/agentic-workflows.agent.md` - Dispatcher agent for routing tasks
-- `.github/aw/create-agentic-workflow.md` - Prompt for creating new workflows
-- `.github/aw/update-agentic-workflow.md` - Prompt for updating existing workflows
-- `.github/aw/create-shared-agentic-workflow.md` - Prompt for shared workflows
-- `.github/aw/debug-agentic-workflow.md` - Prompt for debugging workflows
-- `.github/aw/upgrade-agentic-workflows.md` - Prompt for upgrade guidance
+
+Workflow prompt files (`.github/aw/*.md`) are no longer managed by the CLI. They live in the gh-aw repository and are resolved directly from GitHub by the agent.
 
 ### 3.2 Applies Codemods to All Workflows
 
@@ -99,8 +95,8 @@ The upgrade automatically compiles all workflows to generate or update `.lock.ym
 **Example output:**
 
 ```text
-Updating agent and prompt files...
-✓ Updated agent and prompt files
+Updating agent file...
+✓ Updated agent file
 Applying codemods to all workflows...
 Processing workflow: daily-team-status
   ✓ Applied schedule-at-to-around-migration
@@ -165,7 +161,7 @@ Test workflows locally with `gh aw status` and `gh aw compile my-workflow --vali
 Stage and commit your changes:
 
 ```bash wrap
-git add .github/workflows/ .github/aw/ .github/agents/
+git add .github/workflows/ .github/agents/
 git commit -m "Upgrade agentic workflows to latest version"
 git push origin main
 ```

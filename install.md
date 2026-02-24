@@ -43,9 +43,7 @@ gh aw init
 **What this does**:
 
 - Configures `.gitattributes` to mark `.lock.yml` files as generated
-- Creates `.github/aw/github-agentic-workflows.md` with comprehensive documentation
-- Creates `.github/agents/agentic-workflows.agent.md` as an AI assistant for workflows
-- Creates workflow management prompts in `.github/aw/` directory
+- Creates `.github/agents/agentic-workflows.agent.md` as the dispatcher agent for AI workflows
 - Configures VSCode settings in `.vscode/settings.json`
 - Creates GH-AW MCP server configuration in `.vscode/mcp.json`
 - Creates `.github/workflows/copilot-setup-steps.yml` with setup instructions
@@ -63,7 +61,6 @@ git status
 You should see new/modified files including:
 
 - `.gitattributes`
-- `.github/aw/github-agentic-workflows.md`
 - `.github/agents/agentic-workflows.agent.md`
 - `.vscode/settings.json`
 - `.vscode/mcp.json`
@@ -105,7 +102,7 @@ After successful initialization, the user can:
 - **Add workflows from repos**: `gh aw add githubnext/agentics`
 - **Create new workflows**: `gh aw new <workflow-name>` os using the agent
 - **Use the AI agent**: Type `/agent` in GitHub Copilot Chat and select `agentic-workflows`
-- **Read documentation**: View `.github/aw/github-agentic-workflows.md`
+- **Read documentation**: Visit `https://github.github.com/gh-aw/`
 
 ## Reference
 

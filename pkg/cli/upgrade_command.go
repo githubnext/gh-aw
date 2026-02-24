@@ -40,7 +40,7 @@ func NewUpgradeCommand() *cobra.Command {
 		Long: `Upgrade the repository for the latest version of agentic workflows.
 
 This command:
-  1. Updates all agent and prompt files to the latest templates (like 'init' command)
+  1. Updates the dispatcher agent file to the latest template (like 'init' command)
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
   4. Compiles all workflows to generate lock files (like 'compile' command)
@@ -56,7 +56,6 @@ The --audit flag skips the normal upgrade process.
 
 The upgrade process ensures:
 - Dispatcher agent is current (.github/agents/agentic-workflows.agent.md)
-- All workflow prompts exist in .github/aw/ (create, update, debug, upgrade)
 - All workflows use the latest syntax and configuration options
 - Deprecated fields are automatically migrated across all workflows
 - GitHub Actions are pinned to the latest versions
@@ -148,17 +147,17 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		return err
 	}
 
-	// Step 1: Update all agent and prompt files (like init command)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent and prompt files..."))
-	upgradeLog.Print("Updating agent and prompt files")
+	// Step 1: Update dispatcher agent file (like init command)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent file..."))
+	upgradeLog.Print("Updating agent file")
 
 	if err := updateAgentFiles(verbose); err != nil {
-		upgradeLog.Printf("Failed to update agent files: %v", err)
-		return fmt.Errorf("failed to update agent files: %w", err)
+		upgradeLog.Printf("Failed to update agent file: %v", err)
+		return fmt.Errorf("failed to update agent file: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent and prompt files"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent file"))
 	}
 
 	// Step 2: Apply codemods to all workflows (unless --no-fix is specified)
@@ -299,7 +298,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	return nil
 }
 
-// updateAgentFiles updates all agent and prompt files to the latest templates
+// updateAgentFiles updates the dispatcher agent file to the latest template
 func updateAgentFiles(verbose bool) error {
 	// Update dispatcher agent
 	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {

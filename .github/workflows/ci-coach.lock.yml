@@ -30,7 +30,7 @@
 #     - shared/ci-data-analysis.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"29b3fce5427256f61967b1138f36911eae577db5804ba97f87c1e07966db2795"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3d5d109be25bb6188f919e0a57957ab8ca5f10c6d55ba0c045158717ca033164"}
 
 name: "CI Optimization Coach"
 "on":
@@ -313,7 +313,7 @@ jobs:
         run: make build
       - env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Rebuild lock files
+        name: Recompile workflows
         run: make recompile
       - continue-on-error: true
         name: Run unit tests

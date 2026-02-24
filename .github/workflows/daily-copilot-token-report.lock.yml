@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"80c0f8732124f20258ad23e0c7d3abcaa105de5012234a39336f17b9474a3484"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a7dc2698575308e6e437b620414a6b235cf036401e21b737562a923dc385bcb6"}
 
 name: "Daily Copilot Token Consumption Report"
 "on":
@@ -317,7 +317,7 @@ jobs:
       - name: Install Python scientific libraries
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
-        name: Upload generated charts
+        name: Upload charts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn

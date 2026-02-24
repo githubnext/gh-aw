@@ -15,7 +15,7 @@ func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize repository for agentic workflows",
-		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating GitHub Copilot instruction files.
+		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher agent file.
 
 Interactive Mode (default):
   gh aw init
@@ -29,7 +29,6 @@ Interactive Mode (default):
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates the dispatcher agent at .github/agents/agentic-workflows.agent.md
-- Verifies workflow prompt files exist in .github/aw/ (create-agentic-workflow.md, update-agentic-workflow.md, etc.)
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
 - Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use expires field for discussions or issues

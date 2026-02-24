@@ -28,7 +28,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2d17167c0692c3b90ebd455198d84724bc0b6dbe9d5b05b1f5072948ef893117"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"58f21d0c94b655d86e891f0c3cb2d788fb5497bb379b3652f1c75cfac89261bc"}
 
 name: "GitHub MCP Structural Analysis"
 "on":
@@ -279,7 +279,7 @@ jobs:
       - name: Install Python scientific libraries
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
-        name: Upload generated charts
+        name: Upload charts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn

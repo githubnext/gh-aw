@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2093093330961528c7a428449d17d960ede3238c3029308021c5b6d9fe04047c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"97b80db74305ae7fd8cdf3defc0a6536b1b594b5768b64771ac5288324e89f91"}
 
 name: "Daily Code Metrics and Trend Tracking Agent"
 "on":
@@ -290,7 +290,7 @@ jobs:
       - name: Install Python scientific libraries
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
-        name: Upload generated charts
+        name: Upload charts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           if-no-files-found: warn
