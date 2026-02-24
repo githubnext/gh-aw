@@ -23,6 +23,7 @@ tools:
   bash:
     - "date"
     - "echo *"
+    - "printf *"
 safe-outputs:
   create-pull-request:
     title-prefix: "[smoke-multi-pr] "
@@ -64,19 +65,19 @@ Create exactly TWO pull requests with distinct changes:
    - Title: "PR 1: Documentation smoke test"
    - Body: "First of two PRs created by smoke-multi-pr workflow run ${{ github.run_id }}."
 
-### PR 2: Configuration Update
+### PR 2: CRLF Line Endings Test
 
-1. Create a separate new branch off main `smoke-multi-pr-config-${{ github.run_id }}-2` for the second PR
-2. Create a file `tmp-smoke-multi-pr-config-${{ github.run_id }}-2.txt` with content:
+This PR specifically tests that the `create_pull_request` safe output correctly handles files with CRLF (Windows-style) line endings.
+
+1. Create a separate new branch off main `smoke-multi-pr-crlf-${{ github.run_id }}-2` for the second PR
+2. Create a file `tmp-smoke-multi-pr-crlf-${{ github.run_id }}-2.txt` with **CRLF line endings** using `printf`:
+   ```bash
+   printf "CRLF smoke test for multi-PR workflow\r\nRun ID: ${{ github.run_id }}\r\nCreated at: $(date)\r\nPR: 2 of 2\r\nLine ending: CRLF (Windows-style \\r\\n)\r\n" > tmp-smoke-multi-pr-crlf-${{ github.run_id }}-2.txt
    ```
-   Configuration smoke test for multi-PR workflow
-   Run ID: ${{ github.run_id }}
-   Created at: [current timestamp using date command]
-   PR: 2 of 2
-   ```
+   Verify the file has CRLF endings by running `cat -A tmp-smoke-multi-pr-crlf-${{ github.run_id }}-2.txt` — each line should end with `^M$`.
 3. Create a pull request with:
-   - Title: "PR 2: Configuration smoke test"
-   - Body: "Second of two PRs created by smoke-multi-pr workflow run ${{ github.run_id }}."
+   - Title: "PR 2: CRLF line endings smoke test"
+   - Body: "Second of two PRs created by smoke-multi-pr workflow run ${{ github.run_id }}. This PR tests that patch application works correctly with CRLF line endings."
 
 ## Success Criteria
 
@@ -84,3 +85,4 @@ Both PRs must be created successfully. After creating both PRs, add a comment to
 - The two PR numbers created
 - Links to both PRs
 - Confirmation that multi-PR creation is working
+- Confirmation that CRLF line endings were handled correctly (PR 2)
