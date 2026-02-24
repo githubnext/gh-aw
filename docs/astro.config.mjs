@@ -189,6 +189,7 @@ export default defineConfig({
 				{
 					label: 'Design Patterns',
 					items: [
+						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
 						{ label: 'DataOps', link: '/patterns/data-ops/' },
