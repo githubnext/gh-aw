@@ -148,7 +148,7 @@ This workflow tests the safe_outputs job generation.
 	// Verify job has conditional execution with detection
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.detection.outputs.success == 'true'",
+		"needs.agent.outputs.detection_success == 'true'",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
@@ -236,7 +236,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	// Verify step has conditional execution with detection
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.detection.outputs.success == 'true'",
+		"needs.agent.outputs.detection_success == 'true'",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
@@ -320,7 +320,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	// Verify job has conditional execution with detection
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.detection.outputs.success == 'true'",
+		"needs.agent.outputs.detection_success == 'true'",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {

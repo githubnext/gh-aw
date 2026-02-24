@@ -138,10 +138,10 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			assert.NotEmpty(t, job.Steps)
 			assert.NotEmpty(t, job.Env)
 
-			// Check job dependencies
+			// Check job dependencies — detection is inline in agent, no separate dependency
 			assert.Contains(t, job.Needs, string(constants.AgentJobName))
 			if tt.threatDetection {
-				assert.Contains(t, job.Needs, string(constants.DetectionJobName))
+				assert.NotContains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs should not depend on detection (detection is inline in agent)")
 			}
 
 			// Check permissions if specified
@@ -308,9 +308,9 @@ func TestBuildDetectionSuccessCondition(t *testing.T) {
 
 	rendered := condition.Render()
 
-	// Should check that detection job output 'success' equals 'true'
-	assert.Contains(t, rendered, "needs."+string(constants.DetectionJobName))
-	assert.Contains(t, rendered, "outputs.success")
+	// Should check agent job's detection_success output
+	assert.Contains(t, rendered, "needs."+string(constants.AgentJobName))
+	assert.Contains(t, rendered, "outputs.detection_success")
 	assert.Contains(t, rendered, "'true'")
 }
 
@@ -334,12 +334,12 @@ func TestJobConditionWithThreatDetection(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, job)
 
-	// Job condition should include detection check
-	assert.Contains(t, job.If, "needs."+string(constants.DetectionJobName))
-	assert.Contains(t, job.If, "outputs.success")
+	// Job condition should include detection check referencing agent job
+	assert.Contains(t, job.If, "needs."+string(constants.AgentJobName))
+	assert.Contains(t, job.If, "outputs.detection_success")
 
-	// Job should depend on detection job
-	assert.Contains(t, job.Needs, string(constants.DetectionJobName))
+	// Job should NOT depend on detection job (detection is inline in agent)
+	assert.NotContains(t, job.Needs, string(constants.DetectionJobName), "safe_outputs job should not depend on detection job")
 }
 
 // TestJobWithGitHubApp tests job building with GitHub App configuration
@@ -423,7 +423,8 @@ func TestJobDependencies(t *testing.T) {
 				ThreatDetection: &ThreatDetectionConfig{},
 				CreateIssues:    &CreateIssuesConfig{},
 			},
-			expectedNeeds: []string{string(constants.AgentJobName), string(constants.DetectionJobName)},
+			expectedNeeds:    []string{string(constants.AgentJobName)},
+			notExpectedNeeds: []string{string(constants.DetectionJobName)}, // detection is inline in agent
 		},
 		{
 			name: "with create pull request",

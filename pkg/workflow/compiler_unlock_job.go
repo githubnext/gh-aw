@@ -69,15 +69,9 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	alwaysFunc := BuildFunctionCall("always")
 
 	// Create the unlock job
-	// This job depends on activation (for issue_locked output), agent (to run after workflow),
-	// and detection (if enabled, to run after threat detection completes)
+	// This job depends on activation (for issue_locked output) and agent (to run after workflow)
+	// Detection is now inline in the agent job, no separate dependency needed
 	needs := []string{string(constants.ActivationJobName), string(constants.AgentJobName)}
-
-	// Add detection job dependency if threat detection is enabled
-	if threatDetectionEnabled {
-		needs = append(needs, string(constants.DetectionJobName))
-		compilerUnlockJobLog.Print("Added detection job dependency to unlock job")
-	}
 
 	// Determine permissions - need contents: read for dev mode checkout, issues: write for unlocking
 	var permissions string

@@ -872,6 +872,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
 	}
 
+	// Add inline detection outputs if threat detection is enabled
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		outputs["detection_success"] = "${{ steps.detection_conclusion.outputs.success }}"
+		outputs["detection_conclusion"] = "${{ steps.detection_conclusion.outputs.conclusion }}"
+		compilerActivationJobsLog.Print("Added detection_success and detection_conclusion outputs to agent job")
+	}
+
 	// Add checkout_pr_success output to track PR checkout status only if the checkout-pr step will be generated
 	// This is used by the conclusion job to skip failure handling when checkout fails
 	// (e.g., when PR is merged and branch is deleted)

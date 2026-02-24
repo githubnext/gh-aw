@@ -917,14 +917,22 @@ Test content`
 
 	yamlStr := string(content)
 
-	// Check that detection job is created
-	if !containsInNonCommentLines(yamlStr, "detection:") {
-		t.Error("Expected detection job to be created")
+	// Check that detection is inline in agent job (not a separate job)
+	if containsInNonCommentLines(yamlStr, "\n  detection:\n") {
+		t.Error("Expected detection to be inline in agent job, not a separate job")
 	}
 
-	// Check that safe_outputs job depends on detection
-	if !strings.Contains(yamlStr, string(constants.DetectionJobName)) {
-		t.Error("Expected safe output jobs to depend on detection job")
+	// Check that agent job contains inline detection steps
+	if !strings.Contains(yamlStr, "detection_guard") {
+		t.Error("Expected agent job to contain detection_guard step")
+	}
+	if !strings.Contains(yamlStr, "detection_conclusion") {
+		t.Error("Expected agent job to contain detection_conclusion step")
+	}
+
+	// Check that safe_outputs job references agent detection output
+	if !strings.Contains(yamlStr, "needs.agent.outputs.detection_success") {
+		t.Error("Expected safe output jobs to check needs.agent.outputs.detection_success")
 	}
 }
 
@@ -1333,16 +1341,12 @@ func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 		t.Fatal("Expected push_repo_memory job to be created")
 	}
 
-	// Add detection dependency if threat detection is enabled
-	if threatDetectionEnabledForSafeJobs {
-		pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
-	}
-
-	// Verify dependencies include detection when threat detection is enabled
+	// Detection is inline in agent — no separate dependency
+	// Verify push_repo_memory does NOT depend on detection job
 	if threatDetectionEnabledForSafeJobs {
 		hasDetectionDep := slices.Contains(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
-		if !hasDetectionDep {
-			t.Error("Expected push_repo_memory to depend on detection job when threat detection is enabled")
+		if hasDetectionDep {
+			t.Error("push_repo_memory should not depend on detection job (detection is inline in agent)")
 		}
 	}
 
@@ -1404,10 +1408,15 @@ func TestJobsWithCacheMemoryDependencies(t *testing.T) {
 			t.Fatal("Expected update_cache_memory job to be created when threat detection is enabled")
 		}
 
-		// Verify dependencies include detection
+		// Verify dependencies — detection is inline in agent, no separate dependency
 		hasDetectionDep := slices.Contains(updateCacheMemoryJob.Needs, string(constants.DetectionJobName))
-		if !hasDetectionDep {
-			t.Error("Expected update_cache_memory to depend on detection job")
+		if hasDetectionDep {
+			t.Error("update_cache_memory should not depend on detection job (detection is inline in agent)")
+		}
+		// Should depend on agent job
+		hasAgentDep := slices.Contains(updateCacheMemoryJob.Needs, string(constants.AgentJobName))
+		if !hasAgentDep {
+			t.Error("Expected update_cache_memory to depend on agent job")
 		}
 
 		// Verify job name
@@ -1759,7 +1768,6 @@ Test content`
 		"activation:",
 		string(constants.AgentJobName),
 		"safe_outputs:",
-		"detection:",
 		"conclusion:",
 		"custom1:",
 		"custom2:",
@@ -1769,6 +1777,14 @@ Test content`
 		if !containsInNonCommentLines(yamlStr, job) {
 			t.Errorf("Expected job %q not found", job)
 		}
+	}
+
+	// Verify inline detection is present in agent job (no separate detection job)
+	if containsInNonCommentLines(yamlStr, "\n  detection:\n") {
+		t.Error("Expected no separate detection job (detection is inline in agent)")
+	}
+	if !strings.Contains(yamlStr, "detection_guard") {
+		t.Error("Expected inline detection_guard step in agent job")
 	}
 
 	// Verify custom2 depends on custom1

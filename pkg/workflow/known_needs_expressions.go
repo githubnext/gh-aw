@@ -24,8 +24,7 @@ var knownNeedsLog = logger.New("workflow:known_needs")
 //
 // The function does NOT generate mappings for jobs that run AFTER activation:
 // - needs.activation.outputs.* (activation is the current job)
-// - needs.agent.outputs.* (agent runs AFTER activation)
-// - needs.detection.outputs.* (detection runs AFTER activation)
+// - needs.agent.outputs.* (agent runs AFTER activation, includes detection_success/detection_conclusion)
 // - needs.<safe-output-job>.outputs.* (these run AFTER agent)
 //
 // preActivationJobCreated indicates whether the pre_activation job was created for this workflow.

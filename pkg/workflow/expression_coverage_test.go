@@ -53,7 +53,7 @@ func TestParenthesesNodeRender(t *testing.T) {
 // TestAddDetectionSuccessCheckEmptyCondition tests AddDetectionSuccessCheck with empty condition
 func TestAddDetectionSuccessCheckEmptyCondition(t *testing.T) {
 	result := AddDetectionSuccessCheck("")
-	expected := "needs.detection.outputs.success == 'true'"
+	expected := "needs.agent.outputs.detection_success == 'true'"
 	if result != expected {
 		t.Errorf("AddDetectionSuccessCheck(\"\") = %v, expected %v", result, expected)
 	}
@@ -63,7 +63,7 @@ func TestAddDetectionSuccessCheckEmptyCondition(t *testing.T) {
 func TestAddDetectionSuccessCheckWithExistingCondition(t *testing.T) {
 	existingCondition := "github.event.action == 'opened'"
 	result := AddDetectionSuccessCheck(existingCondition)
-	expected := "(github.event.action == 'opened') && (needs.detection.outputs.success == 'true')"
+	expected := "(github.event.action == 'opened') && (needs.agent.outputs.detection_success == 'true')"
 	if result != expected {
 		t.Errorf("AddDetectionSuccessCheck() = %v, expected %v", result, expected)
 	}

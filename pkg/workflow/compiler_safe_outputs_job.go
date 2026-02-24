@@ -308,11 +308,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		jobCondition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}
 
-	// Build dependencies
+	// Build dependencies — detection is now inline in the agent job, no separate dependency needed
 	needs := []string{mainJobName}
-	if threatDetectionEnabled {
-		needs = append(needs, string(constants.DetectionJobName))
-	}
 	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil || data.LockForAgent {
 		needs = append(needs, string(constants.ActivationJobName))
@@ -415,10 +412,11 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	return envVars
 }
 
-// buildDetectionSuccessCondition builds the condition to check if detection passed
+// buildDetectionSuccessCondition builds the condition to check if detection passed.
+// Detection runs inline in the agent job and outputs detection_success.
 func buildDetectionSuccessCondition() ConditionNode {
 	return BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.detection_success", constants.AgentJobName)),
 		BuildStringLiteral("true"),
 	)
 }

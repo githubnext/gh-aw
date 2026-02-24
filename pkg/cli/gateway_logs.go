@@ -24,6 +24,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
@@ -517,13 +518,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 		output.WriteString("├────────────────────────────┼──────────┼────────────┼───────────┼────────┤\n")
 
 		// Sort servers by request count
-		var serverNames []string
-		for name := range metrics.Servers {
-			serverNames = append(serverNames, name)
-		}
-		sort.Slice(serverNames, func(i, j int) bool {
-			return metrics.Servers[serverNames[i]].RequestCount > metrics.Servers[serverNames[j]].RequestCount
-		})
+		serverNames := getSortedServerNames(metrics)
 
 		for _, serverName := range serverNames {
 			server := metrics.Servers[serverName]
@@ -560,10 +555,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 			output.WriteString("├──────────────────────────┼───────┼──────────┼──────────┼──────────┤\n")
 
 			// Sort tools by call count
-			var toolNames []string
-			for name := range server.Tools {
-				toolNames = append(toolNames, name)
-			}
+			toolNames := sliceutil.MapToSlice(server.Tools)
 			sort.Slice(toolNames, func(i, j int) bool {
 				return server.Tools[toolNames[i]].CallCount > server.Tools[toolNames[j]].CallCount
 			})
@@ -587,10 +579,7 @@ func renderGatewayMetricsTable(metrics *GatewayMetrics, verbose bool) string {
 
 // getSortedServerNames returns server names sorted by request count
 func getSortedServerNames(metrics *GatewayMetrics) []string {
-	var names []string
-	for name := range metrics.Servers {
-		names = append(names, name)
-	}
+	names := sliceutil.MapToSlice(metrics.Servers)
 	sort.Slice(names, func(i, j int) bool {
 		return metrics.Servers[names[i]].RequestCount > metrics.Servers[names[j]].RequestCount
 	})

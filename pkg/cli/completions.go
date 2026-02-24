@@ -8,6 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -109,12 +110,9 @@ func CompleteEngineNames(cmd *cobra.Command, args []string, toComplete string) (
 
 	engines := ValidEngineNames()
 
-	var filtered []string
-	for _, engine := range engines {
-		if toComplete == "" || strings.HasPrefix(engine, toComplete) {
-			filtered = append(filtered, engine)
-		}
-	}
+	filtered := sliceutil.Filter(engines, func(engine string) bool {
+		return toComplete == "" || strings.HasPrefix(engine, toComplete)
+	})
 
 	completionsLog.Printf("Found %d matching engines", len(filtered))
 	return filtered, cobra.ShellCompDirectiveNoFileComp
@@ -145,12 +143,12 @@ func CompleteMCPServerNames(workflowFile string) func(cmd *cobra.Command, args [
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		var servers []string
-		for _, config := range mcpConfigs {
-			if toComplete == "" || strings.HasPrefix(config.Name, toComplete) {
-				servers = append(servers, config.Name)
-			}
-		}
+		servers := sliceutil.FilterMap(mcpConfigs,
+			func(config parser.MCPServerConfig) bool {
+				return toComplete == "" || strings.HasPrefix(config.Name, toComplete)
+			},
+			func(config parser.MCPServerConfig) string { return config.Name },
+		)
 
 		completionsLog.Printf("Found %d matching MCP servers", len(servers))
 		return servers, cobra.ShellCompDirectiveNoFileComp

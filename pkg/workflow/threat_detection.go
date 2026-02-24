@@ -1,10 +1,9 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -104,160 +103,153 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 	return &ThreatDetectionConfig{}
 }
 
-// buildThreatDetectionJob creates the detection job
-func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	threatLog.Printf("Building threat detection job for main job: %s", mainJobName)
+// detectionStepCondition is the if condition applied to inline detection steps.
+// Detection steps only run when the detection guard determines there's output to analyze.
+const detectionStepCondition = "always() && steps.detection_guard.outputs.run_detection == 'true'"
+
+// buildInlineDetectionSteps builds the threat detection steps to be inlined in the agent job.
+// These steps run after the output collection step (collect_output) and analyze agent output
+// for threats using the same agentic engine with sandbox.agent and fully blocked network.
+func (c *Compiler) buildInlineDetectionSteps(data *WorkflowData) []string {
+	threatLog.Print("Building inline threat detection steps for agent job")
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
-		return nil, errors.New("threat detection is not enabled")
+		return nil
 	}
 
-	// Build steps using a more structured approach
-	steps := c.buildThreatDetectionSteps(data, mainJobName)
-	threatLog.Printf("Generated %d steps for threat detection job", len(steps))
-
-	// Determine if checkout is needed (dev or script mode with actions checkout)
-	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
-	if needsContentsRead {
-		threatLog.Print("Detection job needs contents:read permission for checkout")
-	}
-
-	// Set permissions based on whether checkout is needed
-	var permissions string
-	if needsContentsRead {
-		permissions = NewPermissionsContentsRead().RenderToYAML()
-	} else {
-		permissions = NewPermissionsEmpty().RenderToYAML()
-	}
-
-	// When the copilot-requests feature is enabled, inject copilot-requests: write permission.
-	// This is required so the GitHub Actions token has the necessary scope to authenticate
-	// with the Copilot API in the detection job (mirrors the agent job logic in tools.go).
-	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data) {
-		perms := NewPermissionsParser(permissions).ToPermissions()
-		perms.Set(PermissionCopilotRequests, PermissionWrite)
-		permissions = perms.RenderToYAML()
-	}
-
-	// Generate agent concurrency configuration (same as main agent job)
-	agentConcurrency := GenerateJobConcurrencyConfig(data)
-
-	// Build conditional: detection should run when there are safe outputs OR when there's a patch
-	// output_types != '' OR has_patch == 'true'
-	hasOutputTypes := BuildComparison(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", mainJobName)),
-		"!=",
-		BuildStringLiteral(""),
-	)
-	hasPatch := BuildComparison(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.has_patch", mainJobName)),
-		"==",
-		BuildStringLiteral("true"),
-	)
-	condition := BuildDisjunction(false, hasOutputTypes, hasPatch)
-
-	job := &Job{
-		Name:           string(constants.DetectionJobName),
-		If:             condition.Render(),
-		RunsOn:         c.formatDetectionRunsOn(data.SafeOutputs, data.RunsOn),
-		Permissions:    permissions,
-		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
-		TimeoutMinutes: 10,
-		Steps:          steps,
-		Needs:          []string{mainJobName},
-		Outputs: map[string]string{
-			"success": "${{ steps.parse_results.outputs.success }}",
-		},
-	}
-
-	return job, nil
-}
-
-// buildThreatDetectionSteps builds the steps for the threat detection job
-func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName string) []string {
 	var steps []string
 
-	// Add setup action steps at the beginning of the job
-	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" || c.actionMode.IsScript() {
-		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+	// Comment separator
+	steps = append(steps, "      # --- Threat Detection (inline) ---\n")
 
-		// Threat detection job doesn't need project support
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
-	}
+	// Step 1: Detection guard - determines whether detection should run
+	steps = append(steps, c.buildDetectionGuardStep()...)
 
-	// Step 1: Download agent artifacts
-	steps = append(steps, c.buildDownloadArtifactStep(mainJobName)...)
+	// Step 2: Clear MCP configuration files so the detection engine runs without MCP servers
+	steps = append(steps, c.buildClearMCPConfigStep()...)
 
-	// Step 2: Echo agent outputs for debugging
-	steps = append(steps, c.buildEchoAgentOutputsStep(mainJobName)...)
+	// Step 3: Prepare files - copies agent output files to expected paths
+	steps = append(steps, c.buildPrepareDetectionFilesStep()...)
 
-	// Step 3: Setup and run threat detection
-	steps = append(steps, c.buildThreatDetectionAnalysisStep(data, mainJobName)...)
+	// Step 4: Setup threat detection (github-script)
+	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
-	// Step 4: Add custom steps if configured
+	// Step 5: Engine execution (AWF, no network)
+	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+
+	// Step 6: Custom steps if configured
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 5: Parse threat detection results (after custom steps)
+	// Step 7: Parse threat detection results
 	steps = append(steps, c.buildParsingStep()...)
 
-	// Step 6: Upload detection log artifact
+	// Step 8: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
 
+	// Step 9: Detection conclusion - sets final detection_success and detection_conclusion outputs
+	steps = append(steps, c.buildDetectionConclusionStep()...)
+
+	threatLog.Printf("Generated %d inline detection step lines", len(steps))
 	return steps
 }
 
-// buildDownloadArtifactStep creates the artifact download step
-// Downloads from unified agent-artifacts (contains prompt, patch, etc.) and separate agent-output
-func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
-	var steps []string
-
-	// Download unified agent-artifacts (contains prompt, patch, logs, etc.)
-	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "agent-artifacts",
-		DownloadPath: "/tmp/gh-aw/threat-detection/",
-		SetupEnvStep: false,
-		StepName:     "Download agent artifacts",
-	})...)
-
-	// Download agent output artifact (still separate)
-	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: constants.AgentOutputArtifactName,
-		DownloadPath: "/tmp/gh-aw/threat-detection/",
-		SetupEnvStep: false,
-		StepName:     "Download agent output artifact",
-	})...)
-
-	return steps
-}
-
-// buildEchoAgentOutputsStep creates a step that echoes the agent outputs
-func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
+// buildDetectionGuardStep creates a guard step that checks if detection should run.
+// Uses always() to run even if the agent step failed (collect_output also runs always()).
+func (c *Compiler) buildDetectionGuardStep() []string {
 	return []string{
-		"      - name: Print agent output types\n",
+		"      - name: Check if detection needed\n",
+		"        id: detection_guard\n",
+		"        if: always()\n",
 		"        env:\n",
-		fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName),
+		"          OUTPUT_TYPES: ${{ steps.collect_output.outputs.output_types }}\n",
+		"          HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}\n",
 		"        run: |\n",
-		"          echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"\n",
+		"          if [[ -n \"$OUTPUT_TYPES\" || \"$HAS_PATCH\" == \"true\" ]]; then\n",
+		"            echo \"run_detection=true\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"Detection will run: output_types=$OUTPUT_TYPES, has_patch=$HAS_PATCH\"\n",
+		"          else\n",
+		"            echo \"run_detection=false\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"Detection skipped: no agent outputs or patches to analyze\"\n",
+		"          fi\n",
+	}
+}
+
+// buildClearMCPConfigStep creates a step that removes MCP configuration files written by
+// the main agent job. This ensures the detection engine runs without any MCP servers,
+// even if the main agent had MCP servers configured.
+func (c *Compiler) buildClearMCPConfigStep() []string {
+	return []string{
+		"      - name: Clear MCP configuration for detection\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        run: |\n",
+		"          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json\n",
+		"          rm -f /home/runner/.copilot/mcp-config.json\n",
+		"          rm -f \"$GITHUB_WORKSPACE/.gemini/settings.json\"\n",
+	}
+}
+
+// buildPrepareDetectionFilesStep creates a step that copies agent output files
+// to the /tmp/gh-aw/threat-detection/ directory expected by the detection JS scripts.
+// Since detection now runs inline in the agent job, files are already local and just need copying.
+func (c *Compiler) buildPrepareDetectionFilesStep() []string {
+	return []string{
+		"      - name: Prepare threat detection files\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        run: |\n",
+		"          mkdir -p /tmp/gh-aw/threat-detection/aw-prompts\n",
+		"          cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true\n",
+		"          cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true\n",
+		"          for f in /tmp/gh-aw/aw-*.patch; do\n",
+		"            [ -f \"$f\" ] && cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
+		"          done\n",
+		"          echo \"Prepared threat detection files:\"\n",
+		"          ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
+	}
+}
+
+// buildDetectionConclusionStep creates a step that sets the final detection outputs.
+// Runs with always() to ensure outputs are set regardless of detection step outcomes.
+func (c *Compiler) buildDetectionConclusionStep() []string {
+	return []string{
+		"      - name: Set detection conclusion\n",
+		"        id: detection_conclusion\n",
+		"        if: always()\n",
+		"        env:\n",
+		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
+		"          DETECTION_SUCCESS: ${{ steps.parse_detection_results.outputs.success }}\n",
+		"        run: |\n",
+		"          if [[ \"$RUN_DETECTION\" != \"true\" ]]; then\n",
+		"            echo \"conclusion=skipped\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"success=true\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"Detection was not needed, marking as skipped\"\n",
+		"          elif [[ \"$DETECTION_SUCCESS\" == \"true\" ]]; then\n",
+		"            echo \"conclusion=success\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"success=true\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"Detection passed successfully\"\n",
+		"          else\n",
+		"            echo \"conclusion=failure\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"success=false\" >> \"$GITHUB_OUTPUT\"\n",
+		"            echo \"Detection found issues\"\n",
+		"          fi\n",
 	}
 }
 
 // buildThreatDetectionAnalysisStep creates the main threat analysis step
-func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobName string) []string {
+func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string {
 	var steps []string
 
 	// Setup step
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
 		"        env:\n",
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
 
-	// Add HAS_PATCH environment variable from agent job output
-	steps = append(steps, fmt.Sprintf("          HAS_PATCH: ${{ needs.%s.outputs.has_patch }}\n", mainJobName))
+	// Add HAS_PATCH environment variable from collect_output step (inline in agent job)
+	steps = append(steps, "          HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}\n")
 
 	// Add custom prompt instructions if configured
 	customPrompt := ""
@@ -281,13 +273,11 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 	// Add a small shell step in YAML to ensure the output directory and log file exist
 	steps = append(steps, []string{
 		"      - name: Ensure threat-detection directory and log\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/threat-detection\n",
 		"          touch /tmp/gh-aw/threat-detection/detection.log\n",
 	}...)
-
-	// Add engine execution steps
-	steps = append(steps, c.buildEngineSteps(data)...)
 
 	return steps
 }
@@ -304,13 +294,17 @@ await main();`
 	return script
 }
 
-// buildEngineSteps creates the engine execution steps
-func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
+// buildDetectionEngineExecutionStep creates the engine execution step for inline threat detection.
+// It uses the same agentic engine already installed in the agent job, but runs it through
+// sandbox.agent (AWF) with no allowed domains (network fully blocked) and no MCP configured.
+func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []string {
 	// Check if threat detection has engine explicitly disabled
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
 		if data.SafeOutputs.ThreatDetection.EngineDisabled {
 			// Engine explicitly disabled with engine: false
-			return []string{"      # AI engine disabled for threat detection (engine: false)\n"}
+			return []string{
+				"      # AI engine disabled for threat detection (engine: false)\n",
+			}
 		}
 	}
 
@@ -336,21 +330,11 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	// Get the engine instance
 	engine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
-		// Return a fallback if engine not found
 		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
 	// Apply default detection model if the engine provides one and no model is specified
-	// Detection models can be configured via:
-	// 1. Explicit model in threat-detection engine config (highest priority)
-	// 2. Engine-specific environment variables (e.g., GH_AW_MODEL_DETECTION_COPILOT)
-	// 3. Default detection model from the engine (as environment variable fallback)
 	detectionEngineConfig := engineConfig
-
-	// Build a detection engine config inheriting ID, Model, Version, Env, Config, Args.
-	// MaxTurns, Concurrency, UserAgent, Firewall, and Agent are intentionally omitted —
-	// the detection job is a simple threat-analysis invocation and must never run as a
-	// custom agent (no repo checkout, agent file unavailable).
 	if detectionEngineConfig == nil {
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
@@ -364,37 +348,44 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
-	// Create minimal WorkflowData for threat detection
-	// Configure bash read tools for accessing the agent output file
-	// Features are inherited from the main workflow data so feature flags
-	// (e.g. copilot-requests) apply consistently to both agent and detection jobs.
+	// Create minimal WorkflowData for threat detection with network fully blocked.
+	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
+	// NetworkPermissions with empty Allowed list blocks all network egress.
+	// No MCP servers are configured for detection.
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
 		},
 		SafeOutputs:  nil,
-		Network:      "",
 		EngineConfig: detectionEngineConfig,
 		AI:           engineSetting,
 		Features:     data.Features,
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{}, // deny-all: no network access
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
 	}
 
 	var steps []string
 
-	// Add engine installation steps (includes Node.js setup for npm-based engines)
-	installSteps := engine.GetInstallationSteps(threatDetectionData)
-	for _, step := range installSteps {
-		for _, line := range step {
-			steps = append(steps, line+"\n")
-		}
-	}
-
-	// Add engine execution steps
+	// Skip engine installation - engine is already installed in the agent job.
+	// Only generate execution steps.
 	logFile := "/tmp/gh-aw/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
-		for _, line := range step {
-			steps = append(steps, line+"\n")
+		for i, line := range step {
+			// Prefix step IDs with "detection_" to avoid conflicts with agent job steps
+			// (e.g., "agentic_execution" is already used by the main engine execution step)
+			prefixed := strings.Replace(line, "id: agentic_execution", "id: detection_agentic_execution", 1)
+			steps = append(steps, prefixed+"\n")
+			// Inject the if condition after the first line (- name:)
+			if i == 0 {
+				steps = append(steps, fmt.Sprintf("        if: %s\n", detectionStepCondition))
+			}
 		}
 	}
 
@@ -405,7 +396,8 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 func (c *Compiler) buildParsingStep() []string {
 	steps := []string{
 		"      - name: Parse threat detection results\n",
-		"        id: parse_results\n",
+		"        id: parse_detection_results\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
 		"        with:\n",
 		"          script: |\n",
@@ -465,7 +457,7 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 func (c *Compiler) buildUploadDetectionLogStep() []string {
 	return []string{
 		"      - name: Upload threat detection log\n",
-		"        if: always()\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: threat-detection.log\n",

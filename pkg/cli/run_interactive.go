@@ -439,8 +439,7 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 
 // buildCommandString builds the equivalent command string for display
 func buildCommandString(workflowName string, inputs []string, repoOverride, refOverride string, autoMergePRs, push bool, engineOverride string) string {
-	var parts []string
-	parts = append(parts, string(constants.CLIExtensionPrefix), "run", workflowName)
+	parts := []string{string(constants.CLIExtensionPrefix), "run", workflowName}
 
 	// Add inputs
 	for _, input := range inputs {

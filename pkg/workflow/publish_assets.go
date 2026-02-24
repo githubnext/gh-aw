@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -141,12 +140,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("upload_asset")
 
-	// Build job dependencies
+	// Build job dependencies — detection is now inline in the agent job
 	needs := []string{mainJobName}
-	if threatDetectionEnabled {
-		needs = append(needs, string(constants.DetectionJobName))
-		publishAssetsLog.Printf("Added detection job dependency for upload_assets")
-	}
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{

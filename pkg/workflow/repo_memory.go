@@ -715,7 +715,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// Otherwise, always run (even if agent job failed)
 	jobCondition := "always()"
 	if threatDetectionEnabled {
-		jobCondition = "always() && needs.detection.outputs.success == 'true'"
+		jobCondition = fmt.Sprintf("always() && needs.%s.outputs.detection_success == 'true'", constants.AgentJobName)
 	}
 
 	// Build outputs map for validation failures from all memory steps

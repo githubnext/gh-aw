@@ -173,11 +173,8 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			job.DisplayName = jobConfig.Name
 		}
 
-		// Safe-jobs should depend on agent job (always) AND detection job (if enabled)
+		// Safe-jobs depend on agent job (detection is now inline in agent job)
 		job.Needs = append(job.Needs, string(constants.AgentJobName))
-		if threatDetectionEnabled {
-			job.Needs = append(job.Needs, string(constants.DetectionJobName))
-		}
 
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)

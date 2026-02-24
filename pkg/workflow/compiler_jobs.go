@@ -340,10 +340,8 @@ func (c *Compiler) buildPushRepoMemoryJobWrapper(data *WorkflowData, threatDetec
 	}
 
 	// Add detection dependency if threat detection is enabled
-	if threatDetectionEnabled {
-		pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
-		compilerJobsLog.Print("Added detection dependency to push_repo_memory job")
-	}
+	// Detection is now inline in the agent job, so no separate dependency needed
+	// The job condition already checks needs.agent.outputs.detection_success
 
 	if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
 		return "", fmt.Errorf("failed to add push_repo_memory job: %w", err)

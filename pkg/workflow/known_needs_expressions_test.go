@@ -32,7 +32,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 				"needs.pre_activation.outputs.matched_command", // No command trigger, so not included
 				"needs.activation.outputs.text",                // Activation is the current job
 				"needs.agent.outputs.output",                   // Agent runs AFTER activation
-				"needs.detection.outputs.success",              // Detection runs AFTER activation
+				"needs.agent.outputs.detection_success",        // Agent runs AFTER activation (detection is inline)
 			},
 		},
 		{

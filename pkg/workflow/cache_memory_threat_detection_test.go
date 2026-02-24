@@ -49,11 +49,10 @@ Test workflow with cache-memory and threat detection enabled.`,
 				"uses: actions/upload-artifact@",
 				"if: always()",
 				"name: cache-memory",
-				// Should have update_cache_memory job
+				// Should have update_cache_memory job (depends on agent only, detection is inline)
 				"update_cache_memory:",
 				"- agent",
-				"- detection",
-				"if: always() && needs.detection.outputs.success == 'true'",
+				"if: always() && needs.agent.outputs.detection_success == 'true'",
 				"- name: Download cache-memory artifact (default)",
 				"- name: Save cache-memory to cache (default)",
 				"uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830",

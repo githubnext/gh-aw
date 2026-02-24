@@ -2,6 +2,7 @@ package workflow
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -203,6 +204,11 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	if isAgentSandboxDisabled(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. The AI agent will have direct network access without firewall filtering. The MCP gateway remains enabled. Only use this for testing or in controlled environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
+	}
+
+	// Validate: threat detection requires sandbox.agent to be enabled (detection runs inside AWF)
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection != nil && isAgentSandboxDisabled(workflowData) {
+		return formatCompilerError(markdownPath, "error", "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or remove the threat-detection configuration from safe-outputs.", errors.New("threat detection requires sandbox.agent"))
 	}
 
 	// Emit experimental warning for safe-inputs feature

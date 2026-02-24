@@ -816,8 +816,8 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	// Prepend setup steps to all cache steps
 	steps = append(setupSteps, steps...)
 
-	// Job condition: only run if detection passed
-	jobCondition := "always() && needs.detection.outputs.success == 'true'"
+	// Job condition: only run if detection passed (detection is inline in agent job)
+	jobCondition := fmt.Sprintf("always() && needs.%s.outputs.detection_success == 'true'", constants.AgentJobName)
 
 	// Set up permissions for the cache update job
 	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder
@@ -842,7 +842,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
 		Permissions: permissions,
-		Needs:       []string{"agent", "detection"},
+		Needs:       []string{string(constants.AgentJobName)},
 		Env:         jobEnv,
 		Steps:       steps,
 	}
