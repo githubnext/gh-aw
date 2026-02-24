@@ -13,7 +13,7 @@ const fs = require("fs");
 
 /**
  * Attempt to find a pull request for the current branch
- * @returns {Promise<{number: number, html_url: string} | null>} PR info or null if not found
+ * @returns {Promise<{number: number, html_url: string, head_sha: string, mergeable: boolean | null, mergeable_state: string, updated_at: string} | null>} PR info or null if not found
  */
 async function findPullRequestForCurrentBranch() {
   try {
@@ -33,10 +33,37 @@ async function findPullRequestForCurrentBranch() {
     if (searchResult.data.total_count > 0) {
       const pr = searchResult.data.items[0];
       core.info(`Found pull request #${pr.number}: ${pr.html_url}`);
-      return {
-        number: pr.number,
-        html_url: pr.html_url,
-      };
+
+      // Fetch detailed PR info to get mergeable state and head SHA
+      try {
+        const detailedPR = await github.rest.pulls.get({
+          owner,
+          repo,
+          pull_number: pr.number,
+        });
+
+        core.info(`PR #${pr.number} details - head_sha: ${detailedPR.data.head.sha}, mergeable: ${detailedPR.data.mergeable}, mergeable_state: ${detailedPR.data.mergeable_state}`);
+
+        return {
+          number: pr.number,
+          html_url: pr.html_url,
+          head_sha: detailedPR.data.head.sha,
+          mergeable: detailedPR.data.mergeable,
+          mergeable_state: detailedPR.data.mergeable_state || "unknown",
+          updated_at: detailedPR.data.updated_at,
+        };
+      } catch (detailsError) {
+        core.warning(`Failed to fetch detailed PR info: ${getErrorMessage(detailsError)}`);
+        // Fall back to basic info
+        return {
+          number: pr.number,
+          html_url: pr.html_url,
+          head_sha: "",
+          mergeable: null,
+          mergeable_state: "unknown",
+          updated_at: "",
+        };
+      }
     }
 
     core.info(`No pull request found for branch: ${currentBranch}`);
@@ -266,7 +293,7 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
 /**
  * Build a context string describing code-push failures for inclusion in failure issue/comment bodies.
  * @param {string} codePushFailureErrors - Newline-separated list of "type:error" entries
- * @param {{number: number, html_url: string} | null} pullRequest - PR info if available
+ * @param {{number: number, html_url: string, head_sha?: string, mergeable?: boolean | null, mergeable_state?: string, updated_at?: string} | null} pullRequest - PR info if available
  * @returns {string} Formatted context string, or empty string if no failures
  */
 function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) {
@@ -277,8 +304,46 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
   let context = "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.";
   if (pullRequest) {
     context += `\n\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+
+    // Add PR state diagnostics
+    const workflowSha = process.env.GITHUB_SHA || "";
+    const prDetails = [];
+
+    // Check for merge conflicts
+    if (pullRequest.mergeable === false) {
+      prDetails.push("❌ **Merge conflicts detected** - the PR has conflicts that need resolution");
+    } else if (pullRequest.mergeable_state === "dirty") {
+      prDetails.push("❌ **PR is in dirty state** - likely has merge conflicts");
+    } else if (pullRequest.mergeable_state === "blocked") {
+      prDetails.push("⚠️ **PR is blocked** - required status checks or reviews may be missing");
+    } else if (pullRequest.mergeable_state === "behind") {
+      prDetails.push("⚠️ **PR is behind base branch** - may need to be updated");
+    }
+
+    // Check if branch was updated since workflow started
+    if (workflowSha && pullRequest.head_sha && workflowSha !== pullRequest.head_sha) {
+      prDetails.push(`⚠️ **Branch was updated** - workflow started at \`${workflowSha.substring(0, 7)}\`, PR head is now \`${pullRequest.head_sha.substring(0, 7)}\``);
+    }
+
+    // Add SHA info for debugging
+    if (pullRequest.head_sha) {
+      prDetails.push(`**PR head SHA:** \`${pullRequest.head_sha.substring(0, 7)}\``);
+    }
+    if (workflowSha) {
+      prDetails.push(`**Workflow SHA:** \`${workflowSha.substring(0, 7)}\``);
+    }
+    if (pullRequest.mergeable_state && pullRequest.mergeable_state !== "unknown") {
+      prDetails.push(`**Mergeable state:** ${pullRequest.mergeable_state}`);
+    }
+
+    if (prDetails.length > 0) {
+      context += "\n\n**PR State at Push Time:**\n";
+      for (const detail of prDetails) {
+        context += `- ${detail}\n`;
+      }
+    }
   }
-  context += "\n\n**Code Push Errors:**\n";
+  context += "\n**Code Push Errors:**\n";
   const errorLines = codePushFailureErrors.split("\n").filter(line => line.trim());
   for (const errorLine of errorLines) {
     const colonIndex = errorLine.indexOf(":");
