@@ -525,7 +525,11 @@ async function main() {
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
-          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.\n\n**Validation Errors:**\n";
+          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.";
+          if (pullRequest) {
+            repoMemoryValidationContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          repoMemoryValidationContext += "\n\n**Validation Errors:**\n";
           for (const { memoryID, errorMessage } of repoMemoryValidationErrors) {
             repoMemoryValidationContext += `- Memory "${memoryID}": ${errorMessage}\n`;
           }
@@ -538,7 +542,11 @@ async function main() {
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
-          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs. This typically indicates:\n";
+          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs.";
+          if (pullRequest) {
+            missingSafeOutputsContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          missingSafeOutputsContext += "\n\nThis typically indicates:\n";
           missingSafeOutputsContext += "- The safe output server failed to run\n";
           missingSafeOutputsContext += "- The prompt failed to generate any meaningful result\n";
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
@@ -625,7 +633,11 @@ async function main() {
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
-          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.\n\n**Validation Errors:**\n";
+          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.";
+          if (pullRequest) {
+            repoMemoryValidationContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          repoMemoryValidationContext += "\n\n**Validation Errors:**\n";
           for (const { memoryID, errorMessage } of repoMemoryValidationErrors) {
             repoMemoryValidationContext += `- Memory "${memoryID}": ${errorMessage}\n`;
           }
@@ -638,7 +650,11 @@ async function main() {
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
-          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs. This typically indicates:\n";
+          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs.";
+          if (pullRequest) {
+            missingSafeOutputsContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          missingSafeOutputsContext += "\n\nThis typically indicates:\n";
           missingSafeOutputsContext += "- The safe output server failed to run\n";
           missingSafeOutputsContext += "- The prompt failed to generate any meaningful result\n";
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
