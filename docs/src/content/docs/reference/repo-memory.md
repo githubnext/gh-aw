@@ -30,6 +30,7 @@ tools:
     file-glob: ["memory/custom-agent-for-aw/*.md", "memory/custom-agent-for-aw/*.json"]
     max-file-size: 1048576  # 1MB (default 10KB)
     max-file-count: 50      # default 100
+    max-patch-size: 102400  # 100KB max (default 10KB)
     target-repo: "owner/repository"
     create-orphan: true     # default
     allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
@@ -39,6 +40,8 @@ tools:
 **Branch Prefix**: Use `branch-prefix` to customize the branch name prefix (default is `memory`). The prefix must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be `copilot`. When set, branches are created as `{branch-prefix}/{id}` instead of `memory/{id}`.
 
 **File Type Restrictions**: Use `allowed-extensions` to restrict which file types can be stored (default: empty/all files allowed). When specified, only files with listed extensions (e.g., `[".json", ".txt", ".md"]`) can be saved. Files with disallowed extensions will trigger validation failures.
+
+**Patch Size Limit**: Use `max-patch-size` to limit the total size of changes in a single push (default: 10KB, max: 100KB). The total size of the git diff (all staged changes combined) must not exceed this value. If it does, the push is rejected with an error. Use this to prevent large unintentional memory updates.
 
 **Note**: File glob patterns must include the full branch path structure. For branch `memory/custom-agent-for-aw`, use patterns like `memory/custom-agent-for-aw/*.json` to match files stored at that path within the branch.
 
@@ -80,7 +83,8 @@ For fast 7-day caching without version control, see [Cache Memory](/gh-aw/refere
 
 - **Branch not created**: Ensure `create-orphan: true` or create manually.
 - **Permission denied**: Compiler auto-adds `contents: write`.
-- **Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default) and `max-file-count` (100 default).
+- **Validation failures**: Match `file-glob`, stay under `max-file-size` (10KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
+- **Patch too large**: If the total diff exceeds `max-patch-size` (default 10KB), the push is rejected. Reduce the number or size of changes, or increase `max-patch-size` in the configuration.
 - **Changes not persisting**: Check directory path, workflow completion, push errors in logs.
 - **Merge conflicts**: Uses `-X ours` (your changes win). Read before writing to preserve data.
 
@@ -88,7 +92,7 @@ For fast 7-day caching without version control, see [Cache Memory](/gh-aw/refere
 
 Don't store sensitive data in repo memory. Repo memory follows repository permissions.
 
-Use private repos for sensitive data, avoid storing secrets, set constraints (`file-glob`, `max-file-size`, `max-file-count`), consider branch protection, use `target-repo` to isolate.
+Use private repos for sensitive data, avoid storing secrets, set constraints (`file-glob`, `max-file-size`, `max-file-count`, `max-patch-size`), consider branch protection, use `target-repo` to isolate.
 
 ## Examples
 

@@ -18,6 +18,7 @@ const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
  *   BRANCH_NAME: Branch name to push to
  *   MAX_FILE_SIZE: Maximum file size in bytes
  *   MAX_FILE_COUNT: Maximum number of files per commit
+ *   MAX_PATCH_SIZE: Maximum total patch size in bytes (default: 10240 = 10KB)
  *   ALLOWED_EXTENSIONS: JSON array of allowed file extensions (e.g., '[".json",".txt"]')
  *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/** data/**")
  *                     Supports * (matches any chars except /) and ** (matches any chars including /)
@@ -44,6 +45,7 @@ async function main() {
   const branchName = process.env.BRANCH_NAME;
   const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
   const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
+  const maxPatchSize = parseInt(process.env.MAX_PATCH_SIZE || "10240", 10);
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
 
   // Parse allowed extensions with error handling
@@ -67,6 +69,7 @@ async function main() {
   core.info(`  MEMORY_ID: ${memoryId}`);
   core.info(`  MAX_FILE_SIZE: ${maxFileSize}`);
   core.info(`  MAX_FILE_COUNT: ${maxFileCount}`);
+  core.info(`  MAX_PATCH_SIZE: ${maxPatchSize}`);
   core.info(`  ALLOWED_EXTENSIONS: ${JSON.stringify(allowedExtensions)}`);
   core.info(`  FILE_GLOB_FILTER: ${fileGlobFilter ? `"${fileGlobFilter}"` : "(empty - all files accepted)"}`);
   core.info(`  FILE_GLOB_FILTER length: ${fileGlobFilter.length}`);
@@ -334,6 +337,27 @@ async function main() {
     execGitSync(["add", "."], { stdio: "inherit" });
   } catch (error) {
     core.setFailed(`Failed to stage changes: ${getErrorMessage(error)}`);
+    return;
+  }
+
+  // Validate total patch size before committing
+  try {
+    const patchContent = execGitSync(["diff", "--cached"], { stdio: "pipe" });
+    const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+    const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+    const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
+    // Allow 20% overhead to account for git diff format (headers, context lines, etc.)
+    const effectiveMaxPatchSize = Math.floor(maxPatchSize * 1.2);
+    const effectiveMaxPatchSizeKb = Math.floor(effectiveMaxPatchSize / 1024);
+    core.info(`Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (configured limit: ${maxPatchSizeKb} KB (${maxPatchSize} bytes), effective with 20% overhead: ${effectiveMaxPatchSizeKb} KB (${effectiveMaxPatchSize} bytes))`);
+    if (patchSizeBytes > effectiveMaxPatchSize) {
+      core.setFailed(
+        `Patch size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds maximum allowed size (${effectiveMaxPatchSizeKb} KB, ${effectiveMaxPatchSize} bytes, configured limit: ${maxPatchSizeKb} KB with 20% overhead allowance). Reduce the number or size of changes, or increase max-patch-size.`
+      );
+      return;
+    }
+  } catch (error) {
+    core.setFailed(`Failed to compute patch size: ${getErrorMessage(error)}`);
     return;
   }
 

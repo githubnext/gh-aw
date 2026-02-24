@@ -108,6 +108,7 @@ Analyze pull requests for security vulnerabilities using the shared security rev
 ```
 
 Remote agent imports support the same versioning as other imports:
+
 - Semantic tags: `@v1.0.0`, `@v2.1.3`
 - Branch names: `@main`, `@develop`
 - Commit SHAs: `@abc123def456` (immutable references)
@@ -125,6 +126,7 @@ Imported files can define specific frontmatter fields that merge with the main w
 ### Allowed Import Fields
 
 Shared workflow files (without `on:` field) can define:
+
 - `tools:` - Tool configurations (bash, web-fetch, github, mcp-*, etc.)
 - `mcp-servers:` - Model Context Protocol server configurations
 - `services:` - Docker services for workflow execution
@@ -136,6 +138,7 @@ Shared workflow files (without `on:` field) can define:
 - `secret-masking:` - Secret masking steps
 
 Agent files (`.github/agents/*.md`) can additionally define:
+
 - `name` - Agent name
 - `description` - Agent description
 

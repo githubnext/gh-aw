@@ -192,6 +192,7 @@ git checkout --orphan "$BRANCH_NAME"
 - `BRANCH_NAME` - Branch name (e.g., `memory/default`)
 - `MAX_FILE_SIZE` - Maximum bytes per file (default: `10240`)
 - `MAX_FILE_COUNT` - Maximum files per commit (default: `100`)
+- `MAX_PATCH_SIZE` - Maximum total patch size in bytes (default: `10240`)
 - `FILE_GLOB_FILTER` - Space-separated glob patterns (e.g., `*.md metrics/**`)
 - `GH_AW_CAMPAIGN_ID` - Campaign ID for campaign mode validation
 - `GH_TOKEN` - GitHub authentication token
@@ -214,6 +215,7 @@ const relativeFilePath = "history.jsonl"  // NOT "memory/default/history.jsonl"
 - File glob patterns match against relative paths from artifact root
 - Branch name used for git operations, NOT for pattern matching
 - Campaign mode enforces schema validation for cursor and metrics files
+- Patch size validation computes `git diff --cached` after staging and refuses if total exceeds `MAX_PATCH_SIZE`
 
 ## Configuration Options
 
@@ -232,6 +234,7 @@ tools:
     #   file-glob: string[] (default: all files)
     #   max-file-size: int (default: 10240, max: 104857600)
     #   max-file-count: int (default: 100, max: 1000)
+    #   max-patch-size: int (default: 10240, max: 102400)
     #   description: string (optional)
     #   create-orphan: boolean (default: true)
     #   campaign-id: string (optional)
@@ -245,6 +248,7 @@ tools:
     #   file-glob: string[] (default: all files)
     #   max-file-size: int (default: 10240, max: 104857600)
     #   max-file-count: int (default: 100, max: 1000)
+    #   max-patch-size: int (default: 10240, max: 102400)
     #   description: string (optional)
     #   create-orphan: boolean (default: true)
     #   campaign-id: string (optional)
@@ -374,7 +378,35 @@ file-glob:
   - "memory/code-metrics/*.jsonl"  # WRONG: includes branch name
 ```
 
-### 5. Campaign Mode Validation
+### 5. Patch Size Limits
+
+The total size of all changes (git diff) in a single repo-memory push MUST not exceed the configured maximum patch size.
+
+- **Minimum**: 1 byte
+- **Maximum**: 102400 bytes (100 KB)
+- **Default**: 10240 bytes (10 KB)
+- **Configuration**: `max-patch-size` (in bytes)
+- Validated during config parsing (Go layer)
+- Enforced after staging changes, before committing (JavaScript layer)
+
+**Computation**:
+- After `git add .`, the patch size is computed using `git diff --cached`
+- The total byte count of the unified diff output is compared against `MAX_PATCH_SIZE`
+- If the patch exceeds the limit, the push is aborted with an error message indicating the actual vs. allowed size
+
+**Error message format**:
+```
+Patch size (N KB, X bytes) exceeds maximum allowed size (M KB, Y bytes). Reduce the number or size of changes, or increase max-patch-size.
+```
+
+**Configuration example**:
+```yaml
+tools:
+  repo-memory:
+    max-patch-size: 51200  # 50 KB (default: 10240 = 10 KB)
+```
+
+### 6. Campaign Mode Validation
 
 When `campaign-id` is set with `memory-id: campaigns`:
 

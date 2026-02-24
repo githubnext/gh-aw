@@ -174,15 +174,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ALLOWED_EXTENSIONS: ''
-          GH_AW_CACHE_EXAMPLES: '- `/tmp/gh-aw/cache-memory-repo-audits/notes.txt` - general notes and observations
-- `/tmp/gh-aw/cache-memory-repo-audits/notes.md` - markdown formatted notes
-- `/tmp/gh-aw/cache-memory-repo-audits/preferences.json` - user preferences and settings
-- `/tmp/gh-aw/cache-memory-repo-audits/history.jsonl` - activity history in JSON Lines format
-- `/tmp/gh-aw/cache-memory-repo-audits/data.csv` - tabular data
-- `/tmp/gh-aw/cache-memory-repo-audits/state/` - organized state files in subdirectories (with allowed file types)
-'
-          GH_AW_CACHE_LIST: '- **repo-audits**: `/tmp/gh-aw/cache-memory-repo-audits/`
-'
+          GH_AW_CACHE_EXAMPLES: "- `/tmp/gh-aw/cache-memory-repo-audits/notes.txt` - general notes and observations\n- `/tmp/gh-aw/cache-memory-repo-audits/notes.md` - markdown formatted notes\n- `/tmp/gh-aw/cache-memory-repo-audits/preferences.json` - user preferences and settings\n- `/tmp/gh-aw/cache-memory-repo-audits/history.jsonl` - activity history in JSON Lines format\n- `/tmp/gh-aw/cache-memory-repo-audits/data.csv` - tabular data\n- `/tmp/gh-aw/cache-memory-repo-audits/state/` - organized state files in subdirectories (with allowed file types)\n"
+          GH_AW_CACHE_LIST: "- **repo-audits**: `/tmp/gh-aw/cache-memory-repo-audits/`\n"
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}

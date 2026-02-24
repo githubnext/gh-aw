@@ -2596,7 +2596,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 **Notes**:
 - Requires `contents: write` for git push operations
-- Enforces maximum patch size limit (default: 1024 KB)
+- Enforces maximum patch size limit (default: 10 KB, range: 1–100 KB)
 - Validates changes don't exceed size limits before pushing
 
 ---

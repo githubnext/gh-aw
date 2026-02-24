@@ -650,6 +650,160 @@ func TestRepoMemoryMaxFileCountValidationArray(t *testing.T) {
 	}
 }
 
+// TestRepoMemoryMaxPatchSizeDefault tests that max-patch-size defaults to 10KB
+func TestRepoMemoryMaxPatchSizeDefault(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": true,
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Should parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "my-workflow")
+	require.NoError(t, err, "Should extract repo-memory config")
+	require.NotNil(t, config, "Config should not be nil")
+	require.Len(t, config.Memories, 1, "Should have 1 memory")
+
+	assert.Equal(t, 10240, config.Memories[0].MaxPatchSize, "Default max patch size should be 10240 bytes (10KB)")
+}
+
+// TestRepoMemoryMaxPatchSizeValidation tests max-patch-size boundary validation
+func TestRepoMemoryMaxPatchSizeValidation(t *testing.T) {
+	tests := []struct {
+		name         string
+		maxPatchSize int
+		wantError    bool
+		errorText    string
+	}{
+		{
+			name:         "valid minimum size (1 byte)",
+			maxPatchSize: 1,
+			wantError:    false,
+		},
+		{
+			name:         "valid maximum size (102400 bytes = 100KB)",
+			maxPatchSize: 102400,
+			wantError:    false,
+		},
+		{
+			name:         "valid default size (10240 bytes)",
+			maxPatchSize: 10240,
+			wantError:    false,
+		},
+		{
+			name:         "valid custom size (51200 bytes = 50KB)",
+			maxPatchSize: 51200,
+			wantError:    false,
+		},
+		{
+			name:         "invalid zero size",
+			maxPatchSize: 0,
+			wantError:    true,
+			errorText:    "max-patch-size must be between 1 and 102400, got 0",
+		},
+		{
+			name:         "invalid negative size",
+			maxPatchSize: -1,
+			wantError:    true,
+			errorText:    "max-patch-size must be between 1 and 102400, got -1",
+		},
+		{
+			name:         "invalid size exceeds maximum",
+			maxPatchSize: 102401,
+			wantError:    true,
+			errorText:    "max-patch-size must be between 1 and 102400, got 102401",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toolsMap := map[string]any{
+				"repo-memory": map[string]any{
+					"max-patch-size": tt.maxPatchSize,
+				},
+			}
+
+			toolsConfig, err := ParseToolsConfig(toolsMap)
+			require.NoError(t, err, "Should parse tools config")
+
+			compiler := NewCompiler()
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+
+			if tt.wantError {
+				require.Error(t, err, "Should return an error")
+				if err != nil {
+					assert.Contains(t, err.Error(), tt.errorText, "Error message should match")
+				}
+			} else {
+				require.NoError(t, err, "Should not return an error")
+				if config != nil && len(config.Memories) > 0 {
+					assert.Equal(t, tt.maxPatchSize, config.Memories[0].MaxPatchSize, "MaxPatchSize should match")
+				}
+			}
+		})
+	}
+}
+
+// TestRepoMemoryMaxPatchSizeValidationArray tests max-patch-size validation in array notation
+func TestRepoMemoryMaxPatchSizeValidationArray(t *testing.T) {
+	tests := []struct {
+		name         string
+		maxPatchSize int
+		wantError    bool
+		errorText    string
+	}{
+		{
+			name:         "valid size in array",
+			maxPatchSize: 10240,
+			wantError:    false,
+		},
+		{
+			name:         "invalid size in array (zero)",
+			maxPatchSize: 0,
+			wantError:    true,
+			errorText:    "max-patch-size must be between 1 and 102400, got 0",
+		},
+		{
+			name:         "invalid size in array (exceeds max)",
+			maxPatchSize: 102401,
+			wantError:    true,
+			errorText:    "max-patch-size must be between 1 and 102400, got 102401",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toolsMap := map[string]any{
+				"repo-memory": []any{
+					map[string]any{
+						"id":             "test",
+						"max-patch-size": tt.maxPatchSize,
+					},
+				},
+			}
+
+			toolsConfig, err := ParseToolsConfig(toolsMap)
+			require.NoError(t, err, "Should parse tools config")
+
+			compiler := NewCompiler()
+			config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+
+			if tt.wantError {
+				require.Error(t, err, "Should return an error")
+				if err != nil {
+					assert.Contains(t, err.Error(), tt.errorText, "Error message should match")
+				}
+			} else {
+				require.NoError(t, err, "Should not return an error")
+				if config != nil && len(config.Memories) > 0 {
+					assert.Equal(t, tt.maxPatchSize, config.Memories[0].MaxPatchSize, "MaxPatchSize should match")
+				}
+			}
+		})
+	}
+}
+
 // TestBranchPrefixValidation tests the validateBranchPrefix function
 func TestBranchPrefixValidation(t *testing.T) {
 	tests := []struct {

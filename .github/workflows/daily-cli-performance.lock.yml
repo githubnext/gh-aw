@@ -186,13 +186,7 @@ jobs:
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MEMORY_BRANCH_NAME: 'memory/cli-performance'
-          GH_AW_MEMORY_CONSTRAINTS: '
-
-**Constraints:**
-- **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt
-- **Max File Size**: 512000 bytes (0.49 MB) per file
-- **Max File Count**: 100 files per commit
-'
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt\n- **Max File Size**: 512000 bytes (0.49 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Historical CLI compilation performance benchmark results'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
@@ -1337,6 +1331,7 @@ jobs:
           BRANCH_NAME: memory/cli-performance
           MAX_FILE_SIZE: 512000
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/cli-performance/*.json memory/cli-performance/*.jsonl memory/cli-performance/*.txt"
         with:

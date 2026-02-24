@@ -111,7 +111,17 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 		if (strings.HasPrefix(content, "'") && strings.HasSuffix(content, "'")) ||
 			(strings.HasPrefix(content, "\"") && strings.HasSuffix(content, "\"")) {
 			// Static value - output directly without ${{ }} wrapper
-			fmt.Fprintf(yaml, indent+"    %s: %s\n", mapping.EnvVar, content)
+			// Check if inner value is multi-line; if so use a YAML double-quoted scalar
+			// with escaped newlines to avoid invalid YAML.
+			innerValue := content[1 : len(content)-1]
+			if strings.Contains(innerValue, "\n") {
+				escaped := strings.ReplaceAll(innerValue, `\`, `\\`)
+				escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+				escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+				fmt.Fprintf(yaml, indent+"    %s: \"%s\"\n", mapping.EnvVar, escaped)
+			} else {
+				fmt.Fprintf(yaml, indent+"    %s: %s\n", mapping.EnvVar, content)
+			}
 		} else {
 			// GitHub expression - wrap in ${{ }}
 			fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, content)

@@ -614,6 +614,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	completionCmd := cli.NewCompletionCommand()
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()
+	checksCmd := cli.NewChecksCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -642,6 +643,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	logsCmd.GroupID = "analysis"
 	auditCmd.GroupID = "analysis"
 	healthCmd.GroupID = "analysis"
+	checksCmd.GroupID = "analysis"
 
 	// Utilities
 	mcpServerCmd.GroupID = "utilities"
@@ -669,6 +671,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(healthCmd)
+	rootCmd.AddCommand(checksCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(mcpServerCmd)
 	rootCmd.AddCommand(prCmd)

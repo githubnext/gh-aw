@@ -180,13 +180,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MEMORY_BRANCH_NAME: 'memory/copilot-cli-research'
-          GH_AW_MEMORY_CONSTRAINTS: '
-
-**Constraints:**
-- **Allowed Files**: Only files matching patterns: memory/copilot-cli-research/*.json, memory/copilot-cli-research/*.md
-- **Max File Size**: 204800 bytes (0.20 MB) per file
-- **Max File Count**: 100 files per commit
-'
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: memory/copilot-cli-research/*.json, memory/copilot-cli-research/*.md\n- **Max File Size**: 204800 bytes (0.20 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Copilot CLI research notes and analysis history'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
@@ -1147,6 +1141,7 @@ jobs:
           BRANCH_NAME: memory/copilot-cli-research
           MAX_FILE_SIZE: 204800
           MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
           ALLOWED_EXTENSIONS: '[]'
           FILE_GLOB_FILTER: "memory/copilot-cli-research/*.json memory/copilot-cli-research/*.md"
         with:
