@@ -7,6 +7,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPullRequestCreatedMessage, getIssueCreatedMessage, getCommitPushedMessage } = require("./messages_run_status.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateXMLMarker } = require("./generate_footer.cjs");
+const { getFooterMessage } = require("./messages_footer.cjs");
 
 /**
  * Build the workflow run URL from context and environment.
@@ -33,7 +34,8 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runUrl = getRunUrl(context);
   const body = itemType === "issue" ? getIssueCreatedMessage({ itemNumber, itemUrl }) : getPullRequestCreatedMessage({ itemNumber, itemUrl });
-  const linkMessage = `\n\n${body}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  const footerMessage = getFooterMessage({ workflowName, runUrl });
+  const linkMessage = `\n\n${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, { targetIssueNumber: itemNumber });
 }
 
@@ -51,7 +53,8 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
   const shortSha = commitSha.substring(0, 7);
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runUrl = getRunUrl(context);
-  const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  const footerMessage = getFooterMessage({ workflowName, runUrl });
+  const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
 }
 
