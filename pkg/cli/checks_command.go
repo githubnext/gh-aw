@@ -163,22 +163,31 @@ func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, err
 	}, nil
 }
 
-// fetchPRHeadSHA fetches the head commit SHA for a given PR.
-func fetchPRHeadSHA(repoOverride string, prNumber string) (string, error) {
-	args := []string{"api", "repos/{owner}/{repo}/pulls/" + prNumber, "--jq", ".head.sha"}
+// execGHAPI runs a gh api subcommand and returns raw output.
+// repoOverride is appended as --repo if non-empty; context labels error messages.
+func execGHAPI(repoOverride string, context string, args ...string) ([]byte, error) {
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-
 	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			stderr := strings.TrimSpace(string(exitErr.Stderr))
-			return "", classifyGHAPIError(exitErr.ExitCode(), stderr, prNumber, repoOverride)
+			return nil, classifyGHAPIError(exitErr.ExitCode(), stderr, context, repoOverride)
 		}
-		return "", fmt.Errorf("gh api call failed: %w", err)
+		return nil, fmt.Errorf("gh api call failed: %w", err)
+	}
+	return output, nil
+}
+
+// fetchPRHeadSHA fetches the head commit SHA for a given PR.
+func fetchPRHeadSHA(repoOverride string, prNumber string) (string, error) {
+	output, err := execGHAPI(repoOverride, prNumber,
+		"api", "repos/{owner}/{repo}/pulls/"+prNumber, "--jq", ".head.sha")
+	if err != nil {
+		return "", err
 	}
 
 	sha := strings.TrimSpace(string(output))
@@ -238,20 +247,10 @@ type checkRunsAPIResponse struct {
 
 // fetchCheckRuns fetches check runs for a commit SHA.
 func fetchCheckRuns(repoOverride string, sha string) ([]PRCheckRun, error) {
-	args := []string{"api", "repos/{owner}/{repo}/commits/" + sha + "/check-runs", "--paginate"}
-	if repoOverride != "" {
-		args = append(args, "--repo", repoOverride)
-	}
-
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := execGHAPI(repoOverride, sha,
+		"api", "repos/{owner}/{repo}/commits/"+sha+"/check-runs", "--paginate")
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			stderr := strings.TrimSpace(string(exitErr.Stderr))
-			return nil, classifyGHAPIError(exitErr.ExitCode(), stderr, sha, repoOverride)
-		}
-		return nil, fmt.Errorf("gh api call failed: %w", err)
+		return nil, err
 	}
 
 	var resp checkRunsAPIResponse
@@ -270,20 +269,10 @@ type commitStatusAPIResponse struct {
 
 // fetchCommitStatuses fetches commit statuses (legacy Status API) for a commit SHA.
 func fetchCommitStatuses(repoOverride string, sha string) ([]PRCommitStatus, error) {
-	args := []string{"api", "repos/{owner}/{repo}/commits/" + sha + "/status"}
-	if repoOverride != "" {
-		args = append(args, "--repo", repoOverride)
-	}
-
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := execGHAPI(repoOverride, sha,
+		"api", "repos/{owner}/{repo}/commits/"+sha+"/status")
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			stderr := strings.TrimSpace(string(exitErr.Stderr))
-			return nil, classifyGHAPIError(exitErr.ExitCode(), stderr, sha, repoOverride)
-		}
-		return nil, fmt.Errorf("gh api call failed: %w", err)
+		return nil, err
 	}
 
 	var resp commitStatusAPIResponse
