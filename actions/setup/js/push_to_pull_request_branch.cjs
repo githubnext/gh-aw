@@ -10,7 +10,7 @@ const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
-const { resolveTargetRepoConfig, resolveAndValidateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -474,8 +474,8 @@ async function main(config = {}) {
     if (hasChanges) {
       const ciTriggerResult = await pushExtraEmptyCommit({
         branchName,
-        repoOwner: context.repo.owner,
-        repoName: context.repo.repo,
+        repoOwner: repoParts.owner,  
+        repoName: repoParts.repo,  
         newCommitCount,
       });
       if (ciTriggerResult.success && !ciTriggerResult.skipped) {
