@@ -7,9 +7,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// secretsExprRegex matches content containing a proper ${{ secrets.* }} GitHub Actions expression.
+// It is used in fuzz tests to verify that only actual expressions (not plain text containing "secrets.")
+// trigger security validation failures.
+var secretsExprRegex = regexp.MustCompile(`\$\{\{[^}]*secrets\.`)
 
 // FuzzRuntimeImportExpressionValidation performs fuzz testing on expression validation
 // in runtime_import.cjs to discover edge cases and potential security vulnerabilities.
@@ -245,10 +251,13 @@ try {
 
 		// Validate security invariants
 		if result.Success {
-			// If processing succeeded, verify no secrets leaked
-			if strings.Contains(content, "secrets.") {
+			// If processing succeeded, verify no secrets leaked.
+			// Only flag content that contains a proper ${{ secrets.* }} expression,
+			// not content that merely contains "secrets." as plain text (which is safe
+			// because processExpressions only matches the ${{ ... }} pattern).
+			if secretsExprRegex.MatchString(content) {
 				// Should have failed validation
-				t.Errorf("Content with 'secrets.' expression was processed successfully: %q", content)
+				t.Errorf("Content with '${{ secrets.' expression was processed successfully: %q", content)
 			}
 
 			// Result should not contain the literal string "${{"
@@ -264,10 +273,10 @@ try {
 		} else {
 			// If processing failed, verify error message is informative
 			if result.Error != "" {
-				if strings.Contains(content, "secrets.") &&
+				if secretsExprRegex.MatchString(content) &&
 					!strings.Contains(result.Error, "unauthorized") &&
 					!strings.Contains(result.Error, "not allowed") {
-					t.Errorf("Error for 'secrets.' should mention 'unauthorized' or 'not allowed', got: %s", result.Error)
+					t.Errorf("Error for '${{ secrets.' should mention 'unauthorized' or 'not allowed', got: %s", result.Error)
 				}
 			}
 		}
