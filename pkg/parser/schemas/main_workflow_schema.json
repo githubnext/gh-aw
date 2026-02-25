@@ -7414,6 +7414,10 @@
           "version": "beta"
         },
         {
+          "id": "copilot",
+          "max-continuations": 5
+        },
+        {
           "id": "claude",
           "concurrency": {
             "group": "gh-aw-claude",
@@ -7457,6 +7461,11 @@
                 }
               ],
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
+            },
+            "max-continuations": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum number of continuations for multi-run autopilot mode. Default is 1 (single run, no autopilot). Values greater than 1 enable --autopilot mode for the copilot engine with --max-autopilot-continues set to this value. Note: Only supported by the copilot engine."
             },
             "concurrency": {
               "oneOf": [

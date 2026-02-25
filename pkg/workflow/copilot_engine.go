@@ -34,17 +34,18 @@ func NewCopilotEngine() *CopilotEngine {
 	copilotLog.Print("Creating new Copilot engine instance")
 	return &CopilotEngine{
 		BaseEngine: BaseEngine{
-			id:                     "copilot",
-			displayName:            "GitHub Copilot CLI",
-			description:            "Uses GitHub Copilot CLI with MCP server support",
-			experimental:           false,
-			supportsToolsAllowlist: true,
-			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
-			supportsWebFetch:       true,  // Copilot CLI has built-in web-fetch support
-			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
-			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
-			supportsPlugins:        true,  // Copilot supports plugin installation
-			supportsLLMGateway:     true,  // Copilot supports LLM gateway on port 10003
+			id:                       "copilot",
+			displayName:              "GitHub Copilot CLI",
+			description:              "Uses GitHub Copilot CLI with MCP server support",
+			experimental:             false,
+			supportsToolsAllowlist:   true,
+			supportsMaxTurns:         false, // Copilot CLI does not support max-turns feature yet
+			supportsMaxContinuations: true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
+			supportsWebFetch:         true,  // Copilot CLI has built-in web-fetch support
+			supportsWebSearch:        false, // Copilot CLI does not have built-in web-search support
+			supportsFirewall:         true,  // Copilot supports network firewalling via AWF
+			supportsPlugins:          true,  // Copilot supports plugin installation
+			supportsLLMGateway:       true,  // Copilot supports LLM gateway on port 10003
 		},
 	}
 }

@@ -12,6 +12,7 @@
 //
 //   - validateAgentFile() - Validates custom agent file exists
 //   - validateMaxTurnsSupport() - Validates max-turns feature support
+//   - validateMaxContinuationsSupport() - Validates max-continuations feature support
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
 //
@@ -118,6 +119,24 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	// Engine supports max-turns - additional validation could be added here if needed
 	// For now, we rely on JSON schema validation for format checking
+
+	return nil
+}
+
+// validateMaxContinuationsSupport validates that max-continuations is only used with engines that support this feature
+func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
+	// Check if max-continuations is specified in the engine config
+	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+
+	if engineConfig == nil || engineConfig.MaxContinuations == 0 {
+		// No max-continuations specified, no validation needed
+		return nil
+	}
+
+	// max-continuations is specified, check if the engine supports it
+	if !engine.SupportsMaxContinuations() {
+		return fmt.Errorf("max-continuations not supported: engine '%s' does not support the max-continuations feature", engine.GetID())
+	}
 
 	return nil
 }

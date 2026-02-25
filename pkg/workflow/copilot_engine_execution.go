@@ -86,6 +86,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--agent", agentIdentifier)
 	}
 
+	// Add --autopilot and --max-autopilot-continues when max-continuations > 1
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxContinuations > 1 {
+		maxCont := workflowData.EngineConfig.MaxContinuations
+		copilotExecLog.Printf("Enabling autopilot mode with max-autopilot-continues=%d", maxCont)
+		copilotArgs = append(copilotArgs, "--autopilot", "--max-autopilot-continues", strconv.Itoa(maxCont))
+	}
+
 	// Add tool permission arguments based on configuration
 	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData)
 	if len(toolArgs) > 0 {
