@@ -71,7 +71,7 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Check actor permissions first
-		if err := checkActorPermission(actor, validateActor, "logs"); err != nil {
+		if err := checkActorPermission(ctx, actor, validateActor, "logs"); err != nil {
 			return nil, nil, err
 		}
 
@@ -263,7 +263,7 @@ Returns JSON with the following structure:
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Check actor permissions first
-		if err := checkActorPermission(actor, validateActor, "audit"); err != nil {
+		if err := checkActorPermission(ctx, actor, validateActor, "audit"); err != nil {
 			return nil, nil, err
 		}
 

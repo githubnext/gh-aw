@@ -166,7 +166,7 @@ func validateWorkflowName(workflowName string) error {
 // checkActorPermission validates if the actor has sufficient permissions for restricted tools.
 // Returns nil if access is allowed, or a jsonrpc.Error if access is denied.
 // Uses GitHub API to query the actor's actual repository role with 1-hour caching.
-func checkActorPermission(actor string, validateActor bool, toolName string) error {
+func checkActorPermission(ctx context.Context, actor string, validateActor bool, toolName string) error {
 	// If validation is disabled, always allow access
 	if !validateActor {
 		mcpLog.Printf("Tool %s: access allowed (validation disabled)", toolName)
@@ -202,7 +202,7 @@ func checkActorPermission(actor string, validateActor bool, toolName string) err
 	}
 
 	// Query actor's role in the repository with caching
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	permission, err := queryActorRole(ctx, actor, repo)
