@@ -337,6 +337,12 @@ The YAML frontmatter supports these fields:
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - Restrict to read-only operations (boolean)
     - `github-token:` - Custom GitHub token
+    - `lockdown:` - Enable lockdown mode to limit content surfaced from public repositories to items authored by users with push access (boolean, default: false)
+    - `app:` - GitHub App configuration for token minting; when set, mints an installation access token at workflow start that overrides `github-token`
+      - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
+      - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+      - `owner:` - Optional installation owner (defaults to current repository owner)
+      - `repositories:` - Optional list of repositories to grant access to (array)
     - `toolsets:` - Enable specific GitHub toolset groups (array only)
       - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests` (excludes `users` as GitHub Actions tokens don't support user operations)
       - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
