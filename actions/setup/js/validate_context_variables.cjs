@@ -39,6 +39,10 @@
  * - github.event.workflow_job.id
  * - github.run_id
  * - github.run_number
+ *
+ * Intentionally NOT validated (not numeric IDs):
+ * - github.event.head_commit.id: This is a git commit SHA (40-character hex string),
+ *   not a numeric database ID. Push events always produce a hex SHA here.
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
