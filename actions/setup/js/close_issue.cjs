@@ -59,7 +59,7 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
- * @param {string} [stateReason] - The reason for closing: "completed", "not_planned", or "duplicate"
+ * @param {string} [stateReason] - The reason for closing: "COMPLETED", "NOT_PLANNED", or "DUPLICATE"
  * @returns {Promise<{number: number, html_url: string, title: string}>} Issue details
  */
 async function closeIssue(github, owner, repo, issueNumber, stateReason) {
@@ -68,7 +68,7 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason) {
     repo,
     issue_number: issueNumber,
     state: "closed",
-    state_reason: stateReason || "completed",
+    state_reason: (stateReason || "COMPLETED").toLowerCase(),
   });
 
   return issue;
@@ -85,7 +85,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const comment = config.comment || "";
-  const configStateReason = config.state_reason || "completed";
+  const configStateReason = config.state_reason || "COMPLETED";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode
