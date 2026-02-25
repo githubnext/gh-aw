@@ -15,7 +15,9 @@ permissions:
   discussions: read
   actions: read
 name: Smoke Copilot
-engine: copilot
+engine:
+  id: copilot
+  max-continuations: 2
 imports:
   - shared/gh.md
   - shared/reporting.md

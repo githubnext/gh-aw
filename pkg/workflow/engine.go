@@ -13,18 +13,19 @@ var engineLog = logger.New("workflow:engine")
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID          string
-	Version     string
-	Model       string
-	MaxTurns    string
-	Concurrency string // Agent job-level concurrency configuration (YAML format)
-	UserAgent   string
-	Command     string // Custom executable path (when set, skip installation steps)
-	Env         map[string]string
-	Config      string
-	Args        []string
-	Firewall    *FirewallConfig // AWF firewall configuration
-	Agent       string          // Agent identifier for copilot --agent flag (copilot engine only)
+	ID               string
+	Version          string
+	Model            string
+	MaxTurns         string
+	MaxContinuations int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
+	Concurrency      string // Agent job-level concurrency configuration (YAML format)
+	UserAgent        string
+	Command          string // Custom executable path (when set, skip installation steps)
+	Env              map[string]string
+	Config           string
+	Args             []string
+	Firewall         *FirewallConfig // AWF firewall configuration
+	Agent            string          // Agent identifier for copilot --agent flag (copilot engine only)
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -113,6 +114,19 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = strconv.FormatUint(maxTurnsUint64, 10)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'max-continuations' field
+			if maxCont, hasMaxCont := engineObj["max-continuations"]; hasMaxCont {
+				if maxContInt, ok := maxCont.(int); ok {
+					config.MaxContinuations = maxContInt
+				} else if maxContUint64, ok := maxCont.(uint64); ok {
+					config.MaxContinuations = int(maxContUint64)
+				} else if maxContStr, ok := maxCont.(string); ok {
+					if parsed, err := strconv.Atoi(maxContStr); err == nil {
+						config.MaxContinuations = parsed
+					}
 				}
 			}
 

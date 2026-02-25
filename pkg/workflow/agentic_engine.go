@@ -126,6 +126,10 @@ type CapabilityProvider interface {
 	// When true, plugins can be installed using the engine's plugin install command
 	SupportsPlugins() bool
 
+	// SupportsMaxContinuations returns true if this engine supports the max-continuations feature
+	// When true, max-continuations > 1 enables autopilot/multi-run mode for the engine
+	SupportsMaxContinuations() bool
+
 	// SupportsLLMGateway returns the LLM gateway port number for this engine
 	// Returns the port number (e.g., 10000) if the engine supports an LLM gateway
 	// Returns -1 if the engine does not support an LLM gateway
@@ -207,17 +211,18 @@ type CodingAgentEngine interface {
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
-	id                     string
-	displayName            string
-	description            string
-	experimental           bool
-	supportsToolsAllowlist bool
-	supportsMaxTurns       bool
-	supportsWebFetch       bool
-	supportsWebSearch      bool
-	supportsFirewall       bool
-	supportsPlugins        bool
-	supportsLLMGateway     bool
+	id                       string
+	displayName              string
+	description              string
+	experimental             bool
+	supportsToolsAllowlist   bool
+	supportsMaxTurns         bool
+	supportsMaxContinuations bool
+	supportsWebFetch         bool
+	supportsWebSearch        bool
+	supportsFirewall         bool
+	supportsPlugins          bool
+	supportsLLMGateway       bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -258,6 +263,10 @@ func (e *BaseEngine) SupportsFirewall() bool {
 
 func (e *BaseEngine) SupportsPlugins() bool {
 	return e.supportsPlugins
+}
+
+func (e *BaseEngine) SupportsMaxContinuations() bool {
+	return e.supportsMaxContinuations
 }
 
 func (e *BaseEngine) SupportsLLMGateway() int {
