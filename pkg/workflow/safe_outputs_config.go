@@ -400,9 +400,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
 			if threatDetectionConfig != nil {
 				config.ThreatDetection = threatDetectionConfig
-			} else if _, exists := outputMap["threat-detection"]; exists {
-				// threat-detection key was present but resolved to nil (e.g. threat-detection: false)
-				config.ThreatDetectionExplicitlyDisabled = true
 			}
 
 			// Handle runs-on configuration

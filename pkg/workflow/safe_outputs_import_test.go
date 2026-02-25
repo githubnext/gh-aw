@@ -1825,23 +1825,19 @@ safe-outputs:
 }
 
 // TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden tests that when the main workflow
-// explicitly disables threat-detection, imported fragments with no threat-detection key (which
-// would auto-enable it) do not override the explicit disable.
+// explicitly disables threat-detection, imported fragments with no threat-detection key do not
+// re-enable it.
 func TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
-	// Simulate main workflow that explicitly disabled threat-detection.
-	// The ThreatDetectionExplicitlyDisabled flag is set by extractSafeOutputsConfig
-	// when threat-detection: false (or enabled: false) is in the frontmatter.
+	// Simulate main workflow that explicitly disabled threat-detection:
+	// threat-detection: false → parseThreatDetectionConfig returns nil.
 	topConfig := &SafeOutputsConfig{
-		ThreatDetection:                   nil,  // threat-detection: false → parseThreatDetectionConfig returns nil
-		ThreatDetectionExplicitlyDisabled: true, // set by extractSafeOutputsConfig when the key exists but is disabled
-		AddComments:                       &AddCommentsConfig{},
+		ThreatDetection: nil,
+		AddComments:     &AddCommentsConfig{},
 	}
 
-	// Import fragment that has safe-outputs but no threat-detection key.
-	// extractSafeOutputsConfig auto-enables ThreatDetection for such fragments,
-	// so importedConfig.ThreatDetection will be &ThreatDetectionConfig{}.
+	// Import fragment with safe-outputs but no threat-detection key.
 	importedJSON := []string{
 		`{"add-comment":{"max":1}}`,
 	}
@@ -1854,22 +1850,22 @@ func TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden(t *testing.
 	assert.Nil(t, result.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
 }
 
-// TestMergeSafeOutputsThreatDetectionImportedWhenMainHasNone tests that when the main workflow
-// has no safe-outputs (topSafeOutputs == nil), threat detection can still be set by an import.
-func TestMergeSafeOutputsThreatDetectionImportedWhenMainHasNone(t *testing.T) {
+// TestMergeSafeOutputsThreatDetectionImportedWhenExplicit tests that an import that explicitly
+// carries a threat-detection key can set it when the main workflow has not configured it.
+func TestMergeSafeOutputsThreatDetectionImportedWhenExplicit(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
-	// Import fragment with safe-outputs that will auto-enable ThreatDetection.
+	// Import fragment that explicitly enables threat-detection.
 	importedJSON := []string{
-		`{"add-comment":{"max":1}}`,
+		`{"add-comment":{"max":1},"threat-detection":{"enabled":true}}`,
 	}
 
 	result, err := compiler.MergeSafeOutputs(nil, importedJSON)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 	require.NotNil(t, result, "Result should not be nil")
 
-	// With no explicit disable from main, threat detection should be auto-enabled by the import.
-	assert.NotNil(t, result.ThreatDetection, "ThreatDetection should be auto-enabled from import when main has no safe-outputs")
+	// Import explicitly set threat-detection, so it should be present.
+	assert.NotNil(t, result.ThreatDetection, "ThreatDetection should be set when explicitly configured in import")
 }
 
 // TestSafeOutputsImportDoesNotReenableThreatDetection is an integration test that reproduces
