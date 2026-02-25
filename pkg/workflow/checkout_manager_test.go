@@ -32,7 +32,7 @@ func TestNewCheckoutManager(t *testing.T) {
 
 	t.Run("custom token on default checkout", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_TOKEN }}"},
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		override := cm.GetDefaultCheckoutOverride()
 		require.NotNil(t, override, "should have default override")
@@ -95,13 +95,13 @@ func TestCheckoutManagerMerging(t *testing.T) {
 		assert.Len(t, cm.ordered, 2, "different repos should not be merged")
 	})
 
-	t.Run("same path with different refs merges to last ref", func(t *testing.T) {
+	t.Run("same path with different refs merges to first ref", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Path: "./workspace", Ref: "main"},
 			{Path: "./workspace", Ref: "develop"},
 		})
 		assert.Len(t, cm.ordered, 1, "same path should be merged")
-		assert.Equal(t, "develop", cm.ordered[0].ref, "last ref should win")
+		assert.Equal(t, "main", cm.ordered[0].ref, "first-seen ref should win")
 	})
 }
 
@@ -120,11 +120,11 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 
 	t.Run("user token is included in default checkout", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_TOKEN }}"},
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "should include custom token")
+		assert.Contains(t, combined, "github-token: ${{ secrets.MY_TOKEN }}", "should include custom token")
 		assert.Contains(t, combined, "persist-credentials: false", "must always have persist-credentials: false even with custom token")
 	})
 
@@ -149,7 +149,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 
 	t.Run("trial mode overrides user config", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_TOKEN }}"},
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(true, "owner/trial-repo", getPin)
 		combined := strings.Join(lines, "")
@@ -224,13 +224,13 @@ func TestParseCheckoutConfigs(t *testing.T) {
 
 	t.Run("single object", func(t *testing.T) {
 		raw := map[string]any{
-			"fetch-depth": float64(0),
-			"token":       "${{ secrets.MY_TOKEN }}",
+			"fetch-depth":  float64(0),
+			"github-token": "${{ secrets.MY_TOKEN }}",
 		}
 		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "single object should parse without error")
 		require.Len(t, configs, 1, "should produce one config")
-		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].Token, "token should be set")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "token should be set")
 		require.NotNil(t, configs[0].FetchDepth, "fetch-depth should be set")
 		assert.Equal(t, 0, *configs[0].FetchDepth, "fetch-depth should be 0")
 	})

@@ -17,7 +17,7 @@ var checkoutManagerLog = logger.New("workflow:checkout_manager")
 //
 //	checkout:
 //	  fetch-depth: 0
-//	  token: ${{ secrets.MY_TOKEN }}
+//	  github-token: ${{ secrets.MY_TOKEN }}
 //
 // Or multiple checkouts:
 //
@@ -37,9 +37,9 @@ type CheckoutConfig struct {
 	// Path within GITHUB_WORKSPACE to place the checkout. Defaults to the workspace root.
 	Path string `json:"path,omitempty"`
 
-	// Token overrides the default GITHUB_TOKEN for authentication.
+	// GitHubToken overrides the default GITHUB_TOKEN for authentication.
 	// Use ${{ secrets.MY_TOKEN }} to reference a repository secret.
-	Token string `json:"token,omitempty"`
+	GitHubToken string `json:"github-token,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
 	// 0 fetches all history (full clone). 1 is a shallow clone (default).
@@ -116,14 +116,14 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 	}
 
 	if idx, exists := cm.index[key]; exists {
-		// Merge into existing entry
+		// Merge into existing entry; first-seen wins for ref and token
 		entry := cm.ordered[idx]
 		entry.fetchDepth = deeperFetchDepth(entry.fetchDepth, cfg.FetchDepth)
-		if cfg.Ref != "" {
-			entry.ref = cfg.Ref // last non-empty ref wins
+		if cfg.Ref != "" && entry.ref == "" {
+			entry.ref = cfg.Ref // first-seen ref wins
 		}
-		if cfg.Token != "" {
-			entry.token = cfg.Token // last non-empty token wins
+		if cfg.GitHubToken != "" && entry.token == "" {
+			entry.token = cfg.GitHubToken // first-seen token wins
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
@@ -139,7 +139,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		entry := &resolvedCheckout{
 			key:        key,
 			ref:        cfg.Ref,
-			token:      cfg.Token,
+			token:      cfg.GitHubToken,
 			fetchDepth: cfg.FetchDepth,
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
@@ -227,7 +227,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
 		if override.token != "" {
-			fmt.Fprintf(&sb, "          token: %s\n", override.token)
+			fmt.Fprintf(&sb, "          github-token: %s\n", override.token)
 		}
 		if override.fetchDepth != nil {
 			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
@@ -270,7 +270,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
 	if entry.token != "" {
-		fmt.Fprintf(&sb, "          token: %s\n", entry.token)
+		fmt.Fprintf(&sb, "          github-token: %s\n", entry.token)
 	}
 	if entry.fetchDepth != nil {
 		fmt.Fprintf(&sb, "          fetch-depth: %d\n", *entry.fetchDepth)
@@ -357,7 +357,8 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 
 // ParseCheckoutConfigs converts a raw frontmatter value (single map or array of maps)
 // into a slice of CheckoutConfig entries.
-// Returns nil if the value is nil or cannot be parsed.
+// Returns (nil, nil) if the value is nil; for non-nil values, invalid types or shapes
+// result in a non-nil error.
 func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 	if raw == nil {
 		return nil, nil
@@ -420,12 +421,12 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.Path = s
 	}
 
-	if v, ok := m["token"]; ok {
+	if v, ok := m["github-token"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.token must be a string")
+			return nil, errors.New("checkout.github-token must be a string")
 		}
-		cfg.Token = s
+		cfg.GitHubToken = s
 	}
 
 	if v, ok := m["fetch-depth"]; ok {
@@ -440,6 +441,9 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 			depth := int(n)
 			cfg.FetchDepth = &depth
 		case float64:
+			if n != float64(int64(n)) {
+				return nil, errors.New("checkout.fetch-depth must be an integer")
+			}
 			depth := int(n)
 			cfg.FetchDepth = &depth
 		default:
