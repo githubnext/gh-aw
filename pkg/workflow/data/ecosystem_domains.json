@@ -55,6 +55,7 @@
     "oneocsp.microsoft.com",
     "*.vsblob.vsassets.io"
   ],
+  "bazel": ["releases.bazel.build", "mirror.bazel.build", "bcr.bazel.build", "blog.bazel.build"],
   "clojure": ["repo.clojars.org", "clojars.org"],
   "dart": ["pub.dev", "pub.dartlang.org", "storage.googleapis.com"],
   "fonts": ["fonts.googleapis.com", "fonts.gstatic.com"],
@@ -73,6 +74,7 @@
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
   "haskell": ["haskell.org", "*.hackage.haskell.org", "get-ghcup.haskell.org", "downloads.haskell.org"],
   "kotlin": ["ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com"],
+  "julia": ["pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org"],
   "java": [
     "www.java.com",
     "jdk.java.net",
@@ -122,6 +124,7 @@
     "download.opensuse.org",
     "cdn.redhat.com"
   ],
+  "lua": ["luarocks.org", "www.luarocks.org"],
   "node": [
     "npmjs.org",
     "npmjs.com",
@@ -151,6 +154,7 @@
     "telemetry.vercel.com"
   ],
   "node-cdns": ["cdn.jsdelivr.net", "data.jsdelivr.com", "code.jquery.com", "cdn.sheetjs.com"],
+  "ocaml": ["opam.ocaml.org", "ocaml.org", "erratique.ch"],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
   "php": ["repo.packagist.org", "packagist.org", "getcomposer.org", "bitbucket.org"],
   "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],
@@ -171,6 +175,7 @@
     "index.crates.io",
     "static.crates.io"
   ],
+  "r": ["cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com", "r-project.org"],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
   "scala": ["repo.scala-sbt.org", "scala-ci.typesafe.com", "repo.typesafe.com", "jitpack.io", "dl.bintray.com"],
