@@ -75,17 +75,20 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 				RepoMemoryConfig: config,
 			}
 
-			// Test 1: Validate prompt path (with trailing slash)
-			var promptBuilder strings.Builder
-			generateRepoMemoryPromptSection(&promptBuilder, config)
-			promptOutput := promptBuilder.String()
+			// Test 1: Validate prompt section uses correct memory path (with trailing slash)
+			section := buildRepoMemoryPromptSection(config)
+			require.NotNil(t, section, "Should have a prompt section")
+			assert.True(t, section.IsFile, "Should use template file")
 
-			assert.Contains(t, promptOutput, tt.expectedPromptPath,
-				"Prompt should contain memory path with trailing slash")
-
-			// Verify trailing slash is present
-			assert.Contains(t, promptOutput, tt.expectedPromptPath,
-				"Prompt path must have trailing slash to indicate directory")
+			// For single default memory, the path is in GH_AW_MEMORY_DIR
+			// For non-default or multiple memories, the path is in GH_AW_MEMORY_LIST
+			if config.Memories[0].ID == "default" && len(config.Memories) == 1 {
+				assert.Equal(t, tt.expectedPromptPath, section.EnvVars["GH_AW_MEMORY_DIR"],
+					"Prompt should contain memory path with trailing slash")
+			} else {
+				assert.Contains(t, section.EnvVars["GH_AW_MEMORY_LIST"], tt.expectedPromptPath,
+					"Prompt list should contain memory path with trailing slash")
+			}
 
 			// Test 2: Validate artifact upload path (no trailing slash)
 			var artifactUploadBuilder strings.Builder
@@ -93,11 +96,11 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 			artifactUploadOutput := artifactUploadBuilder.String()
 
 			assert.Contains(t, artifactUploadOutput,
-				fmt.Sprintf("name: %s", tt.expectedArtifactName),
+				"name: "+tt.expectedArtifactName,
 				"Artifact upload should use correct artifact name")
 
 			assert.Contains(t, artifactUploadOutput,
-				fmt.Sprintf("path: %s", tt.expectedMemoryDir),
+				"path: "+tt.expectedMemoryDir,
 				"Artifact upload should use correct memory directory path (no trailing slash)")
 
 			// Verify no trailing slash in artifact path
@@ -111,11 +114,11 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 			cloneStepsOutput := cloneStepsBuilder.String()
 
 			assert.Contains(t, cloneStepsOutput,
-				fmt.Sprintf("MEMORY_DIR: %s", tt.expectedMemoryDir),
+				"MEMORY_DIR: "+tt.expectedMemoryDir,
 				"Clone step should use correct memory directory path")
 
 			assert.Contains(t, cloneStepsOutput,
-				fmt.Sprintf("BRANCH_NAME: %s", tt.branchName),
+				"BRANCH_NAME: "+tt.branchName,
 				"Clone step should use correct branch name")
 
 			// Test 4: Validate push job artifact download
@@ -127,23 +130,23 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 			pushJobOutput := strings.Join(pushJob.Steps, "\n")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("name: %s", tt.expectedArtifactName),
+				"name: "+tt.expectedArtifactName,
 				"Push job should download correct artifact")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("path: %s", tt.expectedMemoryDir),
+				"path: "+tt.expectedMemoryDir,
 				"Push job should download to correct memory directory")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("ARTIFACT_DIR: %s", tt.expectedMemoryDir),
+				"ARTIFACT_DIR: "+tt.expectedMemoryDir,
 				"Push job should pass correct artifact directory to JavaScript")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("MEMORY_ID: %s", tt.memoryID),
+				"MEMORY_ID: "+tt.memoryID,
 				"Push job should pass correct memory ID to JavaScript")
 
 			assert.Contains(t, pushJobOutput,
-				fmt.Sprintf("BRANCH_NAME: %s", tt.branchName),
+				"BRANCH_NAME: "+tt.branchName,
 				"Push job should pass correct branch name to JavaScript")
 		})
 	}
@@ -191,19 +194,26 @@ func TestRepoMemoryPromptPathTrailingSlash(t *testing.T) {
 				},
 			}
 
-			var builder strings.Builder
-			generateRepoMemoryPromptSection(&builder, config)
-			output := builder.String()
+			section := buildRepoMemoryPromptSection(config)
+			require.NotNil(t, section, "Should have a prompt section")
+			assert.True(t, section.IsFile, "Should use template file")
 
 			expectedPath := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s/", tt.memoryID)
-			assert.Contains(t, output, expectedPath,
-				"Prompt must show memory path with trailing slash")
 
-			// Only check example paths for default memory (single memory with ID "default")
-			// Other configs use generic example paths like /tmp/gh-aw/repo-memory/notes.md
-			if tt.checkExamplePath && strings.Contains(output, "notes.md") {
-				assert.Contains(t, output, fmt.Sprintf("%snotes.md", expectedPath),
-					"Example paths for default memory should include memory-specific path")
+			if tt.memoryID == "default" {
+				// Single default memory uses GH_AW_MEMORY_DIR
+				assert.Equal(t, expectedPath, section.EnvVars["GH_AW_MEMORY_DIR"],
+					"Prompt must show memory path with trailing slash")
+
+				// Check example paths are memory-specific for default memory
+				if tt.checkExamplePath {
+					assert.Equal(t, repoMemoryPromptFile, section.Content,
+						"Default memory should use single memory template")
+				}
+			} else {
+				// Non-default single memory uses multi template with GH_AW_MEMORY_LIST
+				assert.Contains(t, section.EnvVars["GH_AW_MEMORY_LIST"], expectedPath,
+					"Prompt list must show memory path with trailing slash")
 			}
 		})
 	}
@@ -287,7 +297,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 				Memories: []RepoMemoryEntry{
 					{
 						ID:         tt.memoryID,
-						BranchName: fmt.Sprintf("memory/%s", tt.memoryID),
+						BranchName: "memory/" + tt.memoryID,
 					},
 				},
 			}
@@ -301,7 +311,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 			generateRepoMemoryArtifactUpload(&uploadBuilder, data)
 			uploadOutput := uploadBuilder.String()
 
-			assert.Contains(t, uploadOutput, fmt.Sprintf("name: %s", tt.expectedName),
+			assert.Contains(t, uploadOutput, "name: "+tt.expectedName,
 				"Artifact upload should use correct naming convention")
 
 			// Check artifact download in push job
@@ -312,7 +322,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 
 			pushJobOutput := strings.Join(pushJob.Steps, "\n")
 
-			assert.Contains(t, pushJobOutput, fmt.Sprintf("name: %s", tt.expectedName),
+			assert.Contains(t, pushJobOutput, "name: "+tt.expectedName,
 				"Artifact download should use same naming convention")
 		})
 	}
@@ -380,14 +390,16 @@ func TestRepoMemoryMultipleMemoriesPathConsistency(t *testing.T) {
 	}
 
 	// Test prompt generation
-	var promptBuilder strings.Builder
-	generateRepoMemoryPromptSection(&promptBuilder, config)
-	promptOutput := promptBuilder.String()
+	section := buildRepoMemoryPromptSection(config)
+	require.NotNil(t, section, "Should have a prompt section")
+	assert.True(t, section.IsFile, "Should use template file")
+	assert.Equal(t, repoMemoryPromptMultiFile, section.Content, "Should use multi memory template")
 
-	assert.Contains(t, promptOutput, "/tmp/gh-aw/repo-memory/session/",
-		"Prompt should contain session memory path")
-	assert.Contains(t, promptOutput, "/tmp/gh-aw/repo-memory/logs/",
-		"Prompt should contain logs memory path")
+	memoryList := section.EnvVars["GH_AW_MEMORY_LIST"]
+	assert.Contains(t, memoryList, "/tmp/gh-aw/repo-memory/session/",
+		"Memory list should contain session memory path")
+	assert.Contains(t, memoryList, "/tmp/gh-aw/repo-memory/logs/",
+		"Memory list should contain logs memory path")
 
 	// Test artifact upload
 	var uploadBuilder strings.Builder
@@ -451,9 +463,10 @@ func TestRepoMemoryPathComponentIsolation(t *testing.T) {
 		RepoMemoryConfig: config,
 	}
 
-	// Generate all outputs
-	var promptBuilder strings.Builder
-	generateRepoMemoryPromptSection(&promptBuilder, config)
+	// Generate prompt section EnvVars (memory ID "test" uses multi template since it's not "default")
+	section := buildRepoMemoryPromptSection(config)
+	require.NotNil(t, section, "Should have a prompt section")
+	memoryList := section.EnvVars["GH_AW_MEMORY_LIST"]
 
 	var uploadBuilder strings.Builder
 	generateRepoMemoryArtifactUpload(&uploadBuilder, data)
@@ -467,8 +480,8 @@ func TestRepoMemoryPathComponentIsolation(t *testing.T) {
 	require.NotNil(t, pushJob)
 	pushJobOutput := strings.Join(pushJob.Steps, "\n")
 
-	// Combine all output
-	allOutput := promptBuilder.String() + uploadBuilder.String() + cloneBuilder.String() + pushJobOutput
+	// Combine all output (using memory list from prompt section EnvVars)
+	allOutput := memoryList + uploadBuilder.String() + cloneBuilder.String() + pushJobOutput
 
 	// Verify consistent use of /tmp/gh-aw/repo-memory/test
 	expectedMemoryDir := "/tmp/gh-aw/repo-memory/test"

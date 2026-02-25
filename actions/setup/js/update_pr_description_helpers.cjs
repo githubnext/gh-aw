@@ -7,18 +7,27 @@
  * @module update_pr_description_helpers
  */
 
-const { getFooterMessage } = require("./messages_footer.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Build the AI footer with workflow attribution
- * Uses the messages system to support custom templates from frontmatter
+ * Uses the common generateFooterWithMessages helper (includes install instructions,
+ * missing info sections, blocked domains, and XML metadata marker).
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @returns {string} AI attribution footer
  */
 function buildAIFooter(workflowName, runUrl) {
-  return "\n\n" + getFooterMessage({ workflowName, runUrl });
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
+  // Use typeof guard since context is a global injected by the Actions Script runtime
+  const ctx = typeof context !== "undefined" ? context : null;
+  const triggeringIssueNumber = ctx?.payload?.issue?.number;
+  const triggeringPRNumber = ctx?.payload?.pull_request?.number;
+  const triggeringDiscussionNumber = ctx?.payload?.discussion?.number;
+  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
 }
 
 /**
@@ -77,7 +86,10 @@ function findIsland(body, workflowId) {
  */
 function updateBody(params) {
   const { currentBody, newContent, operation, workflowName, runUrl, workflowId, includeFooter = true } = params;
+  // When footer is enabled use the full footer (includes install instructions, XML marker, etc.)
+  // When footer is disabled still add standalone workflow-id marker for searchability
   const aiFooter = includeFooter ? buildAIFooter(workflowName, runUrl) : "";
+  const workflowIdMarker = !includeFooter && workflowId ? `\n\n${generateWorkflowIdMarker(workflowId)}` : "";
 
   // Sanitize new content to prevent injection attacks
   const sanitizedNewContent = sanitizeContent(newContent);
@@ -85,7 +97,7 @@ function updateBody(params) {
   if (operation === "replace") {
     // Replace: use new content with optional AI footer
     core.info("Operation: replace (full body replacement)");
-    return sanitizedNewContent + aiFooter;
+    return sanitizedNewContent + aiFooter + workflowIdMarker;
   }
 
   if (operation === "replace-island") {
@@ -97,7 +109,7 @@ function updateBody(params) {
       core.info(`Operation: replace-island (updating existing island for workflow ${workflowId})`);
       const startMarker = buildIslandStartMarker(workflowId);
       const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}\n${endMarker}`;
+      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}${workflowIdMarker}\n${endMarker}`;
 
       const before = currentBody.substring(0, island.startIndex);
       const after = currentBody.substring(island.endIndex);
@@ -107,7 +119,7 @@ function updateBody(params) {
       core.info(`Operation: replace-island (island not found for workflow ${workflowId}, falling back to append)`);
       const startMarker = buildIslandStartMarker(workflowId);
       const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}\n${endMarker}`;
+      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}${workflowIdMarker}\n${endMarker}`;
       const appendSection = `\n\n---\n\n${islandContent}`;
       return currentBody + appendSection;
     }
@@ -116,13 +128,13 @@ function updateBody(params) {
   if (operation === "prepend") {
     // Prepend: add content, AI footer (if enabled), and horizontal line at the start
     core.info("Operation: prepend (add to start with separator)");
-    const prependSection = `${sanitizedNewContent}${aiFooter}\n\n---\n\n`;
+    const prependSection = `${sanitizedNewContent}${aiFooter}${workflowIdMarker}\n\n---\n\n`;
     return prependSection + currentBody;
   }
 
   // Default to append
   core.info("Operation: append (add to end with separator)");
-  const appendSection = `\n\n---\n\n${sanitizedNewContent}${aiFooter}`;
+  const appendSection = `\n\n---\n\n${sanitizedNewContent}${aiFooter}${workflowIdMarker}`;
   return currentBody + appendSection;
 }
 

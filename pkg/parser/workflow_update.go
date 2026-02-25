@@ -57,7 +57,7 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 
 	workflowUpdateLog.Printf("Successfully updated workflow file: %s", workflowPath)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Updated workflow file: %s", console.ToRelativePath(workflowPath))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated workflow file: "+console.ToRelativePath(workflowPath)))
 	}
 
 	return nil

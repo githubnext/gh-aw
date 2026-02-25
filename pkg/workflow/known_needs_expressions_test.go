@@ -13,24 +13,48 @@ import (
 
 func TestGenerateKnownNeedsExpressions(t *testing.T) {
 	tests := []struct {
-		name             string
-		data             *WorkflowData
-		expectedMinCount int
-		checkExpressions []string
-		notExpectedExprs []string
+		name                    string
+		data                    *WorkflowData
+		preActivationJobCreated bool
+		expectedMinCount        int
+		checkExpressions        []string
+		notExpectedExprs        []string
 	}{
 		{
-			name:             "basic pre_activation job only",
-			data:             &WorkflowData{},
-			expectedMinCount: 2, // Only pre_activation outputs (activated, matched_command)
+			name:                    "basic pre_activation job only - no command",
+			data:                    &WorkflowData{},
+			preActivationJobCreated: true,
+			expectedMinCount:        1, // Only activated output (no matched_command without command trigger)
+			checkExpressions: []string{
+				"needs.pre_activation.outputs.activated",
+			},
+			notExpectedExprs: []string{
+				"needs.pre_activation.outputs.matched_command", // No command trigger, so not included
+				"needs.activation.outputs.text",                // Activation is the current job
+				"needs.agent.outputs.output",                   // Agent runs AFTER activation
+				"needs.agent.outputs.detection_success",        // Agent runs AFTER activation (detection is inline)
+			},
+		},
+		{
+			name: "pre_activation with command - includes matched_command",
+			data: &WorkflowData{
+				Command: []string{"/bot"},
+			},
+			preActivationJobCreated: true,
+			expectedMinCount:        2, // activated + matched_command
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 				"needs.pre_activation.outputs.matched_command",
 			},
+		},
+		{
+			name:                    "no pre_activation job - no pre_activation outputs",
+			data:                    &WorkflowData{},
+			preActivationJobCreated: false,
+			expectedMinCount:        0,
 			notExpectedExprs: []string{
-				"needs.activation.outputs.text",   // Activation is the current job
-				"needs.agent.outputs.output",      // Agent runs AFTER activation
-				"needs.detection.outputs.success", // Detection runs AFTER activation
+				"needs.pre_activation.outputs.activated",
+				"needs.pre_activation.outputs.matched_command",
 			},
 		},
 		{
@@ -43,6 +67,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 				"needs.custom_job.outputs.output",
@@ -61,6 +86,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 			},
@@ -78,6 +104,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 			},
@@ -92,6 +119,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					CreateIssues: &CreateIssuesConfig{},
 				},
 			},
+			preActivationJobCreated: true,
 			checkExpressions: []string{
 				"needs.pre_activation.outputs.activated",
 			},
@@ -103,7 +131,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mappings := generateKnownNeedsExpressions(tt.data)
+			mappings := generateKnownNeedsExpressions(tt.data, tt.preActivationJobCreated)
 
 			// Check minimum count if specified
 			if tt.expectedMinCount > 0 {
@@ -377,7 +405,7 @@ func TestGetCustomJobNames(t *testing.T) {
 
 func TestGenerateKnownNeedsExpressions_EnvVarFormat(t *testing.T) {
 	data := &WorkflowData{}
-	mappings := generateKnownNeedsExpressions(data)
+	mappings := generateKnownNeedsExpressions(data, true)
 
 	require.NotEmpty(t, mappings, "Should generate at least some mappings")
 
@@ -503,11 +531,13 @@ This workflow has custom jobs before and after activation.
 		substSection = substSection[:50+nextStepIdx]
 	}
 
-	// Should have pre_activation expressions in substitution step
+	// Should have pre_activation activated expression in substitution step
+	// (workflow uses 'on: issues' which creates a pre_activation job with permission check)
 	assert.Contains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED",
 		"Substitution step should have pre_activation.outputs.activated")
-	assert.Contains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND",
-		"Substitution step should have pre_activation.outputs.matched_command")
+	// Should NOT have matched_command since this workflow has no command trigger
+	assert.NotContains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND",
+		"Substitution step should NOT have pre_activation.outputs.matched_command (no command trigger)")
 
 	// Should have before_job expression in substitution step
 	assert.Contains(t, substSection, "GH_AW_NEEDS_BEFORE_JOB_OUTPUTS_OUTPUT",
@@ -556,4 +586,199 @@ func TestParseNeedsFieldArrayTypes(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "parseNeedsField result mismatch")
 		})
 	}
+}
+
+// ========================================
+// filterExpressionsForActivation Tests
+// ========================================
+
+func TestFilterExpressionsForActivation(t *testing.T) {
+	customJobs := map[string]any{
+		"precompute": map[string]any{"runs-on": "ubuntu-latest"},
+		"config":     map[string]any{"runs-on": "ubuntu-latest"},
+	}
+
+	tests := []struct {
+		name                 string
+		mappings             []*ExpressionMapping
+		customJobs           map[string]any
+		beforeActivationJobs []string
+		expectedContents     []string
+		excludedContents     []string
+	}{
+		{
+			name:       "nil customJobs returns all mappings unchanged",
+			customJobs: nil,
+			mappings: []*ExpressionMapping{
+				{Content: "needs.precompute.outputs.action", EnvVar: "GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION"},
+				{Content: "github.event.issue.number", EnvVar: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER"},
+			},
+			beforeActivationJobs: nil,
+			expectedContents:     []string{"needs.precompute.outputs.action", "github.event.issue.number"},
+		},
+		{
+			name:                 "empty mappings returns empty slice",
+			customJobs:           customJobs,
+			mappings:             []*ExpressionMapping{},
+			beforeActivationJobs: []string{"precompute"},
+			expectedContents:     []string{},
+		},
+		{
+			name:       "job in beforeActivationJobs is kept",
+			customJobs: customJobs,
+			mappings: []*ExpressionMapping{
+				{Content: "needs.precompute.outputs.action", EnvVar: "GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION"},
+			},
+			beforeActivationJobs: []string{"precompute"},
+			expectedContents:     []string{"needs.precompute.outputs.action"},
+		},
+		{
+			name:       "job NOT in beforeActivationJobs is filtered out",
+			customJobs: customJobs,
+			mappings: []*ExpressionMapping{
+				{Content: "needs.config.outputs.release_tag", EnvVar: "GH_AW_NEEDS_CONFIG_OUTPUTS_RELEASE_TAG"},
+			},
+			beforeActivationJobs: []string{"precompute"}, // config is not before activation
+			excludedContents:     []string{"needs.config.outputs.release_tag"},
+		},
+		{
+			name:       "nil beforeActivationJobs filters all custom job expressions",
+			customJobs: customJobs,
+			mappings: []*ExpressionMapping{
+				{Content: "needs.precompute.outputs.action", EnvVar: "GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION"},
+				{Content: "needs.config.outputs.release_tag", EnvVar: "GH_AW_NEEDS_CONFIG_OUTPUTS_RELEASE_TAG"},
+				{Content: "github.event.issue.number", EnvVar: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER"},
+			},
+			beforeActivationJobs: nil,
+			// All custom job expressions are dropped; non-needs.* expression is kept
+			excludedContents: []string{"needs.precompute.outputs.action", "needs.config.outputs.release_tag"},
+			expectedContents: []string{"github.event.issue.number"},
+		},
+		{
+			name:       "non-custom-job needs.* expression is always kept",
+			customJobs: customJobs,
+			mappings: []*ExpressionMapping{
+				{Content: "needs.pre_activation.outputs.activated", EnvVar: "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED"},
+				{Content: "needs.precompute.outputs.action", EnvVar: "GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION"},
+			},
+			beforeActivationJobs: []string{"precompute"},
+			// pre_activation is not in customJobs so it's kept; precompute is in beforeActivationJobs so it's kept
+			expectedContents: []string{
+				"needs.pre_activation.outputs.activated",
+				"needs.precompute.outputs.action",
+			},
+		},
+		{
+			name:       "non-needs expression is always kept regardless of beforeActivationJobs",
+			customJobs: customJobs,
+			mappings: []*ExpressionMapping{
+				{Content: "github.event.issue.number", EnvVar: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER"},
+				{Content: "steps.sanitized.outputs.text", EnvVar: "GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT"},
+				{Content: "needs.config.outputs.release_tag", EnvVar: "GH_AW_NEEDS_CONFIG_OUTPUTS_RELEASE_TAG"},
+			},
+			beforeActivationJobs: nil,
+			expectedContents: []string{
+				"github.event.issue.number",
+				"steps.sanitized.outputs.text",
+			},
+			excludedContents: []string{"needs.config.outputs.release_tag"},
+		},
+		{
+			name:       "malformed needs expression without second dot is kept",
+			customJobs: customJobs,
+			mappings: []*ExpressionMapping{
+				{Content: "needs.precompute", EnvVar: "GH_AW_NEEDS_PRECOMPUTE"},
+			},
+			beforeActivationJobs: nil,
+			// No second dot → parsing fails → kept as-is (conservative)
+			expectedContents: []string{"needs.precompute"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterExpressionsForActivation(tt.mappings, tt.customJobs, tt.beforeActivationJobs)
+
+			resultSet := make(map[string]bool, len(result))
+			for _, m := range result {
+				resultSet[m.Content] = true
+			}
+
+			for _, expected := range tt.expectedContents {
+				assert.True(t, resultSet[expected],
+					"Expected expression %q to be kept in result, got: %v", expected, resultSet)
+			}
+			for _, excluded := range tt.excludedContents {
+				assert.False(t, resultSet[excluded],
+					"Expected expression %q to be filtered out of result, got: %v", excluded, resultSet)
+			}
+		})
+	}
+}
+
+// TestFilterExpressionsForActivationEndToEnd verifies that a workflow with a custom job
+// that depends on both pre_activation and activation does not produce expression references
+// to that job in the activation prompt's substitution step.
+func TestFilterExpressionsForActivationEndToEnd(t *testing.T) {
+	workflowContent := `---
+engine: copilot
+on: issues
+permissions:
+  issues: read
+jobs:
+  precompute:
+    runs-on: ubuntu-latest
+    needs: pre_activation
+    outputs:
+      action: ${{ steps.detect.outputs.action }}
+    steps:
+      - id: detect
+        run: echo "action=bot" >> "$GITHUB_OUTPUT"
+  config:
+    runs-on: ubuntu-latest
+    needs: ["pre_activation", "activation"]
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+    steps:
+      - id: tag
+        run: echo "release_tag=v1.0.0" >> "$GITHUB_OUTPUT"
+---
+
+# Test Workflow
+
+Action: ${{ needs.precompute.outputs.action }}
+Release tag: ${{ needs.config.outputs.release_tag }}
+`
+	tmpDir := t.TempDir()
+	workflowPath := tmpDir + "/test-filter-workflow.md"
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0644))
+
+	compiler := NewCompiler()
+	compiler.SetQuiet(true)
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockContent, err := os.ReadFile(tmpDir + "/test-filter-workflow.lock.yml")
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	// activation must depend on precompute (it runs before activation and its output is referenced)
+	activationSection := extractJobSection(lockStr, "activation")
+	require.NotEmpty(t, activationSection, "activation job section should exist")
+	assert.Contains(t, activationSection, "precompute", "activation should depend on precompute")
+
+	// config should NOT be in activation's needs (it depends on activation itself)
+	assert.NotContains(t, activationSection[:strings.Index(activationSection, "runs-on")],
+		"config", "activation should NOT depend on config")
+
+	// The substitution step in the activation job should reference precompute's outputs
+	substIdx := strings.Index(lockStr, "- name: Substitute placeholders")
+	require.Positive(t, substIdx)
+	substSection := lockStr[substIdx:]
+	if nextStep := strings.Index(substSection[50:], "- name:"); nextStep > 0 {
+		substSection = substSection[:50+nextStep]
+	}
+	assert.Contains(t, substSection, "GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ACTION",
+		"Substitution step should reference precompute's output (it runs before activation)")
+	assert.NotContains(t, substSection, "GH_AW_NEEDS_CONFIG_OUTPUTS_RELEASE_TAG",
+		"Substitution step should NOT reference config's output (it runs after activation)")
 }

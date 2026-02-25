@@ -64,8 +64,7 @@ func TestVersionField(t *testing.T) {
 	t.Run("Playwright version field extraction", func(t *testing.T) {
 		// Test "version" field
 		playwrightTool := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"version":         "v1.41.0",
+			"version": "v1.41.0",
 		}
 		playwrightConfig := parsePlaywrightTool(playwrightTool)
 		result := getPlaywrightDockerImageVersion(playwrightConfig)
@@ -74,9 +73,7 @@ func TestVersionField(t *testing.T) {
 		}
 
 		// Test default value when version field is not present
-		playwrightToolDefault := map[string]any{
-			"allowed_domains": []any{"example.com"},
-		}
+		playwrightToolDefault := map[string]any{}
 		playwrightConfigDefault := parsePlaywrightTool(playwrightToolDefault)
 		result = getPlaywrightDockerImageVersion(playwrightConfigDefault)
 		if result != string(constants.DefaultPlaywrightBrowserVersion) {
@@ -85,8 +82,7 @@ func TestVersionField(t *testing.T) {
 
 		// Test integer version
 		playwrightToolInt := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"version":         20,
+			"version": 20,
 		}
 		playwrightConfigInt := parsePlaywrightTool(playwrightToolInt)
 		result = getPlaywrightDockerImageVersion(playwrightConfigInt)
@@ -96,8 +92,7 @@ func TestVersionField(t *testing.T) {
 
 		// Test float version
 		playwrightToolFloat := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"version":         1.41,
+			"version": 1.41,
 		}
 		playwrightConfigFloat := parsePlaywrightTool(playwrightToolFloat)
 		result = getPlaywrightDockerImageVersion(playwrightConfigFloat)
@@ -107,8 +102,7 @@ func TestVersionField(t *testing.T) {
 
 		// Test int64 version
 		playwrightToolInt64 := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"version":         int64(142),
+			"version": int64(142),
 		}
 		playwrightConfigInt64 := parsePlaywrightTool(playwrightToolInt64)
 		result = getPlaywrightDockerImageVersion(playwrightConfigInt64)
@@ -153,8 +147,7 @@ func TestVersionField(t *testing.T) {
 		frontmatterPlaywright := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
-					"allowed_domains": []any{"example.com"},
-					"version":         "v1.41.0",
+					"version": "v1.41.0",
 				},
 			},
 		}
@@ -183,8 +176,7 @@ func TestVersionField(t *testing.T) {
 		frontmatterPlaywrightInt := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
-					"allowed_domains": []any{"example.com"},
-					"version":         20,
+					"version": 20,
 				},
 			},
 		}
@@ -213,8 +205,7 @@ func TestVersionField(t *testing.T) {
 		frontmatterPlaywrightFloat := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
-					"allowed_domains": []any{"example.com"},
-					"version":         1.41,
+					"version": 1.41,
 				},
 			},
 		}

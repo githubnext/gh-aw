@@ -20,13 +20,13 @@ sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     max: 1
     close-older-discussions: true
 timeout-minutes: 20
 strict: false
 imports:
-  - shared/mood.md
   - shared/mcp/arxiv.md
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
@@ -43,9 +43,9 @@ imports:
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/reporting.md
+  - shared/mcp/serena-go.md
 tools:
   agentic-workflows:
-  serena: ["go"]
   edit:
   bash: true
   cache-memory: true
@@ -93,3 +93,9 @@ Generate:
 ```
 
 Save to `/tmp/gh-aw/cache-memory/mcp-inspections/[DATE].json` and create discussion in "audits" category.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

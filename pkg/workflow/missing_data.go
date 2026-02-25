@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,14 +23,14 @@ func (c *Compiler) buildCreateOutputMissingDataJob(data *WorkflowData, mainJobNa
 	missingDataLog.Printf("Building missing_data job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.MissingData == nil {
-		return nil, fmt.Errorf("safe-outputs.missing-data configuration is required")
+		return nil, errors.New("safe-outputs.missing-data configuration is required")
 	}
 
 	// Build custom environment variables specific to missing-data
 	var customEnvVars []string
-	if data.SafeOutputs.MissingData.Max > 0 {
-		missingDataLog.Printf("Setting max missing data limit: %d", data.SafeOutputs.MissingData.Max)
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_DATA_MAX: %d\n", data.SafeOutputs.MissingData.Max))
+	if data.SafeOutputs.MissingData.Max != nil {
+		missingDataLog.Printf("Setting max missing data limit: %s", *data.SafeOutputs.MissingData.Max)
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_DATA_MAX", data.SafeOutputs.MissingData.Max)...)
 	}
 
 	// Add create-issue configuration

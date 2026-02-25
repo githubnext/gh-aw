@@ -77,28 +77,19 @@ func TestMCPInspectPlaywrightLiveIntegration(t *testing.T) {
 			name: "copilot",
 			engineConfig: `engine: copilot
 tools:
-  playwright:
-    allowed_domains:
-      - "localhost"
-      - "127.0.0.1"`,
+  playwright:`,
 		},
 		{
 			name: "claude",
 			engineConfig: `engine: claude
 tools:
-  playwright:
-    allowed_domains:
-      - "localhost"
-      - "127.0.0.1"`,
+  playwright:`,
 		},
 		{
 			name: "codex",
 			engineConfig: `engine: codex
 tools:
-  playwright:
-    allowed_domains:
-      - "localhost"
-      - "127.0.0.1"`,
+  playwright:`,
 		},
 	}
 
@@ -279,8 +270,6 @@ permissions:
 engine: copilot
 tools:
   playwright:
-    allowed_domains:
-      - "localhost"
 ---
 
 # Test Playwright with Docs Server

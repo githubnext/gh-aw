@@ -4,6 +4,10 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
+const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
+const { isPayloadUserBot } = require("./resolve_mentions.cjs");
+const { parseIntTemplatable } = require("./templatable.cjs");
+const { parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
 
 async function main() {
   try {
@@ -34,6 +38,10 @@ async function main() {
     // This determines which @mentions are allowed in the agent output
     const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
 
+    // maxBotMentions is populated after safeOutputsConfig is read below
+    /** @type {number | undefined} */
+    let maxBotMentions;
+
     function validateFieldWithInputSchema(value, fieldName, inputSchema, lineNum) {
       if (inputSchema.required && (value === undefined || value === null)) {
         return {
@@ -57,7 +65,7 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be a string`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
           break;
         case "boolean":
           if (typeof value !== "boolean") {
@@ -88,11 +96,11 @@ async function main() {
               error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
             };
           }
-          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
           break;
         default:
           if (typeof value === "string") {
-            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
+            normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions, maxBotMentions });
           }
           break;
       }
@@ -141,7 +149,7 @@ async function main() {
           core.info(`invalid input json: ${jsonStr}`);
           const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
           const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
-          throw new Error(`JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
+          throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
         }
       }
     }
@@ -193,6 +201,13 @@ async function main() {
         expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
         core.info(`[INGESTION] Expected output types after normalization: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
         core.info(`[INGESTION] Expected output types full config: ${JSON.stringify(expectedOutputTypes)}`);
+        // Extract max-bot-mentions from config (defaults to undefined, using neutralizeBotTriggers default)
+        const rawMaxBotMentions = parseIntTemplatable(expectedOutputTypes.max_bot_mentions, 0);
+        if (rawMaxBotMentions > 0) {
+          maxBotMentions = rawMaxBotMentions;
+        }
+        // Remove global config keys so they are not treated as valid output types
+        delete expectedOutputTypes.max_bot_mentions;
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -202,6 +217,61 @@ async function main() {
     // CRITICAL: This expects one JSON object per line. If JSON is formatted with
     // indentation/pretty-printing, parsing will fail.
     const lines = outputContent.trim().split("\n");
+
+    // Resolve allowed repos for cross-repo targeting validation in the pre-scan loop.
+    // The triggering repository is always allowed; additional repos come from config.
+    const defaultTargetRepo = `${context.repo.owner}/${context.repo.repo}`;
+    const allowedRepos = parseAllowedRepos(safeOutputsConfig?.allowed_repos || safeOutputsConfig?.["allowed-repos"]);
+
+    // Pre-scan: collect target issue authors from add_comment items with explicit item_number
+    // so they are included in the first sanitization pass.
+    // We do this before the main loop so the allowed mentions array can be extended.
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      try {
+        const preview = JSON.parse(trimmedLine);
+        const previewType = (preview?.type || "").replace(/-/g, "_");
+        if (previewType === "add_comment" && preview.item_number != null && typeof preview.item_number === "number") {
+          // Determine which repo to query (use explicit repo field or fall back to triggering repo)
+          let targetOwner = context.repo.owner;
+          let targetRepo = context.repo.repo;
+          if (typeof preview.repo === "string") {
+            const candidateRepo = preview.repo.trim();
+            if (candidateRepo.includes("/")) {
+              // Validate the user-supplied repo against allowedRepos before making API calls
+              const repoValidation = validateTargetRepo(candidateRepo, defaultTargetRepo, allowedRepos);
+              if (repoValidation.valid) {
+                const parts = candidateRepo.split("/");
+                targetOwner = parts[0];
+                targetRepo = parts[1];
+              } else {
+                core.info(`[MENTIONS] Skipping cross-repo mention lookup for '${candidateRepo}': ${repoValidation.error}`);
+              }
+            }
+          }
+          try {
+            const { data: issueData } = await github.rest.issues.get({
+              owner: targetOwner,
+              repo: targetRepo,
+              issue_number: preview.item_number,
+            });
+            if (issueData.user?.login && !isPayloadUserBot(issueData.user)) {
+              const issueAuthor = issueData.user.login;
+              if (!allowedMentions.some(m => m.toLowerCase() === issueAuthor.toLowerCase())) {
+                allowedMentions.push(issueAuthor);
+                core.info(`[MENTIONS] Added target issue #${preview.item_number} author '${issueAuthor}' to allowed mentions`);
+              }
+            }
+          } catch (fetchErr) {
+            core.info(`[MENTIONS] Could not fetch issue #${preview.item_number} author for mention allowlist: ${getErrorMessage(fetchErr)}`);
+          }
+        }
+      } catch {
+        // Ignore parse errors - main loop will report them
+      }
+    }
+
     const parsedItems = [];
     const errors = [];
     for (let i = 0; i < lines.length; i++) {
@@ -239,7 +309,7 @@ async function main() {
 
         // Use the validation engine to validate the item
         if (hasValidationConfig(itemType)) {
-          const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions });
+          const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions, maxBotMentions });
           if (!validationResult.isValid) {
             if (validationResult.error) {
               errors.push(validationResult.error);
@@ -309,10 +379,29 @@ async function main() {
     core.info(`output_types: ${outputTypes.join(", ")}`);
     core.setOutput("output_types", outputTypes.join(","));
 
-    // Check if patch file exists for detection job conditional
-    const patchPath = "/tmp/gh-aw/aw.patch";
-    const hasPatch = fs.existsSync(patchPath);
-    core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
+    // Check if any patch files exist for detection job conditional
+    // Patches are now named aw-{branch}.patch (one per branch)
+    const patchDir = "/tmp/gh-aw";
+    let hasPatch = false;
+    const patchFiles = [];
+    try {
+      if (fs.existsSync(patchDir)) {
+        const dirEntries = fs.readdirSync(patchDir);
+        for (const entry of dirEntries) {
+          if (/^aw-.+\.patch$/.test(entry)) {
+            patchFiles.push(entry);
+            hasPatch = true;
+          }
+        }
+      }
+    } catch {
+      // If we can't read the directory, assume no patch
+    }
+    if (hasPatch) {
+      core.info(`Found ${patchFiles.length} patch file(s): ${patchFiles.join(", ")}`);
+    } else {
+      core.info(`No patch files found in: ${patchDir}`);
+    }
 
     // Check if allow-empty is enabled for create_pull_request (reuse already loaded config)
     let allowEmptyPR = false;
@@ -342,7 +431,7 @@ async function main() {
     core.setOutput("output", "");
     core.setOutput("output_types", "");
     core.setOutput("has_patch", "false");
-    core.setFailed(`Agent output ingestion failed: ${errorMsg}`);
+    core.setFailed(`${ERR_API}: Agent output ingestion failed: ${errorMsg}`);
     throw error;
   }
 }

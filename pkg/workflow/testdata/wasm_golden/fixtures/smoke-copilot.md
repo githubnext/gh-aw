@@ -34,8 +34,6 @@ tools:
     - "*"
   github:
   playwright:
-    allowed_domains:
-      - github.com
   serena:
     languages:
       go: {}

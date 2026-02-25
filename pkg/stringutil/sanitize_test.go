@@ -72,7 +72,7 @@ func TestSanitizeErrorMessage(t *testing.T) {
 
 func BenchmarkSanitizeErrorMessage(b *testing.B) {
 	message := "Failed to use API_TOKEN and DATABASE_PASSWORD with GitHubToken"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeErrorMessage(message)
 	}
 }
@@ -209,6 +209,49 @@ func TestSanitizeErrorMessage_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestSanitizeErrorMessage_GhAwVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  string
+		expected string
+	}{
+		{
+			name:     "GH_AW_SKIP_NPX_VALIDATION not redacted",
+			message:  "Alternatively, disable validation by setting GH_AW_SKIP_NPX_VALIDATION=true",
+			expected: "Alternatively, disable validation by setting GH_AW_SKIP_NPX_VALIDATION=true",
+		},
+		{
+			name:     "GH_AW_SKIP_UV_VALIDATION not redacted",
+			message:  "Alternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
+			expected: "Alternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
+		},
+		{
+			name:     "GH_AW_SKIP_PIP_VALIDATION not redacted",
+			message:  "Alternatively, disable validation by setting GH_AW_SKIP_PIP_VALIDATION=true",
+			expected: "Alternatively, disable validation by setting GH_AW_SKIP_PIP_VALIDATION=true",
+		},
+		{
+			name:     "generic GH_AW prefix not redacted",
+			message:  "Set GH_AW_SOME_OPTION to configure this feature",
+			expected: "Set GH_AW_SOME_OPTION to configure this feature",
+		},
+		{
+			name:     "non-GH_AW still redacted",
+			message:  "Error accessing MY_SECRET_KEY",
+			expected: "Error accessing [REDACTED]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeErrorMessage(tt.message)
+			if result != tt.expected {
+				t.Errorf("SanitizeErrorMessage(%q) = %q; want %q", tt.message, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -249,14 +292,14 @@ func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
 
 func BenchmarkSanitizeErrorMessage_NoSecrets(b *testing.B) {
 	message := "This is a regular error message with no secrets to redact"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeErrorMessage(message)
 	}
 }
 
 func BenchmarkSanitizeErrorMessage_ManySecrets(b *testing.B) {
 	message := "Error with API_KEY, DATABASE_PASSWORD, AWS_SECRET, GitHubToken, and DeploySecret"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeErrorMessage(message)
 	}
 }
@@ -487,21 +530,21 @@ func TestSanitizeToolID(t *testing.T) {
 
 func BenchmarkSanitizeParameterName(b *testing.B) {
 	name := "my-complex-parameter.name"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeParameterName(name)
 	}
 }
 
 func BenchmarkSanitizePythonVariableName(b *testing.B) {
 	name := "my-complex-parameter.name"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizePythonVariableName(name)
 	}
 }
 
 func BenchmarkSanitizeToolID(b *testing.B) {
 	toolID := "mcp-notion-server-mcp"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SanitizeToolID(toolID)
 	}
 }

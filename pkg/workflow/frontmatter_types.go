@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -11,19 +13,26 @@ var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 
 // RuntimeConfig represents the configuration for a single runtime
 type RuntimeConfig struct {
-	Version string `json:"version,omitempty"` // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
-	If      string `json:"if,omitempty"`      // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
+	Version       string `json:"version,omitempty"`        // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
+	If            string `json:"if,omitempty"`             // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
+	ActionRepo    string `json:"action-repo,omitempty"`    // Override the GitHub Actions repository (e.g., "actions/setup-node")
+	ActionVersion string `json:"action-version,omitempty"` // Override the action version (e.g., "v4")
 }
 
 // RuntimesConfig represents the configuration for all runtime environments
 // This provides type-safe access to runtime version overrides
 type RuntimesConfig struct {
-	Node   *RuntimeConfig `json:"node,omitempty"`   // Node.js runtime
-	Python *RuntimeConfig `json:"python,omitempty"` // Python runtime
-	Go     *RuntimeConfig `json:"go,omitempty"`     // Go runtime
-	UV     *RuntimeConfig `json:"uv,omitempty"`     // uv package installer
-	Bun    *RuntimeConfig `json:"bun,omitempty"`    // Bun runtime
-	Deno   *RuntimeConfig `json:"deno,omitempty"`   // Deno runtime
+	Node    *RuntimeConfig `json:"node,omitempty"`    // Node.js runtime
+	Python  *RuntimeConfig `json:"python,omitempty"`  // Python runtime
+	Go      *RuntimeConfig `json:"go,omitempty"`      // Go runtime
+	UV      *RuntimeConfig `json:"uv,omitempty"`      // uv package installer
+	Bun     *RuntimeConfig `json:"bun,omitempty"`     // Bun runtime
+	Deno    *RuntimeConfig `json:"deno,omitempty"`    // Deno runtime
+	Dotnet  *RuntimeConfig `json:"dotnet,omitempty"`  // .NET runtime
+	Elixir  *RuntimeConfig `json:"elixir,omitempty"`  // Elixir runtime
+	Haskell *RuntimeConfig `json:"haskell,omitempty"` // Haskell runtime
+	Java    *RuntimeConfig `json:"java,omitempty"`    // Java runtime
+	Ruby    *RuntimeConfig `json:"ruby,omitempty"`    // Ruby runtime
 }
 
 // PermissionsConfig represents GitHub Actions permissions configuration
@@ -97,7 +106,8 @@ type FrontmatterConfig struct {
 	TrackerID      string   `json:"tracker-id,omitempty"`
 	Version        string   `json:"version,omitempty"`
 	TimeoutMinutes int      `json:"timeout-minutes,omitempty"`
-	Strict         *bool    `json:"strict,omitempty"` // Pointer to distinguish unset from false
+	Strict         *bool    `json:"strict,omitempty"`  // Pointer to distinguish unset from false
+	Private        *bool    `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
 	Labels         []string `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
@@ -144,8 +154,9 @@ type FrontmatterConfig struct {
 	Cache       map[string]any `json:"cache,omitempty"`
 
 	// Import and inclusion
-	Imports any `json:"imports,omitempty"` // Can be string or array
-	Include any `json:"include,omitempty"` // Can be string or array
+	Imports        any  `json:"imports,omitempty"`         // Can be string or array
+	Include        any  `json:"include,omitempty"`         // Can be string or array
+	InlinedImports bool `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
 
 	// Metadata
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
@@ -153,6 +164,12 @@ type FrontmatterConfig struct {
 
 	// Rate limiting configuration
 	RateLimit *RateLimitConfig `json:"rate-limit,omitempty"`
+
+	// Checkout configuration for the agent job.
+	// Controls how actions/checkout is invoked.
+	// Can be a single CheckoutConfig object or an array of CheckoutConfig objects.
+	Checkout        any               `json:"checkout,omitempty"` // Raw value (object or array)
+	CheckoutConfigs []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 }
 
 // unmarshalFromMap converts a value from a map[string]any to a destination variable
@@ -246,6 +263,15 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
+	// Parse checkout field - supports single object or array of objects
+	if config.Checkout != nil {
+		checkoutConfigs, err := ParseCheckoutConfigs(config.Checkout)
+		if err == nil {
+			config.CheckoutConfigs = checkoutConfigs
+			frontmatterTypesLog.Printf("Parsed checkout config: %d entries", len(checkoutConfigs))
+		}
+	}
+
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%s", config.Name, config.Engine)
 	return &config, nil
 }
@@ -268,10 +294,10 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			case string:
 				version = v
 			case int:
-				version = fmt.Sprintf("%d", v)
+				version = strconv.Itoa(v)
 			case float64:
 				if v == float64(int(v)) {
-					version = fmt.Sprintf("%d", int(v))
+					version = strconv.Itoa(int(v))
 				} else {
 					version = fmt.Sprintf("%g", v)
 				}
@@ -288,10 +314,16 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			}
 		}
 
-		// Create runtime config with both version and if condition
+		// Extract action-repo and action-version overrides (optional)
+		actionRepo, _ := configMap["action-repo"].(string)
+		actionVersion, _ := configMap["action-version"].(string)
+
+		// Create runtime config with all fields
 		runtimeConfig := &RuntimeConfig{
-			Version: version,
-			If:      ifCondition,
+			Version:       version,
+			If:            ifCondition,
+			ActionRepo:    actionRepo,
+			ActionVersion: actionVersion,
 		}
 
 		// Map to specific runtime field
@@ -308,6 +340,16 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			config.Bun = runtimeConfig
 		case "deno":
 			config.Deno = runtimeConfig
+		case "dotnet":
+			config.Dotnet = runtimeConfig
+		case "elixir":
+			config.Elixir = runtimeConfig
+		case "haskell":
+			config.Haskell = runtimeConfig
+		case "java":
+			config.Java = runtimeConfig
+		case "ruby":
+			config.Ruby = runtimeConfig
 		}
 	}
 
@@ -416,7 +458,7 @@ func parsePluginsConfig(plugins any) ([]string, string, error) {
 		return repos, token, nil
 	}
 
-	return nil, "", fmt.Errorf("plugins must be either an array of strings or an object with 'repos' field")
+	return nil, "", errors.New("plugins must be either an array of strings or an object with 'repos' field")
 }
 
 // countRuntimes counts the number of non-nil runtimes in RuntimesConfig

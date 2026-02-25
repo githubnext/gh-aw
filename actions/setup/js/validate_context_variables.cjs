@@ -39,9 +39,14 @@
  * - github.event.workflow_job.id
  * - github.run_id
  * - github.run_number
+ *
+ * Intentionally NOT validated (not numeric IDs):
+ * - github.event.head_commit.id: This is a git commit SHA (40-character hex string),
+ *   not a numeric database ID. Push events always produce a hex SHA here.
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * List of numeric context variable paths to validate
@@ -188,7 +193,7 @@ async function main() {
     core.info("✅ All context variables validated successfully");
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    core.setFailed(`Context variable validation failed: ${errorMessage}`);
+    core.setFailed(`${ERR_VALIDATION}: Context variable validation failed: ${errorMessage}`);
     throw error;
   }
 }

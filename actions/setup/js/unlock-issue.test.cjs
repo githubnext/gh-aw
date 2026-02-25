@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn() },
   mockGithub = { rest: { issues: { get: vi.fn(), unlock: vi.fn() } } },
   mockContext = { eventName: "issues", runId: 12345, repo: { owner: "testowner", repo: "testrepo" }, issue: { number: 42 }, payload: { issue: { number: 42 }, repository: { html_url: "https://github.com/testowner/testrepo" } } };
@@ -48,7 +49,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           delete global.context.payload.issue,
           await eval(`(async () => { ${unlockIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.unlock).not.toHaveBeenCalled(),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Issue number not found in context"));
+          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Issue number not found in context`));
       }),
       it("should handle API errors gracefully", async () => {
         mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !0 } });
@@ -57,14 +58,14 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           await eval(`(async () => { ${unlockIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.unlock).toHaveBeenCalled(),
           expect(mockCore.error).toHaveBeenCalledWith("Failed to unlock issue: Issue was not locked"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to unlock issue #42: Issue was not locked"));
+          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Failed to unlock issue #42: Issue was not locked`));
       }),
       it("should handle non-Error exceptions", async () => {
         (mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !0 } }),
           mockGithub.rest.issues.unlock.mockRejectedValue("String error"),
           await eval(`(async () => { ${unlockIssueScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith("Failed to unlock issue: String error"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to unlock issue #42: String error"));
+          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Failed to unlock issue #42: String error`));
       }),
       it("should work with different issue numbers", async () => {
         ((global.context.issue = { number: 200 }),
@@ -84,7 +85,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           await eval(`(async () => { ${unlockIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.unlock).toHaveBeenCalled(),
           expect(mockCore.error).toHaveBeenCalledWith("Failed to unlock issue: Resource not accessible by integration"),
-          expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to unlock issue #42: Resource not accessible by integration"));
+          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Failed to unlock issue #42: Resource not accessible by integration`));
       }),
       it("should skip if issue is already unlocked (redundant test for completeness)", async () => {
         (mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !1 } }),

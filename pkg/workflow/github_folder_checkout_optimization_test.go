@@ -50,6 +50,8 @@ engine: copilot
 steps:
   - name: Custom checkout
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
 ---
 
 # Test workflow with custom checkout
@@ -131,7 +133,7 @@ This workflow uses runtime imports: {{runtime-import:shared/example.md}}
 			for i, line := range lines {
 				if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && line[2] != '\t' {
 					nextJobStart = 0
-					for j := 0; j < i; j++ {
+					for j := range i {
 						nextJobStart += len(lines[j]) + 1 // +1 for newline
 					}
 					break

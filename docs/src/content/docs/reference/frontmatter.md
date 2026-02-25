@@ -54,6 +54,25 @@ Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated 
 source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 ```
 
+### Private Workflows (`private:`)
+
+Mark a workflow as private to prevent it from being installed into other repositories via `gh aw add`.
+
+```yaml wrap
+private: true
+```
+
+When `private: true` is set, attempting to add the workflow from another repository will fail with an error:
+
+```
+workflow 'owner/repo/internal-tooling' is private and cannot be added to other repositories
+```
+
+Use this field for internal tooling, sensitive automation, or workflows that depend on repository-specific context and are not intended for external reuse.
+
+> [!NOTE]
+> The `private:` field only blocks installation via `gh aw add`. It does not affect the visibility of the workflow file itself — that is controlled by your repository's access settings.
+
 ### Labels (`labels:`)
 
 Optional array of strings for categorizing and organizing workflows. Labels are displayed in `gh aw status` command output and can be filtered using the `--label` flag.
@@ -108,13 +127,6 @@ plugins:
     - acme/custom-tools
   github-token: ${{ secrets.CUSTOM_PLUGIN_TOKEN }}
 ```
-
-**Token precedence** for plugin installation (highest to lowest):
-
-1. Custom `plugins.github-token` from object format
-2. `${{ secrets.GH_AW_PLUGINS_TOKEN }}`
-3. [`${{ secrets.GH_AW_GITHUB_TOKEN }}`](/gh-aw/reference/auth/#gh_aw_github_token)
-4. `${{ secrets.GITHUB_TOKEN }}` (default)
 
 Each plugin repository must be specified in `org/repo` format. The compiler generates installation steps that run after the engine CLI is installed but before workflow execution begins.
 
@@ -449,6 +461,16 @@ run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest (main job only)
 timeout-minutes: 30                  # Defaults to 20 minutes
 ```
+
+**Supported runners for `runs-on:`**
+
+| Runner | Status |
+|--------|--------|
+| `ubuntu-latest` | ✅ Default. Recommended for most workflows. |
+| `ubuntu-24.04` / `ubuntu-22.04` | ✅ Supported. |
+| `ubuntu-24.04-arm` | ✅ Supported. Linux ARM64 runner. |
+| `macos-*` | ❌ Not supported. Docker is unavailable on macOS runners (no nested virtualization). See [FAQ](/gh-aw/reference/faq/). |
+| `windows-*` | ❌ Not supported. AWF requires Linux. |
 
 ### Workflow Concurrency Control (`concurrency:`)
 

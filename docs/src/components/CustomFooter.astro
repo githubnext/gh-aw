@@ -11,6 +11,16 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
   <div class="community-feedback">
     <a href="https://github.com/orgs/community/discussions/186451" target="_blank" rel="noopener noreferrer">Community Feedback</a>
   </div>
+
+  <div class="agent-links">
+    <a href="https://github.github.com/gh-aw/llms.txt">llms.txt</a>
+    <span class="legal-separator" aria-hidden="true">·</span>
+    <a href="https://raw.githubusercontent.com/github/gh-aw/main/create.md">Create Workflow</a>
+    <span class="legal-separator" aria-hidden="true">·</span>
+    <a href="https://raw.githubusercontent.com/github/gh-aw/main/install.md">Install</a>
+    <span class="legal-separator" aria-hidden="true">·</span>
+    <a href="https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md">Reference</a>
+  </div>
   <p>
     <span class="footer-main">
       Made with <span class="heart-icon" set:html={heartIcon} /> by <a href="https://githubnext.com/" target="_blank" rel="noopener noreferrer">GitHub Next</a> & <a href="https://www.microsoft.com/en-us/research/" target="_blank" rel="noopener noreferrer">Microsoft Research</a>
@@ -44,6 +54,17 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
   }
 
   .community-feedback a {
+    font-size: 0.875rem;
+  }
+
+  .agent-links {
+    margin-bottom: 1rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
     font-size: 0.875rem;
   }
 

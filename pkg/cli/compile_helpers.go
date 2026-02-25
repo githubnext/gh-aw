@@ -95,7 +95,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 	// Regular workflow file - compile normally
 	compileHelpersLog.Printf("Compiling as regular workflow: %s", file)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Compiling: "+file))
 	}
 
 	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
@@ -132,7 +132,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	if len(mdFiles) == 0 {
 		compileHelpersLog.Printf("No markdown files found in %s", workflowsDir)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No markdown files found in %s", workflowsDir)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No markdown files found in "+workflowsDir))
 		}
 		return stats, nil
 	}
@@ -161,7 +161,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		} else {
 			compileHelpersLog.Print("Action cache saved successfully")
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Action cache saved to "+actionCache.GetCachePath()))
 			}
 		}
 	}
@@ -337,7 +337,7 @@ func handleFileDeleted(mdFile string, verbose bool) {
 			}
 		} else {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed corresponding lock file: %s", lockFile)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed corresponding lock file: "+lockFile))
 			}
 		}
 	}

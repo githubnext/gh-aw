@@ -45,6 +45,7 @@ describe("generate_footer.cjs", () => {
     delete process.env.GH_AW_ENGINE_MODEL;
     delete process.env.GH_AW_TRACKER_ID;
     delete process.env.GH_AW_WORKFLOW_ID;
+    delete process.env.GITHUB_RUN_ID;
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_footer.cjs");
@@ -125,6 +126,42 @@ describe("generate_footer.cjs", () => {
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
       expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, gh-aw-tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+
+    it("should include run id when GITHUB_RUN_ID env var is set", async () => {
+      process.env.GITHUB_RUN_ID = "9876543210";
+
+      vi.resetModules();
+      const freshModule = await import("./generate_footer.cjs");
+
+      const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/9876543210");
+
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, id: 9876543210, run: https://github.com/test/repo/actions/runs/9876543210 -->");
+    });
+
+    it("should include workflow_id when GH_AW_WORKFLOW_ID env var is set", async () => {
+      process.env.GH_AW_WORKFLOW_ID = "smoke-copilot";
+
+      vi.resetModules();
+      const freshModule = await import("./generate_footer.cjs");
+
+      const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, workflow_id: smoke-copilot, run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+
+    it("should include all identifiers when all standard env vars are set", async () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      process.env.GH_AW_TRACKER_ID = "tracker-abc";
+      process.env.GITHUB_RUN_ID = "12345";
+      process.env.GH_AW_WORKFLOW_ID = "my-workflow";
+
+      vi.resetModules();
+      const freshModule = await import("./generate_footer.cjs");
+
+      const result = freshModule.generateXMLMarker("My Workflow", "https://github.com/test/repo/actions/runs/12345");
+
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: My Workflow, gh-aw-tracker-id: tracker-abc, engine: copilot, id: 12345, workflow_id: my-workflow, run: https://github.com/test/repo/actions/runs/12345 -->");
     });
   });
 

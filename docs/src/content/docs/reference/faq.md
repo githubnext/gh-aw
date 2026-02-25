@@ -12,13 +12,9 @@ sidebar:
 
 ### I like deterministic CI/CD. Isn't this non-deterministic?
 
-We fully embrace the need for deterministic CI/CD, especially in build, release, and test pipelines. Agentic workflows are **100% additive** to your existing CI/CD - they don't replace or modify your deterministic pipelines.
+Agentic workflows are **100% additive** to your existing CI/CD - they don't replace your deterministic build, test, or release pipelines. Think of it as **Continuous AI** alongside Continuous Integration and Continuous Deployment: a new automation layer running in GitHub Actions where security, permissions, and repository context already exist.
 
-This is about something new and additive: **Continuous AI** in addition to **Continuous Integration** and **Continuous Deployment** - a new leg to make a trifecta. It just happens to run in GitHub Actions because that's where infrastructure for secure execution, permissions, and repository context is found. It's a new addition to your automation toolkit, not a replacement for existing workflows.
-
-Your build, test, and release workflows should remain fully deterministic and reproducible. Agentic workflows complement these by handling tasks that are inherently non-deterministic anyway - like triaging issues, drafting documentation, researching dependencies, or proposing code improvements for human review. Many valuable automation tasks don't require determinism. When a coding agent reviews an issue and suggests a label, or drafts release notes from commits, the exact wording doesn't need to be reproducible - it needs to be helpful. Agentic workflows excel at these judgment-based tasks while your critical CI/CD pipelines remain unchanged.
-
-Your first call should be reliable, deterministic CI/CD. If you use agentic workflows, you should use them for tasks that benefit from a coding agent's flexibility, not for core build and release processes that require strict reproducibility.
+Your deterministic pipelines stay unchanged. Agentic workflows handle tasks where exact reproducibility doesn't matter - triaging issues, drafting documentation, researching dependencies, or proposing code improvements for human review.
 
 ## Capabilities
 
@@ -51,11 +47,11 @@ Not by default, but yes with proper configuration. Cross-repository access requi
 1. A **Personal Access Token (PAT)** with access to target repositories
 2. Configuring the token in your workflow
 
-See [MultiRepoOps](/gh-aw/patterns/multirepoops/) for coordinating across repositories, or [SideRepoOps](/gh-aw/patterns/siderepoops/) for running workflows from a separate repository.
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating across repositories, or [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for running workflows from a separate repository.
 
 ### Can I use agentic workflows in private repositories?
 
-Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [SideRepoOps](/gh-aw/patterns/siderepoops/) for patterns using private repositories.
+Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for patterns using private repositories.
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
@@ -181,36 +177,38 @@ See [Network Permissions](/gh-aw/reference/network/) for complete configuration 
 
 ### What is GitHub lockdown mode and when is it enabled?
 
-**GitHub lockdown mode** is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+[GitHub lockdown mode](/gh-aw/reference/lockdown-mode/) is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
 
-Lockdown is **automatically enabled** for public repositories if [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) or [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_mcp_server_token) is configured. It is not in effect for private or internal repositories.
-
-See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for detailed configuration guidance and security considerations.
+Lockdown mode is **automatically enabled** for public repositories if [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) is configured. It is not in effect for private or internal repositories.
 
 ## Configuration & Setup
 
 ### What is a workflow lock file?
 
-A **workflow lock file** (`.lock.yml`) is a traditional GitHub Actions workflow generated for your workflow markdown file (`.md`). It basically contains scaffolding and guardrails around a coding agent that is going to execute your workflow prompting in GitHub Actions. When you run `gh aw compile`, the lock file will appear or update and contain a complete GitHub Actions YAML file with all guradrail hardening applied.
+A **workflow lock file** (`.lock.yml`) is the compiled GitHub Actions workflow generated from your `.md` file by `gh aw compile`. It contains SHA-pinned actions, resolved imports, configured permissions, and all guardrail hardening - inspect it to see exactly what will run, with no hidden configuration.
 
 Both files should be committed to version control:
 
-- **`.md` file**: Your source file - easy to read, edit, and understand
-- **`.lock.yml` file**: The lock file - what GitHub Actions actually runs
-
-The lock file contains SHA-pinned actions, resolved imports, configured permissions, and all the infrastructure needed for secure execution. You can inspect it to see exactly what will run - there's no hidden configuration.
-
-The naming convention (`.lock.yml`) reflects that this file "locks in" the exact workflow configuration at compile time, ensuring reproducibility and auditability. If you modify the frontmatter in your `.md` file, you must recompile to update the lock file.
-
-When the workflow runs, the prompt itself is taken from the markdown file at runtime, so you can edit the markdown without recompiling and see changes in the next run. However, any changes to frontmatter (permissions, tools, triggers) require recompilation to update the lock file.
+- **`.md` file**: Your source - edit the prompt body freely; changes take effect at the next run without recompiling
+- **`.lock.yml` file**: The compiled workflow GitHub Actions actually runs; must be regenerated after any frontmatter changes (permissions, tools, triggers)
 
 ### Why do I need a token or key?
 
 When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [Authentication](/gh-aw/reference/auth/).
 
+### Can I use `CLAUDE_CODE_OAUTH_TOKEN` with the Claude engine?
+
+No. `CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), which must be configured as a GitHub Actions secret. Provider-based OAuth authentication for Claude (such as billing through a Claude Teams subscription) is not supported. See [Authentication](/gh-aw/reference/auth/) and [AI Engines](/gh-aw/reference/engines/#using-claude-by-anthropic-claude-code) for setup instructions.
+
 ### What hidden runtime dependencies does this have?
 
 The executing agentic workflow uses your nominated coding agent (defaulting to GitHub Copilot CLI), a GitHub Actions VM with NodeJS, pinned Actions from [github/gh-aw](https://github.com/github/gh-aw) releases, and an Agent Workflow Firewall container for network control (optional but default). The exact YAML workflow can be inspected in the compiled `.lock.yml` file - there's no hidden configuration.
+
+### Why are macOS runners not supported?
+
+macOS runners (`macos-*`) are not currently supported in agentic workflows. Agentic workflows rely on containers to build a secure execution sandbox - specifically the [Agent Workflow Firewall](/gh-aw/reference/sandbox/) that provides network egress control and process isolation. GitHub-hosted macOS runners do not support container jobs, which is a hard requirement for this security architecture.
+
+Use `ubuntu-latest` (the default) or another Linux-based runner instead. For tasks that genuinely require macOS-specific tooling, consider running those steps in a regular GitHub Actions job that coordinates with your agentic workflow.
 
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
@@ -218,7 +216,7 @@ If you want to use a coding agent that isn't currently supported (Copilot, Claud
 
 ### Can I test workflows without affecting my repository?
 
-Yes! Use [TrialOps](/gh-aw/patterns/trialops/) to test workflows in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues, PRs, or comments in your actual repository.
+Yes! Use [TrialOps](/gh-aw/patterns/trial-ops/) to test workflows in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues, PRs, or comments in your actual repository.
 
 ### Where can I find help with common issues?
 
@@ -237,84 +235,30 @@ If discussions are not enabled or the category lacks announcement capabilities, 
 
 ### Why is my create-pull-request workflow failing with "GitHub Actions is not permitted to create or approve pull requests"?
 
-Some organizations disable pull request creation by GitHub Actions workflows through repository or organization settings. This security policy prevents automation from creating PRs, resulting in the error: **"GitHub Actions is not permitted to create or approve pull requests."**
+Some organizations block PR creation by GitHub Actions via **Settings → Actions → General → Workflow permissions**. If you can't enable it, use one of these alternatives:
 
-**Organization Setting Location:**
-- Navigate to your organization's **Settings** → **Actions** → **General**
-- Look for **"Workflow permissions"** section
-- Check if **"Allow GitHub Actions to create and approve pull requests"** is disabled
+**Automatic issue fallback (default)** — `fallback-as-issue: true` is the default; when PR creation is blocked an issue with the branch link is created instead. Requires `contents: write`, `pull-requests: write`, and `issues: write`.
 
-**Workaround Options:**
-
-If you cannot enable PR creation or prefer to keep it disabled for security reasons, you have two alternatives:
-
-**Option 1: Use create-issue with automatic fallback (default)**
-
-The `create-pull-request` safe output automatically falls back to creating an issue when PR creation is blocked:
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    # fallback-as-issue: true is the default behavior
-    # When PR creation fails, an issue is created with branch link
-```
-
-This requires both `contents: write` + `pull-requests: write` (for PR attempt) and `issues: write` (for fallback).
-
-**Option 2: Use create-issue directly with Copilot coding agent assignment**
-
-Create an issue describing the desired changes and assign it to Copilot coding agent for automated implementation:
+**Assign to Copilot** — create an issue assigned to `copilot` for automated implementation:
 
 ```yaml wrap
 safe-outputs:
   create-issue:
-    assignees: [copilot]              # Assign to Copilot for PR creation
-    labels: [automation, enhancement] # Add tracking labels
+    assignees: [copilot]
+    labels: [automation, enhancement]
 ```
 
-When assigned to Copilot, the issue can be automatically picked up for processing in a separate workflow or manually reviewed by the Copilot coding agent to create the PR.
+**Disable fallback** — set `fallback-as-issue: false` to skip the issue fallback and only attempt PR creation. Requires only `contents: write` and `pull-requests: write`, but the workflow will fail if PR creation is blocked.
 
-**Option 3: Disable issue fallback to save permissions**
-
-If you only want PR creation (no fallback), disable the issue fallback to avoid requiring `issues: write`:
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    fallback-as-issue: false          # Only attempt PR creation
-```
-
-This requires only `contents: write` + `pull-requests: write`, but workflows will fail if PR creation is blocked at the organization level.
-
-> [!TIP]
-> For workflows that need to work across different organizations with varying PR policies, use the default `fallback-as-issue: true` behavior. This ensures workflows gracefully adapt to organization settings.
-
-See [Pull Request Creation](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) for complete configuration details and the fallback mechanism explanation.
+See [Pull Request Creation](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) for details.
 
 ### Why don't pull requests created by agentic workflows trigger my CI checks?
 
 This is expected GitHub Actions security behavior. Pull requests created using the default `GITHUB_TOKEN` or by the GitHub Actions bot user **do not trigger workflow runs** on `pull_request`, `pull_request_target`, or `push` events. This is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) designed to prevent accidental recursive workflow execution.
 
-GitHub Actions prevents the `GITHUB_TOKEN` from triggering new workflow runs to avoid infinite loops and uncontrolled automation chains. Without this protection, a workflow could create a PR, which triggers another workflow, which creates another PR, and so on indefinitely.
+The easy way to fix this problem is to set a secret `GH_AW_CI_TRIGGER_TOKEN` with a Personal Access Token (PAT) with 'Contents: Read & Write' permission to your repo.
 
-If you need CI checks to run on PRs created by agentic workflows, you have three options:
-
-**Option 1: Use different authorization**
-
-Configure your [`create-pull-request` safe output](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) to use a PAT or a GitHub App. This allows PR creation to trigger CI workflows.
-
-**Option 2: Use workflow_run trigger**
-
-Configure your CI workflows to run on `workflow_run` events, which allows them to react to completed workflows:
-
-```yaml wrap
-on:
-  workflow_run:
-    workflows: ["Create Pull Request Workflow"]
-    types: [completed]
-```
-
-This approach maintains security while allowing CI to run after PR creation. See [GitHub Actions workflow_run documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run) for details.
+See [Triggering CI](/gh-aw/reference/triggering-ci/) for more details on how to configure workflows to run CI checks on PRs created by agentic workflows.
 
 ## Workflow Design
 

@@ -14,9 +14,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @param {any} github - GitHub API client
  * @param {any} core - GitHub Actions core
  * @param {any} [mentionsConfig] - Mentions configuration from safe-outputs
+ * @param {string[]} [extraKnownAuthors] - Additional known authors to allow (e.g. pre-fetched target issue authors)
  * @returns {Promise<string[]>} Array of allowed mention usernames
  */
-async function resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig) {
+async function resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig, extraKnownAuthors) {
   // Return empty array if context is not available (e.g., in tests)
   if (!context || !github || !core) {
     return [];
@@ -155,6 +156,12 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
 
     // Add allowed list to known authors (these are always allowed regardless of configuration)
     knownAuthors.push(...allowedList);
+
+    // Add extra known authors (e.g. pre-fetched target issue authors for explicit item_number)
+    if (extraKnownAuthors && extraKnownAuthors.length > 0) {
+      core.info(`[MENTIONS] Adding ${extraKnownAuthors.length} extra known author(s): ${extraKnownAuthors.join(", ")}`);
+      knownAuthors.push(...extraKnownAuthors);
+    }
 
     // If allow-team-members is disabled, only use known authors (context + allowed list)
     if (!allowTeamMembers) {

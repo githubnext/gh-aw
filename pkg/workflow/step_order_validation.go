@@ -1,8 +1,10 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -115,7 +117,7 @@ func (t *StepOrderTracker) ValidateStepOrdering() error {
 			"compile",
 			"workflow steps",
 			"artifact uploads without secret redaction",
-			fmt.Errorf("artifact uploads found but no secret redaction step was added"),
+			errors.New("artifact uploads found but no secret redaction step was added"),
 			"This is a critical security issue - a compiler bug. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/github/gh-aw/issues/new",
 		)
 	}
@@ -176,6 +178,7 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 }
 
 // isPathScannedBySecretRedaction checks if a path would be scanned by the secret redaction step
+// or is otherwise safe to upload (known engine-controlled diagnostic paths).
 func isPathScannedBySecretRedaction(path string) bool {
 	// Paths must be under /tmp/gh-aw/ or /opt/gh-aw/ to be scanned
 	// Accept both literal paths and environment variable references
@@ -184,16 +187,32 @@ func isPathScannedBySecretRedaction(path string) bool {
 		// For now, we'll allow ${{ env.* }} patterns through as we can't resolve them at compile time
 		// Assume environment variables that might contain /tmp/gh-aw or /opt/gh-aw paths are safe
 		// This is a conservative assumption - in practice these are controlled by the compiler
-		return strings.Contains(path, "${{ env.")
+		if strings.Contains(path, "${{ env.") {
+			return true
+		}
+
+		// Allow wildcard paths under /tmp/ with a known-safe extension.
+		// These are engine-declared diagnostic output files (e.g. Gemini CLI error reports at
+		// /tmp/gemini-client-error-*.json). They are produced by the CLI tool itself, not by
+		// agent-generated content, and they live outside /tmp/gh-aw/ so they are not scanned by
+		// the redact_secrets step. However, these files (JSON error reports, log files) are
+		// structurally unlikely to contain raw secret values, so we allow them through validation.
+		if strings.HasPrefix(path, "/tmp/") && strings.Contains(path, "*") {
+			ext := filepath.Ext(path)
+			safeExtensions := []string{".txt", ".json", ".log", ".jsonl"}
+			if slices.Contains(safeExtensions, ext) {
+				return true
+			}
+		}
+
+		return false
 	}
 
 	// Path must have one of the scanned extensions: .txt, .json, .log, .jsonl
 	ext := filepath.Ext(path)
 	scannedExtensions := []string{".txt", ".json", ".log", ".jsonl"}
-	for _, scannedExt := range scannedExtensions {
-		if ext == scannedExt {
-			return true
-		}
+	if slices.Contains(scannedExtensions, ext) {
+		return true
 	}
 
 	// If path is a directory (ends with /), we assume it contains scannable files

@@ -512,11 +512,10 @@ To apply the patch locally:
 \`\`\`sh
 # Download the artifact from the workflow run [url]
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download [run_id] -n agent-artifacts
+gh run download [run_id] -n agent-artifacts -D /tmp/agent-artifacts-[run_id]
 
-# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
 # Apply the patch
-git am agent-artifacts/tmp/gh-aw/aw.patch
+git am /tmp/agent-artifacts-[run_id]/aw.patch
 \`\`\`
 
 [patch preview if available]
@@ -538,11 +537,10 @@ To apply the patch locally:
 ```sh
 # Download the artifact from the workflow run
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download 12345 -n agent-artifacts
+gh run download 12345 -n agent-artifacts -D /tmp/agent-artifacts-12345
 
-# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
 # Apply the patch
-git am agent-artifacts/tmp/gh-aw/aw.patch
+git am /tmp/agent-artifacts-12345/aw.patch
 ```text
 
 <details><summary>Show patch (45 lines)</summary>

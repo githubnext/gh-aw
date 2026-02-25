@@ -99,8 +99,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				yaml.WriteString("            cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
 				yaml.WriteString("            " + delimiter + "\n")
@@ -127,8 +127,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				// Write content directly to open heredoc
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("          " + line + "\n")
 				}
 			}
@@ -277,51 +277,23 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 6. Repo memory instructions (if enabled)
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		unifiedPromptLog.Printf("Adding repo memory section: memories=%d", len(data.RepoMemoryConfig.Memories))
-		var repoMemContent strings.Builder
-		generateRepoMemoryPromptSection(&repoMemContent, data.RepoMemoryConfig)
-		sections = append(sections, PromptSection{
-			Content: repoMemContent.String(),
-			IsFile:  false,
-		})
+		section := buildRepoMemoryPromptSection(data.RepoMemoryConfig)
+		if section != nil {
+			sections = append(sections, *section)
+		}
 	}
 
 	// 7. Safe outputs instructions (if enabled)
 	if HasSafeOutputsEnabled(data.SafeOutputs) {
 		unifiedPromptLog.Print("Adding safe outputs section")
-		safeOutputsContent := `<safe-outputs>
-<description>GitHub API Access Instructions</description>
-<important>
-The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
-</important>
-<instructions>
-To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
-
-Temporary IDs: Some safe output tools support a temporary ID field (usually named temporary_id) so you can reference newly-created items elsewhere in the SAME agent output (for example, using #aw_abc1 in a later body). 
-
-**IMPORTANT - temporary_id format rules:**
-- If you DON'T need to reference the item later, OMIT the temporary_id field entirely (it will be auto-generated if needed)
-- If you DO need cross-references/chaining, you MUST match this EXACT validation regex: /^aw_[A-Za-z0-9]{3,8}$/i
-- Format: aw_ prefix followed by 3 to 8 alphanumeric characters (A-Z, a-z, 0-9, case-insensitive)
-- Valid alphanumeric characters: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
-- INVALID examples: aw_ab (too short), aw_123456789 (too long), aw_test-id (contains hyphen), aw_id_123 (contains underscore)
-- VALID examples: aw_abc, aw_abc1, aw_Test123, aw_A1B2C3D4, aw_12345678
-- To generate valid IDs: use 3-8 random alphanumeric characters or omit the field to let the system auto-generate
-
-Do NOT invent other aw_* formats — downstream steps will reject them with validation errors matching against /^aw_[A-Za-z0-9]{3,8}$/i.
-
-Discover available tools from the safeoutputs MCP server.
-
-**Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
-
-**Note**: If you made no other safe output tool calls during this workflow execution, call the "noop" tool to provide a status message indicating completion or that no actions were needed.
-</instructions>
-</safe-outputs>`
+		// Static intro from file (gh CLI warning, temporary ID rules, noop note)
 		sections = append(sections, PromptSection{
-			Content: safeOutputsContent,
-			IsFile:  false,
+			Content: safeOutputsPromptFile,
+			IsFile:  true,
 		})
+		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
+		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
 	}
-
 	// 8. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
@@ -469,20 +441,15 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          bash /opt/gh-aw/actions/create_prompt_first.sh\n")
+	yaml.WriteString("          {\n")
 
-	// Track if we're inside a heredoc and whether we're writing the first content
+	// Track if we're inside a heredoc
 	inHeredoc := false
-	isFirstContent := true
 
 	// 1. Write built-in sections first (prepended), wrapped in <system> tags
 	if len(builtinSections) > 0 {
 		// Open system tag for built-in prompts
-		if isFirstContent {
-			yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
-			isFirstContent = false
-		} else {
-			yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
-		}
+		yaml.WriteString("          cat << '" + delimiter + "'\n")
 		yaml.WriteString("          <system>\n")
 		yaml.WriteString("          " + delimiter + "\n")
 	}
@@ -502,24 +469,14 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			if section.IsFile {
 				// File reference inside conditional
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				if isFirstContent {
-					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
-					isFirstContent = false
-				} else {
-					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
-				}
+				yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"\n", promptPath))
 			} else {
 				// Inline content inside conditional - open heredoc, write content, close
-				if isFirstContent {
-					yaml.WriteString("            cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
-					isFirstContent = false
-				} else {
-					yaml.WriteString("            cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
-				}
+				yaml.WriteString("            cat << '" + delimiter + "'\n")
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
 				yaml.WriteString("            " + delimiter + "\n")
@@ -536,28 +493,18 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				}
 				// Cat the file
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				if isFirstContent {
-					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
-					isFirstContent = false
-				} else {
-					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
-				}
+				yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"\n", promptPath))
 			} else {
 				// Inline content - open heredoc if not already open
 				if !inHeredoc {
-					if isFirstContent {
-						yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
-						isFirstContent = false
-					} else {
-						yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
-					}
+					yaml.WriteString("          cat << '" + delimiter + "'\n")
 					inHeredoc = true
 				}
 				// Write content directly to open heredoc
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.Split(cleanedContent, "\n")
-				for _, line := range contentLines {
+				contentLines := strings.SplitSeq(cleanedContent, "\n")
+				for line := range contentLines {
 					yaml.WriteString("          " + line + "\n")
 				}
 			}
@@ -571,7 +518,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			yaml.WriteString("          " + delimiter + "\n")
 			inHeredoc = false
 		}
-		yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
+		yaml.WriteString("          cat << '" + delimiter + "'\n")
 		yaml.WriteString("          </system>\n")
 		yaml.WriteString("          " + delimiter + "\n")
 	}
@@ -593,12 +540,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 			// Write the macro directly with proper indentation
 			// Write the macro using a heredoc to avoid potential escaping issues
-			if isFirstContent {
-				yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
-				isFirstContent = false
-			} else {
-				yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
-			}
+			yaml.WriteString("          cat << '" + delimiter + "'\n")
 			yaml.WriteString("          " + chunk + "\n")
 			yaml.WriteString("          " + delimiter + "\n")
 			continue
@@ -610,16 +552,11 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			inHeredoc = false
 		}
 
-		// Each user prompt chunk is written as a separate heredoc append
-		if isFirstContent {
-			yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
-			isFirstContent = false
-		} else {
-			yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
-		}
+		// Each user prompt chunk is written as a separate heredoc
+		yaml.WriteString("          cat << '" + delimiter + "'\n")
 
-		lines := strings.Split(chunk, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(chunk, "\n")
+		for line := range lines {
 			yaml.WriteString("          ")
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')
@@ -631,12 +568,181 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	if inHeredoc {
 		yaml.WriteString("          " + delimiter + "\n")
 	}
+	yaml.WriteString("          } > \"$GH_AW_PROMPT\"\n")
 
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
 
 	// Return all expression mappings for use in the placeholder substitution step
 	// This allows the substitution to happen AFTER runtime-import processing
 	return allExpressionMappings
+}
+
+var safeOutputsPromptLog = logger.New("workflow:safe_outputs_prompt")
+
+// buildSafeOutputsSections returns the PromptSections that form the <safe-output-tools> block.
+// The block contains:
+//  1. An inline opening tag with a compact Tools list (dynamic, depends on which tools are enabled).
+//  2. File references for tools that require multi-step instructions (create_pull_request,
+//     push_to_pull_request_branch, auto-injected create_issue notice).
+//  3. An inline closing tag.
+//
+// The static intro (gh CLI warning, temporary ID rules, noop note) lives in
+// actions/setup/md/safe_outputs_prompt.md and is included by the caller before these sections.
+func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
+	if safeOutputs == nil {
+		return nil
+	}
+
+	safeOutputsPromptLog.Print("Building safe outputs sections")
+
+	// Build compact list of enabled tool names
+	var tools []string
+	if safeOutputs.AddComments != nil {
+		tools = append(tools, "add_comment")
+	}
+	if safeOutputs.CreateIssues != nil {
+		tools = append(tools, "create_issue")
+	}
+	if safeOutputs.CloseIssues != nil {
+		tools = append(tools, "close_issue")
+	}
+	if safeOutputs.UpdateIssues != nil {
+		tools = append(tools, "update_issue")
+	}
+	if safeOutputs.CreateDiscussions != nil {
+		tools = append(tools, "create_discussion")
+	}
+	if safeOutputs.UpdateDiscussions != nil {
+		tools = append(tools, "update_discussion")
+	}
+	if safeOutputs.CloseDiscussions != nil {
+		tools = append(tools, "close_discussion")
+	}
+	if safeOutputs.CreateAgentSessions != nil {
+		tools = append(tools, "create_agent_session")
+	}
+	if safeOutputs.CreatePullRequests != nil {
+		tools = append(tools, "create_pull_request")
+	}
+	if safeOutputs.ClosePullRequests != nil {
+		tools = append(tools, "close_pull_request")
+	}
+	if safeOutputs.UpdatePullRequests != nil {
+		tools = append(tools, "update_pull_request")
+	}
+	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
+		tools = append(tools, "mark_pull_request_as_ready_for_review")
+	}
+	if safeOutputs.CreatePullRequestReviewComments != nil {
+		tools = append(tools, "create_pull_request_review_comment")
+	}
+	if safeOutputs.SubmitPullRequestReview != nil {
+		tools = append(tools, "submit_pull_request_review")
+	}
+	if safeOutputs.ReplyToPullRequestReviewComment != nil {
+		tools = append(tools, "reply_to_pull_request_review_comment")
+	}
+	if safeOutputs.ResolvePullRequestReviewThread != nil {
+		tools = append(tools, "resolve_pull_request_review_thread")
+	}
+	if safeOutputs.AddLabels != nil {
+		tools = append(tools, "add_labels")
+	}
+	if safeOutputs.RemoveLabels != nil {
+		tools = append(tools, "remove_labels")
+	}
+	if safeOutputs.AddReviewer != nil {
+		tools = append(tools, "add_reviewer")
+	}
+	if safeOutputs.AssignMilestone != nil {
+		tools = append(tools, "assign_milestone")
+	}
+	if safeOutputs.AssignToAgent != nil {
+		tools = append(tools, "assign_to_agent")
+	}
+	if safeOutputs.AssignToUser != nil {
+		tools = append(tools, "assign_to_user")
+	}
+	if safeOutputs.UnassignFromUser != nil {
+		tools = append(tools, "unassign_from_user")
+	}
+	if safeOutputs.PushToPullRequestBranch != nil {
+		tools = append(tools, "push_to_pull_request_branch")
+	}
+	if safeOutputs.CreateCodeScanningAlerts != nil {
+		tools = append(tools, "create_code_scanning_alert")
+	}
+	if safeOutputs.AutofixCodeScanningAlert != nil {
+		tools = append(tools, "autofix_code_scanning_alert")
+	}
+	if safeOutputs.UploadAssets != nil {
+		tools = append(tools, "upload_asset")
+	}
+	if safeOutputs.UpdateRelease != nil {
+		tools = append(tools, "update_release")
+	}
+	if safeOutputs.UpdateProjects != nil {
+		tools = append(tools, "update_project")
+	}
+	if safeOutputs.CreateProjects != nil {
+		tools = append(tools, "create_project")
+	}
+	if safeOutputs.CreateProjectStatusUpdates != nil {
+		tools = append(tools, "create_project_status_update")
+	}
+	if safeOutputs.LinkSubIssue != nil {
+		tools = append(tools, "link_sub_issue")
+	}
+	if safeOutputs.HideComment != nil {
+		tools = append(tools, "hide_comment")
+	}
+	if safeOutputs.DispatchWorkflow != nil {
+		tools = append(tools, "dispatch_workflow")
+	}
+	if safeOutputs.MissingTool != nil {
+		tools = append(tools, "missing_tool")
+	}
+	if safeOutputs.MissingData != nil {
+		tools = append(tools, "missing_data")
+	}
+
+	if len(tools) == 0 {
+		return nil
+	}
+
+	var sections []PromptSection
+
+	// Inline opening: XML tag + compact tools list
+	sections = append(sections, PromptSection{
+		Content: "<safe-output-tools>\nTools: " + strings.Join(tools, ", "),
+		IsFile:  false,
+	})
+
+	// File sections for tools with multi-step instructions
+	if safeOutputs.CreatePullRequests != nil {
+		sections = append(sections, PromptSection{Content: safeOutputsCreatePRFile, IsFile: true})
+	}
+	if safeOutputs.PushToPullRequestBranch != nil {
+		sections = append(sections, PromptSection{Content: safeOutputsPushToBranchFile, IsFile: true})
+	}
+	if safeOutputs.UploadAssets != nil {
+		sections = append(sections, PromptSection{
+			Content: "\nupload_asset: provide a file path; returns a URL; assets are published after the workflow completes (" + constants.SafeOutputsMCPServerID.String() + ").",
+			IsFile:  false,
+		})
+	}
+	// Auto-injected create_issue special notice
+	if safeOutputs.CreateIssues != nil && safeOutputs.AutoInjectedCreateIssue {
+		sections = append(sections, PromptSection{Content: safeOutputsAutoCreateIssueFile, IsFile: true})
+	}
+
+	// Inline closing tag
+	sections = append(sections, PromptSection{
+		Content: "</safe-output-tools>",
+		IsFile:  false,
+	})
+
+	return sections
 }
 
 var promptStepHelperLog = logger.New("workflow:prompt_step_helper")

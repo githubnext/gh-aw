@@ -13,7 +13,7 @@ const fs = require("fs");
 
 /**
  * Attempt to find a pull request for the current branch
- * @returns {Promise<{number: number, html_url: string} | null>} PR info or null if not found
+ * @returns {Promise<{number: number, html_url: string, head_sha: string, mergeable: boolean | null, mergeable_state: string, updated_at: string} | null>} PR info or null if not found
  */
 async function findPullRequestForCurrentBranch() {
   try {
@@ -33,10 +33,37 @@ async function findPullRequestForCurrentBranch() {
     if (searchResult.data.total_count > 0) {
       const pr = searchResult.data.items[0];
       core.info(`Found pull request #${pr.number}: ${pr.html_url}`);
-      return {
-        number: pr.number,
-        html_url: pr.html_url,
-      };
+
+      // Fetch detailed PR info to get mergeable state and head SHA
+      try {
+        const detailedPR = await github.rest.pulls.get({
+          owner,
+          repo,
+          pull_number: pr.number,
+        });
+
+        core.info(`PR #${pr.number} details - head_sha: ${detailedPR.data.head.sha}, mergeable: ${detailedPR.data.mergeable}, mergeable_state: ${detailedPR.data.mergeable_state}`);
+
+        return {
+          number: pr.number,
+          html_url: pr.html_url,
+          head_sha: detailedPR.data.head.sha,
+          mergeable: detailedPR.data.mergeable,
+          mergeable_state: detailedPR.data.mergeable_state || "unknown",
+          updated_at: detailedPR.data.updated_at,
+        };
+      } catch (detailsError) {
+        core.warning(`Failed to fetch detailed PR info: ${getErrorMessage(detailsError)}`);
+        // Fall back to basic info
+        return {
+          number: pr.number,
+          html_url: pr.html_url,
+          head_sha: "",
+          mergeable: null,
+          mergeable_state: "unknown",
+          updated_at: "",
+        };
+      }
     }
 
     core.info(`No pull request found for branch: ${currentBranch}`);
@@ -264,6 +291,73 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
 }
 
 /**
+ * Build a context string describing code-push failures for inclusion in failure issue/comment bodies.
+ * @param {string} codePushFailureErrors - Newline-separated list of "type:error" entries
+ * @param {{number: number, html_url: string, head_sha?: string, mergeable?: boolean | null, mergeable_state?: string, updated_at?: string} | null} pullRequest - PR info if available
+ * @returns {string} Formatted context string, or empty string if no failures
+ */
+function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) {
+  if (!codePushFailureErrors) {
+    return "";
+  }
+
+  let context = "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.";
+  if (pullRequest) {
+    context += `\n\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+
+    // Add PR state diagnostics
+    const workflowSha = process.env.GITHUB_SHA || "";
+    const prDetails = [];
+
+    // Check for merge conflicts
+    if (pullRequest.mergeable === false) {
+      prDetails.push("❌ **Merge conflicts detected** - the PR has conflicts that need resolution");
+    } else if (pullRequest.mergeable_state === "dirty") {
+      prDetails.push("❌ **PR is in dirty state** - likely has merge conflicts");
+    } else if (pullRequest.mergeable_state === "blocked") {
+      prDetails.push("⚠️ **PR is blocked** - required status checks or reviews may be missing");
+    } else if (pullRequest.mergeable_state === "behind") {
+      prDetails.push("⚠️ **PR is behind base branch** - may need to be updated");
+    }
+
+    // Check if branch was updated since workflow started
+    if (workflowSha && pullRequest.head_sha && workflowSha !== pullRequest.head_sha) {
+      prDetails.push(`⚠️ **Branch was updated** - workflow started at \`${workflowSha.substring(0, 7)}\`, PR head is now \`${pullRequest.head_sha.substring(0, 7)}\``);
+    }
+
+    // Add SHA info for debugging
+    if (pullRequest.head_sha) {
+      prDetails.push(`**PR head SHA:** \`${pullRequest.head_sha.substring(0, 7)}\``);
+    }
+    if (workflowSha) {
+      prDetails.push(`**Workflow SHA:** \`${workflowSha.substring(0, 7)}\``);
+    }
+    if (pullRequest.mergeable_state && pullRequest.mergeable_state !== "unknown") {
+      prDetails.push(`**Mergeable state:** ${pullRequest.mergeable_state}`);
+    }
+
+    if (prDetails.length > 0) {
+      context += "\n\n**PR State at Push Time:**\n";
+      for (const detail of prDetails) {
+        context += `- ${detail}\n`;
+      }
+    }
+  }
+  context += "\n**Code Push Errors:**\n";
+  const errorLines = codePushFailureErrors.split("\n").filter(line => line.trim());
+  for (const errorLine of errorLines) {
+    const colonIndex = errorLine.indexOf(":");
+    if (colonIndex !== -1) {
+      const type = errorLine.substring(0, colonIndex);
+      const error = errorLine.substring(colonIndex + 1);
+      context += `- \`${type}\`: ${error}\n`;
+    }
+  }
+  context += "\n";
+  return context;
+}
+
+/**
  * Load missing_data messages from agent output
  * @returns {Array<{data_type: string, reason: string, context?: string, alternatives?: string}>} Array of missing data messages
  */
@@ -341,6 +435,8 @@ async function main() {
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
     const createDiscussionErrors = process.env.GH_AW_CREATE_DISCUSSION_ERRORS || "";
     const createDiscussionErrorCount = process.env.GH_AW_CREATE_DISCUSSION_ERROR_COUNT || "0";
+    const codePushFailureErrors = process.env.GH_AW_CODE_PUSH_FAILURE_ERRORS || "";
+    const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
 
     // Collect repo-memory validation errors from all memory configurations
@@ -363,6 +459,7 @@ async function main() {
     core.info(`Secret verification result: ${secretVerificationResult}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
+    core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
 
     // Check if there are assignment errors (regardless of agent job status)
@@ -370,6 +467,9 @@ async function main() {
 
     // Check if there are create_discussion errors (regardless of agent job status)
     const hasCreateDiscussionErrors = parseInt(createDiscussionErrorCount, 10) > 0;
+
+    // Check if there are code-push failures (regardless of agent job status)
+    const hasCodePushFailures = parseInt(codePushFailureCount, 10) > 0;
 
     // Check if agent succeeded but produced no safe outputs
     let hasMissingSafeOutputs = false;
@@ -391,10 +491,10 @@ async function main() {
       }
     }
 
-    // Only proceed if the agent job actually failed OR there are assignment errors OR create_discussion errors OR missing safe outputs
+    // Only proceed if the agent job actually failed OR there are assignment errors OR create_discussion errors OR code-push failures OR missing safe outputs
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
-    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasMissingSafeOutputs) {
-      core.info(`Agent job did not fail and no assignment/discussion errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasCodePushFailures && !hasMissingSafeOutputs) {
+      core.info(`Agent job did not fail and no assignment/discussion/code-push errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -484,10 +584,17 @@ async function main() {
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
+        // Build code-push failure context
+        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors, pullRequest) : "";
+
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
-          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.\n\n**Validation Errors:**\n";
+          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.";
+          if (pullRequest) {
+            repoMemoryValidationContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          repoMemoryValidationContext += "\n\n**Validation Errors:**\n";
           for (const { memoryID, errorMessage } of repoMemoryValidationErrors) {
             repoMemoryValidationContext += `- Memory "${memoryID}": ${errorMessage}\n`;
           }
@@ -500,7 +607,11 @@ async function main() {
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
-          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs. This typically indicates:\n";
+          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs.";
+          if (pullRequest) {
+            missingSafeOutputsContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          missingSafeOutputsContext += "\n\nThis typically indicates:\n";
           missingSafeOutputsContext += "- The safe output server failed to run\n";
           missingSafeOutputsContext += "- The prompt failed to generate any meaningful result\n";
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
@@ -520,6 +631,7 @@ async function main() {
               : "",
           assignment_errors_context: assignmentErrorsContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
+          code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
@@ -580,10 +692,17 @@ async function main() {
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
+        // Build code-push failure context
+        const codePushFailureContext = hasCodePushFailures ? buildCodePushFailureContext(codePushFailureErrors, pullRequest) : "";
+
         // Build repo-memory validation errors context
         let repoMemoryValidationContext = "";
         if (repoMemoryValidationErrors.length > 0) {
-          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.\n\n**Validation Errors:**\n";
+          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.";
+          if (pullRequest) {
+            repoMemoryValidationContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          repoMemoryValidationContext += "\n\n**Validation Errors:**\n";
           for (const { memoryID, errorMessage } of repoMemoryValidationErrors) {
             repoMemoryValidationContext += `- Memory "${memoryID}": ${errorMessage}\n`;
           }
@@ -596,7 +715,11 @@ async function main() {
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
-          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs. This typically indicates:\n";
+          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs.";
+          if (pullRequest) {
+            missingSafeOutputsContext += `\n\n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+          }
+          missingSafeOutputsContext += "\n\nThis typically indicates:\n";
           missingSafeOutputsContext += "- The safe output server failed to run\n";
           missingSafeOutputsContext += "- The prompt failed to generate any meaningful result\n";
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
@@ -617,6 +740,7 @@ async function main() {
               : "",
           assignment_errors_context: assignmentErrorsContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
+          code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,

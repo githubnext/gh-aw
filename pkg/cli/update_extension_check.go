@@ -13,46 +13,6 @@ import (
 
 var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 
-// checkExtensionUpdate checks if a newer version of gh-aw is available
-func checkExtensionUpdate(verbose bool) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Checking for gh-aw extension updates..."))
-	}
-
-	// Run gh extension upgrade --dry-run to check for updates
-	output, err := workflow.RunGHCombined("Checking for extension updates...", "extension", "upgrade", "github/gh-aw", "--dry-run")
-	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check for extension updates: %v", err)))
-		}
-		return nil // Don't fail the whole command if update check fails
-	}
-
-	outputStr := strings.TrimSpace(string(output))
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extension update check output: %s", outputStr)))
-	}
-
-	// Parse the output to see if an update is available
-	// Expected format: "[agentics]: would have upgraded from v0.14.0 to v0.18.1"
-	lines := strings.Split(outputStr, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "[agentics]: would have upgraded from") {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(line))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run 'gh extension upgrade github/gh-aw' to update"))
-			return nil
-		}
-	}
-
-	if strings.Contains(outputStr, "✓ Successfully checked extension upgrades") {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension is up to date"))
-		}
-	}
-
-	return nil
-}
-
 // isAuthenticationError checks if an error message indicates an authentication issue
 func isAuthenticationError(output string) bool {
 	lowerOutput := strings.ToLower(output)

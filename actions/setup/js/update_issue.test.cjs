@@ -657,3 +657,87 @@ describe("update_issue.cjs - allow_body configuration", () => {
     expect(result.error).toContain("received 6");
   });
 });
+
+describe("update_issue.cjs - title_prefix configuration", () => {
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    vi.resetModules();
+  });
+
+  it("should store _titlePrefix in updateData when title_prefix is configured", async () => {
+    const { buildIssueUpdateData } = await import("./update_issue.cjs");
+
+    const item = { body: "New content" };
+    const config = { title_prefix: "[bot] " };
+
+    const result = buildIssueUpdateData(item, config);
+
+    expect(result.success).toBe(true);
+    expect(result.data._titlePrefix).toBe("[bot] ");
+  });
+
+  it("should not set _titlePrefix when title_prefix is not configured", async () => {
+    const { buildIssueUpdateData } = await import("./update_issue.cjs");
+
+    const item = { body: "New content" };
+    const config = {};
+
+    const result = buildIssueUpdateData(item, config);
+
+    expect(result.success).toBe(true);
+    expect(result.data._titlePrefix).toBeUndefined();
+  });
+
+  it("should validate title prefix and succeed when issue title starts with prefix", async () => {
+    // Set up mocks for the full handler flow
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: {
+        number: 100,
+        title: "[bot] Fix something",
+        body: "Original body",
+        html_url: "https://github.com/testowner/testrepo/issues/100",
+      },
+    });
+    mockGithub.rest.issues.update.mockResolvedValueOnce({
+      data: {
+        number: 100,
+        title: "[bot] Fix something",
+        body: "Updated",
+        html_url: "https://github.com/testowner/testrepo/issues/100",
+      },
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ title_prefix: "[bot] ", allow_body: true });
+
+    const message = { issue_number: 100, body: "Updated" };
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Title prefix validation passed"));
+  });
+
+  it("should reject update when issue title does not start with required prefix", async () => {
+    // Set up mock to return issue with wrong title prefix
+    mockGithub.rest.issues.get.mockResolvedValueOnce({
+      data: {
+        number: 100,
+        title: "Some other issue",
+        body: "Original body",
+        html_url: "https://github.com/testowner/testrepo/issues/100",
+      },
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ title_prefix: "[bot] ", allow_body: true });
+
+    const message = { issue_number: 100, body: "Updated" };
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("[bot] ");
+    expect(result.error).toContain("Some other issue");
+    // Should not call update API
+    expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+  });
+});

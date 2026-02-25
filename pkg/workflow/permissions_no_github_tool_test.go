@@ -55,7 +55,7 @@ tools:
 `,
 			expectError:    false,
 			expectWarning:  true,
-			warningMessage: "Missing required permissions for github toolsets:",
+			warningMessage: "Missing required permissions for GitHub toolsets:",
 		},
 		{
 			name: "no permissions, no github tool - no warning",

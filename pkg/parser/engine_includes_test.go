@@ -280,7 +280,7 @@ Just markdown content.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := extractEngineFromContent(tt.content)
+			result, err := extractFrontmatterField(tt.content, "engine", "")
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}

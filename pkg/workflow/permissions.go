@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -10,74 +8,50 @@ var permissionsLog = logger.New("workflow:permissions")
 
 // convertStringToPermissionScope converts a string key to a PermissionScope
 func convertStringToPermissionScope(key string) PermissionScope {
-	scope := func() PermissionScope {
-		switch key {
-		case "actions":
-			return PermissionActions
-		case "attestations":
-			return PermissionAttestations
-		case "checks":
-			return PermissionChecks
-		case "contents":
-			return PermissionContents
-		case "deployments":
-			return PermissionDeployments
-		case "discussions":
-			return PermissionDiscussions
-		case "id-token":
-			return PermissionIdToken
-		case "issues":
-			return PermissionIssues
-		case "metadata":
-			return PermissionMetadata
-		case "models":
-			return PermissionModels
-		case "packages":
-			return PermissionPackages
-		case "pages":
-			return PermissionPages
-		case "pull-requests":
-			return PermissionPullRequests
-		case "repository-projects":
-			return PermissionRepositoryProj
-		case "organization-projects":
-			return PermissionOrganizationProj
-		case "security-events":
-			return PermissionSecurityEvents
-		case "statuses":
-			return PermissionStatuses
-		default:
-			return ""
-		}
-	}()
-	if scope == "" {
+	switch key {
+	case "actions":
+		return PermissionActions
+	case "attestations":
+		return PermissionAttestations
+	case "checks":
+		return PermissionChecks
+	case "contents":
+		return PermissionContents
+	case "deployments":
+		return PermissionDeployments
+	case "discussions":
+		return PermissionDiscussions
+	case "id-token":
+		return PermissionIdToken
+	case "issues":
+		return PermissionIssues
+	case "metadata":
+		return PermissionMetadata
+	case "models":
+		return PermissionModels
+	case "packages":
+		return PermissionPackages
+	case "pages":
+		return PermissionPages
+	case "pull-requests":
+		return PermissionPullRequests
+	case "repository-projects":
+		return PermissionRepositoryProj
+	case "organization-projects":
+		return PermissionOrganizationProj
+	case "security-events":
+		return PermissionSecurityEvents
+	case "statuses":
+		return PermissionStatuses
+	case "copilot-requests":
+		return PermissionCopilotRequests
+	case "all":
+		// "all" is a meta-key handled at the parser level; it is not a real scope
+		return ""
+	default:
 		permissionsLog.Printf("Unknown permission scope key: %s", key)
+		return ""
 	}
-	return scope
-}
-
-// ContainsCheckout returns true if the given custom steps contain an actions/checkout step
-func ContainsCheckout(customSteps string) bool {
-	if customSteps == "" {
-		return false
-	}
-
-	// Look for actions/checkout usage patterns
-	checkoutPatterns := []string{
-		"actions/checkout@",
-		"uses: actions/checkout",
-		"- uses: actions/checkout",
-	}
-
-	lowerSteps := strings.ToLower(customSteps)
-	for _, pattern := range checkoutPatterns {
-		if strings.Contains(lowerSteps, strings.ToLower(pattern)) {
-			permissionsLog.Print("Detected actions/checkout in custom steps")
-			return true
-		}
-	}
-
-	return false
 }
 
 // PermissionLevel represents the level of access (read, write, none)
@@ -110,6 +84,9 @@ const (
 	PermissionOrganizationProj PermissionScope = "organization-projects"
 	PermissionSecurityEvents   PermissionScope = "security-events"
 	PermissionStatuses         PermissionScope = "statuses"
+	// PermissionCopilotRequests is a GitHub Actions permission scope used with the copilot-requests feature.
+	// It enables use of the GitHub Actions token as the Copilot authentication token.
+	PermissionCopilotRequests PermissionScope = "copilot-requests"
 )
 
 // GetAllPermissionScopes returns all available permission scopes

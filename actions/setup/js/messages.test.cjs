@@ -31,6 +31,8 @@ describe("messages.cjs", () => {
     delete process.env.GH_AW_ENGINE_VERSION;
     delete process.env.GH_AW_ENGINE_MODEL;
     delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_RUN_ID;
+    delete process.env.GH_AW_WORKFLOW_ID;
     // Clear cache by reimporting
     vi.resetModules();
   });
@@ -193,6 +195,39 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Custom Workflow](https://example.com/run/456)");
     });
 
+    it("should NOT append triggering number suffix when custom footer is configured", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url})",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Custom Workflow",
+        runUrl: "https://example.com/run/456",
+        triggeringNumber: 42,
+      });
+
+      expect(result).toBe("> Custom: [Custom Workflow](https://example.com/run/456)");
+      expect(result).not.toContain("for issue");
+    });
+
+    it("should allow custom footer template to include triggering number via placeholder", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url}) (#{triggering_number})",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Custom Workflow",
+        runUrl: "https://example.com/run/456",
+        triggeringNumber: 42,
+      });
+
+      expect(result).toBe("> Custom: [Custom Workflow](https://example.com/run/456) (#42)");
+    });
+
     it("should support both snake_case and camelCase in custom templates", async () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
         footer: "> {workflowName} ({workflow_name})",
@@ -232,7 +267,8 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
-      expect(result).toContain("View source at");
+      expect(result).toContain("[agentic workflow](https://github.com/owner/repo)");
+      expect(result).not.toContain("View source at");
     });
 
     it("should use custom install template", async () => {

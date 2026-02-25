@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -206,13 +207,7 @@ func TestListArtifacts(t *testing.T) {
 
 	// Verify all test files are in the list
 	for _, expectedFile := range testFiles {
-		found := false
-		for _, artifact := range artifacts {
-			if artifact == expectedFile {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(artifacts, expectedFile)
 		if !found {
 			t.Errorf("Expected artifact %s not found in list: %v", expectedFile, artifacts)
 		}

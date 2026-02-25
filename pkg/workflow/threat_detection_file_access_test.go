@@ -38,7 +38,7 @@ func TestThreatDetectionSteps_UseFilePathReferences(t *testing.T) {
 	compiler := createTestCompiler(t)
 	data := createTestWorkflowData(t, &ThreatDetectionConfig{})
 
-	steps := compiler.buildThreatDetectionSteps(data, "agent")
+	steps := compiler.buildInlineDetectionSteps(data)
 	stepsString := strings.Join(steps, "")
 
 	tests := []struct {
@@ -95,7 +95,7 @@ func TestThreatDetectionSteps_IncludeBashReadTools(t *testing.T) {
 	compiler := createTestCompiler(t)
 	data := createTestWorkflowData(t, &ThreatDetectionConfig{})
 
-	steps := compiler.buildThreatDetectionSteps(data, "agent")
+	steps := compiler.buildInlineDetectionSteps(data)
 	stepsString := strings.Join(steps, "")
 
 	// Verify bash tools are configured - check for the comments in the execution step
@@ -172,87 +172,6 @@ func TestThreatDetectionTemplate_UsesFilePathPlaceholder(t *testing.T) {
 	}
 }
 
-// TestBuildDownloadArtifactStep_IncludesRequiredArtifacts tests artifact download step generation
-func TestBuildDownloadArtifactStep_IncludesRequiredArtifacts(t *testing.T) {
-	compiler := createTestCompiler(t)
-	steps := compiler.buildDownloadArtifactStep("agent")
-	stepsString := strings.Join(steps, "")
-
-	tests := []struct {
-		name      string
-		substring string
-		message   string
-	}{
-		{
-			name:      "includes agent artifacts download step",
-			substring: "Download agent artifacts",
-			message:   "should include agent artifacts download step",
-		},
-		{
-			name:      "includes agent output download step",
-			substring: "Download agent output artifact",
-			message:   "should include agent output download step",
-		},
-		{
-			name:      "downloads agent-artifacts",
-			substring: "agent-artifacts",
-			message:   "should download agent-artifacts",
-		},
-		{
-			name:      "downloads agent-output",
-			substring: "agent-output",
-			message:   "should download agent-output artifact",
-		},
-		{
-			name:      "uses threat-detection directory",
-			substring: "/tmp/gh-aw/threat-detection/",
-			message:   "should download to threat-detection directory",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Contains(t, stepsString, tt.substring, tt.message)
-		})
-	}
-}
-
-// TestBuildEchoAgentOutputsStep_GeneratesCorrectOutput tests agent outputs echo step generation
-func TestBuildEchoAgentOutputsStep_GeneratesCorrectOutput(t *testing.T) {
-	tests := []struct {
-		name        string
-		mainJobName string
-		checkOutput func(*testing.T, string)
-	}{
-		{
-			name:        "default agent job name",
-			mainJobName: "agent",
-			checkOutput: func(t *testing.T, output string) {
-				assert.Contains(t, output, "Print agent output types", "should have descriptive step name")
-				assert.Contains(t, output, "AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}", "should reference agent job outputs")
-				assert.Contains(t, output, "echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"", "should echo the output types")
-			},
-		},
-		{
-			name:        "custom job name",
-			mainJobName: "custom_agent",
-			checkOutput: func(t *testing.T, output string) {
-				assert.Contains(t, output, "needs.custom_agent.outputs.output_types", "should reference custom agent job outputs")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			compiler := createTestCompiler(t)
-			steps := compiler.buildEchoAgentOutputsStep(tt.mainJobName)
-			stepsString := strings.Join(steps, "")
-
-			tt.checkOutput(t, stepsString)
-		})
-	}
-}
-
 // TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment tests threat analysis step generation
 func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 	tests := []struct {
@@ -291,7 +210,7 @@ func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 			name: "includes HAS_PATCH env var",
 			data: createTestWorkflowData(t, &ThreatDetectionConfig{}),
 			checkStep: func(t *testing.T, stepsString string) {
-				assert.Contains(t, stepsString, "HAS_PATCH: ${{ needs.agent.outputs.has_patch }}", "should include HAS_PATCH env var from agent job outputs")
+				assert.Contains(t, stepsString, "HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}", "should include HAS_PATCH env var from collect_output step")
 			},
 		},
 	}
@@ -299,7 +218,7 @@ func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := createTestCompiler(t)
-			steps := compiler.buildThreatDetectionAnalysisStep(tt.data, "agent")
+			steps := compiler.buildThreatDetectionAnalysisStep(tt.data)
 			stepsString := strings.Join(steps, "")
 
 			tt.checkStep(t, stepsString)

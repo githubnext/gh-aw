@@ -15,7 +15,7 @@ var nodejsLog = logger.New("workflow:nodejs")
 func GenerateNodeJsSetupStep() GitHubActionStep {
 	return GitHubActionStep{
 		"      - name: Setup Node.js",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-node")),
+		"        uses: " + GetActionPin("actions/setup-node"),
 		"        with:",
 		fmt.Sprintf("          node-version: '%s'", constants.DefaultNodeVersion),
 		"          package-manager-cache: false",
@@ -54,8 +54,8 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 	}
 	installCmd := fmt.Sprintf("npm install %s--silent %s@%s", globalFlag, packageName, version)
 	steps = append(steps, GitHubActionStep{
-		fmt.Sprintf("      - name: %s", stepName),
-		fmt.Sprintf("        run: %s", installCmd),
+		"      - name: " + stepName,
+		"        run: " + installCmd,
 	})
 
 	return steps

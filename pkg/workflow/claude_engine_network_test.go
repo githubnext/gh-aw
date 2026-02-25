@@ -71,9 +71,9 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Error("AWF should not be used without network permissions")
 		}
 
-		// Verify model parameter is present
-		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
-			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
+		// Verify model is passed via ANTHROPIC_MODEL env var (not as --model flag)
+		if !strings.Contains(stepYAML, "ANTHROPIC_MODEL: claude-3-5-sonnet-20241022") {
+			t.Error("Expected ANTHROPIC_MODEL env var for model 'claude-3-5-sonnet-20241022' in step YAML")
 		}
 	})
 
@@ -113,9 +113,9 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Error("--allow-domains should be present with AWF")
 		}
 
-		// Verify model parameter is present
-		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
-			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
+		// Verify model is passed via ANTHROPIC_MODEL env var (not as --model flag)
+		if !strings.Contains(stepYAML, "ANTHROPIC_MODEL: claude-3-5-sonnet-20241022") {
+			t.Error("Expected ANTHROPIC_MODEL env var for model 'claude-3-5-sonnet-20241022' in step YAML")
 		}
 	})
 

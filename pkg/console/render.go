@@ -1,7 +1,10 @@
 package console
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -67,7 +70,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 
 	// Track the longest field name for alignment
 	maxFieldLen := 0
-	for i := 0; i < val.NumField(); i++ {
+	for i := range val.NumField() {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 		tag := parseConsoleTag(fieldType.Tag.Get("console"))
@@ -87,7 +90,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 	}
 
 	// Iterate through struct fields
-	for i := 0; i < val.NumField(); i++ {
+	for i := range val.NumField() {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 
@@ -173,7 +176,7 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 		output.WriteString(RenderTable(config))
 	} else {
 		// Render as list
-		for i := 0; i < val.Len(); i++ {
+		for i := range val.Len() {
 			elem := val.Index(i)
 			fmt.Fprintf(output, "  • %v\n", formatFieldValue(elem))
 		}
@@ -225,7 +228,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	var fieldIndices []int
 	var fieldTags []consoleTag
 
-	for i := 0; i < elemType.NumField(); i++ {
+	for i := range elemType.NumField() {
 		field := elemType.Field(i)
 		tag := parseConsoleTag(field.Tag.Get("console"))
 
@@ -248,7 +251,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	config.Headers = headers
 
 	// Build rows
-	for i := 0; i < val.Len(); i++ {
+	for i := range val.Len() {
 		elem := val.Index(i)
 		// Dereference pointer if needed
 		for elem.Kind() == reflect.Ptr {
@@ -293,21 +296,21 @@ func parseConsoleTag(tag string) consoleTag {
 		return result
 	}
 
-	parts := strings.Split(tag, ",")
-	for _, part := range parts {
+	parts := strings.SplitSeq(tag, ",")
+	for part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "omitempty" {
 			result.omitempty = true
-		} else if strings.HasPrefix(part, "title:") {
-			result.title = strings.TrimPrefix(part, "title:")
-		} else if strings.HasPrefix(part, "header:") {
-			result.header = strings.TrimPrefix(part, "header:")
-		} else if strings.HasPrefix(part, "format:") {
-			result.format = strings.TrimPrefix(part, "format:")
-		} else if strings.HasPrefix(part, "default:") {
-			result.defaultVal = strings.TrimPrefix(part, "default:")
-		} else if strings.HasPrefix(part, "maxlen:") {
-			maxLenStr := strings.TrimPrefix(part, "maxlen:")
+		} else if after, ok := strings.CutPrefix(part, "title:"); ok {
+			result.title = after
+		} else if after, ok := strings.CutPrefix(part, "header:"); ok {
+			result.header = after
+		} else if after, ok := strings.CutPrefix(part, "format:"); ok {
+			result.format = after
+		} else if after, ok := strings.CutPrefix(part, "default:"); ok {
+			result.defaultVal = after
+		} else if after, ok := strings.CutPrefix(part, "maxlen:"); ok {
+			maxLenStr := after
 			if len, err := strconv.Atoi(maxLenStr); err == nil {
 				result.maxLen = len
 			}
@@ -381,9 +384,9 @@ func formatFieldValue(val reflect.Value) string {
 			// Fallback for unexported fields
 			switch val.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				return fmt.Sprintf("%d", val.Int())
+				return strconv.FormatInt(val.Int(), 10)
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				return fmt.Sprintf("%d", val.Uint())
+				return strconv.FormatUint(val.Uint(), 10)
 			case reflect.Float32, reflect.Float64:
 				return fmt.Sprintf("%f", val.Float())
 			}
@@ -415,11 +418,11 @@ func formatFieldValue(val reflect.Value) string {
 		// For unexported fields, try to format based on kind
 		switch val.Kind() {
 		case reflect.Bool:
-			return fmt.Sprintf("%t", val.Bool())
+			return strconv.FormatBool(val.Bool())
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			return fmt.Sprintf("%d", val.Int())
+			return strconv.FormatInt(val.Int(), 10)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			return fmt.Sprintf("%d", val.Uint())
+			return strconv.FormatUint(val.Uint(), 10)
 		case reflect.Float32, reflect.Float64:
 			return fmt.Sprintf("%f", val.Float())
 		case reflect.String:
@@ -543,7 +546,7 @@ func FormatNumber(n int) string {
 	f := float64(n)
 
 	if f < 1000 {
-		return fmt.Sprintf("%d", n)
+		return strconv.Itoa(n)
 	} else if f < 1000000 {
 		// Format as thousands (k)
 		k := f / 1000
@@ -575,4 +578,119 @@ func FormatNumber(n int) string {
 			return fmt.Sprintf("%.2fB", b)
 		}
 	}
+}
+
+// ToRelativePath converts an absolute path to a relative path from the current working directory
+// If the relative path contains "..", returns the absolute path instead for clarity
+func ToRelativePath(path string) string {
+	if !filepath.IsAbs(path) {
+		return path
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return path
+	}
+
+	relPath, err := filepath.Rel(wd, path)
+	if err != nil {
+		return path
+	}
+
+	if strings.Contains(relPath, "..") {
+		return path
+	}
+
+	return relPath
+}
+
+// RenderTableAsJSON renders a table configuration as JSON
+func RenderTableAsJSON(config TableConfig) (string, error) {
+	if len(config.Headers) == 0 {
+		return "[]", nil
+	}
+
+	var result []map[string]string
+	for _, row := range config.Rows {
+		obj := make(map[string]string)
+		for i, cell := range row {
+			if i < len(config.Headers) {
+				key := strings.ToLower(strings.ReplaceAll(config.Headers[i], " ", "_"))
+				obj[key] = cell
+			}
+		}
+		result = append(result, obj)
+	}
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal table to JSON: %w", err)
+	}
+
+	return string(jsonBytes), nil
+}
+
+// FormatErrorWithSuggestions formats an error message with actionable suggestions
+func FormatErrorWithSuggestions(message string, suggestions []string) string {
+	var output strings.Builder
+	output.WriteString(FormatErrorMessage(message))
+
+	if len(suggestions) > 0 {
+		output.WriteString("\n\nSuggestions:\n")
+		for _, suggestion := range suggestions {
+			output.WriteString("  • " + suggestion + "\n")
+		}
+	}
+
+	return output.String()
+}
+
+// renderTreeSimple renders a simple text-based tree without styling
+func renderTreeSimple(node TreeNode, prefix string, isLast bool) string {
+	var output strings.Builder
+
+	connector := "├── "
+	if isLast {
+		connector = "└── "
+	}
+	if prefix == "" {
+		output.WriteString(node.Value + "\n")
+	} else {
+		output.WriteString(prefix + connector + node.Value + "\n")
+	}
+
+	for i, child := range node.Children {
+		childIsLast := i == len(node.Children)-1
+		var childPrefix string
+		if prefix == "" {
+			childPrefix = ""
+		} else {
+			if isLast {
+				childPrefix = prefix + "    "
+			} else {
+				childPrefix = prefix + "│   "
+			}
+		}
+		output.WriteString(renderTreeSimple(child, childPrefix, childIsLast))
+	}
+
+	return output.String()
+}
+
+// findWordEnd finds the end of a word starting at the given position
+func findWordEnd(line string, start int) int {
+	if start >= len(line) {
+		return len(line)
+	}
+
+	end := start
+	for end < len(line) {
+		char := line[end]
+		if char == ' ' || char == '\t' || char == ':' || char == '\n' || char == '\r' {
+			break
+		}
+		end++
+	}
+
+	return end
 }

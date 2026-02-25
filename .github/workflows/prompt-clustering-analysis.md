@@ -21,13 +21,13 @@ network:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[prompt-clustering] "
     category: "audits"
     max: 1
     close-older-discussions: true
 
 imports:
-  - shared/mood.md
   - shared/jqschema.md
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
@@ -35,6 +35,7 @@ imports:
 
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
+    name: Cache prompt clustering data
     path: /tmp/gh-aw/prompt-cache
     restore-keys: |
       prompt-clustering-cache-
@@ -70,12 +71,16 @@ steps:
         echo "Downloading full data for PR #$pr_number..."
         
         # Download full PR data with essential fields only
-        gh pr view "$pr_number" \
+        # Use error handling to skip individual PR failures (e.g. deleted PRs, rate limits)
+        if gh pr view "$pr_number" \
           --repo "${{ github.repository }}" \
           --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
-          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json"
-        
-        echo "Downloaded PR #$pr_number"
+          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err; then
+          echo "Downloaded PR #$pr_number"
+        else
+          echo "Warning: Failed to download PR #$pr_number (skipping)"
+          rm -f "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err"
+        fi
       done
       
       # Create an index file listing all downloaded PRs
@@ -638,3 +643,9 @@ If workflow logs unavailable for most PRs:
 - Focus on prompt analysis without turn counts
 
 Now analyze the prompts and generate your comprehensive report!
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

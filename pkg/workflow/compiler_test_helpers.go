@@ -3,8 +3,8 @@ package workflow
 import "strings"
 
 func containsInNonCommentLines(content, search string) bool {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(content, "\n")
+	for line := range lines {
 		trimmed := strings.TrimLeft(line, " \t")
 		// Skip comment lines
 		if strings.HasPrefix(trimmed, "#") {

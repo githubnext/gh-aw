@@ -1,13 +1,107 @@
 package workflow
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+)
 
 // ========================================
 // Safe Output Configuration Generation
 // ========================================
 
-// populateDispatchWorkflowFiles populates the WorkflowFiles map for dispatch-workflow configuration.
-// This must be called before generateSafeOutputsConfig to ensure workflow file extensions are available.
+// generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job
+// Returns a map representing the tool definition in MCP format with name, description, and inputSchema
+func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) map[string]any {
+	safeOutputsConfigLog.Printf("Generating tool definition for custom job: %s", jobName)
+
+	// Build the tool definition
+	tool := map[string]any{
+		"name": jobName,
+	}
+
+	// Add description if present
+	if jobConfig.Description != "" {
+		tool["description"] = jobConfig.Description
+	} else {
+		// Provide a default description if none is specified
+		tool["description"] = fmt.Sprintf("Execute the %s custom job", jobName)
+	}
+
+	// Build the input schema
+	inputSchema := map[string]any{
+		"type":       "object",
+		"properties": make(map[string]any),
+	}
+
+	// Track required fields
+	var requiredFields []string
+
+	// Add each input to the schema
+	if len(jobConfig.Inputs) > 0 {
+		properties := inputSchema["properties"].(map[string]any)
+
+		for inputName, inputDef := range jobConfig.Inputs {
+			property := map[string]any{}
+
+			// Add description
+			if inputDef.Description != "" {
+				property["description"] = inputDef.Description
+			}
+
+			// Convert type to JSON Schema type
+			switch inputDef.Type {
+			case "choice":
+				// Choice inputs are strings with enum constraints
+				property["type"] = "string"
+				if len(inputDef.Options) > 0 {
+					property["enum"] = inputDef.Options
+				}
+			case "boolean":
+				property["type"] = "boolean"
+			case "number":
+				property["type"] = "number"
+			case "string", "":
+				// Default to string if type is not specified
+				property["type"] = "string"
+			default:
+				// For any unknown type, default to string
+				property["type"] = "string"
+			}
+
+			// Add default value if present
+			if inputDef.Default != nil {
+				property["default"] = inputDef.Default
+			}
+
+			// Track required fields
+			if inputDef.Required {
+				requiredFields = append(requiredFields, inputName)
+			}
+
+			properties[inputName] = property
+		}
+	}
+
+	// Add required fields array if any inputs are required
+	if len(requiredFields) > 0 {
+		sort.Strings(requiredFields)
+		inputSchema["required"] = requiredFields
+	}
+
+	// Prevent additional properties to maintain schema strictness
+	inputSchema["additionalProperties"] = false
+
+	tool["inputSchema"] = inputSchema
+
+	safeOutputsConfigLog.Printf("Generated tool definition for %s with %d inputs, %d required",
+		jobName, len(jobConfig.Inputs), len(requiredFields))
+
+	return tool
+}
+
 func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 	if data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil {
 		return
@@ -68,7 +162,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.CreateIssues.AllowedLabels,
 			)
 			// Add group flag if enabled
-			if data.SafeOutputs.CreateIssues.Group {
+			if data.SafeOutputs.CreateIssues.Group != nil && *data.SafeOutputs.CreateIssues.Group == "true" {
 				config["group"] = true
 			}
 			// Add expires value if set (0 means explicitly disabled or not set)
@@ -137,6 +231,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
+				data.SafeOutputs.CreatePullRequests.Max,
+				1, // default max
 				data.SafeOutputs.CreatePullRequests.AllowedLabels,
 				data.SafeOutputs.CreatePullRequests.AllowEmpty,
 				data.SafeOutputs.CreatePullRequests.AutoMerge,
@@ -177,6 +273,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			additionalFields := make(map[string]any)
 			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
 				additionalFields["allowed"] = data.SafeOutputs.AddLabels.Allowed
+			}
+			if len(data.SafeOutputs.AddLabels.Blocked) > 0 {
+				additionalFields["blocked"] = data.SafeOutputs.AddLabels.Blocked
 			}
 			safeOutputsConfig["add_labels"] = generateTargetConfigWithRepos(
 				data.SafeOutputs.AddLabels.SafeOutputTargetConfig,
@@ -274,8 +373,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			missingToolConfig := make(map[string]any)
 
 			// Add max if set
-			if data.SafeOutputs.MissingTool.Max > 0 {
-				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			if data.SafeOutputs.MissingTool.Max != nil {
+				missingToolConfig["max"] = resolveMaxForConfig(data.SafeOutputs.MissingTool.Max, 0)
 			}
 
 			// Add issue creation config if enabled
@@ -301,8 +400,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			missingDataConfig := make(map[string]any)
 
 			// Add max if set
-			if data.SafeOutputs.MissingData.Max > 0 {
-				missingDataConfig["max"] = data.SafeOutputs.MissingData.Max
+			if data.SafeOutputs.MissingData.Max != nil {
+				missingDataConfig["max"] = resolveMaxForConfig(data.SafeOutputs.MissingData.Max, 0)
 			}
 
 			// Add issue creation config if enabled
@@ -468,15 +567,21 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 
 		// Include max count
-		maxValue := 1 // default
-		if data.SafeOutputs.DispatchWorkflow.Max > 0 {
-			maxValue = data.SafeOutputs.DispatchWorkflow.Max
-		}
-		dispatchWorkflowConfig["max"] = maxValue
+		dispatchWorkflowConfig["max"] = resolveMaxForConfig(data.SafeOutputs.DispatchWorkflow.Max, 1)
 
 		// Only add if it has fields
 		if len(dispatchWorkflowConfig) > 0 {
 			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
+		}
+	}
+
+	// Add max-bot-mentions if set (templatable integer)
+	if data.SafeOutputs.MaxBotMentions != nil {
+		v := *data.SafeOutputs.MaxBotMentions
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			safeOutputsConfig["max_bot_mentions"] = n
+		} else if strings.HasPrefix(v, "${{") {
+			safeOutputsConfig["max_bot_mentions"] = v
 		}
 	}
 

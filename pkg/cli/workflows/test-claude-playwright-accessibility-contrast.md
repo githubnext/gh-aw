@@ -6,7 +6,6 @@ permissions:
 engine: claude
 tools:
   playwright:
-    allowed_domains: ["github.com", "*.github.com"]
 safe-outputs:
   create-issue:
     title-prefix: "[Accessibility] "

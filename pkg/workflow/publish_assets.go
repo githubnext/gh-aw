@@ -1,10 +1,10 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -83,7 +83,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s, threat_detection=%v", data.Name, mainJobName, threatDetectionEnabled)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
-		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
+		return nil, errors.New("safe-outputs.upload-asset configuration is required")
 	}
 
 	var preSteps []string
@@ -140,17 +140,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("upload_asset")
 
-	// Build job dependencies
+	// Build job dependencies — detection is now inline in the agent job
 	needs := []string{mainJobName}
-	if threatDetectionEnabled {
-		needs = append(needs, string(constants.DetectionJobName))
-		publishAssetsLog.Printf("Added detection job dependency for upload_assets")
-	}
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:       "upload_assets",
-		StepName:      "Upload Assets to Orphaned Branch",
+		StepName:      "Push assets",
 		StepID:        "upload_assets",
 		ScriptName:    "upload_assets",
 		MainJobName:   mainJobName,

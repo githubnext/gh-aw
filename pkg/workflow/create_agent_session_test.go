@@ -91,7 +91,7 @@ func TestParseAgentTaskConfig(t *testing.T) {
 				if config.TargetRepoSlug != tt.wantRepo {
 					t.Errorf("parseAgentSessionConfig().TargetRepoSlug = %v, want %v", config.TargetRepoSlug, tt.wantRepo)
 				}
-				if config.Max != 1 {
+				if templatableIntValue(config.Max) != 1 {
 					t.Errorf("parseAgentSessionConfig().Max = %v, want 1", config.Max)
 				}
 			}
@@ -106,7 +106,7 @@ func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			CreateAgentSessions: &CreateAgentSessionConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				Base:           "main",
 				TargetRepoSlug: "owner/repo",

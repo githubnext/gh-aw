@@ -263,8 +263,7 @@ This is a test workflow with some content.`
 		b.Fatalf("Failed to create test file: %v", err)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = extractWorkflowNameFromFile(filePath)
 	}
 }
@@ -278,8 +277,7 @@ More content here.
 @include another/file.md
 Final content.`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = findIncludesInContent(content, "", false)
 	}
 }

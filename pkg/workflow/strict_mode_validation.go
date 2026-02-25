@@ -40,8 +40,10 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -86,23 +88,19 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	// and to handle direct unit test calls.
 	if networkPermissions == nil {
 		strictModeValidationLog.Printf("Network configuration unexpectedly nil (defaults should have been applied)")
-		return fmt.Errorf("internal error: network permissions not initialized (this should not happen in normal operation)")
+		return errors.New("internal error: network permissions not initialized (this should not happen in normal operation)")
 	}
 
 	// If allowed list contains "defaults", that's acceptable (this is the automatic default)
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "defaults" {
-			strictModeValidationLog.Printf("Network validation passed: allowed list contains 'defaults'")
-			return nil
-		}
+	if slices.Contains(networkPermissions.Allowed, "defaults") {
+		strictModeValidationLog.Printf("Network validation passed: allowed list contains 'defaults'")
+		return nil
 	}
 
 	// Check for wildcard "*" in allowed domains
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "*" {
-			strictModeValidationLog.Printf("Network validation failed: wildcard detected")
-			return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
-		}
+	if slices.Contains(networkPermissions.Allowed, "*") {
+		strictModeValidationLog.Printf("Network validation failed: wildcard detected")
+		return errors.New("strict mode: wildcard '*' is not allowed in network.allowed domains to prevent unrestricted internet access. Specify explicit domains or use ecosystem identifiers like 'python', 'node', 'containers'. See: https://github.github.com/gh-aw/reference/network/#available-ecosystem-identifiers")
 	}
 
 	strictModeValidationLog.Printf("Network validation passed: allowed_count=%d", len(networkPermissions.Allowed))
@@ -174,7 +172,7 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 			if mode, hasMode := serenaConfig["mode"]; hasMode {
 				if modeStr, ok := mode.(string); ok && modeStr == "local" {
 					strictModeValidationLog.Printf("Serena local mode validation failed")
-					return fmt.Errorf("strict mode: serena tool with 'mode: local' is not allowed for security reasons. Local mode runs the MCP server directly on the host without containerization, bypassing security isolation. Use 'mode: docker' (default) instead, which runs Serena in a container. See: https://github.github.com/gh-aw/reference/tools/#serena")
+					return errors.New("strict mode: serena tool with 'mode: local' is not allowed for security reasons. Local mode runs the MCP server directly on the host without containerization, bypassing security isolation. Use 'mode: docker' (default) instead, which runs Serena in a container. See: https://github.github.com/gh-aw/reference/tools/#serena")
 				}
 			}
 		}
@@ -188,7 +186,7 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 			if scope, hasScope := cacheMap["scope"]; hasScope {
 				if scopeStr, ok := scope.(string); ok && scopeStr == "repo" {
 					strictModeValidationLog.Printf("Cache-memory repo scope validation failed")
-					return fmt.Errorf("strict mode: cache-memory with 'scope: repo' is not allowed for security reasons. Repo scope allows cache sharing across all workflows in the repository, which can enable cross-workflow cache poisoning attacks. Use 'scope: workflow' (default) instead, which isolates caches to individual workflows. See: https://github.github.com/gh-aw/reference/tools/#cache-memory")
+					return errors.New("strict mode: cache-memory with 'scope: repo' is not allowed for security reasons. Repo scope allows cache sharing across all workflows in the repository, which can enable cross-workflow cache poisoning attacks. Use 'scope: workflow' (default) instead, which isolates caches to individual workflows. See: https://github.github.com/gh-aw/reference/tools/#cache-memory")
 				}
 			}
 			return nil
@@ -248,26 +246,95 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 	return nil
 }
 
-// validateEnvSecrets detects secrets in the env section and raises an error in strict mode
-// or a warning in non-strict mode. Secrets in env will be leaked to the agent container.
+// validateEnvSecrets detects secrets in the top-level env section and the engine.env section,
+// raising an error in strict mode or a warning in non-strict mode. Secrets in env will be
+// leaked to the agent container.
+//
+// For engine.env, env vars whose key matches a known agentic engine env var (returned by the
+// engine's GetRequiredSecretNames) are allowed to carry secrets – this enables users to
+// override the engine's default secret with an org-specific one, e.g.
+//
+//	COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}
+//
+// No other engine.env var is allowed to have secrets.
 func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
-	// Check if env section exists
-	envValue, exists := frontmatter["env"]
+	// Check top-level env section (no allowed overrides here)
+	if err := c.validateEnvSecretsSection(frontmatter, "env", nil); err != nil {
+		return err
+	}
+
+	// Check engine.env section when engine is in object format
+	if engineValue, exists := frontmatter["engine"]; exists {
+		if engineObj, ok := engineValue.(map[string]any); ok {
+			// Determine which env var keys may carry secrets: those that the engine itself
+			// requires (e.g. COPILOT_GITHUB_TOKEN for the copilot engine).
+			// The second return value is *EngineConfig (not an error); we only need the engine ID.
+			engineSetting, _ := c.ExtractEngineConfig(frontmatter)
+			allowedEnvVarKeys := c.getEngineBaseEnvVarKeys(engineSetting)
+
+			if err := c.validateEnvSecretsSection(engineObj, "engine.env", allowedEnvVarKeys); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getEngineBaseEnvVarKeys returns the set of env var key names that the named engine
+// requires by default (using a minimal WorkflowData with no tools/MCP configured).
+// These keys are allowed to carry secrets in engine.env overrides.
+func (c *Compiler) getEngineBaseEnvVarKeys(engineID string) map[string]bool {
+	if engineID == "" {
+		return nil
+	}
+	engine, err := c.engineRegistry.GetEngine(engineID)
+	if err != nil {
+		strictModeValidationLog.Printf("Could not look up engine '%s' for env-key allowlist: %v", engineID, err)
+		return nil
+	}
+	// Use a minimal WorkflowData so we get only the engine's unconditional secrets.
+	// GetRequiredSecretNames only adds extra secrets when non-nil MCP tools (ParsedTools.GitHub,
+	// ParsedTools.Playwright, etc.) are set, or when SafeInputs is populated. By passing empty
+	// Tools/ParsedTools and no SafeInputs we get just the base engine secrets (e.g.
+	// COPILOT_GITHUB_TOKEN, ANTHROPIC_API_KEY) without any optional/conditional ones.
+	minimalData := &WorkflowData{
+		Tools:       map[string]any{},
+		ParsedTools: &ToolsConfig{},
+	}
+	keys := make(map[string]bool)
+	for _, name := range engine.GetRequiredSecretNames(minimalData) {
+		keys[name] = true
+	}
+	return keys
+}
+
+// validateEnvSecretsSection checks a single config map's "env" key for secrets.
+// sectionName is used in log and error messages (e.g. "env" or "engine.env").
+// allowedEnvVarKeys is an optional set of env var key names whose secret values are
+// permitted (used for engine.env to allow overriding engine env vars).
+func (c *Compiler) validateEnvSecretsSection(config map[string]any, sectionName string, allowedEnvVarKeys map[string]bool) error {
+	envValue, exists := config["env"]
 	if !exists {
-		strictModeValidationLog.Printf("No env section found, validation passed")
+		strictModeValidationLog.Printf("No %s section found, validation passed", sectionName)
 		return nil
 	}
 
-	// Parse env as map[string]string
+	// Check if env is a map[string]any
 	envMap, ok := envValue.(map[string]any)
 	if !ok {
-		strictModeValidationLog.Printf("Env section is not a map, skipping validation")
+		strictModeValidationLog.Printf("%s section is not a map, skipping validation", sectionName)
 		return nil
 	}
 
-	// Convert to map[string]string for secret extraction
+	// Convert to map[string]string for secret extraction, skipping keys whose secrets
+	// are explicitly allowed (e.g. engine env var overrides in engine.env).
 	envStrings := make(map[string]string)
 	for key, value := range envMap {
+		if allowedEnvVarKeys != nil && allowedEnvVarKeys[key] {
+			strictModeValidationLog.Printf("Skipping allowed engine env var key in %s: %s", sectionName, key)
+			continue
+		}
 		if strValue, ok := value.(string); ok {
 			envStrings[key] = strValue
 		}
@@ -276,7 +343,7 @@ func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
 	// Extract secrets from env values
 	secrets := ExtractSecretsFromMap(envStrings)
 	if len(secrets) == 0 {
-		strictModeValidationLog.Printf("No secrets found in env section")
+		strictModeValidationLog.Printf("No secrets found in %s section", sectionName)
 		return nil
 	}
 
@@ -286,15 +353,15 @@ func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
 		secretRefs = append(secretRefs, secretExpr)
 	}
 
-	strictModeValidationLog.Printf("Found %d secret(s) in env section: %v", len(secrets), secretRefs)
+	strictModeValidationLog.Printf("Found %d secret(s) in %s section: %v", len(secrets), sectionName, secretRefs)
 
 	// In strict mode, this is an error
 	if c.strictMode {
-		return fmt.Errorf("strict mode: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", strings.Join(secretRefs, ", "))
+		return fmt.Errorf("strict mode: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", sectionName, strings.Join(secretRefs, ", "))
 	}
 
 	// In non-strict mode, emit a warning
-	warningMsg := fmt.Sprintf("Warning: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", strings.Join(secretRefs, ", "))
+	warningMsg := fmt.Sprintf("Warning: secrets detected in '%s' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", sectionName, strings.Join(secretRefs, ", "))
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 
@@ -399,7 +466,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		if llmGatewayPort < 0 {
 			return fmt.Errorf("strict mode: engine '%s' does not support LLM gateway and requires 'sandbox.agent' to be enabled for security. Remove 'sandbox.agent: false' or set 'strict: false'. See: https://github.github.com/gh-aw/reference/sandbox/", engineID)
 		}
-		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
+		return errors.New("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
 	}
 
 	// In strict mode, suggest using ecosystem identifiers for domains that belong to known ecosystems
@@ -453,7 +520,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 				suggestions = append(suggestions, fmt.Sprintf("'%s' → '%s'", ds.domain, ds.ecosystem))
 			}
 
-			warningMsg := fmt.Sprintf("strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: %s", strings.Join(suggestions, ", "))
+			warningMsg := "strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: " + strings.Join(suggestions, ", ")
 
 			// Print warning message and increment warning count
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
@@ -482,11 +549,9 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 	// Check if allowed contains "*" (unrestricted network access)
 	// If it does, firewall is not required
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "*" {
-			strictModeValidationLog.Printf("Wildcard '*' in allowed domains, skipping firewall validation")
-			return nil
-		}
+	if slices.Contains(networkPermissions.Allowed, "*") {
+		strictModeValidationLog.Printf("Wildcard '*' in allowed domains, skipping firewall validation")
+		return nil
 	}
 
 	// At this point, we have network domains (or defaults) and copilot/codex engine

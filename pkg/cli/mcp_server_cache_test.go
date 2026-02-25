@@ -14,7 +14,7 @@ func TestMCPCacheStore_ConcurrentPermissionAccess(t *testing.T) {
 	cache.permissionTTL = 50 * time.Millisecond
 
 	// Pre-populate
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		cache.SetPermission(fmt.Sprintf("actor%d", i), "owner/repo", "write")
 	}
 
@@ -23,16 +23,14 @@ func TestMCPCacheStore_ConcurrentPermissionAccess(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for g := 0; g < numGoroutines; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < numIterations; i++ {
+	for range numGoroutines {
+		wg.Go(func() {
+			for i := range numIterations {
 				actor := fmt.Sprintf("actor%d", i%10)
 				cache.GetPermission(actor, "owner/repo")
 				cache.SetPermission(actor, "owner/repo", "write")
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -47,11 +45,11 @@ func TestMCPCacheStore_ConcurrentRepoAccess(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for g := 0; g < numGoroutines; g++ {
+	for g := range numGoroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for i := 0; i < numIterations; i++ {
+			for range numIterations {
 				cache.GetRepo()
 				cache.SetRepo(fmt.Sprintf("owner/repo-%d", id))
 			}

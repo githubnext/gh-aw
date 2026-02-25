@@ -198,8 +198,8 @@ This workflow tests the null output configuration parsing.
 	if len(workflowData.SafeOutputs.AddLabels.Allowed) != 0 {
 		t.Errorf("Expected empty allowed labels for null add-labels, got %v", workflowData.SafeOutputs.AddLabels.Allowed)
 	}
-	if workflowData.SafeOutputs.AddLabels.Max != 0 {
-		t.Errorf("Expected Max to be 0 for null add-labels, got %v", workflowData.SafeOutputs.AddLabels.Max)
+	if workflowData.SafeOutputs.AddLabels.Max != nil {
+		t.Errorf("Expected Max to be nil for null add-labels, got %v", workflowData.SafeOutputs.AddLabels.Max)
 	}
 }
 

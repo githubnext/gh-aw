@@ -28,7 +28,6 @@ safe-outputs:
     max: 10
 timeout-minutes: 30
 imports:
-  - shared/mood.md
   - shared/jqschema.md
   - shared/issues-data-fetch.md
   - shared/python-dataviz.md
@@ -369,3 +368,9 @@ A successful run will:
 - ✅ Include all required metrics and visualizations
 
 Begin your analysis now. Load the data, run the Python analysis, generate charts, and create the discussion report.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

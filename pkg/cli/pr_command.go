@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -158,7 +159,7 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 	checkCmd := workflow.ExecGH("repo", "view", forkRepoSpec, "--json", "name")
 	if checkCmd.Run() == nil {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fork already exists: %s", forkRepoSpec)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fork already exists: "+forkRepoSpec))
 		}
 		return currentUser, targetRepo, nil
 	}
@@ -170,7 +171,7 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully created fork: %s", forkRepoSpec)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully created fork: "+forkRepoSpec))
 	}
 
 	return currentUser, targetRepo, nil
@@ -219,13 +220,13 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	patchFile := filepath.Join(tempDir, "pr.patch")
 
 	// Use gh pr diff command directly - this is the most reliable method
-	diffContent, err := workflow.RunGH("Fetching pull request diff...", "pr", "diff", fmt.Sprintf("%d", prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
+	diffContent, err := workflow.RunGH("Fetching pull request diff...", "pr", "diff", strconv.Itoa(prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
 	if err != nil {
 		return "", fmt.Errorf("failed to get PR diff: %w", err)
 	}
 
 	if len(diffContent) == 0 {
-		return "", fmt.Errorf("PR diff is empty")
+		return "", errors.New("PR diff is empty")
 	}
 
 	// Create proper mailbox format patch that git am expects
@@ -294,7 +295,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	// Create a new branch for the transfer based on the updated default branch
 	branchName := fmt.Sprintf("transfer-pr-%d-%d", prInfo.Number, time.Now().Unix())
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating branch: %s", branchName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating branch: "+branchName))
 	}
 
 	cmd = exec.Command("git", "checkout", "-b", branchName)
@@ -312,7 +313,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 			lines := strings.Split(string(patchContent), "\n")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Patch file has %d lines", len(lines))))
 			if len(lines) > 0 {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("First line: %s", lines[0])))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("First line: "+lines[0]))
 			}
 		}
 	}
@@ -396,7 +397,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 			commitMsg += "\n\n" + prInfo.Body
 		}
 		commitMsg += fmt.Sprintf("\n\nOriginal-PR: %s#%d", prInfo.SourceRepo, prInfo.Number)
-		commitMsg += fmt.Sprintf("\nOriginal-Author: %s", prInfo.AuthorLogin)
+		commitMsg += "\nOriginal-Author: " + prInfo.AuthorLogin
 
 		cmd = exec.Command("git", "commit", "-m", commitMsg)
 		if err := cmd.Run(); err != nil {
@@ -441,7 +442,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		if checkRemoteCmd.Run() != nil {
 			// Remote doesn't exist, add it
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding fork remote: %s", forkRepoURL)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding fork remote: "+forkRepoURL))
 			}
 			addRemoteCmd := exec.Command("git", "remote", "add", remoteName, forkRepoURL)
 			if err := addRemoteCmd.Run(); err != nil {
@@ -461,7 +462,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 			if err != nil {
 				// Remote doesn't exist, add it
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding upstream remote: %s", targetRepoURL)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding upstream remote: "+targetRepoURL))
 				}
 				addUpstreamCmd := exec.Command("git", "remote", "add", upstreamRemote, targetRepoURL)
 				if err := addUpstreamCmd.Run(); err != nil {
@@ -470,7 +471,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 			} else {
 				// Remote exists but points to wrong repo, update it
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Updating upstream remote: %s", targetRepoURL)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating upstream remote: "+targetRepoURL))
 				}
 				setUpstreamCmd := exec.Command("git", "remote", "set-url", upstreamRemote, targetRepoURL)
 				if err := setUpstreamCmd.Run(); err != nil {
@@ -509,7 +510,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		prBody += "\n\n---\n\n"
 	}
 	prBody += fmt.Sprintf("**Transferred from:** %s#%d\n", prInfo.SourceRepo, prInfo.Number)
-	prBody += fmt.Sprintf("**Original Author:** @%s", prInfo.AuthorLogin)
+	prBody += "**Original Author:** @" + prInfo.AuthorLogin
 
 	// Create the PR
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
@@ -533,7 +534,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	if needsFork {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PR created from fork %s/%s to %s/%s", forkOwner, forkRepo, targetOwner, targetRepo)))
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("URL: %s", strings.TrimSpace(string(output)))))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("URL: "+strings.TrimSpace(string(output))))
 
 	return nil
 }
@@ -567,7 +568,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		}
 		parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
 		if len(parts) != 2 {
-			return fmt.Errorf("invalid target repository format, expected: owner/repo")
+			return errors.New("invalid target repository format, expected: owner/repo")
 		}
 		targetOwner, targetRepoName = parts[0], parts[1]
 	} else {
@@ -591,7 +592,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	// Check if source and target are the same
 	if sourceOwner == targetOwner && sourceRepoName == targetRepoName {
 		prLog.Print("Source and target repositories are the same - aborting")
-		return fmt.Errorf("source and target repositories cannot be the same")
+		return errors.New("source and target repositories cannot be the same")
 	}
 
 	// Ensure we're in the correct git repository
@@ -703,7 +704,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	} else {
 		// Using current repository as target
 		if !isGitRepo() {
-			return fmt.Errorf("not in a git repository")
+			return errors.New("not in a git repository")
 		}
 		workingDir = "."
 	}
@@ -768,7 +769,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 // createPR creates a pull request using GitHub CLI and returns the PR number
 func createPR(branchName, title, body string, verbose bool) (int, string, error) {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Creating PR: %s", title)))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating PR: "+title))
 	}
 
 	// Get the current repository info to ensure PR is created in the correct repo
@@ -794,7 +795,8 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	output, err := workflow.RunGH("Creating pull request...", "pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
 	if err != nil {
 		// Try to get stderr for better error reporting
-		if exitError, ok := err.(*exec.ExitError); ok {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
 			return 0, "", fmt.Errorf("failed to create PR: %w\nOutput: %s\nError: %s", err, string(output), string(exitError.Stderr))
 		}
 		return 0, "", fmt.Errorf("failed to create PR: %w", err)

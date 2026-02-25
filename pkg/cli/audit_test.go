@@ -4,7 +4,7 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -224,32 +224,32 @@ func TestIsPermissionError(t *testing.T) {
 		},
 		{
 			name:     "Authentication required error",
-			err:      fmt.Errorf("authentication required"),
+			err:      errors.New("authentication required"),
 			expected: true,
 		},
 		{
 			name:     "Exit status 4 error",
-			err:      fmt.Errorf("exit status 4"),
+			err:      errors.New("exit status 4"),
 			expected: true,
 		},
 		{
 			name:     "GitHub CLI authentication error",
-			err:      fmt.Errorf("GitHub CLI authentication required"),
+			err:      errors.New("GitHub CLI authentication required"),
 			expected: true,
 		},
 		{
 			name:     "Permission denied error",
-			err:      fmt.Errorf("permission denied"),
+			err:      errors.New("permission denied"),
 			expected: true,
 		},
 		{
 			name:     "GH_TOKEN error",
-			err:      fmt.Errorf("GH_TOKEN environment variable not set"),
+			err:      errors.New("GH_TOKEN environment variable not set"),
 			expected: true,
 		},
 		{
 			name:     "Other error",
-			err:      fmt.Errorf("some other error"),
+			err:      errors.New("some other error"),
 			expected: false,
 		},
 	}

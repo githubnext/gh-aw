@@ -13,6 +13,7 @@ tools:
     toolsets: [pull_requests, repos]
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[nitpick-report] "
     category: "audits"
     max: 1
@@ -28,7 +29,6 @@ safe-outputs:
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -384,3 +384,9 @@ A successful review:
 - **Respect time** - Author's time is valuable; make feedback count
 
 Now begin your review! 🔍
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

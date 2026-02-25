@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -77,7 +78,7 @@ func ActionsValidateCommand() error {
 	}
 
 	if !allValid {
-		return fmt.Errorf("validation failed for one or more actions")
+		return errors.New("validation failed for one or more actions")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✨ All actions valid"))
@@ -128,7 +129,7 @@ func ActionsCleanCommand() error {
 // getActionDirectories returns a sorted list of action directory names
 func getActionDirectories(actionsDir string) ([]string, error) {
 	if _, err := os.Stat(actionsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("actions/ directory does not exist")
+		return nil, errors.New("actions/ directory does not exist")
 	}
 
 	entries, err := os.ReadDir(actionsDir)
@@ -164,7 +165,7 @@ func validateActionYml(actionPath string) error {
 	ymlPath := filepath.Join(actionPath, "action.yml")
 
 	if _, err := os.Stat(ymlPath); os.IsNotExist(err) {
-		return fmt.Errorf("action.yml not found")
+		return errors.New("action.yml not found")
 	}
 
 	content, err := os.ReadFile(ymlPath)
@@ -187,7 +188,7 @@ func validateActionYml(actionPath string) error {
 	isComposite := strings.Contains(contentStr, "using: 'composite'") || strings.Contains(contentStr, "using: \"composite\"")
 
 	if !isNode20 && !isComposite {
-		return fmt.Errorf("action must use either 'node20' or 'composite' runtime")
+		return errors.New("action must use either 'node20' or 'composite' runtime")
 	}
 
 	return nil
@@ -197,7 +198,7 @@ func validateActionYml(actionPath string) error {
 func buildAction(actionsDir, actionName string) error {
 	actionsBuildLog.Printf("Building action: %s", actionName)
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Building action: %s", actionName)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n📦 Building action: "+actionName))
 
 	actionPath := filepath.Join(actionsDir, actionName)
 
@@ -249,9 +250,9 @@ func buildAction(actionsDir, actionName string) error {
 	for _, dep := range dependencies {
 		if content, ok := sources[dep]; ok {
 			files[dep] = content
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    - "+dep))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("    ⚠ Warning: Could not find "+dep))
 		}
 	}
 
@@ -275,7 +276,7 @@ func buildAction(actionsDir, actionName string) error {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Built "+outputPath))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
 
 	return nil

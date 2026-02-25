@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -50,7 +51,7 @@ func getActionlintDocsURL(kind string) string {
 		}
 	}
 
-	return fmt.Sprintf("https://github.com/rhysd/actionlint/blob/main/docs/checks.md#%s", anchor)
+	return "https://github.com/rhysd/actionlint/blob/main/docs/checks.md#" + anchor
 }
 
 // actionlintStats tracks aggregate statistics across all actionlint validations
@@ -159,7 +160,7 @@ func getActionlintVersion() (string, error) {
 	// We only want the first line which contains the version number
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) == 0 {
-		return "", fmt.Errorf("no version output from actionlint")
+		return "", errors.New("no version output from actionlint")
 	}
 	version := strings.TrimSpace(lines[0])
 	actionlintVersion = version
@@ -183,7 +184,7 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 			// Log error but continue - version display is not critical
 			actionlintLog.Printf("Could not fetch actionlint version: %v", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Using actionlint %s", version)))
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Using actionlint "+version))
 		}
 	}
 
@@ -214,7 +215,7 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 	dockerArgs := []string{
 		"run",
 		"--rm",
-		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
+		"-v", gitRoot + ":/workdir",
 		"-w", "/workdir",
 		"rhysd/actionlint:latest",
 		"-format", "{{json .}}",
@@ -225,7 +226,7 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 
 	// Always show that actionlint is running (regular verbosity)
 	if len(lockFiles) == 1 {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %s", relPaths[0])))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running actionlint (includes shellcheck & pyflakes) on "+relPaths[0]))
 	} else {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %d files", len(lockFiles))))
 	}
@@ -286,7 +287,8 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 		// Exit code 0 = no errors
 		// Exit code 1 = errors found
 		// Other codes = actual errors
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
 			actionlintLog.Printf("Actionlint exited with code %d, found %d errors", exitCode, totalErrors)
 			// Exit code 1 indicates errors were found

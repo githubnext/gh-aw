@@ -746,3 +746,83 @@ func TestDirExists(t *testing.T) {
 		assert.True(t, result, "parent directory should return true")
 	})
 }
+
+// TestValidateMountStringFormat tests the shared mount format validation primitive.
+func TestValidateMountStringFormat(t *testing.T) {
+	tests := []struct {
+		name     string
+		mount    string
+		wantErr  bool
+		wantSrc  string
+		wantDest string
+		wantMode string
+		allEmpty bool // true when format error (all three return values are empty)
+	}{
+		{
+			name:     "valid ro mount",
+			mount:    "/host/data:/data:ro",
+			wantSrc:  "/host/data",
+			wantDest: "/data",
+			wantMode: "ro",
+		},
+		{
+			name:     "valid rw mount",
+			mount:    "/host/data:/data:rw",
+			wantSrc:  "/host/data",
+			wantDest: "/data",
+			wantMode: "rw",
+		},
+		{
+			name:     "too few parts — format error, all values empty",
+			mount:    "/host/path:/container/path",
+			wantErr:  true,
+			allEmpty: true,
+		},
+		{
+			name:     "too many parts — format error, all values empty",
+			mount:    "/host/path:/container/path:ro:extra",
+			wantErr:  true,
+			allEmpty: true,
+		},
+		{
+			name:     "invalid mode — source and dest returned, mode returned",
+			mount:    "/host/path:/container/path:xyz",
+			wantErr:  true,
+			wantSrc:  "/host/path",
+			wantDest: "/container/path",
+			wantMode: "xyz",
+		},
+		{
+			name:     "empty mode — source and dest returned, mode empty string",
+			mount:    "/host/path:/container/path:",
+			wantErr:  true,
+			wantSrc:  "/host/path",
+			wantDest: "/container/path",
+			wantMode: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src, dest, mode, err := validateMountStringFormat(tt.mount)
+
+			if tt.wantErr {
+				require.Error(t, err, "expected an error for mount %q", tt.mount)
+				if tt.allEmpty {
+					assert.Empty(t, src, "source should be empty on format error")
+					assert.Empty(t, dest, "dest should be empty on format error")
+					assert.Empty(t, mode, "mode should be empty on format error")
+				} else {
+					assert.Equal(t, tt.wantSrc, src, "source mismatch")
+					assert.Equal(t, tt.wantDest, dest, "dest mismatch")
+					assert.Equal(t, tt.wantMode, mode, "mode mismatch")
+				}
+			} else {
+				require.NoError(t, err, "unexpected error for mount %q", tt.mount)
+				assert.Equal(t, tt.wantSrc, src, "source mismatch")
+				assert.Equal(t, tt.wantDest, dest, "dest mismatch")
+				assert.Equal(t, tt.wantMode, mode, "mode mismatch")
+			}
+		})
+	}
+}

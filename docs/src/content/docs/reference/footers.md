@@ -23,7 +23,7 @@ safe-outputs:
 When `footer: false` is set:
 - **Visible footer content is omitted** - No AI-generated attribution text appears in the item body
 - **XML markers are preserved** - Hidden workflow-id and tracker-id markers remain for searchability
-- **All safe output types affected** - Applies to create-issue, create-pull-request, create-discussion, update-issue, update-discussion, and update-release
+- **All safe output types affected** - Applies to create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release
 
 ## Per-Handler Footer Control
 

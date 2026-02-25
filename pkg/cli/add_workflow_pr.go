@@ -113,17 +113,17 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 	var commitMessage, prTitle, prBody, joinedNames string
 	if len(workflows) == 1 {
 		joinedNames = workflows[0].Spec.WorkflowName
-		commitMessage = fmt.Sprintf("Add agentic workflow %s", joinedNames)
-		prTitle = fmt.Sprintf("Add agentic workflow %s", joinedNames)
-		prBody = fmt.Sprintf("Add agentic workflow %s", joinedNames)
+		commitMessage = "Add agentic workflow " + joinedNames
+		prTitle = "Add agentic workflow " + joinedNames
+		prBody = "Add agentic workflow " + joinedNames
 	} else {
 		workflowNames := sliceutil.Map(workflows, func(wf *ResolvedWorkflow) string {
 			return wf.Spec.WorkflowName
 		})
 		joinedNames = strings.Join(workflowNames, ", ")
-		commitMessage = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
-		prTitle = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
-		prBody = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
+		commitMessage = "Add agentic workflows: " + joinedNames
+		prTitle = "Add agentic workflows: " + joinedNames
+		prBody = "Add agentic workflows: " + joinedNames
 	}
 
 	if err := commitChanges(commitMessage, opts.Verbose); err != nil {
@@ -161,6 +161,6 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created pull request %s", prURL)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request "+prURL))
 	return prNumber, prURL, nil
 }

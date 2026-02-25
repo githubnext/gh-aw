@@ -26,7 +26,7 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 	mockEngine := NewClaudeEngine()
 
 	var yaml strings.Builder
-	compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 	output := yaml.String()
 
 	// Find the Safe Outputs config generation section
@@ -93,7 +93,7 @@ func TestSafeInputsAPIKeyImmediateMasking(t *testing.T) {
 	mockEngine := NewClaudeEngine()
 
 	var yaml strings.Builder
-	compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 	output := yaml.String()
 
 	// Find the Safe Inputs config generation section
@@ -149,7 +149,7 @@ func TestMCPGatewayAPIKeyImmediateMasking(t *testing.T) {
 	mockEngine := NewClaudeEngine()
 
 	var yaml strings.Builder
-	compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 	output := yaml.String()
 
 	// Find the MCP gateway API key generation
@@ -206,7 +206,7 @@ func TestAPIKeyMaskingNoEmptyDeclaration(t *testing.T) {
 	mockEngine := NewClaudeEngine()
 
 	var yaml strings.Builder
-	compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 	output := yaml.String()
 
 	// Verify no empty API key declarations before assignment

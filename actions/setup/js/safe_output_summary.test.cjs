@@ -104,6 +104,53 @@ describe("safe_output_summary", () => {
       expect(summary.length).toBeLessThan(longBody.length + 1000);
     });
 
+    it("should use 6-backtick fences for body content containing backticks", () => {
+      const bodyWithBackticks = "Here is some code:\n```javascript\nconsole.log('hello');\n```\nEnd of body.";
+
+      const options = {
+        type: "create_issue",
+        messageIndex: 1,
+        success: true,
+        result: {
+          repo: "owner/repo",
+          number: 123,
+        },
+        message: {
+          title: "Issue with code",
+          body: bodyWithBackticks,
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      // Should use 6-backtick fences to avoid breaking when body contains triple backticks
+      expect(summary).toContain("``````\n");
+      expect(summary).toContain("Body Preview");
+      expect(summary).toContain("```javascript");
+    });
+
+    it("should use 6-backtick fences for error message details containing backticks", () => {
+      const messageWithBackticks = {
+        title: "Test Issue",
+        body: "Code: ```\nconsole.log('test');\n```",
+      };
+
+      const options = {
+        type: "create_issue",
+        messageIndex: 1,
+        success: false,
+        result: null,
+        message: messageWithBackticks,
+        error: "Failed to create issue",
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      // Should use 6-backtick fences for message details JSON to avoid rendering issues
+      expect(summary).toContain("``````json\n");
+      expect(summary).toContain("Message Details");
+    });
+
     it("should handle project-specific results", () => {
       const options = {
         type: "create_project",

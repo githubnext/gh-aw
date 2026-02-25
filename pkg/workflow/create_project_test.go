@@ -25,7 +25,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 2,
+					Max: strPtr("2"),
 				},
 			},
 		},
@@ -41,7 +41,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 				TargetOwner: "myorg",
@@ -69,7 +69,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				Views: []ProjectView{
 					{
@@ -103,7 +103,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				Views: []ProjectView{
 					{
@@ -125,7 +125,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				TargetOwner: "testorg",
 			},
@@ -165,7 +165,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 				Views: []ProjectView{
 					{
@@ -226,7 +226,7 @@ func TestCreateProjectsConfig_DefaultMax(t *testing.T) {
 	require.NotNil(t, config)
 
 	// Default max should be 1 when not specified
-	assert.Equal(t, 1, config.Max, "Default max should be 1")
+	assert.Equal(t, strPtr("1"), config.Max, "Default max should be 1")
 }
 
 func TestCreateProjectsConfig_ViewsParsing(t *testing.T) {

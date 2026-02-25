@@ -103,9 +103,6 @@ mcp-servers:
 HTTP MCP servers must implement the MCP specification over HTTP. Configure authentication headers using the `headers` field:
 
 ```yaml wrap
-Configure authentication headers for HTTP MCP servers using the `headers` field:
-
-```yaml wrap
 mcp-servers:
   authenticated-api:
     url: "https://api.example.com/mcp"

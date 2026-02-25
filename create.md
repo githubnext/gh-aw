@@ -130,7 +130,6 @@ If creating a workflow, check the .gitattributes file and make sure it exists an
 
 You do not need to run `gh aw init` as part of your workflow creation. However if you did run this you may also see:
 
-- `.github/aw/github-agentic-workflows.md`
 - `.github/agents/agentic-workflows.agent.md`
 - `.vscode/settings.json`
 - `.vscode/mcp.json`

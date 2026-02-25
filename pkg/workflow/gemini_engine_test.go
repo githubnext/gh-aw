@@ -17,7 +17,7 @@ func TestGeminiEngine(t *testing.T) {
 		assert.Equal(t, "gemini", engine.GetID(), "Engine ID should be 'gemini'")
 		assert.Equal(t, "Google Gemini CLI", engine.GetDisplayName(), "Display name should be 'Google Gemini CLI'")
 		assert.NotEmpty(t, engine.GetDescription(), "Description should not be empty")
-		assert.True(t, engine.IsExperimental(), "Gemini engine should be experimental")
+		assert.False(t, engine.IsExperimental(), "Gemini engine should not be experimental")
 	})
 
 	t.Run("capabilities", func(t *testing.T) {
@@ -58,7 +58,8 @@ func TestGeminiEngine(t *testing.T) {
 
 	t.Run("declared output files", func(t *testing.T) {
 		outputFiles := engine.GetDeclaredOutputFiles()
-		assert.Empty(t, outputFiles, "Should not declare any output files")
+		require.Len(t, outputFiles, 1, "Should declare one output file path")
+		assert.Equal(t, "/tmp/gemini-client-error-*.json", outputFiles[0], "Should declare Gemini error log wildcard path")
 	})
 }
 
@@ -144,15 +145,16 @@ func TestGeminiEngineExecution(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		// steps[0] = Write Gemini settings, steps[1] = Execute Gemini CLI
+		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "name: Run Gemini", "Should have correct step name")
+		assert.Contains(t, stepContent, "name: Execute Gemini CLI", "Should have correct step name")
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
 		assert.Contains(t, stepContent, "gemini", "Should invoke gemini command")
 		assert.Contains(t, stepContent, "--yolo", "Should include --yolo flag for auto-approving tool executions")
-		assert.Contains(t, stepContent, "--output-format json", "Should use JSON output format")
+		assert.Contains(t, stepContent, "--output-format stream-json", "Should use streaming JSON output format")
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
@@ -167,11 +169,13 @@ func TestGeminiEngineExecution(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "--model gemini-1.5-pro", "Should include model flag")
+		// Model is passed via the native GEMINI_MODEL env var (not as a --model flag)
+		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-1.5-pro", "Should set GEMINI_MODEL env var")
+		assert.NotContains(t, stepContent, "--model gemini-1.5-pro", "Should not embed model in command")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {
@@ -186,9 +190,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		// Gemini CLI reads MCP config from .gemini/settings.json, not --mcp-config flag
 		assert.NotContains(t, stepContent, "--mcp-config", "Should NOT include --mcp-config flag (Gemini CLI does not support it)")
@@ -204,9 +208,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		assert.Contains(t, stepContent, "/custom/gemini", "Should use custom command")
 	})
@@ -217,37 +221,97 @@ func TestGeminiEngineExecution(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		assert.Contains(t, stepContent, "GEMINI_API_KEY:", "Should include GEMINI_API_KEY")
 		assert.Contains(t, stepContent, "GH_AW_PROMPT:", "Should include GH_AW_PROMPT")
 		assert.Contains(t, stepContent, "GITHUB_WORKSPACE:", "Should include GITHUB_WORKSPACE")
+		assert.Contains(t, stepContent, "DEBUG: gemini-cli:*", "Should include DEBUG env var for verbose diagnostics")
 	})
 
 	t.Run("model environment variables", func(t *testing.T) {
-		// Detection job (no SafeOutputs)
-		detectionWorkflow := &WorkflowData{
-			Name:        "detection",
-			SafeOutputs: nil,
-		}
-
-		steps := engine.GetExecutionSteps(detectionWorkflow, "/tmp/test.log")
-		require.Len(t, steps, 1)
-		stepContent := strings.Join(steps[0], "\n")
-		assert.Contains(t, stepContent, "GH_AW_MODEL_DETECTION_GEMINI", "Should include detection model env var")
-
-		// Agent job (with SafeOutputs)
-		agentWorkflow := &WorkflowData{
-			Name:        "agent",
+		// When model is not configured, no model env var should be set (let Gemini CLI use its default)
+		noModelWorkflow := &WorkflowData{
+			Name:        "no-model",
 			SafeOutputs: &SafeOutputsConfig{},
 		}
 
-		steps = engine.GetExecutionSteps(agentWorkflow, "/tmp/test.log")
-		require.Len(t, steps, 1)
-		stepContent = strings.Join(steps[0], "\n")
-		assert.Contains(t, stepContent, "GH_AW_MODEL_AGENT_GEMINI", "Should include agent model env var")
+		steps := engine.GetExecutionSteps(noModelWorkflow, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+		stepContent := strings.Join(steps[1], "\n")
+		assert.NotContains(t, stepContent, "GH_AW_MODEL_DETECTION_GEMINI", "Should not include detection model env var when model is unconfigured")
+		assert.NotContains(t, stepContent, "GH_AW_MODEL_AGENT_GEMINI", "Should not include agent model env var when model is unconfigured")
+		assert.NotContains(t, stepContent, "GEMINI_MODEL", "Should not include GEMINI_MODEL when model is unconfigured")
+
+		// When model is configured, use the native GEMINI_MODEL env var
+		modelWorkflow := &WorkflowData{
+			Name: "model-configured",
+			EngineConfig: &EngineConfig{
+				Model: "gemini-2.0-flash",
+			},
+		}
+
+		steps = engine.GetExecutionSteps(modelWorkflow, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+		stepContent = strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-2.0-flash", "Should set GEMINI_MODEL when model is explicitly configured")
+	})
+
+	t.Run("engine env overrides default token expression", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"GEMINI_API_KEY": "${{ secrets.MY_ORG_GEMINI_KEY }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+
+		// The user-provided value should override the default token expression
+		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "engine.env should override the default GEMINI_API_KEY expression")
+		assert.NotContains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Default GEMINI_API_KEY expression should be replaced by engine.env")
+	})
+
+	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CUSTOM_VAR": "custom-value",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+
+		assert.Contains(t, stepContent, "CUSTOM_VAR: custom-value", "engine.env non-secret vars should be included")
+	})
+
+	t.Run("settings step is first", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		settingsContent := strings.Join(steps[0], "\n")
+		execContent := strings.Join(steps[1], "\n")
+
+		assert.Contains(t, settingsContent, "Write Gemini settings", "First step should be Write Gemini settings")
+		assert.Contains(t, settingsContent, "includeDirectories", "Settings step should set includeDirectories")
+		assert.Contains(t, settingsContent, "/tmp/", "Settings step should include /tmp/ in include directories")
+		assert.Contains(t, execContent, "Execute Gemini CLI", "Second step should be Execute Gemini CLI")
 	})
 }
 
@@ -266,13 +330,15 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		// Should use AWF command
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
+		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
+		assert.Contains(t, stepContent, "GEMINI_API_BASE_URL: http://host.docker.internal:10003", "Should set GEMINI_API_BASE_URL to LLM gateway URL")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {
@@ -286,12 +352,162 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 1, "Should generate one execution step")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		stepContent := strings.Join(steps[0], "\n")
+		stepContent := strings.Join(steps[1], "\n")
 
 		// Should use simple command without AWF
 		assert.Contains(t, stepContent, "set -o pipefail", "Should use simple command with pipefail")
 		assert.NotContains(t, stepContent, "awf", "Should not use AWF when firewall is disabled")
+		assert.NotContains(t, stepContent, "GEMINI_API_BASE_URL", "Should not set GEMINI_API_BASE_URL when firewall is disabled")
+	})
+}
+
+func TestComputeGeminiToolsCore(t *testing.T) {
+	t.Run("nil tools includes default read-only tools", func(t *testing.T) {
+		result := computeGeminiToolsCore(nil)
+		assert.Contains(t, result, "glob", "Should include glob")
+		assert.Contains(t, result, "grep_search", "Should include grep_search")
+		assert.Contains(t, result, "list_directory", "Should include list_directory")
+		assert.Contains(t, result, "read_file", "Should include read_file")
+		assert.Contains(t, result, "read_many_files", "Should include read_many_files")
+		assert.NotContains(t, result, "run_shell_command", "Should not include run_shell_command without bash tool")
+		assert.NotContains(t, result, "write_file", "Should not include write_file without edit tool")
+		assert.NotContains(t, result, "replace", "Should not include replace without edit tool")
+	})
+
+	t.Run("empty tools includes default read-only tools", func(t *testing.T) {
+		result := computeGeminiToolsCore(map[string]any{})
+		assert.Contains(t, result, "read_file", "Should include read_file")
+		assert.NotContains(t, result, "run_shell_command", "Should not include run_shell_command")
+	})
+
+	t.Run("bash with specific commands maps to run_shell_command entries", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"grep", "ls", "git"},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command(grep)", "Should map grep to run_shell_command(grep)")
+		assert.Contains(t, result, "run_shell_command(ls)", "Should map ls to run_shell_command(ls)")
+		assert.Contains(t, result, "run_shell_command(git)", "Should map git to run_shell_command(git)")
+		assert.NotContains(t, result, "run_shell_command", "Should not include unrestricted run_shell_command")
+	})
+
+	t.Run("bash with wildcard * maps to unrestricted run_shell_command", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"*"},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command for wildcard")
+		assert.NotContains(t, result, "run_shell_command(*)", "Should not include run_shell_command(*)")
+	})
+
+	t.Run("bash with :* wildcard maps to unrestricted run_shell_command", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{":*"},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command for :* wildcard")
+	})
+
+	t.Run("bash with no specific commands (nil) maps to unrestricted run_shell_command", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": nil,
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command when bash has no commands")
+	})
+
+	t.Run("edit tool maps to write_file and replace", func(t *testing.T) {
+		tools := map[string]any{
+			"edit": map[string]any{},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "write_file", "Should map edit to write_file")
+		assert.Contains(t, result, "replace", "Should map edit to replace")
+	})
+
+	t.Run("combined bash and edit tools", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"grep"},
+			"edit": map[string]any{},
+		}
+		result := computeGeminiToolsCore(tools)
+		assert.Contains(t, result, "run_shell_command(grep)", "Should include run_shell_command(grep)")
+		assert.Contains(t, result, "write_file", "Should include write_file")
+		assert.Contains(t, result, "replace", "Should include replace")
+		assert.Contains(t, result, "read_file", "Should always include read_file")
+	})
+
+	t.Run("result is sorted", func(t *testing.T) {
+		tools := map[string]any{
+			"bash": []any{"zzz", "aaa"},
+			"edit": map[string]any{},
+		}
+		result := computeGeminiToolsCore(tools)
+		for i := 1; i < len(result); i++ {
+			assert.LessOrEqual(t, result[i-1], result[i], "Tools should be sorted alphabetically")
+		}
+	})
+}
+
+func TestGenerateGeminiSettingsStep(t *testing.T) {
+	engine := NewGeminiEngine()
+
+	t.Run("step sets context.includeDirectories to /tmp/", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:  "test-workflow",
+			Tools: map[string]any{},
+		}
+		step := engine.generateGeminiSettingsStep(workflowData)
+		content := strings.Join(step, "\n")
+
+		assert.Contains(t, content, "Write Gemini settings", "Should have correct step name")
+		assert.Contains(t, content, "/tmp/", "Should include /tmp/ in include directories")
+		assert.Contains(t, content, "includeDirectories", "Should set includeDirectories")
+		assert.Contains(t, content, ".gemini", "Should reference .gemini directory")
+		assert.Contains(t, content, "GITHUB_WORKSPACE", "Should use GITHUB_WORKSPACE")
+	})
+
+	t.Run("step includes merge logic for existing settings.json", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:  "test-workflow",
+			Tools: map[string]any{},
+		}
+		step := engine.generateGeminiSettingsStep(workflowData)
+		content := strings.Join(step, "\n")
+
+		assert.Contains(t, content, "if [ -f", "Should check for existing settings.json")
+		assert.Contains(t, content, "jq", "Should use jq for merging")
+		assert.Contains(t, content, "$existing * $base", "Should merge with base taking precedence")
+	})
+
+	t.Run("step includes tools.core with bash mapping", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"bash": []any{"grep", "git"},
+			},
+		}
+		step := engine.generateGeminiSettingsStep(workflowData)
+		content := strings.Join(step, "\n")
+
+		assert.Contains(t, content, "run_shell_command(grep)", "Should include run_shell_command(grep) for bash grep")
+		assert.Contains(t, content, "run_shell_command(git)", "Should include run_shell_command(git) for bash git")
+		assert.Contains(t, content, "core", "Should include tools.core")
+	})
+
+	t.Run("step includes tools.core with edit mapping", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"edit": map[string]any{},
+			},
+		}
+		step := engine.generateGeminiSettingsStep(workflowData)
+		content := strings.Join(step, "\n")
+
+		assert.Contains(t, content, "write_file", "Should include write_file for edit tool")
+		assert.Contains(t, content, "replace", "Should include replace for edit tool")
 	})
 }

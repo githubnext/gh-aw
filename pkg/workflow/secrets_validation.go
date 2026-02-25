@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"regexp"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -21,8 +21,29 @@ var secretsExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Za-z_][
 func validateSecretsExpression(value string) error {
 	if !secretsExpressionPattern.MatchString(value) {
 		secretsValidationLog.Printf("Invalid secret expression detected")
-		return fmt.Errorf("invalid secrets expression: must be a GitHub Actions expression with secrets reference (e.g., '${{ secrets.MY_SECRET }}' or '${{ secrets.SECRET1 || secrets.SECRET2 }}')")
+		return errors.New("invalid secrets expression: must be a GitHub Actions expression with secrets reference (e.g., '${{ secrets.MY_SECRET }}' or '${{ secrets.SECRET1 || secrets.SECRET2 }}')")
 	}
 	secretsValidationLog.Printf("Valid secret expression validated")
+	return nil
+}
+
+// validateSecretReferences validates that secret references are valid
+func validateSecretReferences(secrets []string) error {
+	secretsValidationLog.Printf("Validating secret references: checking %d secrets", len(secrets))
+	// Secret names must be valid environment variable names
+	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
+	for _, secret := range secrets {
+		if !secretNamePattern.MatchString(secret) {
+			secretsValidationLog.Printf("Invalid secret name format: %s", secret)
+			return NewValidationError(
+				"secrets",
+				secret,
+				"invalid secret name format - must follow environment variable naming conventions",
+				"Secret names must:\n- Start with an uppercase letter\n- Contain only uppercase letters, numbers, and underscores\n\nExamples:\n  MY_SECRET_KEY      ✓\n  API_TOKEN_123      ✓\n  mySecretKey        ✗ (lowercase)\n  123_SECRET         ✗ (starts with number)\n  MY-SECRET          ✗ (hyphens not allowed)",
+			)
+		}
+	}
+
 	return nil
 }

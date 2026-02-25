@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -121,13 +122,7 @@ func TestLockFilesHaveNoBundledRequires(t *testing.T) {
 					}
 
 					// Add to failed files if not already present
-					alreadyFailed := false
-					for _, f := range failedFiles {
-						if f == relPath {
-							alreadyFailed = true
-							break
-						}
-					}
+					alreadyFailed := slices.Contains(failedFiles, relPath)
 					if !alreadyFailed {
 						failedFiles = append(failedFiles, relPath)
 					}

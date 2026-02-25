@@ -193,9 +193,9 @@ type TemplateInjectionViolation struct {
 
 // extractRunSnippet extracts a relevant snippet from the run block containing the expression
 func extractRunSnippet(runContent string, expression string) string {
-	lines := strings.Split(runContent, "\n")
+	lines := strings.SplitSeq(runContent, "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		if strings.Contains(line, expression) {
 			// Return the trimmed line containing the expression
 			trimmed := strings.TrimSpace(line)

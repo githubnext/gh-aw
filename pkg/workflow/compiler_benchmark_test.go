@@ -49,8 +49,7 @@ Issue details: ${{ steps.sanitized.outputs.text }}
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -98,8 +97,7 @@ Review the pull request changes and provide feedback.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -157,8 +155,7 @@ Research latest developments and create a summary.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -203,8 +200,7 @@ Analyze the issue with strict validation enabled.
 		WithStrictMode(true),
 	)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -277,8 +273,7 @@ Repository: ${{ github.repository }}
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -319,8 +314,7 @@ Analyze repository commits.
 		WithNoEmit(true), // Don't write files
 	)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -409,8 +403,7 @@ Debug mode: ${{ github.event.inputs.debug }}
 		WithNoEmit(true), // Don't write files
 	)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }

@@ -3,14 +3,37 @@ package parser
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 // atPathPattern matches "- at '/path': " or "at '/path': " prefixes in error messages
 var atPathPattern = regexp.MustCompile(`^-?\s*at '([^']*)': (.+)$`)
 
+// minConstraintPattern matches "minimum: got X, want Y" messages from the jsonschema library
+var minConstraintPattern = regexp.MustCompile(`^minimum: got (-?\d+(?:\.\d+)?), want (-?\d+(?:\.\d+)?)$`)
+
+// maxConstraintPattern matches "maximum: got X, want Y" messages from the jsonschema library
+var maxConstraintPattern = regexp.MustCompile(`^maximum: got (-?\d+(?:\.\d+)?), want (-?\d+(?:\.\d+)?)$`)
+
+// translateSchemaConstraintMessage rewrites jsonschema range-constraint messages into plain English.
+//
+// Examples:
+//   - "minimum: got -45, want 1" → "must be at least 1 (got -45)"
+//   - "maximum: got 120, want 60" → "must be at most 60 (got 120)"
+func translateSchemaConstraintMessage(message string) string {
+	if m := minConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
+		return fmt.Sprintf("must be at least %s (got %s)", m[2], m[1])
+	}
+	if m := maxConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
+		return fmt.Sprintf("must be at most %s (got %s)", m[2], m[1])
+	}
+	return message
+}
+
 // cleanJSONSchemaErrorMessage removes unhelpful prefixes from jsonschema validation errors
 func cleanJSONSchemaErrorMessage(errorMsg string) string {
+	log.Printf("Cleaning JSON schema error message (%d chars)", len(errorMsg))
 	// Split the error message into lines
 	lines := strings.Split(errorMsg, "\n")
 
@@ -61,6 +84,7 @@ func cleanOneOfMessage(message string) string {
 		return message
 	}
 
+	log.Printf("Simplifying oneOf error message (%d lines)", len(strings.Split(message, "\n")))
 	lines := strings.Split(message, "\n")
 	var meaningful []string
 
@@ -104,8 +128,8 @@ func isTypeConflictLine(line string) bool {
 	}
 	// Embedded form: "- at '/path': got X, want Y"
 	// Look for ": got " followed by ", want " later in the line
-	if idx := strings.Index(line, ": got "); idx >= 0 {
-		afterGot := line[idx+len(": got "):]
+	if _, after, ok := strings.Cut(line, ": got "); ok {
+		afterGot := after
 		return strings.Contains(afterGot, ", want ")
 	}
 	return false
@@ -190,17 +214,33 @@ func rewriteAdditionalPropertiesError(message string) string {
 		match := re.FindStringSubmatch(message)
 
 		if len(match) >= 2 {
-			properties := match[1]
-			// Clean up the property list and make it more readable
-			properties = strings.ReplaceAll(properties, "'", "")
+			properties := normalizeAdditionalPropertyList(match[1])
+			log.Printf("Rewriting additional properties error: %s", properties)
 
 			if strings.Contains(properties, ",") {
-				return fmt.Sprintf("Unknown properties: %s", properties)
+				return "Unknown properties: " + properties
 			} else {
-				return fmt.Sprintf("Unknown property: %s", properties)
+				return "Unknown property: " + properties
 			}
 		}
 	}
 
 	return message
+}
+
+// normalizeAdditionalPropertyList strips quotes, trims whitespace, and sorts the
+// comma-separated property names so that diagnostics are deterministic regardless
+// of the order in which the schema validator emits them.
+func normalizeAdditionalPropertyList(raw string) string {
+	raw = strings.ReplaceAll(raw, "'", "")
+	parts := strings.Split(raw, ",")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	sort.Strings(cleaned)
+	return strings.Join(cleaned, ", ")
 }

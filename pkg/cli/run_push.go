@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var runPushLog = logger.New("cli:run_push")
@@ -101,7 +103,7 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 		runPushLog.Printf("Added lock file: %s", lockFilePath)
 	} else if verbose {
 		runPushLog.Printf("Lock file not found after compilation: %s", lockFilePath)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Lock file not found after compilation: %s", lockFilePath)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file not found after compilation: "+lockFilePath))
 	}
 
 	// Collect transitive closure of imported files
@@ -307,7 +309,7 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 		if resolvedPath == "" {
 			runPushLog.Printf("Could not resolve import path: %s", importPath)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not resolve import: %s", importPath)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not resolve import: "+importPath))
 			}
 			continue
 		}
@@ -327,7 +329,7 @@ func collectImports(workflowPath string, files map[string]bool, visited map[stri
 		if _, err := os.Stat(absImportPath); err != nil {
 			runPushLog.Printf("Import file not found: %s (error: %v)", absImportPath, err)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Import file not found: %s", absImportPath)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Import file not found: "+absImportPath))
 			}
 			continue
 		}
@@ -459,7 +461,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 
 		runPushLog.Printf("Current branch matches --ref value: %s", currentBranch)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Verified current branch matches --ref: %s", currentBranch)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Verified current branch matches --ref: "+currentBranch))
 		}
 	}
 
@@ -528,12 +530,12 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please commit or unstage these files before using --push"))
 		fmt.Fprintln(os.Stderr, "")
 
-		return fmt.Errorf("git has staged files not part of workflow - commit or unstage them before using --push")
+		return errors.New("git has staged files not part of workflow - commit or unstage them before using --push")
 	}
 	runPushLog.Printf("No extra staged files detected - all staged files are part of our workflow")
 
 	// Create commit message
-	commitMessage := fmt.Sprintf("Updated agentic workflow %s", workflowName)
+	commitMessage := "Updated agentic workflow " + workflowName
 	runPushLog.Printf("Creating commit with message: %s", commitMessage)
 
 	// Show what will be committed and ask for confirmation using console helper
@@ -560,7 +562,7 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 
 	if !confirmed {
 		runPushLog.Print("Push cancelled by user")
-		return fmt.Errorf("push cancelled by user")
+		return errors.New("push cancelled by user")
 	}
 	runPushLog.Printf("User confirmed - proceeding with commit and push")
 
@@ -609,8 +611,12 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 		return false, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
-	// Extract hash from lock file
-	existingHash := extractHashFromLockFile(string(lockContent))
+	// Extract hash from lock file using the workflow package function
+	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(lockContent))
+	var existingHash string
+	if err == nil && metadata != nil {
+		existingHash = metadata.FrontmatterHash
+	}
 	if existingHash == "" {
 		runPushLog.Print("No frontmatter-hash found in lock file")
 		// No hash in lock file - consider it stale to regenerate with hash
@@ -635,16 +641,4 @@ func checkFrontmatterHashMismatch(workflowPath, lockFilePath string) (bool, erro
 	}
 
 	return mismatch, nil
-}
-
-// extractHashFromLockFile extracts the frontmatter-hash from a lock file content
-func extractHashFromLockFile(content string) string {
-	// Look for: # frontmatter-hash: <hash>
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		if len(line) > 20 && line[:20] == "# frontmatter-hash: " {
-			return strings.TrimSpace(line[20:])
-		}
-	}
-	return ""
 }

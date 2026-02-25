@@ -105,8 +105,8 @@ func TestInterfaceSegregation(t *testing.T) {
 				ParsedTools: &ToolsConfig{},
 				Tools:       map[string]any{},
 			}
-			// Should not panic
-			engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, workflowData)
+			// Should not panic or error
+			require.NoError(t, engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, workflowData))
 		}
 	})
 

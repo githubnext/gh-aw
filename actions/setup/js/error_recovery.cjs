@@ -7,6 +7,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API } = require("./error_codes.cjs");
 
 /**
  * Configuration for retry behavior
@@ -145,13 +146,14 @@ async function withRetry(operation, config = {}, operationName = "operation") {
  * @param {number} [context.maxRetries] - Maximum retry attempts
  * @param {boolean} context.retryable - Whether the error is retryable
  * @param {string} context.suggestion - Suggestion for resolving the error
+ * @param {string} [context.code] - Optional standardized error code (e.g., ERR_API)
  * @returns {Error} Enhanced error with context
  */
 function enhanceError(error, context) {
   const originalMessage = getErrorMessage(error);
   const timestamp = new Date().toISOString();
 
-  let enhancedMessage = `[${timestamp}] ${context.operation} failed`;
+  let enhancedMessage = `${context.code || ERR_API}: [${timestamp}] ${context.operation} failed`;
 
   if (context.maxRetries !== undefined) {
     enhancedMessage += ` after ${context.maxRetries} retry attempts`;

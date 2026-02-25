@@ -10,9 +10,7 @@
 // Key responsibilities:
 //   - Generating Playwright MCP server configuration
 //   - Managing Docker container setup for Playwright
-//   - Handling allowed domains for browser navigation
 //   - Processing custom Playwright arguments
-//   - Extracting and managing domain secrets from expressions
 //   - Rendering configuration for different AI engines
 //
 // Container configuration:
@@ -30,16 +28,9 @@
 // runners. Without these flags, Playwright initialization fails with "EOF" error because
 // Chromium crashes during startup due to sandbox constraints.
 //
-// Domain restrictions:
-// For security, Playwright is restricted to specific allowed domains configured
-// in the workflow frontmatter. These domains are passed via:
-//   - --allowed-hosts: Domains the browser can navigate to
-//   - --allowed-origins: Domains that can be used as origins
-//
-// Expression handling:
-// When allowed_domains contains GitHub Actions expressions like ${{ secrets.DOMAIN }},
-// these are extracted and made available as environment variables. The actual
-// secret values are resolved at runtime and passed to the Playwright container.
+// Network access:
+// Network egress for Playwright is controlled by the workflow firewall (network.allowed).
+// Use the top-level network configuration to specify allowed domains.
 //
 // Engine compatibility:
 // The renderer supports multiple AI engines with engine-specific formatting:
@@ -57,13 +48,13 @@
 //	tools:
 //	  playwright:
 //	    version: v1.41.0
-//	    allowed_domains:
-//	      - github.com
-//	      - api.github.com
-//	      - ${{ secrets.CUSTOM_DOMAIN }}
-//	    custom_args:
+//	    args:
 //	      - --debug
 //	      - --timeout=30000
+//	network:
+//	  allowed:
+//	    - github.com
+//	    - api.github.com
 package workflow
 
 import (
@@ -86,14 +77,12 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightConfig *Playwrig
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool) {
-	args := generatePlaywrightDockerArgs(playwrightConfig)
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Extract all expressions from playwright arguments and replace them with env var references
-	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
-	allowedDomains := replaceExpressionsInPlaywrightArgs(args.AllowedDomains, expressions)
+	expressions := extractExpressionsFromPlaywrightArgs(customArgs)
 
-	// Also replace expressions in custom args
+	// Replace expressions in custom args
 	if len(customArgs) > 0 {
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
 	}
@@ -139,16 +128,11 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	}
 
 	// Build entrypoint args for Playwright MCP server (goes after container image)
-	entrypointArgs := []string{"--output-dir", "/tmp/gh-aw/mcp-logs/playwright"}
-	if len(allowedDomains) > 0 {
-		// Per Playwright MCP documentation:
-		// --allowed-hosts expects comma-separated list
-		// --allowed-origins expects semicolon-separated list
-		allowedHostsStr := strings.Join(allowedDomains, ",")
-		allowedOriginsStr := strings.Join(allowedDomains, ";")
-		entrypointArgs = append(entrypointArgs, "--allowed-hosts", allowedHostsStr)
-		entrypointArgs = append(entrypointArgs, "--allowed-origins", allowedOriginsStr)
-	}
+	// --no-sandbox: Disables Chromium's process sandbox, which otherwise
+	// creates a network namespace for renderer processes that cannot reach localhost.
+	// This is required for screenshot workflows that serve docs on localhost.
+	// Note: as of @playwright/mcp v0.0.26+, --no-sandbox is a direct top-level flag.
+	entrypointArgs := []string{"--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--no-sandbox"}
 	// Append custom args if present
 	if len(customArgs) > 0 {
 		entrypointArgs = append(entrypointArgs, customArgs...)

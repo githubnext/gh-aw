@@ -96,6 +96,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -242,9 +243,9 @@ func (pe *PackageExtractor) ExtractPackages(commands string) []string {
 	}
 
 	var packages []string
-	lines := strings.Split(commands, "\n")
+	lines := strings.SplitSeq(commands, "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		words := strings.Fields(line)
 		for i, word := range words {
 			// Check if this word matches one of our command names
@@ -288,12 +289,7 @@ func (pe *PackageExtractor) getRequiredSubcommands() []string {
 
 // isCommandName checks if the given word matches any of the configured command names
 func (pe *PackageExtractor) isCommandName(word string) bool {
-	for _, cmdName := range pe.CommandNames {
-		if word == cmdName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(pe.CommandNames, word)
 }
 
 // extractWithSubcommands extracts a package name when any of the required subcommands must be present
@@ -301,11 +297,9 @@ func (pe *PackageExtractor) isCommandName(word string) bool {
 func (pe *PackageExtractor) extractWithSubcommands(words []string, commandIndex int, subcommands []string) string {
 	// Look for any of the required subcommands after the command name
 	for j := commandIndex + 1; j < len(words); j++ {
-		for _, subcommand := range subcommands {
-			if words[j] == subcommand {
-				// Found a matching subcommand - now find the package name
-				return pe.findPackageName(words, j+1)
-			}
+		if slices.Contains(subcommands, words[j]) {
+			// Found a matching subcommand - now find the package name
+			return pe.findPackageName(words, j+1)
 		}
 	}
 	return ""

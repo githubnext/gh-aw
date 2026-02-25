@@ -157,7 +157,9 @@ SAFE_INPUTS_FILES=(
   "generate_safe_inputs_config.cjs"
   "setup_globals.cjs"
   "error_helpers.cjs"
+  "error_codes.cjs"
   "mcp_enhanced_errors.cjs"
+  "shim.cjs"
 )
 
 SAFE_INPUTS_COUNT=0
@@ -222,9 +224,11 @@ SAFE_OUTPUTS_FILES=(
   "generate_compact_schema.cjs"
   "setup_globals.cjs"
   "error_helpers.cjs"
+  "error_codes.cjs"
   "git_helpers.cjs"
   "mcp_enhanced_errors.cjs"
   "comment_limit_helpers.cjs"
+  "shim.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

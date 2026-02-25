@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -9,7 +10,7 @@ import (
 
 var createPRLog = logger.New("workflow:create_pull_request")
 
-// getFallbackAsIssue returns the effective fallback-as-issue setting (defaults to true)
+// getFallbackAsIssue returns the effective fallback-as-issue setting (defaults to true).
 func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 	if config == nil || config.FallbackAsIssue == nil {
 		return true // Default
@@ -19,31 +20,32 @@ func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
-	Labels               []string `yaml:"labels,omitempty"`
-	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`    // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	Reviewers            []string `yaml:"reviewers,omitempty"`         // List of users/bots to assign as reviewers to the pull request
-	Draft                *bool    `yaml:"draft,omitempty"`             // Pointer to distinguish between unset (nil) and explicitly false
-	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`     // Behavior when no changes to push: "warn" (default), "error", or "ignore"
-	AllowEmpty           bool     `yaml:"allow-empty,omitempty"`       // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`       // Target repository in format "owner/repo" for cross-repository pull requests
-	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`     // List of additional repositories that pull requests can be created in (additionally to the target-repo)
-	Expires              int      `yaml:"expires,omitempty"`           // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
-	AutoMerge            bool     `yaml:"auto-merge,omitempty"`        // Enable auto-merge for the pull request when all required checks pass
-	BaseBranch           string   `yaml:"base-branch,omitempty"`       // Base branch for the pull request (defaults to github.ref_name if not specified)
-	Footer               *bool    `yaml:"footer,omitempty"`            // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
-	FallbackAsIssue      *bool    `yaml:"fallback-as-issue,omitempty"` // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
+	BaseSafeOutputConfig           `yaml:",inline"`
+	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`
+	Labels                         []string `yaml:"labels,omitempty"`
+	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request
+	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
+	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
+	AllowEmpty                     *string  `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
+	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository pull requests
+	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
+	Expires                        int      `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
+	AutoMerge                      *string  `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
+	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
+	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
+	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil {
-		return nil, fmt.Errorf("safe-outputs.create-pull-request configuration is required")
+		return nil, errors.New("safe-outputs.create-pull-request configuration is required")
 	}
 
 	if createPRLog.Enabled() {
-		draftValue := true // Default
+		draftValue := "true" // Default
 		if data.SafeOutputs.CreatePullRequests.Draft != nil {
 			draftValue = *data.SafeOutputs.CreatePullRequests.Draft
 		}
@@ -93,21 +95,22 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	var customEnvVars []string
 	// Pass the workflow ID for branch naming
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
-	// Pass the base branch - use custom value if specified, otherwise default to github.ref_name
+	// Pass the base branch - use custom value if specified, otherwise default to github.base_ref || github.ref_name
+	// This handles PR contexts where github.ref_name is "123/merge" which is invalid as a target branch
 	if data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_BASE_BRANCH: %q\n", data.SafeOutputs.CreatePullRequests.BaseBranch))
 	} else {
-		customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
+		customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.base_ref || github.ref_name }}\n")
 	}
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", data.SafeOutputs.CreatePullRequests.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", data.SafeOutputs.CreatePullRequests.Labels)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", data.SafeOutputs.CreatePullRequests.AllowedLabels)...)
 	// Pass draft setting - default to true for backwards compatibility
-	draftValue := true // Default value
 	if data.SafeOutputs.CreatePullRequests.Draft != nil {
-		draftValue = *data.SafeOutputs.CreatePullRequests.Draft
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_PR_DRAFT", data.SafeOutputs.CreatePullRequests.Draft)...)
+	} else {
+		customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"true\"\n")
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
 
 	// Pass the if-no-changes configuration
 	ifNoChanges := data.SafeOutputs.CreatePullRequests.IfNoChanges
@@ -117,14 +120,25 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
 
 	// Pass the allow-empty configuration
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_ALLOW_EMPTY: %q\n", fmt.Sprintf("%t", data.SafeOutputs.CreatePullRequests.AllowEmpty)))
+	if data.SafeOutputs.CreatePullRequests.AllowEmpty != nil {
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_PR_ALLOW_EMPTY", data.SafeOutputs.CreatePullRequests.AllowEmpty)...)
+	} else {
+		customEnvVars = append(customEnvVars, "          GH_AW_PR_ALLOW_EMPTY: \"false\"\n")
+	}
 
 	// Pass the auto-merge configuration
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_AUTO_MERGE: %q\n", fmt.Sprintf("%t", data.SafeOutputs.CreatePullRequests.AutoMerge)))
+	if data.SafeOutputs.CreatePullRequests.AutoMerge != nil {
+		customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_PR_AUTO_MERGE", data.SafeOutputs.CreatePullRequests.AutoMerge)...)
+	} else {
+		customEnvVars = append(customEnvVars, "          GH_AW_PR_AUTO_MERGE: \"false\"\n")
+	}
 
 	// Pass the fallback-as-issue configuration - default to true for backwards compatibility
-	fallbackAsIssue := getFallbackAsIssue(data.SafeOutputs.CreatePullRequests)
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_FALLBACK_AS_ISSUE: %q\n", fmt.Sprintf("%t", fallbackAsIssue)))
+	if data.SafeOutputs.CreatePullRequests.FallbackAsIssue != nil {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_FALLBACK_AS_ISSUE: \"%t\"\n", *data.SafeOutputs.CreatePullRequests.FallbackAsIssue))
+	} else {
+		customEnvVars = append(customEnvVars, "          GH_AW_PR_FALLBACK_AS_ISSUE: \"true\"\n")
+	}
 
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
@@ -146,9 +160,25 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add footer flag if explicitly set to false
-	if data.SafeOutputs.CreatePullRequests.Footer != nil && !*data.SafeOutputs.CreatePullRequests.Footer {
+	if data.SafeOutputs.CreatePullRequests.Footer != nil && *data.SafeOutputs.CreatePullRequests.Footer == "false" {
 		customEnvVars = append(customEnvVars, "          GH_AW_FOOTER: \"false\"\n")
 		createPRLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
+	}
+
+	// Add extra empty commit token (for pushing an empty commit to trigger CI)
+	// Defaults to GH_AW_CI_TRIGGER_TOKEN when not explicitly configured
+	ciTriggerToken := data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
+	switch ciTriggerToken {
+	case "app":
+		customEnvVars = append(customEnvVars, "          GH_AW_CI_TRIGGER_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
+		createPRLog.Print("Extra empty commit using GitHub App token")
+	case "default", "":
+		// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", getEffectiveCITriggerGitHubToken("")))
+		createPRLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
+	default:
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", ciTriggerToken))
+		createPRLog.Printf("Extra empty commit using explicit token")
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)
@@ -185,6 +215,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 
 	// Choose permissions based on fallback-as-issue setting
+	fallbackAsIssue := getFallbackAsIssue(data.SafeOutputs.CreatePullRequests)
 	var permissions *Permissions
 	if fallbackAsIssue {
 		// Default: include issues: write for fallback behavior
@@ -252,6 +283,21 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 	}
 
+	// Pre-process templatable bool fields: convert literal booleans to strings so that
+	// GitHub Actions expression strings (e.g. "${{ inputs.draft-prs }}") are also accepted.
+	for _, field := range []string{"draft", "allow-empty", "auto-merge", "footer"} {
+		if err := preprocessBoolFieldAsString(configData, field, createPRLog); err != nil {
+			createPRLog.Printf("Invalid %s value: %v", field, err)
+			return nil
+		}
+	}
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", createPRLog); err != nil {
+		createPRLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config CreatePullRequestsConfig
 	if err := unmarshalConfig(outputMap, "create-pull-request", &config, createPRLog); err != nil {
@@ -270,9 +316,13 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
 	}
 
-	// Note: max parameter is not supported for pull requests (always limited to 1)
-	// Override any user-specified max value to enforce the limit
-	config.Max = 1
+	// Set default max if not explicitly configured (default is 1)
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
+		createPRLog.Print("Using default max count: 1")
+	} else {
+		createPRLog.Printf("Pull request max count configured: %s", *config.Max)
+	}
 
 	return &config
 }

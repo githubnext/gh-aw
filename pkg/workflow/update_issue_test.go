@@ -59,7 +59,7 @@ This workflow tests the update-issue configuration parsing.
 	}
 
 	// Check defaults
-	if workflowData.SafeOutputs.UpdateIssues.Max != 1 {
+	if templatableIntValue(workflowData.SafeOutputs.UpdateIssues.Max) != 1 {
 		t.Fatalf("Expected max to be 1, got %d", workflowData.SafeOutputs.UpdateIssues.Max)
 	}
 
@@ -134,7 +134,7 @@ This workflow tests the update-issue configuration with all options.
 	}
 
 	// Check all options
-	if workflowData.SafeOutputs.UpdateIssues.Max != 3 {
+	if templatableIntValue(workflowData.SafeOutputs.UpdateIssues.Max) != 3 {
 		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.UpdateIssues.Max)
 	}
 
@@ -368,5 +368,56 @@ This workflow tests body: (null) for backward compatibility.
 
 	if !*workflowData.SafeOutputs.UpdateIssues.Body {
 		t.Fatal("Expected body to be true when set to null (backward compatibility)")
+	}
+}
+
+func TestUpdateIssueTitlePrefix(t *testing.T) {
+	// Test that title-prefix is parsed correctly
+	tmpDir := testutil.TempDir(t, "output-update-issue-title-prefix-test")
+
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+engine: claude
+features:
+  dangerous-permissions-write: true
+strict: false
+safe-outputs:
+  update-issue:
+    title-prefix: "[bot] "
+    body: true
+---
+
+# Test Update Issue Title Prefix
+
+This workflow tests the update-issue title-prefix configuration.
+`
+
+	testFile := filepath.Join(tmpDir, "test-update-issue-title-prefix.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with title-prefix: %v", err)
+	}
+
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.UpdateIssues == nil {
+		t.Fatal("Expected update-issue configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.UpdateIssues.TitlePrefix != "[bot] " {
+		t.Fatalf("Expected title-prefix to be '[bot] ', got '%s'", workflowData.SafeOutputs.UpdateIssues.TitlePrefix)
 	}
 }

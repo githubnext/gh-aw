@@ -79,9 +79,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	var checkoutToken string
 	var gitRemoteToken string
 	if data.SafeOutputs.App != nil {
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = "${{ steps.safe-outputs-app-token.outputs.token }}" //nolint:gosec
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = "${{ steps.safe-outputs-app-token.outputs.token }}"
 	} else {
 		// Use token precedence chain instead of hardcoded github.token
@@ -109,9 +109,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		}
 		// Get effective token (handles fallback to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
 		effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = effectiveToken
-		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = effectiveToken
 	}
 
@@ -142,6 +142,23 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Printf("Using trialLogicalRepoSlug: %s", targetRepoSlug)
 	}
 
+	// Determine the ref (branch) to checkout
+	// Priority: create-pull-request base-branch > default to github.ref_name
+	// This is critical: we must checkout the base branch, not github.sha (the triggering commit),
+	// because github.sha might be an older commit with different workflow files. A shallow clone
+	// of an old commit followed by git fetch/checkout may not properly update all files,
+	// leading to spurious "workflow file changed" errors on push.
+	var checkoutRef string
+	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
+		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
+		consolidatedSafeOutputsStepsLog.Printf("Using base-branch from create-pull-request for checkout ref: %s", checkoutRef)
+	} else {
+		// Default to github.base_ref (PR base branch) with fallback to github.ref_name (push event branch)
+		// This handles PR contexts where github.ref_name is "123/merge" which is invalid for checkout
+		checkoutRef = "${{ github.base_ref || github.ref_name }}"
+		consolidatedSafeOutputsStepsLog.Print("Using github.base_ref || github.ref_name for checkout ref")
+	}
+
 	// Step 1: Checkout repository with conditional execution
 	steps = append(steps, "      - name: Checkout repository\n")
 	steps = append(steps, fmt.Sprintf("        if: %s\n", condition.Render()))
@@ -154,6 +171,8 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Printf("Added repository parameter: %s", targetRepoSlug)
 	}
 
+	// Set ref to checkout the base branch, not github.sha
+	steps = append(steps, fmt.Sprintf("          ref: %s\n", checkoutRef))
 	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	steps = append(steps, "          persist-credentials: false\n")
 	steps = append(steps, "          fetch-depth: 1\n")
@@ -178,6 +197,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          git config --global am.keepcr true\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
 		"          git remote set-url origin \"https://x-access-token:${GIT_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
@@ -217,6 +237,32 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 
 	// Add all safe output configuration env vars (still needed by individual handlers)
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
+
+	// Add extra empty commit token if create-pull-request or push-to-pull-request-branch is configured.
+	// This token is used to push an empty commit after code changes to trigger CI events,
+	// working around the GITHUB_TOKEN limitation where events don't trigger other workflows.
+	// Only emit this env var when one of these safe outputs is actually configured.
+	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
+		var ciTriggerToken string
+		if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit != "" {
+			ciTriggerToken = data.SafeOutputs.CreatePullRequests.GithubTokenForExtraEmptyCommit
+		} else if data.SafeOutputs.PushToPullRequestBranch != nil && data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit != "" {
+			ciTriggerToken = data.SafeOutputs.PushToPullRequestBranch.GithubTokenForExtraEmptyCommit
+		}
+
+		switch ciTriggerToken {
+		case "app":
+			steps = append(steps, "          GH_AW_CI_TRIGGER_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
+			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using GitHub App token")
+		case "default", "":
+			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)
+			steps = append(steps, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", getEffectiveCITriggerGitHubToken("")))
+			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using GH_AW_CI_TRIGGER_TOKEN")
+		default:
+			steps = append(steps, fmt.Sprintf("          GH_AW_CI_TRIGGER_TOKEN: %s\n", ciTriggerToken))
+			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using explicit token")
+		}
+	}
 
 	// Add GH_AW_PROJECT_URL and GH_AW_PROJECT_GITHUB_TOKEN environment variables for project operations
 	// These are set from the project URL and token configured in any project-related safe-output:

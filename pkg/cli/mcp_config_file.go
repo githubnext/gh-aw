@@ -100,7 +100,7 @@ func renderMCPConfigUpdateInstructions(filePath, serverName string, serverConfig
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "%s %s\n",
 		"ℹ",
-		fmt.Sprintf("Existing file detected: %s", filePath))
+		"Existing file detected: "+filePath)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent MCP server integration, please add the following")
 	fmt.Fprintln(os.Stderr, "to the \"servers\" section of your .vscode/mcp.json file:")

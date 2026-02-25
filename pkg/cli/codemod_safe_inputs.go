@@ -31,22 +31,13 @@ func getSafeInputsModeCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				return removeFieldFromBlock(lines, "mode", "safe-inputs")
+			})
+			if applied {
+				safeInputsModeCodemodLog.Print("Applied safe-inputs.mode removal")
 			}
-
-			// Remove the mode field from the safe-inputs block
-			result, modified := removeFieldFromBlock(frontmatterLines, "mode", "safe-inputs")
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			safeInputsModeCodemodLog.Print("Applied safe-inputs.mode removal")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

@@ -52,7 +52,7 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 				len(linkSubIssueConfig.SubRequiredLabels), linkSubIssueConfig.TargetRepoSlug)
 		} else {
 			// If configData is nil or not a map, still set the default max
-			linkSubIssueConfig.Max = 5
+			linkSubIssueConfig.Max = defaultIntStr(5)
 		}
 
 		return linkSubIssueConfig

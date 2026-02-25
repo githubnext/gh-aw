@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -62,13 +63,7 @@ func TestGetSafeInputsEnvVars(t *testing.T) {
 			}
 
 			for _, expected := range tt.contains {
-				found := false
-				for _, v := range result {
-					if v == expected {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(result, expected)
 				if !found {
 					t.Errorf("Expected to contain %s, got %v", expected, result)
 				}
@@ -137,7 +132,7 @@ func TestCollectSafeInputsSecretsStability(t *testing.T) {
 	// Test collectSafeInputsSecrets stability
 	iterations := 10
 	secretResults := make([]map[string]string, iterations)
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		secretResults[i] = collectSafeInputsSecrets(config)
 	}
 
@@ -176,7 +171,7 @@ func TestGetSafeInputsEnvVarsStability(t *testing.T) {
 	// Test getSafeInputsEnvVars stability
 	iterations := 10
 	envResults := make([][]string, iterations)
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		envResults[i] = getSafeInputsEnvVars(config)
 	}
 

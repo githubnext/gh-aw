@@ -722,7 +722,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			expectedStrs: []string{
 				`"github": {`,
 				`"type": "stdio",`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.30.3"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 				`},`,
@@ -752,7 +752,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 			expectedStrs: []string{
 				`"github": {`,
 				`"type": "stdio",`,
-				`"container": "ghcr.io/github/github-mcp-server:v0.30.3"`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
 				`"env": {`,
 				`}`,
 			},
@@ -1482,4 +1482,78 @@ func TestCopilotEnginePluginDiscoveryWithSRT(t *testing.T) {
 	if !strings.Contains(stepContent, "--add-dir /home/runner/.copilot/") {
 		t.Errorf("Expected step to contain '--add-dir /home/runner/.copilot/' when plugins are declared with SRT enabled, but it was missing:\n%s", stepContent)
 	}
+}
+
+// TestGenerateCopilotSessionFileCopyStep verifies the generated step copies session state files.
+func TestGenerateCopilotSessionFileCopyStep(t *testing.T) {
+	step := generateCopilotSessionFileCopyStep()
+	content := strings.Join([]string(step), "\n")
+
+	if !strings.Contains(content, "Copy Copilot session state files to logs") {
+		t.Error("Step should have a descriptive name")
+	}
+	if !strings.Contains(content, "always()") {
+		t.Error("Step should run always()")
+	}
+	if !strings.Contains(content, ".copilot/session-state") {
+		t.Error("Step should reference the Copilot session-state directory")
+	}
+	if !strings.Contains(content, "/tmp/gh-aw/sandbox/agent/logs") {
+		t.Error("Step should copy files into the gh-aw logs directory")
+	}
+	if !strings.Contains(content, "continue-on-error: true") {
+		t.Error("Step should be marked continue-on-error")
+	}
+}
+
+func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("engine env overrides default token expression", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// engine.env override should replace the default token expression
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}") {
+			t.Errorf("Expected engine.env to override COPILOT_GITHUB_TOKEN, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("Default COPILOT_GITHUB_TOKEN expression should be replaced by engine.env override, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("engine env adds extra environment variables", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CUSTOM_VAR": "custom-value",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
+			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
+		}
+	})
 }

@@ -80,3 +80,19 @@ func getEffectiveProjectGitHubToken(customToken string) string {
 	tokenLog.Print("Using GH_AW_PROJECT_GITHUB_TOKEN for project operations")
 	return "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 }
+
+// getEffectiveCITriggerGitHubToken returns the GitHub token to use for CI trigger operations
+// (pushing empty commits to trigger workflow runs), with precedence:
+// 1. Custom token passed as parameter (e.g., from github-token-for-extra-empty-commit field)
+// 2. secrets.GH_AW_CI_TRIGGER_TOKEN (recommended token for CI trigger operations)
+// Note: The default GITHUB_TOKEN is NOT included as a fallback because events created with
+// GITHUB_TOKEN do not trigger other workflow runs (GitHub Actions security feature).
+// This is used when pushing an empty commit to trigger CI checks on PRs created by workflows.
+func getEffectiveCITriggerGitHubToken(customToken string) string {
+	if customToken != "" {
+		tokenLog.Print("Using custom CI trigger GitHub token")
+		return customToken
+	}
+	tokenLog.Print("Using GH_AW_CI_TRIGGER_TOKEN for CI trigger operations")
+	return "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}"
+}

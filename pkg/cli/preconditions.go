@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -72,7 +73,7 @@ func checkGHAuthStatusShared(verbose bool) error {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  gh auth login"))
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf("not authenticated with GitHub CLI")
+		return errors.New("not authenticated with GitHub CLI")
 	}
 
 	if verbose {
@@ -95,7 +96,7 @@ func checkGitRepositoryShared(verbose bool) (string, error) {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git init"))
 		fmt.Fprintln(os.Stderr, "")
-		return "", fmt.Errorf("not in a git repository")
+		return "", errors.New("not in a git repository")
 	}
 
 	// Try to get the repository slug
@@ -112,7 +113,7 @@ func checkGitRepositoryShared(verbose bool) (string, error) {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Target repository: %s", repoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Target repository: "+repoSlug))
 	}
 	preconditionsLog.Printf("Target repository: %s", repoSlug)
 
@@ -173,7 +174,7 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, "Note: For organization repositories, this setting may be controlled at the org level.")
 		fmt.Fprintln(os.Stderr, "Contact an organization owner if you cannot change this setting.")
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf("") // Error already displayed above
+		return errors.New("repository action permissions prevent agentic workflows from running")
 	case "selected":
 		// Selected actions - need to check if GitHub-owned actions are allowed
 		if err := checkSelectedActionsPermissions(permissions.SelectedActionsURL, verbose); err != nil {
@@ -225,7 +226,7 @@ func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) er
 		fmt.Fprintln(os.Stderr, "Note: For organization repositories, this setting may be controlled at the org level.")
 		fmt.Fprintln(os.Stderr, "Contact an organization owner if you cannot change this setting.")
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf("") // Error already displayed above
+		return errors.New("GitHub-owned actions are not allowed in this repository")
 	}
 
 	if verbose {
@@ -275,7 +276,7 @@ func checkRepoVisibilityShared(repoSlug string) bool {
 	preconditionsLog.Print("Checking repository visibility")
 
 	// Use gh api to check repository visibility
-	output, err := workflow.RunGH("Checking repository visibility...", "api", fmt.Sprintf("/repos/%s", repoSlug), "--jq", ".visibility")
+	output, err := workflow.RunGH("Checking repository visibility...", "api", "/repos/"+repoSlug, "--jq", ".visibility")
 	if err != nil {
 		preconditionsLog.Printf("Could not check repository visibility: %v", err)
 		// Default to public if we can't determine

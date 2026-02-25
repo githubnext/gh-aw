@@ -56,7 +56,7 @@ This workflow tests the update-discussion configuration parsing.
 	}
 
 	// Check defaults
-	if workflowData.SafeOutputs.UpdateDiscussions.Max != 1 {
+	if templatableIntValue(workflowData.SafeOutputs.UpdateDiscussions.Max) != 1 {
 		t.Fatalf("Expected max to be 1, got %d", workflowData.SafeOutputs.UpdateDiscussions.Max)
 	}
 
@@ -133,7 +133,7 @@ This workflow tests the update-discussion configuration with all options.
 	}
 
 	// Check all options
-	if workflowData.SafeOutputs.UpdateDiscussions.Max != 3 {
+	if templatableIntValue(workflowData.SafeOutputs.UpdateDiscussions.Max) != 3 {
 		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.UpdateDiscussions.Max)
 	}
 

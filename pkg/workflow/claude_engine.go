@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +38,12 @@ func NewClaudeEngine() *ClaudeEngine {
 // SupportsLLMGateway returns the LLM gateway port for Claude engine
 func (e *ClaudeEngine) SupportsLLMGateway() int {
 	return constants.ClaudeLLMGatewayPort
+}
+
+// GetModelEnvVarName returns the native environment variable name that the Claude Code CLI uses
+// for model selection. Setting ANTHROPIC_MODEL is equivalent to passing --model to the CLI.
+func (e *ClaudeEngine) GetModelEnvVarName() string {
+	return constants.ClaudeCLIModelEnvVar
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Claude engine
@@ -86,6 +94,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		config.Secrets,
 		config.Name,
 		config.DocsURL,
+		getEngineEnvOverrides(workflowData),
 	)
 	steps = append(steps, secretValidation)
 
@@ -142,8 +151,7 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
@@ -157,15 +165,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Disable Chrome integration for security and deterministic execution
 	claudeArgs = append(claudeArgs, "--no-chrome")
 
-	// Add model if specified
-	// Model can be configured via:
-	// 1. Explicit model in workflow config (highest priority)
-	// 2. GH_AW_MODEL_AGENT_CLAUDE environment variable (set via GitHub Actions variables)
+	// Model is always passed via the native ANTHROPIC_MODEL environment variable when configured.
+	// This avoids embedding the value directly in the shell command (which fails template injection
+	// validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_CLAUDE with shell expansion.
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if modelConfigured {
-		claudeLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
-		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
-	}
 
 	// Add max_turns if specified (in CLI it's max-turns)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
@@ -247,16 +251,18 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This handles already-quoted arguments correctly and prevents double-escaping
 	claudeCommand := shellJoinArgs(commandParts)
 
-	// Add conditional model flag if not explicitly configured
-	// Check if this is a detection job (has no SafeOutputs config)
-	isDetectionJob := workflowData.SafeOutputs == nil
-	var modelEnvVar string
-	if isDetectionJob {
-		modelEnvVar = constants.EnvVarModelDetectionClaude
-	} else {
-		modelEnvVar = constants.EnvVarModelAgentClaude
-	}
+	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
+	// via shell expansion so users can set a default via GitHub Actions variables.
+	// When model IS configured, ANTHROPIC_MODEL is set in the env block (see below) and the
+	// Claude CLI reads it natively - no --model flag in the shell command needed.
 	if !modelConfigured {
+		isDetectionJob := workflowData.SafeOutputs == nil
+		var modelEnvVar string
+		if isDetectionJob {
+			modelEnvVar = constants.EnvVarModelDetectionClaude
+		} else {
+			modelEnvVar = constants.EnvVarModelAgentClaude
+		}
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
 	}
 
@@ -339,54 +345,56 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
 	}
 
-	env["MCP_TIMEOUT"] = fmt.Sprintf("%d", startupTimeoutMs)
-	env["MCP_TOOL_TIMEOUT"] = fmt.Sprintf("%d", timeoutMs)
-	env["BASH_DEFAULT_TIMEOUT_MS"] = fmt.Sprintf("%d", timeoutMs)
-	env["BASH_MAX_TIMEOUT_MS"] = fmt.Sprintf("%d", timeoutMs)
+	env["MCP_TIMEOUT"] = strconv.Itoa(startupTimeoutMs)
+	env["MCP_TOOL_TIMEOUT"] = strconv.Itoa(timeoutMs)
+	env["BASH_DEFAULT_TIMEOUT_MS"] = strconv.Itoa(timeoutMs)
+	env["BASH_MAX_TIMEOUT_MS"] = strconv.Itoa(timeoutMs)
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {
-		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+		env["GH_AW_STARTUP_TIMEOUT"] = strconv.Itoa(workflowData.ToolsStartupTimeout)
 	}
 
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
-		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+		env["GH_AW_TOOL_TIMEOUT"] = strconv.Itoa(workflowData.ToolsTimeout)
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	}
 
-	// Add model environment variable if model is not explicitly configured
-	// This allows users to configure the default model via GitHub Actions variables
-	// Use different env vars for agent vs detection jobs
-	if !modelConfigured {
+	// Set the model environment variable.
+	// When model is configured, use the native ANTHROPIC_MODEL env var - the Claude CLI reads it
+	// directly, avoiding the need to embed the value in the shell command (which would fail
+	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE so users
+	// can set a default via GitHub Actions variables.
+	if modelConfigured {
+		claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.ClaudeCLIModelEnvVar] = workflowData.EngineConfig.Model
+	} else {
+		// No model configured - use fallback GitHub variable with shell expansion
+		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
-			// For detection, use detection-specific env var (no default fallback for Claude)
 			env[constants.EnvVarModelDetectionClaude] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionClaude)
 		} else {
-			// For agent execution, use agent-specific env var
 			env[constants.EnvVarModelAgentClaude] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentClaude)
 		}
 	}
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
 
 	// Add custom environment variables from agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		for key, value := range agentConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, agentConfig.Env)
 		claudeLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
@@ -405,7 +413,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepName := "Execute Claude Code CLI"
 	var stepLines []string
 
-	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "      - name: "+stepName)
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add allowed tools comment before the run section
@@ -420,7 +428,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if workflowData.TimeoutMinutes != "" {
 		// Strip timeout-minutes prefix
 		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
+		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
 	} else {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
 	}

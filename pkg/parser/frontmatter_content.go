@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,12 +49,15 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 
 	if endIndex == -1 {
-		return nil, fmt.Errorf("frontmatter not properly closed")
+		return nil, errors.New("frontmatter not properly closed")
 	}
 
 	// Extract frontmatter YAML
 	frontmatterLines := lines[1:endIndex]
 	frontmatterYAML := strings.Join(frontmatterLines, "\n")
+
+	// Sanitize no-break whitespace characters (U+00A0) which break the YAML parser
+	frontmatterYAML = strings.ReplaceAll(frontmatterYAML, "\u00A0", " ")
 
 	// Parse YAML
 	var frontmatter map[string]any

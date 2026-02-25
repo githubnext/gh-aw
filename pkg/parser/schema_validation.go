@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -109,9 +110,7 @@ func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error
 	// To validate shared workflows against the main schema, we temporarily add an 'on' field
 	// This allows us to use the full schema validation while still enforcing the forbidden field check above
 	tempFrontmatter := make(map[string]any)
-	for k, v := range filtered {
-		tempFrontmatter[k] = v
-	}
+	maps.Copy(tempFrontmatter, filtered)
 	// Add a temporary 'on' field to satisfy the schema's required field
 	tempFrontmatter["on"] = "push"
 
@@ -137,9 +136,7 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 
 	// To validate shared workflows against the main schema, we temporarily add an 'on' field
 	tempFrontmatter := make(map[string]any)
-	for k, v := range filtered {
-		tempFrontmatter[k] = v
-	}
+	maps.Copy(tempFrontmatter, filtered)
 	// Add a temporary 'on' field to satisfy the schema's required field
 	tempFrontmatter["on"] = "push"
 

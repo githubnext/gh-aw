@@ -1027,7 +1027,7 @@ func containsIgnoreCase(s, substr string) bool {
 
 func toLower(s string) string {
 	b := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if 'A' <= c && c <= 'Z' {
 			c += 'a' - 'A'

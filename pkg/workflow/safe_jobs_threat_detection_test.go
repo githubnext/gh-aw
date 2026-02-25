@@ -114,7 +114,7 @@ func TestSafeOutputsJobsRespectExplicitThreatDetectionTrue(t *testing.T) {
 }
 
 // TestSafeOutputsJobsDependOnDetectionJob verifies that custom safe-output jobs
-// depend on the detection job when threat detection is enabled
+// depend only on the agent job (detection is now inline in the agent job)
 func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
 	c := NewCompiler()
 
@@ -153,11 +153,7 @@ func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
 		break
 	}
 
-	// Verify the job depends on both 'agent' and 'detection'
-	if len(job.Needs) < 2 {
-		t.Errorf("Expected job to have at least 2 dependencies (agent, detection), got %d", len(job.Needs))
-	}
-
+	// Detection is inline in agent job, so safe-jobs only depend on "agent"
 	hasAgentDep := false
 	hasDetectionDep := false
 	for _, dep := range job.Needs {
@@ -173,8 +169,8 @@ func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
 		t.Error("Expected job to depend on 'agent' job")
 	}
 
-	if !hasDetectionDep {
-		t.Error("Expected job to depend on 'detection' job when threat detection is enabled")
+	if hasDetectionDep {
+		t.Error("Expected job NOT to depend on 'detection' job (detection is now inline in agent job)")
 	}
 }
 
@@ -344,9 +340,18 @@ Test workflow content
 
 	workflowStr := string(workflow)
 
-	// Verify detection job is created
-	if !strings.Contains(workflowStr, "detection:") {
-		t.Error("Expected compiled workflow to contain 'detection:' job")
+	// Verify detection job is NOT a separate job (detection is inline in agent job)
+	if strings.Contains(workflowStr, "\n  detection:\n") {
+		t.Error("Expected compiled workflow to NOT contain separate 'detection:' job")
+	}
+
+	// Verify inline detection steps exist in agent job
+	agentSection := extractJobSection(workflowStr, "agent")
+	if agentSection == "" {
+		t.Error("Expected compiled workflow to contain 'agent:' job")
+	}
+	if !strings.Contains(agentSection, "detection_guard") {
+		t.Error("Expected agent job to contain inline detection_guard step")
 	}
 
 	// Verify custom safe job is created
@@ -354,8 +359,8 @@ Test workflow content
 		t.Error("Expected compiled workflow to contain 'my_custom_job:' job")
 	}
 
-	// Verify custom job depends on detection
-	if !strings.Contains(workflowStr, "- detection") {
-		t.Error("Expected custom job to depend on detection job")
+	// Verify custom job depends on agent (not detection)
+	if strings.Contains(workflowStr, "- detection") {
+		t.Error("Expected custom job NOT to depend on separate detection job")
 	}
 }

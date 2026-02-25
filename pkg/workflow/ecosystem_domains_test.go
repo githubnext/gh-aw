@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -23,13 +24,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in defaults, but it was not found", expectedDomain)
 			}
@@ -46,13 +41,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, excludedDomain := range excludedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == excludedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, excludedDomain)
 			if found {
 				t.Errorf("Domain '%s' should NOT be included in defaults, but it was found", excludedDomain)
 			}
@@ -74,13 +63,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in containers ecosystem, but it was not found", expectedDomain)
 			}
@@ -102,13 +85,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in dotnet ecosystem, but it was not found", expectedDomain)
 			}
@@ -130,13 +107,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in python ecosystem, but it was not found", expectedDomain)
 			}
@@ -159,13 +130,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in go ecosystem, but it was not found", expectedDomain)
 			}
@@ -196,13 +161,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in java ecosystem, but it was not found", expectedDomain)
 			}
@@ -231,13 +190,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in node ecosystem, but it was not found", expectedDomain)
 			}
@@ -259,13 +212,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in python ecosystem, but it was not found", expectedDomain)
 			}
@@ -287,13 +234,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in github ecosystem, but it was not found", expectedDomain)
 			}
@@ -317,13 +258,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		allExpected = append(allExpected, expectedCustom...)
 
 		for _, expectedDomain := range allExpected {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included in combined ecosystems, but it was not found", expectedDomain)
 			}
@@ -344,13 +279,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 
 		for _, expectedDomain := range expectedDomains {
-			found := false
-			for _, domain := range domains {
-				if domain == expectedDomain {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(domains, expectedDomain)
 			if !found {
 				t.Errorf("Expected domain '%s' to be included as literal domain, but it was not found", expectedDomain)
 			}

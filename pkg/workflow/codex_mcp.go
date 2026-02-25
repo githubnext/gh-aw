@@ -10,7 +10,7 @@ import (
 var codexMCPLog = logger.New("workflow:codex_mcp")
 
 // RenderMCPConfig generates MCP server configuration for Codex
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	if codexMCPLog.Enabled() {
 		codexMCPLog.Printf("Rendering MCP config for Codex: mcp_tools=%v, tool_count=%d", mcpTools, len(tools))
 	}
@@ -83,8 +83,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Custom configuration\n")
 		// Write the custom config line by line with proper indentation
-		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
-		for _, line := range configLines {
+		configLines := strings.SplitSeq(workflowData.EngineConfig.Config, "\n")
+		for line := range configLines {
 			if strings.TrimSpace(line) != "" {
 				yaml.WriteString("          " + line + "\n")
 			} else {
@@ -120,7 +120,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		})
 	}
 
-	_ = RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
 		GatewayConfig: gatewayConfig,
 		Renderers: MCPToolRenderers{

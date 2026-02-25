@@ -3,7 +3,7 @@
 package console
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/tty"
@@ -14,7 +14,7 @@ import (
 func PromptInput(title, description, placeholder string) (string, error) {
 	// Check if stdin is a TTY - if not, we can't show interactive forms
 	if !tty.IsStderrTerminal() {
-		return "", fmt.Errorf("interactive input not available (not a TTY)")
+		return "", errors.New("interactive input not available (not a TTY)")
 	}
 
 	var value string
@@ -42,7 +42,7 @@ func PromptInput(title, description, placeholder string) (string, error) {
 func PromptSecretInput(title, description string) (string, error) {
 	// Check if stdin is a TTY - if not, we can't show interactive forms
 	if !tty.IsStderrTerminal() {
-		return "", fmt.Errorf("interactive input not available (not a TTY)")
+		return "", errors.New("interactive input not available (not a TTY)")
 	}
 
 	var value string
@@ -55,7 +55,7 @@ func PromptSecretInput(title, description string) (string, error) {
 				EchoMode(huh.EchoModePassword). // Masks input for security
 				Validate(func(s string) error {
 					if len(s) == 0 {
-						return fmt.Errorf("value cannot be empty")
+						return errors.New("value cannot be empty")
 					}
 					return nil
 				}).
@@ -75,7 +75,7 @@ func PromptSecretInput(title, description string) (string, error) {
 func PromptInputWithValidation(title, description, placeholder string, validate func(string) error) (string, error) {
 	// Check if stdin is a TTY - if not, we can't show interactive forms
 	if !tty.IsStderrTerminal() {
-		return "", fmt.Errorf("interactive input not available (not a TTY)")
+		return "", errors.New("interactive input not available (not a TTY)")
 	}
 
 	var value string

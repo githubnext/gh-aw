@@ -39,8 +39,6 @@ tools:
 
 timeout-minutes: 30
 
-imports:
-  - shared/mood.md
 ---
 
 # Step Name Alignment Agent
@@ -250,9 +248,11 @@ When you identify problems worth addressing, create issues using safe-outputs.
 [step-names] Align step names in <workflow-name> with glossary/consistency
 ```
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 **Issue Description Template:**
 ```markdown
-## Step Name Alignment Issues
+### Step Name Alignment Issues
 
 Found in: `.github/workflows/<workflow-name>.lock.yml`
 
@@ -447,3 +447,9 @@ After completing your analysis, provide a brief summary:
 - **Failure**: Cache memory corruption (create new cache)
 
 Good luck! Your work helps maintain a consistent, professional codebase with clear, accurate step names that align with project terminology.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

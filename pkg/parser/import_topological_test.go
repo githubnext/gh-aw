@@ -454,3 +454,48 @@ tools:
 	assert.Equal(t, "a-dependency.md", result.ImportedFiles[0])
 	assert.Equal(t, "z-parent.md", result.ImportedFiles[1])
 }
+
+func TestImportTopologicalSortStableAcrossRuns(t *testing.T) {
+	tempDir := testutil.TempDir(t, "import-topo-stable-*")
+
+	files := map[string]string{
+		"root.md": `---
+imports:
+  - b.md
+  - a.md
+---`,
+		"a.md": `---
+imports:
+  - c.md
+tools:
+  a-tool: {}
+---`,
+		"b.md": `---
+tools:
+  b-tool: {}
+---`,
+		"c.md": `---
+tools:
+  c-tool: {}
+---`,
+	}
+
+	for filename, content := range files {
+		filePath := filepath.Join(tempDir, filename)
+		err := os.WriteFile(filePath, []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	frontmatter := map[string]any{"imports": []string{"root.md"}}
+
+	var baseline []string
+	for i := range 5 {
+		result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+		require.NoError(t, err)
+		if i == 0 {
+			baseline = append([]string(nil), result.ImportedFiles...)
+			continue
+		}
+		assert.Equal(t, baseline, result.ImportedFiles)
+	}
+}

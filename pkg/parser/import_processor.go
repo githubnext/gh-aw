@@ -2,8 +2,11 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -114,8 +117,8 @@ type importQueueItem struct {
 func parseRemoteOrigin(spec string) *remoteImportOrigin {
 	// Remove section reference if present
 	cleanSpec := spec
-	if idx := strings.Index(spec, "#"); idx != -1 {
-		cleanSpec = spec[:idx]
+	if before, _, ok := strings.Cut(spec, "#"); ok {
+		cleanSpec = before
 	}
 
 	// Split on @ to get path and ref
@@ -198,23 +201,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				// Object import with path and optional inputs
 				pathValue, hasPath := importItem["path"]
 				if !hasPath {
-					return nil, fmt.Errorf("import object must have a 'path' field")
+					return nil, errors.New("import object must have a 'path' field")
 				}
 				pathStr, ok := pathValue.(string)
 				if !ok {
-					return nil, fmt.Errorf("import 'path' must be a string")
+					return nil, errors.New("import 'path' must be a string")
 				}
 				var inputs map[string]any
 				if inputsValue, hasInputs := importItem["inputs"]; hasInputs {
 					if inputsMap, ok := inputsValue.(map[string]any); ok {
 						inputs = inputsMap
 					} else {
-						return nil, fmt.Errorf("import 'inputs' must be an object")
+						return nil, errors.New("import 'inputs' must be an object")
 					}
 				}
 				importSpecs = append(importSpecs, ImportSpec{Path: pathStr, Inputs: inputs})
 			default:
-				return nil, fmt.Errorf("import item must be a string or an object with 'path' field")
+				return nil, errors.New("import item must be a string or an object with 'path' field")
 			}
 		}
 	case []string:
@@ -222,7 +225,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			importSpecs = append(importSpecs, ImportSpec{Path: s})
 		}
 	default:
-		return nil, fmt.Errorf("imports field must be an array of strings or objects")
+		return nil, errors.New("imports field must be an array of strings or objects")
 	}
 
 	if len(importSpecs) == 0 {
@@ -320,7 +323,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					FilePath:   workflowFilePath,
 					Line:       line,
 					Column:     column,
-					Cause:      fmt.Errorf("cannot import .lock.yml files. Lock files are compiled outputs from gh-aw. Import the source .md file instead"),
+					Cause:      errors.New("cannot import .lock.yml files. Lock files are compiled outputs from gh-aw. Import the source .md file instead"),
 				}
 				return nil, FormatImportError(importErr, yamlContent)
 			}
@@ -363,9 +366,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		log.Printf("Processing import from queue: %s", item.fullPath)
 
 		// Merge inputs from this import into the aggregated inputs map
-		for k, v := range item.inputs {
-			importInputs[k] = v
-		}
+		maps.Copy(importInputs, item.inputs)
 
 		// Add to processing order
 		processedOrder = append(processedOrder, item.importPath)
@@ -538,7 +539,9 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 						resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
 							item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
-						nestedRemoteOrigin = item.remoteOrigin
+						// Parse a new remoteOrigin from resolvedPath to get the correct BasePath
+						// for THIS file's nested imports, not the parent's BasePath
+						nestedRemoteOrigin = parseRemoteOrigin(resolvedPath)
 						importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
 					} else if isWorkflowSpec(nestedFilePath) {
 						// Nested import is itself a workflowspec - parse its remote origin
@@ -631,25 +634,25 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract engines from imported file
-		engineContent, err := extractEngineFromContent(string(content))
+		engineContent, err := extractFrontmatterField(string(content), "engine", "")
 		if err == nil && engineContent != "" {
 			engines = append(engines, engineContent)
 		}
 
 		// Extract mcp-servers from imported file
-		mcpServersContent, err := extractMCPServersFromContent(string(content))
+		mcpServersContent, err := extractFrontmatterField(string(content), "mcp-servers", "{}")
 		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 			mcpServersBuilder.WriteString(mcpServersContent + "\n")
 		}
 
 		// Extract safe-outputs from imported file
-		safeOutputsContent, err := extractSafeOutputsFromContent(string(content))
+		safeOutputsContent, err := extractFrontmatterField(string(content), "safe-outputs", "{}")
 		if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
 			safeOutputs = append(safeOutputs, safeOutputsContent)
 		}
 
 		// Extract safe-inputs from imported file
-		safeInputsContent, err := extractSafeInputsFromContent(string(content))
+		safeInputsContent, err := extractFrontmatterField(string(content), "safe-inputs", "{}")
 		if err == nil && safeInputsContent != "" && safeInputsContent != "{}" {
 			safeInputs = append(safeInputs, safeInputsContent)
 		}
@@ -661,7 +664,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract runtimes from imported file
-		runtimesContent, err := extractRuntimesFromContent(string(content))
+		runtimesContent, err := extractFrontmatterField(string(content), "runtimes", "{}")
 		if err == nil && runtimesContent != "" && runtimesContent != "{}" {
 			runtimesBuilder.WriteString(runtimesContent + "\n")
 		}
@@ -673,7 +676,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract network from imported file
-		networkContent, err := extractNetworkFromContent(string(content))
+		networkContent, err := extractFrontmatterField(string(content), "network", "{}")
 		if err == nil && networkContent != "" && networkContent != "{}" {
 			networkBuilder.WriteString(networkContent + "\n")
 		}
@@ -685,13 +688,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract secret-masking from imported file
-		secretMaskingContent, err := extractSecretMaskingFromContent(string(content))
+		secretMaskingContent, err := extractFrontmatterField(string(content), "secret-masking", "{}")
 		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
 
 		// Extract and merge bots from imported file (merge into set to avoid duplicates)
-		botsContent, err := extractBotsFromContent(string(content))
+		botsContent, err := extractFrontmatterField(string(content), "bots", "[]")
 		if err == nil && botsContent != "" && botsContent != "[]" {
 			// Parse bots JSON array
 			var importedBots []string
@@ -706,7 +709,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract and merge skip-roles from imported file (merge into set to avoid duplicates)
-		skipRolesContent, err := extractSkipRolesFromContent(string(content))
+		skipRolesContent, err := extractOnSectionField(string(content), "skip-roles")
 		if err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
 			// Parse skip-roles JSON array
 			var importedSkipRoles []string
@@ -721,7 +724,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract and merge skip-bots from imported file (merge into set to avoid duplicates)
-		skipBotsContent, err := extractSkipBotsFromContent(string(content))
+		skipBotsContent, err := extractOnSectionField(string(content), "skip-bots")
 		if err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
 			// Parse skip-bots JSON array
 			var importedSkipBots []string
@@ -737,7 +740,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 		// Extract and merge plugins from imported file (merge into set to avoid duplicates)
 		// This now handles both simple string format and object format with MCP configs
-		pluginsContent, err := extractPluginsFromContent(string(content))
+		pluginsContent, err := extractFrontmatterField(string(content), "plugins", "[]")
 		if err == nil && pluginsContent != "" && pluginsContent != "[]" {
 			// Parse plugins - can be array of strings or objects
 			var pluginsRaw []any
@@ -771,7 +774,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract labels from imported file (merge into set to avoid duplicates)
-		labelsContent, err := extractLabelsFromContent(string(content))
+		labelsContent, err := extractFrontmatterField(string(content), "labels", "[]")
 		if err == nil && labelsContent != "" && labelsContent != "[]" {
 			// Parse labels JSON array
 			var importedLabels []string
@@ -786,13 +789,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Extract cache from imported file (append to list of caches)
-		cacheContent, err := extractCacheFromContent(string(content))
+		cacheContent, err := extractFrontmatterField(string(content), "cache", "{}")
 		if err == nil && cacheContent != "" && cacheContent != "{}" {
 			caches = append(caches, cacheContent)
 		}
 
 		// Extract features from imported file (parse as map structure)
-		featuresContent, err := extractFeaturesFromContent(string(content))
+		featuresContent, err := extractFrontmatterField(string(content), "features", "{}")
 		if err == nil && featuresContent != "" && featuresContent != "{}" {
 			// Parse JSON to map structure
 			var featuresMap map[string]any
@@ -1045,13 +1048,7 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		// Find which imports are part of the cycle (those not in result)
 		cycleNodes := make(map[string]bool)
 		for _, imp := range imports {
-			found := false
-			for _, processed := range result {
-				if processed == imp {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(result, imp)
 			if !found {
 				cycleNodes[imp] = true
 			}
@@ -1067,7 +1064,7 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		}
 
 		// Fallback error if we couldn't construct the path (shouldn't happen)
-		return nil, fmt.Errorf("circular import detected but could not determine cycle path")
+		return nil, errors.New("circular import detected but could not determine cycle path")
 	}
 
 	return result, nil

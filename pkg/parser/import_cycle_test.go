@@ -175,7 +175,7 @@ imports:
 
 	// Run the same import processing multiple times
 	var chains [][]string
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		frontmatter := map[string]any{
 			"imports": []string{"a.md"},
 		}

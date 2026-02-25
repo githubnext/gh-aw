@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-
+const { ERR_API } = require("./error_codes.cjs");
 describe("checkout_pr_branch.cjs", () => {
   let mockCore;
   let mockExec;
@@ -15,6 +15,7 @@ describe("checkout_pr_branch.cjs", () => {
       setOutput: vi.fn(),
       startGroup: vi.fn(),
       endGroup: vi.fn(),
+      exportVariable: vi.fn(),
       summary: {
         addRaw: vi.fn().mockReturnThis(),
         write: vi.fn().mockResolvedValue(undefined),
@@ -153,6 +154,9 @@ If the pull request is still open, verify that:
           },
         };
       }
+      if (module === "./error_codes.cjs") {
+        return require("./error_codes.cjs");
+      }
       throw new Error(`Module ${module} not mocked in test`);
     };
 
@@ -206,7 +210,7 @@ If the pull request is still open, verify that:
       expect(summaryCall).toContain("git fetch failed");
       expect(summaryCall).toContain("pull request has been closed");
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: git fetch failed");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git fetch failed`);
     });
 
     it("should handle git checkout errors", async () => {
@@ -222,7 +226,7 @@ If the pull request is still open, verify that:
       expect(summaryCall).toContain("Failed to Checkout PR Branch");
       expect(summaryCall).toContain("git checkout failed");
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: git checkout failed");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git checkout failed`);
     });
   });
 
@@ -266,7 +270,7 @@ If the pull request is still open, verify that:
       expect(summaryCall).toContain("gh pr checkout failed");
       expect(summaryCall).toContain("pull request has been closed");
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: gh pr checkout failed");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: gh pr checkout failed`);
     });
 
     it("should pass environment variables to gh command", async () => {
@@ -355,7 +359,7 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: string error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: string error`);
     });
 
     it("should handle errors with custom messages", async () => {
@@ -364,7 +368,7 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: Permission denied: unable to access repository");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: Permission denied: unable to access repository`);
     });
   });
 
@@ -420,7 +424,7 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: checkout failed");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: checkout failed`);
     });
 
     it("should set output to true when no PR context", async () => {
@@ -630,7 +634,7 @@ If the pull request is still open, verify that:
       expect(mockCore.error).toHaveBeenCalledWith("Event type: pull_request");
 
       // Should fail the step
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to checkout PR branch: network error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: network error`);
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
     });
 

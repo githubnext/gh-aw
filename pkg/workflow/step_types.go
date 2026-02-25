@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -82,7 +84,7 @@ func (s *WorkflowStep) ToMap() map[string]any {
 func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 	stepTypesLog.Printf("Converting map to workflow step: map_keys=%d", len(stepMap))
 	if stepMap == nil {
-		return nil, fmt.Errorf("step map is nil")
+		return nil, errors.New("step map is nil")
 	}
 
 	step := &WorkflowStep{}
@@ -154,16 +156,12 @@ func (s *WorkflowStep) Clone() *WorkflowStep {
 
 	if s.With != nil {
 		clone.With = make(map[string]any, len(s.With))
-		for k, v := range s.With {
-			clone.With[k] = v
-		}
+		maps.Copy(clone.With, s.With)
 	}
 
 	if s.Env != nil {
 		clone.Env = make(map[string]string, len(s.Env))
-		for k, v := range s.Env {
-			clone.Env[k] = v
-		}
+		maps.Copy(clone.Env, s.Env)
 	}
 
 	return clone

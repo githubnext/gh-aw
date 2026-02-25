@@ -479,3 +479,98 @@ func TestRemoveFieldFromBlock_PreservesComments(t *testing.T) {
 	assert.Contains(t, strings.Join(result, "\n"), "allowed:", "Other network fields should be preserved")
 	assert.Contains(t, strings.Join(result, "\n"), "permissions:", "Other top-level fields should be preserved")
 }
+
+func TestApplyFrontmatterLineTransform(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		transform   func([]string) ([]string, bool)
+		wantApplied bool
+		wantContent string
+		wantErr     bool
+	}{
+		{
+			name: "transform applied",
+			content: `---
+on: workflow_dispatch
+timeout_minutes: 30
+---
+
+# Test`,
+			transform: func(lines []string) ([]string, bool) {
+				result := make([]string, len(lines))
+				modified := false
+				for i, line := range lines {
+					if strings.Contains(line, "timeout_minutes") {
+						result[i] = strings.ReplaceAll(line, "timeout_minutes", "timeout-minutes")
+						modified = true
+					} else {
+						result[i] = line
+					}
+				}
+				return result, modified
+			},
+			wantApplied: true,
+			wantContent: "timeout-minutes: 30",
+		},
+		{
+			name: "no change returns original content",
+			content: `---
+on: workflow_dispatch
+---
+
+# Test`,
+			transform: func(lines []string) ([]string, bool) {
+				return lines, false
+			},
+			wantApplied: false,
+		},
+		{
+			name:    "content with no frontmatter is handled gracefully",
+			content: "not valid frontmatter at all",
+			transform: func(lines []string) ([]string, bool) {
+				// transform returns false because there are no lines to modify
+				return lines, false
+			},
+			wantApplied: false,
+		},
+		{
+			name: "markdown body preserved",
+			content: `---
+on: workflow_dispatch
+---
+
+# My Workflow
+
+Some description here.`,
+			transform: func(lines []string) ([]string, bool) {
+				result := make([]string, len(lines))
+				copy(result, lines)
+				result[0] = "on: push"
+				return result, true
+			},
+			wantApplied: true,
+			wantContent: "# My Workflow",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, applied, err := applyFrontmatterLineTransform(tt.content, tt.transform)
+
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error")
+				return
+			}
+
+			require.NoError(t, err, "Should not return an error")
+			assert.Equal(t, tt.wantApplied, applied, "Applied status should match")
+
+			if tt.wantApplied {
+				assert.Contains(t, result, tt.wantContent, "Transformed content should be present")
+			} else {
+				assert.Equal(t, tt.content, result, "Original content should be returned when not applied")
+			}
+		})
+	}
+}

@@ -70,7 +70,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	mcpRegistryLog.Printf("Searching MCP servers: query=%q", query)
 
 	// Always use servers endpoint for listing all servers
-	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
+	searchURL := c.registryURL + "/servers"
 
 	// Create HTTP request with proper headers
 	req, err := c.createRegistryRequest("GET", searchURL)
@@ -264,7 +264,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	mcpRegistryLog.Printf("Getting MCP server: name=%s", serverName)
 
 	// Use the servers endpoint and filter locally, just like SearchServers
-	serversURL := fmt.Sprintf("%s/servers", c.registryURL)
+	serversURL := c.registryURL + "/servers"
 
 	// Create HTTP request with proper headers
 	req, err := c.createRegistryRequest("GET", serversURL)

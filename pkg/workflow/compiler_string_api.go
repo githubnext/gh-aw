@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -72,7 +73,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	}
 
 	if len(result.Frontmatter) == 0 {
-		return nil, fmt.Errorf("no frontmatter found")
+		return nil, errors.New("no frontmatter found")
 	}
 
 	// Preprocess schedule fields
@@ -121,6 +122,11 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 
 	// Validate bash tool configuration
 	if err := validateBashToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate GitHub tool configuration
+	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -365,13 +366,7 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 				}
 
 				// Check if this event is in the safe list
-				isSafe := false
-				for _, safeEvent := range constants.SafeWorkflowEvents {
-					if eventName == safeEvent {
-						isSafe = true
-						break
-					}
-				}
+				isSafe := slices.Contains(constants.SafeWorkflowEvents, eventName)
 				if !isSafe {
 					hasUnsafeEvents = true
 					break
@@ -405,13 +400,7 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			// so it's only considered "safe" if "write" is in the allowed roles
 			if hasWorkflowDispatch && !hasUnsafeEvents {
 				// Check if "write" is in the allowed roles
-				hasWriteRole := false
-				for _, role := range data.Roles {
-					if role == "write" {
-						hasWriteRole = true
-						break
-					}
-				}
+				hasWriteRole := slices.Contains(data.Roles, "write")
 				// If write is not in the allowed roles, workflow_dispatch needs permission checks
 				if !hasWriteRole {
 					return false

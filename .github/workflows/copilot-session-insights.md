@@ -25,6 +25,7 @@ network:
 safe-outputs:
   upload-asset:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-session-insights] "
     category: "audits"
     max: 1
@@ -47,7 +48,6 @@ tools:
     - "date *"
 
 imports:
-  - shared/mood.md
   - shared/jqschema.md  # Must come before copilot-session-data-fetch.md (dependency)
   - shared/copilot-session-data-fetch.md
   - shared/session-analysis-charts.md
@@ -513,3 +513,9 @@ A successful analysis includes:
 ---
 
 Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

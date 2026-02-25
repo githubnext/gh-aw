@@ -332,8 +332,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// This ensures there's always a fallback for transparency
 				if _, exists := outputMap["noop"]; !exists {
 					config.NoOp = &NoOpConfig{}
-					config.NoOp.Max = 1              // Default max
-					config.NoOp.ReportAsIssue = true // Default to reporting to issue
+					config.NoOp.Max = defaultIntStr(1) // Default max
+					trueVal := "true"
+					config.NoOp.ReportAsIssue = &trueVal // Default to reporting to issue
 				}
 			}
 
@@ -415,6 +416,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle activation-comments at safe-outputs top level (templatable boolean)
+			if err := preprocessBoolFieldAsString(outputMap, "activation-comments", safeOutputsConfigLog); err != nil {
+				safeOutputsConfigLog.Printf("activation-comments: %v", err)
+			}
+			if activationComments, exists := outputMap["activation-comments"]; exists {
+				if activationCommentsStr, ok := activationComments.(string); ok && activationCommentsStr != "" {
+					if config.Messages == nil {
+						config.Messages = &SafeOutputMessagesConfig{}
+					}
+					config.Messages.ActivationComments = activationCommentsStr
+				}
+			}
+
 			// Handle mentions configuration
 			if mentions, exists := outputMap["mentions"]; exists {
 				config.Mentions = parseMentionsConfig(mentions)
@@ -433,6 +447,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if groupReportsBool, ok := groupReports.(bool); ok {
 					config.GroupReports = groupReportsBool
 					safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
+				}
+			}
+
+			// Handle max-bot-mentions (templatable integer)
+			if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
+				safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
+			} else if maxBotMentions, exists := outputMap["max-bot-mentions"]; exists {
+				if maxBotMentionsStr, ok := maxBotMentions.(string); ok {
+					config.MaxBotMentions = &maxBotMentionsStr
 				}
 			}
 

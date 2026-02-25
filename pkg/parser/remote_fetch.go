@@ -5,6 +5,7 @@ package parser
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,6 +16,7 @@ import (
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -60,14 +62,14 @@ func isCustomAgentFile(filePath string) bool {
 func isRepositoryImport(importPath string) bool {
 	// Remove section reference if present
 	cleanPath := importPath
-	if idx := strings.Index(importPath, "#"); idx != -1 {
-		cleanPath = importPath[:idx]
+	if before, _, ok := strings.Cut(importPath, "#"); ok {
+		cleanPath = before
 	}
 
 	// Remove ref if present to check the path structure
 	pathWithoutRef := cleanPath
-	if idx := strings.Index(cleanPath, "@"); idx != -1 {
-		pathWithoutRef = cleanPath[:idx]
+	if before, _, ok := strings.Cut(cleanPath, "@"); ok {
+		pathWithoutRef = before
 	}
 
 	// Split by slash to count parts
@@ -160,8 +162,8 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 func isWorkflowSpec(path string) bool {
 	// Remove section reference if present
 	cleanPath := path
-	if idx := strings.Index(path, "#"); idx != -1 {
-		cleanPath = path[:idx]
+	if before, _, ok := strings.Cut(path, "#"); ok {
+		cleanPath = before
 	}
 
 	// Remove ref if present
@@ -203,8 +205,8 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 
 	// Remove section reference if present
 	cleanSpec := spec
-	if idx := strings.Index(spec, "#"); idx != -1 {
-		cleanSpec = spec[:idx]
+	if before, _, ok := strings.Cut(spec, "#"); ok {
+		cleanSpec = before
 	}
 
 	// Split on @ to get path and ref
@@ -222,7 +224,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
 		remoteLog.Printf("Invalid workflowspec format: %s", spec)
-		return "", fmt.Errorf("invalid workflowspec: must be owner/repo/path[@ref]")
+		return "", errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
 	}
 
 	owner := slashParts[0]
@@ -337,7 +339,7 @@ func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	// Extract SHA from the first line
 	parts := strings.Fields(lines[0])
 	if len(parts) < 1 {
-		return "", fmt.Errorf("invalid git ls-remote output format")
+		return "", errors.New("invalid git ls-remote output format")
 	}
 
 	sha := parts[0]
@@ -371,7 +373,7 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 			sha, gitErr := resolveRefToSHAViaGit(owner, repo, ref)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
-				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %v", err, gitErr)
+				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
 			}
 			return sha, nil
 		}
@@ -402,6 +404,8 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
+	// #nosec G204 -- repoURL, ref, and path are from workflow import configuration authored by the
+	// developer; exec.Command with separate args (not shell execution) prevents shell injection.
 	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
@@ -409,11 +413,8 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 		return downloadFileViaGitClone(owner, repo, path, ref)
 	}
 
-	// Extract the file from the tar archive
-	// git archive outputs a tar archive containing the requested file
-	tarCmd := exec.Command("tar", "-xO", path)
-	tarCmd.Stdin = strings.NewReader(string(archiveOutput))
-	content, err := tarCmd.Output()
+	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
+	content, err := fileutil.ExtractFileFromTar(archiveOutput, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
@@ -648,7 +649,7 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
-				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %v", err, gitErr)
+				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
 			}
 			return content, nil
 		}
@@ -712,7 +713,7 @@ func ListWorkflowFiles(owner, repo, ref, workflowPath string) ([]string, error) 
 			files, gitErr := listWorkflowFilesViaGit(owner, repo, ref, workflowPath)
 			if gitErr != nil {
 				// If git fallback also fails, return both errors
-				return nil, fmt.Errorf("failed to list workflow files via GitHub API (auth error) and git fallback: API error: %w, Git error: %v", err, gitErr)
+				return nil, fmt.Errorf("failed to list workflow files via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
 			}
 			return files, nil
 		}

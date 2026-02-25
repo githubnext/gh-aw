@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -60,9 +61,7 @@ func TestExtractHTTPMCPDomains(t *testing.T) {
 					"type": "http",
 					"url":  "https://mcp.tavily.com/mcp/",
 				},
-				"playwright": map[string]any{
-					"allowed_domains": []string{"github.com"},
-				},
+				"playwright": map[string]any{},
 			},
 			expected: []string{constants.GitHubCopilotMCPDomain, "mcp.tavily.com"},
 		},
@@ -111,8 +110,8 @@ func TestExtractHTTPMCPDomains(t *testing.T) {
 			result := extractHTTPMCPDomains(tt.tools)
 
 			// Sort both slices for comparison
-			SortStrings(result)
-			SortStrings(tt.expected)
+			sort.Strings(result)
+			sort.Strings(tt.expected)
 
 			assert.Equal(t, tt.expected, result, "Extracted domains should match expected")
 		})
@@ -243,9 +242,7 @@ func TestExtractPlaywrightDomains(t *testing.T) {
 		{
 			name: "playwright tool configured",
 			tools: map[string]any{
-				"playwright": map[string]any{
-					"allowed_domains": []string{"github.com"},
-				},
+				"playwright": map[string]any{},
 			},
 			expected: []string{"playwright.download.prss.microsoft.com", "cdn.playwright.dev"},
 		},
@@ -289,8 +286,8 @@ func TestExtractPlaywrightDomains(t *testing.T) {
 			result := extractPlaywrightDomains(tt.tools)
 
 			// Sort both slices for comparison
-			SortStrings(result)
-			SortStrings(tt.expected)
+			sort.Strings(result)
+			sort.Strings(tt.expected)
 
 			assert.Equal(t, tt.expected, result, "Extracted Playwright domains should match expected")
 		})
@@ -304,9 +301,7 @@ func TestGetCopilotAllowedDomainsWithPlaywright(t *testing.T) {
 	}
 
 	tools := map[string]any{
-		"playwright": map[string]any{
-			"allowed_domains": []string{"github.com"},
-		},
+		"playwright": map[string]any{},
 	}
 
 	result := GetCopilotAllowedDomainsWithTools(network, tools)
@@ -324,9 +319,7 @@ func TestGetCodexAllowedDomainsWithPlaywright(t *testing.T) {
 	}
 
 	tools := map[string]any{
-		"playwright": map[string]any{
-			"allowed_domains": []string{"example.com"},
-		},
+		"playwright": map[string]any{},
 	}
 
 	result := GetCodexAllowedDomainsWithTools(network, tools)

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -31,102 +33,49 @@ func getCommandToSlashCommandCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				var modified bool
+				var inOnBlock bool
+				var onIndent string
+				result := make([]string, len(lines))
+				for i, line := range lines {
+					trimmedLine := strings.TrimSpace(line)
 
-			// Find and replace the command line within the on: block
-			var modified bool
-			var inOnBlock bool
-			var onIndent string
-
-			result := make([]string, len(frontmatterLines))
-
-			for i, line := range frontmatterLines {
-				trimmedLine := getTrimmedLine(line)
-
-				// Track if we're in the on block
-				if startsWithKey(trimmedLine, "on") {
-					inOnBlock = true
-					onIndent = getIndentation(line)
-					result[i] = line
-					continue
-				}
-
-				// Check if we've left the on block
-				if inOnBlock && len(trimmedLine) > 0 && !isComment(trimmedLine) {
-					if hasExitedBlock(line, onIndent) {
-						inOnBlock = false
+					// Track if we're in the on block
+					if strings.HasPrefix(trimmedLine, "on:") {
+						inOnBlock = true
+						onIndent = getIndentation(line)
+						result[i] = line
+						continue
 					}
-				}
 
-				// Replace command with slash_command if in on block
-				if inOnBlock && startsWithKey(trimmedLine, "command") {
-					replacedLine, didReplace := findAndReplaceInLine(line, "command", "slash_command")
-					if didReplace {
-						result[i] = replacedLine
-						modified = true
-						slashCommandCodemodLog.Printf("Replaced on.command with on.slash_command on line %d", i+1)
+					// Check if we've left the on block
+					if inOnBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+						if hasExitedBlock(line, onIndent) {
+							inOnBlock = false
+						}
+					}
+
+					// Replace command with slash_command if in on block
+					if inOnBlock && strings.HasPrefix(trimmedLine, "command:") {
+						replacedLine, didReplace := findAndReplaceInLine(line, "command", "slash_command")
+						if didReplace {
+							result[i] = replacedLine
+							modified = true
+							slashCommandCodemodLog.Printf("Replaced on.command with on.slash_command on line %d", i+1)
+						} else {
+							result[i] = line
+						}
 					} else {
 						result[i] = line
 					}
-				} else {
-					result[i] = line
 				}
+				return result, modified
+			})
+			if applied {
+				slashCommandCodemodLog.Print("Applied on.command to on.slash_command migration")
 			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			slashCommandCodemodLog.Print("Applied on.command to on.slash_command migration")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
-}
-
-// Helper functions for better readability
-func getTrimmedLine(line string) string {
-	return trimSpace(line)
-}
-
-func startsWithKey(line, key string) bool {
-	return startsWithPrefix(line, key+":")
-}
-
-func isComment(line string) bool {
-	return startsWithPrefix(line, "#")
-}
-
-func startsWithPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
-func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-
-	// Trim leading whitespace
-	for start < end {
-		c := s[start]
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			break
-		}
-		start++
-	}
-
-	// Trim trailing whitespace
-	for end > start {
-		c := s[end-1]
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			break
-		}
-		end--
-	}
-
-	return s[start:end]
 }

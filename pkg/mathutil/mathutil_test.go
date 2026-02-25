@@ -115,13 +115,13 @@ func TestMax(t *testing.T) {
 }
 
 func BenchmarkMin(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Min(42, 100)
 	}
 }
 
 func BenchmarkMax(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Max(42, 100)
 	}
 }
@@ -309,25 +309,25 @@ func TestMax_Identity(t *testing.T) {
 }
 
 func BenchmarkMin_Negative(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Min(-42, -100)
 	}
 }
 
 func BenchmarkMax_Negative(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Max(-42, -100)
 	}
 }
 
 func BenchmarkMin_Large(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Min(2147483647, 2147483646)
 	}
 }
 
 func BenchmarkMax_Large(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Max(2147483647, 2147483646)
 	}
 }

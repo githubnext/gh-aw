@@ -14,7 +14,7 @@ This document provides guidance on file organization patterns and best practices
 
 ## Recommended Patterns to Follow
 
-The codebase exhibits several well-organized patterns that should be emulated:
+The codebase follows several consistent patterns that should be emulated:
 
 ### 1. Create Functions Pattern (`create_*.go`)
 

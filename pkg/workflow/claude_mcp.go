@@ -9,7 +9,7 @@ import (
 var claudeMCPLog = logger.New("workflow:claude_mcp")
 
 // RenderMCPConfig renders the MCP configuration for Claude engine
-func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	claudeMCPLog.Printf("Rendering MCP config for Claude: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
 	// Create unified renderer with Claude-specific options
@@ -29,7 +29,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	gatewayConfig := buildMCPGatewayConfig(workflowData)
 
 	// Use shared JSON MCP config renderer with unified renderer methods
-	_ = RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
 		GatewayConfig: gatewayConfig,
 		Renderers: MCPToolRenderers{

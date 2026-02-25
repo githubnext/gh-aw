@@ -170,6 +170,39 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("Log format not recognized");
     });
 
+    it("should parse debug log format with reasoning_text", () => {
+      const debugLog = [
+        "2026-02-21T00:06:13.708Z [INFO] Starting Copilot CLI: 0.0.412",
+        "2026-02-21T00:06:23.701Z [DEBUG] data:",
+        "2026-02-21T00:06:23.702Z [DEBUG] {",
+        '  "model": "claude-sonnet-4.6",',
+        '  "usage": { "prompt_tokens": 100, "completion_tokens": 50 },',
+        '  "choices": [',
+        "    {",
+        '      "message": {',
+        '        "reasoning_text": "Let me think about this task carefully.",',
+        '        "content": null,',
+        '        "tool_calls": [',
+        "          {",
+        '            "id": "tool_1",',
+        '            "type": "function",',
+        '            "function": { "name": "bash", "arguments": "{\\"command\\": \\"echo hello\\"}" }',
+        "          }",
+        "        ]",
+        "      }",
+        "    }",
+        "  ]",
+        "}",
+        "2026-02-21T00:06:24.000Z [INFO] Done",
+      ].join("\n");
+
+      const result = parseCopilotLog(debugLog);
+
+      expect(result.markdown).toContain("claude-sonnet-4.6");
+      expect(result.markdown).toContain("Let me think about this task carefully.");
+      expect(result.markdown).toContain("echo hello");
+    });
+
     it("should handle model info with cost multiplier", () => {
       const structuredLog = JSON.stringify([
         { type: "system", subtype: "init", session_id: "cost-test", tools: ["Bash"], model: "gpt-4", model_info: { is_premium: true, cost_multiplier: 3 } },

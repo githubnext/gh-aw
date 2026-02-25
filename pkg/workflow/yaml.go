@@ -85,6 +85,7 @@ package workflow
 
 import (
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -236,6 +237,8 @@ func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte
 //	orderedPerms := OrderMapFields(permissions, []string{})
 //	// orderedPerms will have: contents, issues, pull-requests
 func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice {
+	yamlLog.Printf("Ordering map fields: total=%d, priority=%d", len(data), len(priorityFields))
+
 	var orderedData yaml.MapSlice
 
 	// Phase 1: Add priority fields in the specified order
@@ -250,13 +253,7 @@ func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice 
 	var remainingKeys []string
 	for key := range data {
 		// Skip if it's already been added as a priority field
-		isPriority := false
-		for _, priorityField := range priorityFields {
-			if key == priorityField {
-				isPriority = true
-				break
-			}
-		}
+		isPriority := slices.Contains(priorityFields, key)
 		if !isPriority {
 			remainingKeys = append(remainingKeys, key)
 		}

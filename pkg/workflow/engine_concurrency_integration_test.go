@@ -36,7 +36,7 @@ Test content`,
 			description:      "Copilot with push trigger should NOT have default concurrency (special case)",
 		},
 		{
-			name: "Copilot with workflow_dispatch HAS default concurrency",
+			name: "Copilot with workflow_dispatch does NOT have default concurrency",
 			markdown: `---
 on: workflow_dispatch
 engine:
@@ -48,9 +48,8 @@ tools:
 
 # Test workflow
 Test content`,
-			expectedInJob: `concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"`,
-			description: "Copilot with workflow_dispatch should have default concurrency",
+			notExpectedInJob: `concurrency:`,
+			description:      "Copilot with workflow_dispatch-only should NOT have engine-level concurrency (user intent, top-level group is sufficient)",
 		},
 		{
 			name: "Claude with issues does NOT have default concurrency",
@@ -71,7 +70,7 @@ Test content`,
 			description:      "Claude with issues trigger should NOT have default concurrency (special case)",
 		},
 		{
-			name: "Claude with workflow_dispatch HAS default concurrency",
+			name: "Claude with workflow_dispatch does NOT have default concurrency",
 			markdown: `---
 on: workflow_dispatch
 engine:
@@ -83,9 +82,8 @@ tools:
 
 # Test workflow
 Test content`,
-			expectedInJob: `concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"`,
-			description: "Claude with workflow_dispatch should have default concurrency",
+			notExpectedInJob: `concurrency:`,
+			description:      "Claude with workflow_dispatch-only should NOT have engine-level concurrency (user intent, top-level group is sufficient)",
 		},
 		{
 			name: "Custom concurrency with string format",

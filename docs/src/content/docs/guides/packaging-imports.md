@@ -40,6 +40,9 @@ Use `--name`, `--pr`, `--force`, `--engine`, or `--verbose` flags to customize i
 > [!NOTE]
 > Check carefully that the workflow comes from a trusted source and is appropriate for your use in your repository. Review the workflow's content and understand what it does before adding it to your repository.
 
+> [!NOTE]
+> Workflows marked with `private: true` in their frontmatter cannot be added to other repositories. Attempting to do so will fail with an error. See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private) for details.
+
 ## Updating Workflows
 
 When you add a workflow, a tracking `source:` entry remembers where it came from. You can keep workflows synchronized with their source repositories:
@@ -50,7 +53,7 @@ gh aw update ci-doctor                 # update specific workflow
 gh aw update ci-doctor issue-triage    # update multiple
 ```
 
-Use `--major`, `--force`, `--engine`, or `--verbose` flags to control update behavior. Semantic versions (e.g., `v1.2.3`) update to latest compatible release within same major version. Branch references update to latest commit. Updates use 3-way merge; when conflicts occur, manually resolve conflict markers and run `gh aw compile`.
+Use `--major`, `--force`, `--no-merge`, `--engine`, or `--verbose` flags to control update behavior. Semantic versions (e.g., `v1.2.3`) update to latest compatible release within same major version. Branch references update to latest commit. SHA references update to the latest commit on the default branch. Updates use 3-way merge by default to preserve local changes; use `--no-merge` to replace with the upstream version. When merge conflicts occur, manually resolve conflict markers and run `gh aw compile`.
 
 ## Imports
 
@@ -71,74 +74,7 @@ During `gh aw add`, imports are expanded to track source repository (e.g., `shar
 
 Remote imports are automatically cached in `.github/aw/imports/` by commit SHA. This enables offline workflow compilation once imports have been downloaded. The cache is shared across different refs pointing to the same commit, reducing redundant downloads.
 
-### Import Merge Behavior
-
-The compiler uses a **breadth-first search (BFS)** algorithm to process imports:
-
-1. **Queueing**: Main workflow's direct imports are added to queue
-2. **Processing**: Each import is loaded, parsed, and its configuration extracted
-3. **Recursion**: Nested imports from imported files are added to queue
-4. **Cycle Detection**: Already-processed files are skipped to prevent infinite loops
-5. **Merging**: Configurations are merged according to field-specific rules
-6. **Validation**: Final merged configuration is validated for conflicts
-
-**Processing order** follows BFS traversal:
-
-```text
-Main Workflow
-├── shared/tools.md        (1st - direct import)
-│   └── shared/base.md     (3rd - nested from tools.md)
-└── shared/mcp.md          (2nd - direct import)
-    └── shared/network.md  (4th - nested from mcp.md)
-```
-
-**Merge semantics by field**:
-
-| Field | Merge Strategy | Main Workflow Precedence |
-|-------|---------------|-------------------------|
-| `tools:` | Deep merge, arrays concatenate | Keys merged, arrays deduplicated |
-| `mcp-servers:` | Override by name | ❌ Imported servers override |
-| `network:` | Union of allowed domains | ✅ Mode and firewall settings |
-| `permissions:` | Validation only | ✅ Main must explicitly declare |
-| `safe-outputs:` | Type-level override | ✅ Main overrides imported types |
-| `safe-outputs.jobs:` | Conflict detection | Neither (names must be unique) |
-| `runtimes:` | Version override | ✅ Main versions override |
-| `services:` | Conflict detection | Neither (must be unique) |
-| `steps:` | Array prepend | Imported first, then main |
-| `jobs:` | Not importable | ✅ Main only (ignored in imports) |
-
-**Example: Tool merging**
-
-```yaml wrap
-# shared/tools.md
-tools:
-  bash:
-    allowed: [read, list]
-  github:
-    toolsets: [issues]
-
-# main.md imports shared/tools.md
-tools:
-  bash:
-    allowed: [write]  # Result: [read, list, write]
-  web-fetch: {}       # Added to merged tools
-```
-
-**Example: Safe output overriding**
-
-```yaml wrap
-# shared/outputs.md
-safe-outputs:
-  create-issue:
-    title-prefix: "[shared] "
-
-# main.md imports shared/outputs.md
-safe-outputs:
-  create-issue:
-    title-prefix: "[main] "  # Overrides imported config
-```
-
-See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
+See [Imports Reference](/gh-aw/reference/imports/) for path formats, merge semantics, and field-specific behavior.
 
 ## Importing Agent Files
 

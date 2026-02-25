@@ -18,6 +18,7 @@ const { promisify } = require("util");
 const { exec } = require("child_process");
 const execAsync = promisify(exec);
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Test result status
@@ -741,7 +742,7 @@ async function main() {
       core.info("✅ All configured secrets validated successfully!");
     }
   } catch (error) {
-    core.setFailed(`Secret validation failed: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_VALIDATION}: Secret validation failed: ${getErrorMessage(error)}`);
     throw error;
   }
 }

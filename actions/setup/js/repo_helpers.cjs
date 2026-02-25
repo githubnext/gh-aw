@@ -6,6 +6,9 @@
  * Provides common repository parsing, validation, and resolution logic
  */
 
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
+
 /**
  * Parse the allowed repos from config value (array or comma-separated string)
  * @param {string[]|string|undefined} allowedReposValue - Allowed repos from config (array or comma-separated string)
@@ -48,13 +51,41 @@ function getDefaultTargetRepo(config) {
 }
 
 /**
+ * Check if a qualified repo matches any allowed repo pattern.
+ * Supports exact matches and wildcard patterns using glob syntax:
+ *   - "*" matches any repository
+ *   - "github/*" matches any repository in the "github" org
+ *   - "STAR/gh-aw" (where STAR is *) matches "gh-aw" in any org
+ * @param {string} qualifiedRepo - Fully qualified repo slug "owner/repo"
+ * @param {Set<string>} allowedRepos - Set of allowed repo patterns
+ * @returns {boolean}
+ */
+function isRepoAllowed(qualifiedRepo, allowedRepos) {
+  // Fast path: exact match
+  if (allowedRepos.has(qualifiedRepo)) {
+    return true;
+  }
+  // Check for wildcard patterns
+  for (const pattern of allowedRepos) {
+    if (pattern === "*") {
+      return true;
+    }
+    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(qualifiedRepo)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Validate that a repo is allowed for operations
  * If repo is a bare name (no slash), it is automatically qualified with the
  * default repo's organization (e.g., "gh-aw" becomes "github/gh-aw" if
  * the default repo is "github/something").
+ * Allowed repos support wildcard patterns (e.g., "github/*", "*").
  * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
  * @param {string} defaultRepo - Default target repository
- * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
+ * @param {Set<string>} allowedRepos - Set of explicitly allowed repo patterns
  * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
  */
 function validateRepo(repo, defaultRepo, allowedRepos) {
@@ -71,8 +102,8 @@ function validateRepo(repo, defaultRepo, allowedRepos) {
   if (qualifiedRepo === defaultRepo) {
     return { valid: true, error: null, qualifiedRepo };
   }
-  // Check if it's in the allowed repos list
-  if (allowedRepos.has(qualifiedRepo)) {
+  // Check if it's in the allowed repos list (supports wildcards)
+  if (isRepoAllowed(qualifiedRepo, allowedRepos)) {
     return { valid: true, error: null, qualifiedRepo };
   }
   return {
@@ -129,7 +160,7 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
     // When valid is false, error is guaranteed to be non-null
     const errorMessage = repoValidation.error;
     if (!errorMessage) {
-      throw new Error("Internal error: repoValidation.error should not be null when valid is false");
+      throw new Error(`${ERR_VALIDATION}: Internal error: repoValidation.error should not be null when valid is false`);
     }
     return {
       success: false,
@@ -156,10 +187,27 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
   };
 }
 
+/**
+ * Validate a target repository for cross-repository operations.
+ * Shared utility for handlers that accept user-supplied target repositories;
+ * must be called before any API interaction with the cross-repo target.
+ * This named function makes cross-repo validation intent explicit and
+ * allows conformance checks to verify SEC-005 compliance by file.
+ * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
+ * @param {string} defaultRepo - Default (always-allowed) target repository
+ * @param {Set<string>} allowedRepos - Set of explicitly allowed repo patterns
+ * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
+ */
+function validateTargetRepo(repo, defaultRepo, allowedRepos) {
+  return validateRepo(repo, defaultRepo, allowedRepos);
+}
+
 module.exports = {
   parseAllowedRepos,
   getDefaultTargetRepo,
+  isRepoAllowed,
   validateRepo,
+  validateTargetRepo,
   parseRepoSlug,
   resolveTargetRepoConfig,
   resolveAndValidateRepo,

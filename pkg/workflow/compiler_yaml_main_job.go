@@ -15,24 +15,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)
 
+	// Build a CheckoutManager with any user-configured checkouts
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+
 	// Add checkout step first if needed
 	if needsCheckout {
-		yaml.WriteString("      - name: Checkout repository\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
-		// Always add with section for persist-credentials
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          persist-credentials: false\n")
-		// In trial mode without cloning, checkout the logical repo if specified
-		if c.trialMode {
-			if c.trialLogicalRepoSlug != "" {
-				fmt.Fprintf(yaml, "          repository: %s\n", c.trialLogicalRepoSlug)
-				// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
-				// if len(trialTargetRepoName) == 2 {
-				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-				// }
-			}
-			effectiveToken := getEffectiveGitHubToken("")
-			fmt.Fprintf(yaml, "          token: %s\n", effectiveToken)
+		// Emit the default workspace checkout, applying any user-supplied overrides
+		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
+			c.trialMode,
+			c.trialLogicalRepoSlug,
+			GetActionPin,
+		)
+		for _, line := range defaultLines {
+			yaml.WriteString(line)
 		}
 
 		// Add CLI build steps in dev mode (after automatic checkout, before other steps)
@@ -46,6 +41,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				compilerYamlLog.Printf("Skipping CLI build steps in dev mode (agentic-workflows tool not enabled)")
 			}
 		}
+	}
+
+	// Emit additional (non-default) user-configured checkouts
+	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(GetActionPin)
+	for _, line := range additionalLines {
+		yaml.WriteString(line)
 	}
 
 	// Add checkout steps for repository imports
@@ -224,7 +225,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 
 	// Add MCP setup
-	c.generateMCPSetup(yaml, data.Tools, engine, data)
+	if err := c.generateMCPSetup(yaml, data.Tools, engine, data); err != nil {
+		return fmt.Errorf("failed to generate MCP setup: %w", err)
+	}
 
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
@@ -418,7 +421,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called, providing immediate error feedback if no changes are present.
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw.patch")
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
 	}
 
 	// Add post-steps (if any) after AI execution
@@ -426,6 +429,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Generate single unified artifact upload with all collected paths
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths)
+
+	// Add inline threat detection steps after all agent artifact uploads.
+	// Detection runs inside the agent job using sandbox.agent with fully blocked network.
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		detectionSteps := c.buildInlineDetectionSteps(data)
+		for _, line := range detectionSteps {
+			yaml.WriteString(line)
+		}
+	}
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
@@ -596,8 +608,8 @@ func (c *Compiler) generateRepositoryImportCheckouts(yaml *strings.Builder, repo
 func parseRepositoryImportSpec(importSpec string) (owner, repo, ref string) {
 	// Remove section reference if present (file.md#Section)
 	cleanSpec := importSpec
-	if idx := strings.Index(importSpec, "#"); idx != -1 {
-		cleanSpec = importSpec[:idx]
+	if before, _, ok := strings.Cut(importSpec, "#"); ok {
+		cleanSpec = before
 	}
 
 	// Split on @ to get path and ref

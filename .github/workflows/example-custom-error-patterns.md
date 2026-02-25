@@ -20,8 +20,6 @@ engine:
       level_group: 0
       message_group: 1
       description: "Build failure indicator"
-imports:
-  - shared/mood.md
 ---
 
 # Example: Custom Error Patterns

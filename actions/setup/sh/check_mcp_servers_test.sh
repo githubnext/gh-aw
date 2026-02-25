@@ -314,11 +314,32 @@ test_validation_functions_exist() {
     print_result "mcpServers parsing validation missing" "FAIL"
   fi
   
-  # Check for ping request (replacing initialize and tools/list)
-  if grep -q "method.*ping" "$SCRIPT_PATH"; then
-    print_result "Ping request logic exists" "PASS"
+  # Check for tools/list request (used instead of ping to verify backend connectivity)
+  if grep -q 'method.*tools/list' "$SCRIPT_PATH"; then
+    print_result "tools/list request logic exists" "PASS"
   else
-    print_result "Ping request logic missing" "FAIL"
+    print_result "tools/list request logic missing" "FAIL"
+  fi
+  
+  # Check for MCP ping as first step (per MCP protocol)
+  if grep -q 'method.*ping' "$SCRIPT_PATH"; then
+    print_result "MCP ping request logic exists" "PASS"
+  else
+    print_result "MCP ping request logic missing" "FAIL"
+  fi
+  
+  # Check for MCP initialize before tools/list (per MCP protocol)
+  if grep -q 'method.*initialize' "$SCRIPT_PATH"; then
+    print_result "MCP initialize request logic exists" "PASS"
+  else
+    print_result "MCP initialize request logic missing" "FAIL"
+  fi
+  
+  # Check for Mcp-Session-Id handling
+  if grep -q 'Mcp-Session-Id' "$SCRIPT_PATH"; then
+    print_result "Mcp-Session-Id session tracking exists" "PASS"
+  else
+    print_result "Mcp-Session-Id session tracking missing" "FAIL"
   fi
   
   # Check for gateway config authentication logic

@@ -156,9 +156,7 @@ func TestEngineMethodsDelegateToShared(t *testing.T) {
 			IsLast:               false,
 		})
 		var yaml strings.Builder
-		playwrightTool := map[string]any{
-			"allowed_domains": []any{"example.com"},
-		}
+		playwrightTool := map[string]any{}
 
 		renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 		result := yaml.String()
@@ -177,9 +175,7 @@ func TestEngineMethodsDelegateToShared(t *testing.T) {
 			IsLast:               false,
 		})
 		var yaml strings.Builder
-		playwrightTool := map[string]any{
-			"allowed_domains": []any{"example.com"},
-		}
+		playwrightTool := map[string]any{}
 
 		renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 		result := yaml.String()
@@ -206,9 +202,7 @@ func TestEngineMethodsDelegateToShared(t *testing.T) {
 			IsLast:               false,
 		})
 
-		playwrightTool := map[string]any{
-			"allowed_domains": []any{"example.com", "test.com"},
-		}
+		playwrightTool := map[string]any{}
 
 		var claudeYAML strings.Builder
 		claudeRenderer.RenderPlaywrightMCP(&claudeYAML, playwrightTool)

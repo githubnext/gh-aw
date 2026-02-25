@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -17,10 +19,10 @@ type CreateIssuesConfig struct {
 	Assignees            []string `yaml:"assignees,omitempty"`          // List of users/bots to assign the issue to
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`        // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`      // List of additional repositories that issues can be created in
-	CloseOlderIssues     bool     `yaml:"close-older-issues,omitempty"` // When true, close older issues with same title prefix or labels as "not planned"
+	CloseOlderIssues     *string  `yaml:"close-older-issues,omitempty"` // When true, close older issues with same title prefix or labels as "not planned"
 	Expires              int      `yaml:"expires,omitempty"`            // Hours until the issue expires and should be automatically closed
-	Group                bool     `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
-	Footer               *bool    `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	Group                *string  `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
+	Footer               *string  `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -37,6 +39,21 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 	// Pre-process the expires field (convert to hours before unmarshaling)
 	expiresDisabled := preprocessExpiresField(configData, createIssueLog)
+
+	// Pre-process templatable bool fields: convert literal booleans to strings so that
+	// GitHub Actions expression strings (e.g. "${{ inputs.close-older-issues }}") are also accepted.
+	for _, field := range []string{"close-older-issues", "group", "footer"} {
+		if err := preprocessBoolFieldAsString(configData, field, createIssueLog); err != nil {
+			createIssueLog.Printf("Invalid %s value: %v", field, err)
+			return nil
+		}
+	}
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", createIssueLog); err != nil {
+		createIssueLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
 
 	// Unmarshal into typed config struct
 	var config CreateIssuesConfig
@@ -57,8 +74,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)
@@ -78,12 +95,7 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 // hasCopilotAssignee checks if "copilot" is in the assignees list
 func hasCopilotAssignee(assignees []string) bool {
-	for _, a := range assignees {
-		if a == "copilot" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(assignees, "copilot")
 }
 
 // filterNonCopilotAssignees returns assignees excluding "copilot"
@@ -129,7 +141,7 @@ func buildCopilotCodingAgentAssignmentStep(configToken, safeOutputsToken string)
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
-		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
+		return nil, errors.New("safe-outputs.create-issue configuration is required")
 	}
 
 	if createIssueLog.Enabled() {
@@ -150,19 +162,19 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 
 	// Add group flag if set
-	if data.SafeOutputs.CreateIssues.Group {
-		customEnvVars = append(customEnvVars, "          GH_AW_ISSUE_GROUP: \"true\"\n")
-		createIssueLog.Print("Issue grouping enabled - issues will be grouped as sub-issues under parent")
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_ISSUE_GROUP", data.SafeOutputs.CreateIssues.Group)...)
+	if data.SafeOutputs.CreateIssues.Group != nil {
+		createIssueLog.Print("Issue grouping flag set")
 	}
 
 	// Add close-older-issues flag if enabled
-	if data.SafeOutputs.CreateIssues.CloseOlderIssues {
-		customEnvVars = append(customEnvVars, "          GH_AW_CLOSE_OLDER_ISSUES: \"true\"\n")
-		createIssueLog.Print("Close older issues enabled - older issues with same title prefix or labels will be closed")
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_CLOSE_OLDER_ISSUES", data.SafeOutputs.CreateIssues.CloseOlderIssues)...)
+	if data.SafeOutputs.CreateIssues.CloseOlderIssues != nil {
+		createIssueLog.Print("Close older issues flag set")
 	}
 
 	// Add footer flag if explicitly set to false
-	if data.SafeOutputs.CreateIssues.Footer != nil && !*data.SafeOutputs.CreateIssues.Footer {
+	if data.SafeOutputs.CreateIssues.Footer != nil && *data.SafeOutputs.CreateIssues.Footer == "false" {
 		customEnvVars = append(customEnvVars, "          GH_AW_FOOTER: \"false\"\n")
 		createIssueLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
 	}

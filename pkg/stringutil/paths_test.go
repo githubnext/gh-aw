@@ -109,21 +109,21 @@ func TestNormalizePath(t *testing.T) {
 
 func BenchmarkNormalizePath(b *testing.B) {
 	path := "a/b/c/./d/../e/f/../../g"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizePath(path)
 	}
 }
 
 func BenchmarkNormalizePath_Simple(b *testing.B) {
 	path := "a/b/c/d/e"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizePath(path)
 	}
 }
 
 func BenchmarkNormalizePath_Complex(b *testing.B) {
 	path := "./a/./b/../c/d/../../e/f/g/h/../../../i"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizePath(path)
 	}
 }

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,7 +51,7 @@ func CheckOutdatedDependencies(verbose bool) ([]OutdatedDependency, error) {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Reading go.mod from: %s", goModPath)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Reading go.mod from: "+goModPath))
 	}
 
 	// Parse go.mod to get dependencies
@@ -145,12 +146,12 @@ func findGoMod() (string, error) {
 	// Try git root
 	root, err := findGitRoot()
 	if err != nil {
-		return "", fmt.Errorf("not in a Go module (no go.mod found)")
+		return "", errors.New("not in a Go module (no go.mod found)")
 	}
 
 	goModPath := filepath.Join(root, "go.mod")
 	if _, err := os.Stat(goModPath); err != nil {
-		return "", fmt.Errorf("not in a Go module (no go.mod found)")
+		return "", errors.New("not in a Go module (no go.mod found)")
 	}
 
 	return goModPath, nil

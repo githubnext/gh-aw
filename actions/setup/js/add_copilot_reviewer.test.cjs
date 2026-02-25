@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -76,7 +77,7 @@ describe("add_copilot_reviewer", () => {
 
     await runScript();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("PR_NUMBER environment variable is required but not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: PR_NUMBER environment variable is required but not set`);
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
@@ -85,7 +86,7 @@ describe("add_copilot_reviewer", () => {
 
     await runScript();
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("PR_NUMBER environment variable is required but not set");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: PR_NUMBER environment variable is required but not set`);
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
@@ -153,5 +154,30 @@ describe("add_copilot_reviewer", () => {
       pull_number: 789,
       reviewers: ["copilot-pull-request-reviewer[bot]"],
     });
+  });
+
+  it("should log initial info message when starting", async () => {
+    process.env.PR_NUMBER = "100";
+
+    await runScript();
+
+    expect(mockCore.info).toHaveBeenCalledWith("Adding Copilot as reviewer to PR #100");
+  });
+
+  it("should truncate float PR_NUMBER to integer", async () => {
+    process.env.PR_NUMBER = "5.9";
+
+    await runScript();
+
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 5 }));
+  });
+
+  it("should include PR number in failure message on API error", async () => {
+    process.env.PR_NUMBER = "321";
+    mockGithub.rest.pulls.requestReviewers.mockRejectedValueOnce(new Error("Rate limited"));
+
+    await runScript();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("321"));
   });
 });

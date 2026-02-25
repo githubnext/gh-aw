@@ -34,7 +34,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.30.3",
+				"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 			},
 			expectStep: true,
 		},
@@ -70,7 +70,7 @@ mcp-servers:
 # Test
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.30.3",
+				"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 				"ghcr.io/github/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
 				"myorg/custom-mcp:v1.0.0",
 			},
@@ -148,7 +148,7 @@ tools:
 Test workflow with both GitHub and Serena tools.`,
 			expectedImages: []string{
 				"ghcr.io/github/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
-				"ghcr.io/github/github-mcp-server:v0.30.3",
+				"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 				constants.DefaultSerenaMCPServerContainer + ":latest",
 			},
 			expectStep: true,

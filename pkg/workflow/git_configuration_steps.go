@@ -1,6 +1,12 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var gitConfigStepsLog = logger.New("workflow:git_configuration_steps")
 
 // generateGitConfigurationSteps generates standardized git credential setup as string steps
 func (c *Compiler) generateGitConfigurationSteps() []string {
@@ -20,8 +26,12 @@ func (c *Compiler) generateGitConfigurationStepsWithToken(token string, targetRe
 	repoNameValue := "${{ github.repository }}"
 	if targetRepoSlug != "" {
 		repoNameValue = fmt.Sprintf("%q", targetRepoSlug)
+		gitConfigStepsLog.Printf("Generating git config steps with target repo: %s", targetRepoSlug)
 	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
 		repoNameValue = fmt.Sprintf("%q", c.trialLogicalRepoSlug)
+		gitConfigStepsLog.Printf("Generating git config steps in trial mode with logical repo: %s", c.trialLogicalRepoSlug)
+	} else {
+		gitConfigStepsLog.Print("Generating git config steps with default github.repository")
 	}
 
 	return []string{
@@ -32,6 +42,7 @@ func (c *Compiler) generateGitConfigurationStepsWithToken(token string, targetRe
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          git config --global am.keepcr true\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
 		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", token),

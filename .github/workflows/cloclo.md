@@ -18,11 +18,10 @@ engine:
   id: claude
   max-turns: 100
 imports:
-  - shared/mood.md
   - shared/jqschema.md
+  - shared/mcp/serena-go.md
 tools:
   agentic-workflows:
-  serena: ["go"]
   edit:
   playwright:
   bash: true
@@ -194,3 +193,9 @@ Now analyze the content above and execute the appropriate action. Remember:
 - ✅ Add 👍 reaction after posting comments
 - ❌ Never modify `.github/.workflows` directory
 - ❌ Don't make changes without understanding the request
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

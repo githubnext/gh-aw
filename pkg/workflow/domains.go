@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -137,7 +138,7 @@ func getEcosystemDomains(category string) []string {
 	// Return a sorted copy to avoid external modification
 	result := make([]string, len(domains))
 	copy(result, domains)
-	SortStrings(result)
+	sort.Strings(result)
 	return result
 }
 
@@ -154,6 +155,14 @@ var runtimeToEcosystem = map[string]string{
 	"bun":     "node",   // bun.sh is in the node ecosystem
 	"deno":    "node",   // deno.land is in the node ecosystem
 	"uv":      "python", // uv is a Python package manager
+	"clojure": "clojure",
+	"dart":    "dart",
+	"elixir":  "elixir",
+	"kotlin":  "kotlin",
+	"php":     "php",
+	"scala":   "scala",
+	"swift":   "swift",
+	"zig":     "zig",
 }
 
 // getDomainsFromRuntimes extracts ecosystem domains based on the specified runtimes
@@ -188,7 +197,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 	for domain := range domainMap {
 		result = append(result, domain)
 	}
-	SortStrings(result)
+	sort.Strings(result)
 
 	return result
 }
@@ -226,14 +235,17 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //
 // # Supported ecosystem identifiers:
 //   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, package mirrors)
+//   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
-//   - "dotnet": .NET and NuGet ecosystem
 //   - "dart": Dart/Flutter ecosystem
+//   - "dotnet": .NET and NuGet ecosystem
+//   - "elixir": Elixir/Hex
 //   - "github": GitHub domains (*.githubusercontent.com, github.githubassets.com, etc.)
+//   - "github-actions": GitHub Actions blob storage domains
 //   - "go": Go ecosystem
-//   - "terraform": HashiCorp/Terraform
 //   - "haskell": Haskell ecosystem
 //   - "java": Java/Maven/Gradle
+//   - "kotlin": Kotlin/JetBrains
 //   - "linux-distros": Linux distribution package repositories
 //   - "node": Node.js/NPM/Yarn
 //   - "perl": Perl/CPAN
@@ -242,8 +254,10 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "python": Python/PyPI/Conda
 //   - "ruby": Ruby/RubyGems
 //   - "rust": Rust/Cargo/Crates
+//   - "scala": Scala/SBT
 //   - "swift": Swift/CocoaPods
-//   - "github-actions": GitHub Actions blob storage domains
+//   - "terraform": HashiCorp/Terraform
+//   - "zig": Zig
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
 		domainsLog.Print("No network permissions specified, using defaults")
@@ -281,7 +295,7 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 	for domain := range domainMap {
 		expandedDomains = append(expandedDomains, domain)
 	}
-	SortStrings(expandedDomains)
+	sort.Strings(expandedDomains)
 
 	return expandedDomains
 }
@@ -295,16 +309,19 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 var ecosystemPriority = []string{
 	"node-cdns", // before "node" — more specific CDN sub-ecosystem
 	"rust",      // before "python" — crates.io/index.crates.io/static.crates.io are native Rust domains
+	"clojure",
 	"containers",
 	"dart",
 	"defaults",
 	"dotnet",
+	"elixir",
 	"fonts",
 	"github",
 	"github-actions",
 	"go",
 	"haskell",
 	"java",
+	"kotlin",
 	"linux-distros",
 	"node",
 	"perl",
@@ -312,8 +329,10 @@ var ecosystemPriority = []string{
 	"playwright",
 	"python",
 	"ruby",
+	"scala",
 	"swift",
 	"terraform",
+	"zig",
 }
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found.
@@ -340,7 +359,7 @@ func GetDomainEcosystem(domain string) string {
 			remaining = append(remaining, ecosystem)
 		}
 	}
-	SortStrings(remaining)
+	sort.Strings(remaining)
 	for _, ecosystem := range remaining {
 		domains := getEcosystemDomains(ecosystem)
 		for _, ecosystemDomain := range domains {
@@ -496,24 +515,40 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	for domain := range domainMap {
 		domains = append(domains, domain)
 	}
-	SortStrings(domains)
+	sort.Strings(domains)
 
 	// Join with commas for AWF --allow-domains flag
 	return strings.Join(domains, ",")
 }
 
+// engineDefaultDomains maps each engine to its default required domains.
+// Add new engines here to avoid adding new engine-specific domain functions.
+var engineDefaultDomains = map[constants.EngineName][]string{
+	constants.CopilotEngine: CopilotDefaultDomains,
+	constants.ClaudeEngine:  ClaudeDefaultDomains,
+	constants.CodexEngine:   CodexDefaultDomains,
+	constants.GeminiEngine:  GeminiDefaultDomains,
+}
+
+// GetAllowedDomainsForEngine merges the engine's default domains with NetworkPermissions,
+// HTTP MCP server domains, and runtime ecosystem domains.
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
+// Falls back to an empty default domain list for unknown engines.
+func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(engineDefaultDomains[engine], network, tools, runtimes)
+}
+
 // GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomains(network *NetworkPermissions) string {
-	return GetCopilotAllowedDomainsWithSafeInputs(network, false)
+	return mergeDomainsWithNetwork(CopilotDefaultDomains, network)
 }
 
 // GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-// The hasSafeInputs parameter is maintained for backward compatibility but is no longer used
-// since host.docker.internal is now in CopilotDefaultDomains
+// Deprecated: hasSafeInputs is no longer used; call GetCopilotAllowedDomains instead
 func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
-	return mergeDomainsWithNetwork(CopilotDefaultDomains, network)
+	return GetCopilotAllowedDomains(network)
 }
 
 // GetCopilotAllowedDomainsWithTools merges Copilot default domains with NetworkPermissions allowed domains and HTTP MCP server domains
@@ -525,7 +560,7 @@ func GetCopilotAllowedDomainsWithTools(network *NetworkPermissions, tools map[st
 // GetCopilotAllowedDomainsWithToolsAndRuntimes merges Copilot default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return mergeDomainsWithNetworkToolsAndRuntimes(CopilotDefaultDomains, network, tools, runtimes)
+	return GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, runtimes)
 }
 
 // GetCodexAllowedDomains merges Codex default domains with NetworkPermissions allowed domains
@@ -543,21 +578,20 @@ func GetCodexAllowedDomainsWithTools(network *NetworkPermissions, tools map[stri
 // GetCodexAllowedDomainsWithToolsAndRuntimes merges Codex default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCodexAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return mergeDomainsWithNetworkToolsAndRuntimes(CodexDefaultDomains, network, tools, runtimes)
+	return GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, runtimes)
 }
 
 // GetClaudeAllowedDomains merges Claude default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetClaudeAllowedDomains(network *NetworkPermissions) string {
-	return GetClaudeAllowedDomainsWithSafeInputs(network, false)
+	return mergeDomainsWithNetwork(ClaudeDefaultDomains, network)
 }
 
 // GetClaudeAllowedDomainsWithSafeInputs merges Claude default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-// The hasSafeInputs parameter is maintained for backward compatibility but is no longer used
-// since host.docker.internal is now in ClaudeDefaultDomains
+// Deprecated: hasSafeInputs is no longer used; call GetClaudeAllowedDomains instead
 func GetClaudeAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
-	return mergeDomainsWithNetwork(ClaudeDefaultDomains, network)
+	return GetClaudeAllowedDomains(network)
 }
 
 // GetClaudeAllowedDomainsWithTools merges Claude default domains with NetworkPermissions allowed domains and HTTP MCP server domains
@@ -569,13 +603,13 @@ func GetClaudeAllowedDomainsWithTools(network *NetworkPermissions, tools map[str
 // GetClaudeAllowedDomainsWithToolsAndRuntimes merges Claude default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetClaudeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return mergeDomainsWithNetworkToolsAndRuntimes(ClaudeDefaultDomains, network, tools, runtimes)
+	return GetAllowedDomainsForEngine(constants.ClaudeEngine, network, tools, runtimes)
 }
 
 // GetGeminiAllowedDomainsWithToolsAndRuntimes merges Gemini default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetGeminiAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return mergeDomainsWithNetworkToolsAndRuntimes(GeminiDefaultDomains, network, tools, runtimes)
+	return GetAllowedDomainsForEngine(constants.GeminiEngine, network, tools, runtimes)
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions
@@ -619,7 +653,7 @@ func GetBlockedDomains(network *NetworkPermissions) []string {
 	for domain := range domainMap {
 		expandedDomains = append(expandedDomains, domain)
 	}
-	SortStrings(expandedDomains)
+	sort.Strings(expandedDomains)
 
 	return expandedDomains
 }
@@ -650,21 +684,17 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		engineID = data.AI
 	}
 
-	// Compute domains based on engine type
-	// For Copilot with firewall support, use GetCopilotAllowedDomains which merges
-	// Copilot defaults with network permissions
-	// For Codex with firewall support, use GetCodexAllowedDomains which merges
-	// Codex defaults with network permissions
-	// For Claude with firewall support, use GetClaudeAllowedDomains which merges
-	// Claude defaults with network permissions
-	// For other engines, use GetAllowedDomains which uses network permissions only
+	// Compute domains based on engine type, including tools and runtimes to match
+	// what's provided to the actual firewall at runtime
 	switch engineID {
 	case "copilot":
-		return GetCopilotAllowedDomains(data.NetworkPermissions)
+		return GetCopilotAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "codex":
-		return GetCodexAllowedDomains(data.NetworkPermissions)
+		return GetCodexAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "claude":
-		return GetClaudeAllowedDomains(data.NetworkPermissions)
+		return GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+	case "gemini":
+		return GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -21,16 +22,18 @@ type AddCommentsConfig struct {
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`         // Target repository in format "owner/repo" for cross-repository comments
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`       // List of additional repositories that comments can be added to (additionally to the target-repo)
 	Discussion           *bool    `yaml:"discussion,omitempty"`          // Target discussion comments instead of issue/PR comments. Must be true if present.
-	HideOlderComments    bool     `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
+	HideOlderComments    *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 	AllowedReasons       []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
-	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission.
+	Issues               *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
+	PullRequests         *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
+	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission and discussions from event condition. Default (nil or true) includes discussions:write.
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
 func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string, createIssueJobName string, createDiscussionJobName string, createPullRequestJobName string) (*Job, error) {
 	addCommentLog.Printf("Building add_comment job: target=%s, discussion=%v", data.SafeOutputs.AddComments.Target, data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion)
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
-		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
+		return nil, errors.New("safe-outputs.add-comment configuration is required")
 	}
 
 	// Build pre-steps for debugging output
@@ -55,9 +58,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
 	}
 	// Pass the hide-older-comments flag configuration
-	if data.SafeOutputs.AddComments.HideOlderComments {
-		customEnvVars = append(customEnvVars, "          GH_AW_HIDE_OLDER_COMMENTS: \"true\"\n")
-	}
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_HIDE_OLDER_COMMENTS", data.SafeOutputs.AddComments.HideOlderComments)...)
 	// Pass the allowed-reasons list configuration
 	if len(data.SafeOutputs.AddComments.AllowedReasons) > 0 {
 		reasonsJSON, err := json.Marshal(data.SafeOutputs.AddComments.AllowedReasons)
@@ -92,14 +93,20 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Build job condition with event check if target is not specified
 	jobCondition := BuildSafeOutputType("add_comment")
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
-		eventCondition := BuildOr(
-			BuildOr(
-				BuildPropertyAccess("github.event.issue.number"),
-				BuildPropertyAccess("github.event.pull_request.number"),
-			),
-			BuildPropertyAccess("github.event.discussion.number"),
-		)
-		jobCondition = BuildAnd(jobCondition, eventCondition)
+		var eventTerms []ConditionNode
+		if data.SafeOutputs.AddComments.Issues == nil || *data.SafeOutputs.AddComments.Issues {
+			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.issue.number"))
+		}
+		if data.SafeOutputs.AddComments.PullRequests == nil || *data.SafeOutputs.AddComments.PullRequests {
+			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.pull_request.number"))
+		}
+		if data.SafeOutputs.AddComments.Discussions == nil || *data.SafeOutputs.AddComments.Discussions {
+			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.discussion.number"))
+		}
+		if len(eventTerms) > 0 {
+			eventCondition := &DisjunctionNode{Terms: eventTerms}
+			jobCondition = BuildAnd(jobCondition, eventCondition)
+		}
 	}
 
 	// Build the needs list - always depend on mainJobName, and conditionally on the other jobs
@@ -114,15 +121,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		needs = append(needs, createPullRequestJobName)
 	}
 
-	// Determine permissions based on discussions field
-	// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
-	// Note: PR comments are issue comments, so only issues:write is needed, not pull_requests:write
-	var permissions *Permissions
-	if data.SafeOutputs.AddComments.Discussions != nil && !*data.SafeOutputs.AddComments.Discussions {
-		permissions = NewPermissionsContentsReadIssuesWrite()
-	} else {
-		permissions = NewPermissionsContentsReadIssuesWriteDiscussionsWrite()
-	}
+	// Determine permissions based on Issues, PullRequests, and Discussions fields.
+	// Issues: nil or true → issues:write (default: true)
+	// PullRequests: nil or true → pull-requests:write (default: true)
+	// Discussions: nil or true → discussions:write (default: true)
+	permissions := buildAddCommentPermissions(data.SafeOutputs.AddComments)
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
@@ -151,6 +154,21 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 
 	addCommentLog.Print("Parsing add-comment configuration")
 
+	// Get config data for pre-processing before YAML unmarshaling
+	configData, _ := outputMap["add-comment"].(map[string]any)
+
+	// Pre-process templatable bool fields
+	if err := preprocessBoolFieldAsString(configData, "hide-older-comments", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid hide-older-comments value: %v", err)
+		return nil
+	}
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config AddCommentsConfig
 	if err := unmarshalConfig(outputMap, "add-comment", &config, addCommentLog); err != nil {
@@ -160,8 +178,8 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)
@@ -176,4 +194,24 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	return &config
+}
+
+// buildAddCommentPermissions computes the permissions for the add_comment job based on config.
+// Issues: nil or true → issues:write (default: true)
+// PullRequests: nil or true → pull-requests:write (default: true)
+// Discussions: nil or true → discussions:write (default: true)
+func buildAddCommentPermissions(config *AddCommentsConfig) *Permissions {
+	permMap := map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+	}
+	if config == nil || config.Issues == nil || *config.Issues {
+		permMap[PermissionIssues] = PermissionWrite
+	}
+	if config == nil || config.PullRequests == nil || *config.PullRequests {
+		permMap[PermissionPullRequests] = PermissionWrite
+	}
+	if config == nil || config.Discussions == nil || *config.Discussions {
+		permMap[PermissionDiscussions] = PermissionWrite
+	}
+	return NewPermissionsFromMap(permMap)
 }

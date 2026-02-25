@@ -11,6 +11,7 @@
  * @param {(item: any, index: number) => string} options.renderItem - Function to render each item as markdown
  * @returns {Promise<void>}
  */
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 async function generateStagedPreview(options) {
   const { title, description, items, renderItem } = options;
 
@@ -28,7 +29,7 @@ async function generateStagedPreview(options) {
     core.info(summaryContent);
     core.info(`📝 ${title} preview written to step summary`);
   } catch (error) {
-    core.setFailed(error instanceof Error ? error : String(error));
+    core.setFailed(`${ERR_SYSTEM}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

@@ -40,7 +40,7 @@ Using agentic workflows in your repository requires careful attention to securit
 
 ## Documentation
 
-For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/).
+For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/). If you are an agent, download the [llms.txt](https://github.github.com/gh-aw/llms.txt).
 
 ## Contributing
 

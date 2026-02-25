@@ -275,3 +275,83 @@ func TestIsGitToolAllowed(t *testing.T) {
 // Note: TestValidateGitToolForSafeOutputs was removed because the validation function
 // was removed. Git commands are automatically injected by the compiler when safe-outputs
 // needs them (see compiler_safe_outputs.go), so validation was misleading and unnecessary.
+
+func TestValidateGitHubToolConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		toolsMap    map[string]any
+		shouldError bool
+		errorMsg    string
+	}{
+		{
+			name:        "nil tools config is valid",
+			toolsMap:    nil,
+			shouldError: false,
+		},
+		{
+			name:        "no github tool is valid",
+			toolsMap:    map[string]any{"bash": true},
+			shouldError: false,
+		},
+		{
+			name: "github tool with app only is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"app": map[string]any{
+						"app-id":      "123456",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "github tool with github-token only is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"github-token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "github tool with both app and github-token is invalid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"app": map[string]any{
+						"app-id":      "123456",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+					"github-token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'tools.github.app' and 'tools.github.github-token' cannot both be set",
+		},
+		{
+			name: "github tool with neither app nor github-token is valid",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"toolsets": []any{"default"},
+				},
+			},
+			shouldError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tools := NewTools(tt.toolsMap)
+			err := validateGitHubToolConfig(tools, "test-workflow")
+
+			if tt.shouldError {
+				require.Error(t, err, "Expected error for %s", tt.name)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error for %s", tt.name)
+			}
+		})
+	}
+}

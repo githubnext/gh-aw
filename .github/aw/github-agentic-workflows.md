@@ -164,12 +164,28 @@ The YAML frontmatter supports these fields:
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
   - Strict mode enforces: no write permissions, explicit network config, pinned actions to SHAs, no wildcard domains
+- **`rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
+  - **`max:`** - Maximum runs allowed per user per time window (required, integer 1-10)
+  - **`window:`** - Time window in minutes (integer 1-180, default: 60)
+  - **`events:`** - Event types to apply rate limiting to (array; if omitted, applies to all programmatic events)
+    - Available: `workflow_dispatch`, `issue_comment`, `pull_request_review`, `pull_request_review_comment`, `issues`, `pull_request`, `discussion_comment`, `discussion`
+  - **`ignored-roles:`** - Roles exempt from rate limiting (array, default: `[admin, maintain, write]`). Set to `[]` to apply to all users.
+  - Example:
+    ```yaml
+    rate-limit:
+      max: 5
+      window: 60
+      ignored-roles: [admin, maintain]
+    ```
 - **`features:`** - Feature flags for experimental features (object)
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
   - Markdown files under `.github/agents/` are treated as custom agent files
   - Only one agent file is allowed per workflow
   - See [Imports Field](#imports-field) section for detailed documentation
+- **`inlined-imports:`** - Inline all imports at compile time (boolean, default: `false`)
+  - When `true`, all imports (including those without inputs) are inlined in the generated `.lock.yml` instead of using runtime-import macros
+  - The frontmatter hash covers the entire markdown body when enabled, so any content change invalidates the hash
 - **`mcp-servers:`** - MCP (Model Context Protocol) server definitions (object)
   - Defines custom MCP servers for additional tools beyond built-in ones
   - See [Custom MCP Tools](#custom-mcp-tools) section for detailed documentation
@@ -230,11 +246,11 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, or `"codex"`
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, or `"gemini"`
   - Object format for extended configuration:
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, or codex)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, or gemini)
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
@@ -248,6 +264,7 @@ The YAML frontmatter supports these fields:
           level_group: 1
     ```
   - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, `web-search`, or plugins. Supports AWF firewall and LLM gateway.
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)
@@ -273,7 +290,7 @@ The YAML frontmatter supports these fields:
         log-level: debug                  # Optional: debug, info (default), warn, error
         args: ["--custom-arg", "value"]   # Optional: additional AWF arguments
     ```
-  
+
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (no sandbox), `"awf"` (Agent Workflow Firewall), `"srt"` or `"sandbox-runtime"` (Anthropic Sandbox Runtime)
   - **⚠️ Deprecated**: Top-level `sandbox: false` is deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to automatically migrate.
@@ -396,6 +413,8 @@ The YAML frontmatter supports these fields:
         category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
         max: 3                          # Optional: maximum number of discussions (default: 1)
         close-older-discussions: true   # Optional: close older discussions with same prefix/labels (default: false)
+        expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
+        fallback-to-issue: true         # Optional: create issue if discussion creation fails (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
@@ -423,6 +442,7 @@ The YAML frontmatter supports these fields:
         target: "*"                     # Optional: target for comments (default: "triggering")
         hide-older-comments: true       # Optional: minimize previous comments from same workflow
         allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
+        discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -441,10 +461,14 @@ The YAML frontmatter supports these fields:
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
         auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
+        fallback-as-issue: false        # Optional: create issue if PR creation fails (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
+        github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
     ```
 
     **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
+
+    **CI Triggering**: By default, PRs created with `GITHUB_TOKEN` do not trigger CI workflow runs. To trigger CI, set `github-token-for-extra-empty-commit` to a PAT with `Contents: Read & Write` permission, or to `"app"` to use the configured GitHub App. Alternatively, set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT — this is automatically used without requiring explicit configuration in the workflow.
 
     When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
   - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
@@ -516,6 +540,7 @@ The YAML frontmatter supports these fields:
         target: "triggering"                # Optional: "triggering" (default), "*" (any PR), or explicit PR number
         max: 10                             # Optional: maximum number of PRs to close (default: 1)
         target-repo: "owner/repo"           # Optional: cross-repository
+        github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
     ```
     When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
   - `mark-pull-request-as-ready-for-review:` - Mark draft PRs as ready for review
@@ -589,11 +614,11 @@ The YAML frontmatter supports these fields:
         title-prefix: "[ai] "           # Optional: prefix for project titles
     ```
     Use this to create new projects for organizing and tracking work across issues and pull requests. Can optionally specify custom fields, project views, and an initial item to add.
-    
+
     **⚠️ IMPORTANT**: GitHub Projects requires a **Personal Access Token (PAT)** or GitHub App token with Projects permissions. The default `GITHUB_TOKEN` cannot be used. Ensure `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` exists and contains a token with:
     - Classic PAT: `project` and `repo` scopes
     - Fine-grained PAT: Organization permission `Projects: Read & Write` and repository access
-    
+
     Project tools automatically fall back to `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` when per-output and top-level `github-token` values are omitted, so specifying `github-token` is optional unless you need to override the default token.
     Not supported for cross-repository operations.
   - `update-project:` - Add items to GitHub Projects, update custom fields, manage project structure
@@ -605,7 +630,7 @@ The YAML frontmatter supports these fields:
         # github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional here if GH_AW_PROJECT_GITHUB_TOKEN is set; PAT with projects:write (NOT GITHUB_TOKEN) is still required
     ```
     Use this to organize work by adding issues and pull requests to projects, updating field values (status, priority, effort, dates), creating custom fields, and setting up project views.
-    
+
     **⚠️ IMPORTANT REQUIREMENTS:**
     - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"` or `https://github.com/users/username/projects/5`
     - Project URLs must be full URLs; project numbers alone are NOT accepted
@@ -614,7 +639,7 @@ The YAML frontmatter supports these fields:
     - Token scopes:
       - Classic PAT: `project` and `repo` scopes
       - Fine-grained PAT: Organization `Projects: Read & Write` permission
-    
+
     **Three calling modes:**
 
     **Mode 1: Add/update existing issues or PRs**
@@ -676,7 +701,7 @@ The YAML frontmatter supports these fields:
         github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # REQUIRED: PAT with projects:write (NOT GITHUB_TOKEN)
     ```
     Use this to provide stakeholders with regular updates on project status (on-track, at-risk, off-track, complete, inactive), timeline information, and progress summaries. Status updates create a historical record of project progress and enable tracking over time.
-    
+
     **⚠️ IMPORTANT REQUIREMENTS:**
     - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"`
     - Requires a **PAT or GitHub App token** with Projects permissions configured as `github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`
@@ -684,14 +709,14 @@ The YAML frontmatter supports these fields:
     - Token scopes:
       - Classic PAT: `project` and `repo` scopes
       - Fine-grained PAT: Organization `Projects: Read & Write` permission
-    
+
     **Agent output fields:**
     - `project`: Full project URL (required) - MUST be explicitly included in output
     - `status`: ON_TRACK, AT_RISK, OFF_TRACK, COMPLETE, or INACTIVE (optional, defaults to ON_TRACK)
     - `start_date`: Project start date in YYYY-MM-DD format (optional)
     - `target_date`: Project end date in YYYY-MM-DD format (optional)
     - `body`: Status summary in markdown (required)
-    
+
     Not supported for cross-repository operations.
   - `push-to-pull-request-branch:` - Push changes to PR branch
     ```yaml
@@ -701,8 +726,11 @@ The YAML frontmatter supports these fields:
         title-prefix: "[bot] "          # Optional: require title prefix
         labels: [automated]             # Optional: require all labels
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+        commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
+        staged: true                    # Optional: preview mode (default: follows global staged)
+        github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
     ```
-    Not supported for cross-repository operations.
+    Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
   - `update-discussion:` - Update discussion title, body, or labels
     ```yaml
     safe-outputs:
@@ -722,7 +750,7 @@ The YAML frontmatter supports these fields:
       update-release:
         max: 1                          # Optional: max releases (default: 1, max: 10)
         target-repo: "owner/repo"       # Optional: cross-repository
-        github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
+        github-token: ${{ secrets.GH_AW_UPDATE_RELEASE_TOKEN }}  # Optional: custom token
     ```
     Operation types: `replace`, `append`, `prepend`.
   - `upload-asset:` - Publish files to orphaned git branch
@@ -733,7 +761,6 @@ The YAML frontmatter supports these fields:
         max-size: 10240                 # Optional: max file size in KB (default: 10MB)
         allowed-exts: [.png, .jpg, .pdf] # Optional: allowed file extensions
         max: 10                         # Optional: max assets (default: 10)
-        target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB).
   - `dispatch-workflow:` - Trigger other workflows with inputs
@@ -771,17 +798,24 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       assign-to-agent:
         name: "copilot"                 # Optional: agent name
+        model: "claude-sonnet-4-5"      # Optional: model override
+        custom-agent: "agent-id"        # Optional: custom agent ID
+        custom-instructions: "..."      # Optional: additional instructions for the agent
         allowed: [copilot]              # Optional: restrict to specific agent names
         max: 1                          # Optional: max assignments (default: 1)
         target: "*"                     # Optional: "triggering" (default), "*", or number
-        target-repo: "owner/repo"       # Optional: cross-repository
+        target-repo: "owner/repo"       # Optional: where the issue lives (cross-repository)
+        pull-request-repo: "owner/repo" # Optional: where PR should be created (if different)
+        allowed-pull-request-repos: [owner/repo1]  # Optional: additional repos for PR creation
+        base-branch: "develop"          # Optional: target branch for PR (default: repo default)
+        ignore-if-error: true           # Optional: continue workflow on assignment error (default: false)
     ```
     Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
   - `assign-to-user:` - Assign users to issues or pull requests
     ```yaml
     safe-outputs:
       assign-to-user:
-        assignees: [user1, user2]       # Optional: restrict to specific users
+        allowed: [user1, user2]         # Optional: restrict to specific users
         blocked: [copilot, "*[bot]"]    # Optional: deny specific users or glob patterns
         max: 3                          # Optional: max assignments (default: 3)
         target: "*"                     # Optional: "triggering" (default), "*", or number
@@ -816,6 +850,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       noop:
+        report-as-issue: false          # Optional: report noop as issue (default: true)
     ```
     The noop safe-output provides a fallback mechanism ensuring workflows never complete silently. When enabled (automatically by default), agents can emit human-visible messages even when no other actions are required (e.g., "Analysis complete - no issues found"). This ensures every workflow run produces visible output.
   - `missing-tool:` - Report missing tools or functionality (auto-enabled)
@@ -834,13 +869,38 @@ The YAML frontmatter supports these fields:
     ```
     The missing-data safe-output allows agents to report when required data or information is unavailable. This is automatically enabled by default. When `create-issue` is true, missing data reports create or update GitHub issues for tracking.
 
+  - `jobs:` - Custom safe-output jobs registered as MCP tools for third-party integrations
+    ```yaml
+    safe-outputs:
+      jobs:
+        send-notification:
+          description: "Send a notification to an external service"
+          runs-on: ubuntu-latest
+          output: "Notification sent successfully!"
+          inputs:
+            message:
+              description: "The message to send"
+              required: true
+              type: string
+          permissions:
+            contents: read
+          env:
+            API_KEY: ${{ secrets.API_KEY }}
+          steps:
+            - name: Send notification
+              run: |
+                MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "send_notification") | .message')
+                curl -H "Authorization: $API_KEY" -d "$MESSAGE" https://api.example.com/notify
+    ```
+    Custom safe-output jobs define post-processing GitHub Actions jobs registered as MCP tools. Agents call the tool by its normalized name (dashes converted to underscores, e.g., `send_notification`). The job runs after the agent completes with access to `$GH_AW_AGENT_OUTPUT` (the path to agent output JSON). Use this to integrate with Slack, Discord, external APIs, databases, or any service requiring secrets. Import from shared files using the `imports:` field.
+
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs
     ```yaml
     safe-outputs:
       create-issue:
       add-comment:
-      github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+      github-token: ${{ secrets.GH_AW_SAFE_OUTPUTS_TOKEN }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
   - `allowed-domains:` - Allowed domains for URLs in safe output content (array)
@@ -867,13 +927,21 @@ The YAML frontmatter supports these fields:
     - Message types:
       - `footer:` - Custom footer for AI-generated content
       - `footer-install:` - Installation instructions appended to footer
+      - `footer-workflow-recompile:` - Footer for workflow recompile tracking issues (placeholder: `{repository}`)
+      - `footer-workflow-recompile-comment:` - Footer for comments on workflow recompile issues (placeholder: `{repository}`)
       - `run-started:` - Workflow activation notification
       - `run-success:` - Successful completion message
       - `run-failure:` - Failure notification message
       - `detection-failure:` - Detection job failure message
+      - `agent-failure-issue:` - Footer for agent failure tracking issues
+      - `agent-failure-comment:` - Footer for comments on agent failure tracking issues
       - `staged-title:` - Staged mode preview title
       - `staged-description:` - Staged mode preview description
       - `append-only-comments:` - Create new comments instead of editing existing ones (boolean, default: false)
+      - `activation-comments:` - Set to `"false"` to disable all activation/fallback comments entirely (supports templatable boolean: literal `"true"`/`"false"` or GitHub Actions expressions)
+      - `pull-request-created:` - Custom message when a PR is created. Placeholders: `{item_number}`, `{item_url}`
+      - `issue-created:` - Custom message when an issue is created. Placeholders: `{item_number}`, `{item_url}`
+      - `commit-pushed:` - Custom message when a commit is pushed. Placeholders: `{commit_sha}`, `{short_sha}`, `{commit_url}`
     - Example:
       ```yaml
       safe-outputs:
@@ -899,6 +967,62 @@ The YAML frontmatter supports these fields:
     - Defaults to `ubuntu-slim` (1-vCPU runner)
     - Examples: `ubuntu-latest`, `windows-latest`, `self-hosted`
     - Applies to activation, create-issue, add-comment, and other safe-output jobs
+  - `footer:` - Global footer control for all safe outputs (boolean, default: `true`)
+    - When `false`, omits visible AI-generated footer content from all created/updated entities (issues, PRs, discussions, releases) while still including XML markers for searchability
+    - Individual safe-output types can override this setting
+  - `staged:` - Preview mode for all safe outputs (boolean)
+    - When `true`, emits step summary messages instead of making GitHub API calls; useful for testing without side effects
+  - `env:` - Environment variables passed to all safe output jobs (object)
+    - Values typically reference secrets: `MY_VAR: ${{ secrets.MY_SECRET }}`
+  - `max-bot-mentions:` - Maximum bot trigger references (e.g. `@copilot`, `@github-actions`) allowed in output before all excess are escaped with backticks (integer or expression, default: 10)
+    - Set to `0` to escape all bot trigger phrases
+    - Example: `max-bot-mentions: 3`
+
+  **Templatable Integer Fields**: The `max`, `expires`, and `max-bot-mentions` fields (and most other numeric/boolean fields) accept GitHub Actions expression strings in addition to literal values, enabling runtime-configured limits:
+  ```yaml
+  safe-outputs:
+    max-bot-mentions: ${{ inputs.max-mentions }}
+    create-issue:
+      max: ${{ inputs.max-issues }}
+      expires: ${{ inputs.expires-days }}
+  ```
+  Fields that influence permission computation (`add-comment.discussions`, `create-pull-request.fallback-as-issue`) remain literal booleans.
+
+  - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
+    - Patches exceeding this size are rejected to prevent accidental large changes
+  - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
+    - When `true`, creates a parent `[agentics] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
+  - `app:` - GitHub App credentials for minting installation access tokens (object)
+    - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
+    - Fields:
+      - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
+      - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
+      - `owner:` - Optional App installation owner (defaults to current repository owner)
+      - `repositories:` - Optional list of repositories to grant access to
+    - Example:
+      ```yaml
+      safe-outputs:
+        app:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        create-issue:
+      ```
+  - `threat-detection:` - Threat detection configuration (auto-enabled for all safe-outputs workflows)
+    - Automatically enabled by default; customizable via explicit configuration
+    - Fields:
+      - `enabled:` - Enable/disable threat detection (boolean, default: `true`)
+      - `prompt:` - Additional instructions appended to threat detection analysis (string)
+      - `engine:` - AI engine for threat detection (engine config or `false` to disable AI detection)
+      - `steps:` - Extra job steps to run after detection (array)
+    - Example to disable AI-based detection (use custom steps only):
+      ```yaml
+      safe-outputs:
+        threat-detection:
+          engine: false
+          steps:
+            - name: Custom check
+              run: echo "Custom threat check"
+      ```
 
 - **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, or Python scripts (object)
   - Tools mounted in MCP server with access to specified secrets
@@ -963,7 +1087,7 @@ cache:
     restore-keys: |
       node-modules-
   - key: build-cache-${{ github.sha }}
-    path: 
+    path:
       - dist
       - .cache
     restore-keys:
@@ -1255,7 +1379,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 
-All other expressions are dissallowed.
+All other expressions are disallowed.
 
 ### Sanitized Context Text (`needs.activation.outputs.text`)
 
@@ -1264,7 +1388,7 @@ All other expressions are dissallowed.
 The `needs.activation.outputs.text` value provides automatically sanitized content based on the triggering event:
 
 - **Issues**: `title + "\n\n" + body`
-- **Pull Requests**: `title + "\n\n" + body`  
+- **Pull Requests**: `title + "\n\n" + body`
 - **Issue Comments**: `comment.body`
 - **PR Review Comments**: `comment.body`
 - **PR Reviews**: `review.body`
@@ -1398,24 +1522,36 @@ network: {}
 5. **Block specific domains**: `network: { blocked: ["tracking.com", "*.ads.com", ...] }` (deny-list)
 
 **Available Ecosystem Identifiers:**
-- `defaults`: Basic infrastructure (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
-- `containers`: Container registries (Docker Hub, GitHub Container Registry, Quay, etc.)
-- `dotnet`: .NET and NuGet ecosystem
-- `dart`: Dart and Flutter ecosystem
-- `github`: GitHub domains
-- `go`: Go ecosystem
-- `terraform`: HashiCorp and Terraform ecosystem
-- `haskell`: Haskell ecosystem
-- `java`: Java ecosystem (Maven Central, Gradle, etc.)
-- `linux-distros`: Linux distribution package repositories
-- `node`: Node.js and NPM ecosystem
-- `perl`: Perl and CPAN ecosystem
-- `php`: PHP and Composer ecosystem
-- `playwright`: Playwright testing framework domains
-- `python`: Python ecosystem (PyPI, Conda, etc.)
-- `ruby`: Ruby and RubyGems ecosystem
-- `rust`: Rust and Cargo ecosystem
-- `swift`: Swift and CocoaPods ecosystem
+
+Each ecosystem identifier enables network access to the domains required by that language's package manager and toolchain. When writing workflows that involve package management, builds, or tests, **always include the ecosystem identifier matching the repository's primary language** in addition to `defaults`.
+
+| Identifier | Runtimes / Languages | Package Manager / Domains |
+|---|---|---|
+| `defaults` | All (always include) | Certificates, JSON schema, Ubuntu mirrors, Microsoft sources |
+| `dotnet` | C#, F#, VB.NET | NuGet (`nuget.org`, `api.nuget.org`, `dotnetcli.blob.core.windows.net`, etc.) |
+| `python` | Python | pip, conda, PyPI (`pypi.org`, `files.pythonhosted.org`, `conda.anaconda.org`, etc.) |
+| `node` | Node.js, JavaScript, TypeScript | npm, yarn, pnpm (`registry.npmjs.org`, `yarnpkg.com`, etc.) |
+| `go` | Go | Go modules (`proxy.golang.org`, `sum.golang.org`, `pkg.go.dev`) |
+| `java` | Java, Kotlin, Scala, Groovy | Maven, Gradle (`repo1.maven.org`, `plugins.gradle.org`, etc.) |
+| `ruby` | Ruby | RubyGems, Bundler (`rubygems.org`, `gems.ruby-china.com`, etc.) |
+| `rust` | Rust | Cargo, crates.io (`crates.io`, `static.crates.io`) |
+| `swift` | Swift | Swift Package Manager, CocoaPods (`swiftpackageindex.com`, `cocoapods.org`) |
+| `php` | PHP | Composer, Packagist (`packagist.org`, `getcomposer.org`, etc.) |
+| `dart` | Dart, Flutter | pub.dev (`pub.dev`, `storage.googleapis.com`) |
+| `haskell` | Haskell | Hackage, Stack (`hackage.haskell.org`, `s3.amazonaws.com/haskell-platform`) |
+| `perl` | Perl | CPAN (`cpan.org`, `www.cpan.org`, `metacpan.org`) |
+| `terraform` | Terraform, OpenTofu | HashiCorp registry (`registry.terraform.io`, `releases.hashicorp.com`) |
+| `containers` | Docker, OCI | Docker Hub, GHCR, Quay (`registry.hub.docker.com`, `ghcr.io`, etc.) |
+| `github` | Any | GitHub domains (`github.com`, `api.github.com`, `objects.githubusercontent.com`, etc.) |
+| `linux-distros` | Any | apt, yum/dnf (`archive.ubuntu.com`, `packages.microsoft.com`, etc.) |
+| `playwright` | Any | Playwright browser automation (`playwright.azureedge.net`, etc.) |
+
+**Network Inference Rule:** When a workflow will run `dotnet restore`, `pip install`, `npm install`, `go mod download`, `mvn install`, etc., infer the ecosystem from the repository language and include it. Examples:
+- `.NET` repository (`.csproj`, `.fsproj`, `*.sln`, `*.slnx`) → `network: { allowed: [defaults, dotnet] }`
+- Python repository (`requirements.txt`, `pyproject.toml`) → `network: { allowed: [defaults, python] }`
+- Node.js repository (`package.json`) → `network: { allowed: [defaults, node] }`
+- Go repository (`go.mod`) → `network: { allowed: [defaults, go] }`
+- Java repository (`pom.xml`, `build.gradle`) → `network: { allowed: [defaults, java] }`
 
 ## Imports Field
 
@@ -1502,7 +1638,7 @@ permissions:
 
 safe-outputs:
   create-issue:       # Automatic issue creation
-  add-comment:  # Automatic comment creation  
+  add-comment:  # Automatic comment creation
   create-pull-request: # Automatic PR creation
 ```
 
@@ -1553,7 +1689,7 @@ Create an issue with your final analysis.
 
 ### Automatic Pull Request Creation
 
-Use the `safe-outputs.pull-request` configuration to automatically create pull requests from coding agent output:
+Use the `safe-outputs.create-pull-request` configuration to automatically create pull requests from coding agent output:
 
 ```aw
 ---
@@ -1773,7 +1909,7 @@ The `--start-date` and `--end-date` flags support delta time syntax for relative
 
 **Supported Time Units:**
 - **Days**: `-1d`, `-7d`
-- **Weeks**: `-1w`, `-4w` 
+- **Weeks**: `-1w`, `-4w`
 - **Months**: `-1mo`, `-6mo`
 - **Hours/Minutes**: `-12h`, `-30m` (for sub-day precision)
 - **Combinations**: `-1mo2w3d`, `-2w5d12h`
@@ -1783,7 +1919,7 @@ The `--start-date` and `--end-date` flags support delta time syntax for relative
 # Get runs from the last week
 gh aw logs --start-date -1w
 
-# Get runs up to yesterday  
+# Get runs up to yesterday
 gh aw logs --end-date -1d
 
 # Get runs from the last month
@@ -1838,7 +1974,7 @@ permissions:
 GitHub Agentic Workflows supports security scanning during compilation with `--actionlint`, `--zizmor`, and `--poutine` flags.
 
 **actionlint** - Lints GitHub Actions workflows and validates shell scripts with integrated shellcheck
-**zizmor** - Scans for security vulnerabilities, privilege escalation, and secret exposure  
+**zizmor** - Scans for security vulnerabilities, privilege escalation, and secret exposure
 **poutine** - Analyzes supply chain risks and third-party action usage
 
 ```bash
@@ -1895,7 +2031,7 @@ gh aw mcp list-tools github weekly-research
 
 This command is useful for:
 - **Discovering capabilities**: See what tools are available from each MCP server
-- **Workflow discovery**: Find which workflows use a specific MCP server  
+- **Workflow discovery**: Find which workflows use a specific MCP server
 - **Permission debugging**: Check which tools are allowed in your workflow configuration
 
 ## Compilation Process
@@ -1925,11 +2061,12 @@ Agentic workflows compile to GitHub Actions YAML:
 - **`sandbox: false`** (top-level) - Deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to migrate automatically.
 - **`timeout_minutes`** (underscore) - Breaking change. Must use `timeout-minutes` (with hyphen).
 - **`create-agent-task`** - Deprecated. Use `create-agent-session` instead for Copilot coding agent sessions.
+- **`safe-outputs.add-comment.discussion`** - Deprecated. The `discussion: true` flag is no longer needed; `add-comment` auto-detects the target type. Run `gh aw fix --write` with codemod `add-comment-discussion-removal` to remove it automatically.
 
 ### Breaking Configuration Changes
 
-- **`custom` engine removed** (v0.46.1) - The `custom` engine type is no longer supported. Workflows using `engine: custom` must migrate to `copilot`, `claude`, or `codex`.
-- **`copilot-sdk` engine removed** (v0.46.1) - The `copilot-sdk` engine has been removed. Update any workflows referencing this engine.
+- **`custom` engine removed** - The `custom` engine type is no longer supported. Workflows using `engine: custom` must migrate to `copilot`, `claude`, `codex`, or `gemini`.
+- **`copilot-sdk` engine removed** - The `copilot-sdk` engine has been removed. Update any workflows referencing this engine.
 - **Status Comments**: Status comments must now be explicitly enabled with `status-comment: true`. Previously coupled with `reaction`, now independently configured.
 - **Temporary ID Format**: Changed from `aw_` + 12 hex chars to `aw_` + 3-8 alphanumeric chars. Update references in existing workflows accordingly.
 
@@ -1938,6 +2075,7 @@ Agentic workflows compile to GitHub Actions YAML:
 Use `gh aw fix --write` to automatically migrate deprecated configurations:
 - Converts `sandbox: false` to `sandbox.agent: false`
 - Updates `create-agent-task` to `create-agent-session`
+- Removes deprecated `discussion: true` from `add-comment` (codemod: `add-comment-discussion-removal`)
 - Applies other codemods for deprecated patterns
 
 ## Best Practices
@@ -1946,7 +2084,7 @@ Use `gh aw fix --write` to automatically migrate deprecated configurations:
 
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
-3. **Include security notices** for workflows processing user content  
+3. **Include security notices** for workflows processing user content
 4. **Use the `imports:` field** in frontmatter for common patterns and security boilerplate
 5. **ALWAYS run `gh aw compile` after every change** to generate the GitHub Actions workflow (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying

@@ -4,6 +4,7 @@ package parser
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -101,9 +102,7 @@ This workflow imports a YAML workflow and adds additional jobs.`
 			}
 			var jobs map[string]any
 			if err := json.Unmarshal([]byte(jsonLine), &jobs); err == nil {
-				for k, v := range jobs {
-					allJobs[k] = v
-				}
+				maps.Copy(allJobs, jobs)
 			}
 		}
 	}

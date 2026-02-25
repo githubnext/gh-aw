@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -126,7 +127,7 @@ func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalys
 		}
 		if !info.IsDir() && info.Name() == "redacted-urls.log" {
 			foundPath = path
-			return fmt.Errorf("found") // Stop walking
+			return errors.New("found") // Stop walking
 		}
 		return nil
 	})
@@ -134,7 +135,7 @@ func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalys
 	if foundPath != "" {
 		redactedDomainsLog.Printf("Found redacted-urls.log via recursive search: %s", foundPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found redacted-urls.log at %s", foundPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found redacted-urls.log at "+foundPath))
 		}
 		return parseRedactedDomainsLog(foundPath, verbose)
 	}
@@ -142,7 +143,7 @@ func analyzeRedactedDomains(runDir string, verbose bool) (*RedactedDomainsAnalys
 	// No redacted domains log found - this is not an error, just means no URLs were redacted
 	redactedDomainsLog.Print("No redacted-urls.log found")
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No redacted-urls.log found in %s", runDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No redacted-urls.log found in "+runDir))
 	}
 	return nil, nil
 }

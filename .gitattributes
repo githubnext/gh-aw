@@ -11,6 +11,7 @@ pkg/workflow/sh/*.sh linguist-generated=true
 actions/*/index.js linguist-generated=true
 actions/setup-cli/install.sh linguist-generated=true
 specs/artifacts.md linguist-generated=true merge=ours
-
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads
+slides/*.pdf filter=lfs diff=lfs merge=lfs -text
+slides/*.pptx filter=lfs diff=lfs merge=lfs -text

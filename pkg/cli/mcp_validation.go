@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -60,7 +61,7 @@ func logAndValidateBinaryPath() (string, error) {
 	if _, err := os.Stat(binaryPath); err != nil {
 		if os.IsNotExist(err) {
 			mcpValidationLog.Printf("ERROR: binary file does not exist at path: %s", binaryPath)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("ERROR: binary file does not exist at path: %s", binaryPath)))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: binary file does not exist at path: "+binaryPath))
 			return "", fmt.Errorf("binary file does not exist at path: %s", binaryPath)
 		}
 		mcpValidationLog.Printf("Warning: failed to stat binary file at %s: %v", binaryPath, err)
@@ -70,7 +71,7 @@ func logAndValidateBinaryPath() (string, error) {
 
 	// Log the binary path for debugging
 	mcpValidationLog.Printf("gh-aw binary path: %s", binaryPath)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("gh-aw binary path: %s", binaryPath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("gh-aw binary path: "+binaryPath))
 	return binaryPath, nil
 }
 
@@ -126,7 +127,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 				}
 				if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_PERSONAL_ACCESS_TOKEN") {
 					if token, err := parser.GetGitHubToken(); err != nil {
-						return fmt.Errorf("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
+						return errors.New("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
 					} else {
 						config.Env[key] = token
 					}
@@ -211,7 +212,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 		mcpValidationLog.Printf("Found %d missing secrets", len(missingSecrets))
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d required secret(s) not found:", len(missingSecrets))))
 		for _, secret := range missingSecrets {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  ✗ %s", secret.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("  ✗ "+secret.Name))
 		}
 	}
 
@@ -257,7 +258,7 @@ func validateMCPServerConfiguration(cmdPath string) error {
 			mcpValidationLog.Print("Status command timed out")
 			errMsg := "status command timed out - this may indicate a configuration issue"
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-			return fmt.Errorf("status command timed out - this may indicate a configuration issue")
+			return errors.New("status command timed out - this may indicate a configuration issue")
 		}
 
 		mcpValidationLog.Printf("Status command failed: %v", err)

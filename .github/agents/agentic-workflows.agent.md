@@ -15,7 +15,10 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Updating existing workflows**: Routes to `update` prompt
 - **Debugging workflows**: Routes to `debug` prompt  
 - **Upgrading workflows**: Routes to `upgrade-agentic-workflows` prompt
+- **Creating report-generating workflows**: Routes to `report` prompt — consult this whenever the workflow posts status updates, audits, analyses, or any structured output as issues, discussions, or comments
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
+- **Fixing Dependabot PRs**: Routes to `dependabot` prompt — use this when Dependabot opens PRs that modify generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`). Never merge those PRs directly; instead update the source `.md` files and rerun `gh aw compile --dependabot` to bundle all fixes
+- **Analyzing test coverage**: Routes to `test-coverage` prompt — consult this whenever the workflow reads, analyzes, or reports on test coverage data from PRs or CI runs
 
 Workflows may optionally include:
 
@@ -86,6 +89,16 @@ When you interact with this agent, it will:
 - "Fix deprecated fields in workflows"
 - "Apply breaking changes from the new release"
 
+### Create a Report-Generating Workflow
+**Load when**: The workflow being created or updated produces reports — recurring status updates, audit summaries, analyses, or any structured output posted as a GitHub issue, discussion, or comment
+
+**Prompt file**: https://github.com/github/gh-aw/blob/main/.github/aw/report.md
+
+**Use cases**:
+- "Create a weekly CI health report"
+- "Post a daily security audit to Discussions"
+- "Add a status update comment to open PRs"
+
 ### Create Shared Agentic Workflow
 **Load when**: User wants to create a reusable workflow component or wrap an MCP server
 
@@ -95,6 +108,26 @@ When you interact with this agent, it will:
 - "Create a shared component for Notion integration"
 - "Wrap the Slack MCP server as a reusable component"
 - "Design a shared workflow for database queries"
+
+### Fix Dependabot PRs
+**Load when**: User needs to close or fix open Dependabot PRs that update dependencies in generated manifest files (`.github/workflows/package.json`, `.github/workflows/requirements.txt`, `.github/workflows/go.mod`)
+
+**Prompt file**: https://github.com/github/gh-aw/blob/main/.github/aw/dependabot.md
+
+**Use cases**:
+- "Fix the open Dependabot PRs for npm dependencies"
+- "Bundle and close the Dependabot PRs for workflow dependencies"
+- "Update @playwright/test to fix the Dependabot PR"
+
+### Analyze Test Coverage
+**Load when**: The workflow reads, analyzes, or reports test coverage — whether triggered by a PR, a schedule, or a slash command. Always consult this prompt before designing the coverage data strategy.
+
+**Prompt file**: https://github.com/github/gh-aw/blob/main/.github/aw/test-coverage.md
+
+**Use cases**:
+- "Create a workflow that comments coverage on PRs"
+- "Analyze coverage trends over time"
+- "Add a coverage gate that blocks PRs below a threshold"
 
 ## Instructions
 
@@ -141,3 +174,4 @@ gh aw compile --validate
 - Workflows must be compiled to `.lock.yml` files before running in GitHub Actions
 - **Bash tools are enabled by default** - Don't restrict bash commands unnecessarily since workflows are sandboxed by the AWF
 - Follow security best practices: minimal permissions, explicit network access, no template injection
+- **Single-file output**: When creating a workflow, produce exactly **one** workflow `.md` file. Do not create separate documentation files (architecture docs, runbooks, usage guides, etc.). If documentation is needed, add a brief `## Usage` section inside the workflow file itself.

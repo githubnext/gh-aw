@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -10,6 +11,30 @@ import (
 )
 
 var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
+
+// ContainsCheckout returns true if the given custom steps contain an actions/checkout step
+func ContainsCheckout(customSteps string) bool {
+	if customSteps == "" {
+		return false
+	}
+
+	// Look for actions/checkout usage patterns
+	checkoutPatterns := []string{
+		"actions/checkout@",
+		"uses: actions/checkout",
+		"- uses: actions/checkout",
+	}
+
+	lowerSteps := strings.ToLower(customSteps)
+	for _, pattern := range checkoutPatterns {
+		if strings.Contains(lowerSteps, strings.ToLower(pattern)) {
+			compilerYamlHelpersLog.Print("Detected actions/checkout in custom steps")
+			return true
+		}
+	}
+
+	return false
+}
 
 // GetWorkflowIDFromPath extracts the workflow ID from a markdown file path.
 // The workflow ID is the filename without the .md extension.
@@ -87,7 +112,17 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 		if (strings.HasPrefix(content, "'") && strings.HasSuffix(content, "'")) ||
 			(strings.HasPrefix(content, "\"") && strings.HasSuffix(content, "\"")) {
 			// Static value - output directly without ${{ }} wrapper
-			fmt.Fprintf(yaml, indent+"    %s: %s\n", mapping.EnvVar, content)
+			// Check if inner value is multi-line; if so use a YAML double-quoted scalar
+			// with escaped newlines to avoid invalid YAML.
+			innerValue := content[1 : len(content)-1]
+			if strings.Contains(innerValue, "\n") {
+				escaped := strings.ReplaceAll(innerValue, `\`, `\\`)
+				escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+				escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+				fmt.Fprintf(yaml, indent+"    %s: \"%s\"\n", mapping.EnvVar, escaped)
+			} else {
+				fmt.Fprintf(yaml, indent+"    %s: %s\n", mapping.EnvVar, content)
+			}
 		} else {
 			// GitHub expression - wrap in ${{ }}
 			fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, content)
@@ -309,4 +344,84 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 		lines = append(lines, "          safe-output-projects: 'true'\n")
 	}
 	return lines
+}
+
+// renderStepFromMap renders a GitHub Actions step from a map to YAML
+func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+	// Start the step with a dash
+	yaml.WriteString(indent + "- ")
+
+	// Track if we've written the first line
+	firstField := true
+
+	// Order of fields to write (matches GitHub Actions convention)
+	fieldOrder := []string{"name", "id", "if", "uses", "with", "run", "env", "working-directory", "continue-on-error", "timeout-minutes", "shell"}
+
+	for _, field := range fieldOrder {
+		if value, exists := step[field]; exists {
+			// Add proper indentation for non-first fields
+			if !firstField {
+				yaml.WriteString(indent + "  ")
+			}
+			firstField = false
+
+			// Render the field based on its type
+			switch v := value.(type) {
+			case string:
+				// Handle multi-line strings (especially for 'run' field)
+				if field == "run" && strings.Contains(v, "\n") {
+					fmt.Fprintf(yaml, "%s: |\n", field)
+					lines := strings.SplitSeq(v, "\n")
+					for line := range lines {
+						fmt.Fprintf(yaml, "%s    %s\n", indent, line)
+					}
+				} else {
+					fmt.Fprintf(yaml, "%s: %s\n", field, v)
+				}
+			case map[string]any:
+				// For complex fields like "with" or "env"
+				fmt.Fprintf(yaml, "%s:\n", field)
+				for key, val := range v {
+					fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
+				}
+			default:
+				fmt.Fprintf(yaml, "%s: %v\n", field, v)
+			}
+		}
+	}
+
+	// Add any remaining fields not in the predefined order
+	for field, value := range step {
+		// Skip fields we've already processed
+		skip := slices.Contains(fieldOrder, field)
+		if skip {
+			continue
+		}
+
+		if !firstField {
+			yaml.WriteString(indent + "  ")
+		}
+		firstField = false
+
+		switch v := value.(type) {
+		case string:
+			// Handle multi-line strings
+			if strings.Contains(v, "\n") {
+				fmt.Fprintf(yaml, "%s: |\n", field)
+				lines := strings.SplitSeq(v, "\n")
+				for line := range lines {
+					fmt.Fprintf(yaml, "%s    %s\n", indent, line)
+				}
+			} else {
+				fmt.Fprintf(yaml, "%s: %s\n", field, v)
+			}
+		case map[string]any:
+			fmt.Fprintf(yaml, "%s:\n", field)
+			for key, val := range v {
+				fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
+			}
+		default:
+			fmt.Fprintf(yaml, "%s: %v\n", field, v)
+		}
+	}
 }

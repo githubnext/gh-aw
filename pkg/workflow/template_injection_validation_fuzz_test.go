@@ -176,12 +176,13 @@ func FuzzValidateNoTemplateInjection(f *testing.F) {
 	f.Add("\n\n\n")
 
 	// Very long expressions
-	longExpression := "jobs:\n  test:\n    steps:\n      - run: echo \""
-	for i := 0; i < 50; i++ {
-		longExpression += "${{ github.event.issue.title }} "
+	var longExpression strings.Builder
+	longExpression.WriteString("jobs:\n  test:\n    steps:\n      - run: echo \"")
+	for range 50 {
+		longExpression.WriteString("${{ github.event.issue.title }} ")
 	}
-	longExpression += "\""
-	f.Add(longExpression)
+	longExpression.WriteString("\"")
+	f.Add(longExpression.String())
 
 	// Unicode and special characters
 	f.Add(`jobs:

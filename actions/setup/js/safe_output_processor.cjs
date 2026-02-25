@@ -10,6 +10,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { parseAllowedItems, resolveTarget } = require("./safe_output_helpers.cjs");
 const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validator.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * @typedef {Object} ProcessorConfig

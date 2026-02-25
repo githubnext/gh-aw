@@ -49,7 +49,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 				Staged: true,
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -110,7 +110,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 				},
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 				},
 			},
@@ -187,7 +187,7 @@ func TestStagedFlagOnlyAddedOnce(t *testing.T) {
 			},
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 3,
+					Max: strPtr("3"),
 				},
 			},
 			AddLabels: &AddLabelsConfig{
@@ -307,7 +307,7 @@ func TestEnvVarsWithMultipleSafeOutputTypes(t *testing.T) {
 			},
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 3,
+					Max: strPtr("3"),
 				},
 			},
 			AddLabels: &AddLabelsConfig{
@@ -346,7 +346,7 @@ func TestEnvVarsWithNoStagedConfig(t *testing.T) {
 			},
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 5,
+					Max: strPtr("5"),
 				},
 			},
 		},
@@ -475,7 +475,7 @@ func TestAddCommentsTargetRepoStagedBehavior(t *testing.T) {
 			AddComments: &AddCommentsConfig{
 				TargetRepoSlug: "org/target",
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 5,
+					Max: strPtr("5"),
 				},
 			},
 		},

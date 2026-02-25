@@ -2,8 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
-	"testing"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -21,6 +21,8 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 		return
 	}
 
+	safeOutputsEnvLog.Printf("Applying safe output env vars: trial_mode=%t, staged=%t", data.TrialMode, data.SafeOutputs.Staged)
+
 	env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 
 	// Add staged flag if specified
@@ -33,8 +35,9 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 
 	// Add branch name if upload assets is configured
 	if data.SafeOutputs.UploadAssets != nil {
+		safeOutputsEnvLog.Printf("Adding upload assets env vars: branch=%s", data.SafeOutputs.UploadAssets.BranchName)
 		env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-		env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+		env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 	}
 }
@@ -103,13 +106,16 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 
 	// Pass the staged flag if it's set to true
 	if trialMode || staged {
+		safeOutputsEnvLog.Printf("Setting staged flag: trial_mode=%t, staged=%t", trialMode, staged)
 		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
 	// Set GH_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if targetRepoSlug != "" {
+		safeOutputsEnvLog.Printf("Setting target repo slug from config: %s", targetRepoSlug)
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
 	} else if trialMode && trialLogicalRepoSlug != "" {
+		safeOutputsEnvLog.Printf("Setting target repo slug from trial mode: %s", trialLogicalRepoSlug)
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", trialLogicalRepoSlug))
 	}
 
@@ -188,6 +194,8 @@ func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
 	if engineConfig == nil {
 		return customEnvVars
 	}
+
+	safeOutputsEnvLog.Printf("Building engine metadata env vars: id=%s, version=%s", engineConfig.ID, engineConfig.Version)
 
 	// Add engine ID if present
 	if engineConfig.ID != "" {
@@ -337,20 +345,4 @@ func buildAllowedReposEnvVar(envVarName string, allowedRepos []string) []string 
 	}
 	reposStr := strings.Join(allowedRepos, ",")
 	return []string{fmt.Sprintf("          %s: %q\n", envVarName, reposStr)}
-}
-
-// ========================================
-// Test Helpers
-// ========================================
-
-// assertEnvVarsInSteps checks that all expected environment variables are present in the job steps.
-// This is a helper function to reduce duplication in safe outputs env tests.
-func assertEnvVarsInSteps(t *testing.T, steps []string, expectedEnvVars []string) {
-	t.Helper()
-	stepsStr := strings.Join(steps, "")
-	for _, expectedEnvVar := range expectedEnvVars {
-		if !strings.Contains(stepsStr, expectedEnvVar) {
-			t.Errorf("Expected env var %q not found in job YAML", expectedEnvVar)
-		}
-	}
 }

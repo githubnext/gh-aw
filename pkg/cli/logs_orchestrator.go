@@ -183,13 +183,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			}
 
 			// Process slightly more than we need to account for skips due to filters.
-			chunkSize := remainingNeeded * 3
-			if chunkSize < remainingNeeded {
-				chunkSize = remainingNeeded
-			}
-			if chunkSize > len(runsRemaining) {
-				chunkSize = len(runsRemaining)
-			}
+			chunkSize := min(max(remainingNeeded*3, remainingNeeded), len(runsRemaining))
 
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
@@ -558,7 +552,6 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// Panics are automatically recovered by the pool and re-raised with full stack traces
 	// after all tasks complete. This ensures one failing download doesn't break others.
 	for _, run := range actualRuns {
-		run := run // capture loop variable
 		p.Go(func(ctx context.Context) (DownloadResult, error) {
 			// Check for context cancellation before starting download
 			select {

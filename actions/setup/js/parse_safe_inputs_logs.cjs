@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 /**
  * Parses safe-inputs MCP server logs and creates a step summary
@@ -64,7 +65,7 @@ async function main() {
     const summary = generateSafeInputsSummary(allLogEntries);
     core.summary.addRaw(summary).write();
   } catch (error) {
-    core.setFailed(getErrorMessage(error));
+    core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }
 }
 

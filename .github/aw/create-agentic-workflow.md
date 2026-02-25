@@ -157,14 +157,14 @@ When a user requests capabilities beyond agentic workflows:
 
 **Correct response**:
 > 🚨 This requires multi-stage orchestration with waiting and cross-job state management, which agentic workflows don't support. Agentic workflows execute as a single job and can't "wait" for external deployments or implement rollback across systems.
-> 
+>
 > **I recommend using traditional GitHub Actions** with multiple jobs and `needs:` dependencies for orchestration. Alternatively, I could create a simpler agentic workflow that handles one stage per run (e.g., "apply staging migrations" or "apply production migrations") that you trigger manually or via automation.
-> 
+>
 > Which approach would you prefer?
 
 **Incorrect response** ❌:
 > Sure! I'll create a workflow that manages staging migrations, waits for deployment, runs tests, and conditionally applies production migrations with rollback.
-> 
+>
 > *(This overpromises capabilities that don't exist)*
 
 ## Learning from Reference Materials
@@ -196,8 +196,19 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command)?
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
   - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
-   - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
-   - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
+   - ⚠️ If you think the task requires **network access beyond localhost**, **automatically infer** the ecosystem from repository language files rather than asking the user. Only ask if you cannot determine the ecosystem from available context.
+   - 🌐 **Always infer network ecosystem from repository language**: If the workflow involves package management, building, or testing code, detect the repository's primary language from file indicators and include the matching ecosystem identifier. **Never use `network: defaults` alone for code workflows** — `defaults` only provides basic infrastructure and cannot reach package registries. Key indicators:
+     - `.csproj`, `.fsproj`, `*.sln`, `*.slnx`, `global.json` → add `dotnet` (for `dotnet restore`, NuGet)
+     - `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`, `uv.lock` → add `python` (enables `pypi.org`, `files.pythonhosted.org` for pip/conda)
+     - `package.json`, `.nvmrc`, `yarn.lock`, `pnpm-lock.yaml` → add `node` (enables `registry.npmjs.org` for npm/yarn/pnpm)
+     - `go.mod`, `go.sum` → add `go` (enables `proxy.golang.org`, `sum.golang.org` for go module downloads)
+     - `pom.xml`, `build.gradle`, `build.gradle.kts` → add `java` (for Maven/Gradle)
+     - `Gemfile`, `*.gemspec` → add `ruby` (enables `rubygems.org` for Bundler/RubyGems)
+     - `Cargo.toml`, `Cargo.lock` → add `rust` (for cargo)
+     - `Package.swift`, `*.podspec` → add `swift`
+     - `composer.json` → add `php`
+     - `pubspec.yaml` → add `dart`
+   - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool. For **visual regression testing** (comparing screenshots across PRs), consult `.github/aw/visual-regression.md` for the reference pattern using `playwright` + `cache-memory`.
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: all`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.
 
    **Scheduling Best Practices:**
@@ -255,7 +266,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    **Authentication Setup:**
    ```yaml
    safe-outputs:
-     github-token: ${{ secrets.CROSS_REPO_PAT }}  # PAT with access to target repos
+     github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}  # PAT with access to target repos
      create-issue:
        max: 5
      add-comment:
@@ -302,9 +313,9 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - Need to trigger workflows in other repos (use separate workflow in target repo)
 
    **Documentation Reference:**
-   - Full guide: https://github.github.com/gh-aw/patterns/multirepoops/
+   - Full guide: https://github.github.com/gh-aw/patterns/multi-repo-ops/
    - Safe Outputs Reference: https://github.github.com/gh-aw/reference/safe-outputs/
-   - GitHub Tools: https://github.github.com/gh-aw/reference/tools/#github-tools-github
+   - GitHub Tools: https://github.github.com/gh-aw/reference/github-tools/
 
    **Custom Safe Output Jobs (for new safe outputs):**
 
@@ -398,17 +409,17 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 
    ✅ **Correct approach**:
    > I can create a web scraping workflow, but first: Have you checked if the target site has a public API or RSS feed? Scraping may violate their Terms of Service.
-   > 
+   >
    > **Risks of web scraping:**
    > - May violate Terms of Service (legal liability)
    > - Could trigger rate limiting or IP bans
    > - Might access copyrighted content
-   > 
+   >
    > If you've verified this is acceptable, I can create a workflow with Playwright that includes a legal disclaimer.
 
    ❌ **Incorrect approach**:
    > Sure! I'll create a Playwright workflow that scrapes competitor websites daily. It'll capture screenshots and store data. (Note: Check Terms of Service)
-   > 
+   >
    > *(Builds first, warns later - warning is buried)*
 
    **Correct tool snippets (reference):**
@@ -421,7 +432,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
        toolsets: [default]
    ```
 
-   ⚠️ **IMPORTANT**: 
+   ⚠️ **IMPORTANT**:
    - **Always use `toolsets:` for GitHub tools** - Use `toolsets: [default]` instead of manually listing individual tools.
    - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
@@ -449,7 +460,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
   **Advanced static analysis tools**:
   For advanced code analysis tasks, see `.github/aw/serena-tool.md` for when and how to use Serena language server.
 
-   ⚠️ **IMPORTANT - Default Tools (Sandboxed by Default)**: 
+   ⚠️ **IMPORTANT - Default Tools (Sandboxed by Default)**:
    - **Agentic workflows are sandboxed by the Agent Workflow Firewall (AWF)** - The agent runs in a secure, sandboxed environment with domain-based access control
    - **`edit` and `bash` are enabled by default** - No need to add explicitly since the agent is sandboxed
    - **`bash` defaults to `*` (all commands)** - All bash commands are available because the sandbox provides security isolation
@@ -566,12 +577,23 @@ Based on the parsed requirements, determine:
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
    - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
+   - **External deployment monitoring** (Heroku, Vercel, Railway, Fly.io, etc.) → `on: deployment_status:` with `if: ${{ github.event.deployment_status.state == 'failure' }}` — use this when third-party services post deployment status back to GitHub. See reference: @.github/aw/deployment-status.md
+   - **GitHub Actions pipeline monitoring** → `on: workflow_run:` with `if: ${{ github.event.workflow_run.conclusion == 'failure' }}` — use this when monitoring other GitHub Actions workflows in the same repo
+   - **`deployment_status` vs `workflow_run`**: Use `deployment_status` for **external deployment services** that integrate with the GitHub Deployments API; use `workflow_run` for **GitHub Actions-internal** pipelines. Never use `workflow_run` as a workaround for external deployment failures.
    - **Note**: `workflow_dispatch:` is automatically added ONLY for fuzzy schedules (`daily`, `weekly`, etc.). For other triggers, add it explicitly if manual execution is desired.
 3. **Tools**: Determine required tools:
    - **`bash` and `edit` are enabled by default** - No need to add (sandboxed by AWF)
    - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed)
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
+   - **Network ecosystem inference**: For workflows that build/test/install packages, always include the language ecosystem in `network: allowed:`. Never use `network: defaults` alone — it only covers basic infrastructure, not package registries. Detect from repository files:
+     - `.csproj`/`.fsproj`/`*.sln`/`*.slnx` → `network: { allowed: [defaults, dotnet] }` (NuGet)
+     - `requirements.txt`/`pyproject.toml`/`setup.py`/`uv.lock` → `network: { allowed: [defaults, python] }` (enables `pypi.org`, `files.pythonhosted.org`)
+     - `package.json`/`.nvmrc`/`yarn.lock` → `network: { allowed: [defaults, node] }` (enables `registry.npmjs.org`)
+     - `go.mod`/`go.sum` → `network: { allowed: [defaults, go] }` (enables `proxy.golang.org`, `sum.golang.org`)
+     - `pom.xml`/`build.gradle` → `network: { allowed: [defaults, java] }` (Maven/Gradle)
+     - `Gemfile`/`*.gemspec` → `network: { allowed: [defaults, ruby] }` (enables `rubygems.org`)
+     - `Cargo.toml` → `network: { allowed: [defaults, rust] }` (Cargo)
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
@@ -599,7 +621,7 @@ Based on the parsed requirements, determine:
 If the workflow involves cross-repository operations, follow these additional guidelines:
 
 **Authentication Configuration:**
-- Add `safe-outputs.github-token: ${{ secrets.CROSS_REPO_PAT }}` for PAT authentication
+- Add `safe-outputs.github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}` for PAT authentication
 - Or use `safe-outputs.app` for GitHub App authentication
 - Document required PAT scopes in the workflow description
 
@@ -629,7 +651,7 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
+  github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     max: 5
   add-comment:
@@ -649,7 +671,7 @@ When you identify issues requiring tracking:
 ```
 
 **Reference Documentation:**
-- https://github.github.com/gh-aw/patterns/multirepoops/
+- https://github.github.com/gh-aw/patterns/multi-repo-ops/
 
 ### Step 3: Create the Workflow File
 
@@ -776,3 +798,7 @@ Include in the PR description:
   - **Checkboxes**: Use `- [ ]` for unchecked and `- [x]` for checked task items
   - **Progressive Disclosure**: Use `<details><summary><b>Bold Summary Text</b></summary>` to collapse long content
   - **Workflow Run Links**: Format as `[§12345](https://github.com/owner/repo/actions/runs/12345)`. Do NOT add footer attribution (system adds automatically)
+- **Produce a single workflow file**: Always output exactly **one** workflow `.md` file as the primary deliverable. Do not create separate architecture documents, runbooks, usage guides, or any other documentation files alongside the workflow.
+  - If documentation is needed, add a brief inline `## Usage` section within the same `.md` file.
+  - ✅ **Correct**: One file — `.github/workflows/<workflow-id>.md` (with optional `## Usage` section inside)
+  - ❌ **Incorrect**: `.github/workflows/<workflow-id>.md` + `docs/workflow-guide.md` + `README-workflow.md` + architecture docs

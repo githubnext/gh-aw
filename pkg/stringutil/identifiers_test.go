@@ -155,14 +155,14 @@ func TestNormalizeSafeOutputIdentifier(t *testing.T) {
 
 func BenchmarkNormalizeWorkflowName(b *testing.B) {
 	name := "weekly-research-workflow.lock.yml"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizeWorkflowName(name)
 	}
 }
 
 func BenchmarkNormalizeSafeOutputIdentifier(b *testing.B) {
 	identifier := "create-pull-request-review-comment"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizeSafeOutputIdentifier(identifier)
 	}
 }

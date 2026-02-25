@@ -26,9 +26,6 @@ description: "Shared playwright configuration"
 tools:
   playwright:
     version: "v1.41.0"
-    allowed_domains:
-      - "example.com"
-      - "github.com"
 network:
   allowed:
     - playwright
@@ -84,14 +81,6 @@ Uses imported playwright tool.
 	// Verify playwright Docker image
 	if !strings.Contains(workflowData, "mcr.microsoft.com/playwright/mcp") {
 		t.Error("Expected compiled workflow to contain playwright Docker image")
-	}
-
-	// Verify allowed domains are present
-	if !strings.Contains(workflowData, "example.com") {
-		t.Error("Expected compiled workflow to contain example.com domain")
-	}
-	if !strings.Contains(workflowData, "github.com") {
-		t.Error("Expected compiled workflow to contain github.com domain")
 	}
 }
 
@@ -283,8 +272,6 @@ tools:
     - go
   playwright:
     version: "v1.41.0"
-    allowed_domains:
-      - "example.com"
 permissions:
   actions: read
 network:
@@ -343,7 +330,7 @@ Uses all imported tools.
 		t.Error("Expected compiled workflow to contain serena tool")
 	}
 	// Per MCP Gateway Specification v1.0.0, agentic-workflows uses containerized format
-	if !strings.Contains(workflowData, `"`+constants.AgenticWorkflowsMCPServerID+`"`) {
+	if !strings.Contains(workflowData, `"`+constants.AgenticWorkflowsMCPServerID.String()+`"`) {
 		t.Error("Expected compiled workflow to contain agentic-workflows tool")
 	}
 
@@ -353,9 +340,6 @@ Uses all imported tools.
 	}
 	if !strings.Contains(workflowData, "ghcr.io/github/serena-mcp-server:latest") {
 		t.Error("Expected compiled workflow to contain serena Docker container")
-	}
-	if !strings.Contains(workflowData, "example.com") {
-		t.Error("Expected compiled workflow to contain example.com domain for playwright")
 	}
 }
 
@@ -452,8 +436,6 @@ description: "Shared playwright with custom args"
 tools:
   playwright:
     version: "v1.41.0"
-    allowed_domains:
-      - "example.com"
     args:
       - "--custom-flag"
       - "value"

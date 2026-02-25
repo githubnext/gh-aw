@@ -48,7 +48,7 @@ tools:
 # Pre-download GitHub data in steps to avoid excessive MCP calls
 # Uses repo-memory to persist data across runs and avoid re-fetching
 steps:
-  - name: Setup directories and check cache
+  - name: Setup working directories
     id: check-cache
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -276,7 +276,6 @@ steps:
       find /tmp/gh-aw/daily-news-data/ -maxdepth 1 -ls
 
 imports:
-  - shared/mood.md
   - shared/mcp/tavily.md
   - shared/jqschema.md
   - shared/reporting.md
@@ -530,3 +529,9 @@ Your reports should:
 Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
 
 Only a new discussion should be created, do not close or update any existing discussions.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

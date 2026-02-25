@@ -325,7 +325,7 @@ description: MCP Tool
 
 	// Create multiple top-level workflows that import the deep shared workflow
 	workflows := make([]string, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		workflows[i] = filepath.Join(workflowsDir, fmt.Sprintf("workflow%d.md", i))
 		content := fmt.Sprintf(`---
 description: Workflow %d

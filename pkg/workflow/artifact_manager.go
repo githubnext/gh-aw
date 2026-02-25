@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -111,10 +112,10 @@ func (am *ArtifactManager) GetCurrentJob() string {
 // RecordUpload records an artifact upload operation
 func (am *ArtifactManager) RecordUpload(upload *ArtifactUpload) error {
 	if upload.Name == "" {
-		return fmt.Errorf("artifact upload must have a name")
+		return errors.New("artifact upload must have a name")
 	}
 	if len(upload.Paths) == 0 {
-		return fmt.Errorf("artifact upload must have at least one path")
+		return errors.New("artifact upload must have at least one path")
 	}
 
 	// Set the job name if not already set
@@ -135,10 +136,10 @@ func (am *ArtifactManager) RecordUpload(upload *ArtifactUpload) error {
 // RecordDownload records an artifact download operation
 func (am *ArtifactManager) RecordDownload(download *ArtifactDownload) error {
 	if download.Name == "" && download.Pattern == "" {
-		return fmt.Errorf("artifact download must have either name or pattern")
+		return errors.New("artifact download must have either name or pattern")
 	}
 	if download.Path == "" {
-		return fmt.Errorf("artifact download must have a path")
+		return errors.New("artifact download must have a path")
 	}
 
 	// Set the job name if not already set
@@ -243,7 +244,7 @@ func findCommonParent(paths []string) string {
 
 	// Find common prefix by comparing each component
 	var commonParts []string
-	for i := 0; i < minLen-1; i++ { // minLen-1 to exclude the filename
+	for i := range minLen - 1 { // minLen-1 to exclude the filename
 		part := splitPaths[0][i]
 		allMatch := true
 		for _, sp := range splitPaths[1:] {
@@ -415,14 +416,14 @@ func matchesPattern(name, pattern string) bool {
 	}
 
 	// Handle leading wildcard: "*suffix"
-	if strings.HasPrefix(pattern, "*") {
-		suffix := strings.TrimPrefix(pattern, "*")
+	if after, ok := strings.CutPrefix(pattern, "*"); ok {
+		suffix := after
 		return strings.HasSuffix(name, suffix)
 	}
 
 	// Handle trailing wildcard: "prefix*"
-	if strings.HasSuffix(pattern, "*") {
-		prefix := strings.TrimSuffix(pattern, "*")
+	if before, ok := strings.CutSuffix(pattern, "*"); ok {
+		prefix := before
 		return strings.HasPrefix(name, prefix)
 	}
 

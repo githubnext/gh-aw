@@ -15,6 +15,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { listFilesRecursively } = require("./file_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
+const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Main entry point for parsing threat detection results
@@ -40,7 +41,7 @@ async function main() {
         core.info("  Found " + files.length + " file(s):");
         files.forEach(file => core.info("    - " + file));
       }
-      core.setFailed("❌ Agent output file not found at: " + outputPath);
+      core.setFailed(`${ERR_SYSTEM}: ❌ Agent output file not found at: ${outputPath}`);
       return;
     }
     const outputContent = fs.readFileSync(outputPath, "utf8");
@@ -71,7 +72,7 @@ async function main() {
 
     // Set success output to false before failing
     core.setOutput("success", "false");
-    core.setFailed("❌ Security threats detected: " + threats.join(", ") + reasonsText);
+    core.setFailed(`${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
   } else {
     core.info("✅ No security threats detected. Safe outputs may proceed.");
     // Set success output to true when no threats detected

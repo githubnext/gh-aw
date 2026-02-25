@@ -12,14 +12,20 @@ var shLog = logger.New("workflow:sh")
 
 // Prompt file paths at runtime (copied by setup action)
 const (
-	promptsDir                 = "/opt/gh-aw/prompts"
-	prContextPromptFile        = "pr_context_prompt.md"
-	tempFolderPromptFile       = "temp_folder_prompt.md"
-	playwrightPromptFile       = "playwright_prompt.md"
-	markdownPromptFile         = "markdown.md"
-	xpiaPromptFile             = "xpia.md"
-	cacheMemoryPromptFile      = "cache_memory_prompt.md"
-	cacheMemoryPromptMultiFile = "cache_memory_prompt_multi.md"
+	promptsDir                     = "/opt/gh-aw/prompts"
+	prContextPromptFile            = "pr_context_prompt.md"
+	tempFolderPromptFile           = "temp_folder_prompt.md"
+	playwrightPromptFile           = "playwright_prompt.md"
+	markdownPromptFile             = "markdown.md"
+	xpiaPromptFile                 = "xpia.md"
+	cacheMemoryPromptFile          = "cache_memory_prompt.md"
+	cacheMemoryPromptMultiFile     = "cache_memory_prompt_multi.md"
+	repoMemoryPromptFile           = "repo_memory_prompt.md"
+	repoMemoryPromptMultiFile      = "repo_memory_prompt_multi.md"
+	safeOutputsPromptFile          = "safe_outputs_prompt.md"
+	safeOutputsCreatePRFile        = "safe_outputs_create_pull_request.md"
+	safeOutputsPushToBranchFile    = "safe_outputs_push_to_pr_branch.md"
+	safeOutputsAutoCreateIssueFile = "safe_outputs_auto_create_issue.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions
@@ -39,8 +45,8 @@ func WritePromptFileToYAML(yaml *strings.Builder, filename string, indent string
 
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
+	scriptLines := strings.SplitSeq(script, "\n")
+	for line := range scriptLines {
 		// Skip empty lines at the beginning or end
 		if strings.TrimSpace(line) != "" {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)

@@ -30,13 +30,13 @@ func (c *Compiler) parseUnassignFromUserConfig(outputMap map[string]any) *Unassi
 		// For backward compatibility, use defaults
 		unassignFromUserLog.Print("Using default configuration")
 		config = UnassignFromUserConfig{
-			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
 		}
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	unassignFromUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)

@@ -30,6 +30,7 @@ const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
  * @typedef {Object} SanitizeOptions
  * @property {number} [maxLength] - Maximum length of content (default: 524288)
  * @property {string[]} [allowedAliases] - List of aliases (@mentions) that should not be neutralized
+ * @property {number} [maxBotMentions] - Maximum bot trigger references before filtering (default: 10)
  */
 
 /**
@@ -44,6 +45,8 @@ function sanitizeContent(content, maxLengthOrOptions) {
   let maxLength;
   /** @type {string[]} */
   let allowedAliasesLowercase = [];
+  /** @type {number | undefined} */
+  let maxBotMentions;
 
   if (typeof maxLengthOrOptions === "number") {
     maxLength = maxLengthOrOptions;
@@ -51,11 +54,12 @@ function sanitizeContent(content, maxLengthOrOptions) {
     maxLength = maxLengthOrOptions.maxLength;
     // Pre-process allowed aliases to lowercase for efficient comparison
     allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
+    maxBotMentions = maxLengthOrOptions.maxBotMentions;
   }
 
   // If no allowed aliases specified, use core sanitization (which neutralizes all mentions)
   if (allowedAliasesLowercase.length === 0) {
-    return sanitizeContentCore(content, maxLength);
+    return sanitizeContentCore(content, maxLength, maxBotMentions);
   }
 
   // If allowed aliases are specified, we need custom mention filtering
@@ -103,7 +107,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
 
   // Neutralize bot triggers
-  sanitized = neutralizeBotTriggers(sanitized);
+  sanitized = neutralizeBotTriggers(sanitized, maxBotMentions);
 
   // Balance markdown code regions to fix improperly nested fences
   // This repairs markdown where AI models generate nested code blocks at the same indentation

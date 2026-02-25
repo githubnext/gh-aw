@@ -56,9 +56,7 @@ This is a test workflow to verify temp folder instructions are included.
 	}
 
 	// Test 2: Verify the cat command for temp folder prompt file is included
-	// Note: First prompt file uses > (create), subsequent ones use >> (append)
-	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\" > \"$GH_AW_PROMPT\"") &&
-		!strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/temp_folder_prompt.md\"") {
 		t.Error("Expected cat command for temp folder prompt file in generated workflow")
 	}
 

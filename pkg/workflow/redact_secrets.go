@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -43,7 +44,7 @@ func CollectSecretReferences(yamlContent string) []string {
 	}
 
 	// Sort for consistent output
-	SortStrings(secrets)
+	sort.Strings(secrets)
 
 	secretMaskingLog.Printf("Found %d unique secret reference(s) in workflow", len(secrets))
 
@@ -124,90 +125,4 @@ func (c *Compiler) generateCustomSecretMaskingStep(yaml *strings.Builder, step m
 
 	// Generate the step YAML
 	c.renderStepFromMap(yaml, step, data, "      ")
-}
-
-// renderStepFromMap renders a GitHub Actions step from a map to YAML
-func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
-	// Start the step with a dash
-	yaml.WriteString(indent + "- ")
-
-	// Track if we've written the first line
-	firstField := true
-
-	// Order of fields to write (matches GitHub Actions convention)
-	fieldOrder := []string{"name", "id", "if", "uses", "with", "run", "env", "working-directory", "continue-on-error", "timeout-minutes", "shell"}
-
-	for _, field := range fieldOrder {
-		if value, exists := step[field]; exists {
-			// Add proper indentation for non-first fields
-			if !firstField {
-				yaml.WriteString(indent + "  ")
-			}
-			firstField = false
-
-			// Render the field based on its type
-			switch v := value.(type) {
-			case string:
-				// Handle multi-line strings (especially for 'run' field)
-				if field == "run" && strings.Contains(v, "\n") {
-					fmt.Fprintf(yaml, "%s: |\n", field)
-					lines := strings.Split(v, "\n")
-					for _, line := range lines {
-						fmt.Fprintf(yaml, "%s    %s\n", indent, line)
-					}
-				} else {
-					fmt.Fprintf(yaml, "%s: %s\n", field, v)
-				}
-			case map[string]any:
-				// For complex fields like "with" or "env"
-				fmt.Fprintf(yaml, "%s:\n", field)
-				for key, val := range v {
-					fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
-				}
-			default:
-				fmt.Fprintf(yaml, "%s: %v\n", field, v)
-			}
-		}
-	}
-
-	// Add any remaining fields not in the predefined order
-	for field, value := range step {
-		// Skip fields we've already processed
-		skip := false
-		for _, f := range fieldOrder {
-			if f == field {
-				skip = true
-				break
-			}
-		}
-		if skip {
-			continue
-		}
-
-		if !firstField {
-			yaml.WriteString(indent + "  ")
-		}
-		firstField = false
-
-		switch v := value.(type) {
-		case string:
-			// Handle multi-line strings
-			if strings.Contains(v, "\n") {
-				fmt.Fprintf(yaml, "%s: |\n", field)
-				lines := strings.Split(v, "\n")
-				for _, line := range lines {
-					fmt.Fprintf(yaml, "%s    %s\n", indent, line)
-				}
-			} else {
-				fmt.Fprintf(yaml, "%s: %s\n", field, v)
-			}
-		case map[string]any:
-			fmt.Fprintf(yaml, "%s:\n", field)
-			for key, val := range v {
-				fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
-			}
-		default:
-			fmt.Fprintf(yaml, "%s: %v\n", field, v)
-		}
-	}
 }

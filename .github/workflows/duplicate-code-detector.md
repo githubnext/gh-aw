@@ -9,8 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
-tools:
-  serena: ["go"]
+imports:
+  - shared/mcp/serena-go.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -21,8 +21,6 @@ safe-outputs:
     max: 3
 timeout-minutes: 15
 strict: true
-imports:
-  - shared/mood.md
 ---
 
 # Duplicate Code Detection
@@ -108,6 +106,20 @@ Create separate issues for each distinct duplication pattern found (maximum 3 pa
 - **Create one issue per distinct pattern** - do NOT bundle multiple patterns in a single issue
 - Limit to the top 3 most significant patterns if more are found
 - Use the `create_issue` tool from safe-outputs MCP **once for each pattern**
+
+**When No Issues Are Found**:
+
+**YOU MUST CALL** the `noop` tool when analysis completes without finding significant duplication:
+
+```json
+{
+  "noop": {
+    "message": "✅ Duplicate code analysis complete. Analyzed [N] files changed recently. No significant duplication detected (threshold: >10 lines or 3+ similar patterns)."
+  }
+}
+```
+
+**DO NOT just write this message in your output text** - you MUST actually invoke the `noop` tool. The workflow will fail if you don't call either `create_issue` or `noop`.
 
 **Issue Contents for Each Pattern**:
 - **Executive Summary**: Brief description of this specific duplication pattern
@@ -233,6 +245,7 @@ For each distinct duplication pattern found, create a separate issue using this 
 - Suggest practical refactoring approaches
 - Assign issue to @copilot for automated remediation
 - Use descriptive titles that clearly identify the specific pattern (e.g., "Duplicate Code: Error Handling Pattern in Parser Module")
+- **If no significant duplication found, call `noop` tool** - never complete without calling either `create_issue` or `noop`
 
 ## Tool Usage Sequence
 

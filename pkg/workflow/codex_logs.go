@@ -26,7 +26,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	var currentSequence []string                  // Track tool sequence
 	var lastToolName string                       // Track most recent tool for output size extraction
 
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		line := lines[i]
 
 		// Skip empty lines
@@ -161,7 +161,7 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 
 	if execCommand != "" {
 		// Create unique bash entry with command info, avoiding colons
-		uniqueBashName := fmt.Sprintf("bash_%s", ShortenCommand(execCommand))
+		uniqueBashName := "bash_" + ShortenCommand(execCommand)
 
 		// Initialize or update tool call info
 		if toolInfo, exists := toolCallMap[uniqueBashName]; exists {

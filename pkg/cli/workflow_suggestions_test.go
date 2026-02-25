@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -94,13 +95,7 @@ func TestSuggestWorkflowNames(t *testing.T) {
 
 			// Check if expected suggestions are present
 			for _, expected := range tt.expected {
-				found := false
-				for _, result := range results {
-					if result == expected {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(results, expected)
 				if !found && len(tt.expected) > 0 {
 					t.Errorf("Expected suggestion %q not found in results %v", expected, results)
 				}

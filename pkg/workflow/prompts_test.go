@@ -36,14 +36,13 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	if !strings.Contains(output, "Create prompt with built-in context") {
 		t.Error("Expected unified prompt step to be generated when safe outputs enabled")
 	}
-	if !strings.Contains(output, "safe output tool") {
-		t.Error("Expected prompt to mention safe output tools")
+	// Static intro is now in safe_outputs_prompt.md (referenced by file, not inline)
+	if !strings.Contains(output, "safe_outputs_prompt.md") {
+		t.Error("Expected reference to safe_outputs_prompt.md for static safe outputs intro")
 	}
-	if !strings.Contains(output, "gh CLI is NOT authenticated") {
-		t.Error("Expected prompt to warn about gh CLI not being authenticated")
-	}
-	if !strings.Contains(output, "safeoutputs MCP server") {
-		t.Error("Expected prompt to mention safeoutputs MCP server")
+	// Per-tool instructions are still inline
+	if !strings.Contains(output, "create_issue") {
+		t.Error("Expected prompt to include create_issue tool name")
 	}
 }
 
@@ -61,7 +60,7 @@ func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
 
 	output := yaml.String()
 	// Should still have unified step (for temp folder), but not safe outputs
-	if strings.Contains(output, "<safe-outputs>") {
+	if strings.Contains(output, "safe_outputs_prompt.md") {
 		t.Error("Expected safe outputs section to NOT be in unified prompt when disabled")
 	}
 }
@@ -72,10 +71,9 @@ func TestSafeOutputsPromptText_FollowsXMLFormat(t *testing.T) {
 	t.Skip("Safe outputs prompt is now generated dynamically based on enabled tools")
 }
 
-func TestSafeOutputsPrompt_NeverListsToolNames(t *testing.T) {
-	// CRITICAL: This test ensures tool names are NEVER listed in the safe outputs prompt.
-	// The agent must query the MCP server to discover available tools - listing them
-	// directly causes the agent to try accessing them before MCP setup is complete.
+func TestSafeOutputsPrompt_IncludesPerToolInstructions(t *testing.T) {
+	// Test that per-tool instructions are included in the safe outputs prompt
+	// for each enabled tool, helping the agent understand how to use them.
 	compiler := &Compiler{}
 	var yaml strings.Builder
 
@@ -95,34 +93,23 @@ func TestSafeOutputsPrompt_NeverListsToolNames(t *testing.T) {
 	compiler.generateUnifiedPromptStep(&yaml, data)
 	output := yaml.String()
 
-	// Verify safe outputs section exists
-	if !strings.Contains(output, "<safe-outputs>") {
-		t.Fatal("Expected safe outputs section in generated prompt")
+	// Static intro is now in safe_outputs_prompt.md (file reference, not inline)
+	if !strings.Contains(output, "safe_outputs_prompt.md") {
+		t.Fatal("Expected safe_outputs_prompt.md file reference in generated prompt")
 	}
 
-	// CRITICAL: Ensure tool names are NEVER listed in the prompt
-	forbiddenToolNames := []string{
-		"create_issue",
-		"add_comment",
-		"create_discussion",
-		"update_issue",
-		"update_pull_request",
-		"close_issue",
-		"close_pull_request",
-		"create_pull_request",
-		"add_labels",
-		"remove_labels",
+	// Per-tool instructions are wrapped in <safe-output-tools>
+	if !strings.Contains(output, "<safe-output-tools>") {
+		t.Fatal("Expected <safe-output-tools> section in generated prompt")
 	}
 
-	for _, toolName := range forbiddenToolNames {
-		if strings.Contains(output, toolName) {
-			t.Errorf("CRITICAL: Safe outputs prompt must NOT list tool name %q. Agent should discover tools via MCP server query.", toolName)
-		}
-	}
-
-	// Verify the correct instruction is present
-	if !strings.Contains(output, "Discover available tools from the safeoutputs MCP server") {
-		t.Error("Expected prompt to instruct agent to query MCP server for tools")
+	// Verify enabled tool names are present
+	for _, toolName := range []string{"create_issue", "add_comment", "create_discussion", "update_issue"} {
+		t.Run(toolName, func(t *testing.T) {
+			if !strings.Contains(output, toolName) {
+				t.Errorf("Expected per-tool instruction to include tool name %q", toolName)
+			}
+		})
 	}
 }
 
@@ -373,7 +360,7 @@ This is a test workflow with playwright enabled.
 	}
 
 	// Test 2: Verify the cat command for playwright prompt file is included
-	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/playwright_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/playwright_prompt.md\"") {
 		t.Error("Expected cat command for playwright prompt file in generated workflow")
 	}
 
@@ -550,7 +537,7 @@ This is a test workflow with issue_comment trigger.
 	}
 
 	// Test 2: Verify the cat command for PR context prompt file is included
-	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/pr_context_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+	if !strings.Contains(lockStr, "cat \"/opt/gh-aw/prompts/pr_context_prompt.md\"") {
 		t.Error("Expected cat command for PR context prompt file in generated workflow")
 	}
 

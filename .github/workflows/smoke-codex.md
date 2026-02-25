@@ -27,14 +27,13 @@ tools:
   cache-memory: true
   github:
   playwright:
-    allowed_domains:
-      - github.com
   edit:
   bash:
     - "*"
   serena:
     languages:
       go: {}
+  web-fetch:
 runtimes:
   go:
     version: "1.25"
@@ -48,6 +47,7 @@ safe-outputs:
     create-issue:
       expires: 2h
       close-older-issues: true
+      labels: [automation, testing]
     add-labels:
       allowed: [smoke-codex]
     remove-labels:
@@ -62,6 +62,8 @@ safe-outputs:
       run-success: "✨ The prophecy is fulfilled... [{workflow_name}]({run_url}) has completed its mystical journey. The stars align. 🌟"
       run-failure: "🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation..."
 timeout-minutes: 15
+checkout:
+  fetch-depth: 2
 ---
 
 # Smoke Test: Codex Engine Validation
@@ -79,9 +81,10 @@ timeout-minutes: 15
    - Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands)
    - After initialization, use the `find_symbol` tool to search for symbols and verify that at least 3 symbols are found in the results
 3. **Playwright Testing**: Use the playwright tools to navigate to https://github.com and verify the page title contains "GitHub" (do NOT try to install playwright - use the provided MCP tools)
-4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
-5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-6. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
+4. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch MCP tool directly)
+5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
+6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+7. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
 
 ## Output
 
@@ -94,3 +97,9 @@ If all tests pass:
 - Use the `add_labels` safe-output tool to add the label `smoke-codex` to the pull request
 - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
 - Use the `unassign_from_user` safe-output tool to unassign the user `githubactionagent` from the pull request (this is a fictitious user used for testing)
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

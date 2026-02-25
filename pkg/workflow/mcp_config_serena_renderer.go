@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -51,13 +52,7 @@ func selectSerenaContainer(serenaTool any) string {
 	// Check if all requested languages are supported by the default container
 	defaultSupported := true
 	for _, lang := range requestedLanguages {
-		supported := false
-		for _, supportedLang := range constants.SerenaLanguageSupport[constants.DefaultSerenaMCPServerContainer] {
-			if lang == supportedLang {
-				supported = true
-				break
-			}
-		}
+		supported := slices.Contains(constants.SerenaLanguageSupport[constants.DefaultSerenaMCPServerContainer], lang)
 		if !supported {
 			defaultSupported = false
 			mcpSerenaLog.Printf("Language '%s' not found in default container support list", lang)
@@ -72,13 +67,7 @@ func selectSerenaContainer(serenaTool any) string {
 	// Check if Oraios container supports the languages
 	oraiosSupported := true
 	for _, lang := range requestedLanguages {
-		supported := false
-		for _, supportedLang := range constants.SerenaLanguageSupport[constants.OraiosSerenaContainer] {
-			if lang == supportedLang {
-				supported = true
-				break
-			}
-		}
+		supported := slices.Contains(constants.SerenaLanguageSupport[constants.OraiosSerenaContainer], lang)
 		if !supported {
 			oraiosSupported = false
 			break

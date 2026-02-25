@@ -32,13 +32,13 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Pull Requests
 
-- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (max: 1)
+- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
 - [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
 - [**Close PR**](#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
 - [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
 - [**Reply to PR Review Comment**](#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
 - [**Resolve PR Review Thread**](#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
-- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (max: 1, same-repo only)
+- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
 
 ### Labels, Assignments & Reviews
 
@@ -100,7 +100,7 @@ safe-outputs:
 
 #### Auto-Expiration
 
-The `expires` field auto-closes issues after a time period. Supports integers (days), relative formats (`2h`, `7d`, `2w`, `1m`, `1y`), or `false` to disable expiration. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
+The `expires` field auto-closes issues after a time period. Supports day-string format (`7d`, `2w`, `1m`, `1y`, `2h`) or `false` to disable expiration. Integer values (e.g., `expires: 7`) are also accepted as shorthand for days and can be migrated to string format with `gh aw fix --write`. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
 
 - 1 day or less → every 2 hours
 - 2 days → every 6 hours
@@ -215,11 +215,12 @@ safe-outputs:
     required-title-prefix: "[bot]"    # only close matching prefix
     max: 20                           # max closures (default: 1)
     target-repo: "owner/repo"         # cross-repository
+    state-reason: "duplicate"         # completed (default), not_planned, duplicate
 ```
 
 **Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
 
-**State Reasons**: `completed`, `not_planned`, `reopened` (default: `completed`).
+**State Reasons**: `completed`, `not_planned`, `duplicate` (default: `completed`). Can also be set per-item in agent output.
 
 ### Comment Creation (`add-comment:`)
 
@@ -235,6 +236,8 @@ safe-outputs:
     hide-older-comments: true    # hide previous comments from same workflow
     allowed-reasons: [outdated]  # restrict hiding reasons (optional)
 ```
+
+The author of the parent issue, PR, or discussion receiving the comment is automatically preserved as an allowed mention. This means `@username` references to the issue/PR/discussion author are not neutralized when the workflow posts a reply.
 
 #### Hide Older Comments
 
@@ -343,7 +346,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. This uses the same token resolution as Copilot agent assignment: `github-token:`, [`GH_AW_AGENT_TOKEN`](/gh-aw/reference/auth/#gh_aw_agent_token) (or [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token), falling back to `GITHUB_TOKEN`).
+Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
 
 ### Assign Milestone (`assign-milestone:`)
 
@@ -360,7 +363,7 @@ safe-outputs:
 
 ### Issue Updates (`update-issue:`)
 
-Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`.
+Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed". The `operation` field controls how body updates are applied: `append` (default), `prepend`, `replace`, or `replace-island`. Use `title-prefix` to restrict updates to issues whose titles start with a specific prefix.
 
 ```yaml wrap
 safe-outputs:
@@ -368,6 +371,7 @@ safe-outputs:
     status:                   # enable status updates
     title:                    # enable title updates
     body:                     # enable body updates
+    title-prefix: "[bot] "    # only update issues with this title prefix
     max: 3                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
@@ -377,6 +381,8 @@ safe-outputs:
 **Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
 
 When using `target: "*"`, the agent must provide `issue_number` or `item_number` in the output to identify which issue to update.
+
+**Title Prefix**: When `title-prefix` is set, the update is rejected if the target issue's current title does not start with the specified prefix. This ensures agents can only modify issues that have been explicitly tagged for automated updates.
 
 **Operation Types** (for body updates):
 
@@ -396,6 +402,7 @@ safe-outputs:
   update-pull-request:
     title: true               # enable title updates (default: true)
     body: true                # enable body updates (default: true)
+    footer: false             # omit AI-generated footer from body updates (default: true)
     max: 1                    # max updates (default: 1)
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
@@ -434,7 +441,7 @@ Agent output includes `parent_issue_number` and `sub_issue_number`. Validation e
 
 ### Project Creation (`create-project:`)
 
-Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token))-default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
+Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
 
 ```yaml wrap
 safe-outputs:
@@ -490,7 +497,7 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 
 ### Project Board Updates (`update-project:`)
 
-Manages GitHub Projects boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token))-default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
+Manages GitHub Projects boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
 
 ```yaml wrap
 safe-outputs:
@@ -588,7 +595,7 @@ Views are created automatically during workflow execution. The workflow must inc
 
 ### Project Status Updates (`create-project-status-update:`)
 
-Creates status updates on GitHub Projects boards to communicate progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_project_github_token))-default `GITHUB_TOKEN` lacks Projects v2 access.
+Creates status updates on GitHub Projects boards to communicate progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access.
 
 ```yaml wrap
 safe-outputs:
@@ -665,6 +672,8 @@ Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 Creates PRs with code changes. By default, falls back to creating an issue if PR creation fails (e.g., org settings block it). Set `fallback-as-issue: false` to disable this fallback and avoid requiring `issues: write` permission. `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).
 
+Multiple PRs per run are supported by setting `max` higher than 1. Each PR is created from its own branch with an independent patch, so concurrent calls do not conflict.
+
 ```yaml wrap
 safe-outputs:
   create-pull-request:
@@ -672,15 +681,17 @@ safe-outputs:
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
     draft: true                   # create as draft (default: true)
+    max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after 14 days (same-repo only)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
     target-repo: "owner/repo"     # cross-repository
-    base-branch: "vnext"          # target branch for PR (default: github.ref_name)
+    base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
     fallback-as-issue: false      # disable issue fallback (default: true)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
 ```
 
-The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to the workflow's branch (`github.ref_name`).
+The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
 
 **Example use case:** A workflow in `org/engineering` that creates PRs in `org/docs` targeting the `vnext` branch for feature documentation:
 
@@ -693,10 +704,11 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-> [!NOTE]
-> PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
+PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
 
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
+
+By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -813,7 +825,11 @@ safe-outputs:
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes.
+Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
+
+:::caution[Fork PRs Not Supported]
+This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
+:::
 
 ```yaml wrap
 safe-outputs:
@@ -821,11 +837,19 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
+    max: 3                      # max pushes per run (default: 1)
     if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
+
+Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
+
+#### Fail-Fast on Code Push Failure
+
+If `push-to-pull-request-branch` (or `create-pull-request`) fails, the safe-output pipeline cancels all remaining non-code-push outputs. Each cancelled output is marked with an explicit reason such as "Cancelled: code push operation failed". The failure details appear in the agent failure issue or comment generated by the conclusion job.
 
 ### Release Updates (`update-release:`)
 
@@ -867,6 +891,10 @@ git checkout --orphan my-custom-branch && git rm -rf . && git commit --allow-emp
 
 ### No-Op Logging (`noop:`)
 
+:::danger[Required when no action is taken]
+**`noop` MUST be called when no GitHub action is needed.** This is the #1 runtime failure mode for safe-output workflows. If the agent finishes without calling any safe-output tool, the workflow fails silently with no output. Always call `noop` when your analysis concludes that no action is required.
+:::
+
 Enabled by default. Allows agents to produce completion messages when no actions are needed, preventing silent workflow completion.
 
 ```yaml wrap
@@ -875,7 +903,24 @@ safe-outputs:
   noop: false       # explicitly disable
 ```
 
-Agent output: `{"type": "noop", "message": "Analysis complete - no issues found"}`. Messages appear in the workflow conclusion comment or step summary.
+**When to call `noop`**: Any time the agent's analysis concludes that no GitHub action (issue, comment, PR, label, etc.) is needed. Examples:
+- No issues found during a code scan
+- No breaking changes detected in recent commits
+- Repository is already in the desired state
+- Condition for action was not met (e.g., no new issues to triage)
+
+**When NOT to call `noop`**: If the agent created an issue, posted a comment, opened a PR, or performed any other safe-output action, do NOT also call `noop`.
+
+**Failure mode**: If an agent completes its analysis without calling any safe-output tool, the workflow will fail with an error like `agent did not produce any safe outputs`. This is the most common cause of safe-output workflow failures.
+
+Agent output: `{"noop": {"message": "No action needed: analysis complete - no issues found"}}`. Messages appear in the workflow conclusion comment or step summary.
+
+**Always include explicit `noop` instructions in your workflow prompts:**
+
+```markdown
+If no action is needed, you MUST call the `noop` tool with a message explaining why:
+{"noop": {"message": "No action needed: [brief explanation]"}}
+```
 
 ### Missing Tool Reporting (`missing-tool:`)
 
@@ -1085,13 +1130,11 @@ To respect GitHub API rate limits, the handler automatically enforces a 5-second
 
 ### Agent Session Creation (`create-agent-session:`)
 
-Creates Copilot coding agent sessions. Requires [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) or [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) PAT-default `GITHUB_TOKEN` lacks permissions.
+Creates Copilot coding agent sessions.
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as [`GH_AW_AGENT_TOKEN`](/gh-aw/reference/auth/#gh_aw_agent_token), or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
-
-Auto-resolves target from workflow context (issue/PR events) when `issue_number` or `pull_number` not explicitly provided. Restrict with `allowed` list. Target: `"triggering"` (default), `"*"` (any), or number.
+Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
 
 ```yaml wrap
 safe-outputs:
@@ -1106,30 +1149,13 @@ safe-outputs:
     target-repo: "owner/repo"  # where the issue lives (cross-repository)
     pull-request-repo: "owner/repo"      # where the PR should be created (may differ from issue repo)
     allowed-pull-request-repos: [owner/repo1, owner/repo2]  # additional allowed PR repositories
+    base-branch: "develop"     # target branch for PR (default: target repo's default branch)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-**Target Issue or Pull Request:**
+See **[Assign to Copilot](/gh-aw/reference/assign-to-copilot/)** for complete configuration options and authorization setup.
 
-- `target: "triggering"` - Auto-resolves from `github.event.issue.number` or `github.event.pull_request.number`
-- `target: "*"` - Requires explicit `issue_number` or `pull_number` in agent output
-- `target: "123"` - Always uses issue/PR #123
-
-**Cross-Repository PR Creation:**
-
-The `pull-request-repo` parameter allows you to create pull requests in a different repository than where the issue lives. This is useful when:
-
-- Issues are tracked in a central repository but code lives in separate repositories
-- You want to separate issue tracking from code repositories
-
-When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
-
-The repository specified by `pull-request-repo` is automatically allowed - you don't need to list it in `allowed-pull-request-repos`. Use `allowed-pull-request-repos` to specify additional repositories where PRs can be created.
-
-**Assignee Filtering:**
-When `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.
-
-Use `assign-to-agent` when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
+If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead.
 
 ### Assign to User (`assign-to-user:`)
 
@@ -1162,13 +1188,13 @@ safe-outputs:
 
 ## Cross-Repository Operations
 
-Most safe outputs support `target-repo`. This will generally require an authorization option (`github-token` or `app:`)-to take effect.
+Most safe outputs support `target-repo`. This will generally require additional authentication (`github-token` or `app:`) to take effect.
 
 ```yaml wrap
 safe-outputs:
   create-issue:
     target-repo: "org/tracking-repo"
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
 ```
 
 ## Global Configuration Options
@@ -1197,11 +1223,11 @@ safe-outputs:
     github-token: ${{ secrets.PR_PAT }}    # per-output
 ```
 
-### GitHub App Token (`app:`)
+### Using a GitHub App for Authentication (`app:`)
 
 Use GitHub App tokens for enhanced security: on-demand token minting, automatic revocation, fine-grained permissions, and better attribution.
 
-See [GitHub App for Safe Outputs](/gh-aw/reference/auth/#github-app-for-safe-outputs) for configuration details and security benefits.
+See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
 
 ### Text Sanitization (`allowed-domains:`, `allowed-github-references:`)
 
@@ -1217,12 +1243,43 @@ safe-outputs:
 
 **Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`.
 
-**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/patterns/siderepoops/) workflows to prevent automation from cluttering your main repository's timeline.
+**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows to prevent automation from cluttering your main repository's timeline.
 
 - `[]` - Escape all references (prevents all timeline items)
 - `["repo"]` - Allow only the target repository's references
 - `["repo", "owner/other-repo"]` - Allow specific repositories
 - Not specified (default) - All references allowed
+
+### Bot Mention Limit (`max-bot-mentions:`)
+
+Agent output is automatically scanned for bot trigger phrases (e.g., `@copilot`, `@github-actions`) to prevent accidental automation triggering. By default, the first 10 occurrences are left unchanged and any excess are escaped with backticks. Entries already wrapped in backticks are skipped.
+
+Use `max-bot-mentions` to adjust this threshold:
+
+```yaml wrap
+safe-outputs:
+  max-bot-mentions: 3   # Allow 3 unescaped bot mentions per output
+  create-issue:
+```
+
+Accepts a literal integer or a GitHub Actions expression string (e.g., `${{ inputs.max-mentions }}`). Set to `0` to escape all bot trigger phrases. Default: 10.
+
+### Templatable Fields
+
+`max`, `expires`, and `max-bot-mentions` accept GitHub Actions expression strings in addition to literal integers, allowing workflow inputs or repository variables to control limits at runtime:
+
+```yaml wrap
+safe-outputs:
+  max-bot-mentions: ${{ inputs.max-mentions }}
+  create-issue:
+    max: ${{ inputs.max-issues }}
+    expires: ${{ inputs.expires-days }}
+  create-pull-request:
+    max: ${{ inputs.max-prs }}
+    draft: ${{ inputs.create-draft }}
+```
+
+Most boolean configuration fields also accept expression strings. Fields that influence permission computation (such as `add-comment.discussion` and `create-pull-request.fallback-as-issue`) remain literal booleans.
 
 ### Maximum Patch Size (`max-patch-size:`)
 

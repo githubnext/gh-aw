@@ -18,6 +18,7 @@ const { createHandlers } = require("./safe_outputs_handlers.cjs");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Start the safe-outputs MCP server
@@ -56,7 +57,7 @@ function startSafeOutputsServer(options = {}) {
   registerDynamicTools(server, toolsWithHandlers, safeOutputsConfig, outputFile, registerTool, normalizeTool);
 
   server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
-  if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
+  if (!Object.keys(server.tools).length) throw new Error(`${ERR_VALIDATION}: No tools enabled in configuration`);
 
   // Note: We do NOT cleanup the config file here because it's needed by the ingestion
   // phase (collect_ndjson_output.cjs) that runs after the MCP server completes.

@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 const main = createEngineLogParser({
   parserName: "Copilot",
@@ -45,7 +46,7 @@ function parseCopilotLog(logContent) {
   try {
     logEntries = JSON.parse(logContent);
     if (!Array.isArray(logEntries)) {
-      throw new Error("Not a JSON array");
+      throw new Error(`${ERR_PARSE}: Not a JSON array`);
     }
   } catch (jsonArrayError) {
     // If that fails, try to parse as debug logs format
@@ -414,6 +415,14 @@ function parseDebugLogFormat(logContent) {
                     // Create an assistant entry
                     const content = [];
                     const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
+
+                    // Add reasoning_text first (agent's thinking before response/tools)
+                    if (message.reasoning_text && message.reasoning_text.trim()) {
+                      content.push({
+                        type: "text",
+                        text: message.reasoning_text,
+                      });
+                    }
 
                     if (message.content && message.content.trim()) {
                       content.push({

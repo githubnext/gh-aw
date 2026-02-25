@@ -52,8 +52,7 @@ func TestArgsField(t *testing.T) {
 	t.Run("Playwright args field extraction", func(t *testing.T) {
 		// Test "args" field with []any
 		playwrightTool := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"args":            []any{"--browser", "firefox"},
+			"args": []any{"--browser", "firefox"},
 		}
 		playwrightConfig := parsePlaywrightTool(playwrightTool)
 		result := getPlaywrightCustomArgs(playwrightConfig)
@@ -66,8 +65,7 @@ func TestArgsField(t *testing.T) {
 
 		// Test "args" field with []string
 		playwrightToolString := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"args":            []string{"--headless"},
+			"args": []string{"--headless"},
 		}
 		playwrightConfigString := parsePlaywrightTool(playwrightToolString)
 		result = getPlaywrightCustomArgs(playwrightConfigString)
@@ -79,9 +77,7 @@ func TestArgsField(t *testing.T) {
 		}
 
 		// Test no args field (default behavior)
-		playwrightToolDefault := map[string]any{
-			"allowed_domains": []any{"example.com"},
-		}
+		playwrightToolDefault := map[string]any{}
 		playwrightConfigDefault := parsePlaywrightTool(playwrightToolDefault)
 		result = getPlaywrightCustomArgs(playwrightConfigDefault)
 		if result != nil {
@@ -144,8 +140,7 @@ func TestArgsField(t *testing.T) {
 		frontmatterPlaywright := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
-					"allowed_domains": []any{"example.com"},
-					"args":            []any{"--browser", "firefox"},
+					"args": []any{"--browser", "firefox"},
 				},
 			},
 		}

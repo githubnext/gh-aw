@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +31,7 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage),
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 		{
 			name: "custom runs-on string",
@@ -143,7 +142,7 @@ This is a test workflow.`
 		if jobStart != -1 {
 			// Look for runs-on within the next 500 characters of this job
 			jobSection := yamlStr[jobStart : jobStart+500]
-			defaultRunsOn := fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage)
+			defaultRunsOn := "runs-on: " + constants.DefaultActivationJobRunnerImage
 			if strings.Contains(jobSection, defaultRunsOn) {
 				t.Errorf("Job %q still uses default %q instead of custom runner.\nJob section:\n%s", jobName, defaultRunsOn, jobSection)
 			}
@@ -165,14 +164,14 @@ func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
 		{
 			name:           "nil safe outputs config",
 			safeOutputs:    nil,
-			expectedRunsOn: fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage),
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 		{
 			name: "safe outputs config with nil runs-on",
 			safeOutputs: &SafeOutputsConfig{
 				RunsOn: "",
 			},
-			expectedRunsOn: fmt.Sprintf("runs-on: %s", constants.DefaultActivationJobRunnerImage),
+			expectedRunsOn: "runs-on: " + constants.DefaultActivationJobRunnerImage,
 		},
 	}
 
@@ -183,5 +182,59 @@ func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
 				t.Errorf("Expected runs-on to be %q, got %q", tt.expectedRunsOn, runsOn)
 			}
 		})
+	}
+}
+
+func TestUnlockJobUsesRunsOn(t *testing.T) {
+	frontmatter := `---
+on:
+  issues:
+    types: [opened]
+    lock-for-agent: true
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+  runs-on: self-hosted
+---
+
+# Test Workflow
+
+This is a test workflow.`
+
+	tmpDir := testutil.TempDir(t, "workflow-unlock-runs-on-test")
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	yamlContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(yamlContent)
+
+	// Verify the unlock job uses the safe-outputs runs-on value
+	expectedRunsOn := "runs-on: self-hosted"
+	unlockJobPattern := "\n  unlock:"
+	unlockStart := strings.Index(yamlStr, unlockJobPattern)
+	if unlockStart == -1 {
+		t.Fatal("Expected unlock job to be present in compiled YAML")
+	}
+
+	unlockSection := yamlStr[unlockStart : unlockStart+500]
+	defaultRunsOn := "runs-on: " + constants.DefaultActivationJobRunnerImage
+	if strings.Contains(unlockSection, defaultRunsOn) {
+		t.Errorf("Unlock job uses default %q instead of safe-outputs runner.\nUnlock section:\n%s", defaultRunsOn, unlockSection)
+	}
+	if !strings.Contains(unlockSection, expectedRunsOn) {
+		t.Errorf("Unlock job does not use expected %q.\nUnlock section:\n%s", expectedRunsOn, unlockSection)
 	}
 }

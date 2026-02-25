@@ -15,6 +15,9 @@
  * For private repositories, lockdown mode is not necessary (false) as there is no risk
  * of exposing private repository access.
  *
+ * Note: This step is NOT generated when tools.github.app is configured. GitHub App tokens
+ * are already scoped to specific repositories, so automatic lockdown detection is unnecessary.
+ *
  * @param {any} github - GitHub API client
  * @param {any} context - GitHub context
  * @param {any} core - GitHub Actions core library

@@ -64,7 +64,7 @@ function generateSafeOutputSummary(options) {
         // Truncate body if too long
         const maxBodyLength = 500;
         const bodyPreview = message.body.length > maxBodyLength ? message.body.substring(0, maxBodyLength) + "..." : message.body;
-        summary += `**Body Preview:**\n\`\`\`\n${bodyPreview}\n\`\`\`\n\n`;
+        summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
       }
       if (message.labels && Array.isArray(message.labels)) {
         summary += `**Labels:** ${message.labels.join(", ")}\n\n`;
@@ -76,7 +76,7 @@ function generateSafeOutputSummary(options) {
 
     // Add original message details for debugging
     if (message) {
-      summary += `**Message Details:**\n\`\`\`json\n${JSON.stringify(message, null, 2).substring(0, 1000)}\n\`\`\`\n\n`;
+      summary += `**Message Details:**\n\`\`\`\`\`\`json\n${JSON.stringify(message, null, 2).substring(0, 1000)}\n\`\`\`\`\`\`\n\n`;
     }
   }
 

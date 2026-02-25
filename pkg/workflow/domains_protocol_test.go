@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -78,13 +79,7 @@ func TestProtocolSpecificDomains(t *testing.T) {
 
 			// Check that all expected domains are present
 			for _, expected := range tt.expectedDomains {
-				found := false
-				for _, domain := range result {
-					if domain == expected {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(result, expected)
 				if !found {
 					t.Errorf("Expected domain %q not found in result: %v", expected, result)
 				}

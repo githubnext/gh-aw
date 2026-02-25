@@ -39,8 +39,8 @@ func resolveImportPath(importPath string, workflowPath string) string {
 	}
 
 	// If the import path is absolute (starts with /), use it as-is (relative to repo root)
-	if strings.HasPrefix(importPath, "/") {
-		return strings.TrimPrefix(importPath, "/")
+	if after, ok := strings.CutPrefix(importPath, "/"); ok {
+		return after
 	}
 
 	// Otherwise, resolve relative to the workflow file's directory
@@ -194,7 +194,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			// Skip if filePath is empty (e.g., section-only reference like "#Section")
 			if filePath == "" {
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping include with empty file path: %s", line)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping include with empty file path: "+line))
 				}
 				result.WriteString(line + "\n")
 				continue
@@ -347,7 +347,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			// Skip if filePath is empty (e.g., section-only reference like "#Section")
 			if filePath == "" {
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping include with empty file path: %s", line)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping include with empty file path: "+line))
 				}
 				result.WriteString(line + "\n")
 				continue

@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -50,7 +51,7 @@ func TestGetBlockedDomains(t *testing.T) {
 			expected: func() []string {
 				// Get python ecosystem domains and sort them
 				domains := getEcosystemDomains("python")
-				SortStrings(domains)
+				sort.Strings(domains)
 				return domains
 			}(),
 		},
@@ -71,7 +72,7 @@ func TestGetBlockedDomains(t *testing.T) {
 				for d := range domainMap {
 					domains = append(domains, d)
 				}
-				SortStrings(domains)
+				sort.Strings(domains)
 				return domains
 			}(),
 		},
@@ -133,7 +134,7 @@ func TestFormatBlockedDomains(t *testing.T) {
 			expected: func() string {
 				// Get python ecosystem domains, sort, and join
 				domains := getEcosystemDomains("python")
-				SortStrings(domains)
+				sort.Strings(domains)
 				return strings.Join(domains, ",")
 			}(),
 		},

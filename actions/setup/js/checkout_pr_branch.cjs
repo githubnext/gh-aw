@@ -29,6 +29,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const fs = require("fs");
+const { ERR_API } = require("./error_codes.cjs");
 
 /**
  * Log detailed PR context information for debugging
@@ -231,7 +232,7 @@ Pull request #${pullRequest.number} is closed. The checkout failed because the b
     });
 
     await core.summary.addRaw(summaryContent).write();
-    core.setFailed(`Failed to checkout PR branch: ${errorMsg}`);
+    core.setFailed(`${ERR_API}: Failed to checkout PR branch: ${errorMsg}`);
   }
 }
 

@@ -40,55 +40,29 @@ Downloaded artifacts include:
 - safe_output.jsonl: Agent's final output content (available when non-empty)
 - agent_output/: Agent logs directory (if the workflow produced logs)
 - agent-stdio.log: Agent standard output/error logs
-- aw.patch: Git patch of changes made during execution
+- aw.patch: Git patch of changes made during execution (legacy; see aw-{branch}.patch)
+- aw-{branch}.patch: Git patch of changes for each branch (one file per PR/push)
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 - summary.json: Complete metrics and run data for all downloaded runs
-
-Orchestrator Usage:
-	In an orchestrator workflow, use this command in a pre-step to download logs,
-  then access the data in subsequent steps without needing GitHub CLI access:
-
-    steps:
-      - name: Download logs from last 30 days
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/portfolio-logs
-          gh aw logs <worker> --start-date -1mo -o /tmp/portfolio-logs
-
-  In your analysis step, reference the pre-downloaded data:
-    
-    **All workflow execution data has been pre-downloaded for you in the previous workflow step.**
-    
-    - **JSON Summary**: /tmp/portfolio-logs/summary.json - Contains all metrics and run data you need
-    - **Run Logs**: /tmp/portfolio-logs/run-{database-id}/ - Individual run logs (if needed for detailed analysis)
-    
-    **DO NOT call 'gh aw logs' or any GitHub CLI commands** - they will not work in your environment.
-    All data you need is in the summary.json file.
-
-	Live Tracking with Project Boards:
-		Use the summary.json data to update your project board, treating issues/PRs (workers)
-		on the board as the real-time view of progress, ownership, and status. The orchestrator workflow
-		can use the 'update-project' safe output to sync status fields without modifying worker workflow
-		files. Workers remain unchanged while the board reflects current execution state.
-    
-    For incremental updates, pull data for each worker based on the last pull time using --start-date
-    (e.g., --start-date -1d for daily updates) and align with existing board items. Compare run data
-    from summary.json with board status to update only changed workers, preserving board state.
 
 ` + WorkflowIDExplanation + `
 
 Examples:
+  # Basic usage
   ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research.md        # Download logs (alternative format)
   ` + string(constants.CLIExtensionPrefix) + ` logs -c 10                     # Download last 10 matching runs
+
+  # Date filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date 2024-01-01   # Download all runs after date
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date 2024-01-31     # Download all runs before date
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w          # Download all runs from last week
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
   ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download all runs until yesterday
   ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+
+  # Content filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine codex            # Filter logs by codex engine
   ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
@@ -97,16 +71,22 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-tool     # Filter logs with missing_tool messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output missing-data     # Filter logs with missing_data messages
   ` + string(constants.CLIExtensionPrefix) + ` logs --safe-output create-issue     # Filter logs with create_issue messages
-  ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
+
+  # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + string(constants.CLIExtensionPrefix) + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+
+  # Output options
+  ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` logs --tool-graph              # Generate Mermaid tool sequence graph
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse                   # Parse logs and generate Markdown reports
   ` + string(constants.CLIExtensionPrefix) + ` logs --json                    # Output metrics in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse --json            # Generate both Markdown and JSON
+
+  # Cross-repository
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
@@ -165,7 +145,7 @@ Examples:
 				logsCommandLog.Printf("Resolving start date: %s", startDate)
 				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
 				if err != nil {
-					return fmt.Errorf("invalid start-date format '%s': %v", startDate, err)
+					return fmt.Errorf("invalid start-date format '%s': %w", startDate, err)
 				}
 				startDate = resolvedStartDate
 				logsCommandLog.Printf("Resolved start date to: %s", startDate)
@@ -174,7 +154,7 @@ Examples:
 				logsCommandLog.Printf("Resolving end date: %s", endDate)
 				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
 				if err != nil {
-					return fmt.Errorf("invalid end-date format '%s': %v", endDate, err)
+					return fmt.Errorf("invalid end-date format '%s': %w", endDate, err)
 				}
 				endDate = resolvedEndDate
 				logsCommandLog.Printf("Resolved end date to: %s", endDate)

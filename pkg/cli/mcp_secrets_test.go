@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -198,13 +199,7 @@ func TestSecretExtraction(t *testing.T) {
 
 			// Verify all expected names are present
 			for _, expectedName := range tt.expectedNames {
-				found := false
-				for _, secretName := range requiredSecrets {
-					if secretName == expectedName {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(requiredSecrets, expectedName)
 				if !found {
 					t.Errorf("Expected secret %q not found in extracted secrets", expectedName)
 				}

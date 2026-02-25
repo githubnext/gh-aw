@@ -9,18 +9,19 @@
 
 const fs = require("fs");
 const path = require("path");
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 async function main() {
   const workspace = process.env.GITHUB_WORKSPACE;
   const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
 
   if (!workspace) {
-    core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GITHUB_WORKSPACE not available.`);
     return;
   }
 
   if (!workflowFile) {
-    core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_FILE not available.`);
     return;
   }
 

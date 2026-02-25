@@ -178,7 +178,7 @@ func (c *Compiler) validatePluginSupport(pluginInfo *PluginInfo, agenticEngine C
 		} else if len(supportedEngines) == 1 {
 			supportedEnginesMsg = fmt.Sprintf("Only the '%s' engine supports plugin installation.", supportedEngines[0])
 		} else {
-			supportedEnginesMsg = fmt.Sprintf("The following engines support plugin installation: %s", strings.Join(supportedEngines, ", "))
+			supportedEnginesMsg = "The following engines support plugin installation: " + strings.Join(supportedEngines, ", ")
 		}
 
 		return fmt.Errorf("engine '%s' does not support plugins. The following plugins cannot be installed: %s\n\n%s\n\nTo fix this, either:\n1. Remove the 'plugins' field from your workflow\n2. Change to an engine that supports plugins (e.g., engine: %s)\n\nSee: %s",

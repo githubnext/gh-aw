@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -37,7 +38,7 @@ func generateMaintenanceCron(minExpiresDays int) (string, string) {
 
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use the expires field for discussions or issues
-func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, verbose bool) error {
+func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
 	// Check if any workflow uses expires field for discussions, issues, or pull requests
@@ -132,7 +133,7 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 
 on:
   schedule:
-    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + fmt.Sprintf("%d", minExpiresDays) + ` days)
+    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + strconv.Itoa(minExpiresDays) + ` days)
   workflow_dispatch:
 
 permissions: {}
@@ -150,7 +151,7 @@ jobs:
 	// Get the setup action reference (local or remote based on mode)
 	// Pass nil for data since maintenance workflow doesn't have WorkflowData
 	// In release mode without data, it will return tag-based reference
-	setupActionRef := ResolveSetupActionReference(actionMode, version, "", nil)
+	setupActionRef := ResolveSetupActionReference(actionMode, version, actionTag, nil)
 
 	// Add checkout step only in dev mode (for local action paths)
 	if actionMode == ActionModeDev {

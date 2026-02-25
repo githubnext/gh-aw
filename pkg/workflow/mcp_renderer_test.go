@@ -183,7 +183,7 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 	if !strings.Contains(output, `"type": "stdio"`) {
 		t.Error("Expected 'type': 'stdio' field per MCP Gateway Specification")
 	}
-	if !strings.Contains(output, `"`+constants.AgenticWorkflowsMCPServerID+`": {`) {
+	if !strings.Contains(output, `"`+constants.AgenticWorkflowsMCPServerID.String()+`": {`) {
 		t.Error("Expected agenticworkflows server ID")
 	}
 	// Per MCP Gateway Specification v1.0.0, stdio servers MUST use container format
@@ -257,7 +257,7 @@ func TestRenderAgenticWorkflowsMCP_TOML(t *testing.T) {
 	output := yaml.String()
 
 	// Verify TOML format (per MCP Gateway Specification v1.0.0)
-	if !strings.Contains(output, "[mcp_servers."+constants.AgenticWorkflowsMCPServerID+"]") {
+	if !strings.Contains(output, "[mcp_servers."+constants.AgenticWorkflowsMCPServerID.String()+"]") {
 		t.Error("Expected TOML section header")
 	}
 	// Per MCP Gateway Specification v1.0.0, stdio servers MUST use container format

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const __filename = fileURLToPath(import.meta.url),
   __dirname = path.dirname(__filename);
 describe("log_parser_bootstrap.cjs", () => {
@@ -70,7 +71,7 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
             runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith("Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.`);
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
@@ -109,7 +110,7 @@ describe("log_parser_bootstrap.cjs", () => {
             logFile = path.join(tmpDir, "test.log");
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: ["server1", "server2"], maxTurnsHit: !1 });
-          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: server1, server2"), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
+          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: MCP server(s) failed to launch: server1, server2`), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
         }),
         it("should handle max-turns limit reached", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
@@ -117,7 +118,7 @@ describe("log_parser_bootstrap.cjs", () => {
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: !0 });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
-            expect(mockCore.setFailed).toHaveBeenCalledWith("Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully."),
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`),
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
         }),
@@ -159,7 +160,7 @@ describe("log_parser_bootstrap.cjs", () => {
           const mockParseLog = vi.fn().mockImplementation(() => {
             throw new Error("Parser error");
           });
-          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.setFailed).toHaveBeenCalledWith(expect.any(Error)), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
+          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Parser error`), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
         }),
         it("should handle failed parse (empty result)", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
@@ -217,43 +218,6 @@ describe("log_parser_bootstrap.cjs", () => {
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile), (process.env.GH_AW_SAFE_OUTPUTS = "/non/existent/file.jsonl"));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.warning).not.toHaveBeenCalled(), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
-        }),
-        it("should transform conversation.md headers for Copilot parser", () => {
-          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
-          const conversationMd = path.join(tmpDir, "conversation.md");
-          const conversationContent = `# Main Title
-
-## Section 1
-
-Some content here.
-
-### Subsection
-
-More content.`;
-
-          fs.writeFileSync(conversationMd, conversationContent);
-          process.env.GH_AW_AGENT_OUTPUT = tmpDir;
-
-          const mockParseLog = vi.fn();
-          runLogParser({ parseLog: mockParseLog, parserName: "Copilot", supportsDirectories: true });
-
-          // Should transform headers (# to ##, ## to ###, etc.) and wrap in details/summary
-          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          expect(summaryCall).toBeDefined();
-          // Content should be wrapped in details/summary with "Agentic Conversation" title
-          expect(summaryCall[0]).toContain("<details open>");
-          expect(summaryCall[0]).toContain("<summary>Agentic Conversation</summary>");
-          expect(summaryCall[0]).toContain("</details>");
-          // Should transform headers (# to ##, ## to ###, etc.)
-          expect(summaryCall[0]).toContain("## Main Title");
-          expect(summaryCall[0]).toContain("### Section 1");
-          expect(summaryCall[0]).toContain("#### Subsection");
-
-          // Parser should not be called since conversation.md is used directly
-          expect(mockParseLog).not.toHaveBeenCalled();
-
-          fs.unlinkSync(conversationMd);
-          fs.rmdirSync(tmpDir);
         }));
     }));
 });

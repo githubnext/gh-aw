@@ -24,6 +24,7 @@ network:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     max: 1
     close-older-discussions: true
@@ -37,8 +38,6 @@ tools:
 
 timeout-minutes: 30
 
-imports:
-  - shared/mood.md
 ---
 
 # Claude Code User Documentation Review
@@ -538,3 +537,9 @@ Your report is successful if it:
 - This is a daily workflow - findings should be stored in cache-memory for tracking trends over time
 
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -69,7 +69,7 @@ func generateMaintenanceWorkflowWrapper(
 ) error {
 	compilePostProcessingLog.Print("Generating maintenance workflow")
 
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), verbose); err != nil {
+	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 		}
@@ -145,7 +145,7 @@ func saveActionCache(actionCache *workflow.ActionCache, verbose bool) error {
 
 	compilePostProcessingLog.Print("Action cache saved successfully")
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Action cache saved to "+actionCache.GetCachePath()))
 	}
 
 	return nil

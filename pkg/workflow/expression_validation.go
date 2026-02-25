@@ -48,6 +48,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -175,7 +176,7 @@ func validateExpressionSafety(markdownContent string) error {
 		return NewValidationError(
 			"expressions",
 			fmt.Sprintf("%d unauthorized expressions found", len(unauthorizedExpressions)),
-			fmt.Sprintf("expressions are not in the allowed list:%s", unauthorizedList.String()),
+			"expressions are not in the allowed list:"+unauthorizedList.String(),
 			fmt.Sprintf("Use only allowed expressions:%s\nFor more details, see the expression security documentation.", allowedList.String()),
 		)
 	}
@@ -257,11 +258,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		// check if this expression matches env.* pattern
 		allowed = true
 	} else {
-		for _, allowedExpr := range constants.AllowedExpressions {
-			if expression == allowedExpr {
-				allowed = true
-				break
-			}
+		if slices.Contains(constants.AllowedExpressions, expression) {
+			allowed = true
 		}
 	}
 
@@ -326,11 +324,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 					} else if opts.EnvRe.MatchString(property) {
 						propertyAllowed = true
 					} else {
-						for _, allowedExpr := range constants.AllowedExpressions {
-							if property == allowedExpr {
-								propertyAllowed = true
-								break
-							}
+						if slices.Contains(constants.AllowedExpressions, property) {
+							propertyAllowed = true
 						}
 					}
 
@@ -356,12 +351,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 // containsExpression checks if an expression is in the list
 func containsExpression(list *[]string, expr string) bool {
-	for _, item := range *list {
-		if item == expr {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(*list, expr)
 }
 
 // ValidateExpressionSafetyPublic is a public wrapper for validateExpressionSafety
@@ -490,7 +480,7 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) err
 		return NewValidationError(
 			"runtime-import",
 			fmt.Sprintf("%d files with errors", len(validationErrors)),
-			fmt.Sprintf("runtime-import files contain expression errors:\n\n%s", strings.Join(validationErrors, "\n\n")),
+			"runtime-import files contain expression errors:\n\n"+strings.Join(validationErrors, "\n\n"),
 			"Fix the expression errors in the imported files listed above. Each file must only use allowed GitHub Actions expressions. See expression security documentation for details.",
 		)
 	}

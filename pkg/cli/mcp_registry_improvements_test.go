@@ -107,7 +107,7 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Generate server list based on count
 			servers := make([]string, tc.serverCount)
-			for i := 0; i < tc.serverCount; i++ {
+			for i := range tc.serverCount {
 				servers[i] = `{
 					"server": {
 						"name": "test/server-` + string(rune('1'+i)) + `",
@@ -128,7 +128,7 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 			// Create a test server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(200)
+				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(response))
 			}))
 			defer server.Close()
@@ -175,9 +175,10 @@ func joinStrings(strs []string, sep string) string {
 	if len(strs) == 0 {
 		return ""
 	}
-	result := strs[0]
+	var result strings.Builder
+	result.WriteString(strs[0])
 	for i := 1; i < len(strs); i++ {
-		result += sep + strs[i]
+		result.WriteString(sep + strs[i])
 	}
-	return result
+	return result.String()
 }

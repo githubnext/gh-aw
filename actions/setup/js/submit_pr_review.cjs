@@ -11,6 +11,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "submit_pull_request_review";
 
+// allowedRepos: this handler operates exclusively on the triggering repository.
+// Cross-repository PR review submission is not supported; no target-repo allowlist
+// check is required.
+
 /** @type {Set<string>} Valid review event types */
 const VALID_EVENTS = new Set(["APPROVE", "REQUEST_CHANGES", "COMMENT"]);
 

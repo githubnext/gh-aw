@@ -86,7 +86,7 @@ This workflow dispatches to ci workflow.
 	require.NotNil(t, workflowData.SafeOutputs.DispatchWorkflow, "DispatchWorkflow should not be nil")
 
 	// Verify dispatch-workflow configuration
-	assert.Equal(t, 1, workflowData.SafeOutputs.DispatchWorkflow.Max)
+	assert.Equal(t, strPtr("1"), workflowData.SafeOutputs.DispatchWorkflow.Max)
 	assert.Equal(t, []string{"ci"}, workflowData.SafeOutputs.DispatchWorkflow.Workflows)
 
 	// Validate the workflow - should find ci in .github/workflows

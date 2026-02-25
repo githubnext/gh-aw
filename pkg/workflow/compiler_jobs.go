@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -66,6 +67,23 @@ func jobDependsOnPreActivation(jobConfig map[string]any) bool {
 	return false
 }
 
+// jobDependsOnActivation checks if a job config has activation as a dependency.
+// Jobs that depend on activation run AFTER activation, not before it.
+func jobDependsOnActivation(jobConfig map[string]any) bool {
+	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
+		if needsList, ok := needs.([]any); ok {
+			for _, need := range needsList {
+				if needStr, ok := need.(string); ok && needStr == string(constants.ActivationJobName) {
+					return true
+				}
+			}
+		} else if needStr, ok := needs.(string); ok && needStr == string(constants.ActivationJobName) {
+			return true
+		}
+	}
+	return false
+}
+
 // jobDependsOnAgent checks if a job config has agent as a dependency.
 // Jobs that depend on agent should run AFTER the agent job, not before it.
 // The jobConfig parameter is expected to be a map representing the job's YAML configuration,
@@ -86,16 +104,19 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 	return false
 }
 
-// getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
-// These jobs run after pre_activation but before activation, and activation should depend on them.
+// getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation
+// but NOT on activation. These jobs run after pre_activation but before activation, and activation
+// should depend on them. Jobs that also depend on activation cannot run before activation.
 func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
 	compilerJobsLog.Printf("Finding custom jobs depending on pre_activation: total_custom_jobs=%d", len(customJobs))
 	deps := sliceutil.FilterMapKeys(customJobs, func(jobName string, jobConfig any) bool {
 		if configMap, ok := jobConfig.(map[string]any); ok {
-			return jobDependsOnPreActivation(configMap)
+			// Must depend on pre_activation AND must NOT depend on activation
+			return jobDependsOnPreActivation(configMap) && !jobDependsOnActivation(configMap)
 		}
 		return false
 	})
+	sort.Strings(deps)
 	compilerJobsLog.Printf("Found %d custom jobs depending on pre_activation: %v", len(deps), deps)
 	return deps
 }
@@ -114,10 +135,43 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 	refs := sliceutil.FilterMapKeys(customJobs, func(jobName string, _ any) bool {
 		return strings.Contains(content, fmt.Sprintf("needs.%s.", jobName))
 	})
+	sort.Strings(refs)
 	if len(refs) > 0 {
 		compilerJobsLog.Printf("Found %d custom job references: %v", len(refs), refs)
 	}
 	return refs
+}
+
+// getCustomJobsReferencedInPromptWithNoActivationDep returns custom jobs whose outputs are referenced
+// in the markdown body content but have no explicit needs (and therefore no activation dependency).
+// These jobs need to run before the activation job so their outputs are available when the
+// activation job builds the prompt. Without this, activation's prompt-building steps would reference
+// those job outputs before the jobs have run, causing actionlint errors and empty substitutions.
+//
+// Only jobs with NO explicit needs are returned - jobs that explicitly depend on activation/pre_activation/etc.
+// are excluded because they either already run before activation or cannot run before it.
+func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *WorkflowData) []string {
+	if data == nil || data.Jobs == nil || data.MarkdownContent == "" {
+		return nil
+	}
+
+	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	var result []string
+	for _, jobName := range referencedJobs {
+		jobConfig, ok := data.Jobs[jobName].(map[string]any)
+		if !ok {
+			continue
+		}
+		// Only include jobs with no explicit needs - those get activation auto-added normally.
+		// Jobs with explicit needs either already run before activation (pre_activation dependency)
+		// or explicitly depend on activation/agent and must run after.
+		if _, hasNeeds := jobConfig["needs"]; hasNeeds {
+			continue
+		}
+		result = append(result, jobName)
+		compilerJobsLog.Printf("Found custom job '%s' referenced in markdown body with no explicit needs: will run before activation", jobName)
+	}
+	return result
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager.
@@ -286,10 +340,8 @@ func (c *Compiler) buildPushRepoMemoryJobWrapper(data *WorkflowData, threatDetec
 	}
 
 	// Add detection dependency if threat detection is enabled
-	if threatDetectionEnabled {
-		pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
-		compilerJobsLog.Print("Added detection dependency to push_repo_memory job")
-	}
+	// Detection is now inline in the agent job, so no separate dependency needed
+	// The job condition already checks needs.agent.outputs.detection_success
 
 	if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
 		return "", fmt.Errorf("failed to add push_repo_memory job: %w", err)
@@ -360,6 +412,15 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
+
+	// Pre-compute jobs referenced in the markdown body with no explicit needs.
+	// These run before activation (not after), so we must not auto-add activation to them.
+	promptReferencedJobsSlice := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
+	promptReferencedJobs := make(map[string]bool, len(promptReferencedJobsSlice))
+	for _, j := range promptReferencedJobsSlice {
+		promptReferencedJobs[j] = true
+	}
+
 	for jobName, jobConfig := range data.Jobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
 		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
@@ -389,16 +450,21 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			}
 
 			// If no explicit needs and activation job exists, automatically add activation as dependency
-			// This ensures custom jobs wait for workflow validation before executing
-			if !hasExplicitNeeds && activationJobCreated {
+			// This ensures custom jobs wait for workflow validation before executing.
+			// Exception: jobs whose outputs are referenced in the markdown body run before activation
+			// (so the activation job can include their outputs in the prompt).
+			isReferencedInMarkdown := promptReferencedJobs[jobName]
+			if !hasExplicitNeeds && activationJobCreated && !isReferencedInMarkdown {
 				job.Needs = append(job.Needs, string(constants.ActivationJobName))
 				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, string(constants.ActivationJobName))
+			} else if !hasExplicitNeeds && isReferencedInMarkdown {
+				compilerJobsLog.Printf("Custom job '%s' referenced in markdown body runs before activation (no auto-added dependency)", jobName)
 			}
 
 			// Extract other job properties
 			if runsOn, hasRunsOn := configMap["runs-on"]; hasRunsOn {
 				if runsOnStr, ok := runsOn.(string); ok {
-					job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
+					job.RunsOn = "runs-on: " + runsOnStr
 				}
 			}
 

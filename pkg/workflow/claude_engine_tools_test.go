@@ -3,7 +3,7 @@
 package workflow
 
 import (
-	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -65,7 +65,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 				base := "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite"
 				var githubTools []string
 				for _, tool := range constants.DefaultGitHubTools {
-					githubTools = append(githubTools, fmt.Sprintf("mcp__github__%s", tool))
+					githubTools = append(githubTools, "mcp__github__"+tool)
 				}
 				// Sort the GitHub tools to match the expected output
 				sort.Strings(githubTools)
@@ -300,14 +300,14 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]bool)
 			if tt.expected != "" {
-				for _, tool := range strings.Split(tt.expected, ",") {
+				for tool := range strings.SplitSeq(tt.expected, ",") {
 					expectedTools[strings.TrimSpace(tool)] = true
 				}
 			}
 
 			actualTools := make(map[string]bool)
 			if result != "" {
-				for _, tool := range strings.Split(result, ",") {
+				for tool := range strings.SplitSeq(result, ",") {
 					actualTools[strings.TrimSpace(tool)] = true
 				}
 			}
@@ -349,7 +349,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				// Using neutral tools instead of claude section
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write",
 		},
@@ -359,7 +359,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				"edit": nil, // This provides Write capabilities
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
 			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
 		},
@@ -378,9 +378,9 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				"edit": nil,
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues:       &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-				AddComments:        &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues:       &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+				AddComments:        &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
 			expected: "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
 		},
@@ -392,7 +392,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				},
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__create_pull_request",
 		},
@@ -404,7 +404,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				"edit":      nil,
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 			},
 			expected: "Bash(echo),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write",
 		},
@@ -426,13 +426,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				if expectedTool == "" {
 					continue // Skip empty strings
 				}
-				found := false
-				for _, actualTool := range resultTools {
-					if actualTool == expectedTool {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(resultTools, expectedTool)
 				if !found {
 					t.Errorf("Expected tool '%s' not found in result '%s'", expectedTool, result)
 				}
@@ -443,13 +437,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				if actual == "" {
 					continue // Skip empty strings
 				}
-				found := false
-				for _, expected := range expectedTools {
-					if expected == actual {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(expectedTools, actual)
 				if !found {
 					t.Errorf("Unexpected tool '%s' found in result '%s'", actual, result)
 				}

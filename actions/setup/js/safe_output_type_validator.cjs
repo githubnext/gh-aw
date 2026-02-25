@@ -26,6 +26,10 @@ const MAX_BODY_LENGTH = 65000;
 const MAX_GITHUB_USERNAME_LENGTH = 39;
 
 /**
+ * @typedef {{ allowedAliases?: string[], maxBotMentions?: number }} ValidateOptions
+ */
+
+/**
  * @typedef {Object} FieldValidation
  * @property {boolean} [required] - Whether the field is required
  * @property {string} [type] - Expected type: 'string', 'number', 'boolean', 'array'
@@ -241,8 +245,7 @@ function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
  * @param {FieldValidation} validation - The validation configuration
  * @param {string} itemType - The item type for error messages
  * @param {number} lineNum - Line number for error messages
- * @param {Object} [options] - Optional sanitization options
- * @param {string[]} [options.allowedAliases] - List of allowed @mentions
+ * @param {ValidateOptions} [options] - Optional sanitization options
  * @returns {{isValid: boolean, normalizedValue?: any, error?: string}}
  */
 function validateField(value, fieldName, validation, itemType, lineNum, options) {
@@ -338,6 +341,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         normalizedResult = sanitizeContent(normalizedResult, {
           maxLength: validation.maxLength,
           allowedAliases: options?.allowedAliases || [],
+          maxBotMentions: options?.maxBotMentions,
         });
       }
       return { isValid: true, normalizedValue: normalizedResult };
@@ -350,6 +354,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
       const sanitized = sanitizeContent(processedValue, {
         maxLength: validation.maxLength || MAX_BODY_LENGTH,
         allowedAliases: options?.allowedAliases || [],
+        maxBotMentions: options?.maxBotMentions,
       });
       return { isValid: true, normalizedValue: sanitized };
     }
@@ -389,6 +394,7 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
             ? sanitizeContent(item, {
                 maxLength: validation.itemMaxLength || 128,
                 allowedAliases: options?.allowedAliases || [],
+                maxBotMentions: options?.maxBotMentions,
               })
             : item
         );
@@ -480,8 +486,7 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
  * @param {Object} item - The item to validate
  * @param {string} itemType - The item type (e.g., "create_issue")
  * @param {number} lineNum - Line number for error messages
- * @param {Object} [options] - Optional sanitization options
- * @param {string[]} [options.allowedAliases] - List of allowed @mentions
+ * @param {ValidateOptions} [options] - Optional sanitization options
  * @returns {{isValid: boolean, normalizedItem?: Object, error?: string}}
  */
 function validateItem(item, itemType, lineNum, options) {

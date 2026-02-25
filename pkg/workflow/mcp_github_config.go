@@ -64,6 +64,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -78,6 +79,15 @@ func hasGitHubTool(parsedTools *Tools) bool {
 		return false
 	}
 	return parsedTools.GitHub != nil
+}
+
+// hasGitHubApp checks if a GitHub App is configured in the (merged) GitHub tool configuration
+func hasGitHubApp(githubTool any) bool {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		_, exists := toolConfig["app"]
+		return exists
+	}
+	return false
 }
 
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)
@@ -241,11 +251,11 @@ func getGitHubDockerImageVersion(githubTool any) string {
 			case string:
 				githubDockerImageVersion = v
 			case int:
-				githubDockerImageVersion = fmt.Sprintf("%d", v)
+				githubDockerImageVersion = strconv.Itoa(v)
 			case int64:
-				githubDockerImageVersion = fmt.Sprintf("%d", v)
+				githubDockerImageVersion = strconv.FormatInt(v, 10)
 			case uint64:
-				githubDockerImageVersion = fmt.Sprintf("%d", v)
+				githubDockerImageVersion = strconv.FormatUint(v, 10)
 			case float64:
 				// Use %g to avoid trailing zeros and scientific notation for simple numbers
 				githubDockerImageVersion = fmt.Sprintf("%g", v)
@@ -258,8 +268,10 @@ func getGitHubDockerImageVersion(githubTool any) string {
 // generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
 // for GitHub MCP server based on repository visibility and token availability.
 // This step is added when:
-// - GitHub tool is enabled AND
-// - lockdown field is not explicitly specified in the workflow configuration
+//   - GitHub tool is enabled AND
+//   - lockdown field is not explicitly specified in the workflow configuration AND
+//   - tools.github.app is NOT configured (GitHub App tokens are already repo-scoped, so
+//     automatic lockdown detection is unnecessary and skipped)
 //
 // Lockdown mode is automatically enabled for public repositories when any custom GitHub token
 // is configured (GH_AW_GITHUB_TOKEN, GH_AW_GITHUB_MCP_SERVER_TOKEN, or custom github-token).
@@ -273,6 +285,15 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Check if lockdown is already explicitly set
 	if hasGitHubLockdownExplicitlySet(githubTool) {
 		githubConfigLog.Print("Lockdown explicitly set in workflow, skipping automatic lockdown determination")
+		return
+	}
+
+	// Skip automatic lockdown detection when a GitHub App is configured.
+	// GitHub App tokens are already scoped to specific repositories, so automatic
+	// lockdown detection is not needed — the token's access is inherently bounded
+	// by the app installation and the listed repositories.
+	if hasGitHubApp(githubTool) {
+		githubConfigLog.Print("GitHub App configured, skipping automatic lockdown determination (app tokens are already repo-scoped)")
 		return
 	}
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -120,7 +121,7 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	}
 
 	if verbose {
-		if _, err := fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir))); err != nil {
+		if _, err := fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Created temporary directory: "+tmpDir)); err != nil {
 			mcpInspectLog.Printf("Warning: failed to write to stderr: %v", err)
 		}
 	}
@@ -144,7 +145,7 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 		}
 		errMsg := "failed to find an available port for the HTTP server"
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return nil, nil, "", fmt.Errorf("failed to find an available port for the HTTP server")
+		return nil, nil, "", errors.New("failed to find an available port for the HTTP server")
 	}
 
 	if verbose {
@@ -172,7 +173,7 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 		if err := os.RemoveAll(tmpDir); err != nil && verbose {
 			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
 		}
-		return nil, nil, "", fmt.Errorf("safe-inputs HTTP server failed to start within timeout")
+		return nil, nil, "", errors.New("safe-inputs HTTP server failed to start within timeout")
 	}
 
 	if verbose {

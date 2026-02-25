@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { execSync } = require("child_process");
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 /**
  * Get the current git branch name
@@ -36,7 +37,7 @@ function getCurrentBranch() {
     return ghRefName;
   }
 
-  throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
+  throw new Error(`${ERR_CONFIG}: Failed to determine current branch: git command failed and no GitHub environment variables available`);
 }
 
 module.exports = {

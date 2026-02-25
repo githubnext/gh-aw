@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Normalize agent output keys for update_project.
@@ -76,12 +77,12 @@ function logGraphQLError(error, operation) {
  */
 function parseProjectInput(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
-    throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
   const urlMatch = projectUrl.match(/^https:\/\/[^/]+\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
   if (!urlMatch) {
-    throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
 
   return urlMatch[1];
@@ -94,12 +95,12 @@ function parseProjectInput(projectUrl) {
  */
 function parseProjectUrl(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
-    throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
   const match = projectUrl.match(/^https:\/\/[^/]+\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
-    throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
 
   return {
@@ -260,7 +261,9 @@ async function resolveProjectV2(projectInfo, projectNumberInt, github) {
   } catch (fallbackError) {
     // Both direct query and fallback list query failed - this could be a transient API error
     const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
-    throw new Error(`Unable to resolve project #${projectNumberInt} for ${who}. Both direct projectV2 query and fallback projectsV2 list query failed. This may be a transient GitHub API error. Error: ${getErrorMessage(fallbackError)}`);
+    throw new Error(
+      `${ERR_NOT_FOUND}: Unable to resolve project #${projectNumberInt} for ${who}. Both direct projectV2 query and fallback projectsV2 list query failed. This may be a transient GitHub API error. Error: ${getErrorMessage(fallbackError)}`
+    );
   }
 
   const nodes = Array.isArray(list.nodes) ? list.nodes : [];
@@ -272,7 +275,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt, github) {
   const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
   const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
 
-  throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
+  throw new Error(`${ERR_NOT_FOUND}: Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
 }
 /**
  * Check if a field name conflicts with unsupported GitHub built-in field types
@@ -399,7 +402,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
   // @ts-ignore - global.github is set by setupGlobals() from github-script context
   const github = githubClient || global.github;
   if (!github) {
-    throw new Error("GitHub client is required but not provided. Either pass a github client to updateProject() or ensure global.github is set.");
+    throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to updateProject() or ensure global.github is set.`);
   }
   const { owner, repo } = context.repo;
   const projectInfo = parseProjectUrl(output.project);
@@ -479,7 +482,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     try {
       const projectNumberInt = parseInt(projectNumberFromUrl, 10);
       if (!Number.isFinite(projectNumberInt)) {
-        throw new Error(`Invalid project number parsed from URL: ${projectNumberFromUrl}`);
+        throw new Error(`${ERR_PARSE}: Invalid project number parsed from URL: ${projectNumberFromUrl}`);
       }
       const project = await resolveProjectV2(projectInfo, projectNumberInt, github);
       projectId = project.id;
@@ -495,17 +498,17 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     if (wantsCreateView) {
       const view = output?.view;
       if (!view || typeof view !== "object") {
-        throw new Error('Invalid view. When operation is "create_view", you must provide view: { name, layout, ... }.');
+        throw new Error(`${ERR_VALIDATION}: Invalid view. When operation is "create_view", you must provide view: { name, layout, ... }.`);
       }
 
       const name = typeof view.name === "string" ? view.name.trim() : "";
       if (!name) {
-        throw new Error('Invalid view.name. When operation is "create_view", view.name is required and must be a non-empty string.');
+        throw new Error(`${ERR_VALIDATION}: Invalid view.name. When operation is "create_view", view.name is required and must be a non-empty string.`);
       }
 
       const layout = typeof view.layout === "string" ? view.layout.trim() : "";
       if (!layout || !["table", "board", "roadmap"].includes(layout)) {
-        throw new Error("Invalid view.layout. Must be one of: table, board, roadmap.");
+        throw new Error(`${ERR_VALIDATION}: Invalid view.layout. Must be one of: table, board, roadmap.`);
       }
 
       const filter = typeof view.filter === "string" ? view.filter : undefined;
@@ -514,7 +517,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       if (visibleFields) {
         const invalid = visibleFields.filter(v => typeof v !== "number" || !Number.isFinite(v));
         if (invalid.length > 0) {
-          throw new Error(`Invalid view.visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
+          throw new Error(`${ERR_VALIDATION}: Invalid view.visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
         }
       }
 
@@ -528,7 +531,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       }
 
       if (typeof github.request !== "function") {
-        throw new Error("GitHub client does not support github.request(); cannot call Projects Views REST API.");
+        throw new Error(`${ERR_API}: GitHub client does not support github.request(); cannot call Projects Views REST API.`);
       }
 
       const route = projectInfo.scope === "orgs" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
@@ -565,7 +568,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     if (wantsCreateFields) {
       const fieldsConfig = output?.field_definitions;
       if (!fieldsConfig || !Array.isArray(fieldsConfig)) {
-        throw new Error('Invalid field_definitions. When operation is "create_fields", you must provide field_definitions as an array.');
+        throw new Error(`${ERR_VALIDATION}: Invalid field_definitions. When operation is "create_fields", you must provide field_definitions as an array.`);
       }
 
       core.info(`[3/4] Creating ${fieldsConfig.length} project field(s)...`);
@@ -700,11 +703,11 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       // Validate IDs used for draft chaining.
       // Draft issue chaining must use strict temporary IDs to match the unified handler manager.
       if (temporaryId && !isTemporaryId(temporaryId)) {
-        throw new Error(`Invalid temporary_id format: "${temporaryId}". Expected format: aw_ followed by 3 to 8 alphanumeric characters (e.g., "aw_abc", "aw_Test123").`);
+        throw new Error(`${ERR_VALIDATION}: Invalid temporary_id format: "${temporaryId}". Expected format: aw_ followed by 3 to 8 alphanumeric characters (e.g., "aw_abc", "aw_Test123").`);
       }
 
       if (draftIssueId && !isTemporaryId(draftIssueId)) {
-        throw new Error(`Invalid draft_issue_id format: "${draftIssueId}". Expected format: aw_ followed by 3 to 8 alphanumeric characters (e.g., "aw_abc", "aw_Test123").`);
+        throw new Error(`${ERR_VALIDATION}: Invalid draft_issue_id format: "${draftIssueId}". Expected format: aw_ followed by 3 to 8 alphanumeric characters (e.g., "aw_abc", "aw_Test123").`);
       }
 
       const draftTitle = typeof output.draft_title === "string" ? output.draft_title.trim() : "";
@@ -734,17 +737,17 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
               itemId = existingDraftItem.id;
               core.info(`✓ Found draft issue "${draftTitle}" by title fallback`);
             } else {
-              throw new Error(`draft_issue_id "${draftIssueId}" not found in temporary ID map and no draft with title "${draftTitle}" found`);
+              throw new Error(`${ERR_NOT_FOUND}: draft_issue_id "${draftIssueId}" not found in temporary ID map and no draft with title "${draftTitle}" found`);
             }
           } else {
-            throw new Error(`draft_issue_id "${draftIssueId}" not found in temporary ID map and no draft_title provided for fallback lookup`);
+            throw new Error(`${ERR_NOT_FOUND}: draft_issue_id "${draftIssueId}" not found in temporary ID map and no draft_title provided for fallback lookup`);
           }
         }
       }
       // Mode 2: Create new draft or find by title
       else {
         if (!draftTitle) {
-          throw new Error('Invalid draft_title. When content_type is "draft_issue" and draft_issue_id is not provided, draft_title is required and must be a non-empty string.');
+          throw new Error(`${ERR_CONFIG}: Invalid draft_title. When content_type is "draft_issue" and draft_issue_id is not provided, draft_title is required and must be a non-empty string.`);
         }
 
         // Check for existing draft issue with the same title
@@ -929,14 +932,14 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
 
         if (resolved.wasTemporaryId) {
           if (resolved.errorMessage || !resolved.resolved) {
-            throw new Error(`Failed to resolve temporary ID in content_number: ${resolved.errorMessage || "Unknown error"}`);
+            throw new Error(`${ERR_API}: Failed to resolve temporary ID in content_number: ${resolved.errorMessage || "Unknown error"}`);
           }
           core.info(`✓ Resolved temporary ID ${sanitizedContentNumber} to issue #${resolved.resolved.number}`);
           contentNumber = resolved.resolved.number;
         } else {
           // Not a temporary ID - validate as numeric
           if (!/^\d+$/.test(sanitizedContentNumber)) {
-            throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer or a valid temporary ID (format: aw_ followed by 3-8 alphanumeric characters).`);
+            throw new Error(`${ERR_VALIDATION}: Invalid content number "${rawContentNumber}". Provide a positive integer or a valid temporary ID (format: aw_ followed by 3-8 alphanumeric characters).`);
           }
           contentNumber = Number.parseInt(sanitizedContentNumber, 10);
         }
@@ -1142,7 +1145,7 @@ async function main(config = {}, githubClient = null) {
   const github = githubClient || global.github;
 
   if (!github) {
-    throw new Error("GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.");
+    throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
 
   // Extract configuration
@@ -1237,7 +1240,7 @@ async function main(config = {}, githubClient = null) {
             core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
             effectiveProjectUrl = resolved.projectUrl;
           } else {
-            throw new Error(`Temporary project ID '${projectStr}' not found. Ensure create_project was called before update_project.`);
+            throw new Error(`${ERR_NOT_FOUND}: Temporary project ID '${projectStr}' not found. Ensure create_project was called before update_project.`);
           }
         }
       }

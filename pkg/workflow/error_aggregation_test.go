@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -40,8 +39,8 @@ func TestNewErrorCollector(t *testing.T) {
 
 func TestErrorCollectorAdd_FailFast(t *testing.T) {
 	collector := NewErrorCollector(true)
-	err1 := fmt.Errorf("first error")
-	err2 := fmt.Errorf("second error")
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
 
 	// First error should be returned immediately
 	result := collector.Add(err1)
@@ -57,9 +56,9 @@ func TestErrorCollectorAdd_FailFast(t *testing.T) {
 
 func TestErrorCollectorAdd_Aggregate(t *testing.T) {
 	collector := NewErrorCollector(false)
-	err1 := fmt.Errorf("first error")
-	err2 := fmt.Errorf("second error")
-	err3 := fmt.Errorf("third error")
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+	err3 := errors.New("third error")
 
 	// Add errors should not return them
 	result := collector.Add(err1)
@@ -94,7 +93,7 @@ func TestErrorCollectorError_NoErrors(t *testing.T) {
 
 func TestErrorCollectorError_SingleError(t *testing.T) {
 	collector := NewErrorCollector(false)
-	err1 := fmt.Errorf("single error")
+	err1 := errors.New("single error")
 
 	_ = collector.Add(err1)
 	result := collector.Error()
@@ -105,9 +104,9 @@ func TestErrorCollectorError_SingleError(t *testing.T) {
 
 func TestErrorCollectorError_MultipleErrors(t *testing.T) {
 	collector := NewErrorCollector(false)
-	err1 := fmt.Errorf("first error")
-	err2 := fmt.Errorf("second error")
-	err3 := fmt.Errorf("third error")
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+	err3 := errors.New("third error")
 
 	_ = collector.Add(err1)
 	_ = collector.Add(err2)
@@ -129,7 +128,7 @@ func TestFormatAggregatedError_NoError(t *testing.T) {
 }
 
 func TestFormatAggregatedError_SingleError(t *testing.T) {
-	err := fmt.Errorf("single error")
+	err := errors.New("single error")
 	result := FormatAggregatedError(err, "validation")
 
 	require.Error(t, result, "Should return error")
@@ -137,9 +136,9 @@ func TestFormatAggregatedError_SingleError(t *testing.T) {
 }
 
 func TestFormatAggregatedError_MultipleErrors(t *testing.T) {
-	err1 := fmt.Errorf("first error")
-	err2 := fmt.Errorf("second error")
-	err3 := fmt.Errorf("third error")
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+	err3 := errors.New("third error")
 
 	joined := errors.Join(err1, err2, err3)
 	result := FormatAggregatedError(joined, "validation")
@@ -163,7 +162,7 @@ func TestSplitJoinedErrors_NoError(t *testing.T) {
 }
 
 func TestSplitJoinedErrors_SingleError(t *testing.T) {
-	err := fmt.Errorf("single error")
+	err := errors.New("single error")
 	result := SplitJoinedErrors(err)
 
 	require.Len(t, result, 1, "Should have 1 error")
@@ -171,9 +170,9 @@ func TestSplitJoinedErrors_SingleError(t *testing.T) {
 }
 
 func TestSplitJoinedErrors_MultipleErrors(t *testing.T) {
-	err1 := fmt.Errorf("first error")
-	err2 := fmt.Errorf("second error")
-	err3 := fmt.Errorf("third error")
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+	err3 := errors.New("third error")
 
 	joined := errors.Join(err1, err2, err3)
 	result := SplitJoinedErrors(joined)
@@ -208,7 +207,7 @@ func TestErrorCollectorIntegration(t *testing.T) {
 		{
 			name:          "single error aggregated",
 			failFast:      false,
-			errors:        []error{fmt.Errorf("error 1")},
+			errors:        []error{errors.New("error 1")},
 			expectError:   true,
 			expectCount:   1,
 			shouldContain: []string{"error 1"},
@@ -216,7 +215,7 @@ func TestErrorCollectorIntegration(t *testing.T) {
 		{
 			name:          "multiple errors aggregated",
 			failFast:      false,
-			errors:        []error{fmt.Errorf("error 1"), fmt.Errorf("error 2"), fmt.Errorf("error 3")},
+			errors:        []error{errors.New("error 1"), errors.New("error 2"), errors.New("error 3")},
 			expectError:   true,
 			expectCount:   3,
 			shouldContain: []string{"error 1", "error 2", "error 3"},
@@ -224,7 +223,7 @@ func TestErrorCollectorIntegration(t *testing.T) {
 		{
 			name:          "fail-fast stops at first error",
 			failFast:      true,
-			errors:        []error{fmt.Errorf("error 1"), fmt.Errorf("error 2")},
+			errors:        []error{errors.New("error 1"), errors.New("error 2")},
 			expectError:   true,
 			expectCount:   0, // No errors collected in fail-fast mode
 			shouldContain: []string{},
@@ -281,14 +280,14 @@ func TestErrorCollectorFormattedError(t *testing.T) {
 		},
 		{
 			name:          "single error (no formatting)",
-			errors:        []error{fmt.Errorf("single error")},
+			errors:        []error{errors.New("single error")},
 			category:      "validation",
 			expectError:   true,
 			shouldContain: []string{"single error"},
 		},
 		{
 			name:        "multiple errors with formatted header",
-			errors:      []error{fmt.Errorf("error 1"), fmt.Errorf("error 2"), fmt.Errorf("error 3")},
+			errors:      []error{errors.New("error 1"), errors.New("error 2"), errors.New("error 3")},
 			category:    "validation",
 			expectError: true,
 			shouldContain: []string{
@@ -300,7 +299,7 @@ func TestErrorCollectorFormattedError(t *testing.T) {
 		},
 		{
 			name:        "errors with newlines preserved",
-			errors:      []error{fmt.Errorf("error with\nmultiple\nlines"), fmt.Errorf("simple error")},
+			errors:      []error{errors.New("error with\nmultiple\nlines"), errors.New("simple error")},
 			category:    "test",
 			expectError: true,
 			shouldContain: []string{

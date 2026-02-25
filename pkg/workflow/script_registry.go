@@ -385,7 +385,7 @@ func GetAllScriptFilenames() []string {
 	sortedFilenames := make([]string, len(filenames))
 	copy(sortedFilenames, filenames)
 	// Using a simple sort to avoid importing sort package issues
-	for i := 0; i < len(sortedFilenames); i++ {
+	for i := range sortedFilenames {
 		for j := i + 1; j < len(sortedFilenames); j++ {
 			if sortedFilenames[i] > sortedFilenames[j] {
 				sortedFilenames[i], sortedFilenames[j] = sortedFilenames[j], sortedFilenames[i]

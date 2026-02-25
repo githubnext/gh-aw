@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -45,7 +46,7 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any, workflowDa
 		}
 		return "", nil
 	default:
-		return "", fmt.Errorf("invalid on: section format")
+		return "", errors.New("invalid on: section format")
 	}
 }
 
@@ -78,7 +79,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			stopAfterLog.Printf("Resolved stop time from %s to %s", originalStopTime, resolvedStopTime)
 
 			if c.verbose && isRelativeStopTime(originalStopTime) {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Refreshed relative stop-after to: %s", resolvedStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Refreshed relative stop-after to: "+resolvedStopTime))
 			} else if c.verbose && originalStopTime != resolvedStopTime {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Refreshed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
 			}
@@ -87,7 +88,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			stopAfterLog.Printf("Preserving existing stop time from lock file: %s", existingStopTime)
 			workflowData.StopTime = existingStopTime
 			if c.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preserving existing stop time from lock file: "+existingStopTime))
 			}
 		} else {
 			// First compilation or no existing stop time, generate new one
@@ -100,7 +101,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			workflowData.StopTime = resolvedStopTime
 
 			if c.verbose && isRelativeStopTime(originalStopTime) {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resolved relative stop-after to: "+resolvedStopTime))
 			} else if c.verbose && originalStopTime != resolvedStopTime {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
 			}
@@ -173,14 +174,14 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 	// Legacy fallback: Look for GH_AW_STOP_TIME in the workflow body
 	// Use legacy method if: no metadata, legacy format, metadata exists but stop_time is empty, or metadata was malformed
 	if err != nil || metadata == nil || isLegacy || metadata.StopTime == "" {
-		lines := strings.Split(contentStr, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(contentStr, "\n")
+		for line := range lines {
 			// Look for GH_AW_STOP_TIME: YYYY-MM-DD HH:MM:SS
 			// This is in the env section of the stop time check job
 			if strings.Contains(line, "GH_AW_STOP_TIME:") {
 				prefix := "GH_AW_STOP_TIME:"
-				if idx := strings.Index(line, prefix); idx != -1 {
-					return strings.TrimSpace(line[idx+len(prefix):])
+				if _, after, ok := strings.Cut(line, prefix); ok {
+					return strings.TrimSpace(after)
 				}
 			}
 		}
@@ -224,7 +225,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 				// Object format: skip-if-match: { query: "...", max: 3 }
 				queryVal, hasQuery := skip["query"]
 				if !hasQuery {
-					return nil, fmt.Errorf("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
+					return nil, errors.New("skip-if-match object must have a 'query' field. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3")
 				}
 
 				queryStr, ok := queryVal.(string)
@@ -263,7 +264,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 		}
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("invalid on: section format")
+		return nil, errors.New("invalid on: section format")
 	}
 }
 
@@ -303,7 +304,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 				// Object format: skip-if-no-match: { query: "...", min: 3 }
 				queryVal, hasQuery := skip["query"]
 				if !hasQuery {
-					return nil, fmt.Errorf("skip-if-no-match object must have a 'query' field. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3")
+					return nil, errors.New("skip-if-no-match object must have a 'query' field. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3")
 				}
 
 				queryStr, ok := queryVal.(string)
@@ -342,7 +343,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 		}
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("invalid on: section format")
+		return nil, errors.New("invalid on: section format")
 	}
 }
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -49,13 +50,10 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 	}
 
 	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if attempt > 0 {
 			// Calculate delay with exponential backoff, capped at maxDelay
-			delay := time.Duration(attempt) * initialDelay
-			if delay > maxDelay {
-				delay = maxDelay
-			}
+			delay := min(time.Duration(attempt)*initialDelay, maxDelay)
 
 			// Calculate elapsed time since start
 			elapsed := time.Since(startTime).Round(time.Second)
@@ -94,7 +92,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		}
 
 		if len(output) == 0 || string(output) == "[]" {
-			lastErr = fmt.Errorf("no runs found for workflow")
+			lastErr = errors.New("no runs found for workflow")
 			runWorkflowTrackingLog.Printf("Attempt %d/%d: no runs found, output empty or []", attempt+1, maxRetries)
 			console.LogVerbose(verbose, fmt.Sprintf("Attempt %d/%d: no runs found yet", attempt+1, maxRetries))
 			continue
@@ -118,7 +116,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		}
 
 		if len(runs) == 0 {
-			lastErr = fmt.Errorf("no runs found")
+			lastErr = errors.New("no runs found")
 			console.LogVerbose(verbose, fmt.Sprintf("Attempt %d/%d: no runs in parsed JSON", attempt+1, maxRetries))
 			continue
 		}
@@ -164,7 +162,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 		// For the first few attempts, if we have a run but it's too old, keep trying
 		if attempt < 3 {
-			lastErr = fmt.Errorf("workflow run appears to be from a previous execution")
+			lastErr = errors.New("workflow run appears to be from a previous execution")
 			continue
 		}
 

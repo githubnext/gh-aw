@@ -28,46 +28,36 @@ func getSandboxFalseToAgentFalseCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				var modified bool
+				result := make([]string, 0, len(lines))
+				for i, line := range lines {
+					trimmedLine := strings.TrimSpace(line)
 
-			// Find and replace "sandbox: false" line
-			var modified bool
-			result := make([]string, 0, len(frontmatterLines))
+					// Check if this is the "sandbox: false" line
+					if strings.HasPrefix(trimmedLine, "sandbox:") {
+						if strings.Contains(trimmedLine, "sandbox: false") || strings.Contains(trimmedLine, "sandbox:false") {
+							// Get the indentation of the original line
+							indent := getIndentation(line)
 
-			for i, line := range frontmatterLines {
-				trimmedLine := strings.TrimSpace(line)
+							// Replace with sandbox.agent: false format
+							result = append(result, indent+"sandbox:")
+							result = append(result, indent+"  agent: false")
 
-				// Check if this is the "sandbox: false" line
-				if strings.HasPrefix(trimmedLine, "sandbox:") {
-					if strings.Contains(trimmedLine, "sandbox: false") || strings.Contains(trimmedLine, "sandbox:false") {
-						// Get the indentation of the original line
-						indent := getIndentation(line)
-
-						// Replace with sandbox.agent: false format
-						result = append(result, indent+"sandbox:")
-						result = append(result, indent+"  agent: false")
-
-						modified = true
-						sandboxAgentCodemodLog.Printf("Converted sandbox: false to sandbox.agent: false on line %d", i+1)
-						continue
+							modified = true
+							sandboxAgentCodemodLog.Printf("Converted sandbox: false to sandbox.agent: false on line %d", i+1)
+							continue
+						}
 					}
+
+					result = append(result, line)
 				}
-
-				result = append(result, line)
+				return result, modified
+			})
+			if applied {
+				sandboxAgentCodemodLog.Print("Applied sandbox: false to sandbox.agent: false conversion")
 			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			sandboxAgentCodemodLog.Print("Applied sandbox: false to sandbox.agent: false conversion")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

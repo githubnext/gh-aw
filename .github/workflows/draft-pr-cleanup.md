@@ -28,8 +28,6 @@ safe-outputs:
     run-success: "✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts."
     run-failure: "❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed."
 timeout-minutes: 20
-imports:
-  - shared/mood.md
 ---
 
 # Draft PR Cleanup Agent 🧹
@@ -157,32 +155,42 @@ For each PR classified as "Ready to Close":
 
 ### Step 6: Generate Summary Report
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 Create a summary of actions taken:
 
 ```markdown
-## 🧹 Draft PR Cleanup Summary
+### 🧹 Draft PR Cleanup Summary
 
 **Run Date**: <date>
 
-### Statistics
+#### Statistics
 - **Total Draft PRs**: <count>
 - **Exempt from Cleanup**: <count> (keep-draft, blocked, or awaiting-review)
 - **Active (< 10 days)**: <count>
 - **Warned (10-13 days)**: <count>
 - **Closed (14+ days)**: <count>
 
-### Actions Taken
+#### Actions Taken
 - **New Warnings Added**: <count>
 - **PRs Closed**: <count>
 - **PRs Skipped (exempt)**: <count>
 
-### PRs Warned This Run
+<details>
+<summary><b>PRs Warned This Run</b></summary>
+
 <list of PR numbers with titles>
 
-### PRs Closed This Run
+</details>
+
+<details>
+<summary><b>PRs Closed This Run</b></summary>
+
 <list of PR numbers with titles and days inactive>
 
-### Next Steps
+</details>
+
+#### Next Steps
 - Draft PRs currently in warning phase will be reviewed again tomorrow
 - Authors can prevent closure by adding activity or the `keep-draft` label
 - Closed PRs can be reopened if work continues
@@ -250,3 +258,9 @@ PRs closed:
 ```
 
 Execute the cleanup policy systematically and maintain consistency in how you calculate inactivity and apply actions.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -154,11 +155,9 @@ func enableFirewallByDefaultForEngine(engineID string, networkPermissions *Netwo
 
 	// Check if allowed contains "*" (unrestricted network access)
 	// If it does, do NOT enable the firewall by default
-	for _, domain := range networkPermissions.Allowed {
-		if domain == "*" {
-			firewallLog.Print("Wildcard '*' in allowed domains, skipping AWF auto-enablement")
-			return
-		}
+	if slices.Contains(networkPermissions.Allowed, "*") {
+		firewallLog.Print("Wildcard '*' in allowed domains, skipping AWF auto-enablement")
+		return
 	}
 
 	// Enable firewall by default for the engine (copilot, claude, codex)

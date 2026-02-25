@@ -356,13 +356,13 @@ func ApplyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 //   - "actions/checkout" -> "actions/checkout"
 func extractActionRepo(uses string) string {
 	// Split on @ to separate repo from version/ref
-	idx := strings.Index(uses, "@")
-	if idx == -1 {
+	before, _, ok := strings.Cut(uses, "@")
+	if !ok {
 		// No @ found, return the whole string
 		return uses
 	}
 	// Return everything before the @
-	return uses[:idx]
+	return before
 }
 
 // extractActionVersion extracts the version from a uses string
@@ -372,13 +372,13 @@ func extractActionRepo(uses string) string {
 //   - "actions/checkout" -> ""
 func extractActionVersion(uses string) string {
 	// Split on @ to separate repo from version/ref
-	idx := strings.Index(uses, "@")
-	if idx == -1 {
+	_, after, ok := strings.Cut(uses, "@")
+	if !ok {
 		// No @ found, no version
 		return ""
 	}
 	// Return everything after the @
-	return uses[idx+1:]
+	return after
 }
 
 // ApplyActionPinsToTypedSteps applies SHA pinning to a slice of typed WorkflowStep pointers

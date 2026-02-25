@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * Default path for the safe output items manifest file.
@@ -75,7 +76,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
     try {
       fs.appendFileSync(manifestFile, jsonLine);
     } catch (error) {
-      throw new Error(`Failed to write to manifest file: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to write to manifest file: ${getErrorMessage(error)}`);
     }
   };
 }
@@ -92,7 +93,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
     try {
       fs.writeFileSync(manifestFile, "");
     } catch (error) {
-      throw new Error(`Failed to create manifest file: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to create manifest file: ${getErrorMessage(error)}`);
     }
   }
 }

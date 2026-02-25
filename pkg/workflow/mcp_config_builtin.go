@@ -120,7 +120,7 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool, workflowData
 // The server is started in a separate step before the agent job
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	mcpBuiltinLog.Printf("Rendering Safe Outputs MCP config with options: isLast=%v, includeCopilotFields=%v", isLast, includeCopilotFields)
-	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
+	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID.String() + "\": {\n")
 
 	// HTTP transport configuration - server started in separate step
 	// Add type field for HTTP (required by MCP specification for HTTP transport)
@@ -180,7 +180,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	}
 
 	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
-	yaml.WriteString("              \"" + constants.AgenticWorkflowsMCPServerID + "\": {\n")
+	yaml.WriteString("              \"" + constants.AgenticWorkflowsMCPServerID.String() + "\": {\n")
 
 	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
 	if includeCopilotFields {
@@ -294,11 +294,11 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 // Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 	yaml.WriteString("          url = \"http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT\"\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + ".headers]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
 	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 }
 
@@ -307,7 +307,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 // Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder, actionMode ActionMode) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID.String() + "]\n")
 
 	containerImage := constants.DefaultAlpineImage
 	var entrypoint string

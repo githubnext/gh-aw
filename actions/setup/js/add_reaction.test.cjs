@@ -1,5 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
+const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -139,7 +140,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Issue number not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });
@@ -166,7 +167,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Comment ID not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Comment ID not found in event payload`);
     });
   });
 
@@ -192,7 +193,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Pull request number not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
     });
   });
 
@@ -218,7 +219,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Review comment ID not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
     });
   });
 
@@ -268,7 +269,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion number not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
     });
 
     it("should handle discussion not found error", async () => {
@@ -317,7 +318,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion comment node ID not found in event payload");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
     });
   });
 
@@ -360,7 +361,7 @@ describe("add_reaction", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: push");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Unsupported event type: push`);
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
   });

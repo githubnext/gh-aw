@@ -3,7 +3,11 @@ package parser
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var schemaTriggersLog = logger.New("parser:schema_triggers")
 
 // validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
 func validateEngineSpecificRules(frontmatter map[string]any) error {
@@ -33,6 +37,8 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 		return nil
 	}
 
+	schemaTriggersLog.Print("Validating command trigger conflicts")
+
 	// List of conflicting events - but we'll check if issues/pull_request are label-only
 	conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 
@@ -43,6 +49,7 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 			// Special case: allow issues/pull_request events if they only have labeled/unlabeled types
 			if eventName == "issues" || eventName == "pull_request" {
 				if IsLabelOnlyEvent(eventValue) {
+					schemaTriggersLog.Printf("Allowing label-only %s event with command trigger", eventName)
 					continue // Allow this - it doesn't conflict with command triggers
 				}
 			}
@@ -51,6 +58,7 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 	}
 
 	if len(foundConflicts) > 0 {
+		schemaTriggersLog.Printf("Command trigger conflicts found: %s", strings.Join(foundConflicts, ", "))
 		if len(foundConflicts) == 1 {
 			return fmt.Errorf("command trigger cannot be used with '%s' event in the same workflow. Command triggers are designed to respond to slash commands in comments and should not be combined with event-based triggers for issues or pull requests", foundConflicts[0])
 		}

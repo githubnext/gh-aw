@@ -10,6 +10,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
@@ -17,6 +18,8 @@ const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -69,9 +72,18 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    // Filter comments that contain the workflow-id and are NOT reaction comments
+    // Filter comments that contain the workflow-id and are NOT reaction comments.
+    // Supports both the standalone marker format (<!-- gh-aw-workflow-id: value -->)
+    // and the combined XML marker format (<!-- gh-aw-agentic-workflow: ..., workflow_id: value, ... -->).
     const filteredComments = data
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
+      .filter(comment => {
+        if (!comment.body || comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`)) return false;
+        // Standalone marker: <!-- gh-aw-workflow-id: value -->
+        if (comment.body.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`)) return true;
+        // Combined XML marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: value, ... -->
+        if (comment.body.includes(`<!-- gh-aw-agentic-workflow:`) && (comment.body.includes(`workflow_id: ${workflowId},`) || comment.body.includes(`workflow_id: ${workflowId} -->`))) return true;
+        return false;
+      })
       .map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
@@ -126,7 +138,14 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     }
 
     const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
+      .filter(comment => {
+        if (!comment.body || comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`)) return false;
+        // Standalone marker: <!-- gh-aw-workflow-id: value -->
+        if (comment.body.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`)) return true;
+        // Combined XML marker: <!-- gh-aw-agentic-workflow: ..., workflow_id: value, ... -->
+        if (comment.body.includes(`<!-- gh-aw-agentic-workflow:`) && (comment.body.includes(`workflow_id: ${workflowId},`) || comment.body.includes(`workflow_id: ${workflowId} -->`))) return true;
+        return false;
+      })
       .map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
@@ -229,7 +248,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   );
 
   if (!repository || !repository.discussion) {
-    throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+    throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
   }
 
   const discussionId = repository.discussion.id;
@@ -278,7 +297,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
  */
 async function main(config = {}) {
   // Extract configuration
-  const hideOlderCommentsEnabled = config.hide_older_comments === true;
+  const hideOlderCommentsEnabled = parseBoolTemplatable(config.hide_older_comments, false);
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -424,11 +443,52 @@ async function main(config = {}) {
       }
     }
 
+    // Collect parent issue/PR/discussion authors to allow in @mentions.
+    // The body was already sanitized in collect_ndjson_output with allowed mentions from the
+    // event payload (which includes the issue author). Re-sanitizing here without the same
+    // allowed aliases would neutralize those preserved mentions. We re-add the parent entity
+    // author so the second sanitization pass does not accidentally strip them.
+    const parentAuthors = [];
+    if (!isDiscussion) {
+      if (item.item_number !== undefined && item.item_number !== null) {
+        // Explicit item_number: fetch the issue/PR to get its author
+        try {
+          const { data: issueData } = await github.rest.issues.get({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: itemNumber,
+          });
+          if (issueData.user?.login && !isPayloadUserBot(issueData.user)) {
+            parentAuthors.push(issueData.user.login);
+          }
+        } catch (err) {
+          core.info(`Could not fetch parent issue/PR author for mention allowlist: ${getErrorMessage(err)}`);
+        }
+      } else {
+        // Triggering context: use the issue/PR author from the event payload
+        if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+          parentAuthors.push(context.payload.issue.user.login);
+        }
+        if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+          parentAuthors.push(context.payload.pull_request.user.login);
+        }
+      }
+    } else {
+      // Discussion: use the discussion author from the event payload
+      if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+        parentAuthors.push(context.payload.discussion.user.login);
+      }
+    }
+    if (parentAuthors.length > 0) {
+      core.info(`[MENTIONS] Allowing parent entity authors in comment: ${parentAuthors.join(", ")}`);
+    }
+
     // Replace temporary ID references in body
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, itemRepo);
 
-    // Sanitize content to prevent injection attacks
-    processedBody = sanitizeContent(processedBody);
+    // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
+    // so they can be @mentioned in the generated comment.
+    processedBody = sanitizeContent(processedBody, { allowedAliases: parentAuthors });
 
     // Enforce max limits before processing (validates user-provided content)
     try {
@@ -522,7 +582,7 @@ async function main(config = {}) {
 
         const discussionId = queryResult?.repository?.discussion?.id;
         if (!discussionId) {
-          throw new Error(`Discussion #${itemNumber} not found in ${itemRepo}`);
+          throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
         }
 
         comment = await commentOnDiscussion(github, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
@@ -592,7 +652,7 @@ async function main(config = {}) {
 
           const discussionId = queryResult?.repository?.discussion?.id;
           if (!discussionId) {
-            throw new Error(`Discussion #${itemNumber} not found in ${itemRepo}`);
+            throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
           }
 
           core.info(`Found discussion #${itemNumber}, adding comment...`);

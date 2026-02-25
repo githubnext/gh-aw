@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -198,13 +199,7 @@ func TestGetCustomJobsDependingOnPreActivationEdgeCases(t *testing.T) {
 			}
 			// Check that expected job IDs are present
 			for _, expectedID := range tt.expectedJobIDs {
-				found := false
-				for _, job := range result {
-					if job == expectedID {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(result, expectedID)
 				if !found {
 					t.Errorf("Expected job %q not found in result", expectedID)
 				}
@@ -213,7 +208,207 @@ func TestGetCustomJobsDependingOnPreActivationEdgeCases(t *testing.T) {
 	}
 }
 
-// TestGetReferencedCustomJobs tests the getReferencedCustomJobs method
+// TestJobDependsOnActivation tests the jobDependsOnActivation function
+func TestJobDependsOnActivation(t *testing.T) {
+	tests := []struct {
+		name      string
+		jobConfig map[string]any
+		expected  bool
+	}{
+		{
+			name:      "no needs field",
+			jobConfig: map[string]any{"runs-on": "ubuntu-latest"},
+			expected:  false,
+		},
+		{
+			name:      "needs: activation as string",
+			jobConfig: map[string]any{"needs": "activation"},
+			expected:  true,
+		},
+		{
+			name:      "needs: pre_activation only",
+			jobConfig: map[string]any{"needs": "pre_activation"},
+			expected:  false,
+		},
+		{
+			name:      "needs: agent only",
+			jobConfig: map[string]any{"needs": "agent"},
+			expected:  false,
+		},
+		{
+			name: "needs: [activation, pre_activation] array",
+			jobConfig: map[string]any{
+				"needs": []any{"pre_activation", "activation"},
+			},
+			expected: true,
+		},
+		{
+			name: "needs: array without activation",
+			jobConfig: map[string]any{
+				"needs": []any{"pre_activation", "config"},
+			},
+			expected: false,
+		},
+		{
+			name: "needs: array with mixed types including activation",
+			jobConfig: map[string]any{
+				"needs": []any{123, "activation"},
+			},
+			expected: true,
+		},
+		{
+			name:      "needs: invalid type",
+			jobConfig: map[string]any{"needs": 123},
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := jobDependsOnActivation(tt.jobConfig)
+			if result != tt.expected {
+				t.Errorf("jobDependsOnActivation() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestGetCustomJobsDependingOnPreActivationExcludesActivationDependents tests that
+// getCustomJobsDependingOnPreActivation excludes jobs that also depend on activation.
+// This prevents the compiler from adding such jobs to activation's needs (which would
+// create a circular dependency: activation → job → activation).
+func TestGetCustomJobsDependingOnPreActivationExcludesActivationDependents(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name         string
+		customJobs   map[string]any
+		expectedJobs []string
+		excludedJobs []string
+	}{
+		{
+			name: "job with both pre_activation and activation is excluded",
+			customJobs: map[string]any{
+				"config": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation", "activation"},
+				},
+			},
+			expectedJobs: []string{},
+			excludedJobs: []string{"config"},
+		},
+		{
+			name: "job with only pre_activation is included",
+			customJobs: map[string]any{
+				"precompute": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation"},
+				},
+			},
+			expectedJobs: []string{"precompute"},
+			excludedJobs: []string{},
+		},
+		{
+			name: "mixed: pre_activation-only included, pre_activation+activation excluded",
+			customJobs: map[string]any{
+				"precompute": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   "pre_activation",
+				},
+				"config": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation", "activation"},
+				},
+				"release": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"pre_activation", "activation", "config"},
+				},
+			},
+			expectedJobs: []string{"precompute"},
+			excludedJobs: []string{"config", "release"},
+		},
+		{
+			name: "job with only activation dependency is excluded",
+			customJobs: map[string]any{
+				"post_job": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   "activation",
+				},
+			},
+			expectedJobs: []string{},
+			excludedJobs: []string{"post_job"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.getCustomJobsDependingOnPreActivation(tt.customJobs)
+			resultSet := make(map[string]bool, len(result))
+			for _, j := range result {
+				resultSet[j] = true
+			}
+			for _, expected := range tt.expectedJobs {
+				if !resultSet[expected] {
+					t.Errorf("Expected job %q in result, got: %v", expected, result)
+				}
+			}
+			for _, excluded := range tt.excludedJobs {
+				if resultSet[excluded] {
+					t.Errorf("Job %q should be excluded from result, got: %v", excluded, result)
+				}
+			}
+		})
+	}
+}
+
+// TestBuildCustomJobsDoesNotAutoAddActivationToOutputReferencedJobs tests that
+// buildCustomJobs does NOT auto-add needs: activation to custom jobs whose outputs
+// are referenced in the markdown body (they must run before activation).
+func TestBuildCustomJobsDoesNotAutoAddActivationToOutputReferencedJobs(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	// Add activation job to manager
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	if err := compiler.jobManager.AddJob(activationJob); err != nil {
+		t.Fatal(err)
+	}
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		// precompute has no explicit needs and its output is referenced in the markdown
+		MarkdownContent: "Action: ${{ needs.precompute.outputs.action }}",
+		Jobs: map[string]any{
+			"precompute": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"run": "echo 'precompute'"},
+				},
+				// No explicit needs — normally would auto-get needs: activation
+				// But since precompute's output is referenced in markdown, it should NOT
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, true)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob("precompute")
+	if !exists {
+		t.Fatal("Expected precompute job to be added")
+	}
+
+	for _, need := range job.Needs {
+		if need == string(constants.ActivationJobName) {
+			t.Errorf("precompute job should NOT have needs: activation when its output is referenced in markdown (it must run before activation)")
+		}
+	}
+}
+
 func TestGetReferencedCustomJobs(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -290,13 +485,7 @@ func TestGetReferencedCustomJobs(t *testing.T) {
 			}
 			// Check that expected job IDs are present
 			for _, expectedID := range tt.expectedJobIDs {
-				found := false
-				for _, job := range result {
-					if job == expectedID {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(result, expectedID)
 				if !found {
 					t.Errorf("Expected job %q not found in result", expectedID)
 				}
@@ -547,13 +736,7 @@ func TestBuildMainJobWithActivation(t *testing.T) {
 	}
 
 	// Check that it depends on activation job
-	found := false
-	for _, need := range job.Needs {
-		if need == string(constants.ActivationJobName) {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(job.Needs, string(constants.ActivationJobName))
 	if !found {
 		t.Errorf("Expected job to depend on %s, got needs: %v", string(constants.ActivationJobName), job.Needs)
 	}
@@ -734,14 +917,22 @@ Test content`
 
 	yamlStr := string(content)
 
-	// Check that detection job is created
-	if !containsInNonCommentLines(yamlStr, "detection:") {
-		t.Error("Expected detection job to be created")
+	// Check that detection is inline in agent job (not a separate job)
+	if containsInNonCommentLines(yamlStr, "\n  detection:\n") {
+		t.Error("Expected detection to be inline in agent job, not a separate job")
 	}
 
-	// Check that safe_outputs job depends on detection
-	if !strings.Contains(yamlStr, string(constants.DetectionJobName)) {
-		t.Error("Expected safe output jobs to depend on detection job")
+	// Check that agent job contains inline detection steps
+	if !strings.Contains(yamlStr, "detection_guard") {
+		t.Error("Expected agent job to contain detection_guard step")
+	}
+	if !strings.Contains(yamlStr, "detection_conclusion") {
+		t.Error("Expected agent job to contain detection_conclusion step")
+	}
+
+	// Check that safe_outputs job references agent detection output
+	if !strings.Contains(yamlStr, "needs.agent.outputs.detection_success") {
+		t.Error("Expected safe output jobs to check needs.agent.outputs.detection_success")
 	}
 }
 
@@ -1150,22 +1341,12 @@ func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 		t.Fatal("Expected push_repo_memory job to be created")
 	}
 
-	// Add detection dependency if threat detection is enabled
+	// Detection is inline in agent — no separate dependency
+	// Verify push_repo_memory does NOT depend on detection job
 	if threatDetectionEnabledForSafeJobs {
-		pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
-	}
-
-	// Verify dependencies include detection when threat detection is enabled
-	if threatDetectionEnabledForSafeJobs {
-		hasDetectionDep := false
-		for _, need := range pushRepoMemoryJob.Needs {
-			if need == string(constants.DetectionJobName) {
-				hasDetectionDep = true
-				break
-			}
-		}
-		if !hasDetectionDep {
-			t.Error("Expected push_repo_memory to depend on detection job when threat detection is enabled")
+		hasDetectionDep := slices.Contains(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
+		if hasDetectionDep {
+			t.Error("push_repo_memory should not depend on detection job (detection is inline in agent)")
 		}
 	}
 
@@ -1227,22 +1408,70 @@ func TestJobsWithCacheMemoryDependencies(t *testing.T) {
 			t.Fatal("Expected update_cache_memory job to be created when threat detection is enabled")
 		}
 
-		// Verify dependencies include detection
-		hasDetectionDep := false
-		for _, need := range updateCacheMemoryJob.Needs {
-			if need == string(constants.DetectionJobName) {
-				hasDetectionDep = true
-				break
-			}
+		// Verify dependencies — detection is inline in agent, no separate dependency
+		hasDetectionDep := slices.Contains(updateCacheMemoryJob.Needs, string(constants.DetectionJobName))
+		if hasDetectionDep {
+			t.Error("update_cache_memory should not depend on detection job (detection is inline in agent)")
 		}
-		if !hasDetectionDep {
-			t.Error("Expected update_cache_memory to depend on detection job")
+		// Should depend on agent job
+		hasAgentDep := slices.Contains(updateCacheMemoryJob.Needs, string(constants.AgentJobName))
+		if !hasAgentDep {
+			t.Error("Expected update_cache_memory to depend on agent job")
 		}
 
 		// Verify job name
 		if updateCacheMemoryJob.Name != "update_cache_memory" {
 			t.Errorf("Expected job name 'update_cache_memory', got %q", updateCacheMemoryJob.Name)
 		}
+	}
+}
+
+// TestUpdateCacheMemoryJobHasWorkflowIDEnv verifies that the update_cache_memory job
+// includes GH_AW_WORKFLOW_ID_SANITIZED in its env block so cache keys match the agent job.
+func TestUpdateCacheMemoryJobHasWorkflowIDEnv(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:       "Test Workflow",
+		WorkflowID: "daily-repo-status",
+		AI:         "copilot",
+		RunsOn:     "runs-on: ubuntu-latest",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	compiler.stepOrderTracker = NewStepOrderTracker()
+	activationJob, _ := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	compiler.jobManager.AddJob(activationJob)
+
+	agentJob, _ := compiler.buildMainJob(data, true)
+	compiler.jobManager.AddJob(agentJob)
+
+	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+
+	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
+	if err != nil {
+		t.Fatalf("buildUpdateCacheMemoryJob() error: %v", err)
+	}
+	if updateCacheMemoryJob == nil {
+		t.Fatal("Expected update_cache_memory job to be created")
+	}
+
+	// GH_AW_WORKFLOW_ID_SANITIZED must be present so the save key matches the restore key
+	sanitizedID, ok := updateCacheMemoryJob.Env["GH_AW_WORKFLOW_ID_SANITIZED"]
+	if !ok {
+		t.Error("update_cache_memory job is missing GH_AW_WORKFLOW_ID_SANITIZED env var; cache keys will not match")
+	}
+	// "daily-repo-status" -> lowercase + hyphens removed -> "dailyrepostatus"
+	if sanitizedID != "dailyrepostatus" {
+		t.Errorf("GH_AW_WORKFLOW_ID_SANITIZED = %q, want %q", sanitizedID, "dailyrepostatus")
 	}
 }
 
@@ -1539,7 +1768,6 @@ Test content`
 		"activation:",
 		string(constants.AgentJobName),
 		"safe_outputs:",
-		"detection:",
 		"conclusion:",
 		"custom1:",
 		"custom2:",
@@ -1549,6 +1777,14 @@ Test content`
 		if !containsInNonCommentLines(yamlStr, job) {
 			t.Errorf("Expected job %q not found", job)
 		}
+	}
+
+	// Verify inline detection is present in agent job (no separate detection job)
+	if containsInNonCommentLines(yamlStr, "\n  detection:\n") {
+		t.Error("Expected no separate detection job (detection is inline in agent)")
+	}
+	if !strings.Contains(yamlStr, "detection_guard") {
+		t.Error("Expected inline detection_guard step in agent job")
 	}
 
 	// Verify custom2 depends on custom1
@@ -1906,13 +2142,7 @@ func TestBuildCustomJobsAutomaticActivationDependency(t *testing.T) {
 	}
 
 	// Check that activation is in the needs array
-	found := false
-	for _, need := range job.Needs {
-		if need == string(constants.ActivationJobName) {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(job.Needs, string(constants.ActivationJobName))
 	if !found {
 		t.Error("Expected automatic dependency on activation job")
 	}

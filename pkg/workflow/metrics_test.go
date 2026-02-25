@@ -865,7 +865,7 @@ func TestFinalizeToolMetrics(t *testing.T) {
 
 			// Verify tools are sorted by name
 			if len(metrics.ToolCalls) > 1 {
-				for i := 0; i < len(metrics.ToolCalls)-1; i++ {
+				for i := range len(metrics.ToolCalls) - 1 {
 					if metrics.ToolCalls[i].Name > metrics.ToolCalls[i+1].Name {
 						t.Errorf("Tool calls not sorted: %s comes before %s",
 							metrics.ToolCalls[i].Name, metrics.ToolCalls[i+1].Name)
@@ -946,7 +946,7 @@ func TestFinalizeToolCallsAndSequence(t *testing.T) {
 
 			// Verify tools are sorted by name
 			if len(metrics.ToolCalls) > 1 {
-				for i := 0; i < len(metrics.ToolCalls)-1; i++ {
+				for i := range len(metrics.ToolCalls) - 1 {
 					if metrics.ToolCalls[i].Name > metrics.ToolCalls[i+1].Name {
 						t.Errorf("Tool calls not sorted: %s comes before %s",
 							metrics.ToolCalls[i].Name, metrics.ToolCalls[i+1].Name)

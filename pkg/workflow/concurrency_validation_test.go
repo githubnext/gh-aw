@@ -701,7 +701,7 @@ func BenchmarkValidateConcurrencyGroupExpression(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = validateConcurrencyGroupExpression(tc)
 			}
 		})
@@ -710,8 +710,8 @@ func BenchmarkValidateConcurrencyGroupExpression(b *testing.B) {
 
 func BenchmarkValidateBalancedBraces(b *testing.B) {
 	input := "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = validateBalancedBraces(input)
 	}
 }
@@ -719,8 +719,8 @@ func BenchmarkValidateBalancedBraces(b *testing.B) {
 func BenchmarkValidateExpressionContent(b *testing.B) {
 	expr := "(github.workflow || github.ref) && github.repository"
 	fullGroup := "test-${{ (github.workflow || github.ref) && github.repository }}"
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = validateExpressionContent(expr, fullGroup)
 	}
 }

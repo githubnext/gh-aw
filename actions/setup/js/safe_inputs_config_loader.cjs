@@ -8,6 +8,7 @@
  */
 
 const fs = require("fs");
+const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * @typedef {Object} SafeInputsToolConfig
@@ -34,7 +35,7 @@ const fs = require("fs");
  */
 function loadConfig(configPath) {
   if (!fs.existsSync(configPath)) {
-    throw new Error(`Configuration file not found: ${configPath}`);
+    throw new Error(`${ERR_SYSTEM}: Configuration file not found: ${configPath}`);
   }
 
   const configContent = fs.readFileSync(configPath, "utf-8");
@@ -42,7 +43,7 @@ function loadConfig(configPath) {
 
   // Validate required fields
   if (!config.tools || !Array.isArray(config.tools)) {
-    throw new Error("Configuration must contain a 'tools' array");
+    throw new Error(`${ERR_VALIDATION}: Configuration must contain a 'tools' array`);
   }
 
   return config;

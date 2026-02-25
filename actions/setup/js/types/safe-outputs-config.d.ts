@@ -218,9 +218,16 @@ interface AssignMilestoneConfig extends SafeOutputConfig {
  * Configuration for assigning agents to issues
  */
 interface AssignToAgentConfig extends SafeOutputConfig {
-  "default-agent"?: string;
+  name?: string;
+  model?: string;
+  "custom-agent"?: string;
+  "custom-instructions"?: string;
+  allowed?: string[];
   target?: string;
   "target-repo"?: string;
+  "pull-request-repo"?: string;
+  "allowed-pull-request-repos"?: string[];
+  "base-branch"?: string;
   "ignore-if-error"?: boolean;
 }
 

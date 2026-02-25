@@ -244,7 +244,12 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 		// If we have paths and frontmatter content, try to get precise locations
 		if len(jsonPaths) > 0 && frontmatterContent != "" {
-			// Use the first error path for the primary error location
+			detailLines := make([]string, 0, len(jsonPaths))
+			for _, pathInfo := range jsonPaths {
+				detailLines = append(detailLines, formatSchemaFailureDetail(pathInfo, schemaJSON, frontmatterContent, frontmatterStart))
+			}
+
+			// Use the first error path for primary context rendering.
 			primaryPath := jsonPaths[0]
 			location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, primaryPath.Path, primaryPath.Message)
 
@@ -258,13 +263,21 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					// Use the same sanitized path
 					if content, readErr := os.ReadFile(cleanPath); readErr == nil {
 						allLines := strings.Split(string(content), "\n")
-						// Create context around the adjusted line (±3 lines)
-						// The console formatter expects context to be centered around the error line
-						contextSize := 7                                     // ±3 lines around the error
-						contextStart := max(0, adjustedLine-contextSize/2-1) // -1 for 0-based indexing
-						contextEnd := min(len(allLines), contextStart+contextSize)
+						// Create context around the adjusted line (±3 lines).
+						// renderContext expects context[0] to map to line (adjustedLine - contextSize/2),
+						// so we must pad the beginning with empty strings for lines before the file starts.
+						contextSize := 7 // ±3 lines around the error
+						expectedFirstLine := adjustedLine - contextSize/2
+						fileStart := max(0, expectedFirstLine-1) // 0-indexed, clamped to file start
 
-						for i := contextStart; i < contextEnd; i++ {
+						// Pad with empty strings for lines that are before the file
+						for lineNum := expectedFirstLine; lineNum < 1; lineNum++ {
+							adjustedContextLines = append(adjustedContextLines, "")
+						}
+
+						// Add real lines from the file
+						fileEnd := min(len(allLines), fileStart+contextSize-len(adjustedContextLines))
+						for i := fileStart; i < fileEnd; i++ {
 							adjustedContextLines = append(adjustedContextLines, allLines[i])
 						}
 					}
@@ -275,14 +288,10 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					adjustedContextLines = contextLines
 				}
 
-				// Rewrite "additional properties not allowed" errors to be more friendly
-				// Also clean up oneOf jargon (e.g., "got string, want object") to plain English
-				message := rewriteAdditionalPropertiesError(cleanOneOfMessage(primaryPath.Message))
-
-				// Add schema-based suggestions
-				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path)
-				if suggestions != "" {
-					message = message + ". " + suggestions
+				// Include every schema failure with path + line + column.
+				message := detailLines[0]
+				if len(detailLines) != 1 {
+					message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
 				}
 
 				// Create a compiler error with precise location information
@@ -308,7 +317,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 		message := rewriteAdditionalPropertiesError(errorMsg)
 
 		// Add schema-based suggestions for fallback case
-		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "")
+		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "", frontmatterContent)
 		if suggestions != "" {
 			message = message + ". " + suggestions
 		}
@@ -333,6 +342,33 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 	// Fallback to the original error if we can't format it nicely
 	return err
+}
+
+func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterContent string, frontmatterStart int) string {
+	path := pathInfo.Path
+	if path == "" {
+		path = "/"
+	}
+
+	location := LocateJSONPathInYAMLWithAdditionalProperties(frontmatterContent, pathInfo.Path, pathInfo.Message)
+	line := frontmatterStart
+	column := 1
+	if location.Found {
+		line = location.Line + frontmatterStart - 1
+		column = location.Column
+	}
+
+	message := rewriteAdditionalPropertiesError(cleanOneOfMessage(pathInfo.Message))
+	// Strip any "at '/path': " prefix from the message to avoid duplication with the
+	// "at 'path' (line N, column M):" prefix we prepend below.
+	message = stripAtPathPrefix(message)
+	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
+	message = translateSchemaConstraintMessage(message)
+	suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
+	if suggestions != "" {
+		message = message + ". " + suggestions
+	}
+	return fmt.Sprintf("at '%s' (line %d, column %d): %s", path, line, column, message)
 }
 
 // GetMainWorkflowSchema returns the embedded main workflow schema JSON

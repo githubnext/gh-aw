@@ -2,8 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -48,6 +50,13 @@ func NewCodexEngine() *CodexEngine {
 // SupportsLLMGateway returns the LLM gateway port for Codex engine
 func (e *CodexEngine) SupportsLLMGateway() int {
 	return constants.CodexLLMGatewayPort
+}
+
+// GetModelEnvVarName returns an empty string because the Codex CLI does not support
+// selecting the model via a native environment variable. Model selection for Codex
+// is done via the -c model=... configuration override in the shell command.
+func (e *CodexEngine) GetModelEnvVarName() string {
+	return ""
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
@@ -122,34 +131,23 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	model := ""
-	if modelConfigured {
-		model = workflowData.EngineConfig.Model
-	}
 	firewallEnabled := isFirewallEnabled(workflowData)
-	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v, firewall=%v",
-		workflowData.Name, model, workflowData.AgentFile != "", firewallEnabled)
+	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, modelConfigured=%v, has_agent_file=%v, firewall=%v",
+		workflowData.Name, modelConfigured, workflowData.AgentFile != "", firewallEnabled)
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
-	// Build model parameter only if specified in engineConfig
-	// Otherwise, model can be set via GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX environment variable
-	var modelParam string
-	if modelConfigured {
-		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
+	// Codex does not support a native model environment variable, so model selection
+	// always uses GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX with shell expansion.
+	// This also correctly handles GitHub Actions expressions like ${{ inputs.model }}.
+	isDetectionJob := workflowData.SafeOutputs == nil
+	var modelEnvVar string
+	if isDetectionJob {
+		modelEnvVar = constants.EnvVarModelDetectionCodex
 	} else {
-		// Check if this is a detection job (has no SafeOutputs config)
-		isDetectionJob := workflowData.SafeOutputs == nil
-		var modelEnvVar string
-		if isDetectionJob {
-			modelEnvVar = constants.EnvVarModelDetectionCodex
-		} else {
-			modelEnvVar = constants.EnvVarModelAgentCodex
-		}
-		// Model will be conditionally added via shell expansion if environment variable is set
-		modelParam = fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
+		modelEnvVar = constants.EnvVarModelAgentCodex
 	}
+	modelParam := fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
 
 	// Build search parameter if web-search tool is present
 	webSearchParam := ""
@@ -166,9 +164,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Build custom args parameter if specified in engineConfig
 	var customArgsParam string
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		var customArgsParamSb strings.Builder
 		for _, arg := range workflowData.EngineConfig.Args {
-			customArgsParam += arg + " "
+			customArgsParamSb.WriteString(arg + " ")
 		}
+		customArgsParam += customArgsParamSb.String()
 	}
 
 	// Build the Codex command
@@ -264,42 +264,35 @@ mkdir -p "$CODEX_HOME/logs"
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {
-		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+		env["GH_AW_STARTUP_TIMEOUT"] = strconv.Itoa(workflowData.ToolsStartupTimeout)
 	}
 
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
-		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+		env["GH_AW_TOOL_TIMEOUT"] = strconv.Itoa(workflowData.ToolsTimeout)
 	}
 
-	// Add model environment variable if model is not explicitly configured
-	// This allows users to configure the default model via GitHub Actions variables
-	// Use different env vars for agent vs detection jobs
-	if !modelConfigured {
-		// Check if this is a detection job (has no SafeOutputs config)
-		isDetectionJob := workflowData.SafeOutputs == nil
-		if isDetectionJob {
-			// For detection, use detection-specific env var (no default fallback for Codex)
-			env[constants.EnvVarModelDetectionCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCodex)
-		} else {
-			// For agent execution, use agent-specific env var
-			env[constants.EnvVarModelAgentCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCodex)
-		}
+	// Set the model environment variable.
+	// Codex has no native model env var, so model selection always goes through
+	// GH_AW_MODEL_AGENT_CODEX / GH_AW_MODEL_DETECTION_CODEX with shell expansion.
+	// When model is configured (static or GitHub Actions expression), set the env var directly.
+	// When not configured, use the GitHub variable fallback so users can set a default.
+	if modelConfigured {
+		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.EngineConfig.Model)
+		env[modelEnvVar] = workflowData.EngineConfig.Model
+	} else {
+		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
 	}
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
 
 	// Add custom environment variables from agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		for key, value := range agentConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, agentConfig.Env)
 		codexEngineLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
@@ -318,7 +311,7 @@ mkdir -p "$CODEX_HOME/logs"
 	stepName := "Execute Codex"
 	var stepLines []string
 
-	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "      - name: "+stepName)
 
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
@@ -391,22 +384,17 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 	}
 
 	// Copy custom tools
-	for key, value := range toolsConfig.Custom {
-		result.Custom[key] = value
-	}
+	maps.Copy(result.Custom, toolsConfig.Custom)
 
 	// Copy raw map
-	for key, value := range toolsConfig.raw {
-		result.raw[key] = value
-	}
+	maps.Copy(result.raw, toolsConfig.raw)
 
 	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
 	if toolsConfig.Playwright != nil {
 		// Create an updated Playwright config with the allowed tools
 		playwrightConfig := &PlaywrightToolConfig{
-			Version:        toolsConfig.Playwright.Version,
-			AllowedDomains: toolsConfig.Playwright.AllowedDomains,
-			Args:           toolsConfig.Playwright.Args,
+			Version: toolsConfig.Playwright.Version,
+			Args:    toolsConfig.Playwright.Args,
 		}
 
 		result.Playwright = playwrightConfig
@@ -417,9 +405,6 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 		}
 		if playwrightConfig.Version != "" {
 			playwrightMCP["version"] = playwrightConfig.Version
-		}
-		if len(playwrightConfig.AllowedDomains) > 0 {
-			playwrightMCP["allowed_domains"] = playwrightConfig.AllowedDomains
 		}
 		if len(playwrightConfig.Args) > 0 {
 			playwrightMCP["args"] = playwrightConfig.Args

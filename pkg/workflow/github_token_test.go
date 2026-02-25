@@ -117,3 +117,31 @@ func TestGetEffectiveAgentGitHubToken(t *testing.T) {
 		})
 	}
 }
+
+func TestGetEffectiveCITriggerGitHubToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		customToken string
+		expected    string
+	}{
+		{
+			name:        "custom token has highest precedence",
+			customToken: "${{ secrets.CUSTOM_CI_TOKEN }}",
+			expected:    "${{ secrets.CUSTOM_CI_TOKEN }}",
+		},
+		{
+			name:        "default fallback for CI trigger operations",
+			customToken: "",
+			expected:    "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getEffectiveCITriggerGitHubToken(tt.customToken)
+			if result != tt.expected {
+				t.Errorf("getEffectiveCITriggerGitHubToken() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}

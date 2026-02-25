@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -86,7 +87,7 @@ func processYAMLWorkflowImport(filePath string) (jobs string, services string, e
 	}
 	if isAction {
 		yamlImportLog.Printf("Rejecting action definition file: %s", filePath)
-		return "", "", fmt.Errorf("cannot import action definition file (action.yml). Only workflow files (.yml) can be imported")
+		return "", "", errors.New("cannot import action definition file (action.yml). Only workflow files (.yml) can be imported")
 	}
 
 	// Parse the YAML workflow
@@ -100,7 +101,7 @@ func processYAMLWorkflowImport(filePath string) (jobs string, services string, e
 	_, hasJobs := workflow["jobs"]
 	if !hasOn && !hasJobs {
 		yamlImportLog.Printf("Invalid workflow file %s: missing 'on' or 'jobs' field", filePath)
-		return "", "", fmt.Errorf("not a valid GitHub Actions workflow: missing 'on' or 'jobs' field")
+		return "", "", errors.New("not a valid GitHub Actions workflow: missing 'on' or 'jobs' field")
 	}
 	yamlImportLog.Printf("Validated workflow file %s: hasOn=%v, hasJobs=%v", filePath, hasOn, hasJobs)
 
@@ -173,35 +174,35 @@ func processYAMLWorkflowImport(filePath string) (jobs string, services string, e
 func extractStepsFromCopilotSetup(workflow map[string]any) (string, error) {
 	jobsValue, ok := workflow["jobs"]
 	if !ok {
-		return "", fmt.Errorf("no jobs found in copilot-setup-steps.yml")
+		return "", errors.New("no jobs found in copilot-setup-steps.yml")
 	}
 
 	jobsMap, ok := jobsValue.(map[string]any)
 	if !ok {
-		return "", fmt.Errorf("jobs field is not a map in copilot-setup-steps.yml")
+		return "", errors.New("jobs field is not a map in copilot-setup-steps.yml")
 	}
 
 	// Look for the copilot-setup-steps job
 	setupJob, ok := jobsMap["copilot-setup-steps"]
 	if !ok {
-		return "", fmt.Errorf("copilot-setup-steps job not found in copilot-setup-steps.yml")
+		return "", errors.New("copilot-setup-steps job not found in copilot-setup-steps.yml")
 	}
 
 	setupJobMap, ok := setupJob.(map[string]any)
 	if !ok {
-		return "", fmt.Errorf("copilot-setup-steps job is not a map")
+		return "", errors.New("copilot-setup-steps job is not a map")
 	}
 
 	// Extract steps from the job
 	stepsValue, ok := setupJobMap["steps"]
 	if !ok {
-		return "", fmt.Errorf("no steps found in copilot-setup-steps job")
+		return "", errors.New("no steps found in copilot-setup-steps job")
 	}
 
 	// Verify steps is actually a list
 	stepsSlice, ok := stepsValue.([]any)
 	if !ok {
-		return "", fmt.Errorf("steps field is not a list in copilot-setup-steps job")
+		return "", errors.New("steps field is not a list in copilot-setup-steps job")
 	}
 
 	// Ensure checkout step is always included and placed first

@@ -74,7 +74,7 @@ steps:
   - name: Build code
     run: make build
   
-  - name: Rebuild lock files
+  - name: Recompile workflows
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: make recompile

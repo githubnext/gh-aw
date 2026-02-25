@@ -48,12 +48,12 @@ func TestSecretsCommandStructure(t *testing.T) {
 	tests := []struct {
 		name           string
 		expectedUse    string
-		commandCreator func() interface{}
+		commandCreator func() any
 	}{
 		{
 			name:        "secrets command exists",
 			expectedUse: "secrets",
-			commandCreator: func() interface{} {
+			commandCreator: func() any {
 				return NewSecretsCommand()
 			},
 		},

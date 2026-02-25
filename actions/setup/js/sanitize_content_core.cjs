@@ -6,6 +6,8 @@
  * sanitize_content.cjs (full version) and sanitize_incoming_text.cjs (minimal version).
  */
 
+const { isRepoAllowed } = require("./repo_helpers.cjs");
+
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
  * @type {string[]}
@@ -336,8 +338,47 @@ function removeXmlComments(s) {
  * @returns {string} The string with XML tags converted to parentheses
  */
 function convertXmlTags(s) {
-  // Allow safe HTML tags: b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
-  const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+  // Allow safe HTML tags supported by GitHub Flavored Markdown:
+  // b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
+  // Plus GFM inline tags: abbr, del, ins, kbd, mark, s, span
+  const allowedTags = [
+    "abbr",
+    "b",
+    "blockquote",
+    "br",
+    "code",
+    "del",
+    "details",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "ins",
+    "kbd",
+    "li",
+    "mark",
+    "ol",
+    "p",
+    "pre",
+    "s",
+    "span",
+    "strong",
+    "sub",
+    "summary",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+  ];
 
   // First, process CDATA sections specially - convert tags inside them and the CDATA markers
   s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
@@ -365,13 +406,35 @@ function convertXmlTags(s) {
 }
 
 /**
- * Neutralizes bot trigger phrases by wrapping them in backticks
- * @param {string} s - The string to process
- * @returns {string} The string with neutralized bot triggers
+ * Maximum number of bot trigger references allowed before filtering is applied.
  */
-function neutralizeBotTriggers(s) {
-  // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+const MAX_BOT_TRIGGER_REFERENCES = 10;
+
+/**
+ * Neutralizes bot trigger phrases by wrapping them in backticks.
+ * The first `maxBotMentions` unquoted trigger references are left unchanged;
+ * any occurrences beyond that threshold are wrapped in backticks.
+ * Already-quoted entries are never re-quoted.
+ * @param {string} s - The string to process
+ * @param {number} [maxBotMentions] - Number of occurrences to allow before escaping (default: MAX_BOT_TRIGGER_REFERENCES)
+ * @returns {string} The string with excess bot triggers neutralized
+ */
+function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
+  // Match unquoted bot trigger phrases like "fixes #123", "closes #asdfs", etc.
+  // The negative lookbehind (?<!`) skips already-quoted entries.
+  const pattern = /(?<!`)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi;
+  const matches = s.match(pattern);
+  if (!matches || matches.length <= maxBotMentions) {
+    return s;
+  }
+  let count = 0;
+  return s.replace(pattern, (match, action, ref) => {
+    count++;
+    if (count <= maxBotMentions) {
+      return match;
+    }
+    return `\`${action} #${ref}\``;
+  });
 }
 
 /**
@@ -469,13 +532,20 @@ function buildAllowedGitHubReferences() {
   }
 
   if (allowedRefsEnv === "") {
+    if (typeof core !== "undefined" && core.info) {
+      core.info("GitHub reference filtering: all references will be escaped (GH_AW_ALLOWED_GITHUB_REFS is empty)");
+    }
     return []; // Empty array means escape all references
   }
 
-  return allowedRefsEnv
+  const refs = allowedRefsEnv
     .split(",")
     .map(ref => ref.trim().toLowerCase())
     .filter(ref => ref);
+  if (typeof core !== "undefined" && core.info) {
+    core.info(`GitHub reference filtering: allowed repos = ${refs.join(", ")}`);
+  }
+  return refs;
 }
 
 /**
@@ -493,7 +563,8 @@ function getCurrentRepoSlug() {
 
 /**
  * Neutralizes GitHub references (#123 or owner/repo#456) by wrapping them in backticks
- * if they reference repositories not in the allowed list
+ * if they reference repositories not in the allowed list.
+ * Supports wildcard patterns (e.g., "myorg/*", "*") via isRepoAllowed().
  * @param {string} s - The string to process
  * @param {string[]|null} allowedRepos - List of allowed repository slugs (lowercase), or null to allow all
  * @returns {string} The string with unauthorized references neutralized
@@ -505,6 +576,9 @@ function neutralizeGitHubReferences(s, allowedRepos) {
   }
 
   const currentRepo = getCurrentRepoSlug();
+
+  // Expand the special "repo" keyword to the current repo slug and build a Set for isRepoAllowed()
+  const allowedSet = new Set(allowedRepos.map(r => (r === "repo" ? currentRepo : r)));
 
   // Match GitHub references:
   // - #123 (current repo reference)
@@ -522,13 +596,8 @@ function neutralizeGitHubReferences(s, allowedRepos) {
       targetRepo = currentRepo;
     }
 
-    // Check if "repo" is in allowed list (means current repo)
-    const allowCurrentRepo = allowedRepos.includes("repo");
-
-    // Check if this specific repo is in the allowed list
-    const isAllowed = allowedRepos.includes(targetRepo) || (allowCurrentRepo && targetRepo === currentRepo);
-
-    if (isAllowed) {
+    // Check if this repo is allowed using isRepoAllowed (supports wildcard patterns)
+    if (isRepoAllowed(targetRepo, allowedSet)) {
       return match; // Keep the original reference
     } else {
       // Escape the reference
@@ -670,9 +739,10 @@ function hardenUnicodeText(text) {
  * Core sanitization function without mention filtering
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
+ * @param {number} [maxBotMentions] - Max bot trigger references before filtering (default: MAX_BOT_TRIGGER_REFERENCES)
  * @returns {string} The sanitized content
  */
-function sanitizeContentCore(content, maxLength) {
+function sanitizeContentCore(content, maxLength, maxBotMentions) {
   if (!content || typeof content !== "string") {
     return "";
   }
@@ -721,7 +791,7 @@ function sanitizeContentCore(content, maxLength) {
   sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
 
   // Neutralize common bot trigger phrases
-  sanitized = neutralizeBotTriggers(sanitized);
+  sanitized = neutralizeBotTriggers(sanitized, maxBotMentions);
 
   // Neutralize template syntax delimiters (defense-in-depth)
   // This prevents potential issues if content is processed by downstream template engines
@@ -754,6 +824,7 @@ module.exports = {
   removeXmlComments,
   convertXmlTags,
   neutralizeBotTriggers,
+  MAX_BOT_TRIGGER_REFERENCES,
   neutralizeTemplateDelimiters,
   applyTruncation,
   hardenUnicodeText,

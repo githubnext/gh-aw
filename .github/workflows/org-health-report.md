@@ -23,6 +23,7 @@ tools:
     - "*"
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "reports"
     max: 1
     close-older-discussions: true
@@ -36,7 +37,6 @@ network:
     - defaults
     - python
 imports:
-  - shared/mood.md
   - shared/python-dataviz.md
   - shared/jqschema.md
   - shared/reporting.md
@@ -340,18 +340,44 @@ Create a comprehensive markdown report with the following sections:
    - Brief analysis of what the metrics mean
    - Suggestions for maintainers on where to focus
 
+## 📝 Report Formatting Guidelines
+
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The discussion title serves as h1, so all content headers should start at h3:
+- Use `###` for main sections (e.g., "### 📊 Volume Metrics", "### Summary")
+- Use `####` for subsections (e.g., "#### Overall Status", "#### Recent Activity")
+- Never use `##` (h2) or `#` (h1) in the report body
+
+**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
+Use collapsible sections for:
+- "Top 10 Most Active Authors" table
+- Full data and methodology details
+- Any other verbose tables or data
+
+Example:
+```markdown
+<details>
+<summary><b>Top 10 Most Active Authors</b></summary>
+
+[Author table here...]
+
+</details>
+```
+
 ### Phase 6: Create Discussion Report
 
 Use the `create discussion` safe-output to publish the report:
 
 ```markdown
-# Organization Health Report - [Date]
+### 🏥 Organization Health Report - [Date]
 
 [Executive Summary]
 
-## 📊 Volume Metrics
+### 📊 Volume Metrics
 
-### Overall Status
+#### Overall Status
 
 | Metric | Count |
 |--------|-------|
@@ -360,7 +386,7 @@ Use the `create discussion` safe-output to publish the report:
 | Total Open PRs | X |
 | Total Closed PRs | X |
 
-### Recent Activity (7 Days)
+#### Recent Activity (7 Days)
 
 | Metric | Count |
 |--------|-------|
@@ -369,7 +395,7 @@ Use the `create discussion` safe-output to publish the report:
 | PRs Opened | X |
 | PRs Closed | X |
 
-### Recent Activity (30 Days)
+#### Recent Activity (30 Days)
 
 | Metric | Count |
 |--------|-------|
@@ -378,7 +404,7 @@ Use the `create discussion` safe-output to publish the report:
 | PRs Opened | X |
 | PRs Closed | X |
 
-## 🏆 Top 5 Most Active Repositories
+### 🏆 Top 5 Most Active Repositories
 
 | Repository | Recent Issues | Recent PRs | Comments | Activity Score |
 |------------|---------------|------------|----------|----------------|
@@ -386,7 +412,8 @@ Use the `create discussion` safe-output to publish the report:
 | repo2 | X | X | X | X |
 ...
 
-## 👥 Top 10 Most Active Authors
+<details>
+<summary><b>Top 10 Most Active Authors</b></summary>
 
 | Author | Issues Opened | PRs Opened | Activity Score |
 |--------|---------------|------------|----------------|
@@ -394,44 +421,46 @@ Use the `create discussion` safe-output to publish the report:
 | user2 | X | X | X |
 ...
 
-## 🔥 High-Activity Unresolved Items
+</details>
 
-### Hot Issues (Need Attention)
+### 🔥 High-Activity Unresolved Items
+
+#### Hot Issues (Need Attention)
 
 | Issue | Repository | Comments | Age (days) | Link |
 |-------|------------|----------|------------|------|
 | #123: Title | repo | X | X | [View](#) |
 ...
 
-### Hot PRs (Need Review)
+#### Hot PRs (Need Review)
 
 | PR | Repository | Comments | Age (days) | Link |
 |----|------------|----------|------------|------|
 | #456: Title | repo | X | X | [View](#) |
 ...
 
-## ⚠️ Items Needing Attention
+### ⚠️ Items Needing Attention
 
 - **Stale Issues**: X issues open for 30+ days with no recent activity
 - **Stale PRs**: X PRs open for 30+ days with no recent activity
 - **Unassigned Issues**: X open issues without assignees
 - **Unlabeled Issues**: X open issues without labels
 
-## 💡 Commentary and Recommendations
+### 💡 Commentary and Recommendations
 
 [Analysis of the metrics and suggestions for where maintainers should focus their attention]
 
 <details>
 <summary><b>Full Data and Methodology</b></summary>
 
-## Data Collection
+#### Data Collection
 
 - **Date Range**: [dates]
 - **Repositories Analyzed**: X public, non-archived repositories
 - **Issues Analyzed**: X issues
 - **PRs Analyzed**: X pull requests
 
-## Methodology
+#### Methodology
 
 - Data collected using GitHub API via MCP server
 - Analyzed using Python pandas for efficient data processing
@@ -490,3 +519,9 @@ A successful health report:
 - ✅ Completes within 60 minute timeout
 
 Begin the organization health report analysis now. Follow the phases in order, add appropriate delays, and generate a comprehensive report for maintainers.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

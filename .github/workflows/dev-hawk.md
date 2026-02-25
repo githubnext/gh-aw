@@ -32,8 +32,6 @@ safe-outputs:
     run-failure: "🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet..."
 timeout-minutes: 15
 strict: true
-imports:
-  - shared/mood.md
 ---
 
 # Dev Hawk - Development Workflow Monitor
@@ -237,3 +235,9 @@ Only create an agent task if ALL of these are true:
 If any are false, provide analysis in comment but don't create a task.
 
 **Security**: Process only workflow_dispatch runs (filtered by `if`), same-repo PRs only, don't execute untrusted code from logs
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

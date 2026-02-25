@@ -18,6 +18,10 @@
  *   --log-dir <path>   Directory for log files
  */
 
+// Load core shim before any other modules so that global.core is available
+// for modules that rely on it.
+require("./shim.cjs");
+
 const http = require("http");
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
@@ -26,6 +30,7 @@ const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Create and configure the MCP server with tools

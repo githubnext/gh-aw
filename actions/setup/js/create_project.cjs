@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeTemporaryId, isTemporaryId, generateTemporaryId, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_CONFIG, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Log detailed GraphQL error information
@@ -161,12 +162,12 @@ async function getIssueNodeId(owner, repo, issueNumber) {
  */
 function parseProjectUrl(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
-    throw new Error(`Invalid project URL: expected string, got ${typeof projectUrl}`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project URL: expected string, got ${typeof projectUrl}`);
   }
 
   const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
-    throw new Error(`Invalid project URL: "${projectUrl}". Expected format: https://github.com/orgs/myorg/projects/123`);
+    throw new Error(`${ERR_VALIDATION}: Invalid project URL: "${projectUrl}". Expected format: https://github.com/orgs/myorg/projects/123`);
   }
 
   return {
@@ -224,12 +225,12 @@ async function createProjectView(projectUrl, viewConfig) {
 
   const name = typeof viewConfig.name === "string" ? viewConfig.name.trim() : "";
   if (!name) {
-    throw new Error("View name is required and must be a non-empty string");
+    throw new Error(`${ERR_VALIDATION}: View name is required and must be a non-empty string`);
   }
 
   const layout = typeof viewConfig.layout === "string" ? viewConfig.layout.trim() : "";
   if (!layout || !["table", "board", "roadmap"].includes(layout)) {
-    throw new Error(`Invalid view layout "${layout}". Must be one of: table, board, roadmap`);
+    throw new Error(`${ERR_VALIDATION}: Invalid view layout "${layout}". Must be one of: table, board, roadmap`);
   }
 
   const filter = typeof viewConfig.filter === "string" ? viewConfig.filter : undefined;
@@ -238,7 +239,7 @@ async function createProjectView(projectUrl, viewConfig) {
   if (visibleFields) {
     const invalid = visibleFields.filter(v => typeof v !== "number" || !Number.isFinite(v));
     if (invalid.length > 0) {
-      throw new Error(`Invalid visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
+      throw new Error(`${ERR_VALIDATION}: Invalid visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
     }
   }
 
@@ -305,7 +306,7 @@ async function main(config = {}, githubClient = null) {
   const github = githubClient || global.github;
 
   if (!github) {
-    throw new Error("GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.");
+    throw new Error(`${ERR_CONFIG}: GitHub client is required but not provided. Either pass a github client to main() or ensure global.github is set by github-script action.`);
   }
 
   if (defaultTargetOwner) {
@@ -378,7 +379,7 @@ async function main(config = {}, githubClient = null) {
               core.info(`Resolved temporary ID ${tempIdStr} in item_url to ${resolvedUrl}`);
               item_url = resolvedUrl;
             } else {
-              throw new Error(`Temporary ID '${tempIdStr}' in item_url not found. Ensure create_issue was called before create_project.`);
+              throw new Error(`${ERR_NOT_FOUND}: Temporary ID '${tempIdStr}' in item_url not found. Ensure create_issue was called before create_project.`);
             }
           }
         }
@@ -399,14 +400,14 @@ async function main(config = {}, githubClient = null) {
           title = `${titlePrefix} #${issueNumber}`;
           core.info(`Generated title from issue number: "${title}"`);
         } else {
-          throw new Error("Missing required field 'title' in create_project call and unable to generate from context");
+          throw new Error(`${ERR_VALIDATION}: Missing required field 'title' in create_project call and unable to generate from context`);
         }
       }
 
       // Determine owner - use explicit owner, default, or error
       const targetOwner = owner || defaultTargetOwner;
       if (!targetOwner) {
-        throw new Error("No owner specified and no default target-owner configured. Either provide 'owner' field or configure 'target-owner' in safe-outputs.create-project");
+        throw new Error(`${ERR_VALIDATION}: No owner specified and no default target-owner configured. Either provide 'owner' field or configure 'target-owner' in safe-outputs.create-project`);
       }
 
       // Determine owner type (org or user)

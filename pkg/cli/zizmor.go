@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -78,7 +79,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	dockerArgs := []string{
 		"run",
 		"--rm",
-		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
+		"-v", gitRoot + ":/workdir",
 		"-w", "/workdir",
 		"ghcr.io/zizmorcore/zizmor:latest",
 		"--format", "json",
@@ -92,7 +93,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	// Always show that zizmor is running (regular verbosity)
 	if len(lockFiles) == 1 {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %s", relPaths[0])))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running zizmor security scanner on "+relPaths[0]))
 	} else {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %d files", len(lockFiles))))
 	}
@@ -132,7 +133,8 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		// 10-13 = findings at different severity levels
 		// 14 = findings with mixed severities
 		// Other codes = actual errors
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
 			zizmorLog.Printf("Zizmor exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit codes 10-14 indicate findings

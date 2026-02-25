@@ -185,21 +185,21 @@ func TestSanitizeForFilename(t *testing.T) {
 
 func BenchmarkSplitRepoSlug(b *testing.B) {
 	slug := "github/gh-aw"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = SplitRepoSlug(slug)
 	}
 }
 
 func BenchmarkParseGitHubURL(b *testing.B) {
 	url := "https://github.com/github/gh-aw.git"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = ParseGitHubURL(url)
 	}
 }
 
 func BenchmarkSanitizeForFilename(b *testing.B) {
 	slug := "github/gh-aw"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = SanitizeForFilename(slug)
 	}
 }
@@ -447,28 +447,28 @@ func TestSplitRepoSlug_Idempotent(t *testing.T) {
 
 func BenchmarkSplitRepoSlug_Valid(b *testing.B) {
 	slug := "github/gh-aw"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = SplitRepoSlug(slug)
 	}
 }
 
 func BenchmarkSplitRepoSlug_Invalid(b *testing.B) {
 	slug := "invalid"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = SplitRepoSlug(slug)
 	}
 }
 
 func BenchmarkParseGitHubURL_SSH(b *testing.B) {
 	url := "git@github.com:github/gh-aw.git"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = ParseGitHubURL(url)
 	}
 }
 
 func BenchmarkParseGitHubURL_HTTPS(b *testing.B) {
 	url := "https://github.com/github/gh-aw.git"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = ParseGitHubURL(url)
 	}
 }

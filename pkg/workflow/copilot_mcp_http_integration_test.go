@@ -38,7 +38,9 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	// Test MCP config rendering
 	var mcpConfig strings.Builder
 	mcpTools := []string{"datadog"}
-	engine.RenderMCPConfig(&mcpConfig, workflowData.Tools, mcpTools, workflowData)
+	if err := engine.RenderMCPConfig(&mcpConfig, workflowData.Tools, mcpTools, workflowData); err != nil {
+		t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+	}
 
 	mcpOutput := mcpConfig.String()
 
@@ -203,7 +205,9 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 	// Test MCP config rendering
 	var mcpConfig strings.Builder
 	mcpTools := []string{"custom"}
-	engine.RenderMCPConfig(&mcpConfig, workflowData.Tools, mcpTools, workflowData)
+	if err := engine.RenderMCPConfig(&mcpConfig, workflowData.Tools, mcpTools, workflowData); err != nil {
+		t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+	}
 
 	mcpOutput := mcpConfig.String()
 

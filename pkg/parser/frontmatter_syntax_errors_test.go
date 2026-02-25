@@ -3,7 +3,6 @@
 package parser
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -373,7 +372,7 @@ This workflow may have schema validation errors.`,
 						Column: column,
 					},
 					Type:    "error",
-					Message: fmt.Sprintf("frontmatter parsing failed: %s", message),
+					Message: "frontmatter parsing failed: " + message,
 				}
 
 				formattedError := console.FormatError(compilerError)
@@ -572,7 +571,7 @@ The error is on line 5 where there's an unclosed bracket.`
 			Column: column,
 		},
 		Type:    "error",
-		Message: fmt.Sprintf("frontmatter parsing failed: %s", message),
+		Message: "frontmatter parsing failed: " + message,
 	}
 
 	// Test that error formatting works

@@ -3,6 +3,7 @@
 package console
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
@@ -14,7 +15,7 @@ import (
 func RunForm(fields []FormField) error {
 	// Validate inputs first before checking TTY
 	if len(fields) == 0 {
-		return fmt.Errorf("no form fields provided")
+		return errors.New("no form fields provided")
 	}
 
 	// Validate field configurations before checking TTY
@@ -29,7 +30,7 @@ func RunForm(fields []FormField) error {
 
 	// Check if stdin is a TTY - if not, we can't show interactive forms
 	if !tty.IsStderrTerminal() {
-		return fmt.Errorf("interactive forms not available (not a TTY)")
+		return errors.New("interactive forms not available (not a TTY)")
 	}
 
 	// Build form fields

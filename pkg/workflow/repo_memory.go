@@ -19,6 +19,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -28,6 +29,13 @@ import (
 )
 
 var repoMemoryLog = logger.New("workflow:repo_memory")
+
+const (
+	// defaultRepoMemoryMaxPatchSize is the default maximum total patch size in bytes (10KB).
+	defaultRepoMemoryMaxPatchSize = 10240
+	// maxRepoMemoryPatchSize is the maximum allowed value for max-patch-size (100KB).
+	maxRepoMemoryPatchSize = 102400
+)
 
 // Pre-compiled regexes for performance (avoid recompilation in hot paths)
 var (
@@ -49,6 +57,7 @@ type RepoMemoryEntry struct {
 	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
 	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 10KB)
 	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
+	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 100KB)
 	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
 	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
@@ -90,14 +99,15 @@ func validateBranchPrefix(prefix string) error {
 
 	// Cannot be "copilot"
 	if strings.ToLower(prefix) == "copilot" {
-		return fmt.Errorf("branch-prefix cannot be 'copilot' (reserved)")
+		return errors.New("branch-prefix cannot be 'copilot' (reserved)")
 	}
 
 	return nil
 }
 
-// extractRepoMemoryConfig extracts repo-memory configuration from tools section
-func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemoryConfig, error) {
+// extractRepoMemoryConfig extracts repo-memory configuration from tools section.
+// workflowID is used to qualify the default branch name (e.g. "memory/{workflowID}").
+func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID string) (*RepoMemoryConfig, error) {
 	// Check if repo-memory tool is configured
 	if toolsConfig == nil || toolsConfig.RepoMemory == nil {
 		return nil, nil
@@ -110,15 +120,25 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	}
 	repoMemoryValue := toolsConfig.RepoMemory.Raw
 
+	// defaultMemoryBranchID returns workflowID when set, otherwise "default".
+	// This qualifies the default branch name by workflow, e.g. "memory/repo-assist".
+	defaultMemoryBranchID := func() string {
+		if workflowID != "" {
+			return workflowID
+		}
+		return "default"
+	}
+
 	// Handle nil value (simple enable with defaults) - same as true
 	if repoMemoryValue == nil {
 		repoMemoryLog.Print("Using default repo-memory configuration (nil value)")
 		config.Memories = []RepoMemoryEntry{
 			{
 				ID:                "default",
-				BranchName:        generateDefaultBranchName("default", config.BranchPrefix),
+				BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 				MaxFileSize:       10240, // 10KB
 				MaxFileCount:      100,
+				MaxPatchSize:      defaultRepoMemoryMaxPatchSize, // 10KB
 				CreateOrphan:      true,
 				AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 			},
@@ -134,9 +154,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			config.Memories = []RepoMemoryEntry{
 				{
 					ID:                "default",
-					BranchName:        generateDefaultBranchName("default", config.BranchPrefix),
+					BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
 					MaxFileSize:       10240, // 10KB
 					MaxFileCount:      100,
+					MaxPatchSize:      defaultRepoMemoryMaxPatchSize, // 10KB
 					CreateOrphan:      true,
 					AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 				},
@@ -172,15 +193,18 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 		for _, item := range memoryArray {
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
-					MaxFileSize:  10240, // 10KB default
-					MaxFileCount: 100,   // 100 files default
-					CreateOrphan: true,  // create orphan by default
+					MaxFileSize:  10240,                         // 10KB default
+					MaxFileCount: 100,                           // 100 files default
+					MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
+					CreateOrphan: true,                          // create orphan by default
 				}
 
 				// ID is required for array notation
+				explicitID := false
 				if id, exists := memoryMap["id"]; exists {
 					if idStr, ok := id.(string); ok {
 						entry.ID = idStr
+						explicitID = true
 					}
 				}
 				// Use "default" if no ID specified
@@ -201,9 +225,14 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 						entry.BranchName = branchStr
 					}
 				}
-				// Set default branch name if not specified
+				// Set default branch name if not specified.
+				// When no explicit ID was provided (defaulted to "default"), qualify the branch by workflow ID.
 				if entry.BranchName == "" {
-					entry.BranchName = generateDefaultBranchName(entry.ID, config.BranchPrefix)
+					branchID := entry.ID
+					if !explicitID {
+						branchID = defaultMemoryBranchID()
+					}
+					entry.BranchName = generateDefaultBranchName(branchID, config.BranchPrefix)
 				}
 
 				// Parse file-glob
@@ -247,6 +276,21 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 					}
 					// Validate max-file-count bounds
 					if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+						return nil, err
+					}
+				}
+
+				// Parse max-patch-size
+				if maxPatchSize, exists := memoryMap["max-patch-size"]; exists {
+					if sizeInt, ok := maxPatchSize.(int); ok {
+						entry.MaxPatchSize = sizeInt
+					} else if sizeFloat, ok := maxPatchSize.(float64); ok {
+						entry.MaxPatchSize = int(sizeFloat)
+					} else if sizeUint64, ok := maxPatchSize.(uint64); ok {
+						entry.MaxPatchSize = int(sizeUint64)
+					}
+					// Validate max-patch-size bounds
+					if err := validateIntRange(entry.MaxPatchSize, 1, maxRepoMemoryPatchSize, "max-patch-size"); err != nil {
 						return nil, err
 					}
 				}
@@ -311,10 +355,11 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 
 		entry := RepoMemoryEntry{
 			ID:           "default",
-			BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
-			MaxFileSize:  10240, // 10KB default
-			MaxFileCount: 100,   // 100 files default
-			CreateOrphan: true,  // create orphan by default
+			BranchName:   generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
+			MaxFileSize:  10240,                         // 10KB default
+			MaxFileCount: 100,                           // 100 files default
+			MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
+			CreateOrphan: true,                          // create orphan by default
 		}
 
 		// Parse target-repo
@@ -372,6 +417,21 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			}
 			// Validate max-file-count bounds
 			if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+				return nil, err
+			}
+		}
+
+		// Parse max-patch-size
+		if maxPatchSize, exists := configMap["max-patch-size"]; exists {
+			if sizeInt, ok := maxPatchSize.(int); ok {
+				entry.MaxPatchSize = sizeInt
+			} else if sizeFloat, ok := maxPatchSize.(float64); ok {
+				entry.MaxPatchSize = int(sizeFloat)
+			} else if sizeUint64, ok := maxPatchSize.(uint64); ok {
+				entry.MaxPatchSize = int(sizeUint64)
+			}
+			// Validate max-patch-size bounds
+			if err := validateIntRange(entry.MaxPatchSize, 1, maxRepoMemoryPatchSize, "max-patch-size"); err != nil {
 				return nil, err
 			}
 		}
@@ -438,7 +498,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
 		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
@@ -474,7 +534,7 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Step: Push changes to repo-memory branch
 		fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
@@ -561,7 +621,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Step 1: Clone the repo-memory branch
 		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
@@ -638,7 +698,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			targetRepo = "${{ github.repository }}"
 		}
 
-		artifactDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
+		artifactDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Build file glob filter string
 		fileGlobFilter := ""
@@ -662,6 +722,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		fmt.Fprintf(&step, "          BRANCH_NAME: %s\n", memory.BranchName)
 		fmt.Fprintf(&step, "          MAX_FILE_SIZE: %d\n", memory.MaxFileSize)
 		fmt.Fprintf(&step, "          MAX_FILE_COUNT: %d\n", memory.MaxFileCount)
+		fmt.Fprintf(&step, "          MAX_PATCH_SIZE: %d\n", memory.MaxPatchSize)
 		// Pass allowed extensions as JSON array
 		allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions)
 		fmt.Fprintf(&step, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
@@ -697,16 +758,16 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// Otherwise, always run (even if agent job failed)
 	jobCondition := "always()"
 	if threatDetectionEnabled {
-		jobCondition = "always() && needs.detection.outputs.success == 'true'"
+		jobCondition = fmt.Sprintf("always() && needs.%s.outputs.detection_success == 'true'", constants.AgentJobName)
 	}
 
 	// Build outputs map for validation failures from all memory steps
 	outputs := make(map[string]string)
 	for _, memory := range data.RepoMemoryConfig.Memories {
-		stepID := fmt.Sprintf("push_repo_memory_%s", memory.ID)
+		stepID := "push_repo_memory_" + memory.ID
 		// Add outputs for each memory's validation status
-		outputs[fmt.Sprintf("validation_failed_%s", memory.ID)] = fmt.Sprintf("${{ steps.%s.outputs.validation_failed }}", stepID)
-		outputs[fmt.Sprintf("validation_error_%s", memory.ID)] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
+		outputs["validation_failed_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_failed }}", stepID)
+		outputs["validation_error_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
 	}
 
 	job := &Job{

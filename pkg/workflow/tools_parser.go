@@ -52,6 +52,8 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -74,9 +76,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 	}
 
 	// Copy raw map
-	for k, v := range toolsMap {
-		tools.raw[k] = v
-	}
+	maps.Copy(tools.raw, toolsMap)
 
 	// Extract and parse known tools
 	if val, exists := toolsMap["github"]; exists {
@@ -292,30 +292,11 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
 		} else if versionNum, ok := configMap["version"].(int); ok {
-			config.Version = fmt.Sprintf("%d", versionNum)
+			config.Version = strconv.Itoa(versionNum)
 		} else if versionNum, ok := configMap["version"].(int64); ok {
-			config.Version = fmt.Sprintf("%d", versionNum)
+			config.Version = strconv.FormatInt(versionNum, 10)
 		} else if versionNum, ok := configMap["version"].(float64); ok {
 			config.Version = fmt.Sprintf("%g", versionNum)
-		}
-
-		// Handle allowed_domains - can be string or array
-		if allowedDomains, ok := configMap["allowed_domains"]; ok {
-			if str, ok := allowedDomains.(string); ok {
-				config.AllowedDomains = PlaywrightAllowedDomains{PlaywrightDomain(str)}
-			} else if arr, ok := allowedDomains.([]any); ok {
-				config.AllowedDomains = make(PlaywrightAllowedDomains, 0, len(arr))
-				for _, item := range arr {
-					if str, ok := item.(string); ok {
-						config.AllowedDomains = append(config.AllowedDomains, PlaywrightDomain(str))
-					}
-				}
-			} else if arr, ok := allowedDomains.([]string); ok {
-				config.AllowedDomains = make(PlaywrightAllowedDomains, 0, len(arr))
-				for _, str := range arr {
-					config.AllowedDomains = append(config.AllowedDomains, PlaywrightDomain(str))
-				}
-			}
 		}
 
 		// Handle args field - can be []any or []string

@@ -16,9 +16,9 @@ tracker-id: daily-file-diet
 engine: copilot
 
 imports:
-  - shared/mood.md
   - shared/reporting.md
   - shared/safe-output-app.md
+  - shared/mcp/serena-go.md
 
 safe-outputs:
   create-issue:
@@ -28,7 +28,6 @@ safe-outputs:
     max: 1
 
 tools:
-  serena: ["go"]
   github:
     toolsets: [default]
   edit:
@@ -286,3 +285,9 @@ Use Serena to:
 - Detect complexity hotspots
 
 Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

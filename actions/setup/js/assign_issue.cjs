@@ -3,6 +3,7 @@
 
 const { getAgentName, getIssueDetails, findAgent, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PERMISSION } = require("./error_codes.cjs");
 
 /**
  * Assign an issue to a user or bot (including copilot)
@@ -18,19 +19,19 @@ async function main() {
   // Check if GH_TOKEN is present
   if (!ghToken?.trim()) {
     const docsUrl = "https://github.github.com/gh-aw/reference/safe-outputs/#assigning-issues-to-copilot";
-    core.setFailed(`GH_TOKEN environment variable is required but not set. This token is needed to assign issues. For more information on configuring Copilot tokens, see: ${docsUrl}`);
+    core.setFailed(`${ERR_CONFIG}: GH_TOKEN environment variable is required but not set. This token is needed to assign issues. For more information on configuring Copilot tokens, see: ${docsUrl}`);
     return;
   }
 
   // Validate assignee
   if (!assignee?.trim()) {
-    core.setFailed("ASSIGNEE environment variable is required but not set");
+    core.setFailed(`${ERR_CONFIG}: ASSIGNEE environment variable is required but not set`);
     return;
   }
 
   // Validate issue number
   if (!issueNumber?.trim()) {
-    core.setFailed("ISSUE_NUMBER environment variable is required but not set");
+    core.setFailed(`${ERR_CONFIG}: ISSUE_NUMBER environment variable is required but not set`);
     return;
   }
 
@@ -54,14 +55,14 @@ async function main() {
       // Find the agent in the repository
       const agentId = await findAgent(owner, repo, agentName);
       if (!agentId) {
-        throw new Error(`${agentName} coding agent is not available for this repository`);
+        throw new Error(`${ERR_PERMISSION}: ${agentName} coding agent is not available for this repository`);
       }
       core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
 
       // Get issue details
       const issueDetails = await getIssueDetails(owner, repo, issueNum);
       if (!issueDetails) {
-        throw new Error("Failed to get issue details");
+        throw new Error(`${ERR_API}: Failed to get issue details`);
       }
 
       // Check if agent is already assigned
@@ -72,7 +73,7 @@ async function main() {
         const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null);
 
         if (!success) {
-          throw new Error(`Failed to assign ${agentName} via GraphQL`);
+          throw new Error(`${ERR_API}: Failed to assign ${agentName} via GraphQL`);
         }
       }
     } else {
@@ -89,7 +90,7 @@ async function main() {
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to assign issue: ${errorMessage}`);
-    core.setFailed(`Failed to assign issue #${issueNum} to ${trimmedAssignee}: ${errorMessage}`);
+    core.setFailed(`${ERR_NOT_FOUND}: Failed to assign issue #${issueNum} to ${trimmedAssignee}: ${errorMessage}`);
   }
 }
 

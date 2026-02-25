@@ -1,8 +1,21 @@
-// @ts-check
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { createHandlers } from "./safe_outputs_handlers.cjs";
+
+// Mock the global objects that GitHub Actions provides
+const mockCore = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  notice: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+};
+
+// Set up global mocks before importing the module
+global.core = mockCore;
 
 describe("safe_outputs_handlers", () => {
   let mockServer;
@@ -11,6 +24,8 @@ describe("safe_outputs_handlers", () => {
   let testWorkspaceDir;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     mockServer = {
       debug: vi.fn(),
     };
@@ -302,7 +317,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toBeDefined();
-      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.error).toContain("does not exist locally");
       expect(responseData.details).toBeDefined();
       expect(responseData.details).toContain("push to the pull request branch");
       expect(responseData.details).toContain("git add and git commit");

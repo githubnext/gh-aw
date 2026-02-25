@@ -21,7 +21,6 @@ on:
   workflow_dispatch:
 tools:
   playwright:
-    allowed_domains: ["example.com"]
 engine: claude
 ---
 

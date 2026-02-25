@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -19,22 +18,12 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	}
 	compilerSafeOutputJobsLog.Print("Building safe outputs jobs (consolidated mode)")
 
-	// Track whether threat detection job is enabled
-	threatDetectionEnabled := false
+	// Track whether threat detection is enabled (used for downstream job conditions)
+	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Build threat detection job if enabled
-	if data.SafeOutputs.ThreatDetection != nil {
-		compilerSafeOutputJobsLog.Print("Building threat detection job")
-		detectionJob, err := c.buildThreatDetectionJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build detection job: %w", err)
-		}
-		if err := c.jobManager.AddJob(detectionJob); err != nil {
-			return fmt.Errorf("failed to add detection job: %w", err)
-		}
-		compilerSafeOutputJobsLog.Printf("Successfully added threat detection job: %s", constants.DetectionJobName)
-		threatDetectionEnabled = true
-	}
+	// Threat detection is now handled inline in the agent job (see compiler_yaml.go).
+	// No separate detection job is created. The agent job outputs detection_success
+	// and detection_conclusion for downstream jobs to check.
 
 	// Track safe output job names to establish dependencies for conclusion job
 	var safeOutputJobNames []string

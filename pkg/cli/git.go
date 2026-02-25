@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var gitLog = logger.New("cli:git")
@@ -77,16 +79,16 @@ func parseGitHubRepoSlugFromURL(url string) string {
 	githubHostWithoutScheme := strings.TrimPrefix(strings.TrimPrefix(githubHost, "https://"), "http://")
 
 	// Handle HTTPS URLs: https://github.com/owner/repo or https://enterprise.github.com/owner/repo
-	if strings.HasPrefix(url, githubHost+"/") {
-		slug := strings.TrimPrefix(url, githubHost+"/")
+	if after, ok := strings.CutPrefix(url, githubHost+"/"); ok {
+		slug := after
 		gitLog.Printf("Extracted slug from HTTPS URL: %s", slug)
 		return slug
 	}
 
 	// Handle SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
 	sshPrefix := "git@" + githubHostWithoutScheme + ":"
-	if strings.HasPrefix(url, sshPrefix) {
-		slug := strings.TrimPrefix(url, sshPrefix)
+	if after, ok := strings.CutPrefix(url, sshPrefix); ok {
+		slug := after
 		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
 		return slug
 	}
@@ -301,7 +303,7 @@ func getCurrentBranch() (string, error) {
 	branch := strings.TrimSpace(string(output))
 	if branch == "" {
 		gitLog.Print("Could not determine current branch")
-		return "", fmt.Errorf("could not determine current branch")
+		return "", errors.New("could not determine current branch")
 	}
 
 	gitLog.Printf("Current branch: %s", branch)
@@ -310,7 +312,7 @@ func getCurrentBranch() (string, error) {
 
 // createAndSwitchBranch creates a new branch and switches to it
 func createAndSwitchBranch(branchName string, verbose bool) error {
-	console.LogVerbose(verbose, fmt.Sprintf("Creating and switching to branch: %s", branchName))
+	console.LogVerbose(verbose, "Creating and switching to branch: "+branchName)
 
 	cmd := exec.Command("git", "checkout", "-b", branchName)
 	if err := cmd.Run(); err != nil {
@@ -322,7 +324,7 @@ func createAndSwitchBranch(branchName string, verbose bool) error {
 
 // switchBranch switches to the specified branch
 func switchBranch(branchName string, verbose bool) error {
-	console.LogVerbose(verbose, fmt.Sprintf("Switching to branch: %s", branchName))
+	console.LogVerbose(verbose, "Switching to branch: "+branchName)
 
 	cmd := exec.Command("git", "checkout", branchName)
 	if err := cmd.Run(); err != nil {
@@ -334,7 +336,7 @@ func switchBranch(branchName string, verbose bool) error {
 
 // commitChanges commits all staged changes with the given message
 func commitChanges(message string, verbose bool) error {
-	console.LogVerbose(verbose, fmt.Sprintf("Committing changes with message: %s", message))
+	console.LogVerbose(verbose, "Committing changes with message: "+message)
 
 	cmd := exec.Command("git", "commit", "-m", message)
 	if err := cmd.Run(); err != nil {
@@ -346,7 +348,7 @@ func commitChanges(message string, verbose bool) error {
 
 // pushBranch pushes the specified branch to origin
 func pushBranch(branchName string, verbose bool) error {
-	console.LogVerbose(verbose, fmt.Sprintf("Pushing branch: %s", branchName))
+	console.LogVerbose(verbose, "Pushing branch: "+branchName)
 
 	cmd := exec.Command("git", "push", "-u", "origin", branchName)
 	if err := cmd.Run(); err != nil {
@@ -367,7 +369,7 @@ func checkCleanWorkingDirectory(verbose bool) error {
 	}
 
 	if len(strings.TrimSpace(string(output))) > 0 {
-		return fmt.Errorf("working directory has uncommitted changes, please commit or stash them first")
+		return errors.New("working directory has uncommitted changes, please commit or stash them first")
 	}
 
 	console.LogVerbose(verbose, "Working directory is clean")
@@ -522,7 +524,7 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	gitLog.Printf("Upstream branch: %s", upstream)
 
 	// Check if there are commits in the current branch that affect this file and aren't in upstream
-	cmd = exec.Command("git", "-C", gitRoot, "log", fmt.Sprintf("%s..HEAD", upstream), "--oneline", "--", relPath)
+	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)
 	output, err = cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to check unpushed commits: %v", err)
@@ -658,7 +660,7 @@ func getDefaultBranch() (string, error) {
 	repoSlug := getRepositorySlugFromRemote()
 	if repoSlug == "" {
 		gitLog.Print("No remote repository configured, cannot determine default branch")
-		return "", fmt.Errorf("no remote repository configured")
+		return "", errors.New("no remote repository configured")
 	}
 
 	// Parse owner and repo from slug
@@ -670,8 +672,8 @@ func getDefaultBranch() (string, error) {
 
 	owner, repo := parts[0], parts[1]
 
-	// Use gh CLI to get default branch from GitHub API
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s", owner, repo), "--jq", ".default_branch")
+	// Use ExecGH helper which handles token configuration (GH_TOKEN/GITHUB_TOKEN)
+	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s", owner, repo), "--jq", ".default_branch")
 	output, err := cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to get default branch: %v", err)
@@ -681,7 +683,7 @@ func getDefaultBranch() (string, error) {
 	defaultBranch := strings.TrimSpace(string(output))
 	if defaultBranch == "" {
 		gitLog.Print("Empty default branch returned")
-		return "", fmt.Errorf("could not determine default branch")
+		return "", errors.New("could not determine default branch")
 	}
 
 	gitLog.Printf("Default branch: %s", defaultBranch)
@@ -705,7 +707,7 @@ func checkOnDefaultBranch(verbose bool) error {
 		// If no remote is configured, fail the push operation
 		if strings.Contains(err.Error(), "no remote repository configured") {
 			gitLog.Print("No remote configured, cannot push")
-			return fmt.Errorf("--push requires a remote repository to be configured")
+			return errors.New("--push requires a remote repository to be configured")
 		}
 		return fmt.Errorf("failed to get default branch: %w", err)
 	}
@@ -718,7 +720,7 @@ func checkOnDefaultBranch(verbose bool) error {
 
 	gitLog.Printf("On default branch: %s", currentBranch)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ On default branch: %s", currentBranch)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ On default branch: "+currentBranch))
 	}
 	return nil
 }
@@ -758,7 +760,7 @@ func confirmPushOperation(verbose bool) error {
 
 	if !confirmed {
 		gitLog.Print("User declined push operation")
-		return fmt.Errorf("push operation cancelled by user")
+		return errors.New("push operation cancelled by user")
 	}
 
 	gitLog.Print("User confirmed push operation")

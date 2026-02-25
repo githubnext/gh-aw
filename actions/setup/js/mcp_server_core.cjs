@@ -3,6 +3,7 @@
 
 const { createLogger } = require("./mcp_logger.cjs");
 const moduleLogger = createLogger("mcp_server_core");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 // Log immediately at module load time
 moduleLogger.debug("Module is being loaded");
@@ -802,7 +803,7 @@ function start(server, options = {}) {
   server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
 
   if (!Object.keys(server.tools).length) {
-    throw new Error("No tools registered");
+    throw new Error(`${ERR_VALIDATION}: No tools registered`);
   }
 
   const onData = async chunk => {

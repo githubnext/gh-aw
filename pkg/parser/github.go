@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -93,7 +94,7 @@ func GetGitHubToken() (string, error) {
 	token := strings.TrimSpace(string(output))
 	if token == "" {
 		githubLog.Print("gh auth token returned empty token")
-		return "", fmt.Errorf("GITHUB_TOKEN environment variable not set and 'gh auth token' returned empty token")
+		return "", errors.New("GITHUB_TOKEN environment variable not set and 'gh auth token' returned empty token")
 	}
 
 	githubLog.Print("Successfully retrieved token from gh auth token")

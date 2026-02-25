@@ -3,6 +3,9 @@
 package parser
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -383,5 +386,124 @@ safe-outputs:
 				}
 			}
 		})
+	}
+}
+
+func TestValidateWithSchemaAndLocationReportsAllSafeOutputFailures(t *testing.T) {
+	t.Parallel()
+
+	yamlContent := `---
+on: daily
+safe-outputs:
+  create-issue:
+    invalid-issue-field: true
+  create-discussion:
+    invalid-discussion-field: true
+---
+# body`
+	filePath := filepath.Join(t.TempDir(), "workflow.md")
+	if err := os.WriteFile(filePath, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{
+				"invalid-issue-field": true,
+			},
+			"create-discussion": map[string]any{
+				"invalid-discussion-field": true,
+			},
+		},
+	}
+
+	err := validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath)
+	if err == nil {
+		t.Fatal("expected schema validation error, got nil")
+	}
+
+	errorText := err.Error()
+	wantSubstrings := []string{
+		"/safe-outputs/create-issue",
+		"/safe-outputs/create-discussion",
+		"line 5, column 5",
+		"line 7, column 5",
+	}
+	for _, want := range wantSubstrings {
+		if !strings.Contains(errorText, want) {
+			t.Fatalf("expected error to contain %q, got:\n%s", want, errorText)
+		}
+	}
+}
+
+// TestFormatSchemaFailureDetailEmptyPath verifies that an empty path is normalised to "/".
+func TestFormatSchemaFailureDetailEmptyPath(t *testing.T) {
+	t.Parallel()
+
+	pathInfo := JSONPathInfo{
+		Path:    "",
+		Message: "additional property 'x' not allowed",
+	}
+	result := formatSchemaFailureDetail(pathInfo, "", "on: daily\n", 1)
+	if !strings.HasPrefix(result, "at '/'") {
+		t.Errorf("expected result to start with \"at '/'\", got: %s", result)
+	}
+}
+
+// TestFormatSchemaFailureDetailLineColumn verifies that line/column numbers are
+// included in the formatted detail when the path can be located in YAML.
+func TestFormatSchemaFailureDetailLineColumn(t *testing.T) {
+	t.Parallel()
+
+	frontmatterContent := "on: daily\nsafe-outputs:\n  create-issue:\n    invalid-field: true\n"
+	pathInfo := JSONPathInfo{
+		Path:    "/safe-outputs/create-issue",
+		Message: "additional property 'invalid-field' not allowed",
+	}
+	result := formatSchemaFailureDetail(pathInfo, "", frontmatterContent, 1)
+	if !strings.Contains(result, "line ") || !strings.Contains(result, "column ") {
+		t.Errorf("expected result to contain line/column info, got: %s", result)
+	}
+	if !strings.Contains(result, "/safe-outputs/create-issue") {
+		t.Errorf("expected result to contain path '/safe-outputs/create-issue', got: %s", result)
+	}
+}
+
+// TestValidateWithSchemaAndLocationSingleFailureNoBulletPrefix verifies that when
+// only one schema failure occurs the error message does not include the
+// "Multiple schema validation failures" prefix.
+func TestValidateWithSchemaAndLocationSingleFailureNoBulletPrefix(t *testing.T) {
+	t.Parallel()
+
+	yamlContent := `---
+on: daily
+safe-outputs:
+  create-issue:
+    invalid-single-field: true
+---
+# body`
+	filePath := filepath.Join(t.TempDir(), "workflow.md")
+	if err := os.WriteFile(filePath, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"create-issue": map[string]any{
+				"invalid-single-field": true,
+			},
+		},
+	}
+
+	err := validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath)
+	if err == nil {
+		t.Fatal("expected schema validation error, got nil")
+	}
+
+	errorText := err.Error()
+	if strings.Contains(errorText, "Multiple schema validation failures") {
+		t.Errorf("single failure should not use 'Multiple schema validation failures' prefix; got:\n%s", errorText)
 	}
 }

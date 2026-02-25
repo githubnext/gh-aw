@@ -91,7 +91,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 				for _, config := range stdioServers {
 					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting server: %s", config.Name)))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting server: "+config.Name))
 					}
 
 					// Create the command for the MCP server
@@ -106,6 +106,13 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: no command specified", config.Name)))
 							continue
 						}
+						// Validate the command exists before executing
+						if _, err := exec.LookPath(config.Command); err != nil {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: command not found: %s", config.Name, config.Command)))
+							continue
+						}
+						// #nosec G204 -- config.Command is validated via exec.LookPath above;
+						// exec.Command with separate args (not shell execution) prevents shell injection.
 						cmd = exec.Command(config.Command, config.Args...)
 					}
 

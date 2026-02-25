@@ -55,6 +55,12 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return string(constants.DefaultCopilotDetectionModel)
 }
 
+// GetModelEnvVarName returns the native environment variable name that the Copilot CLI uses
+// for model selection. Setting COPILOT_MODEL is equivalent to passing --model to the CLI.
+func (e *CopilotEngine) GetModelEnvVarName() string {
+	return constants.CopilotCLIModelEnvVar
+}
+
 // SupportsLLMGateway returns the LLM gateway port for Copilot engine
 func (e *CopilotEngine) SupportsLLMGateway() int {
 	return constants.CopilotLLMGatewayPort
@@ -107,17 +113,6 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	// Session state files are copied to logs folder by GetFirewallLogsCollectionStep
 	return []string{logsFolder}
-}
-
-// extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
-func extractAddDirPaths(args []string) []string {
-	var dirs []string
-	for i := 0; i < len(args)-1; i++ {
-		if args[i] == "--add-dir" {
-			dirs = append(dirs, args[i+1])
-		}
-	}
-	return dirs
 }
 
 // GetExecutionSteps is implemented in copilot_engine_execution.go

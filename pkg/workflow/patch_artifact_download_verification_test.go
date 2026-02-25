@@ -20,7 +20,7 @@ import (
 // This is a verification test that ensures the patch download happens in the correct order:
 // 1. Download agent output artifact
 // 2. Setup agent output environment variable
-// 3. Download patch artifact (aw.patch) ✓ THIS IS WHAT WE'RE VERIFYING
+// 3. Download patch artifact (aw-{branch}.patch) ✓ THIS IS WHAT WE'RE VERIFYING
 // 4. Setup JavaScript files
 // 5. Checkout repository
 // 6. Configure Git credentials

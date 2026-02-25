@@ -11,6 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
@@ -73,13 +74,19 @@ const HANDLER_MAP = {
 const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_session", "upload_asset", "noop"]);
 
 /**
+ * Code-push safe output types that must succeed before remaining outputs are processed.
+ * If any of these fail, the remaining non-code-push messages are cancelled with a clear reason.
+ */
+const CODE_PUSH_TYPES = new Set(["push_to_pull_request_branch", "create_pull_request"]);
+
+/**
  * Load configuration for safe outputs
  * Reads configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
  * @returns {Object} Safe outputs configuration
  */
 function loadConfig() {
   if (!process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG) {
-    throw new Error("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set");
+    throw new Error(`${ERR_CONFIG}: GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set`);
   }
 
   try {
@@ -88,7 +95,7 @@ function loadConfig() {
     // Normalize config keys: convert hyphens to underscores
     return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
   } catch (error) {
-    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
   }
 }
 
@@ -207,7 +214,7 @@ function collectMissingMessages(messages) {
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
  * @param {((item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string}) => void)|null} [onItemCreated] - Optional callback invoked after each successful create operation (for manifest logging)
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>, missings: Object}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>, missings: Object, codePushFailures: Array<{type: string, error: string}>}>}
  */
 async function processMessages(messageHandlers, messages, onItemCreated = null) {
   const results = [];
@@ -230,6 +237,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   /** @type {Array<{type: string, message: any, messageIndex: number, handler: Function}>} */
   const deferredMessages = [];
 
+  // Track code-push failures for fail-fast behaviour.
+  // If a code-push type (push_to_pull_request_branch / create_pull_request) fails,
+  // all subsequent non-code-push messages are cancelled with a clear reason.
+  /** @type {Array<{type: string, error: string}>} */
+  const codePushFailures = [];
+
   core.info(`Processing ${messages.length} message(s) in order of appearance...`);
 
   // Process messages in order of appearance
@@ -239,6 +252,20 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
     if (!messageType) {
       core.warning(`Skipping message ${i + 1} without type`);
+      continue;
+    }
+
+    // Fail-fast: if a previous code-push operation failed, cancel non-code-push messages
+    if (codePushFailures.length > 0 && !CODE_PUSH_TYPES.has(messageType)) {
+      const cancelReason = `Cancelled: code push operation failed (${codePushFailures[0].type}: ${codePushFailures[0].error})`;
+      core.info(`⏭ Message ${i + 1} (${messageType}) cancelled — ${cancelReason}`);
+      results.push({
+        type: messageType,
+        messageIndex: i,
+        success: false,
+        cancelled: true,
+        reason: cancelReason,
+      });
       continue;
     }
 
@@ -294,6 +321,11 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           success: false,
           error: errorMsg,
         });
+        // Track code-push failures for fail-fast behaviour
+        if (CODE_PUSH_TYPES.has(messageType)) {
+          codePushFailures.push({ type: messageType, error: errorMsg });
+          core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+        }
         continue;
       }
 
@@ -400,6 +432,11 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         success: false,
         error: getErrorMessage(error),
       });
+      // Track code-push failures for fail-fast behaviour
+      if (CODE_PUSH_TYPES.has(messageType)) {
+        codePushFailures.push({ type: messageType, error: getErrorMessage(error) });
+        core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+      }
     }
   }
 
@@ -515,6 +552,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
     temporaryIdMap: temporaryIdMapObj,
     outputsWithUnresolvedIds,
     missings,
+    codePushFailures,
   };
 }
 
@@ -856,7 +894,8 @@ async function main() {
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
-    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped).length;
+    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled).length;
+    const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
@@ -865,6 +904,9 @@ async function main() {
     core.info(`Total messages: ${processingResult.results.length}`);
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
+    if (cancelledCount > 0) {
+      core.info(`Cancelled (code push failed): ${cancelledCount}`);
+    }
     if (deferredCount > 0) {
       core.info(`Deferred: ${deferredCount}`);
     }
@@ -883,6 +925,9 @@ async function main() {
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
+    }
+    if (cancelledCount > 0) {
+      core.warning(`${cancelledCount} message(s) were cancelled because a code push operation failed`);
     }
     if (skippedNoHandlerResults.length > 0) {
       core.warning(`${skippedNoHandlerResults.length} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
@@ -927,6 +972,17 @@ async function main() {
       core.info(`Exported ${createDiscussionErrorCount} create_discussion error(s)`);
     }
 
+    // Export code-push failure outputs for conclusion job
+    const codePushFailureErrors = (processingResult.codePushFailures || []).map(f => `${f.type}:${f.error}`).join("\n");
+    const codePushFailureCount = (processingResult.codePushFailures || []).length;
+
+    core.setOutput("code_push_failure_errors", codePushFailureErrors);
+    core.setOutput("code_push_failure_count", codePushFailureCount.toString());
+
+    if (codePushFailureCount > 0) {
+      core.info(`Exported ${codePushFailureCount} code push failure(s)`);
+    }
+
     // Ensure the manifest file always exists for artifact upload (even if no items were created).
     // Skip in staged mode — no real items were created so no manifest should be emitted.
     // Note: createManifestLogger() also calls ensureManifestExists() when the logger is created,
@@ -935,7 +991,7 @@ async function main() {
 
     core.info("Safe Output Handler Manager completed");
   } catch (error) {
-    core.setFailed(`Handler manager failed: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`);
   } finally {
     // Guarantee the manifest file exists for artifact upload even when the handler fails.
     // This is a no-op if the file was already created by createManifestLogger().

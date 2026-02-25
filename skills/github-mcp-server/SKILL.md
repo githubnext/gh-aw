@@ -323,6 +323,52 @@ mcp-servers:
 
 For GitHub tools, `allowed:` can be combined with `toolsets:` to further restrict access, but this pattern is not recommended for new workflows.
 
+## GitHub API Limitations
+
+Not all GitHub data is accessible through the GitHub MCP server or the GitHub REST API. Be aware of these limitations when designing workflows to avoid silent failures or incomplete results at runtime.
+
+### Billing and Cost Data
+
+**❌ Not available via standard API permissions:**
+
+- **Detailed per-run cost data** — GitHub Actions does not expose per-workflow-run billing costs through the REST API. There is no endpoint to retrieve the exact cost of a specific workflow run.
+- **Actions billing summary** — Billing endpoints (e.g., `/orgs/{org}/settings/billing/actions`) require `admin:org` scope, which is **not** granted by `actions:read` or the default `GITHUB_TOKEN`.
+
+**⚠️ When suggesting billing/cost workflows, always note:**
+
+> Detailed GitHub Actions billing and cost data is not accessible through the standard GitHub API with `actions:read` permissions. Workflows that attempt to read per-run cost data or billing summaries will fail silently or return empty results unless an `admin:org`-scoped personal access token is explicitly configured.
+
+**✅ Alternatives for cost reporting:**
+
+1. **GitHub Actions usage reports** — Download usage reports from the GitHub billing UI (Settings → Billing → Usage) or via the billing CSV export endpoint (requires `admin:org` scope with a PAT).
+2. **Billing settings UI** — Direct users to `https://github.com/organizations/{org}/settings/billing` or `https://github.com/settings/billing` for personal accounts to view cost data manually.
+3. **Workflow run metadata** — Use `list_workflow_runs` and `get_workflow_run` (available via `actions` toolset) to get run duration, status, and timing — but not dollar costs.
+4. **Third-party cost tracking** — Integrate with third-party CI cost tools that use pre-authorized API access.
+
+### Cross-Organization Data Access
+
+**❌ Not available without explicit authorization:**
+
+- Workflows can only access data from repositories and organizations that the configured GitHub token has been granted access to.
+- Cross-organization repository reads require a PAT or GitHub App token with access to the target org — the default `GITHUB_TOKEN` is scoped to the current repository's organization only.
+- Organization membership and team data from *other* organizations is not accessible without explicit `read:org` permissions on those organizations.
+
+### Organization Membership and Private Data
+
+**❌ Requires additional scopes:**
+
+- **Organization member lists** — Reading private organization membership requires `read:org` scope; the default `GITHUB_TOKEN` only exposes public membership.
+- **Private repository contents** — Only accessible if the token has explicit repository access.
+- **Secret values** — GitHub Secrets are write-only through the API; their values cannot be read back after creation.
+
+### Rate Limits
+
+**⚠️ Be aware of API rate limits:**
+
+- The GitHub REST API enforces rate limits (typically 5,000 requests/hour for authenticated requests with a PAT, lower for `GITHUB_TOKEN`).
+- Workflows that perform bulk data collection (e.g., listing all workflow runs across many repositories) may hit rate limits. Design workflows to paginate carefully and avoid unnecessary requests.
+- GraphQL API has separate rate limits based on query complexity.
+
 ## Troubleshooting
 
 ### Common Issues

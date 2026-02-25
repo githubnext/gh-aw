@@ -19,13 +19,13 @@ tools:
   timeout: 600
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "security"
     max: 1
     close-older-discussions: true
 timeout-minutes: 45
 strict: true
 imports:
-  - shared/mood.md
   - shared/reporting.md
 steps:
   - name: Pull static analysis Docker images
@@ -429,3 +429,9 @@ A successful static analysis scan:
 - ✅ Maintains historical context for trend analysis
 
 Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/compile-output.txt`, analyze the findings from all three tools (zizmor, poutine, actionlint), cluster them, generate fix suggestions, and create a discussion with your complete analysis.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -38,9 +39,7 @@ func (s *VSCodeSettings) UnmarshalJSON(data []byte) error {
 	if s.Other == nil {
 		s.Other = make(map[string]any)
 	}
-	for k, v := range raw {
-		s.Other[k] = v
-	}
+	maps.Copy(s.Other, raw)
 
 	return nil
 }
@@ -51,9 +50,7 @@ func (s VSCodeSettings) MarshalJSON() ([]byte, error) {
 	result := make(map[string]any)
 
 	// Add all other fields first
-	for k, v := range s.Other {
-		result[k] = v
-	}
+	maps.Copy(result, s.Other)
 
 	// Add yaml.schemas if present
 	if len(s.YAMLSchemas) > 0 {

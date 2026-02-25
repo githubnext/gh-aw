@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -17,13 +18,15 @@ type CreateCodeScanningAlertsConfig struct {
 // buildCreateOutputCodeScanningAlertJob creates the create_code_scanning_alert job
 func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateCodeScanningAlerts == nil {
-		return nil, fmt.Errorf("safe-outputs.create-code-scanning-alert configuration is required")
+		return nil, errors.New("safe-outputs.create-code-scanning-alert configuration is required")
 	}
 
 	// Build custom environment variables specific to create-code-scanning-alert
 	var customEnvVars []string
-	if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateCodeScanningAlerts.Max))
+	if maxVal := templatableIntValue(data.SafeOutputs.CreateCodeScanningAlerts.Max); maxVal > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_MAX: %d\n", maxVal))
+	} else {
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_SECURITY_REPORT_MAX", data.SafeOutputs.CreateCodeScanningAlerts.Max)...)
 	}
 	// Pass the driver configuration, defaulting to frontmatter name
 	driverName := data.SafeOutputs.CreateCodeScanningAlerts.Driver
@@ -107,8 +110,8 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig, 0)
 	} else {
 		// If configData is nil or not a map (e.g., "create-code-scanning-alert:" with no value),
-		// still set the default max (0 = unlimited)
-		securityReportsConfig.Max = 0
+		// still set the default max (nil = unlimited)
+		securityReportsConfig.Max = nil
 	}
 
 	return securityReportsConfig

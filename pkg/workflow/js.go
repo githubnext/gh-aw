@@ -2,11 +2,57 @@ package workflow
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
+
+// SafeOutputToolOption represents a safe output tool with its name and description.
+type SafeOutputToolOption struct {
+	// Name is the snake_case name from the JSON (e.g. "create_issue").
+	Name string
+	// Key is the hyphenated YAML config key (e.g. "create-issue").
+	Key string
+	// Description is the tool's description from safe_outputs_tools.json.
+	Description string
+}
+
+// internalSafeOutputs are tool names that are internal / system-level and should
+// not be presented to users as selectable safe outputs.
+var internalSafeOutputs = map[string]bool{
+	"missing_tool": true,
+	"noop":         true,
+	"missing_data": true,
+}
+
+// GetSafeOutputToolOptions parses safe_outputs_tools.json and returns all user-facing
+// safe output tools with their human-readable descriptions.
+// Tools that are internal (missing_tool, noop, missing_data) are excluded.
+func GetSafeOutputToolOptions() []SafeOutputToolOption {
+	var tools []struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal([]byte(safeOutputsToolsJSONContent), &tools); err != nil {
+		jsLog.Printf("Failed to parse safe_outputs_tools.json: %v", err)
+		return nil
+	}
+
+	options := make([]SafeOutputToolOption, 0, len(tools))
+	for _, t := range tools {
+		if internalSafeOutputs[t.Name] {
+			continue
+		}
+		options = append(options, SafeOutputToolOption{
+			Name:        t.Name,
+			Key:         strings.ReplaceAll(t.Name, "_", "-"),
+			Description: t.Description,
+		})
+	}
+	return options
+}
 
 var jsLog = logger.New("workflow:js")
 
@@ -274,7 +320,7 @@ func isInsideStringLiteral(text string) bool {
 	inDoubleQuote := false
 	inBacktick := false
 
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		switch runes[i] {
 		case '\'':
 			if !inDoubleQuote && !inBacktick {
@@ -321,7 +367,7 @@ func isInsideRegexLiteral(text string) bool {
 	inBacktick := false
 	inRegex := false
 
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		switch runes[i] {
 		case '\'':
 			if !inDoubleQuote && !inBacktick && !inRegex {
@@ -463,8 +509,8 @@ func FormatJavaScriptForYAML(script string) []string {
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
 
-	scriptLines := strings.Split(cleanScript, "\n")
-	for _, line := range scriptLines {
+	scriptLines := strings.SplitSeq(cleanScript, "\n")
+	for line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
 			formattedLines = append(formattedLines, fmt.Sprintf("            %s\n", line))
@@ -488,8 +534,8 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
 
-	scriptLines := strings.Split(cleanScript, "\n")
-	for _, line := range scriptLines {
+	scriptLines := strings.SplitSeq(cleanScript, "\n")
+	for line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
 			fmt.Fprintf(yaml, "            %s\n", line)

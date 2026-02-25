@@ -19,13 +19,13 @@ tools:
     key: schema-consistency-cache-${{ github.workflow }}
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     title-prefix: "[Schema Consistency] "
     max: 1
     close-older-discussions: true
 timeout-minutes: 30
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -364,3 +364,9 @@ A successful run:
 - ✅ Provides actionable recommendations
 
 Begin your analysis now. Check the cache, choose a strategy, execute it, and report your findings in a discussion.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

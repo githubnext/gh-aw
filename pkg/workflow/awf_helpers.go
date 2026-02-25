@@ -89,6 +89,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		// Include path setup before AWF command (runs on host before AWF)
 		command = fmt.Sprintf(`set -o pipefail
 %s
+# shellcheck disable=SC1003
 %s %s \
   -- %s 2>&1 | tee -a %s`,
 			config.PathSetup,
@@ -98,6 +99,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 			shellEscapeArg(config.LogFile))
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
+# shellcheck disable=SC1003
 %s %s \
   -- %s 2>&1 | tee -a %s`,
 			awfCommand,
@@ -152,12 +154,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	}
 
 	// Add allowed domains
-	awfArgs = append(awfArgs, "--allow-domains", config.AllowedDomains)
+	// Use double-quoted form (via shellDoubleQuoteArg) so wildcards like *.domain.com are
+	// treated as plain arguments rather than shell globs, fixing ShellCheck SC1003, while
+	// still escaping $, `, \, and " to prevent unintended shell expansion.
+	awfArgs = append(awfArgs, "--allow-domains", shellDoubleQuoteArg(config.AllowedDomains))
 
 	// Add blocked domains if specified
 	blockedDomains := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 	if blockedDomains != "" {
-		awfArgs = append(awfArgs, "--block-domains", blockedDomains)
+		// Same double-quoting rationale as --allow-domains above
+		awfArgs = append(awfArgs, "--block-domains", shellDoubleQuoteArg(blockedDomains))
 		awfHelpersLog.Printf("Added blocked domains: %s", blockedDomains)
 	}
 
@@ -170,7 +176,8 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--proxy-logs-dir", string(constants.AWFProxyLogsDir))
 
 	// Add --enable-host-access when MCP servers are configured (gateway is used)
-	if HasMCPServers(config.WorkflowData) {
+	// OR when the API proxy sidecar is enabled (needs to reach host.docker.internal:<port>)
+	if HasMCPServers(config.WorkflowData) || config.UsesAPIProxy {
 		awfArgs = append(awfArgs, "--enable-host-access")
 		awfHelpersLog.Print("Added --enable-host-access for MCP gateway communication")
 	}

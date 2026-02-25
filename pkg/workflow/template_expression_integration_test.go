@@ -123,22 +123,9 @@ ${{ steps.sanitized.outputs.text }}
 	}
 
 	// Verify that GitHub expressions in content have been replaced with environment variable references
-	// in the heredoc, but they can still appear in the comment header
-	delimiter := GenerateHeredocDelimiter("PROMPT")
-	heredocStart := strings.Index(compiledStr, "cat << '"+delimiter+"' > \"$GH_AW_PROMPT\"")
-	if heredocStart == -1 {
-		t.Error("Could not find prompt heredoc section")
-	} else {
-		heredocEnd := strings.Index(compiledStr[heredocStart:], "\n          "+delimiter+"\n")
-		if heredocEnd == -1 {
-			t.Error("Could not find end of prompt heredoc")
-		} else {
-			heredocContent := compiledStr[heredocStart : heredocStart+heredocEnd]
-			// Verify original expressions are NOT in the heredoc content
-			if strings.Contains(heredocContent, "issue #${{ github.event.issue.number }}") {
-				t.Error("GitHub expressions in heredoc content should be replaced with environment variable references for security")
-			}
-		}
+	// With grouped redirects, heredocs inside the group have no individual redirects
+	if strings.Contains(compiledStr, "issue #${{ github.event.issue.number }}") {
+		t.Error("GitHub expressions in heredoc content should be replaced with environment variable references for security")
 	}
 
 	// Verify that environment variables are defined for the expressions

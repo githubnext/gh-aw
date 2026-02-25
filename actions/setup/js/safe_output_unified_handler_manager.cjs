@@ -16,6 +16,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId, loadTemporaryIdMap, isTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -127,7 +128,7 @@ function loadConfig() {
         }
       }
     } catch (error) {
-      throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
     }
   }
 
@@ -140,13 +141,13 @@ function loadConfig() {
       // Explicitly provided project config takes precedence over auto-split config
       Object.assign(project, Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v])));
     } catch (error) {
-      throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: ${getErrorMessage(error)}`);
+      throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: ${getErrorMessage(error)}`);
     }
   }
 
   // At least one config must be present
   if (Object.keys(regular).length === 0 && Object.keys(project).length === 0) {
-    throw new Error("At least one of GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG or GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG environment variables is required");
+    throw new Error(`${ERR_CONFIG}: At least one of GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG or GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG environment variables is required`);
   }
 
   const regularCount = Object.keys(regular).length;
@@ -168,7 +169,7 @@ function loadConfig() {
 async function setupProjectGitHubClient() {
   const projectToken = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
   if (!projectToken) {
-    throw new Error("GH_AW_PROJECT_GITHUB_TOKEN environment variable is required for project-related safe outputs. " + "Configure a GitHub token with Projects permissions in your workflow secrets.");
+    throw new Error(`${ERR_CONFIG}: GH_AW_PROJECT_GITHUB_TOKEN environment variable is required for project-related safe outputs. Configure a GitHub token with Projects permissions in your workflow secrets.`);
   }
 
   core.info("Setting up separate Octokit client for project handlers with GH_AW_PROJECT_GITHUB_TOKEN");
@@ -242,7 +243,7 @@ async function loadHandlers(configs, projectOctokit = null, prReviewBuffer = nul
       try {
         // Ensure we have an Octokit instance for project handlers
         if (!projectOctokit) {
-          throw new Error(`Octokit instance is required for project handler ${type}. This is a configuration error - projectOctokit should be provided when project handlers are configured.`);
+          throw new Error(`${ERR_CONFIG}: Octokit instance is required for project handler ${type}. This is a configuration error - projectOctokit should be provided when project handlers are configured.`);
         }
 
         const handlerModule = require(handlerPath);
@@ -749,7 +750,7 @@ function normalizeAndValidateTemporaryId(message, messageType, messageIndex) {
   }
 
   if (typeof message.temporary_id !== "string") {
-    throw new Error(`Message ${messageIndex + 1} (${messageType}): temporary_id must be a string (got ${typeof message.temporary_id})`);
+    throw new Error(`${ERR_VALIDATION}: Message ${messageIndex + 1} (${messageType}): temporary_id must be a string (got ${typeof message.temporary_id})`);
   }
 
   const raw = message.temporary_id;
@@ -757,7 +758,7 @@ function normalizeAndValidateTemporaryId(message, messageType, messageIndex) {
   const withoutHash = trimmed.startsWith("#") ? trimmed.substring(1).trim() : trimmed;
 
   if (!isTemporaryId(withoutHash)) {
-    throw new Error(`Message ${messageIndex + 1} (${messageType}): invalid temporary_id '${raw}'. Temporary IDs must be 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9), e.g. 'aw_abc' or 'aw_Test123'`);
+    throw new Error(`${ERR_VALIDATION}: Message ${messageIndex + 1} (${messageType}): invalid temporary_id '${raw}'. Temporary IDs must be 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9), e.g. 'aw_abc' or 'aw_Test123'`);
   }
 
   // Normalize to the strict bare ID to keep lookups consistent.
@@ -1157,7 +1158,7 @@ async function main() {
 
     core.info("=== Unified Safe Output Handler Manager Completed ===");
   } catch (error) {
-    core.setFailed(`Handler manager failed: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`);
   } finally {
     // Guarantee the manifest file exists for artifact upload even when the handler fails.
     // This is a no-op if the file was already created by createManifestLogger().

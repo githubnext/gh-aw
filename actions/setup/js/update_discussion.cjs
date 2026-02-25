@@ -8,6 +8,8 @@
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -40,7 +42,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 
   const discussion = queryResult?.repository?.discussion;
   if (!discussion) {
-    throw new Error(`Discussion #${discussionNumber} not found`);
+    throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found`);
   }
 
   // Build mutation for updating discussion
@@ -135,7 +137,7 @@ function buildDiscussionUpdateData(item, config) {
   }
 
   // Pass footer config to executeUpdate (default to true)
-  updateData._includeFooter = config.footer !== false;
+  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
 
   return { success: true, data: updateData };
 }

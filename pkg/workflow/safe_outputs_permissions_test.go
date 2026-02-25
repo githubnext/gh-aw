@@ -24,7 +24,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "create-issue only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -36,7 +36,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "create-discussion requires discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -49,7 +49,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "close-discussion requires discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CloseDiscussions: &CloseDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -62,7 +62,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				UpdateDiscussions: &UpdateDiscussionsConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					},
 				},
 			},
@@ -72,10 +72,54 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "add-comment default - includes discussions permission",
+			name: "add-comment default - includes pull-requests and discussions",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
+			},
+		},
+		{
+			name: "add-comment with discussions:true - includes discussions permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Discussions:          ptrBool(true),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
+			},
+		},
+		{
+			name: "add-comment with discussions:false - no discussions permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Discussions:          ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "add-comment with pull-requests:false - no pull-requests permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					PullRequests:         ptrBool(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -85,23 +129,24 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "add-comment with discussions:false - no discussions permission",
+			name: "add-comment with issues:false - no issues permission",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
-					Discussions:          ptrBool(false),
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Issues:               ptrBool(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionContents:     PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{
 			name: "hide-comment default - includes discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				HideComment: &HideCommentConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -114,7 +159,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "hide-comment with discussions:false - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				HideComment: &HideCommentConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					Discussions:          ptrBool(false),
 				},
 			},
@@ -127,7 +172,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "add-labels only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				AddLabels: &AddLabelsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -140,7 +185,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "remove-labels only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				RemoveLabels: &RemoveLabelsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 2},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -153,7 +198,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "close-issue only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CloseIssues: &CloseIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -165,7 +210,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "close-pull-request only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				ClosePullRequests: &ClosePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -177,7 +222,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "create-pull-request with fallback-as-issue (default) - includes issues permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -190,8 +235,8 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "create-pull-request with fallback-as-issue false - no issues permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
-					FallbackAsIssue:      ptrBool(false),
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					FallbackAsIssue:      boolPtr(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -215,13 +260,13 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "multiple safe outputs without discussions - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 				AddLabels: &AddLabelsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 				AssignToUser: &AssignToUserConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -234,13 +279,13 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "multiple safe outputs with one discussion - includes discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 				AddLabels: &AddLabelsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -254,7 +299,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "upload-asset requires contents write",
 			safeOutputs: &SafeOutputsConfig{
 				UploadAssets: &UploadAssetsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -265,7 +310,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "create-code-scanning-alert requires security-events write",
 			safeOutputs: &SafeOutputsConfig{
 				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -277,7 +322,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "autofix-code-scanning-alert requires security-events and actions",
 			safeOutputs: &SafeOutputsConfig{
 				AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -290,7 +335,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "dispatch-workflow requires actions write",
 			safeOutputs: &SafeOutputsConfig{
 				DispatchWorkflow: &DispatchWorkflowConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -301,7 +346,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			name: "create-project requires organization-projects write",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjects: &CreateProjectsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -313,7 +358,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			permissions := computePermissionsForSafeOutputs(tt.safeOutputs)
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
 			require.NotNil(t, permissions, "Permissions should not be nil")
 
 			// Check that all expected permissions are present
@@ -337,14 +382,14 @@ func TestComputePermissionsForSafeOutputs_NoOpAndMissingTool(t *testing.T) {
 	// They rely on add-comment permissions if comments are needed
 	safeOutputs := &SafeOutputsConfig{
 		NoOp: &NoOpConfig{
-			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 		},
 		MissingTool: &MissingToolConfig{
-			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 		},
 	}
 
-	permissions := computePermissionsForSafeOutputs(safeOutputs)
+	permissions := ComputePermissionsForSafeOutputs(safeOutputs)
 	require.NotNil(t, permissions, "Permissions should not be nil")
 
 	// NoOp and MissingTool alone don't require any permissions

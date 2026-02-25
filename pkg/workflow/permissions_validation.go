@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -234,19 +235,10 @@ func checkMissingPermissions(permissions *Permissions, required map[PermissionSc
 					continue
 				}
 
-				requiresScope := false
-				for _, readScope := range perms.ReadPermissions {
-					if readScope == scope {
-						requiresScope = true
-						break
-					}
-				}
+				requiresScope := slices.Contains(perms.ReadPermissions, scope)
 				if !requiresScope {
-					for _, writeScope := range perms.WritePermissions {
-						if writeScope == scope {
-							requiresScope = true
-							break
-						}
+					if slices.Contains(perms.WritePermissions, scope) {
+						requiresScope = true
 					}
 				}
 
@@ -292,11 +284,8 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 		var requiredBy []string
 		if len(result.MissingToolsetDetails) > 0 {
 			for toolset, toolsetScopes := range result.MissingToolsetDetails {
-				for _, ts := range toolsetScopes {
-					if ts == scope {
-						requiredBy = append(requiredBy, toolset)
-						break
-					}
+				if slices.Contains(toolsetScopes, scope) {
+					requiredBy = append(requiredBy, toolset)
 				}
 			}
 		}
@@ -310,7 +299,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 		}
 	}
 
-	lines = append(lines, "Missing required permissions for github toolsets:")
+	lines = append(lines, "Missing required permissions for GitHub toolsets:")
 	lines = append(lines, permLines...)
 	lines = append(lines, "")
 	lines = append(lines, "To fix this, you can either:")
@@ -343,7 +332,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 		sort.Strings(toolsetsList)
 
 		for _, toolset := range toolsetsList {
-			lines = append(lines, fmt.Sprintf("  - %s", toolset))
+			lines = append(lines, "  - "+toolset)
 		}
 	}
 

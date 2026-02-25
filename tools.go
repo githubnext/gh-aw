@@ -9,6 +9,5 @@ package tools
 import (
 	_ "github.com/rhysd/actionlint/cmd/actionlint"
 	_ "github.com/securego/gosec/v2/cmd/gosec"
-	_ "golang.org/x/tools/gopls"
 	_ "golang.org/x/vuln/cmd/govulncheck"
 )

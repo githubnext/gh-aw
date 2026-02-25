@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -34,12 +35,7 @@ var SupportedSchemaVersions = []LockSchemaVersion{
 
 // IsSchemaVersionSupported checks if a schema version is supported
 func IsSchemaVersionSupported(version LockSchemaVersion) bool {
-	for _, v := range SupportedSchemaVersions {
-		if v == version {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(SupportedSchemaVersions, version)
 }
 
 // ExtractMetadataFromLockFile extracts structured metadata from a lock file's comment header
@@ -62,9 +58,10 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 
 	// Legacy format: look for frontmatter-hash without JSON metadata
 	hashPattern := regexp.MustCompile(`#\s*frontmatter-hash:\s*([0-9a-f]{64})`)
-	if hashPattern.MatchString(content) {
+	if matches := hashPattern.FindStringSubmatch(content); len(matches) >= 2 {
 		lockSchemaLog.Print("Legacy lock file detected (no schema version)")
-		return nil, true, nil
+		// Return a minimal metadata struct with just the hash for legacy files
+		return &LockMetadata{FrontmatterHash: matches[1]}, true, nil
 	}
 
 	// No metadata found at all

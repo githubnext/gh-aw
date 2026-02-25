@@ -22,7 +22,7 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 	currentContent := content
 	visited := make(map[string]bool)
 
-	for depth := 0; depth < maxDepth; depth++ {
+	for depth := range maxDepth {
 		log.Printf("Include expansion depth: %d", depth)
 		// Process includes in current content
 		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
@@ -77,13 +77,17 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 	log.Printf("Expanding includes for engines: baseDir=%s", baseDir)
-	return expandIncludesForField(content, baseDir, extractEngineFromContent, "")
+	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
+		return extractFrontmatterField(c, "engine", "")
+	}, "")
 }
 
 // ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
 func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
 	log.Printf("Expanding includes for safe-outputs: baseDir=%s", baseDir)
-	return expandIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
+		return extractFrontmatterField(c, "safe-outputs", "{}")
+	}, "{}")
 }
 
 // expandIncludesForField recursively expands includes to extract a specific frontmatter field
@@ -92,7 +96,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 	var results []string
 	currentContent := content
 
-	for depth := 0; depth < maxDepth; depth++ {
+	for range maxDepth {
 		// Process includes in current content to extract the field
 		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
 		if err != nil {
@@ -117,12 +121,16 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 
 // ProcessIncludesForEngines processes import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
-	return processIncludesForField(content, baseDir, extractEngineFromContent, "")
+	return processIncludesForField(content, baseDir, func(c string) (string, error) {
+		return extractFrontmatterField(c, "engine", "")
+	}, "")
 }
 
 // ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
 func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, error) {
-	return processIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+	return processIncludesForField(content, baseDir, func(c string) (string, error) {
+		return extractFrontmatterField(c, "safe-outputs", "{}")
+	}, "{}")
 }
 
 // processIncludesForField processes import directives to extract a specific frontmatter field

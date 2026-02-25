@@ -23,6 +23,8 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,8 +38,7 @@ var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	copilotExecLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
@@ -70,15 +71,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
-	// Add model if specified
-	// Model can be configured via:
-	// 1. Explicit model in workflow config (highest priority)
-	// 2. GH_AW_MODEL_AGENT_COPILOT environment variable (set via GitHub Actions variables)
+	// Model is always passed via the native COPILOT_MODEL environment variable when configured.
+	// This avoids embedding the value directly in the shell command (which fails template injection
+	// validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_COPILOT with shell expansion.
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if modelConfigured {
-		copilotExecLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
-		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
-	}
 
 	// Add --agent flag if specified via engine.agent
 	// Note: Agent imports (.github/agents/*.md) still work for importing markdown content,
@@ -120,12 +117,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Add --share flag to generate a markdown file of the conversation for step summary
-	// The markdown file will be used to create a preview of the agent log
-	shareFilePath := logsFolder + "conversation.md"
-	copilotArgs = append(copilotArgs, "--share", shareFilePath)
-	copilotExecLog.Printf("Added --share flag with path: %s", shareFilePath)
-
 	// Add prompt argument - inline for sandbox modes, variable for non-sandbox
 	if sandboxEnabled {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -147,7 +138,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build the copilot command
 	var copilotCommand string
 
-	// Determine if we need to conditionally add --model flag based on environment variable
+	// When model is not configured, use the GH_AW_MODEL_AGENT_COPILOT fallback env var
+	// via shell expansion (${VAR:+ --model "$VAR"}) so users can set it as a GitHub variable.
+	// When model IS configured, COPILOT_MODEL is set in the env block (see below) and the
+	// Copilot CLI reads it natively - no --model flag in the shell command needed.
 	needsModelFlag := !modelConfigured
 	// Check if this is a detection job (has no SafeOutputs config)
 	isDetectionJob := workflowData.SafeOutputs == nil
@@ -231,11 +225,19 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
-	// Use COPILOT_GITHUB_TOKEN
-	// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
-	// that GitHub Actions runtime replaces with the actual secret value. The string "${{ secrets.COPILOT_GITHUB_TOKEN }}"
-	// is a placeholder, not an actual credential.
-	copilotGitHubToken := "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
+	// Actions token directly (${{ github.token }}). Otherwise use the COPILOT_GITHUB_TOKEN secret.
+	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
+	// that the runtime replaces with actual values. The strings "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	// and "${{ github.token }}" are placeholders, not actual credentials.
+	var copilotGitHubToken string
+	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
+	if useCopilotRequests {
+		copilotGitHubToken = "${{ github.token }}"
+		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (copilot-requests feature enabled)")
+	} else {
+		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	}
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -247,6 +249,12 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
 	}
 
+	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
+	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
+	if useCopilotRequests {
+		env["S2STOKENS"] = "true"
+	}
+
 	// Always add GH_AW_PROMPT for agentic workflows
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
@@ -256,10 +264,15 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	if hasGitHubTool(workflowData.ParsedTools) {
-		customGitHubToken := getGitHubToken(workflowData.Tools["github"])
-		// Use effective token with precedence: custom > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken)
-		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		// If GitHub App is configured, use the app token (overrides custom and default tokens)
+		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.App != nil {
+			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+		} else {
+			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
+			// Use effective token with precedence: custom > default
+			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
+			env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		}
 	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
@@ -267,46 +280,46 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {
-		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+		env["GH_AW_STARTUP_TIMEOUT"] = strconv.Itoa(workflowData.ToolsStartupTimeout)
 	}
 
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
-		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+		env["GH_AW_TOOL_TIMEOUT"] = strconv.Itoa(workflowData.ToolsTimeout)
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	}
 
-	// Add model environment variable if model is not explicitly configured
-	// This allows users to configure the default model via GitHub Actions variables
-	// Use different env vars for agent vs detection jobs
-	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
-		// Check if this is a detection job (has no SafeOutputs config)
+	// Set the model environment variable.
+	// When model is configured, use the native COPILOT_MODEL env var - the Copilot CLI reads it
+	// directly, avoiding the need to embed the value in the shell command (which would fail
+	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_COPILOT so users
+	// can set a default via GitHub Actions variables.
+	if modelConfigured {
+		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
+	} else {
+		// No model configured - use fallback GitHub variable with shell expansion
 		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
-			// For detection, use detection-specific env var (no builtin default, CLI will use its own)
 			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCopilot)
 		} else {
-			// For agent execution, use agent-specific env var
 			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
 		}
 	}
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
 
 	// Add custom environment variables from agent config
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
-		for key, value := range agentConfig.Env {
-			env[key] = value
-		}
+		maps.Copy(env, agentConfig.Env)
 		copilotExecLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
@@ -334,7 +347,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
 
-	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "      - name: "+stepName)
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
@@ -349,7 +362,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	if workflowData.TimeoutMinutes != "" {
 		// Strip timeout-minutes prefix
 		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
+		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
 	} else {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
 	}
@@ -367,4 +380,40 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	return steps
 }
 
-// GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction)
+// extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
+func extractAddDirPaths(args []string) []string {
+	var dirs []string
+	for i := range len(args) - 1 {
+		if args[i] == "--add-dir" {
+			dirs = append(dirs, args[i+1])
+		}
+	}
+	return dirs
+}
+
+// generateCopilotSessionFileCopyStep generates a step to copy Copilot session state files
+// from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
+// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+func generateCopilotSessionFileCopyStep() GitHubActionStep {
+	var step []string
+
+	step = append(step, "      - name: Copy Copilot session state files to logs")
+	step = append(step, "        if: always()")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        run: |")
+	step = append(step, "          # Copy Copilot session state files to logs folder for artifact collection")
+	step = append(step, "          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them")
+	step = append(step, "          SESSION_STATE_DIR=\"$HOME/.copilot/session-state\"")
+	step = append(step, "          LOGS_DIR=\"/tmp/gh-aw/sandbox/agent/logs\"")
+	step = append(step, "          ")
+	step = append(step, "          if [ -d \"$SESSION_STATE_DIR\" ]; then")
+	step = append(step, "            echo \"Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR\"")
+	step = append(step, "            mkdir -p \"$LOGS_DIR\"")
+	step = append(step, "            cp -v \"$SESSION_STATE_DIR\"/*.jsonl \"$LOGS_DIR/\" 2>/dev/null || true")
+	step = append(step, "            echo \"Session state files copied successfully\"")
+	step = append(step, "          else")
+	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")
+	step = append(step, "          fi")
+
+	return GitHubActionStep(step)
+}

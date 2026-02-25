@@ -62,7 +62,7 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs in %s", logsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs in "+logsDir))
 	}
 
 	// Create a temporary directory for running the parser
@@ -214,8 +214,10 @@ originalMain();
 		return fmt.Errorf("failed to write node script: %w", err)
 	}
 
-	// Execute the Node.js script
-	cmd := exec.Command("node", "parser.js")
+	// Execute the Node.js script using the absolute path for cross-platform compatibility
+	// #nosec G204 -- nodeFile is an absolute path to a script written by this process to tempDir;
+	// exec.Command with separate args (not shell execution) prevents shell injection.
+	cmd := exec.Command("node", nodeFile)
 	cmd.Dir = tempDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {

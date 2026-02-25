@@ -339,6 +339,77 @@ This workflow tests the create_pull_request job generation with draft: true.
 	// t.Logf("Generated workflow content:\n%s", lockContentStr)
 }
 
+func TestOutputPullRequestDraftExpression(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-draft-expr-test")
+
+	// Test case with create-pull-request configuration with draft as an expression
+	testContent := `---
+on:
+  workflow_dispatch:
+    inputs:
+      draft-prs:
+        type: boolean
+        default: true
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+features:
+  dangerous-permissions-write: true
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+    labels: [automation]
+    draft: ${{ inputs.draft-prs }}
+---
+
+# Test Output Pull Request with Draft Expression
+
+This workflow tests the create_pull_request job generation with draft as an expression.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-draft-expr.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with draft expression: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG is present and contains the draft expression
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler manager config environment variable")
+	}
+
+	if !strings.Contains(lockContentStr, "draft") {
+		t.Error("Expected 'draft' field in handler manager config")
+	}
+
+	// The expression should be preserved in the handler config
+	if !strings.Contains(lockContentStr, "inputs.draft-prs") {
+		t.Error("Expected expression '${{ inputs.draft-prs }}' to be preserved in the handler config")
+	}
+}
+
 func TestCreatePullRequestIfNoChangesConfig(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "create-pr-if-no-changes-test")
@@ -454,7 +525,7 @@ This workflow tests the default if-no-changes behavior.
 }
 
 // TestCreatePullRequestPatchArtifactDownload verifies that when create-pull-request
-// is enabled, the safe_outputs job includes a step to download the aw.patch artifact
+// is enabled, the safe_outputs job includes a step to download the aw-*.patch artifact
 func TestCreatePullRequestPatchArtifactDownload(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -471,7 +542,7 @@ safe-outputs:
 
 # Test Create Pull Request Patch Download
 
-This test verifies that the aw.patch artifact is downloaded in the safe_outputs job.
+This test verifies that the aw-*.patch artifact is downloaded in the safe_outputs job.
 `
 
 	// Write the test file
@@ -578,7 +649,7 @@ This test verifies that auto-merge configuration is properly handled.
 	}
 
 	// Verify auto-merge is set to true
-	if !workflowData.SafeOutputs.CreatePullRequests.AutoMerge {
+	if workflowData.SafeOutputs.CreatePullRequests.AutoMerge == nil || *workflowData.SafeOutputs.CreatePullRequests.AutoMerge != "true" {
 		t.Error("Expected auto-merge to be true")
 	}
 
@@ -658,7 +729,7 @@ This workflow tests the create-pull-request with fallback-as-issue disabled.
 		t.Fatal("Expected fallback-as-issue to be set")
 	}
 
-	if *workflowData.SafeOutputs.CreatePullRequests.FallbackAsIssue != false {
+	if *workflowData.SafeOutputs.CreatePullRequests.FallbackAsIssue {
 		t.Error("Expected fallback-as-issue to be false")
 	}
 
@@ -685,10 +756,7 @@ This workflow tests the create-pull-request with fallback-as-issue disabled.
 
 	// Find the next job after safe_outputs (to limit our search scope)
 	// Extract a large section after safe_outputs job (next 2000 chars should include all job details)
-	endIdx := safeOutputsJobStart + 2000
-	if endIdx > len(lockContentStr) {
-		endIdx = len(lockContentStr)
-	}
+	endIdx := min(safeOutputsJobStart+2000, len(lockContentStr))
 	safeOutputsJobSection := lockContentStr[safeOutputsJobStart:endIdx]
 
 	// Verify permissions in safe_outputs job
@@ -787,10 +855,7 @@ This workflow tests the create-pull-request with default fallback-as-issue behav
 	}
 
 	// Extract a large section after safe_outputs job (next 2000 chars should include all job details)
-	endIdx := safeOutputsJobStart + 2000
-	if endIdx > len(lockContentStr) {
-		endIdx = len(lockContentStr)
-	}
+	endIdx := min(safeOutputsJobStart+2000, len(lockContentStr))
 
 	safeOutputsJobSection := lockContentStr[safeOutputsJobStart:endIdx]
 

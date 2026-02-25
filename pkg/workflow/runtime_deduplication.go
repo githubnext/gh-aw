@@ -25,8 +25,8 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 	// This is necessary because YAML treats "# comment" as a comment, not part of the value
 	// Format: "uses: action@sha # v1.0.0" -> after unmarshal, only "action@sha" remains
 	versionComments := make(map[string]string) // key: action@sha, value: # v1.0.0
-	lines := strings.Split(customSteps, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(customSteps, "\n")
+	for line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "uses:") && strings.Contains(trimmed, " # ") {
 			// Extract the uses value and version comment

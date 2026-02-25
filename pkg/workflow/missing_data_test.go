@@ -102,8 +102,8 @@ func TestMissingDataSafeOutput(t *testing.T) {
 				if safeOutputs.MissingData == nil {
 					t.Error("Expected MissingData config to be present, but it was nil")
 				} else {
-					if safeOutputs.MissingData.Max != tt.expectMax {
-						t.Errorf("Expected Max=%d, got Max=%d", tt.expectMax, safeOutputs.MissingData.Max)
+					if templatableIntValue(safeOutputs.MissingData.Max) != tt.expectMax {
+						t.Errorf("Expected Max=%d, got Max=%v", tt.expectMax, safeOutputs.MissingData.Max)
 					}
 				}
 			} else {
@@ -193,8 +193,8 @@ func TestMissingDataConfigParsing(t *testing.T) {
 				t.Fatal("Expected non-nil config, but got nil")
 			}
 
-			if config.Max != tt.expectMax {
-				t.Errorf("Expected Max=%d, got Max=%d", tt.expectMax, config.Max)
+			if templatableIntValue(config.Max) != tt.expectMax {
+				t.Errorf("Expected Max=%d, got Max=%v", tt.expectMax, config.Max)
 			}
 
 			if config.CreateIssue != tt.expectIssue {
@@ -221,7 +221,7 @@ func TestBuildCreateOutputMissingDataJob(t *testing.T) {
 		{
 			name: "Basic config without issue creation",
 			config: &MissingDataConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("0")},
 				CreateIssue:          false,
 				TitlePrefix:          "[missing data]",
 				Labels:               []string{},
@@ -231,7 +231,7 @@ func TestBuildCreateOutputMissingDataJob(t *testing.T) {
 		{
 			name: "Config with issue creation",
 			config: &MissingDataConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 				CreateIssue:          true,
 				TitlePrefix:          "[data needed]",
 				Labels:               []string{"data", "blocked"},

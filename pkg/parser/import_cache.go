@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,7 +35,7 @@ func validatePathComponents(owner, repo, path, sha string) error {
 		// Check for empty components
 		if comp == "" {
 			importCacheLog.Print("Path validation failed: empty component detected")
-			return fmt.Errorf("empty component in path")
+			return errors.New("empty component in path")
 		}
 		// Check for path traversal attempts
 		if strings.Contains(comp, "..") {

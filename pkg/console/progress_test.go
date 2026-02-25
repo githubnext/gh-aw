@@ -288,7 +288,7 @@ func TestProgressBarEdgeCases(t *testing.T) {
 		bar := NewProgressBar(1000000)
 
 		// Update with very small increments
-		for i := int64(0); i <= 10; i++ {
+		for i := range int64(11) {
 			output := bar.Update(i)
 			assert.NotEmpty(t, output, "Should handle very small increments")
 		}

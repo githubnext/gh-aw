@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -54,7 +55,7 @@ func TestSortStrings(t *testing.T) {
 			result := make([]string, len(tt.input))
 			copy(result, tt.input)
 
-			SortStrings(result)
+			sort.Strings(result)
 
 			assert.Equal(t, tt.expected, result, "SortStrings failed for test case: %s", tt.name)
 		})
@@ -65,7 +66,7 @@ func TestSortStrings_NilSlice(t *testing.T) {
 	var nilSlice []string
 
 	// Should not panic with nil slice
-	SortStrings(nilSlice)
+	sort.Strings(nilSlice)
 
 	assert.Nil(t, nilSlice, "SortStrings should handle nil slice without panic")
 }

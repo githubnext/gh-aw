@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -207,13 +208,7 @@ No description workflow
 
 					// Verify the name part matches expected names
 					name := parts[0]
-					found := false
-					for _, expectedName := range tt.wantNames {
-						if name == expectedName {
-							found = true
-							break
-						}
-					}
+					found := slices.Contains(tt.wantNames, name)
 					assert.True(t, found, "Expected name %s to be in %v", name, tt.wantNames)
 				}
 			}

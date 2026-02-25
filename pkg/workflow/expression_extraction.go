@@ -131,8 +131,8 @@ func transformActivationOutputs(expr string) string {
 
 	for _, output := range activationOutputs {
 		// Build the old and new expressions
-		oldExpr := fmt.Sprintf("needs.activation.outputs.%s", output)
-		newExpr := fmt.Sprintf("steps.sanitized.outputs.%s", output)
+		oldExpr := "needs.activation.outputs." + output
+		newExpr := "steps.sanitized.outputs." + output
 
 		// Use word boundary replacement to avoid partial matches
 		// We need to ensure we're replacing complete tokens, not substrings
@@ -192,7 +192,7 @@ func (e *ExpressionExtractor) generateEnvVarName(content string) string {
 	if simpleIdentifierRegex.MatchString(content) {
 		// Convert dots to underscores and uppercase
 		prettyName := strings.ToUpper(strings.ReplaceAll(content, ".", "_"))
-		return fmt.Sprintf("GH_AW_%s", prettyName)
+		return "GH_AW_" + prettyName
 	}
 
 	// Fall back to hash-based name for complex expressions
@@ -204,7 +204,7 @@ func (e *ExpressionExtractor) generateEnvVarName(content string) string {
 	shortHash := hashStr[:8]
 
 	// Create environment variable name
-	return fmt.Sprintf("GH_AW_EXPR_%s", strings.ToUpper(shortHash))
+	return "GH_AW_EXPR_" + strings.ToUpper(shortHash)
 }
 
 // ReplaceExpressionsWithEnvVars replaces all ${{ ... }} expressions in the markdown

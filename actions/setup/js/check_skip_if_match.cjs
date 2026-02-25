@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 
 async function main() {
   const skipQuery = process.env.GH_AW_SKIP_QUERY;
@@ -9,18 +10,18 @@ async function main() {
   const maxMatchesStr = process.env.GH_AW_SKIP_MAX_MATCHES ?? "1";
 
   if (!skipQuery) {
-    core.setFailed("Configuration error: GH_AW_SKIP_QUERY not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_QUERY not specified.`);
     return;
   }
 
   if (!workflowName) {
-    core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_NAME not specified.`);
     return;
   }
 
   const maxMatches = parseInt(maxMatchesStr, 10);
   if (isNaN(maxMatches) || maxMatches < 1) {
-    core.setFailed(`Configuration error: GH_AW_SKIP_MAX_MATCHES must be a positive integer, got "${maxMatchesStr}".`);
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_MAX_MATCHES must be a positive integer, got "${maxMatchesStr}".`);
     return;
   }
 
@@ -50,7 +51,7 @@ async function main() {
     core.info(`✓ Found ${totalCount} matches (below threshold of ${maxMatches}), workflow can proceed`);
     core.setOutput("skip_check_ok", "true");
   } catch (error) {
-    core.setFailed(`Failed to execute search query: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_API}: Failed to execute search query: ${getErrorMessage(error)}`);
   }
 }
 

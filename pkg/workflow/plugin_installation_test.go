@@ -204,13 +204,14 @@ func TestPluginInstallationIntegration(t *testing.T) {
 			steps := e.engine.GetInstallationSteps(workflowData)
 
 			// Convert steps to string for searching
-			var allStepsText string
+			var allStepsTextSb strings.Builder
 			for _, step := range steps {
-				allStepsText += strings.Join(step, "\n") + "\n"
+				allStepsTextSb.WriteString(strings.Join(step, "\n") + "\n")
 			}
+			allStepsText := allStepsTextSb.String()
 
 			// Verify plugin installation step is present
-			assert.Contains(t, allStepsText, fmt.Sprintf("%s plugin install github/test-plugin", e.engineID),
+			assert.Contains(t, allStepsText, e.engineID+" plugin install github/test-plugin",
 				"Installation steps should include plugin installation command")
 
 			// Verify GITHUB_TOKEN is set
@@ -280,13 +281,14 @@ func TestPluginObjectFormatWithCustomToken(t *testing.T) {
 			steps := e.engine.GetInstallationSteps(workflowData)
 
 			// Convert steps to string for searching
-			var allStepsText string
+			var allStepsTextSb strings.Builder
 			for _, step := range steps {
-				allStepsText += strings.Join(step, "\n") + "\n"
+				allStepsTextSb.WriteString(strings.Join(step, "\n") + "\n")
 			}
+			allStepsText := allStepsTextSb.String()
 
 			// Verify plugin installation step is present
-			assert.Contains(t, allStepsText, fmt.Sprintf("%s plugin install github/test-plugin", e.engineID),
+			assert.Contains(t, allStepsText, e.engineID+" plugin install github/test-plugin",
 				"Installation steps should include plugin installation command")
 
 			// Verify custom token is used (not the cascading fallback)

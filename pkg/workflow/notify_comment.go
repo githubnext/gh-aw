@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -47,7 +49,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		// Compute permissions based on configured safe outputs (principle of least privilege)
-		permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
+		permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
 	}
 
@@ -58,9 +60,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.NoOp != nil {
 		// Build custom environment variables specific to noop
 		var noopEnvVars []string
-		if data.SafeOutputs.NoOp.Max > 0 {
-			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_NOOP_MAX: %d\n", data.SafeOutputs.NoOp.Max))
-		}
+		noopEnvVars = append(noopEnvVars, buildTemplatableIntEnvVar("GH_AW_NOOP_MAX", data.SafeOutputs.NoOp.Max)...)
 
 		// Add workflow metadata for consistency
 		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
@@ -82,9 +82,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.MissingTool != nil {
 		// Build custom environment variables specific to missing-tool
 		var missingToolEnvVars []string
-		if data.SafeOutputs.MissingTool.Max > 0 {
-			missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
-		}
+		missingToolEnvVars = append(missingToolEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
 
 		// Add create-issue configuration
 		if data.SafeOutputs.MissingTool.CreateIssue {
@@ -157,6 +155,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}\n")
 	}
 
+	// Pass code-push failure outputs from safe_outputs job if push-to-pull-request-branch or create-pull-request is configured
+	if data.SafeOutputs != nil && (data.SafeOutputs.PushToPullRequestBranch != nil || data.SafeOutputs.CreatePullRequests != nil) {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}\n")
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}\n")
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
@@ -208,10 +212,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.NoOp != nil {
 		noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}\n")
 		// Pass the report-as-issue configuration
-		if data.SafeOutputs.NoOp.ReportAsIssue {
+		noopMessageEnvVars = append(noopMessageEnvVars, buildTemplatableBoolEnvVar("GH_AW_NOOP_REPORT_AS_ISSUE", data.SafeOutputs.NoOp.ReportAsIssue)...)
+		if data.SafeOutputs.NoOp.ReportAsIssue == nil {
 			noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_REPORT_AS_ISSUE: \"true\"\n")
-		} else {
-			noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_REPORT_AS_ISSUE: \"false\"\n")
 		}
 	}
 
@@ -261,9 +264,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
-	// Pass detection conclusion if threat detection is enabled
+	// Pass detection conclusion if threat detection is enabled (inline in agent job)
 	if data.SafeOutputs.ThreatDetection != nil {
-		customEnvVars = append(customEnvVars, "          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}\n")
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", mainJobName))
 		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
 	}
 
@@ -335,13 +338,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	)
 
 	// Check if add_comment job exists in the safe output jobs
-	hasAddCommentJob := false
-	for _, jobName := range safeOutputJobNames {
-		if jobName == "add_comment" {
-			hasAddCommentJob = true
-			break
-		}
-	}
+	hasAddCommentJob := slices.Contains(safeOutputJobNames, "add_comment")
 
 	// Build the condition based on whether add_comment job exists
 	var condition ConditionNode
@@ -364,11 +361,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	needs := []string{mainJobName, string(constants.ActivationJobName)}
 	needs = append(needs, safeOutputJobNames...)
 
-	// Add detection job to dependencies if threat detection is enabled
-	if data.SafeOutputs.ThreatDetection != nil {
-		needs = append(needs, "detection")
-		notifyCommentLog.Print("Added detection job to conclusion dependencies")
-	}
+	// Detection is now inline in the agent job — no separate dependency needed.
+	// The conclusion job accesses detection_conclusion via needs.agent.outputs.detection_conclusion.
 
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 
@@ -383,7 +377,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Compute permissions based on configured safe outputs (principle of least privilege)
-	permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
+	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 
 	job := &Job{
 		Name:        "conclusion",
@@ -460,15 +454,15 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 // toEnvVarCase converts a string to uppercase environment variable case
 func toEnvVarCase(s string) string {
 	// Convert to uppercase and keep underscores
-	result := ""
+	var result strings.Builder
 	for _, ch := range s {
 		if ch >= 'a' && ch <= 'z' {
-			result += string(ch - 32) // Convert to uppercase
+			result.WriteRune(ch - 32) // Convert to uppercase
 		} else if ch >= 'A' && ch <= 'Z' {
-			result += string(ch)
+			result.WriteRune(ch)
 		} else if ch == '_' {
-			result += "_"
+			result.WriteString("_")
 		}
 	}
-	return result
+	return result.String()
 }

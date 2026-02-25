@@ -3,7 +3,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -1161,12 +1161,12 @@ func TestVisitExpressionTreeWithError(t *testing.T) {
 	expr := &ExpressionNode{Expression: "test.expression"}
 
 	// Test that visitor errors are propagated
-	expectedError := fmt.Errorf("test error")
+	expectedError := errors.New("test error")
 	err := VisitExpressionTree(expr, func(expr *ExpressionNode) error {
 		return expectedError
 	})
 
-	if err != expectedError {
+	if !errors.Is(err, expectedError) {
 		t.Errorf("VisitExpressionTree() error = %v, expected %v", err, expectedError)
 	}
 }

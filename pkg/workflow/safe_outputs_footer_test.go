@@ -23,7 +23,7 @@ func TestFooterConfiguration(t *testing.T) {
 	require.NotNil(t, config)
 	require.NotNil(t, config.CreateIssues)
 	require.NotNil(t, config.CreateIssues.Footer)
-	assert.False(t, *config.CreateIssues.Footer)
+	assert.Equal(t, "false", *config.CreateIssues.Footer)
 }
 
 func TestGlobalFooterConfiguration(t *testing.T) {
@@ -39,6 +39,7 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 				"update-issue":        map[string]any{"body": nil},
 				"update-discussion":   map[string]any{"body": nil},
 				"update-release":      nil,
+				"update-pull-request": map[string]any{"body": nil},
 			},
 		}
 		config := compiler.extractSafeOutputsConfig(frontmatter)
@@ -86,6 +87,9 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 					if updateReleaseConfig, ok := handlerConfig["update_release"].(map[string]any); ok {
 						assert.Equal(t, false, updateReleaseConfig["footer"], "update_release should inherit global footer: false")
 					}
+					if updatePRConfig, ok := handlerConfig["update_pull_request"].(map[string]any); ok {
+						assert.Equal(t, false, updatePRConfig["footer"], "update_pull_request should inherit global footer: false")
+					}
 				}
 			}
 		}
@@ -106,7 +110,7 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 		require.NotNil(t, config.Footer)
 		assert.False(t, *config.Footer, "Global footer should be false")
 		require.NotNil(t, config.CreatePullRequests.Footer)
-		assert.True(t, *config.CreatePullRequests.Footer, "Local PR footer should override to true")
+		assert.Equal(t, "true", *config.CreatePullRequests.Footer, "Local PR footer should override to true")
 
 		// Verify in handler config
 		workflowData := &WorkflowData{
@@ -146,8 +150,8 @@ func TestFooterInHandlerConfig(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
-				Footer:               boolPtr(false),
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Footer:               testStringPtr("false"),
 			},
 		},
 	}

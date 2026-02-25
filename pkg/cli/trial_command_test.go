@@ -493,12 +493,9 @@ func generateSimpleDiff(expected, actual string) string {
 	actualLines := strings.Split(actual, "\n")
 
 	var diff []string
-	maxLines := len(expectedLines)
-	if len(actualLines) > maxLines {
-		maxLines = len(actualLines)
-	}
+	maxLines := max(len(actualLines), len(expectedLines))
 
-	for i := 0; i < maxLines; i++ {
+	for i := range maxLines {
 		var expectedLine, actualLine string
 
 		if i < len(expectedLines) {

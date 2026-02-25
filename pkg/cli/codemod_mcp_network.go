@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var mcpNetworkCodemodLog = logger.New("cli:codemod_mcp_network")
@@ -82,29 +83,7 @@ func getMCPNetworkMigrationCodemod() Codemod {
 			}
 
 			// Remove duplicates from collected domains
-			allAllowedDomains = uniqueStrings(allAllowedDomains)
-
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-
-			// Remove network fields from all MCP servers
-			result := frontmatterLines
-			var modified bool
-			for serverName := range serversWithNetwork {
-				var serverModified bool
-				result, serverModified = removeFieldFromMCPServer(result, serverName, "network")
-				if serverModified {
-					modified = true
-					mcpNetworkCodemodLog.Printf("Removed network configuration from MCP server '%s'", serverName)
-				}
-			}
-
-			if !modified {
-				return content, false, nil
-			}
+			allAllowedDomains = sliceutil.Deduplicate(allAllowedDomains)
 
 			// Check if top-level network configuration already exists
 			existingNetworkValue, hasTopLevelNetwork := frontmatter["network"]
@@ -128,24 +107,39 @@ func getMCPNetworkMigrationCodemod() Codemod {
 			}
 
 			// Merge existing and new domains, remove duplicates
-			mergedDomains := append(existingAllowed, allAllowedDomains...)
-			mergedDomains = uniqueStrings(mergedDomains)
+			mergedDomains := sliceutil.Deduplicate(append(existingAllowed, allAllowedDomains...))
 
-			// Add or update top-level network configuration
-			if hasTopLevelNetwork {
-				// Update existing network.allowed
-				result = updateNetworkAllowed(result, mergedDomains)
-				mcpNetworkCodemodLog.Printf("Updated top-level network.allowed with %d domains", len(mergedDomains))
-			} else {
-				// Add new top-level network configuration
-				result = addTopLevelNetwork(result, mergedDomains)
-				mcpNetworkCodemodLog.Printf("Added top-level network.allowed with %d domains", len(mergedDomains))
-			}
+			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				// Remove network fields from all MCP servers
+				result := lines
+				var modified bool
+				for serverName := range serversWithNetwork {
+					var serverModified bool
+					result, serverModified = removeFieldFromMCPServer(result, serverName, "network")
+					if serverModified {
+						modified = true
+						mcpNetworkCodemodLog.Printf("Removed network configuration from MCP server '%s'", serverName)
+					}
+				}
 
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			mcpNetworkCodemodLog.Print("Applied MCP network migration to top-level")
-			return newContent, true, nil
+				if !modified {
+					return lines, false
+				}
+
+				// Add or update top-level network configuration
+				if hasTopLevelNetwork {
+					// Update existing network.allowed
+					result = updateNetworkAllowed(result, mergedDomains)
+					mcpNetworkCodemodLog.Printf("Updated top-level network.allowed with %d domains", len(mergedDomains))
+				} else {
+					// Add new top-level network configuration
+					result = addTopLevelNetwork(result, mergedDomains)
+					mcpNetworkCodemodLog.Printf("Added top-level network.allowed with %d domains", len(mergedDomains))
+				}
+
+				mcpNetworkCodemodLog.Print("Applied MCP network migration to top-level")
+				return result, true
+			})
 		},
 	}
 }
@@ -275,7 +269,7 @@ func addTopLevelNetwork(lines []string, domains []string) []string {
 	networkLines = append(networkLines, "network:")
 	networkLines = append(networkLines, "  allowed:")
 	for _, domain := range domains {
-		networkLines = append(networkLines, fmt.Sprintf("    - %s", domain))
+		networkLines = append(networkLines, "    - "+domain)
 	}
 
 	// Insert at the determined position
@@ -392,7 +386,7 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 	if insertIndex > 0 {
 		// Insert allowed before the next top-level block
 		allowedLines := []string{
-			fmt.Sprintf("%s  allowed:", networkIndent),
+			networkIndent + "  allowed:",
 		}
 		for _, domain := range domains {
 			allowedLines = append(allowedLines, fmt.Sprintf("%s    - %s", networkIndent, domain))
@@ -410,24 +404,11 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 				break
 			}
 		}
-		result = append(result, fmt.Sprintf("%s  allowed:", networkIndentStr))
+		result = append(result, networkIndentStr+"  allowed:")
 		for _, domain := range domains {
 			result = append(result, fmt.Sprintf("%s    - %s", networkIndentStr, domain))
 		}
 	}
 
-	return result
-}
-
-// uniqueStrings removes duplicates from a string slice while preserving order
-func uniqueStrings(input []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-	for _, item := range input {
-		if !seen[item] {
-			seen[item] = true
-			result = append(result, item)
-		}
-	}
 	return result
 }

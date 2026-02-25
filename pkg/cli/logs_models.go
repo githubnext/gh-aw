@@ -214,8 +214,8 @@ type JobInfo struct {
 	Name        string    `json:"name"`
 	Status      string    `json:"status"`
 	Conclusion  string    `json:"conclusion"`
-	StartedAt   time.Time `json:"started_at,omitempty"`
-	CompletedAt time.Time `json:"completed_at,omitempty"`
+	StartedAt   time.Time `json:"started_at,omitzero"`
+	CompletedAt time.Time `json:"completed_at,omitzero"`
 }
 
 // JobInfoWithDuration extends JobInfo with calculated duration
@@ -240,7 +240,7 @@ type AwInfo struct {
 	Staged          bool        `json:"staged"`
 	AwfVersion      string      `json:"awf_version,omitempty"`      // AWF firewall version (new name)
 	FirewallVersion string      `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
-	Steps           AwInfoSteps `json:"steps,omitempty"`            // Steps metadata
+	Steps           AwInfoSteps `json:"steps,omitzero"`             // Steps metadata
 	CreatedAt       string      `json:"created_at"`
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`

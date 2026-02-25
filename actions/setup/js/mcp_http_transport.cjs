@@ -27,6 +27,7 @@ moduleLogger.debug("Module is being loaded");
 const http = require("http");
 const { randomUUID } = require("crypto");
 const { createServer, registerTool, handleRequest } = require("./mcp_server_core.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * Simple MCP Server wrapper that provides a class-like interface
@@ -140,7 +141,7 @@ class MCPHTTPTransport {
     const logger = createLogger("MCPHTTPTransport");
     logger.debug(`Called, started=${this.started}`);
     if (this.started) {
-      throw new Error("Transport already started");
+      throw new Error(`${ERR_SYSTEM}: Transport already started`);
     }
     this.started = true;
     logger.debug("Set started=true");

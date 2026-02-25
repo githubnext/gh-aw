@@ -23,18 +23,18 @@ network:
     - go
 
 imports:
-  - shared/mood.md
   - shared/reporting.md
+  - shared/mcp/serena-go.md
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[go-fan] "
     category: "audits"
     max: 1
     close-older-discussions: true
 
 tools:
-  serena: ["go"]
   cache-memory: true
   github:
     toolsets: [default]
@@ -332,3 +332,9 @@ Your output MUST include:
 If you cannot find any improvements, still create a discussion noting the module is well-utilized and document your analysis in `scratchpad/mods/`.
 
 Begin your analysis! Pick the next module and start your deep review.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

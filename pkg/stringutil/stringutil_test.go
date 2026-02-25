@@ -139,14 +139,14 @@ func TestNormalizeWhitespace(t *testing.T) {
 
 func BenchmarkTruncate(b *testing.B) {
 	s := "this is a very long string that needs to be truncated for testing purposes"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Truncate(s, 30)
 	}
 }
 
 func BenchmarkNormalizeWhitespace(b *testing.B) {
 	content := "line1  \nline2\t\nline3   \t\nline4\n\n"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizeWhitespace(content)
 	}
 }
@@ -260,27 +260,27 @@ func TestNormalizeWhitespace_OnlyWhitespace(t *testing.T) {
 func TestNormalizeWhitespace_ManyLines(t *testing.T) {
 	// Test with many lines
 	lines := make([]string, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		lines[i] = "line with trailing spaces  "
 	}
-	content := ""
+	var content strings.Builder
 	for _, line := range lines {
-		content += line + "\n"
+		content.WriteString(line + "\n")
 	}
 
-	result := NormalizeWhitespace(content)
+	result := NormalizeWhitespace(content.String())
 
 	// Check that all trailing spaces are removed
 	expectedLines := make([]string, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		expectedLines[i] = "line with trailing spaces"
 	}
-	expected := ""
+	var expected strings.Builder
 	for _, line := range expectedLines {
-		expected += line + "\n"
+		expected.WriteString(line + "\n")
 	}
 
-	if result != expected {
+	if result != expected.String() {
 		t.Error("NormalizeWhitespace did not properly normalize many lines")
 	}
 }
@@ -301,28 +301,28 @@ func TestNormalizeWhitespace_PreservesContent(t *testing.T) {
 
 func BenchmarkTruncate_Short(b *testing.B) {
 	s := "short"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Truncate(s, 10)
 	}
 }
 
 func BenchmarkTruncate_Long(b *testing.B) {
 	s := "this is a very very very very very long string that definitely needs truncation"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Truncate(s, 20)
 	}
 }
 
 func BenchmarkNormalizeWhitespace_NoChange(b *testing.B) {
 	content := "line1\nline2\nline3\n"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizeWhitespace(content)
 	}
 }
 
 func BenchmarkNormalizeWhitespace_ManyChanges(b *testing.B) {
 	content := "line1  \t  \nline2  \t  \nline3  \t  \n\n\n"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		NormalizeWhitespace(content)
 	}
 }
@@ -559,14 +559,14 @@ func TestStripANSIEscapeCodes(t *testing.T) {
 
 func BenchmarkStripANSIEscapeCodes_Clean(b *testing.B) {
 	s := "This is a clean string without any ANSI codes"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		StripANSIEscapeCodes(s)
 	}
 }
 
 func BenchmarkStripANSIEscapeCodes_WithCodes(b *testing.B) {
 	s := "This \x1b[31mhas\x1b[0m some \x1b[1mANSI\x1b[0m codes"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		StripANSIEscapeCodes(s)
 	}
 }

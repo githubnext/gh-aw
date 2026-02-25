@@ -14,7 +14,6 @@ network:
     - defaults
     - github
 imports:
-  - shared/mood.md
   - shared/jqschema.md
 tools:
   github:
@@ -63,6 +62,7 @@ safe-outputs:
   link-sub-issue:
     max: 50
   create-discussion:
+    expires: 1d
     title-prefix: "[Issue Arborist] "
     category: "audits"
     close-older-discussions: true
@@ -205,3 +205,9 @@ Your discussion should include:
 - Use temporary IDs (format: `aw_` + 3-8 alphanumeric characters) when creating parent issues
 - When creating parent issues, include references to all related sub-issues in the body
 - Link all related issues as sub-issues immediately after creating the parent issue
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

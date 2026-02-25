@@ -83,7 +83,7 @@ func saveRunSummary(outputDir string, summary *RunSummary, verbose bool) error {
 
 	logsCacheLog.Printf("Successfully saved run summary cache: path=%s", summaryPath)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Saved run summary to %s", summaryPath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Saved run summary to "+summaryPath))
 	}
 
 	return nil

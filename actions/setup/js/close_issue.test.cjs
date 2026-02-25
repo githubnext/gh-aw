@@ -597,5 +597,110 @@ describe("close_issue", () => {
       expect(updateCalls[0].owner).toBe("github");
       expect(updateCalls[0].repo).toBe("gh-aw");
     });
+
+    it("should use default state_reason 'COMPLETED' when not specified", async () => {
+      const handler = await main({ max: 10 });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Closing" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("completed");
+    });
+
+    it("should use item-level state_reason 'DUPLICATE' when specified in message", async () => {
+      const handler = await main({ max: 10 });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Duplicate of #50", state_reason: "DUPLICATE" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("duplicate");
+    });
+
+    it("should use item-level state_reason 'NOT_PLANNED' when specified in message", async () => {
+      const handler = await main({ max: 10 });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Won't fix", state_reason: "NOT_PLANNED" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("not_planned");
+    });
+
+    it("should use config-level state_reason as default for all closes", async () => {
+      const handler = await main({ max: 10, state_reason: "DUPLICATE" });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Duplicate" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("duplicate");
+    });
+
+    it("should prefer item-level state_reason over config-level default", async () => {
+      const handler = await main({ max: 10, state_reason: "NOT_PLANNED" });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Duplicate of #50", state_reason: "DUPLICATE" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("duplicate");
+    });
   });
 });

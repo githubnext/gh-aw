@@ -65,6 +65,10 @@ This is a test workflow to verify git configuration is included.
 		t.Error("Expected git config name command to be present")
 	}
 
+	if !strings.Contains(lockContent, "git config --global am.keepcr true") {
+		t.Error("Expected git config am.keepcr command to be present")
+	}
+
 	if !strings.Contains(lockContent, "github-actions[bot]@users.noreply.github.com") {
 		t.Error("Expected github-actions bot email to be present")
 	}
@@ -76,9 +80,9 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitConfigurationSteps()
 
-	// Verify we get expected number of lines (11 lines with env block)
-	if len(steps) != 11 {
-		t.Errorf("Expected 11 lines in git configuration steps, got %d", len(steps))
+	// Verify we get expected number of lines (12 lines with env block)
+	if len(steps) != 12 {
+		t.Errorf("Expected 12 lines in git configuration steps, got %d", len(steps))
 	}
 
 	// Verify the content of the steps
@@ -89,6 +93,7 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 		"run: |",
 		"git config --global user.email",
 		"git config --global user.name",
+		"git config --global am.keepcr true",
 		"git remote set-url origin",
 		"x-access-token",
 		"${REPO_NAME}.git",

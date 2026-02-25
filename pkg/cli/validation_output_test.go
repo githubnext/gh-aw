@@ -4,7 +4,6 @@ package cli
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -75,7 +74,7 @@ func TestFormatValidationError(t *testing.T) {
 		},
 		{
 			name: "error with formatting characters",
-			err:  fmt.Errorf("path must be relative, got: /absolute/path"),
+			err:  errors.New("path must be relative, got: /absolute/path"),
 			mustContain: []string{
 				"path must be relative",
 				"/absolute/path",
@@ -188,8 +187,8 @@ func TestFormatValidationErrorPreservesStructure(t *testing.T) {
 
 	// Verify the error message contains the original structured content
 	originalMsg := structuredErr.Error()
-	lines := strings.Split(originalMsg, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(originalMsg, "\n")
+	for line := range lines {
 		if strings.TrimSpace(line) != "" {
 			assert.Contains(t, result, strings.TrimSpace(line),
 				"Structured error should preserve line: %s", line)
@@ -211,7 +210,7 @@ func TestFormatValidationErrorContentIntegrity(t *testing.T) {
 	}
 
 	for _, msg := range errorMessages {
-		t.Run(fmt.Sprintf("content_integrity_%s", strings.ReplaceAll(msg, "\n", "_")), func(t *testing.T) {
+		t.Run("content_integrity_"+strings.ReplaceAll(msg, "\n", "_"), func(t *testing.T) {
 			err := errors.New(msg)
 			result := FormatValidationError(err)
 

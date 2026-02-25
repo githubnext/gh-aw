@@ -52,7 +52,7 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 	jsScript := workflow.GetLogParserScript(parserScriptName)
 	if jsScript == "" {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get log parser script %s", parserScriptName)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get log parser script "+parserScriptName))
 		}
 		return nil
 	}

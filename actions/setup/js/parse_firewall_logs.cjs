@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 /**
  * Parses firewall logs and creates a step summary
@@ -90,7 +91,7 @@ async function main() {
     core.summary.addRaw(summary).write();
     core.info("Firewall log summary generated successfully");
   } catch (error) {
-    core.setFailed(error instanceof Error ? error : String(error));
+    core.setFailed(`${ERR_PARSE}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

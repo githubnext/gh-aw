@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
+
 /**
  * Check if command is the first word in the triggering text
  * This prevents accidental command triggers from words appearing later in content
@@ -12,7 +14,7 @@ async function main() {
   const { getErrorMessage } = require("./error_helpers.cjs");
 
   if (!commandsJSON) {
-    core.setFailed("Configuration error: GH_AW_COMMANDS not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_COMMANDS not specified.`);
     return;
   }
 
@@ -21,16 +23,16 @@ async function main() {
   try {
     commands = JSON.parse(commandsJSON);
     if (!Array.isArray(commands)) {
-      core.setFailed("Configuration error: GH_AW_COMMANDS must be an array.");
+      core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_COMMANDS must be an array.`);
       return;
     }
   } catch (error) {
-    core.setFailed(`Configuration error: Failed to parse GH_AW_COMMANDS: ${getErrorMessage(error)}`);
+    core.setFailed(`${ERR_CONFIG}: Configuration error: Failed to parse GH_AW_COMMANDS: ${getErrorMessage(error)}`);
     return;
   }
 
   if (commands.length === 0) {
-    core.setFailed("Configuration error: No commands specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: No commands specified.`);
     return;
   }
 
@@ -88,7 +90,7 @@ async function main() {
       core.setOutput("matched_command", "");
     }
   } catch (error) {
-    core.setFailed(getErrorMessage(error));
+    core.setFailed(`${ERR_API}: ${getErrorMessage(error)}`);
   }
 }
 

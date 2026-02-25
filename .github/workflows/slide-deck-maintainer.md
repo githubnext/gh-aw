@@ -60,8 +60,6 @@ steps:
     run: |
       cd docs
       npm ci
-imports:
-  - shared/mood.md
 ---
 
 # Slide Deck Maintenance Agent

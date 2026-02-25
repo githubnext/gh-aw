@@ -94,7 +94,7 @@ func TestSpinnerMultipleStartStop(t *testing.T) {
 	spinner := NewSpinner("Test message")
 
 	// Test multiple start/stop cycles
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		spinner.Start()
 		time.Sleep(10 * time.Millisecond)
 		spinner.Stop()
@@ -126,7 +126,7 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 	}()
 
 	// Wait for all goroutines
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		<-done
 	}
 }
@@ -194,7 +194,7 @@ func TestSpinnerRapidStartStop(t *testing.T) {
 	spinner := NewSpinner("Test message")
 
 	// Test rapid start/stop cycles
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		spinner.Start()
 		spinner.Stop()
 	}
@@ -229,13 +229,13 @@ func TestSpinnerStopBeforeStartRaceCondition(t *testing.T) {
 
 	// Even if spinner is disabled in test environment, test the logic
 	// by verifying that multiple Start/Stop cycles don't panic
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		spinner.Start()
 		spinner.Stop()
 	}
 
 	// Also test StopWithMessage immediately after Start
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		spinner.Start()
 		spinner.StopWithMessage("Done")
 	}

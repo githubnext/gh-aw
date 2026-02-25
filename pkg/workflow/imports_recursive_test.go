@@ -461,7 +461,7 @@ imports:
 
 	// Extract import lines
 	var importLines []string
-	for _, line := range strings.Split(manifest, "\n") {
+	for line := range strings.SplitSeq(manifest, "\n") {
 		if strings.Contains(line, "#     - ") {
 			importName := strings.TrimSpace(strings.TrimPrefix(line, "#     - "))
 			importLines = append(importLines, importName)

@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Check MCP Server Functionality
 # This script performs basic functionality checks on MCP servers configured by the MCP gateway
-# It sends a ping message to each server to verify connectivity
+# It sends an MCP ping + initialize + tools/list request to each server to verify backend connectivity
 #
 # Resilience Features:
 # - Progressive timeout: 10s, 20s, 30s across retry attempts
 # - Progressive delay: 2s, 4s between retry attempts
-# - Up to 3 retry attempts per server ping request
+# - Up to 3 retry attempts per server
 # - Accommodates slow-starting MCP servers (gateway may take 40-50 seconds to start)
+# Protocol: ping verifies basic connectivity; initialize establishes the session (capturing
+# Mcp-Session-Id); tools/list confirms the backend container is truly ready (must be forwarded
+# by the gateway, unlike ping which may be handled at the proxy layer).
 
 set -e
 
@@ -115,12 +118,18 @@ while IFS= read -r SERVER_NAME; do
     AUTH_HEADER=$(echo "$SERVER_CONFIG" | jq -r '.headers.Authorization' 2>/dev/null)
   fi
   
-  # Send MCP ping request with retry logic
+  # MCP protocol sequence: ping → initialize → tools/list.
+  # ping verifies basic connectivity (may be handled by the gateway proxy).
+  # initialize establishes protocol version and may return a Mcp-Session-Id header
+  # that must be included in subsequent requests (for stateful HTTP transports).
+  # tools/list must be forwarded to the backend container, confirming the backend is ready.
   PING_PAYLOAD='{"jsonrpc":"2.0","id":1,"method":"ping"}'
+  INIT_PAYLOAD='{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"check-mcp-servers","version":"1.0.0"},"protocolVersion":"2024-11-05"}}'
+  TOOLS_LIST_PAYLOAD='{"jsonrpc":"2.0","id":3,"method":"tools/list"}'
   
   # Retry logic for slow-starting servers
   RETRY_COUNT=0
-  PING_SUCCESS=false
+  CHECK_SUCCESS=false
   LAST_ERROR=""
   
   while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
@@ -136,42 +145,68 @@ while IFS= read -r SERVER_NAME; do
       echo "  Attempting connection (timeout: ${TIMEOUT}s)..."
     fi
     
-    # Make the request with proper headers and progressive timeout
-    if [ -n "$AUTH_HEADER" ]; then
-      PING_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: $AUTH_HEADER" \
-        -d "$PING_PAYLOAD" 2>&1 || echo -e "\n000")
-    else
-      PING_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time $TIMEOUT -X POST "$SERVER_URL" \
-        -H "Content-Type: application/json" \
-        -d "$PING_PAYLOAD" 2>&1 || echo -e "\n000")
+    # Step 1: Send ping to verify basic connectivity
+    CURL_ARGS=(-s -w "\n%{http_code}" --max-time "$TIMEOUT" -X POST "$SERVER_URL"
+      -H "Content-Type: application/json")
+    [ -n "$AUTH_HEADER" ] && CURL_ARGS+=(-H "Authorization: $AUTH_HEADER")
+    CURL_ARGS+=(-d "$PING_PAYLOAD")
+    PING_RESPONSE=$(curl "${CURL_ARGS[@]}" 2>&1 || echo -e "\n000")
+    PING_HTTP_CODE=$(echo "$PING_RESPONSE" | tail -n 1)
+    
+    if [ "$PING_HTTP_CODE" != "200" ]; then
+      LAST_ERROR="Ping failed: HTTP ${PING_HTTP_CODE:-000}"
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      continue
     fi
     
-    PING_HTTP_CODE=$(echo "$PING_RESPONSE" | tail -n 1)
-    PING_BODY=$(echo "$PING_RESPONSE" | head -n -1)
+    # Step 2: Send MCP initialize request, capturing response headers for Mcp-Session-Id
+    CURL_ARGS=(-s -D - --max-time "$TIMEOUT" -X POST "$SERVER_URL"
+      -H "Content-Type: application/json")
+    [ -n "$AUTH_HEADER" ] && CURL_ARGS+=(-H "Authorization: $AUTH_HEADER")
+    CURL_ARGS+=(-d "$INIT_PAYLOAD")
+    INIT_RESPONSE=$(curl "${CURL_ARGS[@]}" 2>&1 || true)
     
-    # Check if ping succeeded
-    if [ "$PING_HTTP_CODE" = "200" ]; then
+    INIT_HTTP_CODE=$(echo "$INIT_RESPONSE" | grep -m1 '^HTTP/' | awk '{print $2}')
+    SESSION_ID=$(echo "$INIT_RESPONSE" | grep -i '^Mcp-Session-Id:' | awk '{print $2}' | tr -d '\r')
+    
+    if [ "$INIT_HTTP_CODE" != "200" ]; then
+      LAST_ERROR="Initialize failed: HTTP ${INIT_HTTP_CODE:-000}"
+      RETRY_COUNT=$((RETRY_COUNT + 1))
+      continue
+    fi
+    
+    # Step 3: Send tools/list, including Mcp-Session-Id header if returned by initialize
+    CURL_ARGS=(-s -w "\n%{http_code}" --max-time "$TIMEOUT" -X POST "$SERVER_URL"
+      -H "Content-Type: application/json")
+    [ -n "$AUTH_HEADER" ] && CURL_ARGS+=(-H "Authorization: $AUTH_HEADER")
+    [ -n "$SESSION_ID" ] && CURL_ARGS+=(-H "Mcp-Session-Id: $SESSION_ID")
+    CURL_ARGS+=(-d "$TOOLS_LIST_PAYLOAD")
+    CHECK_RESPONSE=$(curl "${CURL_ARGS[@]}" 2>&1 || echo -e "\n000")
+    
+    CHECK_HTTP_CODE=$(echo "$CHECK_RESPONSE" | tail -n 1)
+    CHECK_BODY=$(echo "$CHECK_RESPONSE" | head -n -1)
+    
+    # Check if tools/list succeeded
+    if [ "$CHECK_HTTP_CODE" = "200" ]; then
       # Check for JSON-RPC error in response
-      if ! echo "$PING_BODY" | jq -e '.error' >/dev/null 2>&1; then
-        PING_SUCCESS=true
+      if ! echo "$CHECK_BODY" | jq -e '.error' >/dev/null 2>&1; then
+        CHECK_SUCCESS=true
         break
       else
-        LAST_ERROR="JSON-RPC error: $(echo "$PING_BODY" | jq -r '.error.message // .error' 2>/dev/null)"
+        LAST_ERROR="JSON-RPC error: $(echo "$CHECK_BODY" | jq -r '.error.message // .error' 2>/dev/null)"
       fi
     else
-      LAST_ERROR="HTTP ${PING_HTTP_CODE}"
-      if [ "$PING_HTTP_CODE" = "000" ]; then
+      LAST_ERROR="HTTP ${CHECK_HTTP_CODE}"
+      if [ "$CHECK_HTTP_CODE" = "000" ]; then
         # Connection error or timeout
-        if echo "$PING_BODY" | grep -q "Connection refused"; then
+        if echo "$CHECK_BODY" | grep -q "Connection refused"; then
           LAST_ERROR="Connection refused"
-        elif echo "$PING_BODY" | grep -q "timed out"; then
+        elif echo "$CHECK_BODY" | grep -q "timed out"; then
           LAST_ERROR="Connection timeout"
-        elif echo "$PING_BODY" | grep -q "Could not resolve host"; then
+        elif echo "$CHECK_BODY" | grep -q "Could not resolve host"; then
           LAST_ERROR="DNS resolution failed"
         else
-          LAST_ERROR="Connection error: $(echo "$PING_BODY" | head -c 100)"
+          LAST_ERROR="Connection error: $(echo "$CHECK_BODY" | head -c 100)"
         fi
       fi
     fi
@@ -179,7 +214,7 @@ while IFS= read -r SERVER_NAME; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
   done
   
-  if [ "$PING_SUCCESS" = true ]; then
+  if [ "$CHECK_SUCCESS" = true ]; then
     echo "✓ $SERVER_NAME: connected"
     SERVERS_SUCCEEDED=$((SERVERS_SUCCEEDED + 1))
   else
@@ -202,7 +237,7 @@ if [ $SERVERS_FAILED -gt 0 ]; then
   echo "ERROR: $SERVERS_FAILED of $SERVERS_CHECKED server(s) failed connectivity check"
   echo "Succeeded: $SERVERS_SUCCEEDED, Failed: $SERVERS_FAILED, Skipped: $SERVERS_SKIPPED"
   echo ""
-  echo "This indicates that one or more MCP servers failed to respond to ping requests"
+  echo "This indicates that one or more MCP servers failed to respond to MCP ping/initialize/tools/list requests"
   echo "after multiple retry attempts with progressive timeouts (10s, 20s, 30s)."
   echo ""
   echo "Common causes:"

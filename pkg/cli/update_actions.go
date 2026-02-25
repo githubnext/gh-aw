@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -42,7 +43,7 @@ func UpdateActions(allowMajor, verbose bool) error {
 	// Check if the file exists
 	if _, err := os.Stat(actionsLockPath); os.IsNotExist(err) {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Actions lock file not found: %s", actionsLockPath)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Actions lock file not found: "+actionsLockPath))
 		}
 		return nil // Not an error, just skip
 	}
@@ -171,7 +172,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 			// Try fallback using git ls-remote
 			latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGit(repo, currentVersion, allowMajor, verbose)
 			if gitErr != nil {
-				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git error: %v", err, gitErr)
+				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git Error: %w", err, gitErr)
 			}
 			return latestRelease, latestSHA, nil
 		}
@@ -180,7 +181,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 
 	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(releases) == 0 || releases[0] == "" {
-		return "", "", fmt.Errorf("no releases found")
+		return "", "", errors.New("no releases found")
 	}
 
 	// Parse current version
@@ -203,7 +204,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	}
 
 	if len(validReleases) == 0 {
-		return "", "", fmt.Errorf("no valid semantic version releases found")
+		return "", "", errors.New("no valid semantic version releases found")
 	}
 
 	// Sort releases by semver in descending order (highest first)
@@ -249,7 +250,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	}
 
 	if latestCompatible == "" {
-		return "", "", fmt.Errorf("no compatible release found")
+		return "", "", errors.New("no compatible release found")
 	}
 
 	// Get the SHA for the latest compatible release
@@ -302,7 +303,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	}
 
 	if len(releases) == 0 {
-		return "", "", fmt.Errorf("no releases found")
+		return "", "", errors.New("no releases found")
 	}
 
 	// Parse current version
@@ -325,7 +326,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	}
 
 	if len(validReleases) == 0 {
-		return "", "", fmt.Errorf("no valid semantic version releases found")
+		return "", "", errors.New("no valid semantic version releases found")
 	}
 
 	// Sort releases by semver in descending order (highest first)
@@ -371,7 +372,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	}
 
 	if latestCompatible == "" {
-		return "", "", fmt.Errorf("no compatible release found")
+		return "", "", errors.New("no compatible release found")
 	}
 
 	sha := tagToSHA[latestCompatible]
@@ -394,7 +395,7 @@ func getActionSHAForTag(repo, tag string) (string, error) {
 
 	sha := strings.TrimSpace(string(output))
 	if sha == "" {
-		return "", fmt.Errorf("empty SHA returned for tag")
+		return "", errors.New("empty SHA returned for tag")
 	}
 
 	// Validate SHA format (should be 40 hex characters)
@@ -435,7 +436,7 @@ func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
 
 		// Write the key-value pair with proper indentation
 		buf.WriteString("    ")
-		buf.WriteString(string(keyJSON))
+		buf.Write(keyJSON)
 		buf.WriteString(": ")
 
 		// Pretty-print the entry JSON with proper indentation

@@ -111,6 +111,17 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "object with runs-on override",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"runs-on": "self-hosted",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				RunsOn: "self-hosted",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -134,45 +145,112 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			if len(result.Steps) != len(tt.expectedConfig.Steps) {
 				t.Errorf("Expected %d steps, got %d", len(tt.expectedConfig.Steps), len(result.Steps))
 			}
+
+			if result.RunsOn != tt.expectedConfig.RunsOn {
+				t.Errorf("Expected RunsOn %q, got %q", tt.expectedConfig.RunsOn, result.RunsOn)
+			}
 		})
 	}
 }
 
-func TestBuildThreatDetectionJob(t *testing.T) {
+func TestFormatDetectionRunsOn(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		agentRunsOn    string
+		expectedRunsOn string
+	}{
+		{
+			name:           "nil safe outputs uses agent runs-on",
+			safeOutputs:    nil,
+			agentRunsOn:    "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name: "detection runs-on takes priority over agent runs-on",
+			safeOutputs: &SafeOutputsConfig{
+				RunsOn: "self-hosted",
+				ThreatDetection: &ThreatDetectionConfig{
+					RunsOn: "detection-runner",
+				},
+			},
+			agentRunsOn:    "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: detection-runner",
+		},
+		{
+			name: "falls back to agent runs-on when detection runs-on is empty",
+			safeOutputs: &SafeOutputsConfig{
+				RunsOn:          "self-hosted",
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			agentRunsOn:    "runs-on: my-agent-runner",
+			expectedRunsOn: "runs-on: my-agent-runner",
+		},
+		{
+			name: "falls back to agent runs-on when both detection and safe-outputs runs-on are empty",
+			safeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			agentRunsOn:    "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name: "nil threat detection uses agent runs-on",
+			safeOutputs: &SafeOutputsConfig{
+				RunsOn:          "windows-latest",
+				ThreatDetection: nil,
+			},
+			agentRunsOn:    "runs-on: my-agent-runner",
+			expectedRunsOn: "runs-on: my-agent-runner",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.formatDetectionRunsOn(tt.safeOutputs, tt.agentRunsOn)
+			if result != tt.expectedRunsOn {
+				t.Errorf("Expected runs-on %q, got %q", tt.expectedRunsOn, result)
+			}
+		})
+	}
+}
+
+func TestBuildInlineDetectionSteps(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
 		data        *WorkflowData
-		mainJobName string
-		expectError bool
-		expectJob   bool
+		expectNil   bool
+		expectSteps bool
 	}{
 		{
-			name: "threat detection disabled (nil) should return error",
+			name: "threat detection disabled (nil) should return nil",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: nil,
 				},
 			},
-			mainJobName: "agent",
-			expectError: true,
-			expectJob:   false,
+			expectNil:   true,
+			expectSteps: false,
 		},
 		{
-			name: "threat detection enabled should create job",
+			name: "threat detection enabled should create inline steps",
 			data: &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{},
 				},
 			},
-			mainJobName: "agent",
-			expectError: false,
-			expectJob:   true,
+			expectNil:   false,
+			expectSteps: true,
 		},
 		{
-			name: "threat detection with custom steps should create job",
+			name: "threat detection with custom steps should create inline steps",
 			data: &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
 						Steps: []any{
@@ -184,61 +262,44 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 					},
 				},
 			},
-			mainJobName: "agent",
-			expectError: false,
-			expectJob:   true,
+			expectNil:   false,
+			expectSteps: true,
 		},
 		{
-			name: "nil safe outputs should return error",
+			name: "nil safe outputs should return nil",
 			data: &WorkflowData{
 				SafeOutputs: nil,
 			},
-			mainJobName: "agent",
-			expectError: true,
-			expectJob:   false,
+			expectNil:   true,
+			expectSteps: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			job, err := compiler.buildThreatDetectionJob(tt.data, tt.mainJobName)
+			steps := compiler.buildInlineDetectionSteps(tt.data)
 
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error, got nil")
+			if tt.expectNil && steps != nil {
+				t.Errorf("Expected nil steps, got %d lines", len(steps))
 			}
-			if !tt.expectError && err != nil {
-				t.Errorf("Expected no error, got %v", err)
-			}
-
-			if tt.expectJob && job == nil {
-				t.Errorf("Expected job to be created, got nil")
-			}
-			if !tt.expectJob && job != nil {
-				t.Errorf("Expected no job, got %+v", job)
+			if !tt.expectNil && steps == nil {
+				t.Errorf("Expected non-nil steps, got nil")
 			}
 
-			if job != nil {
-				// Verify job properties
-				if job.Name != string(constants.DetectionJobName) {
-					t.Errorf("Expected job name 'detection', got %q", job.Name)
+			if tt.expectSteps {
+				joined := strings.Join(steps, "")
+				// Verify key inline detection step components
+				if !strings.Contains(joined, "detection_guard") {
+					t.Error("Expected inline steps to contain detection_guard step")
 				}
-				if job.RunsOn != "runs-on: ubuntu-latest" {
-					t.Errorf("Expected ubuntu-latest runner, got %q", job.RunsOn)
+				if !strings.Contains(joined, "parse_detection_results") {
+					t.Error("Expected inline steps to contain parse_detection_results step")
 				}
-				// In dev mode (default), detection job should have contents: read permission for checkout
-				// In release mode, it should have empty permissions
-				expectedPerms := "permissions:\n      contents: read"
-				if compiler.actionMode.IsRelease() {
-					expectedPerms = "permissions: {}"
+				if !strings.Contains(joined, "detection_conclusion") {
+					t.Error("Expected inline steps to contain detection_conclusion step")
 				}
-				if job.Permissions != expectedPerms {
-					t.Errorf("Expected %q, got %q", expectedPerms, job.Permissions)
-				}
-				if len(job.Needs) != 1 || job.Needs[0] != tt.mainJobName {
-					t.Errorf("Expected job to depend on %q, got %v", tt.mainJobName, job.Needs)
-				}
-				if job.TimeoutMinutes != 10 {
-					t.Errorf("Expected 10 minute timeout, got %d", job.TimeoutMinutes)
+				if !strings.Contains(joined, "Threat Detection (inline)") {
+					t.Error("Expected inline steps to contain threat detection comment separator")
 				}
 			}
 		})
@@ -286,70 +347,43 @@ func TestThreatDetectionExplicitDisable(t *testing.T) {
 	}
 }
 
-func TestThreatDetectionJobDependencies(t *testing.T) {
-	// Test that safe-output jobs depend on detection job when threat detection is enabled
+func TestThreatDetectionInlineStepsDependencies(t *testing.T) {
+	// Test that inline detection steps are generated when threat detection is enabled
+	// and that safe-output jobs can check detection results via agent job outputs
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{},
-			CreateIssues:    &CreateIssuesConfig{},
 		},
 	}
 
-	// Build safe output jobs (this will automatically build the detection job too)
-	frontmatter := map[string]any{}
-	if err := func() error {
-		var _ = frontmatter
-		return compiler.buildSafeOutputsJobs(data, "agent", "test.md")
-	}(); err != nil {
-		t.Fatalf("Failed to build safe output jobs: %v", err)
+	// Build inline detection steps
+	steps := compiler.buildInlineDetectionSteps(data)
+	if steps == nil {
+		t.Fatal("Expected inline detection steps to be created")
 	}
 
-	// Check that both detection and safe_outputs jobs were created
-	jobs := compiler.jobManager.GetAllJobs()
-	var detectionJob, safeOutputsJob *Job
+	joined := strings.Join(steps, "")
 
-	for _, job := range jobs {
-		switch job.Name {
-		case string(constants.DetectionJobName):
-			detectionJob = job
-		case "safe_outputs":
-			safeOutputsJob = job
-		}
+	// Verify detection guard step exists (determines if detection should run)
+	if !strings.Contains(joined, "detection_guard") {
+		t.Error("Expected inline steps to include detection_guard step")
 	}
 
-	if detectionJob == nil {
-		t.Fatal("Expected detection job to be created")
+	// Verify detection conclusion step exists (sets final detection outputs)
+	if !strings.Contains(joined, "detection_conclusion") {
+		t.Error("Expected inline steps to include detection_conclusion step")
 	}
 
-	if safeOutputsJob == nil {
-		t.Fatal("Expected safe_outputs job to be created")
-	}
-
-	// Check that detection job depends on agent job
-	if len(detectionJob.Needs) != 1 || detectionJob.Needs[0] != string(constants.AgentJobName) {
-		t.Errorf("Expected detection job to depend on agent job, got dependencies: %v", detectionJob.Needs)
-	}
-
-	// Check that safe_outputs job depends on both agent and detection jobs
-	hasAgent := false
-	hasDetection := false
-	for _, dep := range safeOutputsJob.Needs {
-		if dep == string(constants.AgentJobName) {
-			hasAgent = true
-		}
-		if dep == string(constants.DetectionJobName) {
-			hasDetection = true
-		}
-	}
-	if !hasAgent || !hasDetection {
-		t.Errorf("Expected safe_outputs job to depend on both agent and detection jobs, got dependencies: %v", safeOutputsJob.Needs)
+	// Verify parse results step exists
+	if !strings.Contains(joined, "parse_detection_results") {
+		t.Error("Expected inline steps to include parse_detection_results step")
 	}
 }
 
 func TestThreatDetectionCustomPrompt(t *testing.T) {
-	// Test that custom prompt instructions are included in the workflow
+	// Test that custom prompt instructions are included in the inline detection steps
 	compiler := NewCompiler()
 
 	customPrompt := "Look for suspicious API calls to external services and check for backdoor installations."
@@ -363,20 +397,13 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 		},
 	}
 
-	job, err := compiler.buildThreatDetectionJob(data, "agent")
-	if err != nil {
-		t.Fatalf("Failed to build threat detection job: %v", err)
-	}
-
-	if job == nil {
-		t.Fatal("Expected job to be created")
+	steps := compiler.buildInlineDetectionSteps(data)
+	if steps == nil {
+		t.Fatal("Expected inline detection steps to be created")
 	}
 
 	// Check that the custom prompt is included in the generated steps
-	stepsString := ""
-	for _, step := range job.Steps {
-		stepsString += step
-	}
+	stepsString := strings.Join(steps, "")
 
 	if !strings.Contains(stepsString, "CUSTOM_PROMPT") {
 		t.Error("Expected CUSTOM_PROMPT environment variable in steps")
@@ -473,7 +500,7 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildThreatDetectionSteps(data, "agent")
+	steps := compiler.buildInlineDetectionSteps(data)
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps")
@@ -514,7 +541,7 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 	}
 }
 
-func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
+func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
@@ -568,7 +595,7 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := compiler.buildEngineSteps(tt.data)
+			steps := compiler.buildDetectionEngineExecutionStep(tt.data)
 
 			if len(steps) == 0 {
 				t.Fatal("Expected non-empty steps")
@@ -627,7 +654,7 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 		},
 	}
 
-	steps := compiler.buildThreatDetectionSteps(data, "agent")
+	steps := compiler.buildInlineDetectionSteps(data)
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps")
@@ -638,146 +665,17 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 
 	// Verify that the upload detection log step is included
 	if !strings.Contains(stepsString, "Upload threat detection log") {
-		t.Error("Expected threat detection steps to include upload detection log step")
+		t.Error("Expected inline detection steps to include upload detection log step")
 	}
 
 	if !strings.Contains(stepsString, "threat-detection.log") {
-		t.Error("Expected threat detection steps to include threat-detection.log artifact name")
-	}
-
-	// Verify it uses the always() condition
-	if !strings.Contains(stepsString, "if: always()") {
-		t.Error("Expected upload step to have 'if: always()' condition")
+		t.Error("Expected inline detection steps to include threat-detection.log artifact name")
 	}
 
 	// Verify it ignores missing files
 	if !strings.Contains(stepsString, "if-no-files-found: ignore") {
 		t.Error("Expected upload step to have 'if-no-files-found: ignore'")
 	}
-}
-
-func TestEchoAgentOutputsStep(t *testing.T) {
-	compiler := NewCompiler()
-
-	// Test that the echo step is created with correct properties
-	steps := compiler.buildEchoAgentOutputsStep("agent")
-
-	if len(steps) == 0 {
-		t.Fatal("Expected non-empty steps for echo agent outputs")
-	}
-
-	// Join all steps into a single string for easier verification
-	stepsString := strings.Join(steps, "")
-
-	// Verify key components of the echo step - now only echoing output types to avoid CLI overflow
-	expectedComponents := []string{
-		"name: Print agent output types",
-		"env:",
-		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
-		"run: |",
-		"echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"",
-	}
-
-	for _, expected := range expectedComponents {
-		if !strings.Contains(stepsString, expected) {
-			t.Errorf("Expected echo agent output types step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
-		}
-	}
-
-	// Verify that we don't echo the full agent output (to avoid CLI overflow)
-	notExpectedComponents := []string{
-		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
-		"echo \"Agent output: $AGENT_OUTPUT\"",
-	}
-
-	for _, notExpected := range notExpectedComponents {
-		if strings.Contains(stepsString, notExpected) {
-			t.Errorf("Echo step should not contain %q to avoid CLI overflow.\nGenerated steps:\n%s", notExpected, stepsString)
-		}
-	}
-}
-
-func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
-	compiler := NewCompiler()
-
-	data := &WorkflowData{
-		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{},
-		},
-	}
-
-	steps := compiler.buildThreatDetectionSteps(data, "agent")
-
-	if len(steps) == 0 {
-		t.Fatal("Expected non-empty steps")
-	}
-
-	// Join all steps into a single string for easier verification
-	stepsString := strings.Join(steps, "")
-
-	// Verify that the echo step is included
-	if !strings.Contains(stepsString, "Print agent output types") {
-		t.Error("Expected threat detection steps to include print agent output types step")
-	}
-
-	// Verify it doesn't echo the full output to avoid CLI overflow
-	// Use word boundary to avoid matching "output_types"
-	if strings.Contains(stepsString, "needs.agent.outputs.output }") ||
-		strings.Contains(stepsString, "needs.agent.outputs.output\n") {
-		t.Error("Echo step should not reference needs.agent.outputs.output to avoid CLI overflow")
-	}
-
-	if !strings.Contains(stepsString, "needs.agent.outputs.output_types") {
-		t.Error("Expected echo step to reference needs.agent.outputs.output_types")
-	}
-}
-
-func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
-	compiler := NewCompiler()
-
-	// Test that the download artifact step includes unified agent-artifacts download
-	steps := compiler.buildDownloadArtifactStep("agent")
-
-	if len(steps) == 0 {
-		t.Fatal("Expected non-empty steps for download artifact")
-	}
-
-	// Join all steps into a single string for easier verification
-	stepsString := strings.Join(steps, "")
-
-	// Verify unified agent-artifacts download (contains prompt, patch, logs, etc.)
-	expectedComponents := []string{
-		"name: Download agent artifacts",
-		"continue-on-error: true",
-		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
-		"name: agent-artifacts",
-		"path: /tmp/gh-aw/threat-detection/",
-	}
-
-	for _, expected := range expectedComponents {
-		if !strings.Contains(stepsString, expected) {
-			t.Errorf("Expected download artifact step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
-		}
-	}
-
-	// Verify it still includes agent output download (separate artifact)
-	if !strings.Contains(stepsString, "Download agent output artifact") {
-		t.Error("Expected download steps to include agent output artifact")
-	}
-
-	// Verify agent output is downloaded to the same threat-detection directory
-	if !strings.Contains(stepsString, "path: /tmp/gh-aw/threat-detection/") {
-		t.Error("Expected agent output to be downloaded to threat-detection directory")
-	}
-}
-
-func TestDownloadPatchArtifactHasConditional(t *testing.T) {
-	// This test is no longer applicable since we now download the entire
-	// agent-artifacts unconditionally. The unified artifact contains prompt,
-	// patch (if present), logs, etc. The patch file being present or not
-	// doesn't affect the download step - it just means the file may or may not
-	// be in the downloaded artifact.
-	t.Skip("Patch is now part of unified agent-artifacts download without conditional")
 }
 
 func TestSetupScriptReferencesPromptFile(t *testing.T) {
@@ -876,68 +774,113 @@ func TestThreatDetectionEngineFalse(t *testing.T) {
 	}
 }
 
-// TestDetectionJobSkipCondition verifies that the detection job has the correct
-// conditional logic to skip when there are no safe outputs and no patches
-func TestDetectionJobSkipCondition(t *testing.T) {
+// TestDetectionGuardStepCondition verifies that the inline detection guard step
+// has the correct conditional logic to skip when there are no safe outputs and no patches
+func TestDetectionGuardStepCondition(t *testing.T) {
 	compiler := NewCompiler()
 
-	frontmatter := map[string]any{
-		"on": "issues",
-		"safe-outputs": map[string]any{
-			"create-issue": map[string]any{},
-		},
+	// Build the detection guard step
+	steps := compiler.buildDetectionGuardStep()
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty guard steps")
 	}
 
-	// Extract safe outputs configuration
-	config := compiler.extractSafeOutputsConfig(frontmatter)
-	if config == nil {
-		t.Fatal("Expected safe outputs config to be created")
+	joined := strings.Join(steps, "")
+
+	// Verify the guard step has the detection_guard ID
+	if !strings.Contains(joined, "id: detection_guard") {
+		t.Error("Expected guard step to have id 'detection_guard'")
 	}
 
-	// Create workflow data with threat detection enabled
-	data := &WorkflowData{
-		SafeOutputs: config,
-	}
-
-	// Build the threat detection job
-	job, err := compiler.buildThreatDetectionJob(data, string(constants.AgentJobName))
-	if err != nil {
-		t.Fatalf("Failed to build detection job: %v", err)
-	}
-
-	// Verify the job has a conditional
-	if job.If == "" {
-		t.Error("Expected detection job to have an 'if' condition")
-	}
-
-	// Verify the condition checks for output_types
-	if !strings.Contains(job.If, "needs.agent.outputs.output_types") {
-		t.Error("Expected detection job condition to check output_types")
+	// Verify the condition checks for output types
+	if !strings.Contains(joined, "OUTPUT_TYPES") {
+		t.Error("Expected guard step to check OUTPUT_TYPES")
 	}
 
 	// Verify the condition checks for has_patch
-	if !strings.Contains(job.If, "needs.agent.outputs.has_patch") {
-		t.Error("Expected detection job condition to check has_patch")
+	if !strings.Contains(joined, "HAS_PATCH") {
+		t.Error("Expected guard step to check HAS_PATCH")
 	}
 
-	// Verify the condition uses OR logic (||)
-	if !strings.Contains(job.If, "||") {
-		t.Error("Expected detection job condition to use OR logic (||)")
+	// Verify it uses always() to run even after agent failure
+	if !strings.Contains(joined, "if: always()") {
+		t.Error("Expected guard step to use always() condition")
 	}
 
-	// Verify the condition checks output_types is not empty
-	if !strings.Contains(job.If, "!= ''") {
-		t.Error("Expected detection job condition to check output_types is not empty")
+	// Verify it sets run_detection output
+	if !strings.Contains(joined, "run_detection=true") {
+		t.Error("Expected guard step to set run_detection=true")
+	}
+	if !strings.Contains(joined, "run_detection=false") {
+		t.Error("Expected guard step to set run_detection=false")
+	}
+}
+
+// TestBuildDetectionEngineExecutionStepStripsAgentField verifies that the Agent field from the
+// main engine config is never propagated to the detection engine config,
+// regardless of whether a model is explicitly configured.
+func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name string
+		data *WorkflowData
+	}{
+		{
+			name: "agent field stripped when model is explicitly configured",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Model: "claude-opus-4.6",
+					Agent: "my-agent",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
+		{
+			name: "agent field stripped when no model configured",
+			data: &WorkflowData{
+				AI: "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Agent: "my-agent",
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+		},
 	}
 
-	// Verify the condition checks has_patch equals 'true'
-	if !strings.Contains(job.If, "== 'true'") {
-		t.Error("Expected detection job condition to check has_patch equals 'true'")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := compiler.buildDetectionEngineExecutionStep(tt.data)
+
+			if len(steps) == 0 {
+				t.Fatal("Expected non-empty steps")
+			}
+
+			allSteps := strings.Join(steps, "")
+
+			// The --agent flag must not appear in the threat detection steps
+			if strings.Contains(allSteps, "--agent") {
+				t.Errorf("Expected detection steps to NOT contain --agent flag, but found it.\nGenerated steps:\n%s", allSteps)
+			}
+
+			// Ensure the original engine config is not mutated
+			if tt.data.EngineConfig != nil && tt.data.EngineConfig.Agent != "my-agent" {
+				t.Errorf("Original EngineConfig.Agent was mutated; expected %q, got %q", "my-agent", tt.data.EngineConfig.Agent)
+			}
+		})
 	}
 }
 
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
-// default model gpt-5.1-codex-mini for the detection job when no model is specified
+// default model gpt-5.1-codex-mini for the detection step when no model is specified
 func TestCopilotDetectionDefaultModel(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -1019,7 +962,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := compiler.buildEngineSteps(tt.data)
+			steps := compiler.buildDetectionEngineExecutionStep(tt.data)
 
 			if len(steps) == 0 {
 				t.Fatal("Expected non-empty steps")
@@ -1029,19 +972,14 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			allSteps := strings.Join(steps, "")
 
 			if tt.shouldContainModel {
-				// Check for --model flag
-				if !strings.Contains(allSteps, "--model") {
-					t.Errorf("Expected steps to contain --model flag, but it was not found.\nGenerated steps:\n%s", allSteps)
-				}
-
-				// For detection jobs, check if either:
-				// 1. The model is explicitly specified in the command (for custom models)
-				// 2. The environment variable GH_AW_MODEL_DETECTION_COPILOT is used (for default model)
-				hasExplicitModel := strings.Contains(allSteps, "--model "+tt.expectedModel)
+				// For detection steps, check if either:
+				// 1. The model is set via native COPILOT_MODEL env var (for configured models)
+				// 2. The environment variable GH_AW_MODEL_DETECTION_COPILOT is used (for default/fallback)
+				hasNativeEnvVar := strings.Contains(allSteps, "COPILOT_MODEL: "+tt.expectedModel)
 				hasEnvVar := strings.Contains(allSteps, "GH_AW_MODEL_DETECTION_COPILOT")
 
-				if !hasExplicitModel && !hasEnvVar {
-					t.Errorf("Expected steps to contain either explicit model %q or GH_AW_MODEL_DETECTION_COPILOT environment variable, but neither was found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
+				if !hasNativeEnvVar && !hasEnvVar {
+					t.Errorf("Expected steps to contain either COPILOT_MODEL: %q or GH_AW_MODEL_DETECTION_COPILOT environment variable, but neither was found.\nGenerated steps:\n%s", tt.expectedModel, allSteps)
 				}
 			}
 		})

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+const { ERR_CONFIG } = require("./error_codes.cjs");
 const mockCore = {
     debug: vi.fn(),
     info: vi.fn(),
@@ -42,7 +43,9 @@ const mockCore = {
         void 0 !== originalEnv.GH_AW_COMMANDS ? (process.env.GH_AW_COMMANDS = originalEnv.GH_AW_COMMANDS) : delete process.env.GH_AW_COMMANDS;
       }),
       it("should fail when GH_AW_COMMANDS is not set", async () => {
-        (delete process.env.GH_AW_COMMANDS, await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`), expect(mockCore.setFailed).toHaveBeenCalledWith("Configuration error: GH_AW_COMMANDS not specified."));
+        (delete process.env.GH_AW_COMMANDS,
+          await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`),
+          expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_CONFIG}: Configuration error: GH_AW_COMMANDS not specified.`));
       }),
       it("should pass when command is the first word in issue body", async () => {
         ((process.env.GH_AW_COMMANDS = JSON.stringify(["test-bot"])),

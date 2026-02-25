@@ -25,7 +25,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					AllowedLabels: []string{"bug", "feature"},
 					Labels:        []string{"ai-generated"},
@@ -44,10 +44,10 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 					Target:            "issue",
-					HideOlderComments: true,
+					HideOlderComments: testStringPtr("true"),
 				},
 			},
 			checkContains: []string{
@@ -61,12 +61,12 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 2,
+						Max: strPtr("2"),
 					},
 					Category:              "general",
 					TitlePrefix:           "[Discussion] ",
 					Labels:                []string{"ai"},
-					CloseOlderDiscussions: true,
+					CloseOlderDiscussions: testStringPtr("true"),
 				},
 			},
 			checkContains: []string{
@@ -80,7 +80,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CloseIssues: &CloseEntityConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 10,
+						Max: strPtr("10"),
 					},
 				},
 			},
@@ -109,7 +109,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				UpdateIssues: &UpdateIssuesConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 5,
+							Max: strPtr("5"),
 						},
 					},
 					Status: testBoolPtr(true),
@@ -128,13 +128,13 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 					TitlePrefix: "[PR] ",
 					Labels:      []string{"automated"},
-					Draft:       testBoolPtr(true),
+					Draft:       testStringPtr("true"),
 					IfNoChanges: "skip",
-					AllowEmpty:  true,
+					AllowEmpty:  testStringPtr("true"),
 					Expires:     7,
 				},
 			},
@@ -149,11 +149,11 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 1,
+						Max: strPtr("1"),
 					},
 					Reviewers: []string{"user1", "user2"},
 					Labels:    []string{"automated"},
-					Draft:     testBoolPtr(false),
+					Draft:     testStringPtr("false"),
 				},
 			},
 			checkContains: []string{
@@ -167,7 +167,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					Target:            "pull_request",
 					TitlePrefix:       "[Update] ",
@@ -190,7 +190,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				},
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 3,
+						Max: strPtr("3"),
 					},
 				},
 				AddLabels: &AddLabelsConfig{
@@ -289,7 +289,7 @@ func TestHandlerConfigMaxValues(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 10,
+					Max: strPtr("10"),
 				},
 			},
 		},
@@ -418,46 +418,51 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 		safeOutputs *SafeOutputsConfig
 		checkField  string
 		checkKey    string
+		expected    any // expected value in JSON (bool or string)
 	}{
 		{
 			name: "hide older comments",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
-					HideOlderComments: true,
+					HideOlderComments: testStringPtr("true"),
 				},
 			},
 			checkField: "add_comment",
 			checkKey:   "hide_older_comments",
+			expected:   true,
 		},
 		{
 			name: "close older discussions",
 			safeOutputs: &SafeOutputsConfig{
 				CreateDiscussions: &CreateDiscussionsConfig{
-					CloseOlderDiscussions: true,
+					CloseOlderDiscussions: testStringPtr("true"),
 				},
 			},
 			checkField: "create_discussion",
 			checkKey:   "close_older_discussions",
+			expected:   true,
 		},
 		{
 			name: "allow empty PR",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					AllowEmpty: true,
+					AllowEmpty: testStringPtr("true"),
 				},
 			},
 			checkField: "create_pull_request",
 			checkKey:   "allow_empty",
+			expected:   true,
 		},
 		{
 			name: "draft PR",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
-					Draft: testBoolPtr(true),
+					Draft: testStringPtr("true"),
 				},
 			},
 			checkField: "create_pull_request",
 			checkKey:   "draft",
+			expected:   true, // AddTemplatableBool converts "true" string to JSON boolean
 		},
 	}
 
@@ -491,7 +496,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 
 						val, ok := fieldConfig[tt.checkKey]
 						require.True(t, ok, "Expected key: "+tt.checkKey)
-						assert.Equal(t, true, val)
+						assert.Equal(t, tt.expected, val)
 					}
 				}
 			}
@@ -696,6 +701,11 @@ func testBoolPtr(b bool) *bool {
 	return &b
 }
 
+// testStringPtr is a helper function for string pointers in config tests
+func testStringPtr(s string) *string {
+	return &s
+}
+
 // TestAutoEnabledHandlers tests that missing_tool and missing_data
 // are automatically enabled even when not explicitly configured.
 // Note: noop is NOT included here because it is always processed by a dedicated
@@ -711,7 +721,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -722,7 +732,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				MissingData: &MissingDataConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -733,12 +743,12 @@ func TestAutoEnabledHandlers(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 				MissingData: &MissingDataConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -752,7 +762,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 				},
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 			},
@@ -814,7 +824,7 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 		{
 			name:               "default base branch",
 			baseBranch:         "",
-			expectedBaseBranch: "${{ github.ref_name }}",
+			expectedBaseBranch: "${{ github.base_ref || github.ref_name }}",
 		},
 		{
 			name:               "branch with slash",
@@ -832,7 +842,7 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					CreatePullRequests: &CreatePullRequestsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 						BaseBranch: tt.baseBranch,
 					},
@@ -880,7 +890,7 @@ func TestHandlerConfigAssignToUser(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AssignToUser: &AssignToUserConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 5,
+					Max: strPtr("5"),
 				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
 					Target:         "issues",
@@ -960,9 +970,9 @@ func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AssignToUser: &AssignToUserConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 3,
+					Max: strPtr("3"),
 				},
-				UnassignFirst: true,
+				UnassignFirst: testStringPtr("true"),
 			},
 		},
 	}
@@ -1009,7 +1019,7 @@ func TestHandlerConfigUnassignFromUser(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			UnassignFromUser: &UnassignFromUserConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 10,
+					Max: strPtr("10"),
 				},
 				SafeOutputTargetConfig: SafeOutputTargetConfig{
 					Target:         "issues",
@@ -1070,6 +1080,106 @@ func TestHandlerConfigUnassignFromUser(t *testing.T) {
 				allowedReposSlice, ok := allowedRepos.([]any)
 				require.True(t, ok, "Allowed repos should be an array")
 				assert.Len(t, allowedReposSlice, 1, "Should have 1 allowed repo")
+			}
+		}
+	}
+}
+
+// TestHandlerConfigAssignToUserWithBlocked tests that blocked patterns are included in assign_to_user handler config
+func TestHandlerConfigAssignToUserWithBlocked(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AssignToUser: &AssignToUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "microsoft/vscode",
+				},
+				Blocked: []string{"copilot", "*[bot]"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				assignConfig, ok := config["assign_to_user"]
+				require.True(t, ok, "Should have assign_to_user handler")
+
+				blocked, ok := assignConfig["blocked"]
+				require.True(t, ok, "Should have blocked field")
+				blockedSlice, ok := blocked.([]any)
+				require.True(t, ok, "Blocked should be an array")
+				assert.Len(t, blockedSlice, 2, "Should have 2 blocked patterns")
+				assert.Equal(t, "copilot", blockedSlice[0], "First blocked pattern should be copilot")
+				assert.Equal(t, "*[bot]", blockedSlice[1], "Second blocked pattern should be *[bot]")
+			}
+		}
+	}
+}
+
+// TestHandlerConfigUnassignFromUserWithBlocked tests that blocked patterns are included in unassign_from_user handler config
+func TestHandlerConfigUnassignFromUserWithBlocked(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UnassignFromUser: &UnassignFromUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("2"),
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "*",
+					TargetRepoSlug: "microsoft/vscode",
+				},
+				Blocked: []string{"copilot", "*[bot]"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				unassignConfig, ok := config["unassign_from_user"]
+				require.True(t, ok, "Should have unassign_from_user handler")
+
+				blocked, ok := unassignConfig["blocked"]
+				require.True(t, ok, "Should have blocked field")
+				blockedSlice, ok := blocked.([]any)
+				require.True(t, ok, "Blocked should be an array")
+				assert.Len(t, blockedSlice, 2, "Should have 2 blocked patterns")
+				assert.Equal(t, "copilot", blockedSlice[0], "First blocked pattern should be copilot")
+				assert.Equal(t, "*[bot]", blockedSlice[1], "Second blocked pattern should be *[bot]")
 			}
 		}
 	}

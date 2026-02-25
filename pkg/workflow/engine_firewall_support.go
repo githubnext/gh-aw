@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,6 +14,7 @@ var engineFirewallSupportLog = logger.New("workflow:engine_firewall_support")
 // hasNetworkRestrictions checks if the workflow has network restrictions defined
 // Network restrictions exist if:
 // - network.allowed has domains specified (non-empty list) AND it's not just "defaults"
+// - network.blocked has domains specified (non-empty list)
 func hasNetworkRestrictions(networkPermissions *NetworkPermissions) bool {
 	if networkPermissions == nil {
 		return false
@@ -29,6 +31,11 @@ func hasNetworkRestrictions(networkPermissions *NetworkPermissions) bool {
 
 	// Empty allowed list [] means deny-all, which is a restriction
 	if networkPermissions.ExplicitlyDefined && len(networkPermissions.Allowed) == 0 {
+		return true
+	}
+
+	// If blocked domains are specified, we have restrictions
+	if len(networkPermissions.Blocked) > 0 {
 		return true
 	}
 
@@ -68,7 +75,7 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 
 	if c.strictMode {
 		// In strict mode, this is an error
-		return fmt.Errorf("strict mode: engine must support firewall when network restrictions (network.allowed) are set")
+		return errors.New("strict mode: engine must support firewall when network restrictions (network.allowed) are set")
 	}
 
 	// In non-strict mode, emit a warning
@@ -96,7 +103,7 @@ func (c *Compiler) checkFirewallDisable(engine CodingAgentEngine, networkPermiss
 
 			if c.strictMode {
 				// In strict mode, this is an error
-				return fmt.Errorf("strict mode: cannot disable firewall when network restrictions (network.allowed) are set")
+				return errors.New("strict mode: cannot disable firewall when network restrictions (network.allowed) are set")
 			}
 
 			// In non-strict mode, emit a warning

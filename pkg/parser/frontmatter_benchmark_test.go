@@ -22,8 +22,7 @@ timeout-minutes: 10
 This is a test workflow.
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ExtractFrontmatterFromContent(content)
 	}
 }
@@ -102,8 +101,7 @@ imports:
 This is a complex workflow with many features.
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ExtractFrontmatterFromContent(content)
 	}
 }
@@ -119,8 +117,7 @@ on: push
 Simple workflow with minimal configuration.
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ExtractFrontmatterFromContent(content)
 	}
 }
@@ -167,8 +164,7 @@ imports:
 Workflow demonstrating array handling in frontmatter.
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = ExtractFrontmatterFromContent(content)
 	}
 }
@@ -192,8 +188,7 @@ func BenchmarkValidateSchema(b *testing.B) {
 		"timeout-minutes": 10,
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = ValidateMainWorkflowFrontmatterWithSchema(frontmatter)
 	}
 }
@@ -261,8 +256,7 @@ func BenchmarkValidateSchema_Complex(b *testing.B) {
 		},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = ValidateMainWorkflowFrontmatterWithSchema(frontmatter)
 	}
 }

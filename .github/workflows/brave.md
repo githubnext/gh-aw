@@ -11,7 +11,6 @@ permissions:
 engine: copilot
 strict: true
 imports:
-  - shared/mood.md
   - shared/mcp/brave.md
 safe-outputs:
   add-comment:
@@ -126,3 +125,9 @@ Your search summary should be formatted as a comment with:
 - **Attribution**: Always cite your sources with proper links
 
 Remember: Your goal is to provide valuable, actionable information from web searches that helps resolve the issue or improve the pull request.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

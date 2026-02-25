@@ -126,9 +126,10 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// Get lockdown value - use detected value if lockdown wasn't explicitly set
 	lockdown := getGitHubLockdown(githubTool)
 
-	// Check if automatic lockdown determination step will be generated
-	// The step is always generated when lockdown is not explicitly set
-	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool)
+	// Check if automatic lockdown determination step will be generated.
+	// The step is skipped when lockdown is explicitly set, or when a GitHub App is configured
+	// (app tokens are already repo-scoped, so automatic lockdown detection is not needed).
+	shouldUseStepOutput := !hasGitHubLockdownExplicitlySet(githubTool) && !hasGitHubApp(githubTool)
 
 	if shouldUseStepOutput {
 		// Use the detected lockdown value from the step output
@@ -215,7 +216,6 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
-	args := generatePlaywrightDockerArgs(playwrightConfig)
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Use official Playwright MCP Docker image (no version tag - only one image)
@@ -242,14 +242,6 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          entrypointArgs = [\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
-	if len(args.AllowedDomains) > 0 {
-		domainsStr := strings.Join(args.AllowedDomains, ";")
-		yaml.WriteString(",\n")
-		yaml.WriteString("            \"--allowed-hosts\",\n")
-		yaml.WriteString("            \"" + domainsStr + "\",\n")
-		yaml.WriteString("            \"--allowed-origins\",\n")
-		yaml.WriteString("            \"" + domainsStr + "\"")
-	}
 
 	// Append custom args if present
 	writeArgsToYAML(yaml, customArgs, "            ")
@@ -359,11 +351,11 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	}
 
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\"\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + ".headers]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
 	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 }
 
@@ -384,7 +376,7 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 // Uses HTTP transport exclusively
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID.String() + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 
 	// Determine host based on whether agent is disabled
@@ -420,7 +412,7 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID + "]\n")
+	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID.String() + "]\n")
 
 	containerImage := constants.DefaultAlpineImage
 	var entrypoint string

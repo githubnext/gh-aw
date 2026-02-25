@@ -42,9 +42,8 @@ Analyze the issue: ${{ steps.sanitized.outputs.text }}
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -103,9 +102,8 @@ Review the pull request: ${{ github.event.pull_request.number }}
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -154,9 +152,8 @@ Review and test the pull request with multiple tools.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -207,11 +204,10 @@ Standard workflow for memory profiling.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
 	// Track memory allocations
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -248,9 +244,8 @@ Test parsing performance.
 
 	compiler := NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = compiler.ParseWorkflowFile(testFile)
 	}
 }
@@ -294,9 +289,8 @@ Test validation performance.
 	compiler := NewCompiler()
 	compiler.SetStrictMode(true)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }
@@ -331,9 +325,8 @@ Test YAML generation.
 	compiler := NewCompiler()
 	compiler.SetNoEmit(true)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
 	}
 }

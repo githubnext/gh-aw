@@ -77,7 +77,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 
 	// Inform user if workflow specifies an engine
 	if workflowSpecifiedEngine != "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow specifies engine: %s", workflowSpecifiedEngine)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflow specifies engine: "+workflowSpecifiedEngine))
 	}
 
 	// Build engine options with notes about existing secrets and workflow specification
@@ -124,7 +124,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	}
 
 	c.EngineOverride = selectedEngine
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Selected engine: %s", selectedEngine)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected engine: "+selectedEngine))
 
 	return c.collectAPIKey(selectedEngine)
 }

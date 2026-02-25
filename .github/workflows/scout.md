@@ -10,13 +10,20 @@ on:
       topic:
         description: 'Research topic or question'
         required: true
+      history:
+        description: "Git history to fetch: shallow (default) or full"
+        required: false
+        default: "shallow"
+        type: choice
+        options:
+          - shallow
+          - full
 permissions:
   contents: read
   issues: read
   pull-requests: read
 engine: claude
 imports:
-  - shared/mood.md
   - shared/reporting.md
   - shared/mcp/arxiv.md
   - shared/mcp/tavily.md
@@ -37,7 +44,7 @@ safe-outputs:
     run-started: "🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}..."
     run-success: "🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️"
     run-failure: "🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party..."
-timeout-minutes: 10
+timeout-minutes: 20
 strict: true
 ---
 
@@ -59,10 +66,21 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ steps.sanitized.outputs.text }}"
 - **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
+- **Git History Mode** (if workflow_dispatch): "${{ github.event.inputs.history }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
 
-**Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.
+**Note**:
+- **Topic precedence**: Use `workflow_dispatch` topic when present. Otherwise, derive topic from triggering content (for example `/scout ...`).
+- **History precedence**: Use `workflow_dispatch` history when present. Otherwise, default to `shallow` unless the triggering content explicitly requests full history (for example `history=full`).
+
+**Git History Handling**: If `Git History Mode` is `full`, fetch full history before doing any git-history analysis:
+
+```bash
+git fetch --unshallow --tags || git fetch --tags
+```
+
+If `Git History Mode` is `shallow` (or empty), keep default shallow history unless triggering content explicitly requests `history=full`, and avoid conclusions that require complete historical data.
 
 **Deep Research Agent**: This workflow imports the GitHub deep research agent repository, which provides additional tools and capabilities from `.github/agents/` and `.github/workflows/` for enhanced research functionality.
 
@@ -114,64 +132,68 @@ Create a comprehensive research summary that includes:
 
 **IMPORTANT**: You must ALWAYS post a comment with your findings, even if you did not find any relevant information. If you didn't find anything useful, explain what you searched for and why no relevant results were found.
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 Your research summary should be formatted as a comment with:
 
 ```markdown
-# 🔍 Scout Research Report
+### 🔍 Scout Research Report
 
 *Triggered by @${{ github.actor }}*
 
-## Executive Summary
+### Executive Summary
 [Brief overview of key findings - or state that no relevant findings were discovered]
 
 <details>
-<summary>Click to expand detailed findings</summary>
-## Research Findings
+<summary><b>Click to expand detailed findings</b></summary>
 
-### [Topic 1]
+### Research Findings
+
+#### [Topic 1]
 [Detailed findings with sources]
 
-### [Topic 2]
+#### [Topic 2]
 [Detailed findings with sources]
 
 [... additional topics ...]
 
-## Recommendations
+### Recommendations
 - [Specific actionable recommendation 1]
 - [Specific actionable recommendation 2]
 - [...]
 
-## Key Sources
+### Key Sources
 - [Source 1 with link]
 - [Source 2 with link]
 - [...]
 
-## Suggested Next Steps
+### Suggested Next Steps
 1. [Action item 1]
 2. [Action item 2]
 [...]
+
 </details>
 ```
 
 **If no relevant findings were discovered**, use this format:
 
 ```markdown
-# 🔍 Scout Research Report
+### 🔍 Scout Research Report
 
 *Triggered by @${{ github.actor }}*
 
-## Executive Summary
+### Executive Summary
 No relevant findings were discovered for this research request.
 
-## Search Conducted
+### Search Conducted
 - Query 1: [What you searched for]
 - Query 2: [What you searched for]
 - [...]
 
-## Explanation
+### Explanation
 [Brief explanation of why no relevant results were found - e.g., topic too specific, no recent information available, search terms didn't match available content, etc.]
 
-## Suggestions
+### Suggestions
 [Optional: Suggestions for alternative searches or approaches that might yield better results]
 ```
 
@@ -188,3 +210,9 @@ Focus on the most relevant and actionable information. Avoid overwhelming detail
 - **Attribution**: Always cite your sources with proper links
 
 Remember: Your goal is to provide valuable, actionable intelligence that helps resolve the issue or improve the pull request. Make every search count and synthesize information effectively.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

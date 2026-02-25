@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -11,14 +12,21 @@ var specializedOutputsLog = logger.New("workflow:compiler_safe_outputs_specializ
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignToAgent
-	specializedOutputsLog.Printf("Building assign-to-agent step config: max=%d, default_agent=%s", cfg.Max, cfg.DefaultAgent)
+	if cfg.Max != nil {
+		specializedOutputsLog.Printf("Building assign-to-agent step config: max=%s, default_agent=%s", *cfg.Max, cfg.DefaultAgent)
+	} else {
+		specializedOutputsLog.Printf("Building assign-to-agent step config: max=nil, default_agent=%s", cfg.DefaultAgent)
+	}
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
 
 	// Add max count environment variable for JavaScript to validate against
-	if cfg.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", cfg.Max))
+	if maxVal := templatableIntValue(cfg.Max); maxVal > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", maxVal))
+	} else if cfg.Max != nil {
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_AGENT_MAX_COUNT", cfg.Max)...)
 	}
 
 	// Add default agent environment variable
@@ -48,14 +56,14 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 
 	// Add allowed agents list environment variable (comma-separated)
 	if len(cfg.Allowed) > 0 {
-		allowedStr := ""
+		var allowedStr strings.Builder
 		for i, agent := range cfg.Allowed {
 			if i > 0 {
-				allowedStr += ","
+				allowedStr.WriteString(",")
 			}
-			allowedStr += agent
+			allowedStr.WriteString(agent)
 		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr.String()))
 	}
 
 	// Add ignore-if-error flag if set
@@ -68,16 +76,21 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_PULL_REQUEST_REPO: %q\n", cfg.PullRequestRepoSlug))
 	}
 
+	// Add base branch environment variable for PR creation in target repo
+	if cfg.BaseBranch != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_BASE_BRANCH: %q\n", cfg.BaseBranch))
+	}
+
 	// Add allowed PR repos list environment variable (comma-separated)
 	if len(cfg.AllowedPullRequestRepos) > 0 {
-		allowedPullRequestReposStr := ""
+		var allowedPullRequestReposStr strings.Builder
 		for i, repo := range cfg.AllowedPullRequestRepos {
 			if i > 0 {
-				allowedPullRequestReposStr += ","
+				allowedPullRequestReposStr.WriteString(",")
 			}
-			allowedPullRequestReposStr += repo
+			allowedPullRequestReposStr.WriteString(repo)
 		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS: %q\n", allowedPullRequestReposStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS: %q\n", allowedPullRequestReposStr.String()))
 	}
 
 	// Allow assign_to_agent to reference issues created earlier in the same run via temporary IDs (aw_...)
@@ -106,7 +119,8 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	specializedOutputsLog.Print("Building create-agent-session step config")
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
 
 	condition := BuildSafeOutputType("create_agent_session")
 

@@ -5,6 +5,7 @@
  * Check if user has admin or maintainer permissions
  * @returns {Promise<void>}
  */
+const { ERR_PERMISSION } = require("./error_codes.cjs");
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
@@ -34,7 +35,7 @@ async function main() {
 
   // Fail the workflow when team membership check fails (cancellation handled by activation job's if condition)
   core.warning(`Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`);
-  core.setFailed(`Access denied: User '${actor}' is not authorized for this workflow`);
+  core.setFailed(`${ERR_PERMISSION}: Access denied: User '${actor}' is not authorized for this workflow`);
   core.setOutput("is_team_member", "false");
 }
 

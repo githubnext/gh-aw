@@ -65,13 +65,13 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 			// Extract SHA (before the comment marker " # ")
 			shaAndComment := parts[1]
-			commentIdx := strings.Index(shaAndComment, " # ")
-			if commentIdx == -1 {
+			before, _, ok := strings.Cut(shaAndComment, " # ")
+			if !ok {
 				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
 				return
 			}
 
-			sha := shaAndComment[:commentIdx]
+			sha := before
 
 			// All action pins should have valid SHAs
 			if !isValidSHA(sha) {
@@ -303,7 +303,7 @@ func TestGetActionPinsSorting(t *testing.T) {
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
-	for i := 0; i < len(pins)-1; i++ {
+	for i := range len(pins) - 1 {
 		if pins[i].Version < pins[i+1].Version {
 			t.Errorf("Pins not sorted correctly by version: %s (v%s) should come before %s (v%s)",
 				pins[i].Repo, pins[i].Version, pins[i+1].Repo, pins[i+1].Version)
@@ -923,9 +923,9 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 						parts := strings.Split(got[i].Uses, "@")
 						if len(parts) == 2 {
 							shaAndComment := parts[1]
-							commentIdx := strings.Index(shaAndComment, " # ")
-							if commentIdx != -1 {
-								sha := shaAndComment[:commentIdx]
+							before, _, ok := strings.Cut(shaAndComment, " # ")
+							if ok {
+								sha := before
 								if len(sha) != 40 {
 									t.Errorf("ApplyActionPinsToTypedSteps() step %d uses SHA length = %d, want 40",
 										i, len(sha))
@@ -1187,7 +1187,7 @@ func TestActionPinWarningDeduplication(t *testing.T) {
 			os.Stderr = w
 
 			// Call GetActionPinWithData multiple times
-			for i := 0; i < tt.callCount; i++ {
+			for range tt.callCount {
 				_, _ = GetActionPinWithData(tt.repo, tt.version, data)
 			}
 

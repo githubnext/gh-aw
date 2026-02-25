@@ -20,7 +20,7 @@
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
 //   - Safe Inputs: GH_AW_SAFE_INPUTS_PORT, GH_AW_SAFE_INPUTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)
-//   - Playwright: Domain secrets from allowed_domains expressions
+//   - Playwright: Secrets from custom args expressions
 //   - HTTP MCP: Custom secrets from headers and env sections
 //
 // Token precedence for GitHub MCP:
@@ -46,6 +46,10 @@
 package workflow
 
 import (
+	"maps"
+
+	"slices"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -57,24 +61,15 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	envVars := make(map[string]string)
 
 	// Check for GitHub MCP server token
-	hasGitHub := false
-	for _, toolName := range mcpTools {
-		if toolName == "github" {
-			hasGitHub = true
-			break
-		}
-	}
+	hasGitHub := slices.Contains(mcpTools, "github")
 	if hasGitHub {
 		githubTool := tools["github"]
 
 		// Check if GitHub App is configured for token minting
-		hasGitHubApp := false
-		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.App != nil {
-			hasGitHubApp = true
-		}
+		appConfigured := hasGitHubApp(githubTool)
 
 		// If GitHub App is configured, use the app token (overrides other tokens)
-		if hasGitHubApp {
+		if appConfigured {
 			mcpEnvironmentLog.Print("Using GitHub App token for GitHub MCP server (overrides custom and default tokens)")
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
 		} else {
@@ -84,22 +79,18 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 		}
 
-		// Add lockdown value if it's determined from step output
+		// Add lockdown value if it's determined from step output.
+		// Skip when a GitHub App is configured — in that case, the determine-automatic-lockdown
+		// step is not generated, so there is no step output to reference.
 		// Security: Pass step output through environment variable to prevent template injection
 		// Convert "true"/"false" to "1"/"0" at the source to avoid shell conversion in templates
-		if !hasGitHubLockdownExplicitlySet(githubTool) {
+		if !hasGitHubLockdownExplicitlySet(githubTool) && !appConfigured {
 			envVars["GITHUB_MCP_LOCKDOWN"] = "${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}"
 		}
 	}
 
 	// Check for safe-outputs env vars
-	hasSafeOutputs := false
-	for _, toolName := range mcpTools {
-		if toolName == "safe-outputs" {
-			hasSafeOutputs = true
-			break
-		}
-	}
+	hasSafeOutputs := slices.Contains(mcpTools, "safe-outputs")
 	if hasSafeOutputs {
 		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 		// Only add upload-assets env vars if upload-assets is configured
@@ -120,9 +111,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 
 		// Add tool-specific env vars (secrets passthrough)
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		for envVarName, secretExpr := range safeInputsSecrets {
-			envVars[envVarName] = secretExpr
-		}
+		maps.Copy(envVars, safeInputsSecrets)
 	}
 
 	// Check for safe-outputs env vars
@@ -145,23 +134,14 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	}
 
 	// Check for Playwright domain secrets
-	hasPlaywright := false
-	for _, toolName := range mcpTools {
-		if toolName == "playwright" {
-			hasPlaywright = true
-			break
-		}
-	}
+	hasPlaywright := slices.Contains(mcpTools, "playwright")
 	if hasPlaywright {
-		// Extract all expressions from playwright arguments using ExpressionExtractor
+		// Extract all expressions from playwright custom args using ExpressionExtractor
 		if playwrightTool, ok := tools["playwright"]; ok {
 			playwrightConfig := parsePlaywrightTool(playwrightTool)
-			allowedDomains := generatePlaywrightAllowedDomains(playwrightConfig)
 			customArgs := getPlaywrightCustomArgs(playwrightConfig)
-			playwrightAllowedDomainsSecrets := extractExpressionsFromPlaywrightArgs(allowedDomains, customArgs)
-			for envVarName, originalExpr := range playwrightAllowedDomainsSecrets {
-				envVars[envVarName] = originalExpr
-			}
+			playwrightArgSecrets := extractExpressionsFromPlaywrightArgs(customArgs)
+			maps.Copy(envVars, playwrightArgSecrets)
 		}
 	}
 
@@ -192,18 +172,14 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			if mcpConfig.Type == "http" && len(mcpConfig.Headers) > 0 {
 				headerSecrets := ExtractSecretsFromMap(mcpConfig.Headers)
 				mcpEnvironmentLog.Printf("Extracted %d secrets from HTTP MCP server '%s'", len(headerSecrets), toolName)
-				for envVarName, secretExpr := range headerSecrets {
-					envVars[envVarName] = secretExpr
-				}
+				maps.Copy(envVars, headerSecrets)
 			}
 
 			// Also extract secrets from env section if present
 			if len(mcpConfig.Env) > 0 {
 				envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
 				mcpEnvironmentLog.Printf("Extracted %d secrets from env section of MCP server '%s'", len(envSecrets), toolName)
-				for envVarName, secretExpr := range envSecrets {
-					envVars[envVarName] = secretExpr
-				}
+				maps.Copy(envVars, envSecrets)
 			}
 		}
 	}
@@ -217,9 +193,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			if mcpConfig != nil && len(mcpConfig.Env) > 0 {
 				mcpEnvironmentLog.Printf("Adding %d environment variables from plugin '%s' MCP configuration", len(mcpConfig.Env), pluginID)
 				// Add ALL environment variables from plugin MCP config (not just secrets)
-				for envVarName, envVarValue := range mcpConfig.Env {
-					envVars[envVarName] = envVarValue
-				}
+				maps.Copy(envVars, mcpConfig.Env)
 			}
 		}
 	}

@@ -232,7 +232,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 			if name, ok := dangerousUnicodeRunes[r]; ok {
 				findings = append(findings, SecurityFinding{
 					Category:    CategoryUnicodeAbuse,
-					Description: fmt.Sprintf("contains invisible character: %s", name),
+					Description: "contains invisible character: " + name,
 					Line:        lineNo,
 					Snippet:     truncateSnippet(line, 80),
 				})
@@ -241,7 +241,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 			if name, ok := bidiOverrideRunes[r]; ok {
 				findings = append(findings, SecurityFinding{
 					Category:    CategoryUnicodeAbuse,
-					Description: fmt.Sprintf("contains bidirectional override character: %s", name),
+					Description: "contains bidirectional override character: " + name,
 					Line:        lineNo,
 					Snippet:     truncateSnippet(line, 80),
 				})
@@ -458,7 +458,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 			if strings.HasPrefix(lowerURL, "javascript:") || strings.HasPrefix(lowerURL, "vbscript:") {
 				findings = append(findings, SecurityFinding{
 					Category:    CategoryObfuscatedLinks,
-					Description: fmt.Sprintf("markdown link uses dangerous protocol: %s", strings.SplitN(lowerURL, ":", 2)[0]),
+					Description: "markdown link uses dangerous protocol: " + strings.SplitN(lowerURL, ":", 2)[0],
 					Line:        lineNo,
 					Snippet:     truncateSnippet(m[0], 80),
 				})

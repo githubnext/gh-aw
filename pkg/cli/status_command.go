@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -182,7 +183,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	if verbose && !jsonOutput {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking status of workflow files"))
 		if pattern != "" {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Filtering by pattern: %s", pattern)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Filtering by pattern: "+pattern))
 		}
 	}
 
@@ -295,7 +296,8 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 		// Extract detailed error information including exit code and stderr
 		var exitCode int
 		var stderr string
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 			stderr = string(exitErr.Stderr)
 			statusLog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
@@ -324,7 +326,7 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 		if !verbose {
 			spinner.Stop()
 		}
-		return nil, fmt.Errorf("gh run list returned empty output")
+		return nil, errors.New("gh run list returned empty output")
 	}
 
 	// Validate JSON before unmarshaling
@@ -332,7 +334,7 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 		if !verbose {
 			spinner.Stop()
 		}
-		return nil, fmt.Errorf("gh run list returned invalid JSON")
+		return nil, errors.New("gh run list returned invalid JSON")
 	}
 
 	var runs []WorkflowRun

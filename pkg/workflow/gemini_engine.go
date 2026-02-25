@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -20,7 +21,7 @@ func NewGeminiEngine() *GeminiEngine {
 			id:                     "gemini",
 			displayName:            "Google Gemini CLI",
 			description:            "Google Gemini CLI with headless mode and LLM gateway support",
-			experimental:           true, // Marked as experimental as requested
+			experimental:           false,
 			supportsToolsAllowlist: true,
 			supportsMaxTurns:       false,
 			supportsWebFetch:       false,
@@ -35,6 +36,12 @@ func NewGeminiEngine() *GeminiEngine {
 // SupportsLLMGateway returns the LLM gateway port for Gemini engine
 func (e *GeminiEngine) SupportsLLMGateway() int {
 	return constants.GeminiLLMGatewayPort
+}
+
+// GetModelEnvVarName returns the native environment variable name that the Gemini CLI uses
+// for model selection. Setting GEMINI_MODEL is equivalent to passing --model to the CLI.
+func (e *GeminiEngine) GetModelEnvVarName() string {
+	return constants.GeminiCLIModelEnvVar
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Gemini engine
@@ -105,6 +112,7 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		config.Secrets,
 		config.Name,
 		config.DocsURL,
+		getEngineEnvOverrides(workflowData),
 	)
 	steps = append(steps, secretValidation)
 
@@ -152,25 +160,36 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	return steps
 }
 
-// GetDeclaredOutputFiles returns the output files that Gemini may produce
+// GetDeclaredOutputFiles returns the output files that Gemini may produce.
+// Gemini CLI writes structured error reports to /tmp/gemini-client-error-*.json
+// with a timestamp in the filename (e.g. gemini-client-error-Turn.run-sendMessageStream-2026-02-21T20-45-59-824Z.json).
+// These files provide detailed diagnostics when the Gemini API call fails.
 func (e *GeminiEngine) GetDeclaredOutputFiles() []string {
-	return []string{}
+	return []string{
+		"/tmp/gemini-client-error-*.json",
+	}
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Gemini
 func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	geminiLog.Printf("Generating execution steps for Gemini engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Handle custom steps if they exist in engine config
-	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
+	var steps []GitHubActionStep
+
+	// Write .gemini/settings.json with context.includeDirectories and tools.core.
+	// This step runs after the MCP gateway setup (which may have written mcpServers config)
+	// and merges the context/tools settings into any existing settings.json.
+	settingsStep := e.generateGeminiSettingsStep(workflowData)
+	steps = append(steps, settingsStep)
 
 	// Build gemini CLI arguments based on configuration
 	var geminiArgs []string
 
-	// Add model if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		geminiArgs = append(geminiArgs, "--model", workflowData.EngineConfig.Model)
-	}
+	// Model is passed via the native GEMINI_MODEL environment variable only when explicitly
+	// configured. When not configured, the Gemini CLI uses its built-in default model.
+	// This avoids embedding the value directly in the shell command (which fails template injection
+	// validation for GitHub Actions expressions like ${{ inputs.model }}).
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
 	// Gemini CLI reads MCP config from .gemini/settings.json (project-level)
 	// The conversion script (convert_gateway_config_gemini.sh) writes settings.json
@@ -180,8 +199,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
 	geminiArgs = append(geminiArgs, "--yolo")
 
-	// Add headless mode with JSON output
-	geminiArgs = append(geminiArgs, "--output-format", "json")
+	// Add streaming JSON output (JSONL format, compatible with the log parser)
+	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
 
 	// Add prompt argument
 	geminiArgs = append(geminiArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -207,18 +226,22 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
 
+		// Enable API proxy sidecar if this engine supports LLM gateway
+		llmGatewayPort := e.SupportsLLMGateway()
+		usesAPIProxy := llmGatewayPort > 0
+
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "gemini",
 			EngineCommand:  geminiCommandWithPath,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
-			UsesAPIProxy:   false,
+			UsesAPIProxy:   usesAPIProxy,
 			AllowedDomains: allowedDomains,
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
-%s 2>&1 | tee %s`, geminiCommand, logFile)
+%s 2>&1 | tee -a %s`, geminiCommand, logFile)
 	}
 
 	// Build environment variables
@@ -226,6 +249,11 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GEMINI_API_KEY":   "${{ secrets.GEMINI_API_KEY }}",
 		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		// Enable verbose debug logging from Gemini CLI for better diagnostics.
+		// Gemini CLI uses the npm 'debug' package, and 'gemini-cli:*' enables all
+		// internal Gemini CLI debug channels (see: https://gemini-cli-docs.pages.dev/cli/configuration).
+		// Non-JSON debug lines are gracefully skipped by ParseLogMetrics.
+		"DEBUG": "gemini-cli:*",
 	}
 
 	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
@@ -233,23 +261,42 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.gemini/settings.json"
 	}
 
+	// When the firewall (AWF) is enabled with --enable-api-proxy, point Gemini CLI at the
+	// LLM gateway sidecar instead of the real googleapis.com endpoint.
+	if firewallEnabled {
+		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
+	}
+
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
 
-	// Add model env var if not explicitly configured
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
-	if !modelConfigured {
-		isDetectionJob := workflowData.SafeOutputs == nil
-		if isDetectionJob {
-			env[constants.EnvVarModelDetectionGemini] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionGemini)
-		} else {
-			env[constants.EnvVarModelAgentGemini] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentGemini)
-		}
+	// Set the model environment variable only when explicitly configured.
+	// When model is configured, use the native GEMINI_MODEL env var - the Gemini CLI reads it
+	// directly, avoiding the need to embed the value in the shell command (which would fail
+	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// When model is not configured, let the Gemini CLI use its built-in default model.
+	if modelConfigured {
+		geminiLog.Printf("Setting %s env var for model: %s", constants.GeminiCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.GeminiCLIModelEnvVar] = workflowData.EngineConfig.Model
+	}
+
+	// Add custom environment variables from engine config.
+	// This allows users to override the default engine token expression (e.g.
+	// GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}) via engine.env.
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		maps.Copy(env, workflowData.EngineConfig.Env)
+	}
+
+	// Add custom environment variables from agent config
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Env) > 0 {
+		maps.Copy(env, agentConfig.Env)
+		geminiLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
 	// Generate the execution step
 	stepLines := []string{
-		"      - name: Run Gemini",
+		"      - name: Execute Gemini CLI",
 		"        id: agentic_execution",
 	}
 
@@ -262,9 +309,4 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 	return steps
-}
-
-// convertStepToYAML converts a single step to YAML format
-func (e *GeminiEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
 }

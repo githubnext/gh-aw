@@ -20,10 +20,15 @@ type UpgradeConfig struct {
 	NoFix       bool
 	Push        bool
 	NoActions   bool
+	Audit       bool
+	JSON        bool
 }
 
 // RunUpgrade runs the upgrade command with the given configuration
 func RunUpgrade(config UpgradeConfig) error {
+	if config.Audit {
+		return runDependencyAudit(config.Verbose, config.JSON)
+	}
 	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false, config.Push, config.NoActions)
 }
 
@@ -35,14 +40,22 @@ func NewUpgradeCommand() *cobra.Command {
 		Long: `Upgrade the repository for the latest version of agentic workflows.
 
 This command:
-  1. Updates all agent and prompt files to the latest templates (like 'init' command)
+  1. Updates the dispatcher agent file to the latest template (like 'init' command)
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
   4. Compiles all workflows to generate lock files (like 'compile' command)
 
+DEPENDENCY HEALTH AUDIT:
+Use --audit to check dependency health without performing upgrades. This includes:
+- Outdated Go dependencies with available updates
+- Security advisories from GitHub Security Advisory API
+- Dependency maturity analysis (v0.x vs stable versions)
+- Comprehensive dependency health report
+
+The --audit flag skips the normal upgrade process.
+
 The upgrade process ensures:
 - Dispatcher agent is current (.github/agents/agentic-workflows.agent.md)
-- All workflow prompts exist in .github/aw/ (create, update, debug, upgrade)
 - All workflows use the latest syntax and configuration options
 - Deprecated fields are automatically migrated across all workflows
 - GitHub Actions are pinned to the latest versions
@@ -55,7 +68,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --push            # Upgrade and automatically commit/push changes
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory`,
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -63,6 +78,13 @@ Examples:
 			noFix, _ := cmd.Flags().GetBool("no-fix")
 			push, _ := cmd.Flags().GetBool("push")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
+			auditFlag, _ := cmd.Flags().GetBool("audit")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
+
+			// Handle audit mode
+			if auditFlag {
+				return runDependencyAudit(verbose, jsonOutput)
+			}
 
 			return runUpgradeCommand(verbose, dir, noFix, false, push, noActions)
 		},
@@ -72,11 +94,32 @@ Examples:
 	cmd.Flags().Bool("no-fix", false, "Skip applying codemods, action updates, and compiling workflows (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
 	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful upgrade")
+	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
+	addJSONFlag(cmd)
 
 	// Register completions
 	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
+}
+
+// runDependencyAudit performs a dependency health audit
+func runDependencyAudit(verbose bool, jsonOutput bool) error {
+	upgradeLog.Print("Running dependency health audit")
+
+	// Generate comprehensive report
+	report, err := GenerateDependencyReport(verbose)
+	if err != nil {
+		return fmt.Errorf("failed to generate dependency report: %w", err)
+	}
+
+	// Display the report
+	if jsonOutput {
+		return DisplayDependencyReportJSON(report)
+	}
+	DisplayDependencyReport(report)
+
+	return nil
 }
 
 // runUpgradeCommand executes the upgrade process
@@ -104,17 +147,17 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		return err
 	}
 
-	// Step 1: Update all agent and prompt files (like init command)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent and prompt files..."))
-	upgradeLog.Print("Updating agent and prompt files")
+	// Step 1: Update dispatcher agent file (like init command)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent file..."))
+	upgradeLog.Print("Updating agent file")
 
 	if err := updateAgentFiles(verbose); err != nil {
-		upgradeLog.Printf("Failed to update agent files: %v", err)
-		return fmt.Errorf("failed to update agent files: %w", err)
+		upgradeLog.Printf("Failed to update agent file: %v", err)
+		return fmt.Errorf("failed to update agent file: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent and prompt files"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent file"))
 	}
 
 	// Step 2: Apply codemods to all workflows (unless --no-fix is specified)
@@ -255,7 +298,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	return nil
 }
 
-// updateAgentFiles updates all agent and prompt files to the latest templates
+// updateAgentFiles updates the dispatcher agent file to the latest template
 func updateAgentFiles(verbose bool) error {
 	// Update dispatcher agent
 	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {

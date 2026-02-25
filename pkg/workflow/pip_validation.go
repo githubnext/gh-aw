@@ -74,7 +74,7 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 			// The package may be experimental, not yet published, or will be installed at runtime
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", packageType, pkg)))
 			if c.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("  Details: "+outputStr))
 			}
 		} else {
 			pipValidationLog.Printf("Package validated successfully: %s", pkg)
@@ -170,7 +170,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 			// Package not installed, try to check if it's available
 			errors = append(errors, fmt.Sprintf("uv package '%s' validation requires network access or local cache", pkg))
 		} else if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ uv package validated: %s", pkg)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ uv package validated: "+pkg))
 		}
 	}
 

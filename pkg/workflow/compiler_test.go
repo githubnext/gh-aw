@@ -781,7 +781,7 @@ This is a test workflow for concurrent compilation.
 
 	// Create multiple workflow files
 	var workflowFiles []string
-	for i := 0; i < numWorkers*workflowsPerWorker; i++ {
+	for i := range numWorkers * workflowsPerWorker {
 		testFile := filepath.Join(tmpDir, fmt.Sprintf("workflow-%d.md", i))
 		require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644), "Failed to write test file %d", i)
 		workflowFiles = append(workflowFiles, testFile)

@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * Default file reader using Node.js fs module
@@ -96,7 +97,7 @@ function extractFrontmatterAndBody(content) {
   }
 
   if (endIndex === -1) {
-    throw new Error("Frontmatter not properly closed");
+    throw new Error(`${ERR_PARSE}: Frontmatter not properly closed`);
   }
 
   const frontmatterText = lines.slice(1, endIndex).join("\n");
@@ -348,7 +349,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
       return response.data.content;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to read file ${filePath} from GitHub: ${errorMessage}`);
+      throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: ${errorMessage}`);
     }
   };
 }

@@ -148,8 +148,8 @@ func computeEnabled(namespace string) bool {
 		pattern = strings.TrimSpace(pattern)
 
 		// Handle exclusion patterns (starting with -)
-		if strings.HasPrefix(pattern, "-") {
-			excludePattern := strings.TrimPrefix(pattern, "-")
+		if after, ok := strings.CutPrefix(pattern, "-"); ok {
+			excludePattern := after
 			if matchPattern(namespace, excludePattern) {
 				return false // Exclusions take precedence
 			}
@@ -177,12 +177,12 @@ func matchPattern(namespace, pattern string) bool {
 	if strings.Contains(pattern, "*") {
 		// Replace * with .* for regex-like matching, but keep it simple
 		// Convert pattern to prefix/suffix matching
-		if strings.HasSuffix(pattern, "*") {
-			prefix := strings.TrimSuffix(pattern, "*")
+		if before, ok := strings.CutSuffix(pattern, "*"); ok {
+			prefix := before
 			return strings.HasPrefix(namespace, prefix)
 		}
-		if strings.HasPrefix(pattern, "*") {
-			suffix := strings.TrimPrefix(pattern, "*")
+		if after, ok := strings.CutPrefix(pattern, "*"); ok {
+			suffix := after
 			return strings.HasSuffix(namespace, suffix)
 		}
 		// Middle wildcard: split and check both parts

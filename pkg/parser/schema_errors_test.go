@@ -221,3 +221,88 @@ func TestCleanJSONSchemaErrorMessage(t *testing.T) {
 		})
 	}
 }
+
+// TestTranslateSchemaConstraintMessage tests that minimum/maximum messages are translated to plain English
+func TestTranslateSchemaConstraintMessage(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "minimum violation negative value",
+			input: "minimum: got -45, want 1",
+			want:  "must be at least 1 (got -45)",
+		},
+		{
+			name:  "minimum violation zero",
+			input: "minimum: got 0, want 1",
+			want:  "must be at least 1 (got 0)",
+		},
+		{
+			name:  "minimum violation decimal",
+			input: "minimum: got -1.5, want 0",
+			want:  "must be at least 0 (got -1.5)",
+		},
+		{
+			name:  "maximum violation",
+			input: "maximum: got 120, want 60",
+			want:  "must be at most 60 (got 120)",
+		},
+		{
+			name:  "maximum violation decimal",
+			input: "maximum: got 100.5, want 60",
+			want:  "must be at most 60 (got 100.5)",
+		},
+		{
+			name:  "unrelated message is unchanged",
+			input: "value must be one of 'a', 'b'",
+			want:  "value must be one of 'a', 'b'",
+		},
+		{
+			name:  "already plain English message is unchanged",
+			input: "must be at least 1",
+			want:  "must be at least 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := translateSchemaConstraintMessage(tt.input)
+			assert.Equal(t, tt.want, got,
+				"translateSchemaConstraintMessage(%q) = %q, want %q", tt.input, got, tt.want)
+		})
+	}
+}
+
+func TestRewriteAdditionalPropertiesErrorOrdering(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "sorts multiple unknown properties",
+			in:   "at '/safe-outputs': additional properties 'zeta', 'alpha', 'beta' not allowed",
+			want: "Unknown properties: alpha, beta, zeta",
+		},
+		{
+			name: "sorts and trims unquoted list",
+			in:   "additional properties zeta, alpha, beta not allowed",
+			want: "Unknown properties: alpha, beta, zeta",
+		},
+		{
+			name: "single unknown property remains singular",
+			in:   "additional property 'timeout_minutes' not allowed",
+			want: "Unknown property: timeout_minutes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := rewriteAdditionalPropertiesError(tt.in)
+			assert.Equal(t, tt.want, got,
+				"rewriteAdditionalPropertiesError(%q) = %q, want %q", tt.in, got, tt.want)
+		})
+	}
+}

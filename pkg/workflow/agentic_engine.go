@@ -152,7 +152,7 @@ type WorkflowExecutor interface {
 // Engines that support MCP servers should implement this
 type MCPConfigProvider interface {
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
-	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData)
+	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error
 }
 
 // LogParser handles parsing and analyzing engine logs
@@ -182,6 +182,16 @@ type SecurityProvider interface {
 	GetRequiredSecretNames(workflowData *WorkflowData) []string
 }
 
+// ModelEnvVarProvider is implemented by engines whose CLIs natively read a specific
+// environment variable for model selection (e.g., COPILOT_MODEL, ANTHROPIC_MODEL).
+// The default implementation in BaseEngine returns "" (no native env var).
+type ModelEnvVarProvider interface {
+	// GetModelEnvVarName returns the name of the native environment variable the CLI
+	// uses for model selection (e.g., "COPILOT_MODEL", "ANTHROPIC_MODEL", "GEMINI_MODEL").
+	// Returns an empty string if the engine does not support a native model env var.
+	GetModelEnvVarName() string
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
@@ -192,6 +202,7 @@ type CodingAgentEngine interface {
 	MCPConfigProvider
 	LogParser
 	SecurityProvider
+	ModelEnvVarProvider
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -266,6 +277,13 @@ func (e *BaseEngine) GetDefaultDetectionModel() string {
 	return ""
 }
 
+// GetModelEnvVarName returns empty string by default (no native model env var).
+// Engines whose CLI natively supports a model env var (e.g. COPILOT_MODEL, ANTHROPIC_MODEL)
+// should override this to return that variable name.
+func (e *BaseEngine) GetModelEnvVarName() string {
+	return ""
+}
+
 // GetLogFileForParsing returns the default log file path for parsing
 // Engines can override this to use engine-specific log files
 func (e *BaseEngine) GetLogFileForParsing() string {
@@ -293,8 +311,9 @@ func (e *BaseEngine) GetLogParserScriptId() string {
 
 // RenderMCPConfig provides a default no-op implementation for MCP configuration
 // Engines can override this to provide custom MCP server configuration
-func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	// Default implementation does nothing - engines that support MCP should override this
+	return nil
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
@@ -420,7 +439,10 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 // secretNames: slice of secret names to validate (e.g., []string{"CODEX_API_KEY", "OPENAI_API_KEY"})
 // engineName: the display name of the engine (e.g., "Codex")
 // docsURL: URL to the documentation page for setting up the secret
-func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string) GitHubActionStep {
+// envOverrides: optional map of env var key to expression override (from engine.env); when set,
+// the overridden expression is used instead of the default "${{ secrets.KEY }}" so the
+// validation step checks the user-provided secret reference rather than the default one.
+func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string, envOverrides map[string]string) GitHubActionStep {
 	if len(secretNames) == 0 {
 		// This is a programming error - engine configurations should always provide secrets
 		// Log the error and return empty step to avoid breaking compilation
@@ -444,9 +466,17 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		"        env:",
 	}
 
-	// Add env section with all secrets
+	// Add env section with all secrets. When engine.env provides an override for a key,
+	// use that expression (e.g. "${{ secrets.MY_ORG_TOKEN }}") so the validation step
+	// validates the user-supplied secret instead of the default one.
 	for _, secretName := range secretNames {
-		stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName))
+		expr := fmt.Sprintf("${{ secrets.%s }}", secretName)
+		if envOverrides != nil {
+			if override, ok := envOverrides[secretName]; ok {
+				expr = override
+			}
+		}
+		stepLines = append(stepLines, fmt.Sprintf("          %s: %s", secretName, expr))
 	}
 
 	return GitHubActionStep(stepLines)

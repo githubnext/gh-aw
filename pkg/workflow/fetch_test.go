@@ -132,8 +132,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			includeTools: false,
 			expectSubstr: []string{
 				`"web-fetch": {`,
-				`"command": "docker"`,
-				`"mcp/fetch"`,
+				`"container": "mcp/fetch"`,
 				`},`,
 			},
 		},
@@ -145,8 +144,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			includeTools: false,
 			expectSubstr: []string{
 				`"web-fetch": {`,
-				`"command": "docker"`,
-				`"mcp/fetch"`,
+				`"container": "mcp/fetch"`,
 				`}`, // No comma
 			},
 		},
@@ -158,8 +156,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			includeTools: true,
 			expectSubstr: []string{
 				`"web-fetch": {`,
-				`"command": "docker"`,
-				`"mcp/fetch"`,
+				`"container": "mcp/fetch"`,
 				`},`,
 			},
 		},
@@ -171,8 +168,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			includeTools: true,
 			expectSubstr: []string{
 				`"web-fetch": {`,
-				`"command": "docker"`,
-				`"mcp/fetch"`,
+				`"container": "mcp/fetch"`,
 				`}`, // No comma
 			},
 		},
@@ -184,8 +180,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			includeTools: false,
 			expectSubstr: []string{
 				`[mcp_servers."web-fetch"]`,
-				`command = "docker"`,
-				`"mcp/fetch"`,
+				`container = "mcp/fetch"`,
 			},
 		},
 	}

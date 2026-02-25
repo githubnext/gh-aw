@@ -44,7 +44,7 @@ func TestGenerateUnifiedPromptCreationStep_OrderingBuiltinFirst(t *testing.T) {
 	// Find positions of different prompt sections in the output
 	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
 	playwrightPos := strings.Index(output, "playwright_prompt.md")
-	safeOutputsPos := strings.Index(output, "<safe-outputs>")
+	safeOutputsPos := strings.Index(output, "safe_outputs_prompt.md")
 	userPromptPos := strings.Index(output, "# User Prompt")
 
 	// Verify all sections are present
@@ -322,9 +322,10 @@ func TestGenerateUnifiedPromptCreationStep_NoAppendSteps(t *testing.T) {
 		"Should not have old 'Append prompt (part N)' steps")
 }
 
-// TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate tests that
-// the first content uses ">" (create/overwrite) and subsequent content uses ">>" (append)
-func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) {
+// TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect tests that all prompt
+// content is written inside a grouped redirect ({ ... } > "$GH_AW_PROMPT") rather
+// than individual > / >> redirects per command (fixes SC2129).
+func TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect(t *testing.T) {
 	compiler := &Compiler{
 		trialMode:            false,
 		trialLogicalRepoSlug: "",
@@ -342,25 +343,19 @@ func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) 
 
 	output := yaml.String()
 
-	// Find the first cat command (should use > for create)
-	firstCatPos := strings.Index(output, `cat "`)
-	require.NotEqual(t, -1, firstCatPos, "Should have cat command")
+	// Verify the grouped redirect pattern is used (SC2129 fix)
+	assert.Contains(t, output, `} > "$GH_AW_PROMPT"`, "Should use grouped redirect to avoid SC2129")
 
-	// Extract the line containing the first cat command
-	firstCatLine := output[firstCatPos : firstCatPos+strings.Index(output[firstCatPos:], "\n")]
+	// Verify no individual >> redirects to the prompt file exist
+	assert.NotContains(t, output, `>> "$GH_AW_PROMPT"`, "Should not use individual >> redirects (SC2129)")
 
-	// Verify it uses > (create mode)
-	assert.Contains(t, firstCatLine, `> "$GH_AW_PROMPT"`,
-		"First content should use > (create mode): %s", firstCatLine)
+	// Verify no heredoc or file cat commands have individual > redirects (only the group closer should)
+	assert.NotContains(t, output, `' > "$GH_AW_PROMPT"`, "Heredoc cat commands should not have individual > redirects")
+	assert.NotContains(t, output, `.md\" > "$GH_AW_PROMPT"`, "File cat commands should not have individual > redirects")
 
-	// Find subsequent cat commands (should use >> for append)
+	// Verify cat commands inside group have no redirect
 	delimiter := GenerateHeredocDelimiter("PROMPT")
-	remainingOutput := output[firstCatPos+len(firstCatLine):]
-	if strings.Contains(remainingOutput, `cat "`) || strings.Contains(remainingOutput, "cat << '"+delimiter+"'") {
-		// Verify subsequent operations use >> (append mode)
-		assert.Contains(t, remainingOutput, `>> "$GH_AW_PROMPT"`,
-			"Subsequent content should use >> (append mode)")
-	}
+	require.Contains(t, output, "cat << '"+delimiter+"'\n", "Heredoc cat commands inside group should have no redirect")
 }
 
 // TestGenerateUnifiedPromptCreationStep_SystemTags tests that built-in prompts
@@ -403,7 +398,7 @@ func TestGenerateUnifiedPromptCreationStep_SystemTags(t *testing.T) {
 	// Find positions of built-in content
 	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
 	playwrightPos := strings.Index(output, "playwright_prompt.md")
-	safeOutputsPos := strings.Index(output, "<safe-outputs>")
+	safeOutputsPos := strings.Index(output, "safe_outputs_prompt.md")
 
 	// Find position of user content
 	userTaskPos := strings.Index(output, "# User Task")
@@ -542,8 +537,7 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 
 	// Verify cache template file reference
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should reference cache template file")
-	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory prompt")
-	assert.Contains(t, output, "/tmp/gh-aw/repo-memory/", "Should reference repo memory directory")
+	assert.Contains(t, output, "repo_memory_prompt.md", "Should reference repo memory template file")
 
 	// Generate the substitution step separately to verify cache dir is in substitutions
 	var substYaml strings.Builder
@@ -552,11 +546,12 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	}
 	substOutput := substYaml.String()
 	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
+	assert.Contains(t, substOutput, "GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR", "Should have memory dir in substitution")
 
 	// Verify ordering within system tags
 	systemOpenPos := strings.Index(output, "<system>")
 	cachePos := strings.Index(output, "cache_memory_prompt.md")
-	repoPos := strings.Index(output, "Repo Memory Available")
+	repoPos := strings.Index(output, "repo_memory_prompt.md")
 	systemClosePos := strings.Index(output, "</system>")
 	userPos := strings.Index(output, "# User Task")
 
@@ -642,8 +637,8 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should have temp folder")
 	assert.Contains(t, output, "playwright_prompt.md", "Should have playwright")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should have cache memory template")
-	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory")
-	assert.Contains(t, output, "<safe-outputs>", "Should have safe outputs")
+	assert.Contains(t, output, "repo_memory_prompt.md", "Should have repo memory template file")
+	assert.Contains(t, output, "safe_outputs_prompt.md", "Should have safe outputs file reference")
 	assert.Contains(t, output, "<github-context>", "Should have GitHub context")
 	assert.Contains(t, output, "pr_context_prompt.md", "Should have PR context")
 
@@ -732,7 +727,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 
 	// Create many chunks to simulate large prompt
 	userPromptChunks := make([]string, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		userPromptChunks[i] = fmt.Sprintf("# Section %d\n\nContent for section %d.", i+1, i+1)
 	}
 
@@ -742,14 +737,14 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 	output := yaml.String()
 
 	// Verify all chunks are present
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		assert.Contains(t, output, fmt.Sprintf("# Section %d", i+1),
 			"Should contain section %d", i+1)
 	}
 
 	// Verify chunks are in order
 	positions := make([]int, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		positions[i] = strings.Index(output, fmt.Sprintf("# Section %d", i+1))
 		require.NotEqual(t, -1, positions[i], "Section %d should be present", i+1)
 	}
@@ -761,7 +756,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 
 	// Verify all chunks come after system tag closes
 	systemClosePos := strings.Index(output, "</system>")
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		assert.Less(t, systemClosePos, positions[i],
 			"Section %d should come after system tag closes", i+1)
 	}
@@ -904,16 +899,16 @@ Manage issues based on comments.`
 
 	lockStr := string(lockContent)
 
-	// Verify safe-outputs section is within system tags
+	// Verify safe-outputs file reference is within system tags
 	systemOpenPos := strings.Index(lockStr, "<system>")
 	systemClosePos := strings.Index(lockStr, "</system>")
-	safeOutputsPos := strings.Index(lockStr, "<safe-outputs>")
+	safeOutputsPos := strings.Index(lockStr, "safe_outputs_prompt.md")
 
-	require.NotEqual(t, -1, safeOutputsPos, "Should have safe-outputs section")
+	require.NotEqual(t, -1, safeOutputsPos, "Should reference safe_outputs_prompt.md")
 	assert.Less(t, systemOpenPos, safeOutputsPos, "Safe outputs should be after system tag opens")
 	assert.Less(t, safeOutputsPos, systemClosePos, "Safe outputs should be before system tag closes")
 
-	// Should mention the specific tools
+	// Should mention the specific tools (per-tool instructions are still inline)
 	assert.Contains(t, lockStr, "create_issue", "Should reference create_issue tool")
 	assert.Contains(t, lockStr, "update_issue", "Should reference update_issue tool")
 }

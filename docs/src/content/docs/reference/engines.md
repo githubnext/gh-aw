@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, and Codex with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, and Gemini with their specific configuration options.
 sidebar:
   order: 600
 ---
@@ -12,6 +12,7 @@ GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (no
 - [**Copilot CLI**](#using-copilot-cli)
 - [**Claude by Anthropic (Claude Code)**](#using-claude-by-anthropic-claude-code)
 - [**OpenAI Codex**](#using-openai-codex)
+- [**Google Gemini CLI**](#using-google-gemini-cli)
 
 ## Using Copilot CLI
 
@@ -19,27 +20,13 @@ GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (no
 
 To use Copilot CLI with GitHub Agentic Workflows:
 
-1. Copilot CLI is the default AI engine (coding agent). You can optionally request the use of of the Copilot CLI in your workflow frontmatter:
+1. Copilot CLI is the default AI engine (coding agent). You can optionally request the use of the Copilot CLI in your workflow frontmatter:
 
    ```yaml wrap
    engine: copilot
    ```
 
-2. Create a fine-grained GitHub Personal Access Token (PAT)
-
-   You need a GitHub Personal Access Token (PAT) with the `copilot-requests` scope to authenticate Copilot CLI. Create a fine-grained PAT at <https://github.com/settings/personal-access-tokens/new>.
-
-   - Select your user account, not an organization.
-   - Choose "Public repositories" access.
-   - Enable "Copilot Requests" permissions.
-
-   You **must** have "Public repositories" selected; otherwise, the Copilot Requests permission option will not appear.
-
-3. Add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`:
-
-   ```bash wrap
-   gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
-   ```
+2. Configure the `COPILOT_GITHUB_TOKEN` secret. See [Authentication: COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) for setup instructions.
 
 ## Using Claude by Anthropic (Claude Code)
 
@@ -51,13 +38,7 @@ To use [Claude by Anthropic](https://www.anthropic.com/index/claude) (aka Claude
    engine: claude
    ```
 
-2. Configure `ANTHROPIC_API_KEY` GitHub Actions secret.
-
-   [Create an Anthropic API key](https://platform.claude.com/docs/en/get-started) and add it to your repository:
-
-   ```bash wrap
-   gh aw secrets set ANTHROPIC_API_KEY --value "<your-anthropic-api-key>"
-   ```
+2. Configure the `ANTHROPIC_API_KEY` secret. See [Authentication: ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) for setup instructions.
 
 ## Using OpenAI Codex
 
@@ -69,13 +50,19 @@ To use [OpenAI Codex](https://openai.com/blog/openai-codex):
    engine: codex
    ```
 
-2. Configure `OPENAI_API_KEY` GitHub Actions secret.
+2. Configure the `OPENAI_API_KEY` secret. See [Authentication: OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) for setup instructions.
 
-   [Create an OpenAI API key](https://platform.openai.com/api-keys) and add it to your repository:
+## Using Google Gemini CLI
 
-   ```bash wrap
-   gh aw secrets set OPENAI_API_KEY --value "<your-openai-api-key>"
+To use [Google Gemini CLI](https://github.com/google-gemini/gemini-cli):
+
+1. Request the use of the Gemini engine in your workflow frontmatter:
+
+   ```yaml wrap
+   engine: gemini
    ```
+
+2. Configure the `GEMINI_API_KEY` secret. See [Authentication: GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) for setup instructions.
 
 ## Extended Coding Agent Configuration
 
@@ -103,7 +90,7 @@ engine:
 
 The `agent` field value should match the agent file name without the `.agent.md` extension. For example, `agent: technical-doc-writer` references `.github/agents/technical-doc-writer.agent.md`.
 
-See [Copilot Agent Filess](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
+See [Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
 
 ### Engine Environment Variables
 

@@ -13,13 +13,13 @@ tools:
   bash: true
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "audits"
     max: 1
     close-older-discussions: true
 timeout-minutes: 15
 strict: true
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -356,3 +356,9 @@ Your output MUST:
 6. Store successful scripts and patterns in cache memory
 
 Begin your analysis now. Collect the data systematically, perform thorough statistical analysis, and generate an insightful report that helps understand the structure and patterns of agentic workflows in this repository.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

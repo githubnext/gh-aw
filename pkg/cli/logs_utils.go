@@ -40,7 +40,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 
 	for _, file := range files {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading workflow file: %s", file)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading workflow file: "+file))
 		}
 
 		content, err := os.ReadFile(file)
@@ -52,8 +52,8 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 		}
 
 		// Extract the workflow name using simple string parsing
-		lines := strings.Split(string(content), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(string(content), "\n")
+		for line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "name:") {
 				// Parse the name field
@@ -65,7 +65,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 					if name != "" {
 						workflowNames = append(workflowNames, name)
 						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found agentic workflow: %s", name)))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found agentic workflow: "+name))
 						}
 						break
 					}

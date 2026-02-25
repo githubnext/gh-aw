@@ -321,18 +321,19 @@ func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent 
 	conditionStr := condition.Render()
 
 	// Format the condition with proper indentation
-	lines := strings.Split(conditionStr, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(conditionStr, "\n")
+	for line := range lines {
 		yaml.WriteString(indent + line + "\n")
 	}
 }
 
-// AddDetectionSuccessCheck adds a check for detection job success to an existing condition
-// This ensures safe output jobs only run when threat detection passes
+// AddDetectionSuccessCheck adds a check for detection success to an existing condition.
+// Detection runs inline in the agent job and outputs detection_success.
+// This ensures safe output jobs only run when threat detection passes.
 func AddDetectionSuccessCheck(existingCondition string) string {
-	// Build the detection success check
+	// Build the detection success check referencing the agent job's detection_success output
 	detectionSuccess := BuildComparison(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.detection_success", constants.AgentJobName)),
 		"==",
 		BuildStringLiteral("true"),
 	)

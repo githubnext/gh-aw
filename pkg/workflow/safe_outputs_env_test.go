@@ -51,7 +51,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			Name:            "Test",
 			FrontmatterName: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 				Env: map[string]string{
 					"GITHUB_TOKEN": "${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
 					"DEBUG_MODE":   "true",
@@ -76,7 +76,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			Name:            "Test",
 			FrontmatterName: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
 				Env: map[string]string{
 					"GITHUB_TOKEN": "${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
 					"API_ENDPOINT": "https://api.example.com",

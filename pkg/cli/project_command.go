@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -62,13 +63,9 @@ func NewProjectNewCommand() *cobra.Command {
 
 The project can optionally be linked to a specific repository.
 
-Token Requirements:
-  The default GITHUB_TOKEN cannot create projects. You must use a PAT with:
-  - Classic PAT: 'project' scope (user projects) or 'project' + 'repo' (org projects)  
-  - Fine-grained PAT: Organization permissions → Projects: Read & Write
-
-  Set GH_AW_PROJECT_GITHUB_TOKEN environment variable or configure your gh CLI
-  with a token that has the required permissions.
+Authentication Requirements:
+  The default GITHUB_TOKEN cannot create projects. You must use additional authentication.
+  See https://github.github.com/gh-aw/reference/auth/.
 
 Project Setup:
 	Use --with-project-setup to automatically create:
@@ -89,7 +86,7 @@ Examples:
 			withProjectSetup, _ := cmd.Flags().GetBool("with-project-setup")
 
 			if owner == "" {
-				return fmt.Errorf("--owner flag is required. Use '@me' for current user or specify org name")
+				return errors.New("--owner flag is required. Use '@me' for current user or specify org name")
 			}
 
 			config := ProjectConfig{
@@ -127,7 +124,7 @@ func RunProjectNew(ctx context.Context, config ProjectConfig) error {
 			return fmt.Errorf("failed to get current user: %w", err)
 		}
 		ownerLogin = currentUser
-		console.LogVerbose(config.Verbose, fmt.Sprintf("Resolved @me to user: %s", ownerLogin))
+		console.LogVerbose(config.Verbose, "Resolved @me to user: "+ownerLogin)
 	}
 
 	config.OwnerType = ownerType
@@ -165,12 +162,12 @@ func RunProjectNew(ctx context.Context, config ProjectConfig) error {
 	// Create views and fields if requested
 	projectURL, ok := project["url"].(string)
 	if !ok || projectURL == "" {
-		return fmt.Errorf("failed to get project URL from response")
+		return errors.New("failed to get project URL from response")
 	}
 
 	projectNumberFloat, ok := project["number"].(float64)
 	if !ok || projectNumberFloat <= 0 {
-		return fmt.Errorf("failed to get valid project number from response")
+		return errors.New("failed to get valid project number from response")
 	}
 	projectNumber := int(projectNumberFloat)
 
@@ -217,7 +214,7 @@ func getCurrentUser(ctx context.Context) (string, error) {
 
 	login := strings.TrimSpace(string(output))
 	if login == "" {
-		return "", fmt.Errorf("failed to get current user login")
+		return "", errors.New("failed to get current user login")
 	}
 
 	return login, nil
@@ -235,7 +232,7 @@ func validateOwner(ctx context.Context, ownerType, owner string, verbose bool) e
 		query = fmt.Sprintf(`query { user(login: "%s") { id login } }`, escapeGraphQLString(owner))
 	}
 
-	_, err := workflow.RunGH("Validating owner...", "api", "graphql", "-f", fmt.Sprintf("query=%s", query))
+	_, err := workflow.RunGH("Validating owner...", "api", "graphql", "-f", "query="+query)
 	if err != nil {
 		if ownerType == "org" {
 			return fmt.Errorf("organization '%s' not found or not accessible", owner)
@@ -270,24 +267,24 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 		jqPath = ".data.user.id"
 	}
 
-	output, err := workflow.RunGH("Getting owner ID...", "api", "graphql", "-f", fmt.Sprintf("query=%s", query), "--jq", jqPath)
+	output, err := workflow.RunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "--jq", jqPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get owner node ID: %w", err)
 	}
 
 	nodeId := strings.TrimSpace(string(output))
 	if nodeId == "" {
-		return "", fmt.Errorf("failed to get owner node ID from response")
+		return "", errors.New("failed to get owner node ID from response")
 	}
 
-	console.LogVerbose(verbose, fmt.Sprintf("✓ Got node ID: %s", nodeId))
+	console.LogVerbose(verbose, "✓ Got node ID: "+nodeId)
 	return nodeId, nil
 }
 
 // createProject creates a GitHub Project V2
 func createProject(ctx context.Context, ownerId, title string, verbose bool) (map[string]any, error) {
 	projectLog.Printf("Creating project: ownerId=%s, title=%s", ownerId, title)
-	console.LogVerbose(verbose, fmt.Sprintf("Creating project with owner ID: %s", ownerId))
+	console.LogVerbose(verbose, "Creating project with owner ID: "+ownerId)
 
 	mutation := fmt.Sprintf(`mutation {
 		createProjectV2(input: { ownerId: "%s", title: "%s" }) {
@@ -300,11 +297,11 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 		}
 	}`, ownerId, escapeGraphQLString(title))
 
-	output, err := workflow.RunGH("Creating project...", "api", "graphql", "-f", fmt.Sprintf("query=%s", mutation))
+	output, err := workflow.RunGH("Creating project...", "api", "graphql", "-f", "query="+mutation)
 	if err != nil {
 		// Check for permission errors
 		if strings.Contains(err.Error(), "INSUFFICIENT_SCOPES") || strings.Contains(err.Error(), "NOT_FOUND") {
-			return nil, fmt.Errorf("insufficient permissions. You need a PAT with Projects access (classic: 'project' scope, fine-grained: Organization → Projects: Read & Write). Set GH_AW_PROJECT_GITHUB_TOKEN or configure gh CLI with a suitable token")
+			return nil, errors.New("insufficient permissions. You need a PAT with Projects access (classic: 'project' scope, fine-grained: Organization → Projects: Read & Write). Set GH_AW_PROJECT_GITHUB_TOKEN or configure gh CLI with a suitable token")
 		}
 		return nil, fmt.Errorf("GraphQL mutation failed: %w", err)
 	}
@@ -318,17 +315,17 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 	// Extract project data
 	data, ok := response["data"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid response: missing 'data' field")
+		return nil, errors.New("invalid response: missing 'data' field")
 	}
 
 	createResult, ok := data["createProjectV2"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid response: missing 'createProjectV2' field")
+		return nil, errors.New("invalid response: missing 'createProjectV2' field")
 	}
 
 	project, ok := createResult["projectV2"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid response: missing 'projectV2' field")
+		return nil, errors.New("invalid response: missing 'projectV2' field")
 	}
 
 	console.LogVerbose(verbose, fmt.Sprintf("✓ Project created: #%v", project["number"]))
@@ -338,7 +335,7 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 // linkProjectToRepo links a project to a repository
 func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose bool) error {
 	projectLog.Printf("Linking project %s to repository %s", projectId, repoSlug)
-	console.LogVerbose(verbose, fmt.Sprintf("Linking project to repository: %s", repoSlug))
+	console.LogVerbose(verbose, "Linking project to repository: "+repoSlug)
 
 	// Parse repo slug
 	parts := strings.Split(repoSlug, "/")
@@ -350,14 +347,14 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 
 	// Get repository ID
 	query := fmt.Sprintf(`query { repository(owner: "%s", name: "%s") { id } }`, escapeGraphQLString(repoOwner), escapeGraphQLString(repoName))
-	output, err := workflow.RunGH("Getting repository ID...", "api", "graphql", "-f", fmt.Sprintf("query=%s", query), "--jq", ".data.repository.id")
+	output, err := workflow.RunGH("Getting repository ID...", "api", "graphql", "-f", "query="+query, "--jq", ".data.repository.id")
 	if err != nil {
 		return fmt.Errorf("repository '%s' not found: %w", repoSlug, err)
 	}
 
 	repoId := strings.TrimSpace(string(output))
 	if repoId == "" {
-		return fmt.Errorf("failed to get repository ID")
+		return errors.New("failed to get repository ID")
 	}
 
 	// Link project to repository
@@ -369,12 +366,12 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 		}
 	}`, projectId, repoId)
 
-	_, err = workflow.RunGH("Linking project to repository...", "api", "graphql", "-f", fmt.Sprintf("query=%s", mutation))
+	_, err = workflow.RunGH("Linking project to repository...", "api", "graphql", "-f", "query="+mutation)
 	if err != nil {
 		return fmt.Errorf("failed to link project to repository: %w", err)
 	}
 
-	console.LogVerbose(verbose, fmt.Sprintf("✓ Linked project to repository %s", repoSlug))
+	console.LogVerbose(verbose, "✓ Linked project to repository "+repoSlug)
 	return nil
 }
 
@@ -401,7 +398,7 @@ func parseProjectURL(projectURL string) (projectURLInfo, error) {
 	// Expected format: https://github.com/orgs/myorg/projects/123 or https://github.com/users/myuser/projects/123
 	parts := strings.Split(projectURL, "/")
 	if len(parts) < 6 {
-		return projectURLInfo{}, fmt.Errorf("invalid project URL format")
+		return projectURLInfo{}, errors.New("invalid project URL format")
 	}
 
 	var scope, ownerLogin, numberStr string
@@ -417,7 +414,7 @@ func parseProjectURL(projectURL string) (projectURLInfo, error) {
 	}
 
 	if scope == "" {
-		return projectURLInfo{}, fmt.Errorf("invalid project URL: could not find orgs/users segment")
+		return projectURLInfo{}, errors.New("invalid project URL: could not find orgs/users segment")
 	}
 
 	projectNumber, err := strconv.Atoi(numberStr)
@@ -516,7 +513,7 @@ func createStandardFields(ctx context.Context, projectURL string, projectNumber 
 		if err := createField(ctx, projectNumber, owner, field.name, field.dataType, field.options, verbose); err != nil {
 			return fmt.Errorf("failed to create field '%s': %w", field.name, err)
 		}
-		console.LogVerbose(verbose, fmt.Sprintf("Created field: %s", field.name))
+		console.LogVerbose(verbose, "Created field: "+field.name)
 	}
 
 	return nil
@@ -527,7 +524,7 @@ func createField(ctx context.Context, projectNumber int, owner, name, dataType s
 	projectLog.Printf("Creating field: name=%s, type=%s", name, dataType)
 
 	args := []string{
-		"project", "field-create", fmt.Sprintf("%d", projectNumber),
+		"project", "field-create", strconv.Itoa(projectNumber),
 		"--owner", owner,
 		"--name", name,
 		"--data-type", dataType,
@@ -572,7 +569,7 @@ func ensureStatusOption(ctx context.Context, projectURL, optionName string, verb
 	)
 
 	if !changed {
-		console.LogVerbose(verbose, fmt.Sprintf("Status option already present and ordered: %s", optionName))
+		console.LogVerbose(verbose, "Status option already present and ordered: "+optionName)
 		return nil
 	}
 
@@ -581,7 +578,7 @@ func ensureStatusOption(ctx context.Context, projectURL, optionName string, verb
 		return fmt.Errorf("failed to update Status field: %w", err)
 	}
 
-	console.LogVerbose(verbose, fmt.Sprintf("Status option added before 'Done': %s", optionName))
+	console.LogVerbose(verbose, "Status option added before 'Done': "+optionName)
 	return nil
 }
 
@@ -645,14 +642,14 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	}
 
 	// Get project ID
-	projectIDOutput, err := workflow.RunGH("Getting project info...", "api", "graphql", "-f", fmt.Sprintf("query=%s", query), "--jq", jqProjectID)
+	projectIDOutput, err := workflow.RunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "--jq", jqProjectID)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project ID: %w", err)
 	}
 	projectID := strings.TrimSpace(string(projectIDOutput))
 
 	// Get fields
-	fieldsOutput, err := workflow.RunGH("Getting project fields...", "api", "graphql", "-f", fmt.Sprintf("query=%s", query), "--jq", jqFields)
+	fieldsOutput, err := workflow.RunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "--jq", jqFields)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project fields: %w", err)
 	}
@@ -695,7 +692,7 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 		}
 	}
 
-	return statusFieldInfo{}, fmt.Errorf("status field not found in project")
+	return statusFieldInfo{}, errors.New("status field not found in project")
 }
 
 // getString safely extracts a string value from a map

@@ -88,4 +88,32 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 			t.Error("Expected Codex AWF command to contain '--enable-api-proxy' flag")
 		}
 	})
+
+	t.Run("Gemini AWF command includes enable-api-proxy flag (supports LLM gateway)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewGeminiEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) < 2 {
+			t.Fatal("Expected at least two execution steps (settings + execution)")
+		}
+
+		// steps[0] = Write Gemini settings, steps[1] = Execute Gemini CLI
+		stepContent := strings.Join(steps[1], "\n")
+
+		if !strings.Contains(stepContent, "--enable-api-proxy") {
+			t.Error("Expected Gemini AWF command to contain '--enable-api-proxy' flag")
+		}
+	})
 }

@@ -83,12 +83,13 @@ func FuzzExpressionParser(f *testing.F) {
 
 	// Very long expressions to test buffer handling
 	f.Add("Very long valid: ${{ github.event.pull_request.head.repo.full_name }}")
-	longExpression := "Long expression: ${{ "
-	for i := 0; i < 100; i++ {
-		longExpression += "github.workflow && "
+	var longExpression strings.Builder
+	longExpression.WriteString("Long expression: ${{ ")
+	for range 100 {
+		longExpression.WriteString("github.workflow && ")
 	}
-	longExpression += "github.repository }}"
-	f.Add(longExpression)
+	longExpression.WriteString("github.repository }}")
+	f.Add(longExpression.String())
 
 	// Expressions with excessive whitespace
 	f.Add("Lots of spaces: ${{                    github.workflow                    }}")

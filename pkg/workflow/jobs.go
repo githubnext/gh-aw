@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -51,7 +53,7 @@ func NewJobManager() *JobManager {
 // AddJob adds a job to the manager
 func (jm *JobManager) AddJob(job *Job) error {
 	if job.Name == "" {
-		return fmt.Errorf("job name cannot be empty")
+		return errors.New("job name cannot be empty")
 	}
 
 	if _, exists := jm.jobs[job.Name]; exists {
@@ -76,9 +78,7 @@ func (jm *JobManager) GetJob(name string) (*Job, bool) {
 func (jm *JobManager) GetAllJobs() map[string]*Job {
 	// Return a copy to prevent external modification
 	result := make(map[string]*Job)
-	for name, job := range jm.jobs {
-		result[name] = job
-	}
+	maps.Copy(result, jm.jobs)
 	return result
 }
 
@@ -138,16 +138,16 @@ func (jm *JobManager) ValidateDuplicateSteps() error {
 func extractStepName(stepYAML string) string {
 	// Look for "name: " in the step YAML
 	// Format is typically "      - name: Step Name" with various indentation
-	lines := strings.Split(stepYAML, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(stepYAML, "\n")
+	for line := range lines {
 		trimmed := strings.TrimSpace(line)
 		// Remove leading dash if present
 		trimmed = strings.TrimPrefix(trimmed, "-")
 		trimmed = strings.TrimSpace(trimmed)
 
-		if strings.HasPrefix(trimmed, "name:") {
+		if after, ok := strings.CutPrefix(trimmed, "name:"); ok {
 			// Extract the name value after "name:"
-			name := strings.TrimSpace(strings.TrimPrefix(trimmed, "name:"))
+			name := strings.TrimSpace(after)
 			// Remove quotes if present
 			name = strings.Trim(name, "\"'")
 			return name
@@ -262,8 +262,8 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 			if strings.Contains(job.If, "\n") {
 				// Already has newlines, use existing logic
-				lines := strings.Split(job.If, "\n")
-				for _, line := range lines {
+				lines := strings.SplitSeq(job.If, "\n")
+				for line := range lines {
 					if strings.TrimSpace(line) != "" {
 						fmt.Fprintf(&yaml, "      %s\n", strings.TrimSpace(line))
 					}

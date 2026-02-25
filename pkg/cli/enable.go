@@ -63,7 +63,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 		// Get all workflow names and process them
 		mdFiles, err := getMarkdownWorkflowFiles("")
 		if err != nil {
-			return fmt.Errorf("no workflow files found to %s: %v", action, err)
+			return fmt.Errorf("no workflow files found to %s: %w", action, err)
 		}
 
 		if len(mdFiles) == 0 {
@@ -84,17 +84,13 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 
 	// Check if gh CLI is available
 	if !isGHCLIAvailable() {
-		return fmt.Errorf("GitHub CLI (gh) is required but not available")
+		return errors.New("GitHub CLI (gh) is required but not available")
 	}
 
 	// Get the core set of workflows from markdown files in .github/workflows
 	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
-		return fmt.Errorf("no workflow files found to %s: %v", action, err)
-	}
-
-	if len(mdFiles) == 0 {
-		return fmt.Errorf("no markdown workflow files found to %s", action)
+		return fmt.Errorf("no workflow files found to %s: %w", action, err)
 	}
 
 	// Get GitHub workflows status for comparison; warn but continue if unavailable
@@ -201,7 +197,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 		}
 
 		return errors.New(console.FormatErrorWithSuggestions(
-			fmt.Sprintf("workflows not found: %s", strings.Join(notFoundNames, ", ")),
+			"workflows not found: "+strings.Join(notFoundNames, ", "),
 			suggestions,
 		))
 	}

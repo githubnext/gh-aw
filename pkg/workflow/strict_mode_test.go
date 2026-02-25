@@ -168,7 +168,6 @@ network:
 tools:
   github: false
   playwright:
-    allowed_domains: ["example.com"]
 ---
 
 # Test Workflow`,

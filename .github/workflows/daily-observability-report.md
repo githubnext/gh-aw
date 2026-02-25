@@ -27,7 +27,6 @@ safe-outputs:
     max: 10
 timeout-minutes: 45
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -193,16 +192,24 @@ For each firewall-enabled workflow run, check:
 
 ## Phase 3: Analyze MCP Gateway Logs
 
-The MCP Gateway logs tool execution in `gateway.jsonl` format.
+The MCP Gateway logs tool execution. Two log formats may be present depending on engine version:
 
-### Key Log File: gateway.jsonl
+- **`gateway.jsonl`**: Structured gateway log with per-event metrics (preferred format)
+- **`mcp-logs/rpc-messages.jsonl`**: Raw JSON-RPC message log written by the Copilot CLI (canonical fallback)
 
-For each run that uses MCP servers, check:
+### Key Log Files: gateway.jsonl or rpc-messages.jsonl
 
-1. **gateway.jsonl existence**: Look for the file in run logs
-   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/gateway.jsonl`
+For each run that uses MCP servers, check in this order:
 
-2. **gateway.jsonl content quality**:
+1. **gateway.jsonl existence** (preferred): Look for the file in run logs
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/gateway.jsonl`
+
+2. **rpc-messages.jsonl existence** (canonical fallback): Check when gateway.jsonl is missing
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/rpc-messages.jsonl`
+   - This file is written by the Copilot CLI and contains raw JSON-RPC protocol messages
+   - A run with this file present has MCP telemetry and should NOT be reported as Critical
+
+3. **gateway.jsonl content quality** (when present):
    - Are log entries valid JSONL format?
    - Do entries contain required fields:
      - `timestamp`: When the event occurred
@@ -214,19 +221,32 @@ For each run that uses MCP servers, check:
      - `duration`: Execution time in milliseconds
      - `status`: Request status (success, error)
 
-3. **Metrics coverage**:
+4. **rpc-messages.jsonl content quality** (when used as fallback):
+   - Are entries valid JSONL format?
+   - Do entries contain required fields:
+     - `timestamp`: When the message was sent/received
+     - `direction`: "IN" (from server) or "OUT" (to server)
+     - `type`: "REQUEST" or "RESPONSE"
+     - `server_id`: MCP server identifier
+     - `payload`: JSON-RPC payload with `method`, `params`, `result`, or `error`
+   - Tool call count derived from outgoing `tools/call` requests
+
+5. **Metrics coverage** (from whichever log is available):
    - Tool call counts per server
    - Error rates
-   - Response times (min, max, avg)
+   - Response times (min, max, avg) — available in gateway.jsonl; computed from request/response pairing in rpc-messages.jsonl
 
 ### MCP Gateway Analysis Criteria
 
 | Status | Condition |
 |--------|-----------|
 | ✅ **Healthy** | gateway.jsonl present with proper JSONL entries and metrics |
-| ⚠️ **Warning** | gateway.jsonl present but missing key fields or has parse errors |
-| 🔴 **Critical** | gateway.jsonl missing from MCP-enabled run |
+| ✅ **Healthy** | rpc-messages.jsonl present (canonical fallback) with valid JSON-RPC entries |
+| ⚠️ **Warning** | gateway.jsonl or rpc-messages.jsonl present but missing key fields or has parse errors |
+| 🔴 **Critical** | Neither gateway.jsonl nor rpc-messages.jsonl found in MCP-enabled run |
 | ℹ️ **N/A** | No MCP servers configured for this workflow |
+
+**Important**: When reporting MCP telemetry coverage, treat a run as having MCP telemetry if **either** `gateway.jsonl` **or** `rpc-messages.jsonl` is present. Only flag as Critical when both files are absent.
 
 ## Phase 4: Analyze Additional Telemetry
 
@@ -262,7 +282,8 @@ firewall_logs_present = count_runs_with_access_log()
 firewall_coverage = (firewall_logs_present / firewall_enabled_workflows) * 100 if firewall_enabled_workflows > 0 else "N/A"
 
 mcp_enabled_workflows = count_runs_with_mcp()
-gateway_logs_present = count_runs_with_gateway_jsonl()
+# A run has MCP telemetry if gateway.jsonl OR rpc-messages.jsonl is present
+gateway_logs_present = count_runs_with_gateway_jsonl_or_rpc_messages()
 gateway_coverage = (gateway_logs_present / mcp_enabled_workflows) * 100 if mcp_enabled_workflows > 0 else "N/A"
 
 # Calculate observability_coverage_percentage for overall health
@@ -298,7 +319,7 @@ Follow the formatting guidelines above. Use the following structure:
 [Critical missing logs or observability gaps that need immediate attention. If none, state "No critical issues detected." Always visible.]
 
 🔴 **Critical Issues:**
-- [List any runs missing critical logs - access.log for firewall runs, gateway.jsonl for MCP runs]
+- [List any runs missing critical logs - access.log for firewall runs, gateway.jsonl AND rpc-messages.jsonl both absent for MCP runs]
 
 ⚠️ **Warnings:**
 - [List runs with incomplete or low-quality logs]
@@ -308,7 +329,7 @@ Follow the formatting guidelines above. Use the following structure:
 | Component | Runs Analyzed | Logs Present | Coverage | Status |
 |-----------|--------------|--------------|----------|--------|
 | AWF Firewall (access.log) | X (`firewall_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
-| MCP Gateway (gateway.jsonl) | X (`mcp_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
+| MCP Gateway (gateway.jsonl or rpc-messages.jsonl) | X (`mcp_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
 
 [Always visible. Summary table showing high-level coverage metrics.]
 
@@ -329,11 +350,11 @@ Follow the formatting guidelines above. Use the following structure:
 
 #### MCP-Enabled Runs
 
-| Workflow | Run ID | gateway.jsonl | Entries | Servers | Tool Calls | Errors | Status |
-|----------|--------|---------------|---------|---------|------------|--------|--------|
-| ... | ... | ✅/❌ | N | N | N | N | ✅/⚠️/🔴 |
+| Workflow | Run ID | Telemetry Source | Entries | Servers | Tool Calls | Errors | Status |
+|----------|--------|-----------------|---------|---------|------------|--------|--------|
+| ... | ... | gateway.jsonl / rpc-messages.jsonl / ❌ None | N | N | N | N | ✅/⚠️/🔴 |
 
-#### Missing Gateway Logs (gateway.jsonl)
+#### Missing MCP Telemetry (no gateway.jsonl or rpc-messages.jsonl)
 
 | Workflow | Run ID | Date | Link |
 |----------|--------|------|------|
@@ -353,11 +374,12 @@ Follow the formatting guidelines above. Use the following structure:
 
 #### Gateway Log Quality
 
-- Total gateway.jsonl entries analyzed: N
+- Telemetry source: gateway.jsonl (preferred) or rpc-messages.jsonl (canonical fallback)
+- Total entries analyzed: N
 - MCP servers used: server1, server2
 - Total tool calls: N
 - Error rate: X%
-- Average response time: Xms
+- Average response time: Xms (N/A when derived from rpc-messages.jsonl without duration pairing)
 
 #### Healthy Runs Summary
 
@@ -397,7 +419,7 @@ Follow the formatting guidelines above. Use the following structure:
 
 ### Severity Classification
 
-- **CRITICAL**: Missing logs that would prevent debugging (access.log for firewall runs, gateway.jsonl for MCP runs)
+- **CRITICAL**: Missing logs that would prevent debugging (access.log for firewall runs; **both** gateway.jsonl and rpc-messages.jsonl absent for MCP runs)
 - **WARNING**: Logs present but with quality issues (empty, missing fields, parse errors)
 - **HEALTHY**: Complete observability coverage with quality logs
 
@@ -413,10 +435,16 @@ Follow the formatting guidelines above. Use the following structure:
 A successful run will:
 - ✅ Download and analyze logs from the past 7 days of workflow runs
 - ✅ Check all firewall-enabled runs for access.log presence
-- ✅ Check all MCP-enabled runs for gateway.jsonl presence
+- ✅ Check all MCP-enabled runs for gateway.jsonl **or** rpc-messages.jsonl presence
 - ✅ Calculate coverage percentages and identify gaps
-- ✅ Flag any runs missing critical logs as CRITICAL
+- ✅ Flag any runs missing **all** MCP telemetry (neither gateway.jsonl nor rpc-messages.jsonl) as CRITICAL
 - ✅ Create a new discussion with comprehensive report (previous discussions automatically closed)
 - ✅ Include actionable recommendations
 
 Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

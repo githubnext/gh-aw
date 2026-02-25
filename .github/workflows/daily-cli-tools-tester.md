@@ -21,8 +21,6 @@ safe-outputs:
   noop:
 timeout-minutes: 60
 strict: true
-imports:
-  - shared/mood.md
 ---
 
 # Daily CLI Tools Exploratory Tester

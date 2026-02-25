@@ -51,7 +51,7 @@ func aggregateLogFiles[T LogAnalysis](
 	if len(files) == 0 {
 		logAggregationLog.Printf("No log files found matching pattern '%s' in %s", globPattern, logsDir)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log files found in %s", logsDir)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No log files found in "+logsDir))
 		}
 		return zero, nil
 	}
@@ -72,7 +72,7 @@ func aggregateLogFiles[T LogAnalysis](
 	// Parse each file and aggregate results
 	for _, file := range files {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %s", filepath.Base(file))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Parsing "+filepath.Base(file)))
 		}
 
 		analysis, err := parser(file, verbose)

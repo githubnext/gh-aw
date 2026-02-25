@@ -15,6 +15,24 @@ linters:
     # godot linter disabled - too pedantic about comment punctuation
     - unconvert      # Remove unnecessary conversions
     - testifylint    # Enforce testify best practices
+    - intrange       # Suggest integer range in for loops
+    - modernize      # Modernize Go code using modern language features
+    - errorlint      # Find error wrapping issues (type assertions, comparisons)
+    - usestdlibvars  # Use standard library variables/constants (e.g. http.MethodGet)
+    - mirror         # Avoid unnecessary allocations in bytes/strings operations
+    - nolintlint     # Report ill-formed or insufficient nolint directives
+    - wastedassign   # Find wasted assignment statements
+    - makezero       # Find slice declarations with non-zero initial length followed by append
+    - perfsprint     # Replace fmt.Sprintf with faster alternatives where possible
+    - bodyclose      # Check HTTP response bodies are closed
+    - gocheckcompilerdirectives  # Validate go compiler directive comments
+    - recvcheck      # Check receiver type consistency
+    - copyloopvar    # Detect loop variable copies
+    - exptostd       # Replace golang.org/x/exp functions with std equivalents
+    - durationcheck  # Check for two durations multiplied together
+    - fatcontext     # Detect nested contexts in loops and function literals
+    - nosprintfhostport  # Check for misuse of Sprintf to construct host:port URLs
+    - reassign       # Check that package variables are not reassigned
   disable:
     - errcheck       # Disabled due to exclude-functions not working properly in golangci-lint v2
     - gocritic       # Disabled due to disabled-checks not working properly in golangci-lint v2
@@ -58,6 +76,10 @@ linters-settings:
     # when changing these exclusions to maintain consistency.
     # - G101: Potential hardcoded credentials (often false positives)
     # - G115: Integer overflow conversion (acceptable in most cases)
+    # - G204: Subprocess with variable args - all exec.Command calls use separate args
+    #         (not shell execution), making shell injection impossible. Specific high-risk
+    #         cases (user-controlled command names) are mitigated by exec.LookPath validation
+    #         and documented with inline #nosec G204 annotations.
     # - G602: Slice bounds check (handled by runtime)
     # - G301: Directory permissions 0755 (acceptable for non-sensitive dirs)
     # - G302: File permissions 0755 (acceptable for chmod operations)
@@ -66,6 +88,7 @@ linters-settings:
     exclude:
       - G101
       - G115
+      - G204
       - G602
       - G301
       - G302

@@ -18,13 +18,13 @@ tools:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "dev"
     max: 1
     close-older-discussions: true
 
 timeout-minutes: 5
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -142,3 +142,9 @@ Treat all repository content as trusted since you're analyzing the repository yo
 ## Tips
 
 Your terminal is already in the workspace root. No need to use `cd`.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

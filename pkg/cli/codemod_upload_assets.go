@@ -33,60 +33,49 @@ func getUploadAssetsCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Parse frontmatter to get raw lines
-			frontmatterLines, markdown, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
+			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
+				var modified bool
+				var inSafeOutputsBlock bool
+				var safeOutputsIndent string
+				result := make([]string, len(lines))
+				for i, line := range lines {
+					trimmedLine := strings.TrimSpace(line)
 
-			// Find and replace upload-assets with upload-asset within the safe-outputs block
-			var modified bool
-			var inSafeOutputsBlock bool
-			var safeOutputsIndent string
-
-			result := make([]string, len(frontmatterLines))
-
-			for i, line := range frontmatterLines {
-				trimmedLine := strings.TrimSpace(line)
-
-				// Track if we're in the safe-outputs block
-				if strings.HasPrefix(trimmedLine, "safe-outputs:") {
-					inSafeOutputsBlock = true
-					safeOutputsIndent = getIndentation(line)
-					result[i] = line
-					continue
-				}
-
-				// Check if we've left the safe-outputs block
-				if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
-					if hasExitedBlock(line, safeOutputsIndent) {
-						inSafeOutputsBlock = false
+					// Track if we're in the safe-outputs block
+					if strings.HasPrefix(trimmedLine, "safe-outputs:") {
+						inSafeOutputsBlock = true
+						safeOutputsIndent = getIndentation(line)
+						result[i] = line
+						continue
 					}
-				}
 
-				// Replace upload-assets with upload-asset if in safe-outputs block
-				if inSafeOutputsBlock && strings.HasPrefix(trimmedLine, "upload-assets:") {
-					replacedLine, didReplace := findAndReplaceInLine(line, "upload-assets", "upload-asset")
-					if didReplace {
-						result[i] = replacedLine
-						modified = true
-						uploadAssetsCodemodLog.Printf("Replaced safe-outputs.upload-assets with safe-outputs.upload-asset on line %d", i+1)
+					// Check if we've left the safe-outputs block
+					if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+						if hasExitedBlock(line, safeOutputsIndent) {
+							inSafeOutputsBlock = false
+						}
+					}
+
+					// Replace upload-assets with upload-asset if in safe-outputs block
+					if inSafeOutputsBlock && strings.HasPrefix(trimmedLine, "upload-assets:") {
+						replacedLine, didReplace := findAndReplaceInLine(line, "upload-assets", "upload-asset")
+						if didReplace {
+							result[i] = replacedLine
+							modified = true
+							uploadAssetsCodemodLog.Printf("Replaced safe-outputs.upload-assets with safe-outputs.upload-asset on line %d", i+1)
+						} else {
+							result[i] = line
+						}
 					} else {
 						result[i] = line
 					}
-				} else {
-					result[i] = line
 				}
+				return result, modified
+			})
+			if applied {
+				uploadAssetsCodemodLog.Print("Applied upload-assets to upload-asset migration")
 			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			newContent := reconstructContent(result, markdown)
-			uploadAssetsCodemodLog.Print("Applied upload-assets to upload-asset migration")
-			return newContent, true, nil
+			return newContent, applied, err
 		},
 	}
 }

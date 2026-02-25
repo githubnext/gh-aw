@@ -102,16 +102,20 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 	}
 
 	// Now run the patch generation script
-	// The script creates the patch at /tmp/gh-aw/aw.patch
-	patchFile := "/tmp/gh-aw/aw.patch"
-
+	// The script creates the patch at /tmp/gh-aw/aw-{branch}.patch
 	// Ensure the /tmp/gh-aw directory exists
 	if err := os.MkdirAll("/tmp/gh-aw", 0755); err != nil {
 		t.Fatalf("Failed to create /tmp/gh-aw directory: %v", err)
 	}
 
-	// Remove any existing patch file
-	os.Remove(patchFile)
+	// Remove any existing aw-*.patch files from previous runs
+	if entries, err := os.ReadDir("/tmp/gh-aw"); err == nil {
+		for _, entry := range entries {
+			if matched, _ := filepath.Match("aw-*.patch", entry.Name()); matched {
+				os.Remove(filepath.Join("/tmp/gh-aw", entry.Name()))
+			}
+		}
+	}
 
 	// Create a minimal safe-outputs file (empty - no branch name)
 	safeOutputsFile := filepath.Join(tmpDir, "safe-outputs.jsonl")
@@ -147,10 +151,20 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 		t.Fatalf("Failed to run patch generation script: %v\nOutput: %s", err, scriptOutput)
 	}
 
-	// Verify the patch file was created
-	if _, err := os.Stat(patchFile); os.IsNotExist(err) {
-		t.Fatal("Patch file was not created")
+	// Find the generated patch file (aw-{branch}.patch)
+	var patchFile string
+	if entries, err := os.ReadDir("/tmp/gh-aw"); err == nil {
+		for _, entry := range entries {
+			if matched, _ := filepath.Match("aw-*.patch", entry.Name()); matched {
+				patchFile = filepath.Join("/tmp/gh-aw", entry.Name())
+				break
+			}
+		}
 	}
+	if patchFile == "" {
+		t.Fatal("No aw-*.patch file was created")
+	}
+	t.Logf("Found patch file: %s", patchFile)
 
 	// Read and verify the patch content
 	patchContent, err := os.ReadFile(patchFile)
@@ -301,11 +315,17 @@ func TestGitPatchPrefersBranchOverHEAD(t *testing.T) {
 	}
 
 	// Ensure /tmp/gh-aw exists and is clean
-	patchFile := "/tmp/gh-aw/aw.patch"
 	if err := os.MkdirAll("/tmp/gh-aw", 0755); err != nil {
 		t.Fatalf("Failed to create /tmp/gh-aw: %v", err)
 	}
-	os.Remove(patchFile)
+	// Remove any existing aw-*.patch files from previous runs
+	if entries, err := os.ReadDir("/tmp/gh-aw"); err == nil {
+		for _, entry := range entries {
+			if matched, _ := filepath.Match("aw-*.patch", entry.Name()); matched {
+				os.Remove(filepath.Join("/tmp/gh-aw", entry.Name()))
+			}
+		}
+	}
 
 	cmd = exec.Command("bash", scriptFile)
 	cmd.Dir = tmpDir
@@ -324,7 +344,7 @@ func TestGitPatchPrefersBranchOverHEAD(t *testing.T) {
 	}
 
 	// Verify Strategy 1 was used (branch-based)
-	if !strings.Contains(string(scriptOutput), "Strategy 1: Using named branch from JSONL") {
+	if !strings.Contains(string(scriptOutput), "Strategy 1: Using named branches from JSONL") {
 		t.Error("Expected Strategy 1 to be used when branch name is provided")
 	}
 
@@ -382,9 +402,15 @@ func TestGitPatchNoCommits(t *testing.T) {
 	os.WriteFile(scriptFile, scriptContent, 0755)
 
 	// Ensure /tmp/gh-aw exists and is clean
-	patchFile := "/tmp/gh-aw/aw.patch"
 	os.MkdirAll("/tmp/gh-aw", 0755)
-	os.Remove(patchFile)
+	// Remove any existing aw-*.patch files from previous runs
+	if entries, err := os.ReadDir("/tmp/gh-aw"); err == nil {
+		for _, entry := range entries {
+			if matched, _ := filepath.Match("aw-*.patch", entry.Name()); matched {
+				os.Remove(filepath.Join("/tmp/gh-aw", entry.Name()))
+			}
+		}
+	}
 
 	cmd = exec.Command("bash", scriptFile)
 	cmd.Dir = tmpDir
@@ -398,9 +424,13 @@ func TestGitPatchNoCommits(t *testing.T) {
 	scriptOutput, _ := cmd.CombinedOutput()
 	t.Logf("Script output:\n%s", scriptOutput)
 
-	// Verify no patch was generated (patchFile was already defined above)
-	if _, err := os.Stat(patchFile); err == nil {
-		t.Error("Patch file should not be created when there are no commits")
+	// Verify no patch was generated (no aw-*.patch files should exist)
+	if entries, err := os.ReadDir("/tmp/gh-aw"); err == nil {
+		for _, entry := range entries {
+			if matched, _ := filepath.Match("aw-*.patch", entry.Name()); matched {
+				t.Errorf("Patch file should not be created when there are no commits, found: %s", entry.Name())
+			}
+		}
 	}
 
 	// Verify the script logged that no commits were found

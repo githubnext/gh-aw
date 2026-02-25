@@ -55,9 +55,8 @@ PR Number: ${{ github.event.pull_request.number }}
 
 	compiler := workflow.NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Compile with actionlint enabled (per-file mode for benchmarking)
 		_ = CompileWorkflowWithValidation(compiler, testFile, false, false, false, true, false, false)
 	}
@@ -107,9 +106,8 @@ Issue: ${{ needs.activation.outputs.text }}
 
 	compiler := workflow.NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Compile with zizmor enabled
 		_ = CompileWorkflowWithValidation(compiler, testFile, false, true, false, false, false, false)
 	}
@@ -153,9 +151,8 @@ Repository: ${{ github.repository }}
 
 	compiler := workflow.NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Compile with poutine enabled
 		_ = CompileWorkflowWithValidation(compiler, testFile, false, false, true, false, false, false)
 	}
@@ -224,9 +221,8 @@ PR Details:
 
 	compiler := workflow.NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Compile with all security tools enabled (zizmor, poutine, actionlint)
 		_ = CompileWorkflowWithValidation(compiler, testFile, false, true, true, true, false, false)
 	}
@@ -276,9 +272,8 @@ PR Number: ${{ github.event.pull_request.number }}
 
 	compiler := workflow.NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Compile without any security tools
 		_ = CompileWorkflowWithValidation(compiler, testFile, false, false, false, false, false, false)
 	}
@@ -340,9 +335,8 @@ Process issue.
 		lockFiles = append(lockFiles, lockFile)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Run batch actionlint on all lock files
 		_ = RunActionlintOnFiles(lockFiles, false, false)
 	}
@@ -433,9 +427,8 @@ Triggered by: ${{ github.actor }}
 
 	compiler := workflow.NewCompiler()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Compile with all security tools enabled
 		_ = CompileWorkflowWithValidation(compiler, testFile, false, true, true, true, false, false)
 	}

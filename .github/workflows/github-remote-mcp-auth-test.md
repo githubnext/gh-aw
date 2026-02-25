@@ -17,14 +17,13 @@ tools:
     allowed: [get_repository, list_issues, issue_read]
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[auth-test] "
     category: "audits"
     max: 1
     close-older-discussions: true
 timeout-minutes: 5
 strict: true
-imports:
-  - shared/mood.md
 ---
 
 # GitHub Remote MCP Authentication Test
@@ -189,3 +188,9 @@ Authentication with GitHub Actions token is working correctly.
 
 **On Failure**:
 Create a discussion with the error details as described above.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

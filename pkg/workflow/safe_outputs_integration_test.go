@@ -74,7 +74,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 5,
+							Max: strPtr("5"),
 						},
 					},
 				}
@@ -106,7 +106,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					MissingTool: &MissingToolConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 10,
+							Max: strPtr("10"),
 						},
 					},
 				}
@@ -123,7 +123,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 10,
+							Max: strPtr("10"),
 						},
 					},
 				}
@@ -140,7 +140,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 10,
+							Max: strPtr("10"),
 						},
 					},
 				}
@@ -157,7 +157,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					CreateAgentSessions: &CreateAgentSessionConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 5,
+							Max: strPtr("5"),
 						},
 					},
 				}
@@ -174,7 +174,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					UploadAssets: &UploadAssetsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 10,
+							Max: strPtr("10"),
 						},
 					},
 				}
@@ -266,7 +266,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					NoOp: &NoOpConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 					},
 				}
@@ -282,7 +282,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 					},
 				}
@@ -299,7 +299,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 					UpdateIssues: &UpdateIssuesConfig{
 						UpdateEntityConfig: UpdateEntityConfig{
 							BaseSafeOutputConfig: BaseSafeOutputConfig{
-								Max: 1,
+								Max: strPtr("1"),
 							},
 						},
 					},
@@ -317,7 +317,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 					UpdatePullRequests: &UpdatePullRequestsConfig{
 						UpdateEntityConfig: UpdateEntityConfig{
 							BaseSafeOutputConfig: BaseSafeOutputConfig{
-								Max: 1,
+								Max: strPtr("1"),
 							},
 						},
 					},
@@ -335,7 +335,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 					UpdateDiscussions: &UpdateDiscussionsConfig{
 						UpdateEntityConfig: UpdateEntityConfig{
 							BaseSafeOutputConfig: BaseSafeOutputConfig{
-								Max: 1,
+								Max: strPtr("1"),
 							},
 						},
 					},
@@ -364,7 +364,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				return &SafeOutputsConfig{
 					ClosePullRequests: &ClosePullRequestsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 					},
 				}
@@ -459,7 +459,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 					UpdateRelease: &UpdateReleaseConfig{
 						UpdateEntityConfig: UpdateEntityConfig{
 							BaseSafeOutputConfig: BaseSafeOutputConfig{
-								Max: 1,
+								Max: strPtr("1"),
 							},
 						},
 					},
@@ -482,12 +482,12 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 					},
 					AddComments: &AddCommentsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 5,
+							Max: strPtr("5"),
 						},
 					},
 					NoOp: &NoOpConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 					},
 					Env: map[string]string{
@@ -654,7 +654,7 @@ func TestSafeOutputJobsWithCustomEnvVars(t *testing.T) {
 				return &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 5,
+							Max: strPtr("5"),
 						},
 					},
 					Env: map[string]string{
@@ -779,13 +779,13 @@ func TestConsolidatedSafeOutputsJobWithCustomEnv(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			NoOp: &NoOpConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			UpdateIssues: &UpdateIssuesConfig{
 				UpdateEntityConfig: UpdateEntityConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 1,
+						Max: strPtr("1"),
 					},
 				},
 			},

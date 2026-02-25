@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -172,11 +173,8 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			job.DisplayName = jobConfig.Name
 		}
 
-		// Safe-jobs should depend on agent job (always) AND detection job (if enabled)
+		// Safe-jobs depend on agent job (detection is now inline in agent job)
 		job.Needs = append(job.Needs, string(constants.AgentJobName))
-		if threatDetectionEnabled {
-			job.Needs = append(job.Needs, string(constants.DetectionJobName))
-		}
 
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)
@@ -184,17 +182,17 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Set runs-on
 		if jobConfig.RunsOn != nil {
 			if runsOnStr, ok := jobConfig.RunsOn.(string); ok {
-				job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
+				job.RunsOn = "runs-on: " + runsOnStr
 			} else if runsOnList, ok := jobConfig.RunsOn.([]any); ok {
 				// Handle array format
 				var runsOnItems []string
 				for _, item := range runsOnList {
 					if itemStr, ok := item.(string); ok {
-						runsOnItems = append(runsOnItems, fmt.Sprintf("      - %s", itemStr))
+						runsOnItems = append(runsOnItems, "      - "+itemStr)
 					}
 				}
 				if len(runsOnItems) > 0 {
-					job.RunsOn = fmt.Sprintf("runs-on:\n%s", strings.Join(runsOnItems, "\n"))
+					job.RunsOn = "runs-on:\n" + strings.Join(runsOnItems, "\n")
 				}
 			}
 		} else {
@@ -229,7 +227,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, downloadSteps...)
 
 		// the download artifacts always creates a folder, then unpacks in that folder
-		agentOutputArtifactFilename := fmt.Sprintf("/opt/gh-aw/safe-jobs/%s", constants.AgentOutputFilename)
+		agentOutputArtifactFilename := "/opt/gh-aw/safe-jobs/" + constants.AgentOutputFilename
 
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
@@ -324,9 +322,7 @@ func mergeSafeJobs(base map[string]*SafeJobConfig, additional map[string]*SafeJo
 	result := make(map[string]*SafeJobConfig)
 
 	// Copy base safe-jobs
-	for name, config := range base {
-		result[name] = config
-	}
+	maps.Copy(result, base)
 
 	// Add additional safe-jobs, checking for conflicts
 	for name, config := range additional {

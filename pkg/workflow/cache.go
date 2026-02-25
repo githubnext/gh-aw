@@ -270,7 +270,11 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		if len(caches) > 1 {
 			stepName = fmt.Sprintf("Cache %d", i+1)
 		}
-		if key, hasKey := cache["key"]; hasKey {
+		if nameVal, hasName := cache["name"]; hasName {
+			if nameStr, ok := nameVal.(string); ok && nameStr != "" {
+				stepName = nameStr
+			}
+		} else if key, hasKey := cache["key"]; hasKey {
 			if keyStr, ok := key.(string); ok && keyStr != "" {
 				stepName = fmt.Sprintf("Cache (%s)", keyStr)
 			}
@@ -341,7 +345,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Add step to create cache-memory directory for this cache
@@ -478,7 +482,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Prepare allowed extensions array for JavaScript
@@ -536,7 +540,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Add upload-artifact step for each cache (runs always)
@@ -660,7 +664,7 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 		if cache.ID == "default" {
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 		fmt.Fprintf(&cacheExamples, "- `%s/notes.txt` - general notes and observations\n", cacheDir)
 		fmt.Fprintf(&cacheExamples, "- `%s/notes.md` - markdown formatted notes\n", cacheDir)
@@ -711,14 +715,14 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			artifactName = "cache-memory"
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			artifactName = fmt.Sprintf("cache-memory-%s", cache.ID)
-			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+			artifactName = "cache-memory-" + cache.ID
+			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 
 		// Download artifact step
 		var downloadStep strings.Builder
 		// Generate a safe step ID from cache ID (replace hyphens with underscores)
-		downloadStepID := strings.ReplaceAll(fmt.Sprintf("download_cache_%s", cache.ID), "-", "_")
+		downloadStepID := strings.ReplaceAll("download_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
 		fmt.Fprintf(&downloadStep, "        id: %s\n", downloadStepID)
 		fmt.Fprintf(&downloadStep, "        uses: %s\n", GetActionPin("actions/download-artifact"))
@@ -730,15 +734,15 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Check if cache folder exists and is not empty
 		var checkStep strings.Builder
-		checkStepID := strings.ReplaceAll(fmt.Sprintf("check_cache_%s", cache.ID), "-", "_")
+		checkStepID := strings.ReplaceAll("check_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&checkStep, "      - name: Check if cache-memory folder has content (%s)\n", cache.ID)
 		fmt.Fprintf(&checkStep, "        id: %s\n", checkStepID)
 		checkStep.WriteString("        shell: bash\n")
 		checkStep.WriteString("        run: |\n")
 		fmt.Fprintf(&checkStep, "          if [ -d \"%s\" ] && [ \"$(ls -A %s 2>/dev/null)\" ]; then\n", cacheDir, cacheDir)
-		checkStep.WriteString("            echo \"has_content=true\" >> $GITHUB_OUTPUT\n")
+		checkStep.WriteString("            echo \"has_content=true\" >> \"$GITHUB_OUTPUT\"\n")
 		checkStep.WriteString("          else\n")
-		checkStep.WriteString("            echo \"has_content=false\" >> $GITHUB_OUTPUT\n")
+		checkStep.WriteString("            echo \"has_content=false\" >> \"$GITHUB_OUTPUT\"\n")
 		checkStep.WriteString("          fi\n")
 		steps = append(steps, checkStep.String())
 
@@ -812,8 +816,8 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	// Prepend setup steps to all cache steps
 	steps = append(setupSteps, steps...)
 
-	// Job condition: only run if detection passed
-	jobCondition := "always() && needs.detection.outputs.success == 'true'"
+	// Job condition: only run if detection passed (detection is inline in agent job)
+	jobCondition := fmt.Sprintf("always() && needs.%s.outputs.detection_success == 'true'", constants.AgentJobName)
 
 	// Set up permissions for the cache update job
 	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder
@@ -824,15 +828,44 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		permissions = perms.RenderToYAML()
 	}
 
+	// Set GH_AW_WORKFLOW_ID_SANITIZED so cache keys match those used in the agent job
+	var jobEnv map[string]string
+	if data.WorkflowID != "" {
+		jobEnv = map[string]string{
+			"GH_AW_WORKFLOW_ID_SANITIZED": SanitizeWorkflowIDForCacheKey(data.WorkflowID),
+		}
+	}
+
 	job := &Job{
 		Name:        "update_cache_memory",
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
 		Permissions: permissions,
-		Needs:       []string{"agent", "detection"},
+		Needs:       []string{string(constants.AgentJobName)},
+		Env:         jobEnv,
 		Steps:       steps,
 	}
 
 	return job, nil
+}
+
+// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
+func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
+	cacheLog.Printf("Validating cache IDs: checking %d caches for duplicates", len(caches))
+	seen := make(map[string]bool)
+	for _, cache := range caches {
+		if seen[cache.ID] {
+			cacheLog.Printf("Duplicate cache ID found: %s", cache.ID)
+			return NewValidationError(
+				"sandbox.cache-memory",
+				cache.ID,
+				"duplicate cache-memory ID found - each cache must have a unique ID",
+				"Change the cache ID to a unique value. Example:\n\nsandbox:\n  cache-memory:\n    - id: cache-1\n      size: 100MB\n    - id: cache-2  # Use unique IDs\n      size: 50MB",
+			)
+		}
+		seen[cache.ID] = true
+	}
+	cacheLog.Print("Cache ID validation passed: no duplicates found")
+	return nil
 }

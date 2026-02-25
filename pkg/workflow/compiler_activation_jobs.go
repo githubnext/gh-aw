@@ -2,11 +2,16 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -28,7 +33,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Add setup step to copy activation scripts (required - no inline fallback)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
-		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+		return nil, errors.New("setup action reference is required but could not be resolved")
 	}
 
 	// For dev mode (local action path), checkout the actions folder first
@@ -297,7 +302,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if len(conditions) == 0 {
 		// This should never happen - it means pre-activation job was created without any checks
 		// If we reach this point, it's a developer error in the compiler logic
-		return nil, fmt.Errorf("developer error: pre-activation job created without permission check or stop-time configuration")
+		return nil, errors.New("developer error: pre-activation job created without permission check or stop-time configuration")
 	} else if len(conditions) == 1 {
 		// Single condition
 		activatedNode = conditions[0]
@@ -316,18 +321,19 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		"activated": activatedExpression,
 	}
 
-	// Add matched_command output if this is a command workflow
-	// This allows the activation job to access the matched command via needs.pre_activation.outputs.matched_command
+	// Always declare matched_command output so actionlint can resolve the type.
+	// For command workflows, reference the check_command_position step output.
+	// For non-command workflows, emit an empty string so the output key is defined.
 	if len(data.Command) > 0 {
 		outputs[constants.MatchedCommandOutput] = fmt.Sprintf("${{ steps.%s.outputs.%s }}", constants.CheckCommandPositionStepID, constants.MatchedCommandOutput)
+	} else {
+		outputs[constants.MatchedCommandOutput] = "''"
 	}
 
 	// Merge custom outputs from jobs.pre-activation if present
 	if len(customOutputs) > 0 {
 		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
-		for key, value := range customOutputs {
-			outputs[key] = value
-		}
+		maps.Copy(outputs, customOutputs)
 	}
 
 	// Pre-activation job uses the user's original if condition (data.If)
@@ -450,7 +456,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add setup step to copy activation scripts (required - no inline fallback)
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
-		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+		return nil, errors.New("setup action reference is required but could not be resolved")
 	}
 
 	// For dev mode (local action path), checkout the actions folder first
@@ -614,6 +620,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Find custom jobs that depend on pre_activation - these run before activation
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
 
+	// Find custom jobs whose outputs are referenced in the markdown body but have no explicit needs.
+	// These jobs must run before activation so their outputs are available when the activation job
+	// builds the prompt. Without this, activation would reference their outputs while they haven't
+	// run yet, causing actionlint errors and incorrect prompt substitutions.
+	promptReferencedJobs := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
+	for _, jobName := range promptReferencedJobs {
+		if !sliceutil.Contains(customJobsBeforeActivation, jobName) {
+			customJobsBeforeActivation = append(customJobsBeforeActivation, jobName)
+			compilerActivationJobsLog.Printf("Added '%s' to activation dependencies: referenced in markdown body and has no explicit needs", jobName)
+		}
+	}
+
 	if preActivationJobCreated {
 		// Activation job depends on pre-activation job and checks the "activated" output
 		activationNeeds = []string{string(constants.PreActivationJobName)}
@@ -664,7 +682,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Generate prompt in the activation job (before agent job runs)
 	compilerActivationJobsLog.Print("Generating prompt in activation job")
-	c.generatePromptInActivationJob(&steps, data)
+	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
 	// Upload prompt.txt as an artifact for the agent job to download
 	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
@@ -702,7 +720,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if data.ManualApproval != "" {
 		// Strip ANSI escape codes from manual-approval environment name
 		cleanManualApproval := stringutil.StripANSI(data.ManualApproval)
-		environment = fmt.Sprintf("environment: %s", cleanManualApproval)
+		environment = "environment: " + cleanManualApproval
 	}
 
 	job := &Job{
@@ -783,7 +801,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// so the agent job gets them transitively through activation
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
-		for jobName := range data.Jobs {
+		for _, jobName := range slices.Sorted(maps.Keys(data.Jobs)) {
 			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
 			if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 				continue
@@ -804,7 +822,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// through the activation job, if the workflow content directly references their outputs
 	// (e.g., ${{ needs.search_issues.outputs.* }}), we MUST add them as direct dependencies.
 	// This is required for GitHub Actions expression evaluation and actionlint validation.
-	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	// Also check custom steps from the frontmatter, which are also added to the agent job.
+	var contentBuilder strings.Builder
+	contentBuilder.WriteString(data.MarkdownContent)
+	if data.CustomSteps != "" {
+		contentBuilder.WriteByte('\n')
+		contentBuilder.WriteString(data.CustomSteps)
+	}
+	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
 		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
@@ -812,13 +837,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 
 		// Check if this job is already in depends
-		alreadyDepends := false
-		for _, dep := range depends {
-			if dep == jobName {
-				alreadyDepends = true
-				break
-			}
-		}
+		alreadyDepends := slices.Contains(depends, jobName)
 		// Add it if not already present
 		if !alreadyDepends {
 			depends = append(depends, jobName)
@@ -851,6 +870,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		outputs["output"] = "${{ steps.collect_output.outputs.output }}"
 		outputs["output_types"] = "${{ steps.collect_output.outputs.output_types }}"
 		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
+	}
+
+	// Add inline detection outputs if threat detection is enabled
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		outputs["detection_success"] = "${{ steps.detection_conclusion.outputs.success }}"
+		outputs["detection_conclusion"] = "${{ steps.detection_conclusion.outputs.conclusion }}"
+		compilerActivationJobsLog.Print("Added detection_success and detection_conclusion outputs to agent job")
 	}
 
 	// Add checkout_pr_success output to track PR checkout status only if the checkout-pr step will be generated
@@ -886,7 +912,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references
 		if data.SafeOutputs.UploadAssets != nil {
 			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-			env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 		} else {
 			// Set empty defaults when upload-assets is not configured
@@ -953,14 +979,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 // generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
 // This creates the prompt.txt file that will be uploaded as an artifact and downloaded by the agent job
-func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData) {
+// beforeActivationJobs is the list of custom job names that run before (i.e., are dependencies of) activation.
+// Passing nil or an empty slice means no custom jobs run before activation; expressions referencing any
+// custom job will be filtered out of the substitution step to avoid actionlint errors.
+func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string) {
 	compilerActivationJobsLog.Print("Generating prompt steps in activation job")
 
 	// Use a string builder to collect the YAML
 	var yaml strings.Builder
 
 	// Call the existing generatePrompt method to get all the prompt steps
-	c.generatePrompt(&yaml, data)
+	c.generatePrompt(&yaml, data, preActivationJobCreated, beforeActivationJobs)
 
 	// Append the generated YAML content as a single string to steps
 	yamlContent := yaml.String()

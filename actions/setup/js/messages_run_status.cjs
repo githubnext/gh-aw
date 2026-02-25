@@ -108,9 +108,67 @@ function getDetectionFailureMessage(ctx) {
   return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
 }
 
+/**
+ * @typedef {Object} PullRequestCreatedContext
+ * @property {number} itemNumber - PR number
+ * @property {string} itemUrl - URL of the pull request
+ */
+
+/**
+ * Get the pull-request-created message, using custom template if configured.
+ * @param {PullRequestCreatedContext} ctx - Context for message generation
+ * @returns {string} Pull-request-created message
+ */
+function getPullRequestCreatedMessage(ctx) {
+  const messages = getMessages();
+  const templateContext = toSnakeCase(ctx);
+  const defaultMessage = "Pull request created: [#{item_number}]({item_url})";
+  return messages?.pullRequestCreated ? renderTemplate(messages.pullRequestCreated, templateContext) : renderTemplate(defaultMessage, templateContext);
+}
+
+/**
+ * @typedef {Object} IssueCreatedContext
+ * @property {number} itemNumber - Issue number
+ * @property {string} itemUrl - URL of the issue
+ */
+
+/**
+ * Get the issue-created message, using custom template if configured.
+ * @param {IssueCreatedContext} ctx - Context for message generation
+ * @returns {string} Issue-created message
+ */
+function getIssueCreatedMessage(ctx) {
+  const messages = getMessages();
+  const templateContext = toSnakeCase(ctx);
+  const defaultMessage = "Issue created: [#{item_number}]({item_url})";
+  return messages?.issueCreated ? renderTemplate(messages.issueCreated, templateContext) : renderTemplate(defaultMessage, templateContext);
+}
+
+/**
+ * @typedef {Object} CommitPushedContext
+ * @property {string} commitSha - Full commit SHA
+ * @property {string} shortSha - Short (7-char) commit SHA
+ * @property {string} commitUrl - URL of the commit
+ */
+
+/**
+ * Get the commit-pushed message, using custom template if configured.
+ * @param {CommitPushedContext} ctx - Context for message generation
+ * @returns {string} Commit-pushed message
+ */
+function getCommitPushedMessage(ctx) {
+  const messages = getMessages();
+  const templateContext = toSnakeCase(ctx);
+  const defaultMessage = "Commit pushed: [`{short_sha}`]({commit_url})";
+  return messages?.commitPushed ? renderTemplate(messages.commitPushed, templateContext) : renderTemplate(defaultMessage, templateContext);
+}
+
 module.exports = {
   getRunStartedMessage,
   getRunSuccessMessage,
   getRunFailureMessage,
   getDetectionFailureMessage,
+  getPullRequestCreatedMessage,
+  getIssueCreatedMessage,
+  getCommitPushedMessage,
 };

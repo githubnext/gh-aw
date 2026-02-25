@@ -18,7 +18,7 @@ func TestCopilotAssignmentEnvVarIsSet(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Assignees:            []string{"copilot"},
 			},
 		},
@@ -43,7 +43,7 @@ func TestCopilotAssignmentEnvVarNotSetWithoutCopilot(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Assignees:            []string{"user1"},
 			},
 		},
@@ -67,7 +67,7 @@ func TestCopilotAssignmentEnvVarWithMixedAssignees(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Assignees:            []string{"user1", "copilot", "user2"},
 			},
 		},
@@ -92,7 +92,7 @@ func TestCopilotAssignmentEnvVarWithNilAssignees(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Assignees:            nil,
 			},
 		},
@@ -116,7 +116,7 @@ func TestCopilotAssignmentEnvVarWithEmptyAssignees(t *testing.T) {
 		Name: "Test",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Assignees:            []string{},
 			},
 		},

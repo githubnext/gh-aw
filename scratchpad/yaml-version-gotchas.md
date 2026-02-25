@@ -45,7 +45,7 @@ result = yaml.safe_load(content)
 print(result)
 # Output: {True: {'issues': {'types': ['opened']}}}
 #          ^^^^ The key is boolean True, not string "on"!
-```text
+```
 
 This creates a **false positive** when validating workflows with Python-based tools, making it appear that the YAML is invalid when it's actually correct.
 
@@ -77,7 +77,7 @@ on:
     // Output: map[on:map[issues:map[types:[opened]]]]
     //         ^^^ The key is string "on" ✓
 }
-```text
+```
 
 ## How gh-aw Handles This
 
@@ -104,7 +104,7 @@ YES:  # → true
 Yes:  # → true
 ON:   # → true
 On:   # → true
-```text
+```
 
 ### YAML 1.1 Boolean Keywords (Parsed as `false`)
 
@@ -117,7 +117,7 @@ NO:   # → false
 No:   # → false
 OFF:  # → false
 Off:  # → false
-```text
+```
 
 ### YAML 1.2 Behavior
 
@@ -128,7 +128,7 @@ true:   # → true
 false:  # → false
 True:   # → true (case-insensitive in some parsers)
 False:  # → false (case-insensitive in some parsers)
-```text
+```
 
 ## Code Examples
 
@@ -143,7 +143,7 @@ on:
 permissions:
   issues: write
 ---
-```text
+```
 
 **YAML 1.1 Parser (Python):**
 ```python
@@ -152,7 +152,7 @@ content = open('workflow.md').read().split('---')[1]
 data = yaml.safe_load(content)
 print(type(list(data.keys())[0]))  # <class 'bool'>
 print(list(data.keys())[0])        # True
-```text
+```
 
 **YAML 1.2 Parser (gh-aw / goccy/go-yaml):**
 ```go
@@ -160,7 +160,7 @@ var data map[string]interface{}
 yaml.Unmarshal([]byte(content), &data)
 fmt.Printf("%T\n", "on")     // string
 fmt.Printf("%v\n", data["on"]) // map[issues:...]
-```text
+```
 
 ### Example 2: Configuration Value
 
@@ -170,7 +170,7 @@ settings:
   enabled: yes
   disabled: no
   mode: on
-```text
+```
 
 **YAML 1.1 Parser Output:**
 ```python
@@ -181,7 +181,7 @@ settings:
     'mode': True        # Boolean (the string "on" became True!)
   }
 }
-```text
+```
 
 **YAML 1.2 Parser Output:**
 ```go
@@ -192,7 +192,7 @@ map[string]interface{}{
     "mode": "on",         // String
   },
 }
-```text
+```
 
 ### Example 3: Issue Labels
 
@@ -202,7 +202,7 @@ labels:
   - bug
   - on hold       # Might be interpreted as "on: hold" with boolean key
   - off topic     # Might be interpreted as "off: topic" with boolean key
-```text
+```
 
 **Safe Approach:**
 ```yaml
@@ -210,7 +210,7 @@ labels:
   - bug
   - "on hold"     # Quote to force string interpretation
   - "off topic"   # Quote to force string interpretation
-```text
+```
 
 ## Impact on Validation
 
@@ -223,7 +223,7 @@ Many developers use Python-based YAML validation tools during local development.
 ```bash
 $ python -c "import yaml; yaml.safe_load(open('workflow.md'))"
 # Error: Invalid structure - key is boolean True instead of string "on"
-```text
+```
 
 **This is NOT a real error!** The workflow is valid and will work correctly with gh-aw.
 
@@ -239,7 +239,7 @@ $ gh aw compile workflow.md
 
 # Or use a YAML 1.2 validator
 $ yamllint --version  # Check if it supports YAML 1.2
-```text
+```
 
 ## Recommendations
 
@@ -311,7 +311,7 @@ jobs:
       
       # Validate all workflows
       - run: gh aw compile
-```text
+```
 
 ## Workarounds
 
@@ -326,7 +326,7 @@ If you need to use YAML 1.1 tools (like Python's `yaml.safe_load`) for some reas
   issues:
     types: [opened]
 ---
-```text
+```
 
 **Option 2: Use Alternative Trigger Names**
 ```yaml
@@ -334,7 +334,7 @@ If you need to use YAML 1.1 tools (like Python's `yaml.safe_load`) for some reas
 # Not applicable - "on" is required by GitHub Actions
 # This workaround doesn't actually work for workflows
 ---
-```yaml
+```
 
 **Recommendation:** Don't use YAML 1.1 tools for gh-aw workflows. Use gh-aw's compiler instead.
 

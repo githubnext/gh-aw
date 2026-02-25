@@ -30,6 +30,29 @@ func TestFilterEnvForSecrets(t *testing.T) {
 			wantRemoved:    0,
 		},
 		{
+			name: "allows overriding engine env var with a differently-named secret",
+			env: map[string]string{
+				// User overrides the engine token with their own org secret
+				"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+				"NORMAL_ENV_VAR":       "some-value",
+			},
+			// COPILOT_GITHUB_TOKEN is in the allowed list (as an env var key),
+			// so the custom secret MY_ORG_COPILOT_TOKEN should pass through.
+			allowedSecrets: []string{"COPILOT_GITHUB_TOKEN"},
+			wantKeys:       []string{"COPILOT_GITHUB_TOKEN", "NORMAL_ENV_VAR"},
+			wantRemoved:    0,
+		},
+		{
+			name: "does not allow non-engine secrets even when key matches nothing",
+			env: map[string]string{
+				"COPILOT_GITHUB_TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}",
+				"RANDOM_SECRET":        "${{ secrets.RANDOM_SECRET }}",
+			},
+			allowedSecrets: []string{"COPILOT_GITHUB_TOKEN"},
+			wantKeys:       []string{"COPILOT_GITHUB_TOKEN"},
+			wantRemoved:    1,
+		},
+		{
 			name: "filters unauthorized secrets",
 			env: map[string]string{
 				"COPILOT_GITHUB_TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}",

@@ -83,12 +83,13 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 	f.Add("{{#if github.actor\x00}}content{{/if}}")
 
 	// Very long expressions
-	longExpr := "{{#if "
-	for i := 0; i < 100; i++ {
-		longExpr += "github.event.pull_request.head.repo."
+	var longExpr strings.Builder
+	longExpr.WriteString("{{#if ")
+	for range 100 {
+		longExpr.WriteString("github.event.pull_request.head.repo.")
 	}
-	longExpr += "name}}content{{/if}}"
-	f.Add(longExpr)
+	longExpr.WriteString("name}}content{{/if}}")
+	f.Add(longExpr.String())
 
 	// Complex markdown structures
 	f.Add(`# Header

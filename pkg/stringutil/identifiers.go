@@ -24,13 +24,13 @@ import (
 //	NormalizeWorkflowName("my.workflow.md")            // returns "my.workflow"
 func NormalizeWorkflowName(name string) string {
 	// Remove .lock.yml extension first (longer extension)
-	if strings.HasSuffix(name, ".lock.yml") {
-		return strings.TrimSuffix(name, ".lock.yml")
+	if before, ok := strings.CutSuffix(name, ".lock.yml"); ok {
+		return before
 	}
 
 	// Remove .md extension
-	if strings.HasSuffix(name, ".md") {
-		return strings.TrimSuffix(name, ".md")
+	if before, ok := strings.CutSuffix(name, ".md"); ok {
+		return before
 	}
 
 	return name

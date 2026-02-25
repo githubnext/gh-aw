@@ -255,51 +255,6 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			name: "Playwright tool default configuration",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
-					"playwright": map[string]any{
-						"allowed_domains": []any{"github.com", "*.github.com"},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
-					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"}}, Name: "playwright",
-				},
-			},
-		},
-		{
-			name: "Playwright tool with custom Docker image",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"playwright": map[string]any{
-						"allowed_domains": []any{"example.com"},
-						"version":         "v1.41.0",
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
-						"mcr.microsoft.com/playwright:v1.41.0",
-					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
-				},
-			},
-		},
-		{
-			name: "Playwright tool with localhost default",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
 					"playwright": map[string]any{},
 				},
 			},
@@ -308,11 +263,31 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"}}, Name: "playwright",
+					Env: map[string]string{}}, Name: "playwright",
+				},
+			},
+		},
+		{
+			name: "Playwright tool with custom Docker image",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"version": "v1.41.0",
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
+						"mcr.microsoft.com/playwright:v1.41.0",
+					},
+					Env: map[string]string{}}, Name: "playwright",
 				},
 			},
 		},
@@ -321,8 +296,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
-						"allowed_domains": []any{"example.com"},
-						"version":         20,
+						"version": 20,
 					},
 				},
 			},
@@ -331,11 +305,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:20",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
+					Env: map[string]string{}}, Name: "playwright",
 				},
 			},
 		},
@@ -344,8 +317,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
-						"allowed_domains": []any{"example.com"},
-						"version":         1.41,
+						"version": 1.41,
 					},
 				},
 			},
@@ -354,11 +326,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:1.41",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
+					Env: map[string]string{}}, Name: "playwright",
 				},
 			},
 		},
@@ -367,8 +338,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
-						"allowed_domains": []any{"example.com"},
-						"version":         int64(142),
+						"version": int64(142),
 					},
 				},
 			},
@@ -377,11 +347,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 						"mcr.microsoft.com/playwright:142",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
+					Env: map[string]string{}}, Name: "playwright",
 				},
 			},
 		},

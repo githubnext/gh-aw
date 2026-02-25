@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -316,7 +317,7 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 		// wrongErr := fmt.Errorf("read failed: %w", ioErr)
 
 		// RIGHT: Create a new error with context
-		userErr := fmt.Errorf("failed to read workflow file: unexpected end of file")
+		userErr := errors.New("failed to read workflow file: unexpected end of file")
 
 		// Verify sentinel error is not exposed
 		assert.NotErrorIs(t, userErr, ioErr,

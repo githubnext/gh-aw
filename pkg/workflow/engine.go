@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -20,7 +21,6 @@ type EngineConfig struct {
 	UserAgent   string
 	Command     string // Custom executable path (when set, skip installation steps)
 	Env         map[string]string
-	Steps       []map[string]any
 	Config      string
 	Args        []string
 	Firewall    *FirewallConfig // AWF firewall configuration
@@ -108,9 +108,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'max-turns' field
 			if maxTurns, hasMaxTurns := engineObj["max-turns"]; hasMaxTurns {
 				if maxTurnsInt, ok := maxTurns.(int); ok {
-					config.MaxTurns = fmt.Sprintf("%d", maxTurnsInt)
+					config.MaxTurns = strconv.Itoa(maxTurnsInt)
 				} else if maxTurnsUint64, ok := maxTurns.(uint64); ok {
-					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
+					config.MaxTurns = strconv.FormatUint(maxTurnsUint64, 10)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
 				}
@@ -168,18 +168,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'steps' field (array of step objects)
-			if steps, hasSteps := engineObj["steps"]; hasSteps {
-				if stepsArray, ok := steps.([]any); ok {
-					config.Steps = make([]map[string]any, 0, len(stepsArray))
-					for _, step := range stepsArray {
-						if stepMap, ok := step.(map[string]any); ok {
-							config.Steps = append(config.Steps, stepMap)
-						}
-					}
-				}
-			}
-
 			// Extract optional 'config' field (additional TOML configuration)
 			if config_field, hasConfig := engineObj["config"]; hasConfig {
 				if configStr, ok := config_field.(string); ok {
@@ -228,15 +216,15 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						}
 					}
 
-					// Extract log_level field (default: "debug")
-					if logLevel, hasLogLevel := firewallObj["log_level"]; hasLogLevel {
+					// Extract log-level field (default: "debug")
+					if logLevel, hasLogLevel := firewallObj["log-level"]; hasLogLevel {
 						if logLevelStr, ok := logLevel.(string); ok {
 							firewallConfig.LogLevel = logLevelStr
 						}
 					}
 
-					// Extract cleanup_script field (default: "./scripts/ci/cleanup.sh")
-					if cleanupScript, hasCleanupScript := firewallObj["cleanup_script"]; hasCleanupScript {
+					// Extract cleanup-script field (default: "./scripts/ci/cleanup.sh")
+					if cleanupScript, hasCleanupScript := firewallObj["cleanup-script"]; hasCleanupScript {
 						if cleanupScriptStr, ok := cleanupScript.(string); ok {
 							firewallConfig.CleanupScript = cleanupScriptStr
 						}

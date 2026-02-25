@@ -249,7 +249,7 @@ func ResetDockerPullState() {
 // that require static analysis tools
 func ValidateMCPServerDockerAvailability() error {
 	if !isDockerAvailable() {
-		return fmt.Errorf("docker is not available - required for zizmor, poutine, and actionlint static analysis tools")
+		return errors.New("docker is not available - required for zizmor, poutine, and actionlint static analysis tools")
 	}
 	return nil
 }

@@ -18,12 +18,10 @@ strict: false
 
 tools:
   github: false
-  edit:
-  bash:
-    - "*"
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-pr-merged-report] "
     category: "audits"
     max: 1
@@ -36,9 +34,8 @@ network:
     - api.github.com
 
 imports:
-  - shared/mood.md
   - shared/gh.md
-  - shared/reporting.md
+  - shared/copilot-pr-analysis-base.md
 
 timeout-minutes: 10
 ---
@@ -313,3 +310,9 @@ A successful report:
 - ✅ Completes within 10-minute timeout
 
 Begin your analysis now. Use the `gh` safe-input tool for all GitHub CLI operations.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

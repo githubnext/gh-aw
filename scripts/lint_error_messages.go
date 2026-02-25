@@ -330,10 +330,3 @@ func suggestImprovement(message string) string {
 
 	return "Add 'Example:' section showing correct usage"
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

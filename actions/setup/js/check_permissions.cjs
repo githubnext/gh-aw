@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { parseRequiredPermissions, checkRepositoryPermission } = require("./check_permissions_utils.cjs");
+const { ERR_API, ERR_CONFIG, ERR_PERMISSION } = require("./error_codes.cjs");
 
 async function main() {
   const { eventName, actor, repo } = context;
@@ -26,7 +27,7 @@ async function main() {
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-    core.setFailed("Configuration error: Required permissions not specified");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: Required permissions not specified`);
     return;
   }
 
@@ -34,14 +35,14 @@ async function main() {
   const result = await checkRepositoryPermission(actor, owner, repoName, requiredPermissions);
 
   if (result.error) {
-    core.setFailed(`Repository permission check failed: ${result.error}`);
+    core.setFailed(`${ERR_API}: Repository permission check failed: ${result.error}`);
     return;
   }
 
   if (!result.authorized) {
     // Fail the workflow when permission check fails (cancellation handled by activation job's if condition)
     core.warning(`Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
-    core.setFailed(`Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
+    core.setFailed(`${ERR_PERMISSION}: Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
   }
 }
 

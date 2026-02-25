@@ -4,6 +4,7 @@ package console
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -121,11 +122,11 @@ func TestGolden_BoxRendering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test RenderTitleBox which returns []string
 			output := RenderTitleBox(tt.title, tt.width)
-			fullOutput := ""
+			var fullOutput strings.Builder
 			for _, line := range output {
-				fullOutput += line + "\n"
+				fullOutput.WriteString(line + "\n")
 			}
-			golden.RequireEqual(t, []byte(fullOutput))
+			golden.RequireEqual(t, []byte(fullOutput.String()))
 		})
 	}
 }
@@ -578,11 +579,11 @@ func TestGolden_InfoSection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := RenderInfoSection(tt.content)
-			fullOutput := ""
+			var fullOutput strings.Builder
 			for _, line := range output {
-				fullOutput += line + "\n"
+				fullOutput.WriteString(line + "\n")
 			}
-			golden.RequireEqual(t, []byte(fullOutput))
+			golden.RequireEqual(t, []byte(fullOutput.String()))
 		})
 	}
 }

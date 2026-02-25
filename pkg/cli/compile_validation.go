@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -197,18 +198,18 @@ func validateCompileConfig(config CompileConfig) error {
 	if config.Dependabot {
 		if len(config.MarkdownFiles) > 0 {
 			compileValidationLog.Print("Config validation failed: dependabot flag with specific files")
-			return fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
+			return errors.New("--dependabot flag cannot be used with specific workflow files")
 		}
 		if config.WorkflowDir != "" && config.WorkflowDir != ".github/workflows" {
 			compileValidationLog.Printf("Config validation failed: dependabot with custom dir: %s", config.WorkflowDir)
-			return fmt.Errorf("--dependabot flag cannot be used with custom --dir")
+			return errors.New("--dependabot flag cannot be used with custom --dir")
 		}
 	}
 
 	// Validate purge flag usage
 	if config.Purge && len(config.MarkdownFiles) > 0 {
 		compileValidationLog.Print("Config validation failed: purge flag with specific files")
-		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+		return errors.New("--purge flag can only be used when compiling all markdown files (no specific files specified)")
 	}
 
 	// Validate workflow directory path

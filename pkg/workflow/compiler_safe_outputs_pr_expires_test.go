@@ -90,10 +90,10 @@ Test workflow
 			for _, line := range lines {
 				if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG:") {
 					// Extract the JSON value - it's in quotes and may have escaped characters
-					start := strings.Index(line, ": ")
-					if start >= 0 {
+					_, after, ok := strings.Cut(line, ": ")
+					if ok {
 						// Get everything after ": " and trim quotes
-						jsonPart := strings.TrimSpace(line[start+2:])
+						jsonPart := strings.TrimSpace(after)
 						if strings.HasPrefix(jsonPart, `"`) && strings.HasSuffix(jsonPart, `"`) {
 							// Remove surrounding quotes
 							jsonPart = jsonPart[1 : len(jsonPart)-1]

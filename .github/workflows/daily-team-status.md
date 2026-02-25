@@ -13,12 +13,12 @@ permissions:
 tracker-id: daily-team-status
 network: defaults
 imports:
-  - shared/mood.md
   - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 safe-outputs:
   create-issue:
     expires: 1d
     title-prefix: "[team-status] "
+    labels: [automation, daily-report]
 description: |
   This workflow created daily team status reporter creating upbeat activity summaries.
   Gathers recent repository activity (issues, PRs, releases, code changes)
@@ -101,3 +101,9 @@ Create reports that:
 
 1. Gather recent activity from the repository
 2. Create a new GitHub issue with your findings and insights
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

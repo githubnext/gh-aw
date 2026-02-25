@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const fs = require("fs");
+const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Determines if a value is truthy according to template logic
@@ -144,7 +145,7 @@ function main() {
     const promptPath = process.env.GH_AW_PROMPT;
     if (!promptPath) {
       if (typeof core !== "undefined") {
-        core.setFailed("GH_AW_PROMPT environment variable is not set");
+        core.setFailed(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`);
       }
       process.exit(1);
     }
@@ -216,7 +217,7 @@ function main() {
       if (err.stack) {
         core.info(`[main] Stack trace:\n${err.stack}`);
       }
-      core.setFailed(getErrorMessage(error));
+      core.setFailed(`${ERR_API}: ${getErrorMessage(error)}`);
     } else {
       throw error;
     }

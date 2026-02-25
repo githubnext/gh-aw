@@ -2,9 +2,11 @@ package workflow
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -181,7 +183,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
 		if groupExpr != "" {
 			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-				return formatCompilerError(markdownPath, "error", fmt.Sprintf("workflow-level concurrency validation failed: %s", err.Error()), err)
+				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
 			}
 		}
 	}
@@ -193,7 +195,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.EngineConfig.Concurrency)
 		if groupExpr != "" {
 			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-				return formatCompilerError(markdownPath, "error", fmt.Sprintf("engine.concurrency validation failed: %s", err.Error()), err)
+				return formatCompilerError(markdownPath, "error", "engine.concurrency validation failed: "+err.Error(), err)
 			}
 		}
 	}
@@ -202,6 +204,11 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	if isAgentSandboxDisabled(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. The AI agent will have direct network access without firewall filtering. The MCP gateway remains enabled. Only use this for testing or in controlled environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
+	}
+
+	// Validate: threat detection requires sandbox.agent to be enabled (detection runs inside AWF)
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection != nil && isAgentSandboxDisabled(workflowData) {
+		return formatCompilerError(markdownPath, "error", "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or remove the threat-detection configuration from safe-outputs.", errors.New("threat detection requires sandbox.agent"))
 	}
 
 	// Emit experimental warning for safe-inputs feature
@@ -299,12 +306,9 @@ Ensure proper audience validation and trust policies are configured.`
 		// Print informational message if "projects" toolset is explicitly specified
 		// (not when implied by "all", as users unlikely intend to use projects with "all")
 		originalToolsets := workflowData.ParsedTools.GitHub.Toolset.ToStringSlice()
-		for _, toolset := range originalToolsets {
-			if toolset == "projects" {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires a GitHub token with organization Projects permissions."))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/auth/#gh_aw_project_github_token-github-projects-v2"))
-				break
-			}
+		if slices.Contains(originalToolsets, "projects") {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires additional authentication."))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/auth-projects/"))
 		}
 	}
 
@@ -356,7 +360,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return "", formattedErr
 	}
@@ -369,7 +373,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow with template injection risks written to: %s", console.ToRelativePath(invalidFile))))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return "", formattedErr
 	}
@@ -383,7 +387,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
 			return "", formattedErr
 		}

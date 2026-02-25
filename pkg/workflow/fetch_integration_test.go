@@ -65,14 +65,9 @@ Fetch content from the web.
 		t.Errorf("Expected compiled workflow to contain web-fetch MCP server configuration, but it didn't")
 	}
 
-	// Verify the Docker command is present
-	if !strings.Contains(lockContent, `"mcp/fetch"`) {
-		t.Errorf("Expected web-fetch MCP server to use the mcp/fetch Docker image, but it didn't")
-	}
-
-	// Verify that the MCP server is configured with Docker
-	if !strings.Contains(lockContent, `command = "docker"`) {
-		t.Errorf("Expected web-fetch MCP server to have Docker command")
+	// Verify the container image is present (MCP Gateway schema: container key)
+	if !strings.Contains(lockContent, `container = "mcp/fetch"`) {
+		t.Errorf("Expected web-fetch MCP server to use the mcp/fetch container image, but it didn't")
 	}
 }
 
@@ -124,13 +119,13 @@ Fetch content from the web.
 	lockContent := string(lockData)
 
 	// Claude uses JSON format, check that web-fetch is NOT configured as an MCP server
-	// Look for the MCP server configuration pattern with "command": "docker"
+	// Look for the MCP server configuration pattern with "container": "mcp/fetch"
 	// We can't simply search for "web-fetch" because Claude will have it in the allowed tools
-	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"command": "docker"`) {
+	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"container": "mcp/fetch"`) {
 		// Check if both appear close together (indicating MCP server config)
-		dockerIdx := strings.Index(lockContent, `"command": "docker"`)
+		containerIdx := strings.Index(lockContent, `"container": "mcp/fetch"`)
 		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)
-		if dockerIdx > 0 && webFetchIdx > 0 && dockerIdx-webFetchIdx < 200 {
+		if containerIdx > 0 && webFetchIdx > 0 && containerIdx-webFetchIdx < 200 {
 			t.Errorf("Expected Claude workflow NOT to contain web-fetch MCP server (since Claude has native web-fetch support), but it did")
 		}
 	}
@@ -194,10 +189,10 @@ Fetch content from the web.
 	}
 
 	// Also check for JSON format MCP server config
-	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"command": "docker"`) {
-		dockerIdx := strings.Index(lockContent, `"command": "docker"`)
+	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"container": "mcp/fetch"`) {
+		containerIdx := strings.Index(lockContent, `"container": "mcp/fetch"`)
 		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)
-		if dockerIdx > 0 && webFetchIdx > 0 && dockerIdx-webFetchIdx < 200 {
+		if containerIdx > 0 && webFetchIdx > 0 && containerIdx-webFetchIdx < 200 {
 			t.Errorf("Expected Copilot workflow NOT to contain web-fetch MCP server, but it did")
 		}
 	}

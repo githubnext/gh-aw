@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -132,7 +133,7 @@ Examples:
 		if len(args) == 0 || interactiveFlag {
 			// Check if running in CI environment
 			if cli.IsRunningInCI() {
-				return fmt.Errorf("interactive mode cannot be used in CI environments. Please provide a workflow name")
+				return errors.New("interactive mode cannot be used in CI environments. Please provide a workflow name")
 			}
 
 			// Use default workflow name for interactive mode
@@ -380,18 +381,18 @@ Examples:
 		if len(args) == 0 {
 			// Check if running in CI environment
 			if cli.IsRunningInCI() {
-				return fmt.Errorf("interactive mode cannot be used in CI environments. Please provide a workflow name")
+				return errors.New("interactive mode cannot be used in CI environments. Please provide a workflow name")
 			}
 
 			// Interactive mode doesn't support repeat or enable flags
 			if repeatCount > 0 {
-				return fmt.Errorf("--repeat flag is not supported in interactive mode")
+				return errors.New("--repeat flag is not supported in interactive mode")
 			}
 			if enable {
-				return fmt.Errorf("--enable-if-needed flag is not supported in interactive mode")
+				return errors.New("--enable-if-needed flag is not supported in interactive mode")
 			}
 			if len(inputs) > 0 {
-				return fmt.Errorf("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
+				return errors.New("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
 			}
 
 			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun)
@@ -463,7 +464,7 @@ func init() {
 	rootCmd.SilenceErrors = true
 
 	// Set version template to match the version subcommand format
-	rootCmd.SetVersionTemplate(fmt.Sprintf("%s version {{.Version}}\n", string(constants.CLIExtensionPrefix)))
+	rootCmd.SetVersionTemplate(string(constants.CLIExtensionPrefix) + " version {{.Version}}\n")
 
 	// Create custom help command that supports "all" subcommand
 	customHelpCmd := &cobra.Command{
@@ -613,6 +614,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	completionCmd := cli.NewCompletionCommand()
 	hashCmd := cli.NewHashCommand()
 	projectCmd := cli.NewProjectCommand()
+	checksCmd := cli.NewChecksCommand()
+	validateCmd := cli.NewValidateCommand(validateEngine)
 
 	// Assign commands to groups
 	// Setup Commands
@@ -626,6 +629,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 	// Development Commands
 	compileCmd.GroupID = "development"
+	validateCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
 	listCmd.GroupID = "development"
@@ -641,6 +645,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	logsCmd.GroupID = "analysis"
 	auditCmd.GroupID = "analysis"
 	healthCmd.GroupID = "analysis"
+	checksCmd.GroupID = "analysis"
 
 	// Utilities
 	mcpServerCmd.GroupID = "utilities"
@@ -668,12 +673,14 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(healthCmd)
+	rootCmd.AddCommand(checksCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(mcpServerCmd)
 	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(secretsCmd)
 	rootCmd.AddCommand(fixCmd)
+	rootCmd.AddCommand(validateCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)

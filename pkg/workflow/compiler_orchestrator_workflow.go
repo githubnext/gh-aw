@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -51,9 +52,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Store a stable workflow identifier derived from the file name.
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
+	// Validate that inlined-imports is not used with agent file imports.
+	// Agent files require runtime access and cannot be resolved without sources.
+	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
+		return nil, formatCompilerError(cleanPath, "error",
+			fmt.Sprintf("inlined-imports cannot be used with agent file imports: '%s'. "+
+				"Agent files require runtime access and will not be resolved without sources. "+
+				"Remove 'inlined-imports: true' or do not import agent files.",
+				engineSetup.importsResult.AgentFile), nil)
+	}
+
 	// Validate bash tool configuration BEFORE applying defaults
 	// This must happen before applyDefaults() which converts nil bash to default commands
 	if err := validateBashToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
+	// Validate GitHub tool configuration
+	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
@@ -118,7 +134,18 @@ func (c *Compiler) buildInitialWorkflowData(
 ) *WorkflowData {
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
-	return &WorkflowData{
+	inlinedImports := resolveInlinedImports(result.Frontmatter)
+
+	// When inlined-imports is true, agent file content is already inlined via ImportPaths → step 1b.
+	// Clear AgentFile/AgentImportSpec so engines don't read it from disk separately at runtime.
+	agentFile := importsResult.AgentFile
+	agentImportSpec := importsResult.AgentImportSpec
+	if inlinedImports {
+		agentFile = ""
+		agentImportSpec = ""
+	}
+
+	workflowData := &WorkflowData{
 		Name:                  toolsResult.workflowName,
 		FrontmatterName:       toolsResult.frontmatterName,
 		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
@@ -138,8 +165,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,
-		AgentFile:             importsResult.AgentFile,
-		AgentImportSpec:       importsResult.AgentImportSpec,
+		AgentFile:             agentFile,
+		AgentImportSpec:       agentImportSpec,
 		RepositoryImports:     importsResult.RepositoryImports,
 		NetworkPermissions:    engineSetup.networkPermissions,
 		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
@@ -151,9 +178,31 @@ func (c *Compiler) buildInitialWorkflowData(
 		StrictMode:            c.strictMode,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
+		RawFrontmatter:        result.Frontmatter,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
+		InlinedImports:        inlinedImports,
 	}
+
+	// Populate checkout configs from parsed frontmatter.
+	// Fall back to raw frontmatter parsing when full ParseFrontmatterConfig fails
+	// (e.g. due to unrecognised tool config shapes like bash: ["*"]).
+	if toolsResult.parsedFrontmatter != nil {
+		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
+	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
+		if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+			workflowData.CheckoutConfigs = configs
+		}
+	}
+
+	return workflowData
+}
+
+// resolveInlinedImports returns true if inlined-imports is enabled.
+// It reads the value directly from the raw (pre-parsed) frontmatter map, which is always
+// populated regardless of whether ParseFrontmatterConfig succeeded.
+func resolveInlinedImports(rawFrontmatter map[string]any) bool {
+	return ParseBoolFromConfig(rawFrontmatter, "inlined-imports", nil)
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter
@@ -354,9 +403,7 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 
 	// Initialize result with main jobs or create empty map
 	result := make(map[string]any)
-	for k, v := range mainJobs {
-		result[k] = v
-	}
+	maps.Copy(result, mainJobs)
 
 	// Split by newlines to handle multiple JSON objects from different imports
 	lines := strings.Split(mergedJobsJSON, "\n")
@@ -414,7 +461,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	if err != nil {
 		return err
 	}
-	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig)
+	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig, workflowData.WorkflowID)
 	if err != nil {
 		return err
 	}
@@ -496,6 +543,10 @@ func (c *Compiler) extractAdditionalConfigurations(
 		return fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
 	}
 	workflowData.SafeOutputs = mergedSafeOutputs
+
+	// Auto-inject create-issues if safe-outputs is configured but has no non-builtin outputs.
+	// This ensures every workflow with safe-outputs has at least one meaningful action handler.
+	applyDefaultCreateIssue(workflowData)
 
 	return nil
 }

@@ -3,7 +3,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,7 +51,7 @@ func TestFormatCompilerError(t *testing.T) {
 			filePath: "/path/to/workflow.md",
 			errType:  "error",
 			message:  "failed to parse YAML",
-			cause:    fmt.Errorf("syntax error at line 42"),
+			cause:    errors.New("syntax error at line 42"),
 			wantContain: []string{
 				"/path/to/workflow.md",
 				"1:1",
@@ -77,7 +77,7 @@ func TestFormatCompilerError(t *testing.T) {
 			filePath: "test.md",
 			errType:  "error",
 			message:  "failed to generate YAML: syntax error",
-			cause:    fmt.Errorf("underlying error"),
+			cause:    errors.New("underlying error"),
 			wantContain: []string{
 				"test.md",
 				"1:1",
@@ -183,7 +183,7 @@ func TestFormatCompilerMessage(t *testing.T) {
 // TestFormatCompilerError_ErrorWrapping verifies that error wrapping preserves error chains
 func TestFormatCompilerError_ErrorWrapping(t *testing.T) {
 	// Create an underlying error
-	underlyingErr := fmt.Errorf("underlying validation error")
+	underlyingErr := errors.New("underlying validation error")
 
 	// Wrap it with formatCompilerError
 	wrappedErr := formatCompilerError("test.md", "error", "validation failed", underlyingErr)
@@ -210,6 +210,6 @@ func TestFormatCompilerError_NilCause(t *testing.T) {
 
 	// Verify it's a new error (not wrapping anything)
 	// This is a validation error, so it should not wrap
-	dummyErr := fmt.Errorf("some other error")
+	dummyErr := errors.New("some other error")
 	assert.NotErrorIs(t, err, dummyErr, "Should not wrap any error when cause is nil")
 }

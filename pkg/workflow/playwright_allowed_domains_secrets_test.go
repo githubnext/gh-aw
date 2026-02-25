@@ -3,208 +3,42 @@
 package workflow
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
-
-// TestPlaywrightAllowedDomainsSecretHandling tests that expressions in allowed_domains
-// are properly extracted and replaced with environment variable references
-func TestPlaywrightAllowedDomainsSecretHandling(t *testing.T) {
-	tests := []struct {
-		name                 string
-		workflow             string
-		expectEnvVarPrefix   string
-		expectMCPConfigValue string
-		expectRedaction      bool
-		expectSecretName     string
-	}{
-		{
-			name: "Single secret in allowed_domains",
-			workflow: `---
-on: issues
-engine: copilot
-tools:
-  playwright:
-    allowed_domains:
-      - "${{ secrets.TEST_DOMAIN }}"
----
-
-# Test workflow
-
-Test secret in allowed_domains.
-`,
-			expectEnvVarPrefix:   "GH_AW_SECRETS_",
-			expectMCPConfigValue: "__GH_AW_SECRETS_",
-			expectRedaction:      true,
-			expectSecretName:     "TEST_DOMAIN",
-		},
-		{
-			name: "Multiple secrets in allowed_domains",
-			workflow: `---
-on: issues
-engine: copilot
-tools:
-  playwright:
-    allowed_domains:
-      - "${{ secrets.API_KEY }}"
-      - "example.com"
-      - "${{ secrets.ANOTHER_SECRET }}"
----
-
-# Test workflow
-
-Test multiple secrets in allowed_domains.
-`,
-			expectEnvVarPrefix:   "GH_AW_SECRETS_",
-			expectMCPConfigValue: "__GH_AW_SECRETS_",
-			expectRedaction:      true,
-			expectSecretName:     "API_KEY",
-		},
-		{
-			name: "No secrets in allowed_domains",
-			workflow: `---
-on: issues
-engine: copilot
-tools:
-  playwright:
-    allowed_domains:
-      - "example.com"
-      - "test.org"
----
-
-# Test workflow
-
-Test no secrets in allowed_domains.
-`,
-			expectEnvVarPrefix:   "",
-			expectMCPConfigValue: "example.com",
-			expectRedaction:      false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary file
-			tmpFile, err := os.CreateTemp("", "test-playwright-secrets-*.md")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
-
-			// Write content to file
-			if _, err := tmpFile.WriteString(tt.workflow); err != nil {
-				t.Fatalf("Failed to write to temp file: %v", err)
-			}
-			tmpFile.Close()
-
-			// Create compiler and compile workflow
-			compiler := NewCompiler()
-			compiler.SetSkipValidation(true)
-
-			// Parse the workflow file to get WorkflowData
-			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
-			if err != nil {
-				t.Fatalf("Failed to parse workflow file: %v", err)
-			}
-
-			// Generate YAML
-			yamlContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
-			if err != nil {
-				t.Fatalf("Failed to generate YAML: %v", err)
-			}
-
-			// Check if environment variable with correct prefix exists in Start MCP Gateway step
-			if tt.expectRedaction {
-				if !strings.Contains(yamlContent, tt.expectEnvVarPrefix) {
-					t.Errorf("Expected environment variable with prefix %s not found in Start MCP Gateway step", tt.expectEnvVarPrefix)
-				}
-			} else {
-				if strings.Contains(yamlContent, tt.expectEnvVarPrefix) && tt.expectEnvVarPrefix != "" {
-					t.Errorf("Unexpected environment variable with prefix %s found when no secrets present", tt.expectEnvVarPrefix)
-				}
-			}
-
-			// Check if MCP config uses environment variable reference
-			if tt.expectRedaction {
-				if !strings.Contains(yamlContent, tt.expectMCPConfigValue) {
-					t.Errorf("Expected MCP config to contain %s but it didn't", tt.expectMCPConfigValue)
-				}
-
-				// Ensure the secret expression itself is NOT in the MCP config JSON
-				// (it should only be in env vars and redaction step)
-				mcpConfigStart := strings.Index(yamlContent, "cat > /home/runner/.copilot/mcp-config.json << EOF")
-				if mcpConfigStart != -1 {
-					mcpConfigEnd := strings.Index(yamlContent[mcpConfigStart:], "EOF\n")
-					if mcpConfigEnd != -1 {
-						mcpConfig := yamlContent[mcpConfigStart : mcpConfigStart+mcpConfigEnd]
-						if strings.Contains(mcpConfig, "${{ secrets.") {
-							t.Errorf("MCP config should not contain secret expressions, found secret in config")
-						}
-					}
-				}
-			}
-
-			// Check if secret is in redaction list
-			if tt.expectRedaction && tt.expectSecretName != "" {
-				expectedRedactionEnv := "SECRET_" + tt.expectSecretName + ": ${{ secrets." + tt.expectSecretName + " }}"
-				if !strings.Contains(yamlContent, expectedRedactionEnv) {
-					t.Errorf("Expected secret %s to be in redaction step environment variables", tt.expectSecretName)
-				}
-			}
-		})
-	}
-}
 
 // TestExtractExpressionsFromPlaywrightArgs tests the helper function
 func TestExtractExpressionsFromPlaywrightArgs(t *testing.T) {
 	tests := []struct {
 		name                string
-		allowedDomains      []string
 		customArgs          []string
 		expectedExpressions int // Number of unique expressions expected
 	}{
 		{
-			name: "Single expression in allowed_domains",
-			allowedDomains: []string{
-				"${{ secrets.TEST_DOMAIN }}",
-			},
-			customArgs:          nil,
+			name:                "Single expression in custom args",
+			customArgs:          []string{"--arg", "${{ secrets.TEST_DOMAIN }}"},
 			expectedExpressions: 1,
 		},
 		{
-			name: "Multiple expressions",
-			allowedDomains: []string{
-				"${{ secrets.API_KEY }}",
-				"example.com",
-				"${{ secrets.ANOTHER_SECRET }}",
-			},
-			customArgs:          []string{"--arg", "${{ github.event.issue.number }}"},
-			expectedExpressions: 3,
-		},
-		{
-			name: "Expressions with whitespace",
-			allowedDomains: []string{
-				"${{secrets.TEST_SECRET}}",
-				"${{  secrets.SPACED_SECRET  }}",
-			},
-			customArgs:          nil,
+			name:                "Multiple expressions",
+			customArgs:          []string{"--arg", "${{ github.event.issue.number }}", "--secret", "${{ secrets.API_KEY }}"},
 			expectedExpressions: 2,
 		},
 		{
-			name: "No expressions",
-			allowedDomains: []string{
-				"example.com",
-				"test.org",
-			},
+			name:                "No expressions",
 			customArgs:          []string{"--static-arg"},
+			expectedExpressions: 0,
+		},
+		{
+			name:                "Empty args",
+			customArgs:          nil,
 			expectedExpressions: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expressions := extractExpressionsFromPlaywrightArgs(tt.allowedDomains, tt.customArgs)
+			expressions := extractExpressionsFromPlaywrightArgs(tt.customArgs)
 
 			if len(expressions) != tt.expectedExpressions {
 				t.Errorf("Expected %d expressions, got %d", tt.expectedExpressions, len(expressions))

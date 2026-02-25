@@ -7,6 +7,7 @@
 // Also processes inline @path and @url references.
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API, ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -376,6 +377,30 @@ function processExpressions(content, source) {
   const expressionRegex = /\$\{\{([\s\S]*?)\}\}/g;
 
   const matches = [...content.matchAll(expressionRegex)];
+
+  // Reject malformed/truncated expressions containing secrets that bypass the
+  // expression regex (e.g. "${{ secrets.TOKEN }T" where "}}" is missing or broken).
+  // The expression regex only matches well-formed ${{ ... }} blocks, so a partial
+  // "${{ secrets." sequence slips through and must be caught here as a security violation.
+  // We check whether any captured expression content (m[1]) contains "secrets." to
+  // distinguish a well-formed ${{ secrets.X }} (already handled below) from a malformed one.
+  const partialSecretsRegex = /\$\{\{[^}]*secrets\./;
+  if (partialSecretsRegex.test(content)) {
+    const wellFormedSecretsMatched = matches.some(m => /secrets\./.test(m[1]));
+    if (!wellFormedSecretsMatched) {
+      throw new Error(
+        `${ERR_VALIDATION}: ${source} contains unauthorized GitHub Actions expressions:\n` +
+          `  - (partial or malformed secrets expression)\n\n` +
+          "Only expressions from the safe list can be used in runtime imports.\n" +
+          "Safe expressions include:\n" +
+          "  - github.actor, github.repository, github.run_id, etc.\n" +
+          "  - github.event.issue.number, github.event.pull_request.number, etc.\n" +
+          "  - needs.*, steps.*, env.*, inputs.*\n\n" +
+          "See documentation for the complete list of allowed expressions."
+      );
+    }
+  }
+
   if (matches.length === 0) {
     return content;
   }
@@ -412,7 +437,7 @@ function processExpressions(content, source) {
   // If any unsafe expressions found, throw error
   if (unsafeExpressions.length > 0) {
     const errorMsg =
-      `${source} contains unauthorized GitHub Actions expressions:\n` +
+      `${ERR_VALIDATION}: ${source} contains unauthorized GitHub Actions expressions:\n` +
       unsafeExpressions.map(e => `  - ${e}`).join("\n") +
       "\n\n" +
       "Only expressions from the safe list can be used in runtime imports.\n" +
@@ -424,11 +449,14 @@ function processExpressions(content, source) {
     throw new Error(errorMsg);
   }
 
-  // Second pass: replace safe expressions with evaluated values
-  let result = content;
-  for (const [original, evaluated] of replacements.entries()) {
-    result = result.replace(original, evaluated);
-  }
+  // Second pass: replace safe expressions with evaluated values.
+  // Build a single regex that matches any of the original expressions so all
+  // replacements are done in one pass.  A multi-pass approach would incorrectly
+  // re-replace expression syntax that appears inside an already-evaluated value
+  // (e.g. an issue title that literally contains "${{ github.actor }}").
+  const escapeForRegex = (/** @type {string} */ s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(Array.from(replacements.keys()).map(escapeForRegex).join("|"), "g");
+  const result = content.replace(pattern, match => replacements.get(match) ?? match);
 
   core.info(`Successfully processed ${replacements.size} safe expression(s) in ${source}`);
   return result;
@@ -538,13 +566,13 @@ async function processUrlImport(url, optional, startLine, endLine) {
     const end = endLine !== undefined ? endLine : totalLines;
 
     if (start < 1 || start > totalLines) {
-      throw new Error(`Invalid start line ${start} for URL ${url} (total lines: ${totalLines})`);
+      throw new Error(`${ERR_VALIDATION}: Invalid start line ${start} for URL ${url} (total lines: ${totalLines})`);
     }
     if (end < 1 || end > totalLines) {
-      throw new Error(`Invalid end line ${end} for URL ${url} (total lines: ${totalLines})`);
+      throw new Error(`${ERR_VALIDATION}: Invalid end line ${end} for URL ${url} (total lines: ${totalLines})`);
     }
     if (start > end) {
-      throw new Error(`Start line ${start} cannot be greater than end line ${end} for URL ${url}`);
+      throw new Error(`${ERR_VALIDATION}: Start line ${start} cannot be greater than end line ${end} for URL ${url}`);
     }
 
     // Extract lines (convert to 0-indexed)
@@ -553,7 +581,7 @@ async function processUrlImport(url, optional, startLine, endLine) {
 
   // Check for front matter and warn
   if (hasFrontMatter(content)) {
-    core.warning(`URL ${url} contains front matter which will be ignored in runtime import`);
+    core.debug(`URL ${url} contains front matter which will be ignored in runtime import`);
     // Remove front matter (everything between first --- and second ---)
     const lines = content.split("\n");
     let inFrontMatter = false;
@@ -756,11 +784,11 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
     // Security check: ensure the resolved path is within the workspace
     const relativePath = path.relative(normalizedBaseFolder, normalizedPath);
     if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error(`Security: Path ${filepathOrUrl} must be within workspace (resolves to: ${relativePath})`);
+      throw new Error(`${ERR_CONFIG}: Security: Path ${filepathOrUrl} must be within workspace (resolves to: ${relativePath})`);
     }
     // Additional check: ensure path stays within .agents folder
     if (!relativePath.startsWith(".agents" + path.sep) && relativePath !== ".agents") {
-      throw new Error(`Security: Path ${filepathOrUrl} must be within .agents folder`);
+      throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .agents folder`);
     }
   } else {
     // Regular paths resolve within .github folder
@@ -773,7 +801,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
     // Security check: ensure the resolved path is within the .github folder
     const relativePath = path.relative(normalizedBaseFolder, normalizedPath);
     if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error(`Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
+      throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
     }
   }
 
@@ -783,7 +811,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
       core.warning(`Optional runtime import file not found: ${filepath}`);
       return "";
     }
-    throw new Error(`Runtime import file not found: ${filepath}`);
+    throw new Error(`${ERR_SYSTEM}: Runtime import file not found: ${filepath}`);
   }
 
   // Read the file
@@ -799,13 +827,13 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
     const end = endLine !== undefined ? endLine : totalLines;
 
     if (start < 1 || start > totalLines) {
-      throw new Error(`Invalid start line ${start} for file ${filepath} (total lines: ${totalLines})`);
+      throw new Error(`${ERR_VALIDATION}: Invalid start line ${start} for file ${filepath} (total lines: ${totalLines})`);
     }
     if (end < 1 || end > totalLines) {
-      throw new Error(`Invalid end line ${end} for file ${filepath} (total lines: ${totalLines})`);
+      throw new Error(`${ERR_VALIDATION}: Invalid end line ${end} for file ${filepath} (total lines: ${totalLines})`);
     }
     if (start > end) {
-      throw new Error(`Start line ${start} cannot be greater than end line ${end} for file ${filepath}`);
+      throw new Error(`${ERR_VALIDATION}: Start line ${start} cannot be greater than end line ${end} for file ${filepath}`);
     }
 
     // Extract lines (convert to 0-indexed)
@@ -814,7 +842,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 
   // Check for front matter and warn
   if (hasFrontMatter(content)) {
-    core.warning(`File ${filepath} contains front matter which will be ignored in runtime import`);
+    core.debug(`File ${filepath} contains front matter which will be ignored in runtime import`);
     // Remove front matter (everything between first --- and second ---)
     const lines = content.split("\n");
     let inFrontMatter = false;
@@ -926,7 +954,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
     // Check for circular dependencies
     if (importStack.includes(filepathWithRange)) {
       const cycle = [...importStack, filepathWithRange].join(" -> ");
-      throw new Error(`Circular dependency detected: ${cycle}`);
+      throw new Error(`${ERR_PARSE}: Circular dependency detected: ${cycle}`);
     }
 
     // Add to import stack for circular dependency detection
@@ -950,7 +978,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
       processedContent = processedContent.replace(fullMatch, importedContent);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      throw new Error(`Failed to process runtime import for ${filepathWithRange}: ${errorMessage}`);
+      throw new Error(`${ERR_API}: Failed to process runtime import for ${filepathWithRange}: ${errorMessage}`);
     } finally {
       // Remove from import stack
       importStack.pop();

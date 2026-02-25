@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,7 +21,7 @@ import (
 func TestCompileErrorFormatting(t *testing.T) {
 	// Create a temporary test workflow with invalid frontmatter
 	tempDir := t.TempDir()
-	invalidWorkflow := fmt.Sprintf("%s/invalid.md", tempDir)
+	invalidWorkflow := tempDir + "/invalid.md"
 
 	// Write invalid workflow (missing closing frontmatter delimiter)
 	err := os.WriteFile(invalidWorkflow, []byte(`---
@@ -163,7 +164,7 @@ func TestErrorMessagePatterns(t *testing.T) {
 		{
 			name: "wrapped error maintains context",
 			errorCreator: func() error {
-				baseErr := fmt.Errorf("base error")
+				baseErr := errors.New("base error")
 				return fmt.Errorf("failed to compile: %w", baseErr)
 			},
 			shouldContain: []string{
@@ -278,8 +279,8 @@ func TestErrorFormattingDoesNotMangle(t *testing.T) {
 
 			// All essential parts of the message should be preserved
 			// (formatting may add prefixes/styling but shouldn't lose content)
-			essentialParts := strings.Fields(tt.message)
-			for _, part := range essentialParts {
+			essentialParts := strings.FieldsSeq(tt.message)
+			for part := range essentialParts {
 				// Skip very short parts like ":", "at", etc.
 				if len(part) > 2 {
 					assert.Contains(t, formatted, part,

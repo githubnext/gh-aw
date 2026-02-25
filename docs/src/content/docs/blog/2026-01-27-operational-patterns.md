@@ -76,7 +76,7 @@ Here are our tips!
 - Add help text for `/command help`
 - Use cache-memory to track command history
 
-**Learn more**: [ChatOps Examples](https://github.github.com/gh-aw/patterns/chatops/)
+**Learn more**: [ChatOps Examples](https://github.github.com/gh-aw/patterns/chat-ops/)
 
 ---
 
@@ -124,7 +124,7 @@ Here are our tips!
 - Include progress reports in PR descriptions
 - Allow human intervention at any phase
 
-**Learn more**: [DailyOps Examples](https://github.github.com/gh-aw/patterns/dailyops/)
+**Learn more**: [DailyOps Examples](https://github.github.com/gh-aw/patterns/daily-ops/)
 
 ---
 
@@ -175,7 +175,7 @@ Here are our tips!
 - Update classification rules based on feedback
 - **For public repos**: Consider if you need to [disable lockdown mode](/gh-aw/reference/faq/#what-is-github-lockdown-mode-and-when-is-it-enabled) to process issues from all users (this is one of the rare safe use cases - see [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for security guidance)
 
-**Learn more**: [IssueOps Examples](https://github.github.com/gh-aw/patterns/issueops/)
+**Learn more**: [IssueOps Examples](https://github.github.com/gh-aw/patterns/issue-ops/)
 
 ---
 
@@ -224,7 +224,7 @@ Here are our tips!
 - Avoid label proliferation
 - Use label descriptions
 
-**Learn more**: [LabelOps Examples](https://github.github.com/gh-aw/patterns/labelops/)
+**Learn more**: [LabelOps Examples](https://github.github.com/gh-aw/patterns/label-ops/)
 
 ---
 
@@ -274,7 +274,7 @@ Here are our tips!
 - Allow manual overrides
 - Track automation accuracy
 
-**Learn more**: [ProjectOps Examples](https://github.github.com/gh-aw/patterns/projectops/)
+**Learn more**: [ProjectOps Examples](https://github.github.com/gh-aw/patterns/project-ops/)
 
 ---
 
@@ -337,7 +337,7 @@ Here are our tips!
 - Include acceptance criteria
 - Review and iterate
 
-**Learn more**: [TaskOps](https://github.github.com/gh-aw/patterns/taskops/)
+**Learn more**: [TaskOps](https://github.github.com/gh-aw/patterns/task-ops/)
 
 ---
 
@@ -388,7 +388,7 @@ Here are our tips!
 - Batch operations efficiently
 - Monitor cross-repo dependencies
 
-**Learn more**: [MultiRepoOps](https://github.github.com/gh-aw/patterns/multirepoops/)
+**Learn more**: [MultiRepoOps](https://github.github.com/gh-aw/patterns/multi-repo-ops/)
 
 ---
 
@@ -427,7 +427,7 @@ Here are our tips!
 - Set up appropriate notifications
 - Plan for eventual migration if successful
 
-**Learn more**: [SideRepoOps](https://github.github.com/gh-aw/patterns/siderepoops/)
+**Learn more**: [SideRepoOps](https://github.github.com/gh-aw/patterns/side-repo-ops/)
 
 ---
 
@@ -452,7 +452,7 @@ These workflows do the following:
 5. Capture and validate outputs
 6. Delete trial repo or keep for reference
 
-**Learn more**: [TrialOps](https://github.github.com/gh-aw/patterns/trialops/)
+**Learn more**: [TrialOps](https://github.github.com/gh-aw/patterns/trial-ops/)
 
 ---
 

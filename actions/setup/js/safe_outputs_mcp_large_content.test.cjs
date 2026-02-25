@@ -17,7 +17,11 @@ describe.sequential("safe_outputs_mcp_server.cjs large content handling", () => 
     fs.writeFileSync(toolsJsonPath, toolsJsonContent);
   }),
     afterEach(() => {
-      ((process.env = originalEnv), fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
+      (Object.keys(process.env).forEach(k => {
+        if (!(k in originalEnv)) delete process.env[k];
+      }),
+        Object.assign(process.env, originalEnv),
+        fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
     }),
     it("should write large content to file when exceeding 16000 tokens", async () => {
       ((process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile), (process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile), (process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = path.join(tempOutputDir, "tools.json")));

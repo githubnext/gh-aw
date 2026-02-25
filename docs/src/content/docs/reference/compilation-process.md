@@ -191,13 +191,13 @@ A typical compiled workflow contains these post-agent jobs:
 
 ```mermaid
 flowchart TD
-    activation["activation\nubuntu-slim\ncontents: read"] --> agent["agent\nubuntu-latest\nREAD-ONLY permissions\nconcurrency group"]
-    agent --> detection["detection\nubuntu-latest\ncontents: read\nconcurrency group\nRUNS AI ENGINE"]
-    agent --> conclusion["conclusion\nubuntu-slim\nissues: write\npr: write"]
-    detection --> safe_outputs["safe_outputs\nubuntu-slim\ncontents: write\nissues: write\npr: write"]
+    activation["activation<br/>ubuntu-slim<br/>contents: read"] --> agent["agent<br/>ubuntu-latest<br/>READ-ONLY permissions<br/>concurrency group"]
+    agent --> detection["detection<br/>ubuntu-latest<br/>contents: read<br/>concurrency group<br/>RUNS AI ENGINE"]
+    agent --> conclusion["conclusion<br/>ubuntu-slim<br/>issues: write<br/>pr: write"]
+    detection --> safe_outputs["safe_outputs<br/>ubuntu-slim<br/>contents: write<br/>issues: write<br/>pr: write"]
     detection --> conclusion
     safe_outputs --> conclusion
-    detection --> update_cache_memory["update_cache_memory\nubuntu-latest\ncontents: read"]
+    detection --> update_cache_memory["update_cache_memory<br/>ubuntu-latest<br/>contents: read"]
     update_cache_memory --> conclusion
     activation --> safe_outputs
     activation --> conclusion
@@ -323,6 +323,10 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 | `gh aw compile --actionlint --zizmor --poutine` | Run security scanners |
 | `gh aw compile --purge` | Remove orphaned `.lock.yml` files |
 | `gh aw compile --output /path/to/output` | Custom output directory |
+| `gh aw validate` | Validate all workflows (compile + all linters, no file output) |
+| `gh aw validate my-workflow` | Validate a specific workflow |
+| `gh aw validate --json` | Validate and output results in JSON format |
+| `gh aw validate --strict` | Validate with strict mode enforced |
 
 > [!TIP]
 > Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.

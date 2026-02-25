@@ -10,6 +10,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_to_user";
@@ -24,7 +25,7 @@ async function main(config = {}) {
   const allowedAssignees = config.allowed || [];
   const blockedAssignees = config.blocked || [];
   const maxCount = config.max || 10;
-  const unassignFirst = config.unassign_first || false;
+  const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode

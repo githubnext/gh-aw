@@ -51,8 +51,9 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should include temp folder instructions")
 	assert.Contains(t, output, "playwright_prompt.md", "Should include playwright instructions")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should include cache memory template file")
-	assert.Contains(t, output, "Repo Memory Available", "Should include repo memory instructions")
-	assert.Contains(t, output, "<safe-outputs>", "Should include safe outputs instructions")
+	assert.Contains(t, output, "repo_memory_prompt.md", "Should include repo memory template file")
+	assert.Contains(t, output, "safe_outputs_prompt.md", "Should include safe outputs file reference")
+	assert.Contains(t, output, "<safe-output-tools>", "Should include per-tool instructions")
 	assert.Contains(t, output, "<github-context>", "Should include GitHub context")
 
 	// Verify cache env vars are NOT in the prompt creation step
@@ -115,7 +116,7 @@ func TestGenerateUnifiedPromptStep_MinimalSections(t *testing.T) {
 	// Verify other sections are NOT included
 	assert.NotContains(t, output, "playwright_prompt.md", "Should not include playwright without tool")
 	assert.NotContains(t, output, "cache_memory_prompt.md", "Should not include cache memory template without config")
-	assert.NotContains(t, output, "Repo Memory Available", "Should not include repo memory without config")
+	assert.NotContains(t, output, "repo_memory_prompt.md", "Should not include repo memory without config")
 	assert.NotContains(t, output, "<safe-outputs>", "Should not include safe outputs without config")
 	assert.NotContains(t, output, "<github-context>", "Should not include GitHub context without tool")
 }
@@ -453,7 +454,7 @@ func TestGenerateUnifiedPromptStep_EnvVarsSorted(t *testing.T) {
 	// Skip the first entry which is GH_AW_PROMPT
 	if len(envVarLines) > 0 {
 		// Check that the remaining variables are in sorted order
-		for i := 0; i < len(envVarLines)-1; i++ {
+		for i := range len(envVarLines) - 1 {
 			current := envVarLines[i]
 			next := envVarLines[i+1]
 			if current > next {

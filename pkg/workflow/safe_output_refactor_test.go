@@ -21,7 +21,7 @@ func TestCreatePRReviewCommentUsesHelper(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			Staged: true,
 			CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				TargetRepoSlug:       "owner/target-repo",
 			},
 		},
@@ -56,7 +56,7 @@ func TestCreateDiscussionUsesHelper(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			Staged: true,
 			CreateDiscussions: &CreateDiscussionsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Category:             "12345",
 				TargetRepoSlug:       "owner/target-repo",
 			},
@@ -94,7 +94,7 @@ func TestTrialModeWithoutTargetRepo(t *testing.T) {
 		TrialLogicalRepo: "owner/trial-repo",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateDiscussions: &CreateDiscussionsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				Category:             "12345",
 			},
 		},
@@ -128,7 +128,7 @@ func TestNoStagedNorTrialMode(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 			},
 		},
 	}
@@ -163,7 +163,7 @@ func TestTargetRepoOverridesTrialRepo(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
 				TargetRepoSlug:       "owner/explicit-target",
 			},
 		},

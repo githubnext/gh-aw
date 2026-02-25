@@ -125,7 +125,7 @@ func TestBashDefaultsConsistency(t *testing.T) {
 
 			copilotHasShell := false
 			copilotHasGit := false
-			for i := 0; i < len(copilotResult); i++ {
+			for i := range copilotResult {
 				// Check for --allow-all-tools flag
 				if copilotResult[i] == "--allow-all-tools" {
 					copilotHasShell = true // --allow-all-tools includes shell

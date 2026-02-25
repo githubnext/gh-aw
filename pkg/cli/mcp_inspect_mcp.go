@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -95,12 +96,12 @@ func buildConnectionString(config parser.MCPServerConfig) string {
 	switch config.Type {
 	case "stdio":
 		if config.Container != "" {
-			return fmt.Sprintf("docker: %s", config.Container)
+			return "docker: " + config.Container
 		}
 		if len(config.Args) > 0 {
 			return fmt.Sprintf("cmd: %s %s", config.Command, strings.Join(config.Args, " "))
 		}
-		return fmt.Sprintf("cmd: %s", config.Command)
+		return "cmd: " + config.Command
 	case "http":
 		return config.URL
 	default:
@@ -147,6 +148,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 		cmd = exec.Command("docker", args...)
 	} else {
 		// Direct command mode
+		// #nosec G204 -- config.Command is validated via exec.LookPath above (line 138);
+		// exec.Command with separate args (not shell execution) prevents shell injection.
 		cmd = exec.Command(config.Command, config.Args...)
 	}
 
@@ -189,9 +192,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 
 	// List tools
 	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list tools: %v", err)))
@@ -202,9 +204,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 
 	// List resources
 	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list resources: %v", err)))
@@ -223,7 +224,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 // connectHTTPMCPServer connects to an HTTP-based MCP server using the Go SDK
 func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Connecting to HTTP MCP server: %s", config.URL)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Connecting to HTTP MCP server: "+config.URL))
 	}
 
 	// Create MCP client with logger for better debugging
@@ -280,9 +281,8 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 
 	// List tools
 	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list tools: %v", err)))
@@ -293,9 +293,8 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 
 	// List resources
 	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list resources: %v", err)))
@@ -450,14 +449,11 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Check if tool is allowed
 	isAllowed := len(info.Config.Allowed) == 0 // Default to allowed if no allowlist
-	for _, allowed := range info.Config.Allowed {
-		if allowed == toolName {
-			isAllowed = true
-			break
-		}
+	if slices.Contains(info.Config.Allowed, toolName) {
+		isAllowed = true
 	}
 
-	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🛠️  Tool Details: "+foundTool.Name))
 
 	// Display basic information
 	fmt.Fprintf(os.Stderr, "📋 **Name:** %s\n", foundTool.Name)
@@ -569,12 +565,9 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		}
 
 		// Show first few blocked tools as examples (limit to 3 for readability)
-		exampleCount := len(blockedTools)
-		if exampleCount > 3 {
-			exampleCount = 3
-		}
+		exampleCount := min(len(blockedTools), 3)
 
-		for i := 0; i < exampleCount; i++ {
+		for i := range exampleCount {
 			fmt.Fprintf(os.Stderr, "      - %s\n", blockedTools[i])
 		}
 
@@ -585,7 +578,7 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		fmt.Fprintf(os.Stderr, "```\n")
 
 		if len(blockedTools) > 3 {
-			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage(fmt.Sprintf("📋 All blocked tools: %s", strings.Join(blockedTools, ", "))))
+			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("📋 All blocked tools: "+strings.Join(blockedTools, ", ")))
 		}
 	} else if len(info.Config.Allowed) == 0 {
 		// No explicit allowed list - all tools are allowed by default

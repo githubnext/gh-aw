@@ -270,9 +270,8 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 	t.Run("parses playwright config map", func(t *testing.T) {
 		toolsMap := map[string]any{
 			"playwright": map[string]any{
-				"version":         "v1.41.0",
-				"allowed_domains": []any{"github.com", "example.com"},
-				"args":            []any{"--headless"},
+				"version": "v1.41.0",
+				"args":    []any{"--headless"},
 			},
 		}
 
@@ -285,10 +284,6 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 
 		if config.Version != "v1.41.0" {
 			t.Errorf("expected version 'v1.41.0', got %q", config.Version)
-		}
-
-		if len(config.AllowedDomains) != 2 {
-			t.Errorf("expected 2 allowed domains, got %d", len(config.AllowedDomains))
 		}
 
 		if len(config.Args) != 1 {

@@ -39,10 +39,7 @@ func TestGoJSHashStability(t *testing.T) {
 
 	// Limit to a reasonable subset for testing (first 10 workflows)
 	// Full validation can be done separately
-	testCount := 10
-	if len(files) < testCount {
-		testCount = len(files)
-	}
+	testCount := min(10, len(files))
 	files = files[:testCount]
 
 	cache := NewImportCache(repoRoot)

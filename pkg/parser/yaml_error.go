@@ -223,8 +223,8 @@ func extractFromStringParsing(errStr string, frontmatterLineOffset int) (line in
 
 	// Parse "yaml: unmarshal errors: line X: message" format (multiline errors)
 	if strings.Contains(errStr, "yaml: unmarshal errors:") && strings.Contains(errStr, "line ") {
-		lines := strings.Split(errStr, "\n")
-		for _, errorLine := range lines {
+		lines := strings.SplitSeq(errStr, "\n")
+		for errorLine := range lines {
 			errorLine = strings.TrimSpace(errorLine)
 			if strings.Contains(errorLine, "line ") && strings.Contains(errorLine, ":") {
 				// Extract the first line number found in the error

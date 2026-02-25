@@ -16,13 +16,19 @@ type DeprecatedField struct {
 
 // GetMainWorkflowDeprecatedFields returns a list of deprecated fields from the main workflow schema
 func GetMainWorkflowDeprecatedFields() ([]DeprecatedField, error) {
+	log.Print("Getting deprecated fields from main workflow schema")
 	// Parse the schema JSON
 	var schemaDoc map[string]any
 	if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
 		return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
 	}
 
-	return extractDeprecatedFields(schemaDoc)
+	fields, err := extractDeprecatedFields(schemaDoc)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Found %d deprecated fields in main workflow schema", len(fields))
+	return fields, nil
 }
 
 // extractDeprecatedFields extracts deprecated fields from a schema document
@@ -94,13 +100,16 @@ func extractReplacementFromDescription(description string) string {
 // FindDeprecatedFieldsInFrontmatter checks frontmatter for deprecated fields
 // Returns a list of deprecated fields that were found
 func FindDeprecatedFieldsInFrontmatter(frontmatter map[string]any, deprecatedFields []DeprecatedField) []DeprecatedField {
+	log.Printf("Checking frontmatter for deprecated fields: %d fields to check", len(deprecatedFields))
 	var found []DeprecatedField
 
 	for _, deprecatedField := range deprecatedFields {
 		if _, exists := frontmatter[deprecatedField.Name]; exists {
+			log.Printf("Found deprecated field: %s (replacement: %s)", deprecatedField.Name, deprecatedField.Replacement)
 			found = append(found, deprecatedField)
 		}
 	}
 
+	log.Printf("Deprecated field check complete: found %d of %d fields in frontmatter", len(found), len(deprecatedFields))
 	return found
 }

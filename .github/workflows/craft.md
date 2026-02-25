@@ -30,8 +30,6 @@ safe-outputs:
     run-started: "🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}..."
     run-success: "⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️"
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
-imports:
-  - shared/mood.md
 ---
 
 # Workflow Craft Agent
@@ -282,3 +280,9 @@ Now analyze the user's request: "${{ steps.sanitized.outputs.text }}"
 4. Compile and validate
 5. Push changes using `push-to-pull-request-branch`
 6. Report success with details
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

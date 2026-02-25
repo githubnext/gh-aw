@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,6 +67,29 @@ func TempDir(t *testing.T, pattern string) string {
 	})
 
 	return tempDir
+}
+
+// CaptureStderr runs fn and returns everything written to os.Stderr during its execution.
+// It restores os.Stderr automatically via t.Cleanup.
+func CaptureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("CaptureStderr: failed to create pipe: %v", err)
+	}
+
+	origStderr := os.Stderr
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = origStderr })
+
+	fn()
+
+	w.Close()
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(r); err != nil {
+		t.Fatalf("CaptureStderr: failed to read pipe: %v", err)
+	}
+	return buf.String()
 }
 
 // StripYAMLCommentHeader removes the comment header from generated YAML files

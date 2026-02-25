@@ -1,16 +1,14 @@
 // Package sliceutil provides utility functions for working with slices.
 package sliceutil
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Contains checks if a string slice contains a specific string.
 func Contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }
 
 // ContainsAny checks if a string contains any of the given substrings.

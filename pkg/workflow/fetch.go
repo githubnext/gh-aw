@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -27,9 +28,7 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 
 	// Create a copy of the tools map to avoid modifying the original
 	updatedTools := make(map[string]any)
-	for key, value := range tools {
-		updatedTools[key] = value
-	}
+	maps.Copy(updatedTools, tools)
 
 	// Remove the web-fetch tool since we'll replace it with an MCP server
 	delete(updatedTools, "web-fetch")
@@ -60,16 +59,9 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 	switch format {
 	case "json":
 		// JSON format (for Claude, Copilot, Custom engines)
+		// Use container key per MCP Gateway schema (container-based stdio server)
 		yaml.WriteString(indent + "\"web-fetch\": {\n")
-		yaml.WriteString(indent + "  \"command\": \"docker\",\n")
-		yaml.WriteString(indent + "  \"args\": [\n")
-		yaml.WriteString(indent + "    \"run\",\n")
-		yaml.WriteString(indent + "    \"-i\",\n")
-		yaml.WriteString(indent + "    \"--rm\",\n")
-		yaml.WriteString(indent + "    \"mcp/fetch\"\n")
-		yaml.WriteString(indent + "  ]\n")
-		// Note: tools field is NOT included here - the converter script adds it back
-		// for Copilot. This keeps the gateway config compatible with the schema.
+		yaml.WriteString(indent + "  \"container\": \"mcp/fetch\"\n")
 		if isLast {
 			yaml.WriteString(indent + "}\n")
 		} else {
@@ -77,14 +69,9 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		}
 	case "toml":
 		// TOML format (for Codex engine)
+		// Use container key per MCP Gateway schema (container-based stdio server)
 		yaml.WriteString(indent + "\n")
 		yaml.WriteString(indent + "[mcp_servers.\"web-fetch\"]\n")
-		yaml.WriteString(indent + "command = \"docker\"\n")
-		yaml.WriteString(indent + "args = [\n")
-		yaml.WriteString(indent + "  \"run\",\n")
-		yaml.WriteString(indent + "  \"-i\",\n")
-		yaml.WriteString(indent + "  \"--rm\",\n")
-		yaml.WriteString(indent + "  \"mcp/fetch\"\n")
-		yaml.WriteString(indent + "]\n")
+		yaml.WriteString(indent + "container = \"mcp/fetch\"\n")
 	}
 }

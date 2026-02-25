@@ -16,7 +16,7 @@ Comment-triggered workflows respond to slash commands typed in GitHub conversati
 
 ## Patterns in This Section
 
-- **[ChatOps](/gh-aw/patterns/chatops/)** - Build interactive automation with command triggers
+- **[ChatOps](/gh-aw/patterns/chat-ops/)** - Build interactive automation with command triggers
 
 ## Example Command Triggers
 

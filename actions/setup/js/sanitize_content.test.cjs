@@ -303,7 +303,44 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+      const allowedTags = [
+        "abbr",
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "del",
+        "details",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "ins",
+        "kbd",
+        "li",
+        "mark",
+        "ol",
+        "p",
+        "pre",
+        "s",
+        "span",
+        "strong",
+        "sub",
+        "summary",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+      ];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);
@@ -412,6 +449,36 @@ describe("sanitize_content.cjs", () => {
 
     it("should preserve table structure tags", () => {
       const input = "<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Data</td></tr></tbody></table>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve span tag with title attribute", () => {
+      const input = 'prod:&nbsp;<span title="2026-02-18 16:10 MT">2 days ago</span>';
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve abbr tag with title attribute", () => {
+      const input = '<abbr title="HyperText Markup Language">HTML</abbr>';
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve del and ins tags", () => {
+      const input = "<del>old text</del> <ins>new text</ins>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve kbd tag", () => {
+      const input = "Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve mark and s tags", () => {
+      const input = "<mark>highlighted</mark> and <s>strikethrough</s>";
       const result = sanitizeContent(input);
       expect(result).toBe(input);
     });
@@ -679,32 +746,61 @@ describe("sanitize_content.cjs", () => {
   });
 
   describe("bot trigger neutralization", () => {
-    it("should neutralize 'fixes #123' patterns", () => {
+    it("should not neutralize 'fixes #123' when there are 10 or fewer references", () => {
       const result = sanitizeContent("This fixes #123");
-      expect(result).toBe("This `fixes #123`");
+      expect(result).toBe("This fixes #123");
     });
 
-    it("should neutralize 'closes #456' patterns", () => {
+    it("should not neutralize 'closes #456' when there are 10 or fewer references", () => {
       const result = sanitizeContent("PR closes #456");
-      expect(result).toBe("PR `closes #456`");
+      expect(result).toBe("PR closes #456");
     });
 
-    it("should neutralize 'resolves #789' patterns", () => {
+    it("should not neutralize 'resolves #789' when there are 10 or fewer references", () => {
       const result = sanitizeContent("This resolves #789");
-      expect(result).toBe("This `resolves #789`");
+      expect(result).toBe("This resolves #789");
     });
 
-    it("should handle various bot trigger verbs", () => {
+    it("should not neutralize various bot trigger verbs when count is within limit", () => {
       const triggers = ["fix", "fixes", "close", "closes", "resolve", "resolves"];
       triggers.forEach(verb => {
         const result = sanitizeContent(`This ${verb} #123`);
-        expect(result).toBe(`This \`${verb} #123\``);
+        expect(result).toBe(`This ${verb} #123`);
       });
     });
 
-    it("should neutralize alphanumeric issue references", () => {
+    it("should not neutralize alphanumeric issue references when count is within limit", () => {
       const result = sanitizeContent("fixes #abc123def");
-      expect(result).toBe("`fixes #abc123def`");
+      expect(result).toBe("fixes #abc123def");
+    });
+
+    it("should neutralize excess references beyond the 10-occurrence threshold", () => {
+      const input = Array.from({ length: 11 }, (_, i) => `fixes #${i + 1}`).join(" ");
+      const result = sanitizeContent(input);
+      // First 10 are left unchanged
+      for (let i = 1; i <= 10; i++) {
+        expect(result).not.toContain(`\`fixes #${i}\``);
+      }
+      // 11th is wrapped
+      expect(result).toContain("`fixes #11`");
+    });
+
+    it("should not requote already-quoted entries", () => {
+      // Build a string with 12 entries where one is already quoted and 11 are unquoted
+      // (11 unquoted entries exceed the MAX_BOT_TRIGGER_REFERENCES threshold of 10)
+      const alreadyQuoted = "`fixes #1`";
+      const unquoted = Array.from({ length: 11 }, (_, i) => `fixes #${i + 2}`).join(" ");
+      const input = `${alreadyQuoted} ${unquoted}`;
+      const result = sanitizeContent(input);
+      // The already-quoted entry must not be double-quoted
+      expect(result).not.toContain("``fixes #1``");
+      expect(result).toContain("`fixes #1`");
+      // The first 10 unquoted entries are left unchanged (only the 11th is wrapped)
+      for (let i = 2; i <= 11; i++) {
+        expect(result).not.toContain(`\`fixes #${i}\``);
+      }
+      // The 12th entry (11th unquoted) is wrapped
+      expect(result).toContain("`fixes #12`");
     });
   });
 
@@ -919,6 +1015,30 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Before other/repo#123 after");
       expect(result).toBe("Before `other/repo#123` after");
     });
+
+    it("should allow all repos when wildcard * is used", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "*";
+
+      const result = sanitizeContent("See myorg/myrepo#123, other/repo#456, and another/repo#789");
+      expect(result).toBe("See myorg/myrepo#123, other/repo#456, and another/repo#789");
+    });
+
+    it("should allow repos matching org wildcard pattern", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "myorg/*";
+
+      const result = sanitizeContent("See myorg/myrepo#123, myorg/otherrepo#456, and other/repo#789");
+      expect(result).toBe("See myorg/myrepo#123, myorg/otherrepo#456, and `other/repo#789`");
+    });
+
+    it("should allow repos matching wildcard in combination with repo keyword", () => {
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+      process.env.GH_AW_ALLOWED_GITHUB_REFS = "repo,trusted/*";
+
+      const result = sanitizeContent("See #123, myorg/myrepo#456, trusted/lib#789, and other/repo#101");
+      expect(result).toBe("See #123, myorg/myrepo#456, trusted/lib#789, and `other/repo#101`");
+    });
   });
 
   describe("content truncation", () => {
@@ -972,7 +1092,7 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("https://github.com");
       expect(result).not.toContain("<script>");
       expect(result).toContain("(script)");
-      expect(result).toContain("`fixes #123`");
+      expect(result).toContain("fixes #123");
       expect(result).not.toContain("\x1b[31m");
       expect(result).toContain("Red text");
     });

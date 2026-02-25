@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"sort"
 	"strings"
 	"sync"
 
@@ -67,9 +69,7 @@ func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServ
 
 	// Initialize result with top-level MCP servers
 	result := make(map[string]any)
-	for k, v := range topMCPServers {
-		result[k] = v
-	}
+	maps.Copy(result, topMCPServers)
 
 	// Split by newlines to handle multiple JSON objects from different imports
 	lines := strings.Split(importedMCPServersJSON, "\n")
@@ -149,7 +149,7 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 	}
 
 	// Sort the final domain list for consistent output
-	SortStrings(result.Allowed)
+	sort.Strings(result.Allowed)
 
 	importsLog.Printf("Successfully merged network permissions with %d allowed domains", len(result.Allowed))
 	return result, nil
@@ -277,9 +277,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 
 		// Combine all required permissions for the suggestion
 		allRequired := make(map[PermissionScope]PermissionLevel)
-		for scope, level := range missingPermissions {
-			allRequired[scope] = level
-		}
+		maps.Copy(allRequired, missingPermissions)
 		for scope, info := range insufficientPermissions {
 			allRequired[scope] = info.required
 		}
@@ -477,6 +475,28 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.CreateAgentSessions != nil
 	case "update-project":
 		return config.UpdateProjects != nil
+	case "update-discussion":
+		return config.UpdateDiscussions != nil
+	case "mark-pull-request-as-ready-for-review":
+		return config.MarkPullRequestAsReadyForReview != nil
+	case "autofix-code-scanning-alert":
+		return config.AutofixCodeScanningAlert != nil
+	case "assign-to-user":
+		return config.AssignToUser != nil
+	case "unassign-from-user":
+		return config.UnassignFromUser != nil
+	case "create-project":
+		return config.CreateProjects != nil
+	case "create-project-status-update":
+		return config.CreateProjectStatusUpdates != nil
+	case "link-sub-issue":
+		return config.LinkSubIssue != nil
+	case "hide-comment":
+		return config.HideComment != nil
+	case "dispatch-workflow":
+		return config.DispatchWorkflow != nil
+	case "missing-data":
+		return config.MissingData != nil
 	case "missing-tool":
 		return config.MissingTool != nil
 	case "noop":
@@ -610,8 +630,12 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.NoOp == nil && importedConfig.NoOp != nil {
 		result.NoOp = importedConfig.NoOp
 	}
-	if result.ThreatDetection == nil && importedConfig.ThreatDetection != nil {
-		result.ThreatDetection = importedConfig.ThreatDetection
+	// ThreatDetection is a workflow-level concern; only merge from an import that
+	// explicitly carries a threat-detection key (not just an auto-enabled default).
+	if result.ThreatDetection == nil {
+		if _, hasTD := config["threat-detection"]; hasTD && importedConfig.ThreatDetection != nil {
+			result.ThreatDetection = importedConfig.ThreatDetection
+		}
 	}
 
 	// Merge meta-configuration fields (only set if empty/zero in result)
@@ -643,6 +667,23 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 			// Merge individual message fields, main takes precedence
 			result.Messages = mergeMessagesConfig(result.Messages, importedConfig.Messages)
 		}
+	}
+
+	// Merge additional meta-configuration fields
+	if result.Footer == nil && importedConfig.Footer != nil {
+		result.Footer = importedConfig.Footer
+	}
+	if len(result.AllowGitHubReferences) == 0 && len(importedConfig.AllowGitHubReferences) > 0 {
+		result.AllowGitHubReferences = importedConfig.AllowGitHubReferences
+	}
+	if !result.GroupReports && importedConfig.GroupReports {
+		result.GroupReports = true
+	}
+	if result.MaxBotMentions == nil && importedConfig.MaxBotMentions != nil {
+		result.MaxBotMentions = importedConfig.MaxBotMentions
+	}
+	if result.Mentions == nil && importedConfig.Mentions != nil {
+		result.Mentions = importedConfig.Mentions
 	}
 
 	// NOTE: Jobs are NOT merged here. They are handled separately in compiler_orchestrator.go
@@ -683,8 +724,29 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 	if result.RunFailure == "" && imported.RunFailure != "" {
 		result.RunFailure = imported.RunFailure
 	}
+	if result.DetectionFailure == "" && imported.DetectionFailure != "" {
+		result.DetectionFailure = imported.DetectionFailure
+	}
+	if result.AgentFailureIssue == "" && imported.AgentFailureIssue != "" {
+		result.AgentFailureIssue = imported.AgentFailureIssue
+	}
+	if result.AgentFailureComment == "" && imported.AgentFailureComment != "" {
+		result.AgentFailureComment = imported.AgentFailureComment
+	}
 	if !result.AppendOnlyComments && imported.AppendOnlyComments {
 		result.AppendOnlyComments = imported.AppendOnlyComments
+	}
+	if result.ActivationComments == "" && imported.ActivationComments != "" {
+		result.ActivationComments = imported.ActivationComments
+	}
+	if result.PullRequestCreated == "" && imported.PullRequestCreated != "" {
+		result.PullRequestCreated = imported.PullRequestCreated
+	}
+	if result.IssueCreated == "" && imported.IssueCreated != "" {
+		result.IssueCreated = imported.IssueCreated
+	}
+	if result.CommitPushed == "" && imported.CommitPushed != "" {
+		result.CommitPushed = imported.CommitPushed
 	}
 	return result
 }
@@ -703,9 +765,7 @@ func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeatures []
 	// Start with top-level features or create a new map
 	result := make(map[string]any)
 	if topFeatures != nil {
-		for k, v := range topFeatures {
-			result[k] = v
-		}
+		maps.Copy(result, topFeatures)
 		importsLog.Printf("Starting with %d top-level features", len(topFeatures))
 	}
 

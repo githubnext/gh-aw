@@ -18,7 +18,6 @@ network:
     - defaults
     - github
 imports:
-  - shared/mood.md
   - shared/reporting.md
 tools:
   github:
@@ -30,6 +29,7 @@ safe-outputs:
   add-labels:
     max: 10
   create-discussion:
+    expires: 1d
     title-prefix: "[Auto-Triage] "
     category: "audits"
     close-older-discussions: true
@@ -122,9 +122,10 @@ When triggered by an issue event (opened/edited) or scheduled run, analyze issue
 When an issue is opened or edited:
 
 1. **Analyze the issue** that triggered this workflow (available in `github.event.issue`)
-2. **Classify the issue** based on its title and body content
-3. **Apply appropriate labels** using the `add_labels` tool
-4. If uncertain, add the `needs-triage` label for human review
+2. **Check if the author is a community member** — if `author_association` is `NONE`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, or `CONTRIBUTOR`, and the author is **not** a bot (`user.type != "Bot"` and login does not end with `[bot]`), include `community` in the labels to apply
+3. **Classify the issue** based on its title and body content
+4. **Apply all labels** (including `community` if applicable) in a single `add_labels` call
+5. If uncertain about classification, add the `needs-triage` label for human review
 
 ### On Scheduled Runs (Every 6 Hours)
 
@@ -179,6 +180,14 @@ Apply component labels based on mentioned areas:
 
 - `priority-high` - Contains "critical", "urgent", "blocking", "important"
 - `good first issue` - Explicitly labeled as beginner-friendly or mentions "first time", "newcomer"
+
+### Community Label
+
+Apply the `community` label when:
+- `author_association` is `NONE`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, or `CONTRIBUTOR`
+- **AND** the author is **not** a bot (`user.type != "Bot"` and login does not end with `[bot]`)
+
+This label identifies issues opened by external community members and read-only contributors who are not team members or org members.
 
 ### Special Categories
 
@@ -314,3 +323,9 @@ When running on schedule, create a discussion report following the formatting gu
 - Median time to first label: <5 minutes for new issues
 - Label accuracy: ≥90% (minimal maintainer corrections needed)
 - False positive rate: <10%
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

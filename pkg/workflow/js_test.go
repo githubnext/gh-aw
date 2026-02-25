@@ -315,8 +315,7 @@ const result = await octokit.rest.pulls.create({
 
 console.log('PR created:', result.data.html_url);`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		FormatJavaScriptForYAML(script)
 	}
 }
@@ -347,8 +346,7 @@ const result = await octokit.rest.pulls.create({
 
 console.log('PR created:', result.data.html_url);`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var yaml strings.Builder
 		WriteJavaScriptToYAML(&yaml, script)
 	}

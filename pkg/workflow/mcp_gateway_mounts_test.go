@@ -106,9 +106,11 @@ func TestMCPGatewayMountsInDockerCommand(t *testing.T) {
 
 			// Add volume mounts (not individually quoted since entire command will be quoted)
 			if len(gatewayConfig.Mounts) > 0 {
+				var sb strings.Builder
 				for _, mount := range gatewayConfig.Mounts {
-					containerCmd += " -v " + mount
+					sb.WriteString(" -v " + mount)
 				}
+				containerCmd += sb.String()
 			}
 
 			containerCmd += " " + containerImage

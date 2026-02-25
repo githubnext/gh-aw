@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -163,7 +164,7 @@ func TestConclusionJob(t *testing.T) {
 				workflowData.SafeOutputs = &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: 1,
+							Max: strPtr("1"),
 						},
 					},
 				}
@@ -203,13 +204,7 @@ func TestConclusionJob(t *testing.T) {
 					t.Errorf("Expected %d needs, got %d: %v", len(tt.expectNeeds), len(job.Needs), job.Needs)
 				}
 				for _, expectedNeed := range tt.expectNeeds {
-					found := false
-					for _, need := range job.Needs {
-						if need == expectedNeed {
-							found = true
-							break
-						}
-					}
+					found := slices.Contains(job.Needs, expectedNeed)
 					if !found {
 						t.Errorf("Expected need '%s' not found in job.Needs: %v", expectedNeed, job.Needs)
 					}
@@ -270,7 +265,7 @@ func TestConclusionJobIntegration(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 		},
@@ -316,13 +311,7 @@ func TestConclusionJobIntegration(t *testing.T) {
 
 	// Verify job depends on the safe output jobs
 	for _, expectedNeed := range safeOutputJobNames {
-		found := false
-		for _, need := range job.Needs {
-			if need == expectedNeed {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(job.Needs, expectedNeed)
 		if !found {
 			t.Errorf("Expected conclusion job to depend on '%s'", expectedNeed)
 		}
@@ -340,7 +329,7 @@ func TestConclusionJobWithMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			Messages: &SafeOutputMessagesConfig{
@@ -392,7 +381,7 @@ func TestConclusionJobWithoutMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			// Messages intentionally nil
@@ -435,7 +424,7 @@ func TestActivationJobWithMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			Messages: &SafeOutputMessagesConfig{
@@ -484,7 +473,7 @@ func TestActivationJobWithoutMessages(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			// Messages intentionally nil
@@ -526,7 +515,7 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 1,
+					Max: strPtr("1"),
 				},
 			},
 			NoOp: &NoOpConfig{},

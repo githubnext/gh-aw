@@ -110,14 +110,14 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
 		mcpLog.Print("Found safe-outputs configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "stdio",
 					Command: "node",
 					Env:     make(map[string]string),
 				},
-				Name: constants.SafeOutputsMCPServerID,
+				Name: constants.SafeOutputsMCPServerID.String(),
 				// Command and args will be set up dynamically when the server is started
 			}
 
@@ -159,11 +159,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
 		mcpLog.Print("Found safe-jobs configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			// Find existing safe-outputs config or create new one
 			var config *MCPServerConfig
 			for i := range configs {
-				if configs[i].Name == constants.SafeOutputsMCPServerID {
+				if configs[i].Name == constants.SafeOutputsMCPServerID.String() {
 					config = &configs[i]
 					break
 				}
@@ -176,7 +176,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						Command: "node",
 						Env:     make(map[string]string),
 					},
-					Name: constants.SafeOutputsMCPServerID,
+					Name: constants.SafeOutputsMCPServerID.String(),
 				}
 				configs = append(configs, newConfig)
 				config = &configs[len(configs)-1]
@@ -195,14 +195,14 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	if safeInputsSection, hasSafeInputs := frontmatter["safe-inputs"]; hasSafeInputs {
 		mcpLog.Print("Found safe-inputs configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeInputsMCPServerID, strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeInputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "http",
 					Command: "",
 					Env:     make(map[string]string),
 				},
-				Name: constants.SafeInputsMCPServerID,
+				Name: constants.SafeInputsMCPServerID.String(),
 			}
 
 			// Parse safe-inputs configuration to determine enabled tools
@@ -438,7 +438,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				Command: "docker",
 				Args: []string{
 					"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-					"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 					"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs",
 					"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 				},
@@ -447,34 +446,8 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			Name: "playwright",
 		}
 
-		// Set default allowed domains to localhost with all port variations (matches implementation)
-		allowedDomains := constants.DefaultAllowedDomains
-
 		// Check for custom Playwright configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Handle allowed_domains configuration with bundle resolution
-			if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
-				// For now, we'll use a simple conversion. In a full implementation,
-				// we'd need to use the same domain bundle resolution as the compiler
-				var customDomains []string
-				switch domains := domainsConfig.(type) {
-				case []string:
-					customDomains = domains
-				case []any:
-					customDomains = make([]string, len(domains))
-					for i, domain := range domains {
-						if domainStr, ok := domain.(string); ok {
-							customDomains[i] = domainStr
-						}
-					}
-				case string:
-					customDomains = []string{domains}
-				}
-
-				// Ensure localhost domains are always included
-				allowedDomains = EnsureLocalhostDomains(customDomains)
-			}
-
 			// Check for custom Docker image version
 			if version, exists := toolConfig["version"]; exists {
 				if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
@@ -504,11 +477,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					config.Args = append(config.Args, argsSlice...)
 				}
 			}
-		}
-
-		config.Env["PLAYWRIGHT_ALLOWED_DOMAINS"] = strings.Join(allowedDomains, ",")
-		if len(allowedDomains) == 0 {
-			config.Env["PLAYWRIGHT_BLOCK_ALL_DOMAINS"] = "true"
 		}
 
 		return &config, nil

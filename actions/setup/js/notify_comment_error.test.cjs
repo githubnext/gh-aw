@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 const mockCore = {
     debug: vi.fn(),
     info: vi.fn(),
@@ -113,7 +114,7 @@ const mockCore = {
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             (process.env.GH_AW_AGENT_CONCLUSION = "failure"),
             await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
-            expect(mockCore.setFailed).toHaveBeenCalledWith("Run URL is required"),
+            expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_VALIDATION}: Run URL is required`),
             expect(mockGithub.request).not.toHaveBeenCalled(),
             expect(mockGithub.graphql).not.toHaveBeenCalled());
         });

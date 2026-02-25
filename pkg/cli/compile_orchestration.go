@@ -22,6 +22,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -176,7 +177,7 @@ func compileSpecificFiles(
 	// Don't return the detailed error message here since it's already printed in the summary
 	// Returning a simple error prevents duplication in the output
 	if errorCount > 0 {
-		return workflowDataList, fmt.Errorf("compilation failed")
+		return workflowDataList, errors.New("compilation failed")
 	}
 
 	return workflowDataList, nil
@@ -205,7 +206,7 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Scanning for markdown files in %s", workflowsDir)
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Scanning for markdown files in %s", workflowsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Scanning for markdown files in "+workflowsDir))
 	}
 
 	// Find all markdown files
@@ -339,7 +340,7 @@ func compileAllFilesInDirectory(
 
 	// Return error if any compilations failed
 	if errorCount > 0 {
-		return workflowDataList, fmt.Errorf("compilation failed")
+		return workflowDataList, errors.New("compilation failed")
 	}
 
 	return workflowDataList, nil

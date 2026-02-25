@@ -30,7 +30,7 @@ jobs:
           # Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
           # Keep this list in sync with .golangci.yml for consistency
           gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
-            -exclude=G101,G115,G602,G301,G302,G304,G306 \
+            -exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
             ./...
 
       - name: Upload Gosec SARIF

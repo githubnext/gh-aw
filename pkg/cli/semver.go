@@ -1,10 +1,15 @@
 package cli
 
 import (
+	"strconv"
 	"strings"
 
 	"golang.org/x/mod/semver"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var semverLog = logger.New("cli:semver")
 
 // semanticVersion represents a parsed semantic version
 type semanticVersion struct {
@@ -28,6 +33,7 @@ func isSemanticVersionTag(ref string) bool {
 // parseVersion parses a semantic version string
 // Uses golang.org/x/mod/semver for proper semantic version parsing
 func parseVersion(v string) *semanticVersion {
+	semverLog.Printf("Parsing semantic version: %s", v)
 	// Ensure version has 'v' prefix for semver package
 	if !strings.HasPrefix(v, "v") {
 		v = "v" + v
@@ -35,6 +41,7 @@ func parseVersion(v string) *semanticVersion {
 
 	// Check if valid semantic version
 	if !semver.IsValid(v) {
+		semverLog.Printf("Invalid semantic version: %s", v)
 		return nil
 	}
 
@@ -44,16 +51,23 @@ func parseVersion(v string) *semanticVersion {
 	canonical := semver.Canonical(v)
 
 	// Parse major, minor, patch from canonical form
-	// Canonical format is always vMAJOR.MINOR.PATCH
-	parts := strings.Split(strings.TrimPrefix(canonical, "v"), ".")
+	// Strip prerelease and build metadata before splitting, since semver.Canonical
+	// preserves the prerelease suffix (e.g. "v1.2.3-beta.1" stays "v1.2.3-beta.1")
+	corePart := strings.TrimPrefix(canonical, "v")
+	if idx := strings.IndexAny(corePart, "-+"); idx >= 0 {
+		corePart = corePart[:idx]
+	}
+	parts := strings.Split(corePart, ".")
+	// Parse the numeric components; strconv.Atoi returns 0 on error, matching
+	// the previous behavior where non-numeric input produced 0.
 	if len(parts) >= 1 {
-		ver.major = parseInt(parts[0])
+		ver.major, _ = strconv.Atoi(parts[0])
 	}
 	if len(parts) >= 2 {
-		ver.minor = parseInt(parts[1])
+		ver.minor, _ = strconv.Atoi(parts[1])
 	}
 	if len(parts) >= 3 {
-		ver.patch = parseInt(parts[2])
+		ver.patch, _ = strconv.Atoi(parts[2])
 	}
 
 	// Get prerelease if any
@@ -62,19 +76,6 @@ func parseVersion(v string) *semanticVersion {
 	ver.pre = strings.TrimPrefix(prerelease, "-")
 
 	return ver
-}
-
-// parseInt parses an integer from a string, returns 0 on error
-func parseInt(s string) int {
-	var result int
-	for _, ch := range s {
-		if ch >= '0' && ch <= '9' {
-			result = result*10 + int(ch-'0')
-		} else {
-			break
-		}
-	}
-	return result
 }
 
 // isPreciseVersion returns true if this version has explicit minor and patch components
@@ -100,5 +101,7 @@ func (v *semanticVersion) isNewer(other *semanticVersion) bool {
 	// Use semver.Compare for comparison
 	result := semver.Compare(v1, v2)
 
-	return result > 0
+	isNewer := result > 0
+	semverLog.Printf("Version comparison: %s vs %s, isNewer=%v", v.raw, other.raw, isNewer)
+	return isNewer
 }

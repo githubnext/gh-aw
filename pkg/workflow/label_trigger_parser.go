@@ -1,7 +1,7 @@
 package workflow
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -14,6 +14,7 @@ var labelTriggerParserLog = logger.New("workflow:label_trigger_parser")
 // "pull-request labeled label1 label2 ...", or "discussion labeled label1 label2 ..."
 // and returns the entity type and label names.
 // Returns an empty string for entityType if not a valid label trigger shorthand.
+// When isLabelTrigger is true, entityType is always non-empty even if an error is returned.
 // Returns an error if the format is invalid.
 func parseLabelTriggerShorthand(input string) (entityType string, labelNames []string, isLabelTrigger bool, err error) {
 	input = strings.TrimSpace(input)
@@ -51,15 +52,15 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 
 	// Extract label names
 	if len(tokens) <= startIdx {
-		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
+		return entityType, nil, true, errors.New("label trigger shorthand requires at least one label name")
 	}
 
 	// Process label names: handle both space-separated and comma-separated formats
 	rawLabels := tokens[startIdx:]
 	for _, token := range rawLabels {
 		// Split on commas to handle "label1,label2,label3" format
-		parts := strings.Split(token, ",")
-		for _, part := range parts {
+		parts := strings.SplitSeq(token, ",")
+		for part := range parts {
 			cleanLabel := strings.TrimSpace(part)
 			if cleanLabel != "" {
 				labelNames = append(labelNames, cleanLabel)
@@ -69,7 +70,7 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 
 	// Validate we have at least one label after processing
 	if len(labelNames) == 0 {
-		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
+		return entityType, nil, true, errors.New("label trigger shorthand requires at least one label name")
 	}
 
 	labelTriggerParserLog.Printf("Parsed label trigger shorthand: %s -> entity: %s, labels: %v", input, entityType, labelNames)

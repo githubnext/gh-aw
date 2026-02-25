@@ -5,13 +5,16 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["water"]
+  reaction: "rocket"
+  status-comment: true
 permissions:
   contents: read
   issues: read
   pull-requests: read
 name: Smoke Gemini
-engine: gemini
+engine:
+  id: gemini
 strict: true
 imports:
   - shared/gh.md
@@ -27,6 +30,7 @@ tools:
   edit:
   bash:
     - "*"
+  web-fetch:
 safe-outputs:
     add-comment:
       hide-older-comments: true
@@ -34,6 +38,7 @@ safe-outputs:
     create-issue:
       expires: 2h
       close-older-issues: true
+      labels: [automation, testing]
     add-labels:
       allowed: [smoke-gemini]
     messages:
@@ -54,9 +59,10 @@ timeout-minutes: 10
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Use GitHub MCP tools to fetch details of exactly 2 merged pull requests from ${{ github.repository }} (title and number only)
-2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-gemini-${{ github.run_id }}.txt` with content "Smoke test passed for Gemini at $(date)" (create the directory if it doesn't exist)
-3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
+2. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch MCP tool directly)
+3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-gemini-${{ github.run_id }}.txt` with content "Smoke test passed for Gemini at $(date)" (create the directory if it doesn't exist)
+4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+5. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
 
 ## Output
 
@@ -65,3 +71,9 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - Overall status: PASS or FAIL
 
 If all tests pass, use the `add_labels` safe-output tool to add the label `smoke-gemini` to the pull request.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

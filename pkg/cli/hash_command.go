@@ -46,7 +46,7 @@ func RunHashFrontmatter(workflowPath string) error {
 
 	// Check if file exists
 	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("workflow file not found: %s", workflowPath)))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("workflow file not found: "+workflowPath))
 		return fmt.Errorf("workflow file not found: %s", workflowPath)
 	}
 

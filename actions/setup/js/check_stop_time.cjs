@@ -1,17 +1,18 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 async function main() {
   const stopTime = process.env.GH_AW_STOP_TIME;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME;
 
   if (!stopTime) {
-    core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_STOP_TIME not specified.`);
     return;
   }
 
   if (!workflowName) {
-    core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
+    core.setFailed(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_NAME not specified.`);
     return;
   }
 
@@ -21,7 +22,7 @@ async function main() {
   const stopTimeDate = new Date(stopTime);
 
   if (isNaN(stopTimeDate.getTime())) {
-    core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
+    core.setFailed(`${ERR_VALIDATION}: Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
     return;
   }
 

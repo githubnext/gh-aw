@@ -41,7 +41,7 @@ This ensures recently updated modules get reviewed first since new features migh
 
 For each module, Go Module Usage Expert researches the repository (releases, docs, best practices), analyzes actual usage patterns using Serena, and generates actionable recommendations. It saves summaries under `scratchpad/mods/` and opens GitHub Discussions.
 
-The output of Go Module Usage Expert is a discussion, which is then often "task mined" for actionable tasks using the [TaskOps](https://github.github.com/gh-aw/patterns/taskops/) design pattern.
+The output of Go Module Usage Expert is a discussion, which is then often "task mined" for actionable tasks using the [TaskOps](https://github.github.com/gh-aw/patterns/task-ops/) design pattern.
 
 Let's take a look at an example of how this works:
 
@@ -60,7 +60,7 @@ Typist looks for untyped usages: `interface{}` or `any` where specific types wou
 
 Using grep patterns and Serena's semantic analysis, it discovers type definitions, identifies semantic duplicates, analyzes untyped usage patterns, and generates refactoring recommendations.
 
-Typist also uses the [TaskOps](https://github.github.com/gh-aw/patterns/taskops/) pattern. This means the job of Typist is not to fix code, but to analyze code and recommend possible improvements.
+Typist also uses the [TaskOps](https://github.github.com/gh-aw/patterns/task-ops/) pattern. This means the job of Typist is not to fix code, but to analyze code and recommend possible improvements.
 
 Let's take a look at an example of this in practice:
 

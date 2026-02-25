@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -19,11 +20,11 @@ type CreateDiscussionsConfig struct {
 	AllowedLabels         []string `yaml:"allowed-labels,omitempty"`          // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
 	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
-	CloseOlderDiscussions bool     `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
+	CloseOlderDiscussions *string  `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
 	RequiredCategory      string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
 	Expires               int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
-	FallbackToIssue       *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions
-	Footer                *bool    `yaml:"footer,omitempty"`                  // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	FallbackToIssue       *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions.
+	Footer                *string  `yaml:"footer,omitempty"`                  // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseDiscussionsConfig handles create-discussion configuration
@@ -41,6 +42,20 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	// Pre-process the expires field (convert to hours before unmarshaling)
 	expiresDisabled := preprocessExpiresField(configData, discussionLog)
 
+	// Pre-process templatable bool fields
+	for _, field := range []string{"close-older-discussions", "footer"} {
+		if err := preprocessBoolFieldAsString(configData, field, discussionLog); err != nil {
+			discussionLog.Printf("Invalid %s value: %v", field, err)
+			return nil
+		}
+	}
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", discussionLog); err != nil {
+		discussionLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config CreateDiscussionsConfig
 	if err := unmarshalConfig(outputMap, "create-discussion", &config, discussionLog); err != nil {
@@ -50,8 +65,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
 	// Set default expires to 7 days (168 hours) if not specified and not explicitly disabled
@@ -65,8 +80,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 
 	// Set default fallback-to-issue to true if not specified
 	if config.FallbackToIssue == nil {
-		trueValue := true
-		config.FallbackToIssue = &trueValue
+		trueVal := true
+		config.FallbackToIssue = &trueVal
 		discussionLog.Print("Using default fallback-to-issue: true")
 	}
 
@@ -97,8 +112,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	if len(config.AllowedRepos) > 0 {
 		discussionLog.Printf("Allowed repos configured: %v", config.AllowedRepos)
 	}
-	if config.CloseOlderDiscussions {
-		discussionLog.Print("Close older discussions enabled")
+	if config.CloseOlderDiscussions != nil {
+		discussionLog.Print("Close older discussions flag set")
 		if config.RequiredCategory != "" {
 			discussionLog.Printf("Required category for close older discussions: %q", config.RequiredCategory)
 		}
@@ -118,7 +133,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	discussionLog.Printf("Building create_discussion job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
-		return nil, fmt.Errorf("safe-outputs.create-discussion configuration is required")
+		return nil, errors.New("safe-outputs.create-discussion configuration is required")
 	}
 
 	// Build custom environment variables specific to create-discussion using shared helpers
@@ -129,10 +144,8 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_ALLOWED_LABELS", data.SafeOutputs.CreateDiscussions.AllowedLabels)...)
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateDiscussions.AllowedRepos)...)
 
-	// Add close-older-discussions flag if enabled
-	if data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions {
-		customEnvVars = append(customEnvVars, "          GH_AW_CLOSE_OLDER_DISCUSSIONS: \"true\"\n")
-	}
+	// Add close-older-discussions flag if set
+	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_CLOSE_OLDER_DISCUSSIONS", data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions)...)
 
 	// Add expires value if set
 	if data.SafeOutputs.CreateDiscussions.Expires > 0 {
@@ -140,12 +153,15 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	}
 
 	// Add fallback-to-issue flag
-	if data.SafeOutputs.CreateDiscussions.FallbackToIssue != nil && *data.SafeOutputs.CreateDiscussions.FallbackToIssue {
+	ftiVal := data.SafeOutputs.CreateDiscussions.FallbackToIssue
+	if ftiVal != nil {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_FALLBACK_TO_ISSUE: \"%t\"\n", *ftiVal))
+	} else {
 		customEnvVars = append(customEnvVars, "          GH_AW_DISCUSSION_FALLBACK_TO_ISSUE: \"true\"\n")
 	}
 
 	// Add footer flag if explicitly set to false
-	if data.SafeOutputs.CreateDiscussions.Footer != nil && !*data.SafeOutputs.CreateDiscussions.Footer {
+	if data.SafeOutputs.CreateDiscussions.Footer != nil && *data.SafeOutputs.CreateDiscussions.Footer == "false" {
 		customEnvVars = append(customEnvVars, "          GH_AW_FOOTER: \"false\"\n")
 		discussionLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
 	}

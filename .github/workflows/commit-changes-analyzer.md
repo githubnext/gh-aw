@@ -23,11 +23,11 @@ tools:
   edit:
 safe-outputs:
   create-discussion:
+    expires: 1d
     category: "dev"
     max: 1
 timeout-minutes: 30
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -308,3 +308,9 @@ If any of these conditions occur, explain clearly in the discussion:
 - No commits found in the range (commit is already at HEAD)
 
 Make the error message helpful so the user knows how to correct the input.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

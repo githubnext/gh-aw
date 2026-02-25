@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 describe("parse_safe_inputs_logs.cjs", () => {
   let mockCore, originalConsole;
@@ -415,7 +416,7 @@ describe("parse_safe_inputs_logs.cjs", () => {
 
       await main();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Test error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_PARSE}: Test error`);
     });
 
     it("should process multiple log files", async () => {

@@ -3,7 +3,7 @@
 package parser
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +116,7 @@ tools: {}
 ---
 # Test Workflow`,
 			updateFunc: func(frontmatter map[string]any) error {
-				return fmt.Errorf("test error")
+				return errors.New("test error")
 			},
 			expectedContent: "",
 			expectError:     true,

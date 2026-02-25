@@ -2,32 +2,33 @@
 
 Thank you for your interest in contributing to GitHub Agentic Workflows! We welcome contributions from the community and are excited to work with you.
 
-**⚠️ IMPORTANT: This project requires agentic development using GitHub Copilot Agent. No local development environment is needed or expected.**
+**⚠️ IMPORTANT: This project uses agentic development by a core team (inner-circle) primarily using Copilot coding agent or local coding agents.**
 
-**🚫 Traditional Pull Requests Are Not Enabled**: You cannot create pull requests directly. Instead, you create detailed agentic plans in issues, and GitHub Copilot Agent will create and implement the PR for you after maintainer approval.
+**🚫 Traditional Pull Requests Are Not Enabled for non-Core team members**: If you are not part of the core team, please do not create pull requests directly. Instead, you create detailed agentic plans in issues, discuss with the team, and a core team member will create and implement the PR for you using agents.
 
-## 🤖 Agentic Development Workflow
+This document deals with the contribution process for non-Core team members.
 
-GitHub Agentic Workflows is developed **exclusively through GitHub Copilot Agent**. This means:
+## 🤖 How Development Works
 
-- ✅ **All development happens through Copilot Agent** - agent creates and manages pull requests
-- ✅ **No local setup required** - agents handle building, testing, and validation
-- ✅ **Automated quality assurance** - CI runs all checks on agent-created PRs
-- ❌ **Traditional pull requests are not enabled** - contributors craft agentic plans instead
-- ❌ **Local development is not supported** - all work is done through the agent
+GitHub Agentic Workflows is developed by a core team using agentic development — primarily GitHub Copilot coding agent and local coding agents. This means:
 
-### Why Agentic Development?
+- ✅ **Core team uses agents to create and manage pull requests** - via Copilot coding agent or local agents
+- ✅ **Automated quality assurance** - CI runs all checks on all PRs
+- ✅ **Community contributes through agentic plans** - you craft the plan, the core team executes it
+- ❌ **Traditional pull requests from non-core members are not enabled** - contribute through issues instead
 
-This project practices what it preaches: agentic workflows are used to build agentic workflows. Benefits include:
+### Why This Approach?
+
+This project practices what it preaches: agentic development is used to build agentic workflows. Benefits include:
 
 - **Consistency**: All changes go through the same automated quality gates
-- **Accessibility**: No need to set up local development environments
-- **Best practices**: Agents follow established patterns and guidelines automatically
 - **Dogfooding**: We use our own tools to build our tools
+- **Best practices**: Agents follow established patterns and guidelines automatically
+- **Quality plans**: Encourages contributors to think through the full implementation before work begins
 
-## 🚀 Quick Start for Contributors
+## 🚀 Quick Start for Community Contributors
 
-⚠️ **IMPORTANT: Traditional pull requests are not enabled for this repository.** Instead of creating a PR yourself, you craft a complete agentic plan that GitHub Copilot Agent will execute.
+⚠️ **If you are not part of the core team, do not create pull requests directly.** Instead, craft a detailed agentic plan in an issue and a core team member will pick it up and implement it using agents.
 
 ### Step 1: Analyze with an Agent (for bug reports)
 
@@ -90,60 +91,54 @@ Please implement the following changes:
    - Run `make agent-finish` before completing
 ```
 
-### Step 3: Copilot Agent Will Be Assigned
+### Step 3: Discuss and Refine with the Team
 
-Once your issue is reviewed and approved by a maintainer:
+Once you've opened the issue:
 
-1. **Issue is assigned to Copilot Agent**: A maintainer will assign the issue to GitHub Copilot Agent
-2. **Agent creates a PR**: The agent will create a pull request implementing your plan
-3. **Agent executes your plan**: The agent will follow your step-by-step instructions
-4. **Agent handles validation**: The agent will read guidelines, make changes, run tests
-5. **Review and iterate**: The agent will respond to feedback and update the PR
+1. **Core team reviews your plan**: A core team member will look at your issue and may ask clarifying questions
+2. **Iterate on the plan**: Discuss and refine the implementation approach based on team feedback
+3. **Plan gets approved**: A core team member signals they'll pick it up
 
-### Step 4: Agent Handles Everything
+### Step 4: A Core Team Member Implements the PR
 
-The GitHub Copilot Agent will:
+A core team member will:
 
-- Read your agentic plan from the issue
+- Take your agentic plan and use a coding agent (Copilot or local) to implement it
 - Read relevant documentation and specifications
 - Make code changes following established patterns
 - Run `make agent-finish` to validate changes
-- Format code, run linters, execute tests
-- Recompile workflows to ensure compatibility
-- Respond to review feedback and make adjustments
+- Create a PR and handle review feedback and adjustments
 
-### No Local Setup Needed
+**You don't create or own the PR** — the core team member does, using agents as their implementation tool.
 
-You don't need to install Go, Node.js, or any dependencies. The agent runs in GitHub's infrastructure with all tools pre-configured. **You don't create a PR yourself** - instead, you create a detailed plan that the agent will execute.
+## 📝 How to Contribute as a Community Member
 
-## 📝 How to Contribute via GitHub Copilot Agent
-
-All contributions are made through **agentic plans in GitHub issues**, which GitHub Copilot Agent then implements in pull requests. The agent has access to comprehensive documentation and follows established patterns automatically.
+All community contributions flow through **agentic plans in GitHub issues**. A core team member then picks up the issue and uses a coding agent to implement it in a pull request.
 
 ### How the Process Works
 
 1. **You create an issue** with a detailed agentic plan describing what needs to be done
-2. **Maintainer assigns the issue** to GitHub Copilot Agent after review
-3. **Agent creates a PR** and implements your plan
-4. **Agent follows your instructions** and handles all the technical details
-5. **Maintainers review** and provide feedback
+2. **Core team reviews** your plan and may ask questions or suggest refinements
+3. **A core team member picks it up** and uses a coding agent to implement your plan
+4. **The agent follows your instructions** and handles the technical details
+5. **Core team reviews the PR** and provides feedback
 6. **Agent iterates** based on review comments until approved
 7. **PR is merged** when all checks pass and reviews are satisfied
 
-**You do not create pull requests yourself.** Instead, you craft comprehensive plans that the agent executes.
+**You do not create pull requests yourself.** Instead, you craft comprehensive plans that a core team member executes using agents.
 
-### What the Agent Handles
+### What the Implementing Agent Handles
 
-The GitHub Copilot Agent automatically:
+When a core team member implements your plan, the coding agent they use will:
 
-- **Reads specifications** from `scratchpad/`, `skills/`, and `.github/instructions/`
-- **Follows code organization patterns** (see [scratchpad/code-organization.md](scratchpad/code-organization.md))
-- **Implements validation** following the architecture in [scratchpad/validation-architecture.md](scratchpad/validation-architecture.md)
-- **Uses console formatting** from `pkg/console` for CLI output
-- **Writes error messages** following the [Error Message Style Guide](.github/instructions/error-messages.instructions.md)
-- **Runs all quality checks**: `make agent-finish` (build, test, recompile, format, lint)
-- **Updates documentation** for new features
-- **Creates tests** for new functionality
+- **Read specifications** from `scratchpad/`, `skills/`, and `.github/instructions/`
+- **Follow code organization patterns** (see [scratchpad/code-organization.md](scratchpad/code-organization.md))
+- **Implement validation** following the architecture in [scratchpad/validation-architecture.md](scratchpad/validation-architecture.md)
+- **Use console formatting** from `pkg/console` for CLI output
+- **Write error messages** following the [Error Message Style Guide](.github/instructions/error-messages.instructions.md)
+- **Run all quality checks**: `make agent-finish` (build, test, recompile, format, lint)
+- **Update documentation** for new features
+- **Create tests** for new functionality
 
 ### Reporting Issues and Feature Requests
 
@@ -181,15 +176,15 @@ When filing issues with agentic plans:
 - **Features**: Explain the use case, provide examples, suggest implementation approach with step-by-step instructions
 - **Workflow failures**: Debug with agents first, then report with analysis and remediation plan
 - **Implementation details**: Be specific about file changes, function names, validation rules, test cases
-- **Complete plans**: The more detailed your plan, the better the agent can execute it
+- **Complete plans**: The more detailed your plan, the easier it is for the core team to execute it with an agent
 - Follow [Label Guidelines](scratchpad/labels.md)
-- The agent will read the issue and implement your plan in a PR
+- A core team member will pick up the issue and implement your plan using a coding agent
 
 **Quality of the agentic plan directly impacts implementation success.** Provide comprehensive, step-by-step instructions with specific details.
 
 ### Code Quality Standards
 
-GitHub Copilot Agent automatically enforces:
+Core team members and the agents they use follow these standards:
 
 #### Error Messages
 
@@ -302,9 +297,9 @@ For breaking changes, the agent:
 
 See [Breaking CLI Rules](scratchpad/breaking-cli-rules.md) for details.
 
-## 🔄 Pull Request Process via GitHub Copilot Agent
+## 🔄 Pull Request Process for Community Contributions
 
-All pull requests are created and managed by GitHub Copilot Agent based on agentic plans in issues:
+All community-sourced pull requests are created and managed by core team members using coding agents:
 
 1. **Create an issue with your agentic plan:**
    - Open an issue describing what needs to be done in detail
@@ -312,29 +307,29 @@ All pull requests are created and managed by GitHub Copilot Agent based on agent
    - Include clear context, examples, and specific technical details
    - Tag appropriately using [Label Guidelines](scratchpad/labels.md)
 
-2. **Maintainer reviews and assigns:**
-   - Maintainer reviews your agentic plan
-   - If approved, maintainer assigns the issue to GitHub Copilot Agent
-   - Agent automatically creates a PR to implement your plan
+2. **Core team reviews and engages:**
+   - A core team member reviews your agentic plan
+   - They may ask questions, suggest changes, or refine the approach
+   - If the plan looks good, a core team member picks it up
 
-3. **Agent creates and implements the PR:**
-   - Agent reads your plan from the issue
-   - Agent reads specifications and guidelines
-   - Agent makes changes following established patterns
-   - Agent runs `make agent-finish` automatically
+3. **Core team member creates and implements the PR using an agent:**
+   - They run the plan through a coding agent (Copilot or local)
+   - The agent reads specifications and guidelines
+   - The agent makes changes following established patterns
+   - The agent runs `make agent-finish` automatically
 
 4. **Automated quality checks:**
-   - CI runs on agent-created PRs
+   - CI runs on all PRs
    - All checks must pass (build, test, lint, recompile)
-   - Agent responds to CI failures and fixes them
+   - The core team member addresses any CI failures
 
 5. **Review and iterate:**
-   - Maintainers review the PR
+   - Core team reviews the PR
    - Provide feedback as comments
-   - Agent responds to feedback and makes adjustments
+   - Agent-assisted revisions are made as needed
    - Once approved, PR is merged
 
-**Remember: You don't create the PR yourself.** You create an issue with a detailed plan, and after approval, the agent creates the PR and implements your plan.
+**Remember: As a community contributor, you don't create the PR yourself.** You create an issue with a detailed plan, discuss it with the team, and a core team member creates the PR using agents.
 
 ### What Gets Validated
 
@@ -347,9 +342,9 @@ Every agent-created PR automatically runs:
 - `make fmt` - Formats Go code
 - `make lint-errors` - Validates error message quality
 
-## 🏗️ Project Structure (For Agent Reference)
+## 🏗️ Project Structure
 
-The agent understands this structure:
+This structure is useful context when writing your agentic plan, so the core team's agent can navigate the codebase effectively:
 
 ```text
 /
@@ -494,7 +489,7 @@ This includes but is not limited to:
 
 - Join the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
 - Participate in discussions on GitHub issues
-- Collaborate through GitHub Copilot Agent PRs
+- Collaborate by crafting high-quality agentic plans for the core team to implement
 
 ## 📜 Code of Conduct
 
@@ -504,22 +499,21 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 - **For bugs or features**: Open a GitHub issue with a detailed agentic plan
 - **For questions**: Ask in issues, discussions, or Discord
-- **For examples**: Look at existing issues and agent-created PRs
-- **Remember**: You don't create PRs - you create issues with plans that agents implement
+- **For examples**: Look at existing issues and PRs created by core team members
+- **Remember**: You don't create PRs - you create issues with plans that a core team member implements using agents
 
-## 🎯 Why No Traditional Pull Requests?
+## 🎯 Why This Contribution Model?
 
-This project is built using agentic workflows to demonstrate their capabilities:
+This project is built by a core team using agentic development to demonstrate and dogfood the capabilities of GitHub Agentic Workflows:
 
 - **Dogfooding**: We use our own tools to build our tools
-- **Accessibility**: No need for complex local setup or Git workflows
-- **Consistency**: All changes go through the same automated process
-- **Best practices**: Agents follow guidelines automatically
+- **Consistency**: All changes go through the same automated quality gates
+- **Best practices**: Agents follow established guidelines automatically
 - **Focus on outcomes**: Describe what you want, not how to build it
-- **Quality plans**: Forces contributors to think through the entire implementation before starting
+- **Quality plans**: Encourages contributors to think through the full implementation before work begins
 
-**Traditional PRs would bypass the agentic workflow**, defeating the purpose of this project. By crafting detailed agentic plans in issues, you're participating in the future of software development.
+Community members contribute by crafting detailed agentic plans that the core team picks up and implements. **This keeps the bar high** — well-thought-out plans lead to well-executed PRs.
 
-The [Development Guide](DEVGUIDE.md) exists as reference for the agent, not for local setup.
+The [Development Guide](DEVGUIDE.md) is the reference guide used by core team members and their agents.
 
 Thank you for contributing to GitHub Agentic Workflows! 🤖🎉

@@ -77,22 +77,9 @@ Run ID: ${{ github.run_id }}
 	}
 
 	// Verify the original expressions have been replaced in the prompt heredoc content
-	// Find the heredoc section by looking for the "cat " line
-	heredocStart := strings.Index(compiledStr, "cat << '"+delimiter+"' > \"$GH_AW_PROMPT\"")
-	if heredocStart == -1 {
-		t.Error("Could not find prompt heredoc section")
-	} else {
-		// Find the end of the heredoc
-		heredocEnd := strings.Index(compiledStr[heredocStart:], "\n          "+delimiter+"\n")
-		if heredocEnd == -1 {
-			t.Error("Could not find end of prompt heredoc")
-		} else {
-			heredocContent := compiledStr[heredocStart : heredocStart+heredocEnd]
-			// Verify original expressions are NOT in the heredoc content
-			if strings.Contains(heredocContent, "Repository: ${{ github.repository }}") {
-				t.Error("Original GitHub expressions should be replaced with environment variable references in the prompt heredoc")
-			}
-		}
+	// With grouped redirects, heredocs inside the group have no individual redirects
+	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
+		t.Error("Original GitHub expressions should be replaced with environment variable references in the prompt heredoc")
 	}
 
 	// Verify that placeholder references ARE in the heredoc content

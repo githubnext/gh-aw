@@ -27,6 +27,8 @@ engine: copilot
 steps:
   - name: Checkout code
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
   - name: Use Node
     run: node --version
 ---
@@ -84,7 +86,7 @@ steps:
 		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && line[2] != '\t' {
 			// Calculate the position in the original string
 			nextJobStart = 0
-			for j := 0; j < i; j++ {
+			for j := range i {
 				nextJobStart += len(lines[j]) + 1 // +1 for newline
 			}
 			break
@@ -104,8 +106,8 @@ steps:
 
 	// Find all step names in order
 	stepNames := []string{}
-	stepLines := strings.Split(agentJobSection, "\n")
-	for _, line := range stepLines {
+	stepLines := strings.SplitSeq(agentJobSection, "\n")
+	for line := range stepLines {
 		// Check if line contains "- name:" (with any amount of leading whitespace)
 		if strings.Contains(line, "- name:") {
 			// Extract the name part after "- name:"
@@ -261,7 +263,7 @@ Run node --version to check the Node.js version.
 		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && line[2] != '\t' {
 			// Calculate the position in the original string
 			nextJobStart = 0
-			for j := 0; j < i; j++ {
+			for j := range i {
 				nextJobStart += len(lines[j]) + 1 // +1 for newline
 			}
 			break
@@ -277,8 +279,8 @@ Run node --version to check the Node.js version.
 
 	// Find all step names in order
 	stepNames := []string{}
-	stepLines := strings.Split(agentJobSection, "\n")
-	for _, line := range stepLines {
+	stepLines := strings.SplitSeq(agentJobSection, "\n")
+	for line := range stepLines {
 		// Check if line contains "- name:" (with any amount of leading whitespace)
 		if strings.Contains(line, "- name:") {
 			// Extract the name part after "- name:"

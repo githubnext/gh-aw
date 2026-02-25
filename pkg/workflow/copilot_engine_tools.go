@@ -83,12 +83,12 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
 	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
-		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID)
+		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID.String())
 	}
 
 	// Handle safe_inputs MCP server - allow the server if safe inputs are configured and feature flag is enabled
 	if IsSafeInputsEnabled(safeInputs, workflowData) {
-		args = append(args, "--allow-tool", constants.SafeInputsMCPServerID)
+		args = append(args, "--allow-tool", constants.SafeInputsMCPServerID.String())
 	}
 
 	// Handle web-fetch builtin tool (Copilot CLI uses web_fetch with underscore)

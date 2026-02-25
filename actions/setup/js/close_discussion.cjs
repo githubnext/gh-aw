@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -53,7 +54,7 @@ async function getDiscussionDetails(github, owner, repo, discussionNumber) {
     );
 
     if (!query?.repository?.discussion) {
-      throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+      throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
     }
 
     // Store the discussion metadata from the first query
@@ -75,7 +76,7 @@ async function getDiscussionDetails(github, owner, repo, discussionNumber) {
   }
 
   if (!discussion) {
-    throw new Error(`Failed to fetch discussion #${discussionNumber}`);
+    throw new Error(`${ERR_NOT_FOUND}: Failed to fetch discussion #${discussionNumber}`);
   }
 
   return {
@@ -175,11 +176,11 @@ async function main(config = {}) {
 
   /**
    * Message handler function that processes a single close_discussion message
-   * @param {Object} message - The close_discussion message to process
+   * @param {Object} item - The close_discussion message to process
    * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
    * @returns {Promise<Object>} Result with success/error status
    */
-  return async function handleCloseDiscussion(message, resolvedTemporaryIds) {
+  return async function handleCloseDiscussion(item, resolvedTemporaryIds) {
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping close_discussion: max count of ${maxCount} reached`);
@@ -190,8 +191,6 @@ async function main(config = {}) {
     }
 
     processedCount++;
-
-    const item = message;
 
     // Determine discussion number
     let discussionNumber;

@@ -75,7 +75,7 @@ func (c *Compiler) normalizeScheduleString(scheduleStr string, itemIndex int) (p
 			parsedCron = scatteredCron
 			// Update the friendly format to show the scattering
 			if original != "" {
-				original = fmt.Sprintf("%s (scattered)", original)
+				original = original + " (scattered)"
 			}
 		}
 	}
@@ -251,7 +251,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 	// Schedule should be an array of schedule items
 	scheduleArray, ok := scheduleValue.([]any)
 	if !ok {
-		return fmt.Errorf("schedule field must be a string or an array")
+		return errors.New("schedule field must be a string or an array")
 	}
 
 	// Initialize friendly formats map for this compilation
@@ -359,7 +359,7 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 				Column: onColumn,
 			},
 			Type:    "error",
-			Message: fmt.Sprintf("trigger syntax error: %s", err.Error()),
+			Message: "trigger syntax error: " + err.Error(),
 			Context: context,
 		}
 

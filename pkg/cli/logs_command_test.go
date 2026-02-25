@@ -120,11 +120,11 @@ func TestLogsCommandBooleanFlags(t *testing.T) {
 func TestLogsCommandStructure(t *testing.T) {
 	tests := []struct {
 		name           string
-		commandCreator func() interface{}
+		commandCreator func() any
 	}{
 		{
 			name: "logs command exists",
-			commandCreator: func() interface{} {
+			commandCreator: func() any {
 				return NewLogsCommand()
 			},
 		},
@@ -248,7 +248,7 @@ func TestLogsCommandHelpText(t *testing.T) {
 	// Verify long description contains expected sections
 	expectedSections := []string{
 		"Download workflow run logs",
-		"Orchestrator Usage",
+		"Downloaded artifacts include:",
 		"Examples:",
 		"gh aw logs",
 	}

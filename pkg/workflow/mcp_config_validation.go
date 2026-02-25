@@ -124,30 +124,28 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 
 	// List of all known tool config fields (not just MCP)
 	knownToolFields := map[string]bool{
-		"type":            true,
-		"url":             true,
-		"command":         true,
-		"container":       true,
-		"env":             true,
-		"headers":         true,
-		"version":         true,
-		"args":            true,
-		"entrypoint":      true,
-		"entrypointArgs":  true,
-		"mounts":          true,
-		"proxy-args":      true,
-		"registry":        true,
-		"allowed":         true,
-		"mode":            true, // for github tool
-		"github-token":    true, // for github tool
-		"read-only":       true, // for github tool
-		"toolsets":        true, // for github tool
-		"id":              true, // for cache-memory (array notation)
-		"key":             true, // for cache-memory
-		"description":     true, // for cache-memory
-		"retention-days":  true, // for cache-memory
-		"allowed_domains": true, // for playwright tool
-		"allowed-domains": true, // for playwright tool (alternative notation)
+		"type":           true,
+		"url":            true,
+		"command":        true,
+		"container":      true,
+		"env":            true,
+		"headers":        true,
+		"version":        true,
+		"args":           true,
+		"entrypoint":     true,
+		"entrypointArgs": true,
+		"mounts":         true,
+		"proxy-args":     true,
+		"registry":       true,
+		"allowed":        true,
+		"mode":           true, // for github tool
+		"github-token":   true, // for github tool
+		"read-only":      true, // for github tool
+		"toolsets":       true, // for github tool
+		"id":             true, // for cache-memory (array notation)
+		"key":            true, // for cache-memory
+		"description":    true, // for cache-memory
+		"retention-days": true, // for cache-memory
 	}
 
 	// Check new format: direct fields in tool config
@@ -166,10 +164,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 				validFields = append(validFields, k)
 			}
 			sort.Strings(validFields)
-			maxFields := 10
-			if len(validFields) < maxFields {
-				maxFields = len(validFields)
-			}
+			maxFields := min(10, len(validFields))
 			return nil, fmt.Errorf("unknown property '%s' in tool configuration. Valid properties include: %s.\n\nExample:\ntools:\n  my-tool:\n    command: \"node server.js\"\n    args: [\"--verbose\"]\n\nSee: %s", field, strings.Join(validFields[:maxFields], ", "), constants.DocsToolsURL)
 		}
 	}
@@ -259,6 +254,11 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'container' field. HTTP MCP uses URL endpoints, not containers.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"Bearer ${{ secrets.API_KEY }}\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
 		}
 
+		// HTTP type cannot use mounts field (MCP Gateway v0.1.5+)
+		if _, hasMounts := toolConfig["mounts"]; hasMounts {
+			return fmt.Errorf("tool '%s' mcp configuration with type 'http' cannot use 'mounts' field. Volume mounts are only supported for stdio (containerized) MCP servers.\n\nExample:\ntools:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+		}
+
 		return validateStringProperty(toolName, "url", url, hasURL)
 
 	case "stdio":
@@ -280,6 +280,45 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 			}
 		} else {
 			return fmt.Errorf("tool '%s' mcp configuration must specify either 'command' or 'container'.\n\nExample (command):\ntools:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nExample (container):\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    version: \"latest\"\n\nSee: %s", toolName, toolName, toolName, constants.DocsToolsURL)
+		}
+
+		// Validate mount syntax if mounts are specified (MCP Gateway v0.1.5+ requires explicit mode)
+		if mountsRaw, hasMounts := toolConfig["mounts"]; hasMounts {
+			if err := validateMCPMountsSyntax(toolName, mountsRaw); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateMCPMountsSyntax validates that mount strings in a custom MCP server config
+// follow the correct syntax required by MCP Gateway v0.1.5+.
+// Expected format: "source:destination:mode" where mode is either "ro" or "rw".
+func validateMCPMountsSyntax(toolName string, mountsRaw any) error {
+	var mounts []string
+
+	switch v := mountsRaw.(type) {
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				mounts = append(mounts, s)
+			}
+		}
+	case []string:
+		mounts = v
+	default:
+		return fmt.Errorf("tool '%s' mcp configuration 'mounts' must be an array of strings.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
+	}
+
+	for i, mount := range mounts {
+		source, dest, mode, err := validateMountStringFormat(mount)
+		if err != nil {
+			if source == "" && dest == "" && mode == "" {
+				return fmt.Errorf("tool '%s' mcp configuration mounts[%d] must follow 'source:destination:mode' format, got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"\n\nSee: %s", toolName, i, mount, toolName, constants.DocsToolsURL)
+			}
+			return fmt.Errorf("tool '%s' mcp configuration mounts[%d] mode must be 'ro' or 'rw', got: %q.\n\nExample:\ntools:\n  %s:\n    container: \"my-registry/my-tool\"\n    mounts:\n      - \"/host/path:/container/path:ro\"  # read-only\n      - \"/host/path:/container/path:rw\"  # read-write\n\nSee: %s", toolName, i, mode, toolName, constants.DocsToolsURL)
 		}
 	}
 

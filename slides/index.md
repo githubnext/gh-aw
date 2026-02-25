@@ -1,14 +1,21 @@
 ---
 marp: true
-theme: default
+theme: gh-aw
 paginate: true
 ---
 
+<script src="./js/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true });
+</script>
+
 # GitHub Agentic Workflows
 ## Write AI Automation in Natural Language
-### Research Preview
+### Technical Preview
 
 https://github.com/github/gh-aw
+
+https://github.blog/ai-and-ml/automate-repository-tasks-with-github-agentic-workflows/
 
 ---
 
@@ -71,6 +78,54 @@ Summarize this issue and respond in a comment.
 
 ---
 
+# Security Architecture
+
+## Multi-layered defense in depth
+
+<pre class="mermaid">
+flowchart TB
+    subgraph ActionJobVM["Action Job VM"]
+        subgraph Sandbox1["Sandbox"]
+            Agent["Agent Process"]
+        end
+
+        Proxy1["Proxy / Firewall"]
+        Gateway["Gateway<br/>(mcpg)"]
+
+        Agent --> Proxy1
+        Proxy1 --> Gateway
+
+        subgraph Sandbox2["Sandbox"]
+            MCP["MCP Server"]
+        end
+
+        subgraph Sandbox3["Sandbox"]
+            Skill["Skill"]
+        end
+
+        Gateway --> MCP
+        Gateway --> Skill
+
+        Proxy2["Proxy / Firewall"]
+        Proxy3["Proxy / Firewall"]
+
+        MCP --> Proxy2
+        Skill --> Proxy3
+    end
+
+    Service1{{"Service"}}
+    Service2{{"Service"}}
+
+    Proxy2 --> Service1
+    Proxy3 --> Service2
+</pre>
+
+- **Container isolation** - Agent, MCP servers, skills in separate sandboxes
+- **Proxy/firewall at every layer** - Controls egress traffic and domain access
+- **MCP Gateway** - Central routing with auditable tool access
+
+---
+
 # Tools & Integrations
 
 Built-in tools:
@@ -100,7 +155,7 @@ mcp-servers:
 
 Multiple engine options:
 - **Copilot** - GitHub's AI pair programmer
-- **Claude** - Anthropic's Claude models
+- **Claude Code** - Anthropic's Claude models
 - **Codex** - OpenAI's code model
 
 ---
@@ -180,7 +235,8 @@ Topics covered:
 # Community & Support
 
 - **GitHub Repository**: github/gh-aw
-- **Documentation**: gh.io/gh-aw
+- **Documentation**: https://github.github.com/gh-aw/
+- **Community Feedback**: https://gh.io/next-discord
 
 ---
 

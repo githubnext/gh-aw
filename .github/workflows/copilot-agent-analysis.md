@@ -23,16 +23,14 @@ network:
 
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[copilot-agent-analysis] "
     category: "audits"
     max: 1
     close-older-discussions: true
 
 imports:
-  - shared/mood.md
-  - shared/jqschema.md
-  - shared/reporting.md
-  - shared/copilot-pr-data-fetch.md
+  - shared/copilot-pr-analysis-base.md
 
 tools:
   repo-memory:
@@ -40,18 +38,6 @@ tools:
     description: "Historical agent performance metrics"
     file-glob: ["memory/copilot-agent-analysis/*.json", "memory/copilot-agent-analysis/*.jsonl", "memory/copilot-agent-analysis/*.csv", "memory/copilot-agent-analysis/*.md"]
     max-file-size: 102400  # 100KB
-  github:
-    toolsets: [default]
-  bash:
-    - "find .github -name '*.md'"
-    - "find .github -type f -exec cat {} +"
-    - "find .github -maxdepth 1 -ls"
-    - "git log --oneline"
-    - "git diff"
-    - "gh pr list *"
-    - "gh search prs *"
-    - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
 
 timeout-minutes: 15
 
@@ -493,3 +479,9 @@ A successful **concise** analysis:
 - ✅ Provides 1-2 actionable insights maximum
 
 **Remember**: Less is more. Focus on key metrics and notable changes only.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -155,10 +155,10 @@
       "version": "v1.20.4",
       "sha": "dff508cca8ce57162e7aa6c4769a4f97c2fed638"
     },
-    "github/codeql-action/upload-sarif@v3.32.3": {
+    "github/codeql-action/upload-sarif@v3.32.4": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v3.32.3",
-      "sha": "17ec405481c24be464d4b2c5727a82f700ddb189"
+      "version": "v3.32.4",
+      "sha": "85b88275909735f5bc23196090e03d2eb148b3de"
     },
     "github/stale-repos@v3.0.2": {
       "repo": "github/stale-repos",

@@ -5,157 +5,376 @@ package parser
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestImportCache(t *testing.T) {
-	// Create temp directory for testing
-	tempDir, err := os.MkdirTemp("", "import-cache-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Create a new cache
+	tempDir := t.TempDir()
 	cache := NewImportCache(tempDir)
-
-	// Test Set and Get
+	const (
+		owner = "testowner"
+		repo  = "testrepo"
+		path  = "workflows/test.md"
+		sha   = "abc123"
+	)
 	testContent := []byte("# Test Workflow\n\nTest content")
-	owner := "testowner"
-	repo := "testrepo"
-	path := "workflows/test.md"
-	sha := "abc123"
 
-	cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
-	if err != nil {
-		t.Fatalf("Failed to set cache entry: %v", err)
-	}
+	t.Run("Set creates file and returns path", func(t *testing.T) {
+		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
+		require.NoError(t, err, "Set should succeed for valid inputs")
+		require.FileExists(t, cachedPath, "cache file should be created at expected path")
+	})
 
-	// Verify file was created
-	if _, err := os.Stat(cachedPath); os.IsNotExist(err) {
-		t.Errorf("Cache file was not created: %s", cachedPath)
-	}
+	t.Run("Get returns cached path after Set", func(t *testing.T) {
+		cachedPath, _ := cache.Set(owner, repo, path, sha, testContent)
+		retrievedPath, found := cache.Get(owner, repo, path, sha)
+		assert.True(t, found, "cache entry should be found after Set")
+		assert.Equal(t, cachedPath, retrievedPath, "retrieved path should match path returned by Set")
+	})
 
-	// Verify content
-	content, err := os.ReadFile(cachedPath)
-	if err != nil {
-		t.Fatalf("Failed to read cached file: %v", err)
-	}
-	if string(content) != string(testContent) {
-		t.Errorf("Content mismatch. Expected %q, got %q", testContent, content)
-	}
+	t.Run("Cached file content matches original", func(t *testing.T) {
+		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
+		require.NoError(t, err, "Set should succeed")
+		content, err := os.ReadFile(cachedPath)
+		require.NoError(t, err, "reading cached file should succeed")
+		assert.Equal(t, string(testContent), string(content), "cached content should match original")
+	})
 
-	// Test Get
-	retrievedPath, found := cache.Get(owner, repo, path, sha)
-	if !found {
-		t.Error("Cache entry not found after Set")
-	}
-	if retrievedPath != cachedPath {
-		t.Errorf("Path mismatch. Expected %s, got %s", cachedPath, retrievedPath)
-	}
-
-	// Test that a new cache instance can find the file
-	cache2 := NewImportCache(tempDir)
-	retrievedPath2, found := cache2.Get(owner, repo, path, sha)
-	if !found {
-		t.Error("Cache entry not found from new cache instance")
-	}
-	if retrievedPath2 != cachedPath {
-		t.Errorf("Path mismatch from new instance. Expected %s, got %s", cachedPath, retrievedPath2)
-	}
+	t.Run("New cache instance finds existing entry", func(t *testing.T) {
+		cachedPath, _ := cache.Set(owner, repo, path, sha, testContent)
+		cache2 := NewImportCache(tempDir)
+		retrievedPath2, found := cache2.Get(owner, repo, path, sha)
+		assert.True(t, found, "cache entry should be found from new cache instance")
+		assert.Equal(t, cachedPath, retrievedPath2, "path from new instance should match original")
+	})
 }
 
 func TestImportCacheDirectory(t *testing.T) {
-	// Create temp directory for testing
-	tempDir, err := os.MkdirTemp("", "import-cache-dir-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	cache := NewImportCache(tempDir)
 
 	// Test cache directory path
 	expectedDir := filepath.Join(tempDir, ImportCacheDir)
-	if cache.GetCacheDir() != expectedDir {
-		t.Errorf("Cache dir mismatch. Expected %s, got %s", expectedDir, cache.GetCacheDir())
-	}
+	assert.Equal(t, expectedDir, cache.GetCacheDir(), "GetCacheDir should return expected path")
 
 	// Create a cache entry to trigger directory creation
 	testContent := []byte("test")
-	_, err = cache.Set("owner", "repo", "test.md", "sha1", testContent)
-	if err != nil {
-		t.Fatalf("Failed to set cache entry: %v", err)
-	}
+	_, err := cache.Set("owner", "repo", "test.md", "sha1", testContent)
+	require.NoError(t, err, "Set should succeed for valid inputs")
 
 	// Verify directory was created
-	if _, err := os.Stat(expectedDir); os.IsNotExist(err) {
-		t.Errorf("Cache directory was not created: %s", expectedDir)
-	}
+	assert.DirExists(t, expectedDir, "cache directory should be created after Set")
 
 	// Verify .gitattributes was auto-generated
 	gitAttributesPath := filepath.Join(expectedDir, ".gitattributes")
-	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
-		t.Errorf(".gitattributes file was not created: %s", gitAttributesPath)
-	}
+	require.FileExists(t, gitAttributesPath, ".gitattributes file should be created in cache directory")
 
 	// Verify .gitattributes content
 	content, err := os.ReadFile(gitAttributesPath)
-	if err != nil {
-		t.Fatalf("Failed to read .gitattributes: %v", err)
-	}
+	require.NoError(t, err, "reading .gitattributes should succeed")
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "linguist-generated=true") {
-		t.Error(".gitattributes missing 'linguist-generated=true'")
-	}
-	if !strings.Contains(contentStr, "merge=ours") {
-		t.Error(".gitattributes missing 'merge=ours'")
-	}
+	assert.Contains(t, contentStr, "linguist-generated=true", ".gitattributes should mark files as linguist-generated")
+	assert.Contains(t, contentStr, "merge=ours", ".gitattributes should set merge=ours strategy")
 }
 
 func TestImportCacheMissingFile(t *testing.T) {
-	// Create temp directory for testing
-	tempDir, err := os.MkdirTemp("", "import-cache-missing-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	cache := NewImportCache(tempDir)
 
 	// Add entry to cache
 	testContent := []byte("test")
 	cachedPath, err := cache.Set("owner", "repo", "test.md", "sha1", testContent)
-	if err != nil {
-		t.Fatalf("Failed to set cache entry: %v", err)
-	}
+	require.NoError(t, err, "Set should succeed for valid inputs")
 
 	// Delete the cached file
-	if err := os.Remove(cachedPath); err != nil {
-		t.Fatalf("Failed to remove cached file: %v", err)
-	}
+	err = os.Remove(cachedPath)
+	require.NoError(t, err, "removing cached file should succeed")
 
 	// Try to get the entry - should return not found since file is missing
 	_, found := cache.Get("owner", "repo", "test.md", "sha1")
-	if found {
-		t.Error("Expected cache miss for deleted file, but got hit")
-	}
+	assert.False(t, found, "Get should return cache miss when backing file has been deleted")
 }
 
 func TestImportCacheEmptyCache(t *testing.T) {
-	// Create temp directory for testing
-	tempDir, err := os.MkdirTemp("", "import-cache-empty-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	cache := NewImportCache(tempDir)
 
 	// Try to get from empty cache - should return not found
 	_, found := cache.Get("owner", "repo", "test.md", "nonexistent-sha")
-	if found {
-		t.Error("Expected cache miss for empty cache, but got hit")
+	assert.False(t, found, "Get should return cache miss for empty cache")
+}
+
+func TestSanitizePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple path",
+			input:    "workflows/test.md",
+			expected: "workflows_test.md",
+		},
+		{
+			name:     "nested path",
+			input:    "a/b/c/file.md",
+			expected: "a_b_c_file.md",
+		},
+		{
+			name:     "already flat",
+			input:    "file.md",
+			expected: "file.md",
+		},
+		{
+			name:     "path with dots cleaned",
+			input:    "a/./b/file.md",
+			expected: "a_b_file.md",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: ".",
+		},
+		{
+			name:     "trailing slash",
+			input:    "a/b/",
+			expected: "a_b",
+		},
+		{
+			name:     "single dot component",
+			input:    "a/./b",
+			expected: "a_b",
+		},
+		{
+			name:     "leading slash becomes root-like",
+			input:    "/absolute/path",
+			expected: "_absolute_path",
+		},
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizePath(tt.input)
+			assert.Equal(t, tt.expected, result, "sanitizePath(%q) should return expected value", tt.input)
+		})
+	}
+}
+
+func TestValidatePathComponents(t *testing.T) {
+	tests := []struct {
+		name      string
+		owner     string
+		repo      string
+		path      string
+		sha       string
+		shouldErr bool
+		errMsg    string
+	}{
+		{
+			name:      "valid components",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "workflows/test.md",
+			sha:       "abc123",
+			shouldErr: false,
+		},
+		{
+			name:      "empty owner",
+			owner:     "",
+			repo:      "testrepo",
+			path:      "test.md",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "empty component",
+		},
+		{
+			name:      "empty sha",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "test.md",
+			sha:       "",
+			shouldErr: true,
+			errMsg:    "empty component",
+		},
+		{
+			name:      "path traversal in owner",
+			owner:     "../etc",
+			repo:      "testrepo",
+			path:      "test.md",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "..",
+		},
+		{
+			name:      "path traversal in path",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "../../etc/passwd",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "..",
+		},
+		{
+			name:      "absolute path in sha",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "test.md",
+			sha:       "/absolute/path",
+			shouldErr: true,
+			errMsg:    "absolute path",
+		},
+		{
+			name:      "empty repo",
+			owner:     "testowner",
+			repo:      "",
+			path:      "test.md",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "empty component",
+		},
+		{
+			name:      "empty path",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "empty component",
+		},
+		{
+			name:      "path traversal embedded in sha",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "test.md",
+			sha:       "abc..def",
+			shouldErr: true,
+			errMsg:    "..",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePathComponents(tt.owner, tt.repo, tt.path, tt.sha)
+			if tt.shouldErr {
+				require.Error(t, err, "should return error for: %s", tt.name)
+				assert.Contains(t, err.Error(), tt.errMsg, "error message should mention: %s", tt.errMsg)
+			} else {
+				assert.NoError(t, err, "should not return error for valid components")
+			}
+		})
+	}
+}
+
+func TestImportCacheSet_Validation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name      string
+		owner     string
+		repo      string
+		path      string
+		sha       string
+		content   []byte
+		shouldErr bool
+		errMsg    string
+	}{
+		{
+			name:      "oversized content rejected",
+			owner:     "owner",
+			repo:      "repo",
+			path:      "test.md",
+			sha:       "abc123",
+			content:   make([]byte, 10*1024*1024+1), // 10MB + 1 byte
+			shouldErr: true,
+			errMsg:    "exceeds maximum",
+		},
+		{
+			name:      "path traversal in owner rejected",
+			owner:     "../etc",
+			repo:      "repo",
+			path:      "test.md",
+			sha:       "abc123",
+			content:   []byte("content"),
+			shouldErr: true,
+			errMsg:    "invalid path components",
+		},
+		{
+			name:      "path traversal in path rejected",
+			owner:     "owner",
+			repo:      "repo",
+			path:      "../../etc/passwd",
+			sha:       "abc123",
+			content:   []byte("content"),
+			shouldErr: true,
+			errMsg:    "invalid path components",
+		},
+		{
+			name:      "empty owner rejected",
+			owner:     "",
+			repo:      "repo",
+			path:      "test.md",
+			sha:       "abc123",
+			content:   []byte("content"),
+			shouldErr: true,
+			errMsg:    "invalid path components",
+		},
+		{
+			name:      "valid inputs succeed",
+			owner:     "owner",
+			repo:      "repo",
+			path:      "workflows/test.md",
+			sha:       "abc123def456",
+			content:   []byte("# valid content"),
+			shouldErr: false,
+		},
+	}
+
+	cache := NewImportCache(tempDir)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := cache.Set(tt.owner, tt.repo, tt.path, tt.sha, tt.content)
+			if tt.shouldErr {
+				require.Error(t, err, "Set should reject: %s", tt.name)
+				assert.Contains(t, err.Error(), tt.errMsg, "error message should contain %q", tt.errMsg)
+			} else {
+				assert.NoError(t, err, "Set should succeed for: %s", tt.name)
+			}
+		})
+	}
+}
+
+func TestImportCacheSetIdempotent(t *testing.T) {
+	tempDir := t.TempDir()
+	cache := NewImportCache(tempDir)
+
+	firstContent := []byte("first content")
+	secondContent := []byte("second content")
+
+	path1, err := cache.Set("owner", "repo", "test.md", "sha1", firstContent)
+	require.NoError(t, err, "first Set should succeed")
+
+	path2, err := cache.Set("owner", "repo", "test.md", "sha1", secondContent)
+	require.NoError(t, err, "second Set with same key should succeed (overwrite)")
+	assert.Equal(t, path1, path2, "both Set calls should return the same cache path")
+
+	content, err := os.ReadFile(path2)
+	require.NoError(t, err, "reading overwritten file should succeed")
+	assert.Equal(t, string(secondContent), string(content), "file should contain second (latest) content")
+}
+
+func TestImportCacheGetDoesNotValidateComponents(t *testing.T) {
+	// Document that Get does not validate components (unlike Set).
+	// If validation is added in the future, this test should be updated.
+	tempDir := t.TempDir()
+	cache := NewImportCache(tempDir)
+
+	// Should return not-found (not panic or error), even with suspicious inputs.
+	_, found := cache.Get("../etc", "repo", "test.md", "sha")
+	assert.False(t, found, "Get with path traversal input should return not-found, not panic")
 }

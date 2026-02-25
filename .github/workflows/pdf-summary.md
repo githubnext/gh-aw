@@ -28,7 +28,6 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/mood.md
   - shared/mcp/markitdown.md
 
 tools:
@@ -38,6 +37,7 @@ safe-outputs:
   add-comment:
     max: 1
   create-discussion:
+    expires: 1d
     max: 1
   messages:
     footer: "> 📄 *Summary compiled by [{workflow_name}]({run_url})*"
@@ -195,3 +195,9 @@ Example structure for stored analysis:
 ```
 
 Remember: Your goal is to help users understand external resources in the context of their repository by converting them to markdown, providing insightful analysis, and building persistent knowledge over time.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

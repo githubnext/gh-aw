@@ -10,7 +10,6 @@ safe-outputs:
     title-prefix: "[test] "
 tools:
   playwright:
-    allowed_domains: ["example.com"]
     args: ["--browser", "chromium"]
 ---
 
@@ -19,7 +18,6 @@ tools:
 This workflow tests the `args` field for Playwright MCP server configuration.
 
 The workflow is configured with:
-- `allowed_domains: ["example.com"]` to access example.com
 - `args: ["--browser", "chromium"]` to explicitly specify the browser
 
 Please perform the following tasks:

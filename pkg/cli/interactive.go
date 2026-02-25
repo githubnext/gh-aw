@@ -2,16 +2,19 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var interactiveLog = logger.New("cli:interactive")
@@ -48,7 +51,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 
 	// Assert this function is not running in automated unit tests
 	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
-		return fmt.Errorf("interactive workflow creation cannot be used in automated tests or CI environments")
+		return errors.New("interactive workflow creation cannot be used in automated tests or CI environments")
 	}
 
 	if verbose {
@@ -124,7 +127,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 
 	// Prepare tool options
 	toolOptions := []huh.Option[string]{
-		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
+		huh.NewOption("github - GitHub API tools (issues, PRs, comments, repos)", "github"),
 		huh.NewOption("edit - File editing tools", "edit"),
 		huh.NewOption("bash - Shell command tools", "bash"),
 		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
@@ -133,28 +136,28 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewOption("serena - Serena code analysis tool", "serena"),
 	}
 
-	// Prepare safe output options
-	outputOptions := []huh.Option[string]{
-		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
-		huh.NewOption("create-agent-task - Create GitHub Copilot coding agent tasks", "create-agent-task"),
-		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
-		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
-		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
-		huh.NewOption("update-issue - Update existing issues", "update-issue"),
-		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
-		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
-		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
-		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
-	}
+	// Prepare safe output options programmatically from safe_outputs_tools.json
+	outputOptions := buildSafeOutputOptions()
+
+	// Pre-detect network access based on repo contents
+	detectedNetworks := detectNetworkFromRepo()
 
 	// Prepare network options
 	networkOptions := []huh.Option[string]{
 		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
 		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
 	}
+	if len(detectedNetworks) > 0 {
+		// Build a custom option that reflects what was auto-detected
+		label := "detected - Auto-detected ecosystems: " + strings.Join(detectedNetworks, ", ")
+		networkOptions = append([]huh.Option[string]{huh.NewOption(label, strings.Join(append([]string{"defaults"}, detectedNetworks...), ","))}, networkOptions...)
+	}
 
 	// Set default network access
 	b.NetworkAccess = "defaults"
+	if len(detectedNetworks) > 0 {
+		b.NetworkAccess = strings.Join(append([]string{"defaults"}, detectedNetworks...), ",")
+	}
 
 	// Variables to hold multi-select results
 	var selectedTools []string
@@ -191,7 +194,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 				Title("What outputs should the AI be able to create?").
 				Description("Safe outputs allow the AI to create GitHub resources after human approval").
 				Options(outputOptions...).
-				Height(8).
+				Height(10).
 				Value(&selectedOutputs),
 		).
 			Title("Capabilities").
@@ -268,7 +271,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 		}
 
 		if !overwrite {
-			return fmt.Errorf("workflow creation cancelled")
+			return errors.New("workflow creation cancelled")
 		}
 	}
 
@@ -383,20 +386,33 @@ func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 }
 
 func (b *InteractiveWorkflowBuilder) generatePermissionsConfig() string {
-	permissions := []string{"contents: read"}
+	// Compute read permissions needed by the AI agent for data access.
+	// Write permissions are NEVER set here — they are always handled automatically
+	// by the safe-outputs job via workflow.ComputePermissionsForSafeOutputs().
+	perms := workflow.NewPermissions()
+	perms.Set(workflow.PermissionContents, workflow.PermissionRead)
 
-	// Always add actions: read for safe outputs
-	if len(b.SafeOutputs) > 0 && !slices.Contains(permissions, "actions: read") {
-		permissions = append(permissions, "actions: read")
+	if slices.Contains(b.Tools, "github") {
+		// Default toolsets: context, repos, issues, pull_requests
+		// repos → contents: read (already set)
+		// issues → issues: read
+		// pull_requests → pull-requests: read
+		perms.Set(workflow.PermissionIssues, workflow.PermissionRead)
+		perms.Set(workflow.PermissionPullRequests, workflow.PermissionRead)
 	}
 
-	var config strings.Builder
-	config.WriteString("permissions:\n")
-	for _, perm := range permissions {
-		fmt.Fprintf(&config, "  %s\n", perm)
+	// Include read permissions needed by the safe-outputs job (e.g. contents: read
+	// is already present; actions: read for autofix scanning alerts).
+	// Write permissions from ComputePermissionsForSafeOutputs are handled by the
+	// safe-outputs job automatically and must not appear in the main workflow block.
+	safeOutputsPerms := workflow.ComputePermissionsForSafeOutputs(workflow.SafeOutputsConfigFromKeys(b.SafeOutputs))
+	for _, scope := range workflow.GetAllPermissionScopes() {
+		if level, exists := safeOutputsPerms.Get(scope); exists && level == workflow.PermissionRead {
+			perms.Set(scope, workflow.PermissionRead)
+		}
 	}
 
-	return config.String()
+	return perms.RenderToYAML() + "\n"
 }
 
 func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
@@ -404,7 +420,17 @@ func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
 	case "ecosystem":
 		return "network:\n  allowed:\n    - defaults\n    - python\n    - node\n    - go\n    - java\n"
 	default:
-		return "network: defaults\n"
+		// Handle comma-separated networks (e.g. "defaults,node,python")
+		parts := strings.Split(b.NetworkAccess, ",")
+		if len(parts) == 1 {
+			return fmt.Sprintf("network: %s\n", parts[0])
+		}
+		var cfg strings.Builder
+		cfg.WriteString("network:\n  allowed:\n")
+		for _, p := range parts {
+			fmt.Fprintf(&cfg, "    - %s\n", strings.TrimSpace(p))
+		}
+		return cfg.String()
 	}
 }
 
@@ -420,7 +446,9 @@ func (b *InteractiveWorkflowBuilder) generateToolsConfig() string {
 	for _, tool := range b.Tools {
 		switch tool {
 		case "github":
-			config.WriteString("  github:\n    allowed:\n      - issue_read\n      - add_issue_comment\n      - create_issue\n")
+			// Use default toolsets (context, repos, issues, pull_requests)
+			// which matches the DefaultGitHubToolsets constant.
+			config.WriteString("  github:\n    toolsets: [default]\n")
 		case "bash":
 			config.WriteString("  bash:\n")
 		default:
@@ -507,4 +535,74 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(ctx context.Context, verbos
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("You can now find your compiled workflow at .github/workflows/%s.lock.yml", b.WorkflowName)))
 
 	return nil
+}
+
+// buildSafeOutputOptions loads safe output tool options from safe_outputs_tools.json
+// and returns them as huh form options.
+func buildSafeOutputOptions() []huh.Option[string] {
+	tools := workflow.GetSafeOutputToolOptions()
+
+	options := make([]huh.Option[string], 0, len(tools))
+	for _, t := range tools {
+		// Truncate long descriptions so option labels remain readable
+		desc := t.Description
+		if idx := strings.IndexByte(desc, '.'); idx > 0 && idx < 120 {
+			desc = desc[:idx]
+		} else if len(desc) > 120 {
+			desc = desc[:120] + "…"
+		}
+		label := fmt.Sprintf("%s - %s", t.Key, desc)
+		options = append(options, huh.NewOption(label, t.Key))
+	}
+	return options
+}
+
+// repoLanguageMarkers maps well-known ecosystem indicator files to their network bucket name.
+var repoLanguageMarkers = []struct {
+	file   string
+	bucket string
+}{
+	{"go.mod", "go"},
+	{"package.json", "node"},
+	{"requirements.txt", "python"},
+	{"pyproject.toml", "python"},
+	{"Pipfile", "python"},
+	{"Gemfile", "ruby"},
+	{"Cargo.toml", "rust"},
+	{"pom.xml", "java"},
+	{"build.gradle", "java"},
+	{"*.csproj", "dotnet"},
+	{"*.fsproj", "dotnet"},
+}
+
+// detectNetworkFromRepo scans the current working directory for ecosystem indicator
+// files and returns a deduplicated, sorted list of network bucket names to add.
+func detectNetworkFromRepo() []string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	for _, m := range repoLanguageMarkers {
+		var found bool
+		if strings.ContainsAny(m.file, "*?[") {
+			// Glob pattern
+			matches, err := filepath.Glob(filepath.Join(cwd, m.file))
+			found = err == nil && len(matches) > 0
+		} else {
+			_, err := os.Stat(filepath.Join(cwd, m.file))
+			found = err == nil
+		}
+		if found && !seen[m.bucket] {
+			seen[m.bucket] = true
+		}
+	}
+
+	buckets := make([]string, 0, len(seen))
+	for b := range seen {
+		buckets = append(buckets, b)
+	}
+	sort.Strings(buckets)
+	return buckets
 }

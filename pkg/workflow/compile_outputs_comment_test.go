@@ -213,8 +213,8 @@ This workflow tests the add-comment max and target configuration parsing.
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddComments.Max != 3 {
-		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.AddComments.Max)
+	if templatableIntValue(workflowData.SafeOutputs.AddComments.Max) != 3 {
+		t.Fatalf("Expected max to be 3, got %v", workflowData.SafeOutputs.AddComments.Max)
 	}
 
 	if workflowData.SafeOutputs.AddComments.Target != "123" {
@@ -294,7 +294,7 @@ This workflow tests the safe_outputs job generation.
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.detection.outputs.success == 'true'",
+		"needs.agent.outputs.detection_success == 'true'",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
 	}
@@ -375,7 +375,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"needs.detection.outputs.success == 'true'",
+		"needs.agent.outputs.detection_success == 'true'",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
 	}

@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
  * Get issue details using REST API
@@ -26,7 +27,7 @@ async function getIssueDetails(github, owner, repo, issueNumber) {
   });
 
   if (!issue) {
-    throw new Error(`Issue #${issueNumber} not found in ${owner}/${repo}`);
+    throw new Error(`${ERR_NOT_FOUND}: Issue #${issueNumber} not found in ${owner}/${repo}`);
   }
 
   return issue;
@@ -58,14 +59,16 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
+ * @param {string} [stateReason] - The reason for closing: "COMPLETED", "NOT_PLANNED", or "DUPLICATE"
  * @returns {Promise<{number: number, html_url: string, title: string}>} Issue details
  */
-async function closeIssue(github, owner, repo, issueNumber) {
+async function closeIssue(github, owner, repo, issueNumber, stateReason) {
   const { data: issue } = await github.rest.issues.update({
     owner,
     repo,
     issue_number: issueNumber,
     state: "closed",
+    state_reason: (stateReason || "COMPLETED").toLowerCase(),
   });
 
   return issue;
@@ -82,12 +85,13 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const comment = config.comment || "";
+  const configStateReason = config.state_reason || "COMPLETED";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  core.info(`Close issue configuration: max=${maxCount}`);
+  core.info(`Close issue configuration: max=${maxCount}, state_reason=${configStateReason}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -258,8 +262,10 @@ async function main(config = {}) {
         core.info(`Issue #${issueNumber} was already closed, comment added successfully`);
         closedIssue = issue;
       } else {
-        core.info(`Closing issue #${issueNumber} in ${itemRepo}`);
-        closedIssue = await closeIssue(github, repoParts.owner, repoParts.repo, issueNumber);
+        // Use item-level state_reason if provided, otherwise fall back to config-level default
+        const stateReason = item.state_reason || configStateReason;
+        core.info(`Closing issue #${issueNumber} in ${itemRepo} with state_reason=${stateReason}`);
+        closedIssue = await closeIssue(github, repoParts.owner, repoParts.repo, issueNumber, stateReason);
         core.info(`✓ Issue #${issueNumber} closed successfully: ${closedIssue.html_url}`);
       }
 

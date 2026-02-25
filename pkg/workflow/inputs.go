@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -108,13 +109,13 @@ func (i *InputDefinition) GetDefaultAsString() string {
 		}
 		return "false"
 	case int:
-		return fmt.Sprintf("%d", v)
+		return strconv.Itoa(v)
 	case int64:
-		return fmt.Sprintf("%d", v)
+		return strconv.FormatInt(v, 10)
 	case float64:
 		// Handle both integer and float values
 		if v == float64(int64(v)) {
-			return fmt.Sprintf("%d", int64(v))
+			return strconv.FormatInt(int64(v), 10)
 		}
 		return fmt.Sprintf("%g", v)
 	default:

@@ -1,5 +1,7 @@
 ---
 marp: true
+theme: gh-aw
+paginate: true
 ---
 
 <script src="../js/mermaid.min.js"></script>
@@ -235,6 +237,7 @@ Analyze issue and break down into implementation tasks
 - **GitHub Copilot** (default, recommended)
 - **Claude Code**
 - **Codex**
+- **Gemini CLI**
 
 ```yaml
 engine: copilot  # sensible defaults

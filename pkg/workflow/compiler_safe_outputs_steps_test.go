@@ -213,13 +213,13 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+						GitHubToken: "${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 					},
 				},
 			},
 			checkContains: []string{
-				"token: ${{ secrets.CROSS_REPO_PAT }}",
-				"GIT_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 			},
 		},
 		{
@@ -238,15 +238,15 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+						GitHubToken: "${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 					},
 					TargetRepoSlug: "org/target-repo",
 				},
 			},
 			checkContains: []string{
 				"repository: org/target-repo",
-				"token: ${{ secrets.CROSS_REPO_PAT }}",
-				"GIT_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+				"token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.GH_AW_CROSS_REPO_PAT }}",
 				`REPO_NAME: "org/target-repo"`,
 			},
 		},
@@ -281,6 +281,37 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			checkContains: []string{
 				"token: ${{ secrets.CREATE_PR_PAT }}",
 				"GIT_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
+			},
+		},
+		{
+			name: "default checkout ref uses github.base_ref || github.ref_name",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkContains: []string{
+				"ref: ${{ github.base_ref || github.ref_name }}",
+			},
+		},
+		{
+			name: "checkout ref uses custom base-branch",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseBranch: "develop",
+				},
+			},
+			checkContains: []string{
+				"ref: develop",
+			},
+		},
+		{
+			name: "checkout ref with release branch base-branch",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseBranch: "release/v2.0",
+				},
+			},
+			checkContains: []string{
+				"ref: release/v2.0",
 			},
 		},
 	}
@@ -403,7 +434,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				},
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 				},
 				CreateDiscussions: &CreateDiscussionsConfig{
@@ -420,7 +451,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				UpdateProjects: &UpdateProjectConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					Project: "https://github.com/orgs/github-agentic-workflows/projects/1",
 				},
@@ -438,7 +469,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				UpdateProjects: &UpdateProjectConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 5,
+						Max: strPtr("5"),
 					},
 					Project: "https://github.com/orgs/github-agentic-workflows/projects/1",
 				},
@@ -452,7 +483,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: 1,
+						Max: strPtr("1"),
 					},
 					Project: "https://github.com/orgs/github-agentic-workflows/projects/1",
 				},

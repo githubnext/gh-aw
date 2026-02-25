@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -9,6 +10,13 @@ import (
 )
 
 var permissionsOpsLog = logger.New("workflow:permissions_operations")
+
+// SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
+func SortPermissionScopes(s []PermissionScope) {
+	sort.Slice(s, func(i, j int) bool {
+		return string(s[i]) < string(s[j])
+	})
+}
 
 // Set sets a permission for a specific scope
 func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
@@ -199,7 +207,7 @@ func (p *Permissions) RenderToYAML() string {
 	}
 
 	if p.shorthand != "" {
-		return fmt.Sprintf("permissions: %s", p.shorthand)
+		return "permissions: " + p.shorthand
 	}
 
 	// Collect all permissions to render
@@ -226,9 +234,7 @@ func (p *Permissions) RenderToYAML() string {
 	}
 
 	// Override with explicit permissions
-	for scope, level := range p.permissions {
-		allPerms[scope] = level
-	}
+	maps.Copy(allPerms, p.permissions)
 
 	if len(allPerms) == 0 {
 		// If explicitEmpty is true, render "permissions: {}"

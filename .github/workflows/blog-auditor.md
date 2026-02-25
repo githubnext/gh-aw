@@ -17,9 +17,6 @@ network:
     - www.githubnext.com
 tools:
   playwright:
-    allowed_domains:
-      - githubnext.com
-      - www.githubnext.com
   bash:
     - "date *"
     - "echo *"
@@ -31,13 +28,13 @@ tools:
     - "test *"
 safe-outputs:
   create-discussion:
+    expires: 1d
     title-prefix: "[audit] "
     category: "audits"
     max: 1
     close-older-discussions: true
 timeout-minutes: 10
 imports:
-  - shared/mood.md
   - shared/reporting.md
 ---
 
@@ -302,3 +299,9 @@ A successful audit:
 - ✅ Completes within timeout limits
 
 Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, extract and validate code snippets, validate all criteria, and report your findings.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

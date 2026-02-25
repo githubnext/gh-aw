@@ -23,6 +23,7 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 	for i, domain := range network.Allowed {
 		// Skip ecosystem identifiers - they don't need domain pattern validation
 		if isEcosystemIdentifier(domain) {
+			safeOutputsDomainsValidationLog.Printf("Skipping ecosystem identifier: %s", domain)
 			continue
 		}
 
@@ -34,7 +35,13 @@ func (c *Compiler) validateNetworkAllowedDomains(network *NetworkPermissions) er
 		}
 	}
 
-	return collector.Error()
+	if err := collector.Error(); err != nil {
+		safeOutputsDomainsValidationLog.Printf("Network allowed domains validation failed: %v", err)
+		return err
+	}
+
+	safeOutputsDomainsValidationLog.Print("Network allowed domains validation passed")
+	return nil
 }
 
 // isEcosystemIdentifier checks if a domain string is actually an ecosystem identifier
@@ -73,7 +80,13 @@ func (c *Compiler) validateSafeOutputsAllowedDomains(config *SafeOutputsConfig) 
 		}
 	}
 
-	return collector.Error()
+	if err := collector.Error(); err != nil {
+		safeOutputsDomainsValidationLog.Printf("Safe outputs allowed domains validation failed: %v", err)
+		return err
+	}
+
+	safeOutputsDomainsValidationLog.Print("Safe outputs allowed domains validation passed")
+	return nil
 }
 
 // validateDomainPattern validates a single domain pattern
@@ -104,10 +117,10 @@ func validateDomainPattern(domain string) error {
 	// Strip protocol prefix if present (http:// or https://)
 	// This allows protocol-specific domain filtering
 	domainWithoutProtocol := domain
-	if strings.HasPrefix(domain, "https://") {
-		domainWithoutProtocol = strings.TrimPrefix(domain, "https://")
-	} else if strings.HasPrefix(domain, "http://") {
-		domainWithoutProtocol = strings.TrimPrefix(domain, "http://")
+	if after, ok := strings.CutPrefix(domain, "https://"); ok {
+		domainWithoutProtocol = after
+	} else if after, ok := strings.CutPrefix(domain, "http://"); ok {
+		domainWithoutProtocol = after
 	}
 
 	// Check for wildcard-only pattern

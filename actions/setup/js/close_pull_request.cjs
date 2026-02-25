@@ -6,6 +6,7 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -29,7 +30,7 @@ async function getPullRequestDetails(github, owner, repo, prNumber) {
   });
 
   if (!pr) {
-    throw new Error(`Pull request #${prNumber} not found in ${owner}/${repo}`);
+    throw new Error(`${ERR_NOT_FOUND}: Pull request #${prNumber} not found in ${owner}/${repo}`);
   }
 
   return pr;

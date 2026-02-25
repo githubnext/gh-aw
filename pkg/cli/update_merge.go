@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -162,7 +163,8 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 	// The exit code can be >1 for multiple conflicts, not just errors
 	hasConflicts := false
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
 			if exitCode > 0 && exitCode < 128 {
 				// Conflicts found (exit codes 1-127 indicate conflicts)

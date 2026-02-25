@@ -62,6 +62,10 @@ func SanitizeErrorMessage(message string) string {
 		if commonWorkflowKeywords[match] {
 			return match
 		}
+		// Don't redact gh-aw public configuration variables (e.g., GH_AW_SKIP_NPX_VALIDATION)
+		if strings.HasPrefix(match, "GH_AW_") {
+			return match
+		}
 		sanitizeLog.Printf("Redacted snake_case secret pattern: %s", match)
 		return "[REDACTED]"
 	})

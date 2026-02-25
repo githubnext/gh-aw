@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -307,7 +308,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 	// Check if npm is available
 	npmPath, err := exec.LookPath("npm")
 	if err != nil {
-		return fmt.Errorf("npm command not found - cannot generate package-lock.json. Install Node.js/npm to enable this feature")
+		return errors.New("npm command not found - cannot generate package-lock.json. Install Node.js/npm to enable this feature")
 	}
 
 	if c.verbose {
@@ -326,7 +327,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 
 	lockfilePath := filepath.Join(workflowDir, "package-lock.json")
 	if _, err := os.Stat(lockfilePath); err != nil {
-		return fmt.Errorf("package-lock.json was not created")
+		return errors.New("package-lock.json was not created")
 	}
 
 	dependabotLog.Print("Successfully generated package-lock.json")
@@ -487,8 +488,8 @@ func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, fo
 		}
 
 		// Parse existing requirements
-		lines := strings.Split(string(existingData), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(string(existingData), "\n")
+		for line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" || strings.HasPrefix(line, "#") {
 				continue
@@ -629,9 +630,9 @@ func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrit
 			return fmt.Errorf("failed to read existing go.mod: %w", err)
 		}
 
-		existingLines := strings.Split(string(existingData), "\n")
+		existingLines := strings.SplitSeq(string(existingData), "\n")
 		// Keep module declaration and go version
-		for _, line := range existingLines {
+		for line := range existingLines {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "go ") {
 				lines = append(lines, line)

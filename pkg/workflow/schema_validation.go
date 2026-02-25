@@ -40,6 +40,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -123,8 +124,8 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 
 // enhanceSchemaValidationError adds inline examples to schema validation errors
 func enhanceSchemaValidationError(err error) error {
-	ve, ok := err.(*jsonschema.ValidationError)
-	if !ok {
+	var ve *jsonschema.ValidationError
+	if !errors.As(err, &ve) {
 		return err
 	}
 
@@ -141,7 +142,7 @@ func enhanceSchemaValidationError(err error) error {
 	}
 
 	// Return enhanced error with example
-	return fmt.Errorf("%v. %s", err, example)
+	return fmt.Errorf("%w. %s", err, example)
 }
 
 // extractFieldPath converts InstanceLocation to a readable field path

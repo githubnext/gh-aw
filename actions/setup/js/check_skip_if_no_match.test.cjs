@@ -1,6 +1,7 @@
 // @ts-check
 import { describe, it, expect, beforeEach } from "vitest";
 const { main } = require("./check_skip_if_no_match.cjs");
+const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 
 describe("check_skip_if_no_match", () => {
   let mockCore;
@@ -62,7 +63,7 @@ describe("check_skip_if_no_match", () => {
 
     await main();
 
-    expect(mockCore.errors).toContain("Configuration error: GH_AW_SKIP_QUERY not specified.");
+    expect(mockCore.errors).toContain(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_QUERY not specified.`);
   });
 
   it("should fail when GH_AW_WORKFLOW_NAME is not specified", async () => {
@@ -71,7 +72,7 @@ describe("check_skip_if_no_match", () => {
 
     await main();
 
-    expect(mockCore.errors).toContain("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
+    expect(mockCore.errors).toContain(`${ERR_CONFIG}: Configuration error: GH_AW_WORKFLOW_NAME not specified.`);
   });
 
   it("should fail when GH_AW_SKIP_MIN_MATCHES is not a valid positive integer", async () => {
@@ -81,7 +82,7 @@ describe("check_skip_if_no_match", () => {
 
     await main();
 
-    expect(mockCore.errors).toContain('Configuration error: GH_AW_SKIP_MIN_MATCHES must be a positive integer, got "invalid".');
+    expect(mockCore.errors).toContain(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_MIN_MATCHES must be a positive integer, got "invalid".`);
   });
 
   it("should fail when GH_AW_SKIP_MIN_MATCHES is zero", async () => {
@@ -91,7 +92,7 @@ describe("check_skip_if_no_match", () => {
 
     await main();
 
-    expect(mockCore.errors).toContain('Configuration error: GH_AW_SKIP_MIN_MATCHES must be a positive integer, got "0".');
+    expect(mockCore.errors).toContain(`${ERR_CONFIG}: Configuration error: GH_AW_SKIP_MIN_MATCHES must be a positive integer, got "0".`);
   });
 
   it("should use default min matches of 1 when not specified", async () => {
@@ -195,7 +196,7 @@ describe("check_skip_if_no_match", () => {
 
     await main();
 
-    expect(mockCore.errors).toContain("Failed to execute search query: API rate limit exceeded");
+    expect(mockCore.errors).toContain(`${ERR_API}: Failed to execute search query: API rate limit exceeded`);
   });
 
   it("should log info messages during execution", async () => {

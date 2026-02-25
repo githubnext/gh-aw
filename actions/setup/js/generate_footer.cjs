@@ -43,6 +43,8 @@ function generateXMLMarker(workflowName, runUrl) {
   const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
   const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
   const trackerId = process.env.GH_AW_TRACKER_ID || "";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
 
   // Build the key-value pairs for the marker
   const parts = [];
@@ -68,6 +70,16 @@ function generateXMLMarker(workflowName, runUrl) {
   // Add model if available
   if (engineModel) {
     parts.push(`model: ${engineModel}`);
+  }
+
+  // Add numeric run ID if available
+  if (runId) {
+    parts.push(`id: ${runId}`);
+  }
+
+  // Add workflow identifier if available
+  if (workflowId) {
+    parts.push(`workflow_id: ${workflowId}`);
   }
 
   // Always include run URL

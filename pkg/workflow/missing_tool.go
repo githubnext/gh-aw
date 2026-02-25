@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,14 +23,14 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	missingToolLog.Printf("Building missing_tool job for workflow: %s", data.Name)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.MissingTool == nil {
-		return nil, fmt.Errorf("safe-outputs.missing-tool configuration is required")
+		return nil, errors.New("safe-outputs.missing-tool configuration is required")
 	}
 
 	// Build custom environment variables specific to missing-tool
 	var customEnvVars []string
-	if data.SafeOutputs.MissingTool.Max > 0 {
-		missingToolLog.Printf("Setting max missing tools limit: %d", data.SafeOutputs.MissingTool.Max)
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
+	if data.SafeOutputs.MissingTool.Max != nil {
+		missingToolLog.Printf("Setting max missing tools limit: %s", *data.SafeOutputs.MissingTool.Max)
+		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_MISSING_TOOL_MAX", data.SafeOutputs.MissingTool.Max)...)
 	}
 
 	// Add create-issue configuration

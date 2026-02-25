@@ -5,6 +5,7 @@ package console
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -80,7 +81,7 @@ func renderContext(err CompilerError) string {
 	var output strings.Builder
 
 	maxLineNum := err.Position.Line + len(err.Context)/2
-	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum))
+	lineNumWidth := len(strconv.Itoa(maxLineNum))
 
 	for i, line := range err.Context {
 		lineNum := err.Position.Line - len(err.Context)/2 + i

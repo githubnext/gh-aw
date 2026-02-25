@@ -591,8 +591,7 @@ func BenchmarkParseExpression(b *testing.B) {
 		"(github.event_name == 'issues' && github.event.action == 'opened') || (github.event_name == 'pull_request' && !github.event.pull_request.draft)",
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		expr := expressions[i%len(expressions)]
 		_, err := ParseExpression(expr)
 		if err != nil {
@@ -613,8 +612,7 @@ This workflow uses several expressions:
 - Real-world example: ${{ github.actor && github.run_number }}
 `
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := validateExpressionSafety(content)
 		if err != nil {
 			b.Fatalf("Safety validation error: %v", err)

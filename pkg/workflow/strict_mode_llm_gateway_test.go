@@ -287,6 +287,11 @@ func TestSupportsLLMGateway(t *testing.T) {
 			expectedPort: constants.CopilotLLMGatewayPort,
 			description:  "Copilot engine uses dedicated port for LLM gateway",
 		},
+		{
+			engineID:     "gemini",
+			expectedPort: constants.GeminiLLMGatewayPort,
+			description:  "Gemini engine uses dedicated port for LLM gateway",
+		},
 	}
 
 	for _, tt := range tests {

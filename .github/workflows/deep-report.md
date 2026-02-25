@@ -53,7 +53,6 @@ tools:
   edit:
 
 imports:
-  - shared/mood.md
   - shared/jqschema.md
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
@@ -341,3 +340,9 @@ List all reports and data sources analyzed:
 
 1. **Create GitHub Issues**: For each of the 3 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
 2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your full analysis (including the identified actionable tasks)
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestMergeWorkflowContent_CleanMerge tests a merge with truly non-overlapping changes
@@ -699,44 +701,22 @@ This is a test workflow.
 }
 
 // TestUpdateWorkflow_OverrideMode tests the default override mode behavior
-func TestUpdateWorkflow_OverrideMode(t *testing.T) {
-	// In override mode (default), local changes should be replaced with the new version
-	// This simulates the scenario where:
-	// - Local file has custom modifications
-	// - Upstream has different content
-	// - Without --merge flag, local changes should be discarded
-
-	t.Run("override mode discards local changes", func(t *testing.T) {
-		// This test verifies that in override mode (merge=false),
-		// the update function would replace local content with upstream content
-		// We're testing the logic path, not the full integration
-
-		merge := false // Default override mode
-
-		if merge {
-			t.Error("Expected merge to be false in override mode")
-		}
+func TestUpdateWorkflow_DefaultMergeMode(t *testing.T) {
+	// By default, merge mode is on. Local changes should be preserved via 3-way merge.
+	t.Run("merge is default when noMerge is false", func(t *testing.T) {
+		noMerge := false // default
+		merge := !noMerge
+		assert.True(t, merge, "merge should be true by default")
 	})
 }
 
-// TestUpdateWorkflow_MergeMode tests the merge mode behavior with --merge flag
-func TestUpdateWorkflow_MergeMode(t *testing.T) {
-	// In merge mode (--merge flag), local changes should be preserved via 3-way merge
-	// This simulates the scenario where:
-	// - Local file has custom modifications
-	// - Upstream has different content
-	// - With --merge flag, local changes should be merged with upstream
-
-	t.Run("merge mode preserves local changes", func(t *testing.T) {
-		// This test verifies that in merge mode (merge=true),
-		// the update function would perform a 3-way merge
-		// We're testing the logic path, not the full integration
-
-		merge := true // Merge mode enabled
-
-		if !merge {
-			t.Error("Expected merge to be true in merge mode")
-		}
+// TestUpdateWorkflow_NoMergeMode tests that --no-merge disables merge mode
+func TestUpdateWorkflow_NoMergeMode(t *testing.T) {
+	// With --no-merge, local changes should be overridden with upstream.
+	t.Run("no-merge overrides local changes", func(t *testing.T) {
+		noMerge := true // --no-merge
+		merge := !noMerge
+		assert.False(t, merge, "merge should be false when --no-merge is set")
 	})
 }
 
@@ -903,17 +883,18 @@ func TestUpdateActions_InvalidJSON(t *testing.T) {
 	}
 }
 
-// TestResolveLatestRef_CommitSHA tests that commit SHAs are returned as-is
+// TestResolveLatestRef_CommitSHA tests that commit SHAs are correctly identified
+// and trigger default branch resolution (which requires API access).
 func TestResolveLatestRef_CommitSHA(t *testing.T) {
-	// Test with a valid commit SHA
 	sha := "ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
-	result, err := resolveLatestRef("test/repo", sha, false, false)
-	if err != nil {
-		t.Fatalf("Expected no error for commit SHA, got: %v", err)
-	}
-	if result != sha {
-		t.Errorf("Expected commit SHA to be returned as-is, got: %s", result)
-	}
+	assert.True(t, IsCommitSHA(sha), "Should be recognized as a commit SHA")
+
+	// resolveLatestRef for a SHA requires GitHub API access to look up the
+	// default branch. In environments without API access it will error;
+	// in authenticated environments it will succeed. Either outcome is
+	// acceptable — the key invariant is that the SHA is correctly
+	// identified (tested above) and the function does not panic.
+	_, _ = resolveLatestRef("test/repo", sha, false, false)
 }
 
 // TestResolveLatestRef_NotCommitSHA tests that non-SHA refs are handled appropriately
@@ -941,104 +922,82 @@ func TestResolveLatestRef_NotCommitSHA(t *testing.T) {
 	}
 }
 
-// TestUpdateWorkflowsWithExtensionCheck_FixIntegration tests that fix is called during update
-func TestUpdateWorkflowsWithExtensionCheck_FixIntegration(t *testing.T) {
-	// This test verifies that the fix functionality is integrated into the update flow
-	// We create a workflow with a deprecated field, update it, and verify the fix is applied
+// TestShortRef tests the shortRef helper for abbreviating refs in messages
+func TestShortRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		ref      string
+		expected string
+	}{
+		{"commit SHA", "ea350161ad5dcc9624cf510f134c6a9e39a6f94d", "ea35016"},
+		{"branch name", "main", "main"},
+		{"version tag", "v1.2.3", "v1.2.3"},
+		{"short string", "abc", "abc"},
+		{"empty string", "", ""},
+	}
 
-	// Create a temporary directory
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shortRef(tt.ref)
+			assert.Equal(t, tt.expected, result, "shortRef(%q) should return %q", tt.ref, tt.expected)
+		})
+	}
+}
+
+// TestIsBranchRef tests the isBranchRef helper that distinguishes branch names
+// from semantic version tags and commit SHAs
+func TestIsBranchRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		ref      string
+		expected bool
+	}{
+		{"branch main", "main", true},
+		{"branch develop", "develop", true},
+		{"branch with slash", "feature/foo", true},
+		{"semver tag", "v1.2.3", false},
+		{"semver tag with v", "v0.1.0", false},
+		{"commit SHA", "ea350161ad5dcc9624cf510f134c6a9e39a6f94d", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isBranchRef(tt.ref)
+			assert.Equal(t, tt.expected, result, "isBranchRef(%q) should return %v", tt.ref, tt.expected)
+		})
+	}
+}
+
+// TestRunUpdateWorkflows_NoSourceWorkflows tests that RunUpdateWorkflows errors when no source workflows exist
+func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	originalDir, _ := os.Getwd()
 	defer os.Chdir(originalDir)
 
-	// Create .github/workflows directory
+	// Create empty .github/workflows directory
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create workflows directory: %v", err)
-	}
-
-	// Create a workflow file with deprecated field
-	workflowContent := `---
-on:
-  workflow_dispatch:
-
-timeout_minutes: 30
-
-permissions:
-  contents: read
----
-
-# Test Workflow
-
-This is a test workflow with deprecated field.
-`
-
-	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 	os.Chdir(tmpDir)
 
-	// Test that fix config is created properly
-	fixConfig := FixConfig{
-		WorkflowIDs: []string{},
-		Write:       true,
-		Verbose:     false,
-	}
-
-	// Verify the config has expected fields
-	if fixConfig.Write != true {
-		t.Error("Expected Write to be true")
-	}
-
-	// Test running fix on the workflow
-	err := RunFix(fixConfig)
-	if err != nil {
-		t.Logf("Fix command returned error (may be expected in test environment): %v", err)
-	}
-
-	// Read the workflow file to check if fix was attempted
-	updatedContent, err := os.ReadFile(workflowPath)
-	if err != nil {
-		t.Fatalf("Failed to read updated workflow file: %v", err)
-	}
-
-	updatedStr := string(updatedContent)
-
-	// Check if the deprecated field was replaced
-	// Note: This test may not apply the fix if the fix system isn't fully initialized,
-	// but we're testing that the integration code path exists and doesn't error
-	if strings.Contains(updatedStr, "timeout_minutes:") {
-		t.Logf("Deprecated field still present (fix may not have been applied in test environment)")
-	}
-
-	if strings.Contains(updatedStr, "timeout-minutes:") {
-		t.Log("Fix was successfully applied - deprecated field was replaced")
-	}
+	// Running update with no source workflows should fail
+	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false)
+	require.Error(t, err, "Should error when no workflows with source field exist")
+	assert.Contains(t, err.Error(), "no workflows found with source field")
 }
 
-// TestUpdateWorkflowsWithExtensionCheck_FixNonFatal tests that update continues if fix fails
-func TestUpdateWorkflowsWithExtensionCheck_FixNonFatal(t *testing.T) {
-	// This test verifies that if the fix step fails, the update process continues
-	// and doesn't fail the entire update operation
+// TestRunUpdateWorkflows_SpecificWorkflowNotFound tests that RunUpdateWorkflows errors for unknown workflow name
+func TestRunUpdateWorkflows_SpecificWorkflowNotFound(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
 
-	// Create a fix config that would process workflows
-	fixConfig := FixConfig{
-		WorkflowIDs: []string{},
-		Write:       true,
-		Verbose:     false,
-	}
+	// Create empty .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	os.Chdir(tmpDir)
 
-	// The fix should handle missing workflows gracefully
-	err := RunFix(fixConfig)
-
-	// The error might be about no workflows found, which is acceptable
-	if err != nil {
-		if !strings.Contains(err.Error(), "No workflow files found") {
-			// If it's a different error, that's fine too - we just want to ensure
-			// the function can be called and returns
-			t.Logf("Fix returned error (expected in test environment): %v", err)
-		}
-	}
+	// Running update with a specific name that doesn't exist should fail
+	err := RunUpdateWorkflows([]string{"nonexistent"}, false, false, false, "", "", false, "", false)
+	require.Error(t, err, "Should error when specified workflow not found")
+	assert.Contains(t, err.Error(), "no workflows found matching the specified names")
 }

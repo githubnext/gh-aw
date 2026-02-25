@@ -83,13 +83,13 @@ Create an issue with title "Test" and body "Test body".
 	}
 
 	// Parse the JSON
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
 		t.Fatalf("Failed to parse handler config JSON: %v\nJSON: %s", err, configJSON)
 	}
 
 	// Verify create_issue config exists
-	createIssueConfig, ok := config["create_issue"].(map[string]interface{})
+	createIssueConfig, ok := config["create_issue"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected create_issue in handler config")
 	}
@@ -100,7 +100,7 @@ Create an issue with title "Test" and body "Test body".
 	}
 
 	// Verify labels are present
-	labels, ok := createIssueConfig["labels"].([]interface{})
+	labels, ok := createIssueConfig["labels"].([]any)
 	if !ok {
 		t.Fatal("Expected labels array in create_issue config")
 	}
@@ -114,7 +114,7 @@ Create an issue with title "Test" and body "Test body".
 	}
 
 	// Verify assignees are present (this is the main test)
-	assignees, ok := createIssueConfig["assignees"].([]interface{})
+	assignees, ok := createIssueConfig["assignees"].([]any)
 	if !ok {
 		t.Fatal("Expected assignees array in create_issue config")
 	}
@@ -185,18 +185,18 @@ Create an issue.
 	}
 
 	// Parse the JSON
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
 		t.Fatalf("Failed to parse handler config JSON: %v\nJSON: %s", err, configJSON)
 	}
 
 	// Verify assignees are present as array
-	createIssueConfig, ok := config["create_issue"].(map[string]interface{})
+	createIssueConfig, ok := config["create_issue"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected create_issue in handler config")
 	}
 
-	assignees, ok := createIssueConfig["assignees"].([]interface{})
+	assignees, ok := createIssueConfig["assignees"].([]any)
 	if !ok {
 		t.Fatal("Expected assignees array in create_issue config")
 	}
@@ -267,20 +267,20 @@ Create an issue.
 	}
 
 	// Parse the JSON
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
 		t.Fatalf("Failed to parse handler config JSON: %v\nJSON: %s", err, configJSON)
 	}
 
 	// Verify create_issue config exists
-	createIssueConfig, ok := config["create_issue"].(map[string]interface{})
+	createIssueConfig, ok := config["create_issue"].(map[string]any)
 	if !ok {
 		t.Fatal("Expected create_issue in handler config")
 	}
 
 	// Verify assignees field is not present (or is empty)
 	if assignees, ok := createIssueConfig["assignees"]; ok {
-		if arr, ok := assignees.([]interface{}); ok && len(arr) > 0 {
+		if arr, ok := assignees.([]any); ok && len(arr) > 0 {
 			t.Errorf("Expected no assignees in create_issue config, got: %v", assignees)
 		}
 	}

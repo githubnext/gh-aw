@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -31,9 +32,10 @@ func checkSecretExists(secretName string) (bool, error) {
 	output, err := workflow.RunGH("Listing secrets...", "secret", "list", "--json", "name")
 	if err != nil {
 		// Check if it's a 403 error by examining the error
-		if exitError, ok := err.(*exec.ExitError); ok {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
 			if strings.Contains(string(exitError.Stderr), "403") {
-				return false, fmt.Errorf("403 access denied")
+				return false, errors.New("403 access denied")
 			}
 		}
 		return false, fmt.Errorf("failed to list secrets: %w", err)

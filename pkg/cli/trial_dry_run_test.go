@@ -4,8 +4,8 @@ package cli
 
 import (
 	"bytes"
-	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -248,7 +248,7 @@ func TestDryRunNoActualAPICallsForCreate(t *testing.T) {
 	// This test documents that in dry-run mode, we should not make actual GitHub API calls
 	// This is a behavioral test - actual integration would require mocking gh CLI
 
-	repoSlug := "test-owner/test-repo-" + fmt.Sprintf("%d", os.Getpid())
+	repoSlug := "test-owner/test-repo-" + strconv.Itoa(os.Getpid())
 	dryRun := true
 	verbose := true
 

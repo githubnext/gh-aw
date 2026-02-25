@@ -21,22 +21,22 @@ LOW_FAILURES=0
 # Logging functions
 log_critical() {
     echo -e "${RED}[CRITICAL]${NC} $1"
-    ((CRITICAL_FAILURES++))
+    ((CRITICAL_FAILURES += 1))
 }
 
 log_high() {
     echo -e "${RED}[HIGH]${NC} $1"
-    ((HIGH_FAILURES++))
+    ((HIGH_FAILURES += 1))
 }
 
 log_medium() {
     echo -e "${YELLOW}[MEDIUM]${NC} $1"
-    ((MEDIUM_FAILURES++))
+    ((MEDIUM_FAILURES += 1))
 }
 
 log_low() {
     echo -e "${BLUE}[LOW]${NC} $1"
-    ((LOW_FAILURES++))
+    ((LOW_FAILURES += 1))
 }
 
 log_pass() {
@@ -111,8 +111,13 @@ check_max_limits() {
         # Skip test and utility files
         [[ "$handler" =~ (test|parse|buffer|factory) ]] && continue
         
-        # Check if handler enforces max limits
-        if ! grep -q "\.length.*>.*\.max\|enforceMaxLimit\|checkLimit\|max.*exceeded" "$handler"; then
+        # Only check files that perform GitHub API operations
+        if ! grep -q "octokit\." "$handler"; then
+            continue
+        fi
+        
+        # Check if handler enforces max limits using any recognized pattern
+        if ! grep -qE "\.length.*>.*\.max|enforceMaxLimit|checkLimit|max.*exceeded|enforceArrayLimit|tryEnforceArrayLimit|limit_enforcement_helpers" "$handler"; then
             log_medium "SEC-003: $handler may not enforce max limits"
             failed=1
         fi
@@ -279,7 +284,7 @@ check_type_completeness() {
         # Check for required sections
         for section in "MCP Tool Schema" "Operational Semantics" "Configuration Parameters" "Security Requirements" "Required Permissions"; do
             if grep -A 200 "^#### Type: $type_name" "$spec_file" 2>/dev/null | grep -q "**$section**"; then
-                ((sections_found++))
+                ((sections_found += 1))
             fi
         done
         
@@ -341,8 +346,8 @@ echo "Running IMP-002: Permission Computation Accuracy..."
 check_permission_computation() {
     # Check if permission computation file exists and is well-formed
     if [ -f "pkg/workflow/safe_outputs_permissions.go" ]; then
-        # Basic check that it defines computePermissionsForSafeOutputs
-        if grep -q "computePermissionsForSafeOutputs" "pkg/workflow/safe_outputs_permissions.go"; then
+        # Basic check that it defines ComputePermissionsForSafeOutputs
+        if grep -q "ComputePermissionsForSafeOutputs" "pkg/workflow/safe_outputs_permissions.go"; then
             log_pass "IMP-002: Permission computation function exists"
         else
             log_high "IMP-002: Permission computation function not found"

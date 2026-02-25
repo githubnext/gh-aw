@@ -157,52 +157,6 @@ func TestCalculateTrend(t *testing.T) {
 	}
 }
 
-func TestFormatDuration(t *testing.T) {
-	tests := []struct {
-		name     string
-		duration time.Duration
-		expected string
-	}{
-		{
-			name:     "zero duration",
-			duration: 0,
-			expected: "0s",
-		},
-		{
-			name:     "seconds only",
-			duration: 45 * time.Second,
-			expected: "45s",
-		},
-		{
-			name:     "minutes only",
-			duration: 5 * time.Minute,
-			expected: "5m",
-		},
-		{
-			name:     "minutes and seconds",
-			duration: 2*time.Minute + 30*time.Second,
-			expected: "2m 30s",
-		},
-		{
-			name:     "hours only",
-			duration: 2 * time.Hour,
-			expected: "2h",
-		},
-		{
-			name:     "hours and minutes",
-			duration: 1*time.Hour + 15*time.Minute,
-			expected: "1h 15m",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatDuration(tt.duration)
-			assert.Equal(t, tt.expected, result, "Formatted duration should match")
-		})
-	}
-}
-
 func TestGroupRunsByWorkflow(t *testing.T) {
 	runs := []WorkflowRun{
 		{WorkflowName: "workflow-a", Conclusion: "success"},

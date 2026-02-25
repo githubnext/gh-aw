@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -43,7 +44,7 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 		} else {
 			// If configData is nil or not a map (e.g., "create-agent-session:" with no value),
 			// still set the default max
-			agentSessionConfig.Max = 1
+			agentSessionConfig.Max = defaultIntStr(1)
 		}
 
 		return agentSessionConfig
@@ -74,7 +75,7 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 		} else {
 			// If configData is nil or not a map (e.g., "create-agent-task:" with no value),
 			// still set the default max
-			agentSessionConfig.Max = 1
+			agentSessionConfig.Max = defaultIntStr(1)
 		}
 
 		return agentSessionConfig
@@ -86,7 +87,7 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 // buildCreateOutputAgentSessionJob creates the create_agent_session job
 func (c *Compiler) buildCreateOutputAgentSessionJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateAgentSessions == nil {
-		return nil, fmt.Errorf("safe-outputs.create-agent-session configuration is required")
+		return nil, errors.New("safe-outputs.create-agent-session configuration is required")
 	}
 
 	createAgentSessionLog.Printf("Building create-agent-session job: workflow=%s, main_job=%s, base=%s",
@@ -109,8 +110,9 @@ func (c *Compiler) buildCreateOutputAgentSessionJob(data *WorkflowData, mainJobN
 	if data.SafeOutputs.CreateAgentSessions.Base != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_AGENT_SESSION_BASE: %q\n", data.SafeOutputs.CreateAgentSessions.Base))
 	} else {
-		// Default to the current branch or default branch
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_AGENT_SESSION_BASE: ${{ github.ref_name }}\n")
+		// Default to the PR base branch with fallback to current branch
+		// This handles PR contexts where github.ref_name is "123/merge" which is invalid
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_AGENT_SESSION_BASE: ${{ github.base_ref || github.ref_name }}\n")
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)

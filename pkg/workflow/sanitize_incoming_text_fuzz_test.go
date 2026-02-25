@@ -134,7 +134,7 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 			if strings.Contains(text, "@") && !strings.Contains(text, "`@") {
 				// Check that result doesn't have bare mentions
 				// Pattern: @ followed by alphanumeric (not preceded by backtick)
-				for i := 0; i < len(result.Sanitized)-1; i++ {
+				for i := range len(result.Sanitized) - 1 {
 					if result.Sanitized[i] == '@' {
 						// Check if preceded by backtick
 						if i > 0 && result.Sanitized[i-1] == '`' {

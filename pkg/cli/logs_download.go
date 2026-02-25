@@ -12,6 +12,7 @@ package cli
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -304,7 +305,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 	if err != nil {
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
-			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		// If logs are not found or run has no logs, this is not a critical error
 		if strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
@@ -333,7 +334,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", workflowLogsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Downloaded and extracted workflow run logs to "+workflowLogsDir))
 	}
 
 	return nil
@@ -377,7 +378,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extracting: %s", cleanName)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Extracting: "+cleanName))
 	}
 
 	// Create directory if it's a directory entry
@@ -495,7 +496,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		return fmt.Errorf("failed to create run output directory: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Created output directory %s", outputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Created output directory "+outputDir))
 	}
 
 	if verbose {
@@ -533,7 +534,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		}
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
-			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
 	}

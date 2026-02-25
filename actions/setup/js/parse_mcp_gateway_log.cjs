@@ -4,6 +4,7 @@
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
+const { ERR_PARSE } = require("./error_codes.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -81,7 +82,7 @@ async function main() {
     const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
     core.summary.addRaw(summary).write();
   } catch (error) {
-    core.setFailed(getErrorMessage(error));
+    core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }
 }
 

@@ -34,9 +34,13 @@ func GetAllCodemods() []Codemod {
 		getDiscussionFlagRemovalCodemod(),
 		getMCPModeToTypeCodemod(),
 		getInstallScriptURLCodemod(),
-		getBashAnonymousRemovalCodemod(), // Replace bash: with bash: false
-		getActivationOutputsCodemod(),    // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
-		getRolesToOnRolesCodemod(),       // Move top-level roles to on.roles
-		getBotsToOnBotsCodemod(),         // Move top-level bots to on.bots
+		getBashAnonymousRemovalCodemod(),      // Replace bash: with bash: false
+		getActivationOutputsCodemod(),         // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
+		getRolesToOnRolesCodemod(),            // Move top-level roles to on.roles
+		getBotsToOnBotsCodemod(),              // Move top-level bots to on.bots
+		getEngineStepsToTopLevelCodemod(),     // Move engine.steps to top-level steps
+		getAssignToAgentDefaultAgentCodemod(), // Rename deprecated default-agent to name in assign-to-agent
+		getPlaywrightDomainsCodemod(),         // Migrate tools.playwright.allowed_domains to network.allowed
+		getExpiresIntegerToStringCodemod(),    // Convert expires integer (days) to string with 'd' suffix
 	}
 }

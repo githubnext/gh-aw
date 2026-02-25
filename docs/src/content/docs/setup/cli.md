@@ -117,7 +117,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, Copilot instructions, prompt files, and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip). Without arguments, enters interactive mode for engine selection and secret configuration.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`), and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip). Without arguments, enters interactive mode for engine selection and secret configuration.
 
 ```bash wrap
 gh aw init                              # Interactive mode: select engine and configure secrets
@@ -162,12 +162,13 @@ Manage GitHub Actions secrets and tokens.
 Create or update a repository secret (from stdin, flag, or environment variable).
 
 ```bash wrap
-gh aw secrets set MY_SECRET                                    # From stdin
+gh aw secrets set MY_SECRET                                    # From stdin (current repo)
+gh aw secrets set MY_SECRET --repo myorg/myrepo                # Specify target repo
 gh aw secrets set MY_SECRET --value "secret123"                # From flag
 gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From env var
 ```
 
-**Options:** `--owner`, `--repo`, `--value`, `--value-from-env`, `--api-url`
+**Options:** `--repo`, `--value`, `--value-from-env`, `--api-url`
 
 ##### `secrets bootstrap`
 
@@ -202,6 +203,8 @@ gh aw fix --list-codemods              # List available codemods
 
 **Options:** `--write`, `--list-codemods`
 
+Notable codemods include `expires-integer-to-string`, which converts bare integer `expires` values (e.g., `expires: 7`) to the preferred day-string format (e.g., `expires: 7d`) in all `safe-outputs` blocks. Run `gh aw fix --list-codemods` to see all available codemods.
+
 #### `compile`
 
 Compile Markdown workflows to GitHub Actions YAML. Remote imports cached in `.github/aw/imports/`.
@@ -227,6 +230,25 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 **Strict Mode (`--strict`):** Enforces security best practices: no write permissions (use [safe-outputs](/gh-aw/reference/safe-outputs/)), explicit `network` config, no wildcard domains, pinned Actions, no deprecated fields. See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict).
 
 **Shared Workflows:** Workflows without an `on` field are detected as shared components. Validated with relaxed schema and skip compilation. See [Imports reference](/gh-aw/reference/imports/).
+
+#### `validate`
+
+Validate agentic workflows by running the compiler with all linters enabled, without generating lock files. Equivalent to `gh aw compile --validate --no-emit --zizmor --actionlint --poutine`.
+
+```bash wrap
+gh aw validate                              # Validate all workflows
+gh aw validate my-workflow                  # Validate specific workflow
+gh aw validate my-workflow daily            # Validate multiple workflows
+gh aw validate --json                       # Output results in JSON format
+gh aw validate --strict                     # Enforce strict mode validation
+gh aw validate --fail-fast                  # Stop at the first error
+gh aw validate --dir custom/workflows       # Validate from custom directory
+gh aw validate --engine copilot             # Override AI engine
+```
+
+**Options:** `--engine/-e`, `--dir/-d`, `--strict`, `--json/-j`, `--fail-fast`, `--stats`, `--no-check-update`
+
+All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
 
 ### Testing
 
@@ -330,6 +352,8 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 
 Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level (job logs, specific step, or first failing step).
 
+When a workflow fails before the agent executes (for example, due to lockdown validation failures, missing secrets, or binary install failures), the audit report surfaces the actual error from the workflow step log files. The `failure_analysis.error_summary` field reflects the specific failure message rather than reporting "No specific errors identified". Providing an invalid run ID returns a human-readable error instead of a raw exit code.
+
 #### `health`
 
 Display workflow health metrics and success rates.
@@ -385,15 +409,16 @@ gh aw remove my-workflow
 
 #### `update`
 
-Update workflows based on `source` field (`owner/repo/path@ref`). Default replaces local file; `--merge` performs 3-way merge. Semantic versions update within same major version.
+Update workflows based on `source` field (`owner/repo/path@ref`). By default, performs a 3-way merge to preserve local changes; use `--no-merge` to override with upstream. Semantic versions update within same major version.
 
 ```bash wrap
 gh aw update                              # Update all with source field
-gh aw update ci-doctor --merge            # Update with 3-way merge
+gh aw update ci-doctor                    # Update specific workflow (3-way merge)
+gh aw update ci-doctor --no-merge         # Override local changes with upstream
 gh aw update ci-doctor --major --force    # Allow major version updates
 ```
 
-**Options:** `--dir`, `--merge`, `--major`, `--force`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`
 
 #### `upgrade`
 
@@ -404,9 +429,11 @@ gh aw upgrade                              # Upgrade repository agent files and 
 gh aw upgrade --no-fix                     # Update agent files only (skip codemods)
 gh aw upgrade --push                       # Upgrade and automatically commit/push
 gh aw upgrade --push --no-fix              # Update agent files and push
+gh aw upgrade --audit                      # Run dependency health audit
+gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir`, `--no-fix`, `--push` (see [--push flag](#the---push-flag))
+**Options:** `--dir`, `--no-fix`, `--no-actions`, `--push` (see [--push flag](#the---push-flag)), `--audit`, `--json`
 
 ### Advanced
 

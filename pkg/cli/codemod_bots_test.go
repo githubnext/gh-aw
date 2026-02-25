@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -124,13 +125,7 @@ engine: copilot
 	assert.Contains(t, result, "bots: [dependabot, renovate]")
 	// Ensure on: block is created
 	lines := strings.Split(result, "\n")
-	foundOn := false
-	for _, line := range lines {
-		if line == "on:" {
-			foundOn = true
-			break
-		}
-	}
+	foundOn := slices.Contains(lines, "on:")
 	assert.True(t, foundOn, "Should create new on: block")
 }
 

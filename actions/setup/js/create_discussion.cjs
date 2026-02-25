@@ -11,7 +11,7 @@ const HANDLER_TYPE = "create_discussion";
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
@@ -19,6 +19,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Maximum limits for discussion parameters to prevent resource exhaustion.
@@ -257,7 +258,7 @@ function isPermissionsError(errorMessage) {
 async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo, resolvedTemporaryIds, contextMessage) {
   try {
     // Prepare issue message with a note about the fallback
-    const fallbackNote = `\n\n---\n\n> **Note:** This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n>\n> **Tip:** Discussion creation may fail if the specified category is not announcement-capable. Consider using the "Announcements" category or another announcement-capable category in your workflow configuration.\n`;
+    const fallbackNote = `\n\n---\n\n> [!WARNING]\n> This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n>\n> Discussion creation may fail if the specified category is not announcement-capable. Consider using the "Announcements" category or another announcement-capable category in your workflow configuration.\n`;
     const issueMessage = {
       ...item,
       body: (item.body || "") + fallbackNote,
@@ -300,15 +301,14 @@ async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo
  */
 async function main(config = {}) {
   // Extract configuration
-  const allowedRepos = parseAllowedRepos(config.allowed_repos);
-  const defaultTargetRepo = getDefaultTargetRepo(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const titlePrefix = config.title_prefix || "";
   const configCategory = config.category || "";
   const maxCount = config.max || 10;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const fallbackToIssue = config.fallback_to_issue !== false; // Default to true
-  const closeOlderDiscussions = config.close_older_discussions === true || config.close_older_discussions === "true";
-  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const closeOlderDiscussions = parseBoolTemplatable(config.close_older_discussions, false);
+  const includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -382,37 +382,16 @@ async function main(config = {}) {
       }
     }
 
-    // Determine target repository
-    const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
-
-    // Validate repository
-    const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-    if (!repoValidation.valid) {
-      // When valid is false, error is guaranteed to be non-null
-      const errorMessage = repoValidation.error;
-      if (!errorMessage) {
-        throw new Error("Internal error: repoValidation.error should not be null when valid is false");
-      }
-      core.warning(`Skipping discussion: ${errorMessage}`);
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "discussion");
+    if (!repoResult.success) {
+      core.warning(`Skipping discussion: ${repoResult.error}`);
       return {
         success: false,
-        error: errorMessage,
+        error: repoResult.error,
       };
     }
-
-    // Use the qualified repo from validation (handles bare names like "gh-aw" -> "github/gh-aw")
-    const qualifiedItemRepo = repoValidation.qualifiedRepo;
-
-    // Parse repository slug
-    const repoParts = parseRepoSlug(qualifiedItemRepo);
-    if (!repoParts) {
-      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
-      core.warning(`Skipping discussion: ${error}`);
-      return {
-        success: false,
-        error,
-      };
-    }
+    const { repo: qualifiedItemRepo, repoParts } = repoResult;
 
     // Get repository info (cached)
     let repoInfo = repoInfoCache.get(qualifiedItemRepo);

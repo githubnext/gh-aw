@@ -140,7 +140,7 @@ imports:
 	assert.Equal(t, []string{"bug"}, workflowData.SafeOutputs.CreateIssues.Labels)
 
 	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported")
-	assert.Equal(t, 3, workflowData.SafeOutputs.AddComments.Max)
+	assert.Equal(t, strPtr("3"), workflowData.SafeOutputs.AddComments.Max)
 }
 
 // TestSafeOutputsImportOverride tests that when the same safe-output type is defined in both main and imported workflow, the main workflow's definition takes precedence
@@ -409,7 +409,7 @@ imports:
 	assert.Equal(t, "[issue] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
 
 	require.NotNil(t, workflowData.SafeOutputs.AddComments, "AddComments should be imported from second shared workflow")
-	assert.Equal(t, 5, workflowData.SafeOutputs.AddComments.Max)
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.AddComments.Max)
 }
 
 // TestMergeSafeOutputsUnit tests the MergeSafeOutputs function directly
@@ -1345,7 +1345,7 @@ func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
 	// Other safe-output types should be merged
 	require.NotNil(t, result.CreateIssues, "CreateIssues should be preserved")
 	require.NotNil(t, result.AddComments, "AddComments should be merged")
-	assert.Equal(t, 5, result.AddComments.Max, "AddComments config should be correct")
+	assert.Equal(t, strPtr("5"), result.AddComments.Max, "AddComments config should be correct")
 }
 
 // TestMergeSafeOutputsErrorPropagation tests error propagation from mergeSafeOutputConfig
@@ -1549,17 +1549,17 @@ This workflow uses the imported project safe-output configuration.
 
 	// Verify update-project configuration was imported correctly
 	require.NotNil(t, workflowData.SafeOutputs.UpdateProjects, "UpdateProjects configuration should be imported")
-	assert.Equal(t, 100, workflowData.SafeOutputs.UpdateProjects.Max)
+	assert.Equal(t, strPtr("100"), workflowData.SafeOutputs.UpdateProjects.Max)
 	assert.Equal(t, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}", workflowData.SafeOutputs.UpdateProjects.GitHubToken)
 
 	// Verify create-project-status-update configuration was imported correctly (the bug fix)
 	require.NotNil(t, workflowData.SafeOutputs.CreateProjectStatusUpdates, "CreateProjectStatusUpdates configuration should be imported")
-	assert.Equal(t, 1, workflowData.SafeOutputs.CreateProjectStatusUpdates.Max)
+	assert.Equal(t, strPtr("1"), workflowData.SafeOutputs.CreateProjectStatusUpdates.Max)
 	assert.Equal(t, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}", workflowData.SafeOutputs.CreateProjectStatusUpdates.GitHubToken)
 
 	// Verify create-project configuration was imported correctly
 	require.NotNil(t, workflowData.SafeOutputs.CreateProjects, "CreateProjects configuration should be imported")
-	assert.Equal(t, 5, workflowData.SafeOutputs.CreateProjects.Max)
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.CreateProjects.Max)
 	assert.Equal(t, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}", workflowData.SafeOutputs.CreateProjects.GitHubToken)
 }
 
@@ -1636,28 +1636,28 @@ This workflow uses the imported safe-output configuration for previously missing
 
 	// Verify all previously missing types are now imported correctly
 	require.NotNil(t, workflowData.SafeOutputs.UpdateDiscussions, "UpdateDiscussions should be imported")
-	assert.Equal(t, 10, workflowData.SafeOutputs.UpdateDiscussions.Max)
+	assert.Equal(t, strPtr("10"), workflowData.SafeOutputs.UpdateDiscussions.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.LinkSubIssue, "LinkSubIssue should be imported")
-	assert.Equal(t, 5, workflowData.SafeOutputs.LinkSubIssue.Max)
+	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.LinkSubIssue.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.HideComment, "HideComment should be imported")
-	assert.Equal(t, 20, workflowData.SafeOutputs.HideComment.Max)
+	assert.Equal(t, strPtr("20"), workflowData.SafeOutputs.HideComment.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.DispatchWorkflow, "DispatchWorkflow should be imported")
-	assert.Equal(t, 3, workflowData.SafeOutputs.DispatchWorkflow.Max)
+	assert.Equal(t, strPtr("3"), workflowData.SafeOutputs.DispatchWorkflow.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.AssignToUser, "AssignToUser should be imported")
-	assert.Equal(t, 15, workflowData.SafeOutputs.AssignToUser.Max)
+	assert.Equal(t, strPtr("15"), workflowData.SafeOutputs.AssignToUser.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.AutofixCodeScanningAlert, "AutofixCodeScanningAlert should be imported")
-	assert.Equal(t, 8, workflowData.SafeOutputs.AutofixCodeScanningAlert.Max)
+	assert.Equal(t, strPtr("8"), workflowData.SafeOutputs.AutofixCodeScanningAlert.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.MarkPullRequestAsReadyForReview, "MarkPullRequestAsReadyForReview should be imported")
-	assert.Equal(t, 12, workflowData.SafeOutputs.MarkPullRequestAsReadyForReview.Max)
+	assert.Equal(t, strPtr("12"), workflowData.SafeOutputs.MarkPullRequestAsReadyForReview.Max)
 
 	require.NotNil(t, workflowData.SafeOutputs.MissingData, "MissingData should be imported")
-	assert.Equal(t, 2, workflowData.SafeOutputs.MissingData.Max)
+	assert.Equal(t, strPtr("2"), workflowData.SafeOutputs.MissingData.Max)
 }
 
 // TestSafeOutputsImportMessagesAllFields tests that all message fields can be imported correctly
@@ -1822,4 +1822,108 @@ safe-outputs:
 	assert.Equal(t, "Shared description", workflowData.SafeOutputs.Messages.StagedDescription, "StagedDescription should come from shared")
 	assert.Equal(t, "Shared started", workflowData.SafeOutputs.Messages.RunStarted, "RunStarted should come from shared")
 	assert.Equal(t, "Shared failure", workflowData.SafeOutputs.Messages.RunFailure, "RunFailure should come from shared")
+}
+
+// TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden tests that when the main workflow
+// explicitly disables threat-detection, imported fragments with no threat-detection key do not
+// re-enable it.
+func TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Simulate main workflow that explicitly disabled threat-detection:
+	// threat-detection: false → parseThreatDetectionConfig returns nil.
+	topConfig := &SafeOutputsConfig{
+		ThreatDetection: nil,
+		AddComments:     &AddCommentsConfig{},
+	}
+
+	// Import fragment with safe-outputs but no threat-detection key.
+	importedJSON := []string{
+		`{"add-comment":{"max":1}}`,
+	}
+
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	require.NoError(t, err, "MergeSafeOutputs should not error")
+	require.NotNil(t, result, "Result should not be nil")
+
+	// The explicit disable must survive the merge: threat detection must remain nil.
+	assert.Nil(t, result.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
+}
+
+// TestMergeSafeOutputsThreatDetectionImportedWhenExplicit tests that an import that explicitly
+// carries a threat-detection key can set it when the main workflow has not configured it.
+func TestMergeSafeOutputsThreatDetectionImportedWhenExplicit(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	// Import fragment that explicitly enables threat-detection.
+	importedJSON := []string{
+		`{"add-comment":{"max":1},"threat-detection":{"enabled":true}}`,
+	}
+
+	result, err := compiler.MergeSafeOutputs(nil, importedJSON)
+	require.NoError(t, err, "MergeSafeOutputs should not error")
+	require.NotNil(t, result, "Result should not be nil")
+
+	// Import explicitly set threat-detection, so it should be present.
+	assert.NotNil(t, result.ThreatDetection, "ThreatDetection should be set when explicitly configured in import")
+}
+
+// TestSafeOutputsImportDoesNotReenableThreatDetection is an integration test that reproduces
+// the bug where an imported fragment re-enables threat-detection that was explicitly disabled
+// in the main workflow. This caused a compilation error when sandbox.agent was also false.
+func TestSafeOutputsImportDoesNotReenableThreatDetection(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Fragment with safe-outputs but no threat-detection key (mimics safe-output-add-comment.md)
+	sharedWorkflow := `---
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+# Shared Add Comment Fragment
+`
+
+	sharedFile := filepath.Join(workflowsDir, "safe-output-add-comment.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	// Main workflow: sandbox.agent disabled + threat-detection explicitly disabled
+	mainWorkflow := `---
+on: issues
+engine: copilot
+strict: false
+sandbox:
+  agent: false
+imports:
+  - ./safe-output-add-comment.md
+safe-outputs:
+  activation-comments: false
+  threat-detection: false
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error when threat-detection is explicitly disabled")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// The explicit disable must survive the import merge.
+	assert.Nil(t, workflowData.SafeOutputs.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
 }

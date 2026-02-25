@@ -38,7 +38,7 @@ tools:
 This workflow explicitly uses projects toolset.
 `,
 			shouldWarn:      true,
-			warningContains: "The 'projects' toolset requires a GitHub token",
+			warningContains: "The 'projects' toolset requires additional authentication",
 		},
 		{
 			name: "Explicit projects with other toolsets should warn",
@@ -55,7 +55,7 @@ tools:
 This workflow uses projects among other toolsets.
 `,
 			shouldWarn:      true,
-			warningContains: "The 'projects' toolset requires a GitHub token",
+			warningContains: "The 'projects' toolset requires additional authentication",
 		},
 		{
 			name: "All toolset should NOT warn about projects",

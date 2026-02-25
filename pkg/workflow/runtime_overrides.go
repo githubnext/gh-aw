@@ -1,6 +1,9 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // applyRuntimeOverrides applies runtime version overrides from frontmatter
 func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*RuntimeRequirement) {
@@ -21,11 +24,11 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			case string:
 				version = v
 			case int:
-				version = fmt.Sprintf("%d", v)
+				version = strconv.Itoa(v)
 			case float64:
 				// Check if it's a whole number
 				if v == float64(int(v)) {
-					version = fmt.Sprintf("%d", int(v))
+					version = strconv.Itoa(int(v))
 				} else {
 					version = fmt.Sprintf("%g", v)
 				}

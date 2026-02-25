@@ -9,7 +9,7 @@ import (
 var geminiMCPLog = logger.New("workflow:gemini_mcp")
 
 // RenderMCPConfig renders MCP server configuration for Gemini CLI
-func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	geminiMCPLog.Printf("Rendering MCP config for Gemini: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
 
 	// Create unified renderer with Gemini-specific options
@@ -24,7 +24,7 @@ func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	}
 
 	// Use shared JSON MCP config renderer
-	_ = RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    "/tmp/gh-aw/mcp-config/mcp-servers.json",
 		GatewayConfig: buildMCPGatewayConfig(workflowData),
 		Renderers: MCPToolRenderers{

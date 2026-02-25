@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Enforce cross-repository allowlists in assign, session, and memory handlers so unsafe target repositories now trigger the standardized E004 error.
+Add cross-repository allowlist validation and documentation for the handlers flagged by SEC-005, including the new shared `validateTargetRepo` helper and the revised mention pre-scan logic.

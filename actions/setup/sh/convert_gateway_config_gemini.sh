@@ -94,7 +94,9 @@ jq --arg urlPrefix "$URL_PREFIX" '
       # Fix the URL to use the correct domain
       .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
     )
-  )
+  ) |
+  # Allow Gemini CLI to read/write files from /tmp/ (e.g. MCP payload files, cache-memory, agent outputs)
+  .context.includeDirectories = ["/tmp/"]
 ' "$MCP_GATEWAY_OUTPUT" > "$GEMINI_SETTINGS_FILE"
 
 echo "Gemini configuration written to $GEMINI_SETTINGS_FILE"

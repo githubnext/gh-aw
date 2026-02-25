@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -54,7 +55,7 @@ func ParseExpression(expression string) (ConditionNode, error) {
 	expressionsLog.Printf("Parsing expression: %s", expression)
 
 	if strings.TrimSpace(expression) == "" {
-		return nil, fmt.Errorf("empty expression")
+		return nil, errors.New("empty expression")
 	}
 
 	parser := &ExpressionParser{}
@@ -342,8 +343,9 @@ func BreakLongExpression(expression string) []string {
 			i++
 
 			// Continue until closing quote
+			var sb strings.Builder
 			for i < len(expression) {
-				current += string(expression[i])
+				sb.WriteByte(expression[i])
 				if expression[i] == quote {
 					i++
 					break
@@ -351,11 +353,12 @@ func BreakLongExpression(expression string) []string {
 				if expression[i] == '\\' && i+1 < len(expression) {
 					i++ // Skip escaped character
 					if i < len(expression) {
-						current += string(expression[i])
+						sb.WriteByte(expression[i])
 					}
 				}
 				i++
 			}
+			current += sb.String()
 			continue
 		}
 
@@ -433,9 +436,7 @@ func BreakAtParentheses(expression string) []string {
 
 				if j+1 < len(expression) && (expression[j:j+2] == "||" || expression[j:j+2] == "&&") {
 					// Add the operator to current line and break
-					for k := i + 1; k < j+2; k++ {
-						current += string(expression[k])
-					}
+					current += expression[i+1 : j+2]
 					lines = append(lines, strings.TrimSpace(current))
 					current = ""
 					i = j + 2 - 1 // Set to j+2-1 so the loop increment makes i = j+2

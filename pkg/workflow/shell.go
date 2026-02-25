@@ -48,6 +48,31 @@ func shellEscapeArg(arg string) string {
 	return arg
 }
 
+// shellDoubleQuoteArg wraps a value in double quotes with proper escaping so that
+// shell expansion characters inside the value are neutralised, while the outer
+// double-quote context avoids ShellCheck SC1003 on arguments that contain shell
+// metacharacters such as `*` that would otherwise force single-quoting.
+//
+// Specifically, backslashes, double-quotes, dollar signs, and backticks are
+// escaped (in that order) so that `$`, “ ` “ and `\` cannot trigger variable
+// expansion or command substitution inside the resulting double-quoted string.
+//
+// Use this instead of pre-wrapping naively with `"\""+value+"\""` so that values
+// which happen to contain `$` or “ ` “ are still safe in the generated shell
+// scripts.
+func shellDoubleQuoteArg(value string) string {
+	// Escape backslashes first (must precede other replacements to avoid double-escaping)
+	escaped := strings.ReplaceAll(value, "\\", "\\\\")
+	// Escape double-quotes so the wrapper delimiters cannot be prematurely closed
+	escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
+	// Escape dollar signs to prevent variable/arithmetic expansion
+	escaped = strings.ReplaceAll(escaped, "$", "\\$")
+	// Escape backticks to prevent command substitution
+	escaped = strings.ReplaceAll(escaped, "`", "\\`")
+	shellLog.Printf("Double-quoted value (length: %d)", len(value))
+	return "\"" + escaped + "\""
+}
+
 // shellEscapeCommandString escapes a complete command string (which may already contain
 // quoted arguments) for passing as a single argument to another command.
 // It wraps the command in double quotes and escapes any double quotes, dollar signs,

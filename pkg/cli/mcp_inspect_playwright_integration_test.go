@@ -26,30 +26,21 @@ func TestMCPInspectPlaywrightIntegration(t *testing.T) {
 			name: "copilot",
 			engineConfig: `engine: copilot
 tools:
-  playwright:
-    allowed_domains:
-      - "localhost"
-      - "example.com"`,
+  playwright:`,
 			expectedSuccess: true,
 		},
 		{
 			name: "claude",
 			engineConfig: `engine: claude
 tools:
-  playwright:
-    allowed_domains:
-      - "localhost"
-      - "example.com"`,
+  playwright:`,
 			expectedSuccess: true,
 		},
 		{
 			name: "codex",
 			engineConfig: `engine: codex
 tools:
-  playwright:
-    allowed_domains:
-      - "localhost"
-      - "example.com"`,
+  playwright:`,
 			expectedSuccess: true,
 		},
 	}
@@ -109,11 +100,6 @@ This workflow tests playwright tool configuration.
 				if strings.Contains(outputStr, "MCP configuration validation passed") {
 					t.Logf("✓ MCP configuration validation passed for %s engine", tc.name)
 				}
-
-				// Verify allowed_domains appear in the output
-				if strings.Contains(outputStr, "localhost") || strings.Contains(outputStr, "example.com") {
-					t.Logf("✓ Allowed domains configuration detected for %s engine", tc.name)
-				}
 			}
 		})
 	}
@@ -133,8 +119,6 @@ permissions:
 engine: copilot
 tools:
   playwright:
-    allowed_domains:
-      - "localhost"
 ---
 
 # Test Playwright Tools

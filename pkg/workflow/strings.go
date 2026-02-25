@@ -77,7 +77,7 @@ package workflow
 
 import (
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -100,18 +100,6 @@ type SanitizeOptions struct {
 	// DefaultValue is returned when the sanitized name is empty after all transformations.
 	// If empty string, no default is applied.
 	DefaultValue string
-}
-
-// SortStrings sorts a slice of strings in place using Go's standard library sort
-func SortStrings(s []string) {
-	sort.Strings(s)
-}
-
-// SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
-func SortPermissionScopes(s []PermissionScope) {
-	sort.Slice(s, func(i, j int) bool {
-		return string(s[i]) < string(s[j])
-	})
 }
 
 // SanitizeName sanitizes a string for use as an identifier, file name, or similar context.
@@ -167,13 +155,7 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 	result = strings.ReplaceAll(result, " ", "-")
 
 	// Check if underscores should be preserved
-	preserveUnderscore := false
-	for _, char := range opts.PreserveSpecialChars {
-		if char == '_' {
-			preserveUnderscore = true
-			break
-		}
-	}
+	preserveUnderscore := slices.Contains(opts.PreserveSpecialChars, '_')
 
 	// Replace underscores with hyphens if not preserved
 	if !preserveUnderscore {
@@ -181,19 +163,20 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 	}
 
 	// Build character preservation pattern based on options
-	preserveChars := "a-z0-9-" // Always preserve alphanumeric and hyphens
+	var preserveChars strings.Builder
+	preserveChars.WriteString("a-z0-9-") // Always preserve alphanumeric and hyphens
 	if len(opts.PreserveSpecialChars) > 0 {
 		for _, char := range opts.PreserveSpecialChars {
 			// Escape special regex characters
 			switch char {
 			case '.', '_':
-				preserveChars += string(char)
+				preserveChars.WriteRune(char)
 			}
 		}
 	}
 
 	// Create pattern for characters to remove/replace
-	pattern := regexp.MustCompile(`[^` + preserveChars + `]+`)
+	pattern := regexp.MustCompile(`[^` + preserveChars.String() + `]+`)
 
 	// Replace unwanted characters with hyphens or empty based on context
 	if len(opts.PreserveSpecialChars) > 0 {

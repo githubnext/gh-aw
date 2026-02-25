@@ -24,11 +24,6 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 
-	// Detect from engine requirements
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		detectFromEngineSteps(workflowData.EngineConfig.Steps, requirements)
-	}
-
 	// Apply runtime overrides from frontmatter
 	if workflowData.Runtimes != nil {
 		applyRuntimeOverrides(workflowData.Runtimes, requirements)
@@ -71,8 +66,8 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 // detectFromCustomSteps scans custom steps YAML for runtime commands
 func detectFromCustomSteps(customSteps string, requirements map[string]*RuntimeRequirement) {
 	log.Print("Scanning custom steps for runtime commands")
-	lines := strings.Split(customSteps, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(customSteps, "\n")
+	for line := range lines {
 		// Look for run: commands
 		if strings.Contains(line, "run:") {
 			// Extract the command part
@@ -163,17 +158,6 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	}
 }
 
-// detectFromEngineSteps scans engine steps for runtime commands
-func detectFromEngineSteps(steps []map[string]any, requirements map[string]*RuntimeRequirement) {
-	for _, step := range steps {
-		if run, hasRun := step["run"]; hasRun {
-			if runStr, ok := run.(string); ok {
-				detectRuntimeFromCommand(runStr, requirements)
-			}
-		}
-	}
-}
-
 // updateRequiredRuntime updates the version requirement, choosing the highest version
 func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map[string]*RuntimeRequirement) {
 	existing, exists := requirements[runtime.ID]
@@ -218,7 +202,7 @@ func detectSerenaLanguageRuntimes(serenaConfig *SerenaToolConfig, requirements m
 		"javascript": "node",
 		"python":     "python",
 		"java":       "java",
-		"rust":       "rust", // rust is not in knownRuntimes yet, but including for completeness
+		"rust":       "rust", // rust is listed as a valid Serena language but has no knownRuntime entry, so no setup step is generated
 		"csharp":     "dotnet",
 	}
 

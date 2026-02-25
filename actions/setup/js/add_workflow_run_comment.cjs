@@ -5,6 +5,9 @@ const { getRunStartedMessage } = require("./messages_run_status.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { getMessages } = require("./messages_core.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -59,6 +62,13 @@ function setCommentOutputs(commentId, commentUrl) {
  * Use add_reaction.cjs in the pre-activation job to add reactions first for immediate feedback.
  */
 async function main() {
+  // Check if activation comments are disabled
+  const messagesConfig = getMessages();
+  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
+    core.info("activation-comments is disabled: skipping activation comment creation");
+    return;
+  }
+
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -77,7 +87,7 @@ async function main() {
       case "issues": {
         const issueNumber = context.payload?.issue?.number;
         if (!issueNumber) {
-          core.setFailed("Issue number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
           return;
         }
         commentEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
@@ -87,7 +97,7 @@ async function main() {
       case "issue_comment": {
         const issueNumberForComment = context.payload?.issue?.number;
         if (!issueNumberForComment) {
-          core.setFailed("Issue number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
           return;
         }
         // Create new comment on the issue itself, not on the comment
@@ -98,7 +108,7 @@ async function main() {
       case "pull_request": {
         const prNumber = context.payload?.pull_request?.number;
         if (!prNumber) {
-          core.setFailed("Pull request number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
           return;
         }
         commentEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
@@ -108,7 +118,7 @@ async function main() {
       case "pull_request_review_comment": {
         const prNumberForReviewComment = context.payload?.pull_request?.number;
         if (!prNumberForReviewComment) {
-          core.setFailed("Pull request number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
           return;
         }
         // Create new comment on the PR itself (using issues endpoint since PRs are issues)
@@ -119,7 +129,7 @@ async function main() {
       case "discussion": {
         const discussionNumber = context.payload?.discussion?.number;
         if (!discussionNumber) {
-          core.setFailed("Discussion number not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
           return;
         }
         commentEndpoint = `discussion:${discussionNumber}`; // Special format to indicate discussion
@@ -130,7 +140,7 @@ async function main() {
         const discussionCommentNumber = context.payload?.discussion?.number;
         const discussionCommentId = context.payload?.comment?.id;
         if (!discussionCommentNumber || !discussionCommentId) {
-          core.setFailed("Discussion or comment information not found in event payload");
+          core.setFailed(`${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
           return;
         }
         commentEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; // Special format
@@ -138,7 +148,7 @@ async function main() {
       }
 
       default:
-        core.setFailed(`Unsupported event type: ${eventName}`);
+        core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
         return;
     }
 

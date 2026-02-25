@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -91,14 +92,14 @@ func InstallShellCompletion(verbose bool, rootCmd CommandProvider) error {
 	// For now, we only use the CommandProvider interface methods
 	cmd, ok := rootCmd.(*cobra.Command)
 	if !ok {
-		return fmt.Errorf("rootCmd must be a *cobra.Command")
+		return errors.New("rootCmd must be a *cobra.Command")
 	}
 
 	shellType := DetectShell()
 	shellCompletionLog.Printf("Detected shell type: %s", shellType)
 
 	if shellType == ShellUnknown {
-		return fmt.Errorf("could not detect shell type. Please install completions manually using: gh aw completion <shell>")
+		return errors.New("could not detect shell type. Please install completions manually using: gh aw completion <shell>")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected shell: %s", shellType)))
@@ -191,7 +192,7 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 		return fmt.Errorf("failed to write completion file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Installed bash completion to: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed bash completion to: "+completionPath))
 
 	// Check if .bashrc sources completions
 	bashrcPath := filepath.Join(homeDir, ".bashrc")
@@ -265,7 +266,7 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 		return fmt.Errorf("failed to write completion file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Installed zsh completion to: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed zsh completion to: "+completionPath))
 
 	// Check if .zshrc configures fpath
 	zshrcPath := filepath.Join(homeDir, ".zshrc")
@@ -332,7 +333,7 @@ func installFishCompletion(verbose bool, cmd *cobra.Command) error {
 		return fmt.Errorf("failed to write completion file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Installed fish completion to: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Installed fish completion to: "+completionPath))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fish will automatically load completions on next shell start"))
 
 	return nil
@@ -358,7 +359,7 @@ func installPowerShellCompletion(verbose bool, cmd *cobra.Command) error {
 
 	profilePath := strings.TrimSpace(profileBuf.String())
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PowerShell profile path: %s", profilePath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("PowerShell profile path: "+profilePath))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your PowerShell profile:"))
 	fmt.Fprintln(os.Stderr, "")
@@ -385,7 +386,7 @@ func UninstallShellCompletion(verbose bool) error {
 	shellCompletionLog.Printf("Detected shell type: %s", shellType)
 
 	if shellType == ShellUnknown {
-		return fmt.Errorf("could not detect shell type. Please uninstall completions manually")
+		return errors.New("could not detect shell type. Please uninstall completions manually")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected shell: %s", shellType)))
@@ -449,13 +450,13 @@ func uninstallBashCompletion(verbose bool) error {
 				lastErr = err
 				continue
 			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed bash completion from: %s", path)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed bash completion from: "+path))
 			removed = true
 		}
 	}
 
 	if !removed {
-		return fmt.Errorf("no bash completion file found to remove")
+		return errors.New("no bash completion file found to remove")
 	}
 
 	if lastErr != nil {
@@ -489,7 +490,7 @@ func uninstallZshCompletion(verbose bool) error {
 		return fmt.Errorf("failed to remove completion file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed zsh completion from: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed zsh completion from: "+completionPath))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for changes to take effect"))
 
 	return nil
@@ -516,7 +517,7 @@ func uninstallFishCompletion(verbose bool) error {
 		return fmt.Errorf("failed to remove completion file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed fish completion from: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed fish completion from: "+completionPath))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fish will automatically detect the removal on next shell start"))
 
 	return nil
@@ -542,7 +543,7 @@ func uninstallPowerShellCompletion(verbose bool) error {
 
 	profilePath := strings.TrimSpace(profileBuf.String())
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PowerShell profile path: %s", profilePath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("PowerShell profile path: "+profilePath))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To uninstall completions, remove the following line from your PowerShell profile:"))
 	fmt.Fprintln(os.Stderr, "")

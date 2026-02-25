@@ -4,14 +4,12 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 // PlaywrightDockerArgs represents the common Docker arguments for Playwright container
 type PlaywrightDockerArgs struct {
 	ImageVersion      string // Version for Docker image (mcr.microsoft.com/playwright:version)
 	MCPPackageVersion string // Version for NPM package (@playwright/mcp@version)
-	AllowedDomains    []string
 }
 
 func getPlaywrightDockerImageVersion(playwrightConfig *PlaywrightToolConfig) string {
@@ -30,58 +28,33 @@ func getPlaywrightMCPPackageVersion(playwrightConfig *PlaywrightToolConfig) stri
 	return string(constants.DefaultPlaywrightMCPVersion)
 }
 
-// generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
-// Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
-func generatePlaywrightAllowedDomains(playwrightConfig *PlaywrightToolConfig) []string {
-	// Default to localhost with all port variations (same as Copilot coding agent default)
-	allowedDomains := constants.DefaultAllowedDomains
-
-	// Extract allowed_domains from Playwright tool configuration
-	if playwrightConfig != nil && len(playwrightConfig.AllowedDomains) > 0 {
-		// Create a mock NetworkPermissions structure to use the same domain resolution logic
-		playwrightNetwork := &NetworkPermissions{
-			Allowed: playwrightConfig.AllowedDomains.ToStringSlice(),
-		}
-
-		// Use the same domain bundle resolution as the top-level network configuration
-		resolvedDomains := GetAllowedDomains(playwrightNetwork)
-
-		// Ensure localhost domains are always included
-		allowedDomains = parser.EnsureLocalhostDomains(resolvedDomains)
-	}
-
-	return allowedDomains
-}
-
 // generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
 func generatePlaywrightDockerArgs(playwrightConfig *PlaywrightToolConfig) PlaywrightDockerArgs {
-	return PlaywrightDockerArgs{
+	args := PlaywrightDockerArgs{
 		ImageVersion:      getPlaywrightDockerImageVersion(playwrightConfig),
 		MCPPackageVersion: getPlaywrightMCPPackageVersion(playwrightConfig),
-		AllowedDomains:    generatePlaywrightAllowedDomains(playwrightConfig),
 	}
+	log.Printf("Playwright Docker args: image_version=%s, mcp_package_version=%s", args.ImageVersion, args.MCPPackageVersion)
+	return args
 }
 
 // extractExpressionsFromPlaywrightArgs extracts all GitHub Actions expressions from playwright arguments
 // Returns a map of environment variable names to their original expressions
 // Uses the same ExpressionExtractor as used for shell script security
-func extractExpressionsFromPlaywrightArgs(allowedDomains []string, customArgs []string) map[string]string {
-	// Combine all arguments into a single string for extraction
-	var allArgs []string
-	allArgs = append(allArgs, allowedDomains...)
-	allArgs = append(allArgs, customArgs...)
-
-	if len(allArgs) == 0 {
+func extractExpressionsFromPlaywrightArgs(customArgs []string) map[string]string {
+	log.Printf("Extracting expressions from %d Playwright args", len(customArgs))
+	if len(customArgs) == 0 {
 		return make(map[string]string)
 	}
 
 	// Join all arguments with a separator that won't appear in expressions
-	combined := strings.Join(allArgs, "\n")
+	combined := strings.Join(customArgs, "\n")
 
 	// Use ExpressionExtractor to find all expressions
 	extractor := NewExpressionExtractor()
 	mappings, err := extractor.ExtractExpressions(combined)
 	if err != nil {
+		log.Printf("Failed to extract expressions from Playwright args: %s", err)
 		return make(map[string]string)
 	}
 
@@ -91,6 +64,7 @@ func extractExpressionsFromPlaywrightArgs(allowedDomains []string, customArgs []
 		result[mapping.EnvVar] = mapping.Original
 	}
 
+	log.Printf("Extracted %d unique expressions from Playwright args", len(result))
 	return result
 }
 

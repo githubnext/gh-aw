@@ -18,6 +18,7 @@ type AssignToAgentConfig struct {
 	IgnoreIfError             bool     `yaml:"ignore-if-error,omitempty"`            // If true, workflow continues when agent assignment fails
 	PullRequestRepoSlug       string   `yaml:"pull-request-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
 	AllowedPullRequestRepos   []string `yaml:"allowed-pull-request-repos,omitempty"` // List of additional repositories that PRs can be created in (beyond pull-request-repo which is automatically allowed)
+	BaseBranch                string   `yaml:"base-branch,omitempty"`                // Base branch for PR creation in target repo (defaults to target repo's default branch)
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration
@@ -29,6 +30,15 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 
 	assignToAgentLog.Print("Parsing assign-to-agent configuration")
 
+	// Get config data for pre-processing before YAML unmarshaling
+	configData, _ := outputMap["assign-to-agent"].(map[string]any)
+
+	// Pre-process templatable int fields
+	if err := preprocessIntFieldAsString(configData, "max", assignToAgentLog); err != nil {
+		assignToAgentLog.Printf("Invalid max value: %v", err)
+		return nil
+	}
+
 	// Unmarshal into typed config struct
 	var config AssignToAgentConfig
 	if err := unmarshalConfig(outputMap, "assign-to-agent", &config, assignToAgentLog); err != nil {
@@ -38,12 +48,12 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 	}
 
 	// Set default max if not specified
-	if config.Max == 0 {
-		config.Max = 1
+	if config.Max == nil {
+		config.Max = defaultIntStr(1)
 	}
 
-	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%d, pull_request_repo=%s",
-		config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, config.Max, config.PullRequestRepoSlug)
+	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%s, pull_request_repo=%s, base_branch=%s",
+		config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, *config.Max, config.PullRequestRepoSlug, config.BaseBranch)
 
 	return &config
 }

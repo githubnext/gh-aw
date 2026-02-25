@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -12,94 +13,34 @@ import (
 // Safe Output Tools Generation
 // ========================================
 
-// generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job
-// Returns a map representing the tool definition in MCP format with name, description, and inputSchema
-func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) map[string]any {
-	safeOutputsConfigLog.Printf("Generating tool definition for custom job: %s", jobName)
-
-	// Build the tool definition
-	tool := map[string]any{
-		"name": jobName,
-	}
-
-	// Add description if present
-	if jobConfig.Description != "" {
-		tool["description"] = jobConfig.Description
-	} else {
-		// Provide a default description if none is specified
-		tool["description"] = fmt.Sprintf("Execute the %s custom job", jobName)
-	}
-
-	// Build the input schema
-	inputSchema := map[string]any{
-		"type":       "object",
-		"properties": make(map[string]any),
-	}
-
-	// Track required fields
-	var requiredFields []string
-
-	// Add each input to the schema
-	if len(jobConfig.Inputs) > 0 {
-		properties := inputSchema["properties"].(map[string]any)
-
-		for inputName, inputDef := range jobConfig.Inputs {
-			property := map[string]any{}
-
-			// Add description
-			if inputDef.Description != "" {
-				property["description"] = inputDef.Description
-			}
-
-			// Convert type to JSON Schema type
-			switch inputDef.Type {
-			case "choice":
-				// Choice inputs are strings with enum constraints
-				property["type"] = "string"
-				if len(inputDef.Options) > 0 {
-					property["enum"] = inputDef.Options
-				}
-			case "boolean":
-				property["type"] = "boolean"
-			case "number":
-				property["type"] = "number"
-			case "string", "":
-				// Default to string if type is not specified
-				property["type"] = "string"
-			default:
-				// For any unknown type, default to string
-				property["type"] = "string"
-			}
-
-			// Add default value if present
-			if inputDef.Default != nil {
-				property["default"] = inputDef.Default
-			}
-
-			// Track required fields
-			if inputDef.Required {
-				requiredFields = append(requiredFields, inputName)
-			}
-
-			properties[inputName] = property
+// checkAllEnabledToolsPresent verifies that every tool in enabledTools has a matching entry
+// in filteredTools. This is a compiler error check: if a safe-output type is registered in
+// Go code but its definition is missing from safe-output-tools.json, it will not appear in
+// filteredTools and this function returns an error.
+//
+// Dispatch-workflow and custom-job tools are intentionally excluded from this check because
+// they are generated dynamically and are never part of the static tools JSON.
+func checkAllEnabledToolsPresent(enabledTools map[string]bool, filteredTools []map[string]any) error {
+	presentTools := make(map[string]bool, len(filteredTools))
+	for _, tool := range filteredTools {
+		if name, ok := tool["name"].(string); ok {
+			presentTools[name] = true
 		}
 	}
 
-	// Add required fields array if any inputs are required
-	if len(requiredFields) > 0 {
-		sort.Strings(requiredFields)
-		inputSchema["required"] = requiredFields
+	var missingTools []string
+	for toolName := range enabledTools {
+		if !presentTools[toolName] {
+			missingTools = append(missingTools, toolName)
+		}
 	}
 
-	// Prevent additional properties to maintain schema strictness
-	inputSchema["additionalProperties"] = false
+	if len(missingTools) == 0 {
+		return nil
+	}
 
-	tool["inputSchema"] = inputSchema
-
-	safeOutputsConfigLog.Printf("Generated tool definition for %s with %d inputs, %d required",
-		jobName, len(jobConfig.Inputs), len(requiredFields))
-
-	return tool
+	sort.Strings(missingTools)
+	return fmt.Errorf("compiler error: safe-output tool(s) %v are registered but missing from safe-output-tools.json; please report this issue to the developer", missingTools)
 }
 
 // generateFilteredToolsJSON filters the ALL_TOOLS array based on enabled safe outputs
@@ -245,9 +186,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		if enabledTools[toolName] {
 			// Create a copy of the tool to avoid modifying the original
 			enhancedTool := make(map[string]any)
-			for k, v := range tool {
-				enhancedTool[k] = v
-			}
+			maps.Copy(enhancedTool, tool)
 
 			// Enhance the description with configuration details
 			if description, ok := enhancedTool["description"].(string); ok {
@@ -260,6 +199,12 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 
 			filteredTools = append(filteredTools, enhancedTool)
 		}
+	}
+
+	// Verify all registered safe-outputs are present in the static tools JSON.
+	// Dispatch-workflow and custom-job tools are excluded because they are generated dynamically.
+	if err := checkAllEnabledToolsPresent(enabledTools, filteredTools); err != nil {
+		return "", err
 	}
 
 	// Add custom job tools from SafeOutputs.Jobs
@@ -484,8 +429,8 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 		}
 	}
 
-	// Only add repo parameter if allowed-repos has entries
-	if !hasAllowedRepos {
+	// Only add repo parameter if allowed-repos has entries or target-repo is wildcard ("*")
+	if !hasAllowedRepos && targetRepoSlug != "*" {
 		return
 	}
 
@@ -501,9 +446,13 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 	}
 
 	// Build repo parameter description
-	repoDescription := "Target repository for this operation in 'owner/repo' format. Must be the target-repo or in the allowed-repos list."
-	if targetRepoSlug != "" {
+	var repoDescription string
+	if targetRepoSlug == "*" {
+		repoDescription = "Target repository for this operation in 'owner/repo' format. Any repository can be targeted."
+	} else if targetRepoSlug != "" {
 		repoDescription = fmt.Sprintf("Target repository for this operation in 'owner/repo' format. Default is %q. Must be the target-repo or in the allowed-repos list.", targetRepoSlug)
+	} else {
+		repoDescription = "Target repository for this operation in 'owner/repo' format. Must be the target-repo or in the allowed-repos list."
 	}
 
 	// Add repo parameter to properties
@@ -512,7 +461,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 		"description": repoDescription,
 	}
 
-	safeOutputsConfigLog.Printf("Added repo parameter to tool: %s (has allowed-repos)", toolName)
+	safeOutputsConfigLog.Printf("Added repo parameter to tool: %s (has allowed-repos or wildcard target-repo)", toolName)
 }
 
 // generateDispatchWorkflowTool generates an MCP tool definition for a specific workflow

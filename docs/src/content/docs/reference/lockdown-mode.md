@@ -7,8 +7,12 @@ sidebar:
 
 **GitHub lockdown mode** is [a security feature of the GitHub MCP server](https://github.com/github/github-mcp-server/blob/main/docs/server-configuration.md#lockdown-mode) that filters content in public repositories to only surface items (issues, pull requests, comments, discussions, etc.) from users with **push access** to the repository. This protects agentic workflows from processing potentially malicious or misleading content from untrusted users.
 
-> [!TIP]
-> **Enabling Lockdown Mode**: Set `lockdown: true` in your workflow frontmatter and configure [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) as a repository secret. For public repositories, this provides enhanced security against untrusted input.
+To enable lockdown mode for your workflow:
+
+1. **Set `lockdown: true` in your workflow frontmatter**
+2. **Configure [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools)
+
+Lockdown Mode is **automatically enabled** for public repositories if [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) is configured. It is not in effect for private or internal repositories.
 
 ## Security Benefits
 
@@ -27,6 +31,7 @@ Without lockdown, an attacker could:
 ### Context Poisoning
 
 Attackers could flood public repositories with spam issues to:
+
 - Overwhelm the AI context window with noise
 - Manipulate AI decisions through volume of malicious suggestions
 - Exhaust rate limits or credits
@@ -36,20 +41,14 @@ Attackers could flood public repositories with spam issues to:
 ### Social Engineering
 
 Malicious users could craft issues that:
+
 - Impersonate maintainers
 - Request sensitive information
 - Trick AI into revealing secrets or internal data
 
 **With lockdown**: Only verified contributors can interact with workflows.
 
-## Configuration
-
-### Enabling Lockdown Mode
-
-To enable lockdown mode for your workflow:
-
-1. **Set `lockdown: true` in your workflow frontmatter**
-2. **Configure `GH_AW_GITHUB_TOKEN` as a repository secret** (see [Authentication](/gh-aw/reference/auth/#gh_aw_github_token))
+## Example
 
 ```yaml wrap
 ---
@@ -58,6 +57,7 @@ engine: copilot
 tools:
   github:
     lockdown: true
+    github-token: ${{ secrets.CUSTOM_TOKEN }}  # Required for lockdown, and causes lockdown in public repos
     mode: remote
     toolsets: [repos, issues, pull_requests]
 ---
@@ -70,13 +70,7 @@ tools:
 gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_FINE_GRAINED_PAT"
 ```
 
-**Requirements**:
-
-- `GH_AW_GITHUB_TOKEN` must be configured as a repository secret
-- The token requires appropriate permissions (Contents: Read, Issues: Read, Pull requests: Read)
-- Without `GH_AW_GITHUB_TOKEN` or a similar token, workflows with `lockdown: true` will fail at runtime
-
-### Disabling Lockdown Mode
+## Disabling Lockdown Mode
 
 Explicitly disable lockdown for workflows designed to process content from all users:
 
@@ -85,9 +79,6 @@ tools:
   github:
     lockdown: false  # Explicitly disable (see "When to Disable" below)
 ```
-
-> [!WARNING]
-> **Security Consideration**: Setting `lockdown: false` in public repositories allows workflows to process content from any GitHub user. Only use this for workflows specifically designed to handle untrusted input safely.
 
 ## When to Disable Lockdown
 

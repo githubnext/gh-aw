@@ -205,8 +205,8 @@ core.info('Creating issue');
 	lockStr := string(lockContent)
 
 	// Verify safe_outputs job exists (consolidated mode)
-	safeOutputsJobStart := strings.Index(lockStr, "safe_outputs:")
-	if safeOutputsJobStart == -1 {
+	found := strings.Contains(lockStr, "safe_outputs:")
+	if !found {
 		t.Fatal("safe_outputs job not found in lock file")
 	}
 

@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { spawnSync } = require("child_process");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * Safely execute git command using spawnSync with args array to prevent shell injection
@@ -39,7 +40,7 @@ function execGitSync(args, options = {}) {
   }
 
   if (result.status !== 0) {
-    const errorMsg = result.stderr || `Git command failed with status ${result.status}`;
+    const errorMsg = `${ERR_SYSTEM}: ${result.stderr || `Git command failed with status ${result.status}`}`;
     if (typeof core !== "undefined" && core.error) {
       core.error(`Git command failed: ${gitCommand}`);
       core.error(`Exit status: ${result.status}`);

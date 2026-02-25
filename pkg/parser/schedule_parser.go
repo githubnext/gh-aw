@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -24,7 +25,7 @@ func ParseSchedule(input string) (cron string, original string, err error) {
 	scheduleLog.Printf("Parsing schedule expression: %s", input)
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return "", "", fmt.Errorf("schedule expression cannot be empty")
+		return "", "", errors.New("schedule expression cannot be empty")
 	}
 
 	// If it's already a cron expression (5 fields separated by spaces), return as-is
@@ -62,7 +63,7 @@ func (p *ScheduleParser) tokenize() error {
 	// Split on whitespace
 	tokens := strings.Fields(input)
 	if len(tokens) == 0 {
-		return fmt.Errorf("empty schedule expression")
+		return errors.New("empty schedule expression")
 	}
 
 	p.tokens = tokens
@@ -73,7 +74,7 @@ func (p *ScheduleParser) tokenize() error {
 // parse parses the tokens into a cron expression
 func (p *ScheduleParser) parse() (string, error) {
 	if len(p.tokens) == 0 {
-		return "", fmt.Errorf("no tokens to parse")
+		return "", errors.New("no tokens to parse")
 	}
 
 	// Check for interval-based schedules: "every N minutes|hours"
@@ -88,7 +89,7 @@ func (p *ScheduleParser) parse() (string, error) {
 // parseInterval parses interval-based schedules like "every 10 minutes" or "every 2h"
 func (p *ScheduleParser) parseInterval() (string, error) {
 	if len(p.tokens) < 2 {
-		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every Nunit'")
+		return "", errors.New("invalid interval format, expected 'every N unit' or 'every Nunit'")
 	}
 
 	// Check if "on weekdays" suffix is present at the end
@@ -115,7 +116,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 			if len(p.tokens) > 2 {
 				for i := 2; i < endPos; i++ {
 					if p.tokens[i] == "at" {
-						return "", fmt.Errorf("interval schedules cannot have 'at time' clause")
+						return "", errors.New("interval schedules cannot have 'at time' clause")
 					}
 				}
 			}
@@ -144,7 +145,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 				// every Nm -> */N * * * * (minute intervals don't need scattering)
 				// Minute intervals with weekdays not supported (would run every N minutes only on weekdays)
 				if hasWeekdaysSuffix {
-					return "", fmt.Errorf("minute intervals with 'on weekdays' are not supported")
+					return "", errors.New("minute intervals with 'on weekdays' are not supported")
 				}
 				return fmt.Sprintf("*/%d * * * *", interval), nil
 			case "h":
@@ -190,7 +191,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		minTokens = 5
 	}
 	if len(p.tokens) < minTokens {
-		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every Nunit' (e.g., 'every 2h')")
+		return "", errors.New("invalid interval format, expected 'every N unit' or 'every Nunit' (e.g., 'every 2h')")
 	}
 
 	// Parse the interval number
@@ -215,7 +216,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		// Look for "at" keyword
 		for i := 3; i < endPos; i++ {
 			if p.tokens[i] == "at" {
-				return "", fmt.Errorf("interval schedules cannot have 'at time' clause")
+				return "", errors.New("interval schedules cannot have 'at time' clause")
 			}
 		}
 	}
@@ -245,7 +246,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		// every N minutes -> */N * * * * (minute intervals don't need scattering)
 		// Minute intervals with weekdays not supported
 		if hasWeekdaysSuffix {
-			return "", fmt.Errorf("minute intervals with 'on weekdays' are not supported")
+			return "", errors.New("minute intervals with 'on weekdays' are not supported")
 		}
 		return fmt.Sprintf("*/%d * * * *", interval), nil
 	case "hours":
@@ -270,7 +271,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 // parseBase parses base schedules like "daily", "weekly on monday", etc.
 func (p *ScheduleParser) parseBase() (string, error) {
 	if len(p.tokens) == 0 {
-		return "", fmt.Errorf("empty schedule")
+		return "", errors.New("empty schedule")
 	}
 
 	baseType := p.tokens[0]
@@ -308,7 +309,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				// Parse: "daily between START and END"
 				// We need at least: daily between TIME and TIME (5 tokens minimum)
 				if len(p.tokens) < 5 {
-					return "", fmt.Errorf("invalid 'between' format, expected 'daily between START and END'")
+					return "", errors.New("invalid 'between' format, expected 'daily between START and END'")
 				}
 
 				// Find the "and" keyword to split start and end times
@@ -325,7 +326,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 					}
 				}
 				if andIndex == -1 {
-					return "", fmt.Errorf("missing 'and' keyword in 'between' clause")
+					return "", errors.New("missing 'and' keyword in 'between' clause")
 				}
 
 				// Extract start time (tokens between "between" and "and")
@@ -349,7 +350,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				// Allow ranges that cross midnight (e.g., 22:00 to 02:00)
 				// We'll handle this in the scattering logic
 				if startMinutes == endMinutes {
-					return "", fmt.Errorf("start and end times cannot be the same in 'between' clause")
+					return "", errors.New("start and end times cannot be the same in 'between' clause")
 				}
 
 				// Return fuzzy between format with optional weekdays suffix
@@ -374,7 +375,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * *", hour, minute), nil
 			}
 			// Reject "daily at TIME" pattern - use cron directly for fixed times
-			return "", fmt.Errorf("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *')")
+			return "", errors.New("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *')")
 		}
 
 	case "hourly":
@@ -387,7 +388,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			return "FUZZY:HOURLY/1 * * *", nil
 		}
 		// hourly doesn't support time specifications
-		return "", fmt.Errorf("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
+		return "", errors.New("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
 
 	case "weekly":
 		// weekly -> FUZZY:WEEKLY (fuzzy schedule, day and time will be scattered)
@@ -400,7 +401,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		}
 
 		if len(p.tokens) < 3 || p.tokens[1] != "on" {
-			return "", fmt.Errorf("weekly schedule requires 'on <weekday>' or use 'weekly' alone for fuzzy schedule")
+			return "", errors.New("weekly schedule requires 'on <weekday>' or use 'weekly' alone for fuzzy schedule")
 		}
 
 		weekdayStr := p.tokens[2]
@@ -435,7 +436,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			// Just "bi-weekly" with no additional parameters - scatter across 2 weeks
 			return "FUZZY:BI_WEEKLY * * *", nil
 		}
-		return "", fmt.Errorf("bi-weekly schedule does not support additional parameters, use 'bi-weekly' alone for fuzzy schedule")
+		return "", errors.New("bi-weekly schedule does not support additional parameters, use 'bi-weekly' alone for fuzzy schedule")
 
 	case "tri-weekly":
 		// tri-weekly -> FUZZY:TRI_WEEKLY (fuzzy schedule, scattered across 3 weeks)
@@ -443,13 +444,13 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			// Just "tri-weekly" with no additional parameters - scatter across 3 weeks
 			return "FUZZY:TRI_WEEKLY * * *", nil
 		}
-		return "", fmt.Errorf("tri-weekly schedule does not support additional parameters, use 'tri-weekly' alone for fuzzy schedule")
+		return "", errors.New("tri-weekly schedule does not support additional parameters, use 'tri-weekly' alone for fuzzy schedule")
 
 	case "monthly":
 		// monthly on <day> -> rejected (use cron directly)
 		// monthly on <day> at HH:MM -> rejected (use cron directly)
 		if len(p.tokens) < 3 || p.tokens[1] != "on" {
-			return "", fmt.Errorf("monthly schedule requires 'on <day>'")
+			return "", errors.New("monthly schedule requires 'on <day>'")
 		}
 
 		dayNum, err := strconv.Atoi(p.tokens[2])
@@ -478,14 +479,14 @@ func (p *ScheduleParser) parseBase() (string, error) {
 // Returns the time string (HH:MM, midnight, or noon) with optional UTC offset
 func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 	if startPos >= len(p.tokens) {
-		return "", fmt.Errorf("expected time specification")
+		return "", errors.New("expected time specification")
 	}
 
 	// Check for "at" keyword
 	if p.tokens[startPos] == "at" {
 		startPos++
 		if startPos >= len(p.tokens) {
-			return "", fmt.Errorf("expected time after 'at'")
+			return "", errors.New("expected time after 'at'")
 		}
 	}
 
@@ -511,7 +512,7 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 // Used for parsing the start time in "between START and END" clauses
 func (p *ScheduleParser) extractTimeBetween(startPos, endPos int) (string, error) {
 	if startPos >= len(p.tokens) || startPos >= endPos {
-		return "", fmt.Errorf("expected time specification")
+		return "", errors.New("expected time specification")
 	}
 
 	// The time is in the tokens between startPos and endPos
@@ -522,7 +523,7 @@ func (p *ScheduleParser) extractTimeBetween(startPos, endPos int) (string, error
 	}
 
 	if len(timeTokens) == 0 {
-		return "", fmt.Errorf("expected time specification")
+		return "", errors.New("expected time specification")
 	}
 
 	return normalizeTimeTokens(timeTokens), nil
@@ -533,7 +534,7 @@ func (p *ScheduleParser) extractTimeBetween(startPos, endPos int) (string, error
 // If hasWeekdaysSuffix is true, excludes the last 2 tokens ("on weekdays")
 func (p *ScheduleParser) extractTimeAfter(startPos int, hasWeekdaysSuffix bool) (string, error) {
 	if startPos >= len(p.tokens) {
-		return "", fmt.Errorf("expected time specification")
+		return "", errors.New("expected time specification")
 	}
 
 	endPos := len(p.tokens)
@@ -542,7 +543,7 @@ func (p *ScheduleParser) extractTimeAfter(startPos int, hasWeekdaysSuffix bool) 
 	}
 
 	if startPos >= endPos {
-		return "", fmt.Errorf("expected time specification")
+		return "", errors.New("expected time specification")
 	}
 
 	// Collect tokens until endPos (time and optional UTC offset)
@@ -578,14 +579,14 @@ func (p *ScheduleParser) hasWeekdaysSuffix() bool {
 // extractTimeWithWeekdays extracts time specification, handling optional "on weekdays" suffix
 func (p *ScheduleParser) extractTimeWithWeekdays(startPos int, hasWeekdaysSuffix bool) (string, error) {
 	if startPos >= len(p.tokens) {
-		return "", fmt.Errorf("expected time specification")
+		return "", errors.New("expected time specification")
 	}
 
 	// Check for "at" keyword
 	if p.tokens[startPos] == "at" {
 		startPos++
 		if startPos >= len(p.tokens) {
-			return "", fmt.Errorf("expected time after 'at'")
+			return "", errors.New("expected time after 'at'")
 		}
 	}
 

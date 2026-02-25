@@ -866,6 +866,8 @@ Maintain a **single** open triage issue with the exact title:
 
 ## Report Format (Issue Body)
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 Produce a concise, evidence-driven report:
 
 - **Window**: last 6 hours (include timestamps)
@@ -915,3 +917,9 @@ Map score → severity:
 - `None`: `0` (do not include)
 
 If you cannot verify a signal from available data, score it as `0` and do not infer.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

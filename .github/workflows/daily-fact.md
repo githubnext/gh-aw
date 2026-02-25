@@ -36,8 +36,6 @@ safe-outputs:
     run-started: "📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}..."
     run-success: "✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟"
     run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
-imports:
-  - shared/mood.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -101,3 +99,9 @@ Bad facts:
 - Long paragraphs (keep it brief and lyrical)
 
 Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
+
+**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
+```

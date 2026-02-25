@@ -16,7 +16,7 @@ func (c *Compiler) parseAutofixCodeScanningAlertConfig(outputMap map[string]any)
 	if configData, exists := outputMap["autofix-code-scanning-alert"]; exists {
 		autofixCodeScanningAlertLog.Print("Parsing autofix-code-scanning-alert configuration")
 		addCodeScanningAutofixConfig := &AutofixCodeScanningAlertConfig{}
-		addCodeScanningAutofixConfig.Max = 10 // Default max is 10
+		addCodeScanningAutofixConfig.Max = defaultIntStr(10) // Default max is 10
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse common base fields with default max of 10

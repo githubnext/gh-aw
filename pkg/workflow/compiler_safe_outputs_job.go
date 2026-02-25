@@ -30,7 +30,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	var safeOutputStepNames []string
 
 	// Compute permissions based on configured safe outputs (principle of least privilege)
-	permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
+	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 
 	// Track whether threat detection job is enabled for step conditions
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
@@ -135,8 +135,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
 		outputs["create_discussion_errors"] = "${{ steps.process_safe_outputs.outputs.create_discussion_errors }}"
 		outputs["create_discussion_error_count"] = "${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}"
+		outputs["code_push_failure_errors"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}"
+		outputs["code_push_failure_count"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_count }}"
 
-		// Note: Permissions are now computed centrally by computePermissionsForSafeOutputs()
+		// Note: Permissions are now computed centrally by ComputePermissionsForSafeOutputs()
 		// at the start of this function to ensure consistent permission calculation
 
 		// If create-issue is configured with assignees: copilot, run a follow-up step to
@@ -167,7 +169,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["assign_to_agent_assignment_errors"] = "${{ steps.assign_to_agent.outputs.assignment_errors }}"
 		outputs["assign_to_agent_assignment_error_count"] = "${{ steps.assign_to_agent.outputs.assignment_error_count }}"
 
-		// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
 	// 4. Create Agent Session step
@@ -180,7 +182,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
 		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
 
-		// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
 	// Note: Create Pull Request is now handled by the handler manager
@@ -191,31 +193,31 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Note: Create Code Scanning Alert is now handled by the handler manager
 	// The permissions are configured in the handler manager section above
-	// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+	// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 
 	// Note: Create Project Status Update is now handled by the handler manager
 	// The permissions are configured in the handler manager section above
-	// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+	// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 
 	// Note: Add Reviewer is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AddReviewer != nil {
 		outputs["add_reviewer_reviewers_added"] = "${{ steps.process_safe_outputs.outputs.reviewers_added }}"
-		// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
 	// Note: Assign Milestone is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignMilestone != nil {
 		outputs["assign_milestone_milestone_assigned"] = "${{ steps.process_safe_outputs.outputs.milestone_assigned }}"
-		// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
 	// Note: Assign To User is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
 		outputs["assign_to_user_assigned"] = "${{ steps.process_safe_outputs.outputs.assigned }}"
-		// Note: Permissions are computed centrally by computePermissionsForSafeOutputs()
+		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
 	// Note: Update Pull Request step - now handled by handler manager
@@ -306,11 +308,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		jobCondition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}
 
-	// Build dependencies
+	// Build dependencies — detection is now inline in the agent job, no separate dependency needed
 	needs := []string{mainJobName}
-	if threatDetectionEnabled {
-		needs = append(needs, string(constants.DetectionJobName))
-	}
 	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil || data.LockForAgent {
 		needs = append(needs, string(constants.ActivationJobName))
@@ -403,16 +402,21 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		}
 	}
 
+	// Note: GH_AW_CI_TRIGGER_TOKEN is added at the step level (in buildHandlerManagerStep)
+	// rather than job level, since only the Process Safe Outputs step needs it,
+	// and only when create-pull-request or push-to-pull-request-branch is configured.
+
 	// Note: Asset upload configuration is not needed here because upload_assets
 	// is now handled as a separate job (see buildUploadAssetsJob)
 
 	return envVars
 }
 
-// buildDetectionSuccessCondition builds the condition to check if detection passed
+// buildDetectionSuccessCondition builds the condition to check if detection passed.
+// Detection runs inline in the agent job and outputs detection_success.
 func buildDetectionSuccessCondition() ConditionNode {
 	return BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.detection_success", constants.AgentJobName)),
 		BuildStringLiteral("true"),
 	)
 }

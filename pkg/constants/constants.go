@@ -321,12 +321,12 @@ const PublicGitHubHost URL = "https://github.com"
 const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.47"
+const DefaultClaudeCodeVersion Version = "2.1.56"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.411"
+const DefaultCopilotVersion Version = "0.0.417"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 // Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
@@ -352,6 +352,18 @@ const (
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
 	// EnvVarModelDetectionGemini configures the default Gemini model for detection
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
+
+	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
+	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
+	CopilotCLIModelEnvVar = "COPILOT_MODEL"
+
+	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
+	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
+	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"
+
+	// GeminiCLIModelEnvVar is the native environment variable name supported by the Gemini CLI
+	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
+	GeminiCLIModelEnvVar = "GEMINI_MODEL"
 
 	// Common environment variable names used across all engines
 
@@ -384,10 +396,10 @@ const DefaultCodexVersion Version = "0.104.0"
 const DefaultGeminiVersion Version = "0.29.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.30.3"
+const DefaultGitHubMCPServerVersion Version = "v0.31.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.20.2"
+const DefaultFirewallVersion Version = "v0.23.0"
 
 // AWF (Agentic Workflow Firewall) constants
 
@@ -401,7 +413,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.1.4"
+const DefaultMCPGatewayVersion Version = "v0.1.5"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -632,17 +644,37 @@ const AgentOutputArtifactName = "agent-output"
 // AgentOutputFilename is the filename of the agent output JSON file
 const AgentOutputFilename = "agent_output.json"
 
+// MCPServerID represents a built-in MCP server identifier.
+// This semantic type distinguishes MCP server IDs from arbitrary strings,
+// preventing accidental mixing of server identifiers with other string types.
+//
+// Example usage:
+//
+//	const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
+//	func GetServer(id MCPServerID) (*Server, error) { ... }
+type MCPServerID string
+
+// String returns the string representation of the MCP server ID
+func (m MCPServerID) String() string {
+	return string(m)
+}
+
+// IsValid returns true if the MCP server ID is non-empty
+func (m MCPServerID) IsValid() bool {
+	return len(m) > 0
+}
+
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
-const SafeOutputsMCPServerID = "safeoutputs"
+const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
 
 // SafeInputsMCPServerID is the identifier for the safe-inputs MCP server
-const SafeInputsMCPServerID = "safeinputs"
+const SafeInputsMCPServerID MCPServerID = "safeinputs"
 
 // SafeInputsMCPVersion is the version of the safe-inputs MCP server
 const SafeInputsMCPVersion = "1.0.0"
 
 // AgenticWorkflowsMCPServerID is the identifier for the agentic-workflows MCP server
-const AgenticWorkflowsMCPServerID = "agenticworkflows"
+const AgenticWorkflowsMCPServerID MCPServerID = "agenticworkflows"
 
 // Feature flag identifiers
 const (
@@ -654,6 +686,10 @@ const (
 	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt
 	DisableXPIAPromptFeatureFlag FeatureFlag = "disable-xpia-prompt"
+	// CopilotRequestsFeatureFlag is the feature flag name for enabling copilot-requests mode.
+	// When enabled: no secret validation step is generated, copilot-requests: write permission is added,
+	// and the GitHub Actions token is used as the agentic engine secret.
+	CopilotRequestsFeatureFlag FeatureFlag = "copilot-requests"
 )
 
 // Step IDs for pre-activation job
@@ -690,6 +726,8 @@ const (
 	ClaudeEngine EngineName = "claude"
 	// CodexEngine is the OpenAI Codex engine identifier
 	CodexEngine EngineName = "codex"
+	// GeminiEngine is the Google Gemini engine identifier
+	GeminiEngine EngineName = "gemini"
 )
 
 // AgenticEngines lists all supported agentic engine names

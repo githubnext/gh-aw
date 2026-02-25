@@ -3,11 +3,13 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -258,7 +260,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		logicalRepoSlug = logicalRepo.RepoSlug
 		directTrialMode = false
 		trialLog.Printf("Using logical-repo mode: %s", logicalRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", logicalRepoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Target repository (specified): "+logicalRepoSlug))
 	} else {
 		// No --clone-repo or --logical-repo specified
 		// If --repo is specified without simulation flags, it's direct trial mode
@@ -278,7 +280,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 				return fmt.Errorf("failed to determine simulated host repository: %w", err)
 			}
 			directTrialMode = false
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", logicalRepoSlug)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Target repository (current): "+logicalRepoSlug))
 		}
 	}
 
@@ -299,9 +301,9 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		if err != nil {
 			return fmt.Errorf("failed to get GitHub username for default trial repo: %w", err)
 		}
-		hostRepoSlug = fmt.Sprintf("%s/gh-aw-trial", username)
+		hostRepoSlug = username + "/gh-aw-trial"
 		trialLog.Printf("Using default host repository: %s", hostRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Host repository (default): %s", hostRepoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Host repository (default): "+hostRepoSlug))
 	}
 
 	// Step 1.5: Show confirmation unless quiet mode
@@ -530,7 +532,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Additional Artifacts Available from %s (%d files) ===", parsedSpec.WorkflowName, len(artifacts.AdditionalArtifacts))))
 			}
 
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Trial completed for workflow: %s", parsedSpec.WorkflowName)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial completed for workflow: "+parsedSpec.WorkflowName))
 		}
 
 		// Step 6: Save combined results for multi-workflow trials
@@ -550,7 +552,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			if err := saveTrialResult(combinedFilename, combinedResult, opts.Verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save combined trial result: %v", err)))
 			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Combined results saved to: %s", combinedFilename)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Combined results saved to: "+combinedFilename))
 		}
 
 		// Step 6.5: Copy trial results to host repository and commit them
@@ -593,7 +595,7 @@ func getCurrentGitHubUsername() (string, error) {
 
 	username := strings.TrimSpace(string(output))
 	if username == "" {
-		return "", fmt.Errorf("GitHub username is empty")
+		return "", errors.New("GitHub username is empty")
 	}
 
 	return username, nil
@@ -810,7 +812,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	}
 
 	if !confirmed {
-		return fmt.Errorf("trial cancelled by user")
+		return errors.New("trial cancelled by user")
 	}
 
 	return nil
@@ -818,11 +820,11 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Triggering workflow run for: %s", workflowName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Triggering workflow run for: "+workflowName))
 	}
 
 	// Trigger workflow using gh CLI
-	lockFileName := fmt.Sprintf("%s.lock.yml", workflowName)
+	lockFileName := workflowName + ".lock.yml"
 
 	// Build the command args
 	args := []string{"workflow", "run", lockFileName, "--repo", repoSlug}
@@ -831,7 +833,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 	if triggerContext != "" {
 		issueNumber := parseIssueSpec(triggerContext)
 		if issueNumber != "" {
-			args = append(args, "--field", fmt.Sprintf("issue_number=%s", issueNumber))
+			args = append(args, "--field", "issue_number="+issueNumber)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using issue number %s from trigger context", issueNumber)))
 			}
@@ -852,7 +854,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 		return "", fmt.Errorf("failed to get workflow run ID: %w", err)
 	}
 
-	runID := fmt.Sprintf("%d", runInfo.DatabaseID)
+	runID := strconv.FormatInt(runInfo.DatabaseID, 10)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Workflow run started with ID: %s (status: %s)", runID, runInfo.Status)))
@@ -902,7 +904,7 @@ func saveTrialResult(filename string, result any, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Saved trial result to: %s", filename)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Saved trial result to: "+filename))
 	}
 
 	return nil

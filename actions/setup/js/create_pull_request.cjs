@@ -13,9 +13,12 @@ const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences, isTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -91,16 +94,16 @@ async function main(config = {}) {
   // Extract configuration
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
-  const draftDefault = config.draft !== undefined ? config.draft : true;
+  const draftDefault = parseBoolTemplatable(config.draft, true);
   const ifNoChanges = config.if_no_changes || "warn";
-  const allowEmpty = config.allow_empty || false;
-  const autoMerge = config.auto_merge || false;
+  const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
+  const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   let baseBranch = config.base_branch || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
 
   // Environment validation - fail early if required variables are missing
@@ -203,6 +206,10 @@ async function main(config = {}) {
 
     core.info(`Processing create_pull_request: title=${pullRequestItem.title || "No title"}, bodyLength=${pullRequestItem.body?.length || 0}`);
 
+    // Determine the patch file path from the message (set by the MCP server handler)
+    const patchFilePath = pullRequestItem.patch_path;
+    core.info(`Patch file path: ${patchFilePath || "(not set)"}`);
+
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(pullRequestItem, defaultTargetRepo, allowedRepos, "pull request");
     if (!repoResult.success) {
@@ -216,7 +223,7 @@ async function main(config = {}) {
     core.info(`Target repository: ${itemRepo}`);
 
     // Check if patch file exists and has valid content
-    if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    if (!patchFilePath || !fs.existsSync(patchFilePath)) {
       // If allow-empty is enabled, we can proceed without a patch file
       if (allowEmpty) {
         core.info("No patch file found, but allow-empty is enabled - will create empty PR");
@@ -255,8 +262,8 @@ async function main(config = {}) {
     let patchContent = "";
     let isEmpty = true;
 
-    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    if (patchFilePath && fs.existsSync(patchFilePath)) {
+      patchContent = fs.readFileSync(patchFilePath, "utf8");
       isEmpty = !patchContent || !patchContent.trim();
     }
 
@@ -377,8 +384,8 @@ async function main(config = {}) {
         summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
       }
 
-      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-        const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      if (patchFilePath && fs.existsSync(patchFilePath)) {
+        const patchStats = fs.readFileSync(patchFilePath, "utf8");
         if (patchStats.trim()) {
           summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
           summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -457,6 +464,10 @@ async function main(config = {}) {
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/actions/runs/${runId}`;
+    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
+    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
+    const triggeringPRNumber = context.payload.pull_request?.number;
+    const triggeringDiscussionNumber = context.payload.discussion?.number;
 
     // Add fingerprint comment if present
     const trackerIDComment = getTrackerID("markdown");
@@ -464,15 +475,14 @@ async function main(config = {}) {
       bodyLines.push(trackerIDComment);
     }
 
-    // Generate footer with expiration using helper
+    // Generate footer using messages template system (respects custom messages.footer config)
     // When footer is disabled, only add XML markers (no visible footer content)
     if (includeFooter) {
-      const footer = generateFooterWithExpiration({
-        footerText: `> AI generated by [${workflowName}](${runUrl})`,
-        expiresHours,
-        entityType: "Pull Request",
-        suffix: expiresHours > 0 ? "\n\n<!-- gh-aw-expires-type: pull-request -->" : undefined,
-      });
+      let footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
+      footer = addExpirationToFooter(footer, expiresHours, "Pull Request");
+      if (expiresHours > 0) {
+        footer += "\n\n<!-- gh-aw-expires-type: pull-request -->";
+      }
       bodyLines.push(``, ``, footer);
     }
 
@@ -543,6 +553,10 @@ async function main(config = {}) {
     core.info(`Created new branch from base: ${branchName}`);
 
     // Apply the patch using git CLI (skip if empty)
+    // Track number of new commits pushed so we can restrict the extra empty commit
+    // to branches with exactly one new commit (security: prevents use of CI trigger
+    // token on multi-commit branches where workflow files may have been modified).
+    let newCommitCount = 0;
     if (!isEmpty) {
       core.info("Applying patch...");
 
@@ -555,8 +569,10 @@ async function main(config = {}) {
       }
 
       // Patches are created with git format-patch, so use git am to apply them
+      // Use --3way to handle cross-repo patches where the patch base may differ from target repo
+      // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
       try {
-        await exec.exec("git am /tmp/gh-aw/aw.patch");
+        await exec.exec(`git am --3way ${patchFilePath}`);
         core.info("Patch applied successfully");
       } catch (patchError) {
         core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
@@ -606,6 +622,17 @@ async function main(config = {}) {
 
         await exec.exec(`git push origin ${branchName}`);
         core.info("Changes pushed to branch");
+
+        // Count new commits on PR branch relative to base, used to restrict
+        // the extra empty CI-trigger commit to exactly 1 new commit.
+        try {
+          const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+          newCommitCount = parseInt(countStr.trim(), 10);
+          core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+        } catch {
+          // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+          core.info("Could not count new commits - extra empty commit will be skipped");
+        }
       } catch (pushError) {
         // Push failed - create fallback issue instead of PR (if fallback is enabled)
         core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
@@ -629,11 +656,12 @@ async function main(config = {}) {
 
         // Read patch content for preview
         let patchPreview = "";
-        if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-          const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+        if (patchFilePath && fs.existsSync(patchFilePath)) {
+          const patchContent = fs.readFileSync(patchFilePath, "utf8");
           patchPreview = generatePatchPreview(patchContent);
         }
 
+        const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
         const fallbackBody = `${body}
 
 ---
@@ -650,11 +678,11 @@ To apply the patch locally:
 \`\`\`sh
 # Download the artifact from the workflow run ${runUrl}
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download ${runId} -n agent-artifacts
+gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}
 
-# The patch file will be at agent-artifacts/tmp/gh-aw/aw.patch after download
-# Apply the patch
-git am agent-artifacts/tmp/gh-aw/aw.patch
+# The patch file will be at agent-artifacts/tmp/gh-aw/${patchFileName} after download
+# Apply the patch (--3way handles cross-repo patches where files may already exist)
+git am --3way /tmp/agent-artifacts-${runId}/${patchFileName}
 \`\`\`
 ${patchPreview}`;
 
@@ -739,6 +767,16 @@ ${patchPreview}`;
 
           await exec.exec(`git push origin ${branchName}`);
           core.info("Empty branch pushed successfully");
+
+          // Count new commits (will be 1 from the Initialize commit)
+          try {
+            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `origin/${baseBranch}..HEAD`]);
+            newCommitCount = parseInt(countStr.trim(), 10);
+            core.info(`${newCommitCount} new commit(s) on branch relative to origin/${baseBranch}`);
+          } catch {
+            // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+            core.info("Could not count new commits - extra empty commit will be skipped");
+          }
         } catch (pushError) {
           const error = `Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
           core.error(error);
@@ -829,6 +867,20 @@ ${patchPreview}`;
         )
         .write();
 
+      // Push an extra empty commit if a token is configured and exactly 1 new commit was pushed.
+      // This works around the GITHUB_TOKEN limitation where pushes don't trigger CI events.
+      // Restricting to exactly 1 new commit prevents the CI trigger token being used on
+      // multi-commit branches where workflow files may have been iteratively modified.
+      const ciTriggerResult = await pushExtraEmptyCommit({
+        branchName,
+        repoOwner: repoParts.owner,
+        repoName: repoParts.repo,
+        newCommitCount,
+      });
+      if (ciTriggerResult.success && !ciTriggerResult.skipped) {
+        core.info("Extra empty commit pushed - CI checks should start shortly");
+      }
+
       // Return success with PR details
       return {
         success: true,
@@ -875,8 +927,8 @@ ${patchPreview}`;
 
       // Read patch content for preview
       let patchPreview = "";
-      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-        const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      if (patchFilePath && fs.existsSync(patchFilePath)) {
+        const patchContent = fs.readFileSync(patchFilePath, "utf8");
         patchPreview = generatePatchPreview(patchContent);
       }
 

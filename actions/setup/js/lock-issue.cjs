@@ -8,6 +8,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 async function main() {
   // Log actor and event information for debugging
@@ -17,7 +18,7 @@ async function main() {
   const issueNumber = context.issue.number;
 
   if (!issueNumber) {
-    core.setFailed("Issue number not found in context");
+    core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in context`);
     return;
   }
 
@@ -63,7 +64,7 @@ async function main() {
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to lock issue: ${errorMessage}`);
-    core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
+    core.setFailed(`${ERR_NOT_FOUND}: Failed to lock issue #${issueNumber}: ${errorMessage}`);
     core.setOutput("locked", "false");
   }
 }

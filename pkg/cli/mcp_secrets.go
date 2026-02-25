@@ -66,7 +66,7 @@ func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The following secrets are required but not found in the repository:"))
 		for _, secretName := range missingSecrets {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("To add %s secret:", secretName)))
-			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh secret set %s", secretName)))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage("gh secret set "+secretName))
 		}
 	} else if verbose {
 		mcpSecretsLog.Print("All required secrets are available in repository")
