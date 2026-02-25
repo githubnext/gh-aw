@@ -60,17 +60,26 @@ type RepositoryFeatures struct {
 	HasIssues      bool
 }
 
+// currentRepositoryCacheState holds the cached current repository and protects it
+// with a mutex. Using a mutex-guarded struct instead of sync.Once avoids the data
+// race that arises when resetting sync.Once via struct assignment (= sync.Once{})
+// after first use.
+type currentRepositoryCacheState struct {
+	mu     sync.Mutex
+	result string
+	err    error
+	done   bool
+}
+
 // Global cache for repository features and current repository info
 var (
 	repositoryFeaturesCache       = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
 	repositoryFeaturesLoggedCache = sync.Map{} // Tracks which repositories have had their success messages logged
-	getCurrentRepositoryOnce      sync.Once
-	currentRepositoryResult       string
-	currentRepositoryError        error
+	currentRepositoryCache        currentRepositoryCacheState
 )
 
-// ClearRepositoryFeaturesCache clears the repository features cache
-// This is useful for testing or when repository settings might have changed
+// ClearRepositoryFeaturesCache clears the repository features cache.
+// This is useful for testing or when repository settings might have changed.
 func ClearRepositoryFeaturesCache() {
 	// Clear the features cache
 	repositoryFeaturesCache.Range(func(key, value any) bool {
@@ -85,9 +94,11 @@ func ClearRepositoryFeaturesCache() {
 	})
 
 	// Reset the current repository cache
-	getCurrentRepositoryOnce = sync.Once{}
-	currentRepositoryResult = ""
-	currentRepositoryError = nil
+	currentRepositoryCache.mu.Lock()
+	currentRepositoryCache.result = ""
+	currentRepositoryCache.err = nil
+	currentRepositoryCache.done = false
+	currentRepositoryCache.mu.Unlock()
 
 	repositoryFeaturesLog.Print("Repository features and current repository caches cleared")
 }
@@ -181,16 +192,21 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 // getCurrentRepository gets the current repository from git context (with caching)
 func getCurrentRepository() (string, error) {
-	getCurrentRepositoryOnce.Do(func() {
-		currentRepositoryResult, currentRepositoryError = getCurrentRepositoryUncached()
-	})
+	currentRepositoryCache.mu.Lock()
+	if !currentRepositoryCache.done {
+		currentRepositoryCache.result, currentRepositoryCache.err = getCurrentRepositoryUncached()
+		currentRepositoryCache.done = true
+	}
+	result := currentRepositoryCache.result
+	err := currentRepositoryCache.err
+	currentRepositoryCache.mu.Unlock()
 
-	if currentRepositoryError != nil {
-		return "", currentRepositoryError
+	if err != nil {
+		return "", err
 	}
 
-	repositoryFeaturesLog.Printf("Using cached current repository: %s", currentRepositoryResult)
-	return currentRepositoryResult, nil
+	repositoryFeaturesLog.Printf("Using cached current repository: %s", result)
+	return result, nil
 }
 
 // getCurrentRepositoryUncached fetches the current repository from gh CLI (no caching)

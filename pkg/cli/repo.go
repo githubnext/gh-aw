@@ -13,19 +13,27 @@ import (
 
 var repoLog = logger.New("cli:repo")
 
-// Global cache for current repository info
-var (
-	getCurrentRepoSlugOnce sync.Once
-	currentRepoSlugResult  string
-	currentRepoSlugError   error
-)
+// repoSlugCacheState holds the cached repository slug and protects it with a mutex.
+// Using a mutex-guarded struct instead of sync.Once avoids the data race that arises
+// when resetting sync.Once via struct assignment (= sync.Once{}) after first use.
+type repoSlugCacheState struct {
+	mu     sync.Mutex
+	result string
+	err    error
+	done   bool
+}
 
-// ClearCurrentRepoSlugCache clears the current repository slug cache
-// This is useful for testing or when repository context might have changed
+// Global cache for current repository info
+var currentRepoSlugCache repoSlugCacheState
+
+// ClearCurrentRepoSlugCache clears the current repository slug cache.
+// This is useful for testing or when repository context might have changed.
 func ClearCurrentRepoSlugCache() {
-	getCurrentRepoSlugOnce = sync.Once{}
-	currentRepoSlugResult = ""
-	currentRepoSlugError = nil
+	currentRepoSlugCache.mu.Lock()
+	defer currentRepoSlugCache.mu.Unlock()
+	currentRepoSlugCache.result = ""
+	currentRepoSlugCache.err = nil
+	currentRepoSlugCache.done = false
 }
 
 // getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
@@ -91,19 +99,24 @@ func getCurrentRepoSlugUncached() (string, error) {
 	return repoPath, nil
 }
 
-// GetCurrentRepoSlug gets the current repository slug with caching using sync.Once
-// This is the recommended function to use for repository access across the codebase
+// GetCurrentRepoSlug gets the current repository slug with caching.
+// This is the recommended function to use for repository access across the codebase.
 func GetCurrentRepoSlug() (string, error) {
-	getCurrentRepoSlugOnce.Do(func() {
-		currentRepoSlugResult, currentRepoSlugError = getCurrentRepoSlugUncached()
-	})
+	currentRepoSlugCache.mu.Lock()
+	if !currentRepoSlugCache.done {
+		currentRepoSlugCache.result, currentRepoSlugCache.err = getCurrentRepoSlugUncached()
+		currentRepoSlugCache.done = true
+	}
+	result := currentRepoSlugCache.result
+	err := currentRepoSlugCache.err
+	currentRepoSlugCache.mu.Unlock()
 
-	if currentRepoSlugError != nil {
-		return "", currentRepoSlugError
+	if err != nil {
+		return "", err
 	}
 
-	repoLog.Printf("Using cached repository slug: %s", currentRepoSlugResult)
-	return currentRepoSlugResult, nil
+	repoLog.Printf("Using cached repository slug: %s", result)
+	return result, nil
 }
 
 // SplitRepoSlug wraps repoutil.SplitRepoSlug for backward compatibility.
