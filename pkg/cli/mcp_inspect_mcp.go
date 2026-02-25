@@ -192,9 +192,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 
 	// List tools
 	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list tools: %v", err)))
@@ -205,9 +204,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 
 	// List resources
 	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list resources: %v", err)))
@@ -283,9 +281,8 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 
 	// List tools
 	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list tools: %v", err)))
@@ -296,9 +293,8 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 
 	// List resources
 	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
+	cancel()
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list resources: %v", err)))
