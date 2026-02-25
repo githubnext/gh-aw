@@ -196,14 +196,14 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command)?
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
   - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
-   - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
+   - ⚠️ If you think the task requires **network access beyond localhost**, **automatically infer** the ecosystem from repository language files rather than asking the user. Only ask if you cannot determine the ecosystem from available context.
    - 🌐 **Always infer network ecosystem from repository language**: If the workflow involves package management, building, or testing code, detect the repository's primary language from file indicators and include the matching ecosystem identifier. **Never use `network: defaults` alone for code workflows** — `defaults` only provides basic infrastructure and cannot reach package registries. Key indicators:
      - `.csproj`, `.fsproj`, `*.sln`, `*.slnx`, `global.json` → add `dotnet` (for `dotnet restore`, NuGet)
-     - `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` → add `python` (for pip/conda)
-     - `package.json`, `yarn.lock`, `pnpm-lock.yaml` → add `node` (for npm/yarn/pnpm)
-     - `go.mod`, `go.sum` → add `go` (for go module downloads)
+     - `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`, `uv.lock` → add `python` (enables `pypi.org`, `files.pythonhosted.org` for pip/conda)
+     - `package.json`, `.nvmrc`, `yarn.lock`, `pnpm-lock.yaml` → add `node` (enables `registry.npmjs.org` for npm/yarn/pnpm)
+     - `go.mod`, `go.sum` → add `go` (enables `proxy.golang.org`, `sum.golang.org` for go module downloads)
      - `pom.xml`, `build.gradle`, `build.gradle.kts` → add `java` (for Maven/Gradle)
-     - `Gemfile`, `*.gemspec` → add `ruby` (for Bundler/RubyGems)
+     - `Gemfile`, `*.gemspec` → add `ruby` (enables `rubygems.org` for Bundler/RubyGems)
      - `Cargo.toml`, `Cargo.lock` → add `rust` (for cargo)
      - `Package.swift`, `*.podspec` → add `swift`
      - `composer.json` → add `php`
@@ -585,11 +585,11 @@ Based on the parsed requirements, determine:
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
    - **Network ecosystem inference**: For workflows that build/test/install packages, always include the language ecosystem in `network: allowed:`. Never use `network: defaults` alone — it only covers basic infrastructure, not package registries. Detect from repository files:
      - `.csproj`/`.fsproj`/`*.sln`/`*.slnx` → `network: { allowed: [defaults, dotnet] }` (NuGet)
-     - `requirements.txt`/`pyproject.toml` → `network: { allowed: [defaults, python] }` (pip/PyPI)
-     - `package.json` → `network: { allowed: [defaults, node] }` (npm/yarn)
-     - `go.mod` → `network: { allowed: [defaults, go] }` (Go modules)
+     - `requirements.txt`/`pyproject.toml`/`setup.py`/`uv.lock` → `network: { allowed: [defaults, python] }` (enables `pypi.org`, `files.pythonhosted.org`)
+     - `package.json`/`.nvmrc`/`yarn.lock` → `network: { allowed: [defaults, node] }` (enables `registry.npmjs.org`)
+     - `go.mod`/`go.sum` → `network: { allowed: [defaults, go] }` (enables `proxy.golang.org`, `sum.golang.org`)
      - `pom.xml`/`build.gradle` → `network: { allowed: [defaults, java] }` (Maven/Gradle)
-     - `Gemfile` → `network: { allowed: [defaults, ruby] }` (Bundler)
+     - `Gemfile`/`*.gemspec` → `network: { allowed: [defaults, ruby] }` (enables `rubygems.org`)
      - `Cargo.toml` → `network: { allowed: [defaults, rust] }` (Cargo)
 4. **Safe Outputs**: For any write operations:
    - Creating issues → `safe-outputs: create-issue:`
