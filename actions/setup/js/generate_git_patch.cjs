@@ -59,8 +59,8 @@ function generateGitPatch(branchName, options = {}) {
   const patchPath = getPatchPath(branchName);
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   // NOTE: In cross-repo scenarios, DEFAULT_BRANCH comes from the workflow repository
-  // (via github.event.repository.default_branch), not the checked-out target repository.
-  // If the target repo has a different default branch (e.g., "master" vs "main"),
+  // (via github.event.repository.default_branch), not the checked-out repository.
+  // If the checked-out repo has a different default branch (e.g., "master" vs "main"),
   // Strategy 1's merge-base calculation may fail. Strategy 3 handles this gracefully.
   const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
   const githubSha = process.env.GITHUB_SHA;
@@ -211,7 +211,7 @@ function generateGitPatch(branchName, options = {}) {
       } else {
         // First verify GITHUB_SHA exists in this repo's git history
         // In cross-repo checkout scenarios, GITHUB_SHA is from the workflow repo,
-        // not the target repo that's currently checked out
+        // not the checked-out repository
         let shaExistsInRepo = false;
         try {
           execGitSync(["cat-file", "-e", githubSha], { cwd });
