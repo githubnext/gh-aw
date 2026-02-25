@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var schemaSuggestionsLog = logger.New("parser:schema_suggestions")
@@ -180,7 +181,7 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	}
 
 	// Remove duplicates
-	uniqueSuggestions := removeDuplicates(suggestions)
+	uniqueSuggestions := sliceutil.Deduplicate(suggestions)
 
 	// Generate appropriate message based on suggestions found
 	if len(uniqueSuggestions) > 0 {

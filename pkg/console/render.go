@@ -1,7 +1,10 @@
 package console
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -575,4 +578,119 @@ func FormatNumber(n int) string {
 			return fmt.Sprintf("%.2fB", b)
 		}
 	}
+}
+
+// ToRelativePath converts an absolute path to a relative path from the current working directory
+// If the relative path contains "..", returns the absolute path instead for clarity
+func ToRelativePath(path string) string {
+	if !filepath.IsAbs(path) {
+		return path
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return path
+	}
+
+	relPath, err := filepath.Rel(wd, path)
+	if err != nil {
+		return path
+	}
+
+	if strings.Contains(relPath, "..") {
+		return path
+	}
+
+	return relPath
+}
+
+// RenderTableAsJSON renders a table configuration as JSON
+func RenderTableAsJSON(config TableConfig) (string, error) {
+	if len(config.Headers) == 0 {
+		return "[]", nil
+	}
+
+	var result []map[string]string
+	for _, row := range config.Rows {
+		obj := make(map[string]string)
+		for i, cell := range row {
+			if i < len(config.Headers) {
+				key := strings.ToLower(strings.ReplaceAll(config.Headers[i], " ", "_"))
+				obj[key] = cell
+			}
+		}
+		result = append(result, obj)
+	}
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal table to JSON: %w", err)
+	}
+
+	return string(jsonBytes), nil
+}
+
+// FormatErrorWithSuggestions formats an error message with actionable suggestions
+func FormatErrorWithSuggestions(message string, suggestions []string) string {
+	var output strings.Builder
+	output.WriteString(FormatErrorMessage(message))
+
+	if len(suggestions) > 0 {
+		output.WriteString("\n\nSuggestions:\n")
+		for _, suggestion := range suggestions {
+			output.WriteString("  • " + suggestion + "\n")
+		}
+	}
+
+	return output.String()
+}
+
+// renderTreeSimple renders a simple text-based tree without styling
+func renderTreeSimple(node TreeNode, prefix string, isLast bool) string {
+	var output strings.Builder
+
+	connector := "├── "
+	if isLast {
+		connector = "└── "
+	}
+	if prefix == "" {
+		output.WriteString(node.Value + "\n")
+	} else {
+		output.WriteString(prefix + connector + node.Value + "\n")
+	}
+
+	for i, child := range node.Children {
+		childIsLast := i == len(node.Children)-1
+		var childPrefix string
+		if prefix == "" {
+			childPrefix = ""
+		} else {
+			if isLast {
+				childPrefix = prefix + "    "
+			} else {
+				childPrefix = prefix + "│   "
+			}
+		}
+		output.WriteString(renderTreeSimple(child, childPrefix, childIsLast))
+	}
+
+	return output.String()
+}
+
+// findWordEnd finds the end of a word starting at the given position
+func findWordEnd(line string, start int) int {
+	if start >= len(line) {
+		return len(line)
+	}
+
+	end := start
+	for end < len(line) {
+		char := line[end]
+		if char == ' ' || char == '\t' || char == ':' || char == '\n' || char == '\r' {
+			break
+		}
+		end++
+	}
+
+	return end
 }

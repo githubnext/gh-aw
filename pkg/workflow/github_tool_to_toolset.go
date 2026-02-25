@@ -127,17 +127,3 @@ func ValidateGitHubToolsAgainstToolsets(allowedTools []string, enabledToolsets [
 	githubToolToToolsetLog.Print("Validation successful: all tools have required toolsets")
 	return nil
 }
-
-// formatList formats a list of strings as a comma-separated list
-func formatList(items []string) string {
-	if len(items) == 0 {
-		return ""
-	}
-	if len(items) == 1 {
-		return items[0]
-	}
-	if len(items) == 2 {
-		return items[0] + " and " + items[1]
-	}
-	return fmt.Sprintf("%s, and %s", formatList(items[:len(items)-1]), items[len(items)-1])
-}

@@ -165,3 +165,30 @@ func validateMountStringFormat(mount string) (source, dest, mode string, err err
 	}
 	return parts[0], parts[1], parts[2], nil
 }
+
+// formatList formats a list of strings as a comma-separated list with natural language conjunction
+func formatList(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	if len(items) == 1 {
+		return items[0]
+	}
+	if len(items) == 2 {
+		return items[0] + " and " + items[1]
+	}
+	return fmt.Sprintf("%s, and %s", formatList(items[:len(items)-1]), items[len(items)-1])
+}
+
+// validateTargetRepoSlug validates that a target-repo slug is not a wildcard.
+// Returns true if the value is invalid (i.e., equals "*").
+// This helper is used when the target-repo has already been parsed into a struct field.
+func validateTargetRepoSlug(targetRepoSlug string, log *logger.Logger) bool {
+	if targetRepoSlug == "*" {
+		if log != nil {
+			log.Print("Invalid target-repo: wildcard '*' is not allowed")
+		}
+		return true // Return true to indicate validation error
+	}
+	return false
+}

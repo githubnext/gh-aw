@@ -32,18 +32,3 @@ func filterIgnoredFields(frontmatter map[string]any) map[string]any {
 
 	return filtered
 }
-
-// removeDuplicates removes duplicate strings from a slice
-func removeDuplicates(strings []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-
-	for _, str := range strings {
-		if !seen[str] {
-			seen[str] = true
-			result = append(result, str)
-		}
-	}
-
-	return result
-}
