@@ -32,21 +32,13 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
 		// Validate required arguments
 		if len(args.Workflows) == 0 {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInvalidParams,
-				Message: "missing required parameter: at least one workflow specification is required",
-				Data:    nil,
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "missing required parameter: at least one workflow specification is required", nil)
 		}
 
 		mcpToolsManagementLog.Printf("add tool invoked: workflows=%d, number=%d, name=%q", len(args.Workflows), args.Number, args.Name)
@@ -70,11 +62,7 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to add workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to add workflows", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{
@@ -121,11 +109,7 @@ Returns formatted text output showing:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
@@ -150,11 +134,7 @@ Returns formatted text output showing:
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to update workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to update workflows", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{
@@ -210,11 +190,7 @@ Returns formatted text output showing:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
@@ -239,11 +215,7 @@ Returns formatted text output showing:
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to fix workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fix workflows", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{

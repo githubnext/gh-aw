@@ -78,34 +78,22 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
 		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInvalidParams,
-				Message: "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'",
-				Data:    nil,
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
 		}
 
 		// Validate workflow name before executing command
 		if err := validateWorkflowName(args.WorkflowName); err != nil {
 			mcpLog.Printf("Workflow name validation failed: %v", err)
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInvalidParams,
-				Message: err.Error(),
-				Data: mcpErrorData(map[string]any{
-					"workflow_name": args.WorkflowName,
-					"error_type":    "workflow_not_found",
-				}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), map[string]any{
+				"workflow_name": args.WorkflowName,
+				"error_type":    "workflow_not_found",
+			})
 		}
 
 		// Build command arguments
@@ -191,11 +179,7 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 				"workflow":  args.WorkflowName,
 			}
 
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to download workflow logs: " + err.Error(),
-				Data:    mcpErrorData(errorData),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+err.Error(), errorData)
 		}
 
 		// Check output size and apply guardrail if needed
@@ -270,11 +254,7 @@ Returns JSON with the following structure:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
@@ -317,11 +297,7 @@ Returns JSON with the following structure:
 				"run_id_or_url": args.RunIDOrURL,
 			}
 
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to audit workflow run: " + err.Error(),
-				Data:    mcpErrorData(errorData),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+err.Error(), errorData)
 		}
 
 		return &mcp.CallToolResult{

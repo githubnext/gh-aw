@@ -39,11 +39,7 @@ Returns a JSON array where each element has the following structure:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
@@ -52,21 +48,13 @@ Returns a JSON array where each element has the following structure:
 		// Call GetWorkflowStatuses directly instead of spawning subprocess
 		statuses, err := GetWorkflowStatuses(args.Pattern, "", "", "")
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to get workflow statuses",
-				Data:    mcpErrorData(map[string]any{"error": err.Error()}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to get workflow statuses", map[string]any{"error": err.Error()})
 		}
 
 		// Marshal to JSON
 		jsonBytes, err := json.Marshal(statuses)
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to marshal workflow statuses",
-				Data:    mcpErrorData(map[string]any{"error": err.Error()}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal workflow statuses", map[string]any{"error": err.Error()})
 		}
 
 		outputStr := string(jsonBytes)
@@ -133,11 +121,7 @@ Returns JSON array with validation results for each workflow:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
@@ -145,21 +129,13 @@ Returns JSON array with validation results for each workflow:
 		if args.Zizmor || args.Poutine || args.Actionlint {
 			// Check if Docker images are available; if not, start downloading and return retry message
 			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint); err != nil {
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInternalError,
-					Message: "docker images not ready",
-					Data:    mcpErrorData(err.Error()),
-				}
+				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "docker images not ready", err.Error())
 			}
 
 			// Check for cancellation after Docker image preparation
 			select {
 			case <-ctx.Done():
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInternalError,
-					Message: "request cancelled",
-					Data:    mcpErrorData(ctx.Err().Error()),
-				}
+				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 			default:
 			}
 		}
@@ -218,11 +194,7 @@ Returns JSON array with validation results for each workflow:
 				if errors.As(err, &exitErr) {
 					stderr = string(exitErr.Stderr)
 				}
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInternalError,
-					Message: "failed to compile workflows",
-					Data:    mcpErrorData(map[string]any{"error": err.Error(), "stderr": stderr}),
-				}
+				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to compile workflows", map[string]any{"error": err.Error(), "stderr": stderr})
 			}
 			// Otherwise, we have output (likely validation errors in JSON), so continue
 			// and return it to the LLM
@@ -279,11 +251,7 @@ Returns formatted text output showing:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
 		}
 
@@ -310,11 +278,7 @@ Returns formatted text output showing:
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return nil, nil, &jsonrpc.Error{
-				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to inspect MCP servers",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
-			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to inspect MCP servers", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{

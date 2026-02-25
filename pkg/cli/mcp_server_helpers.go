@@ -14,6 +14,12 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 )
 
+// newMCPError creates a jsonrpc.Error with the given code, message, and optional data.
+// The data value is marshaled via mcpErrorData.
+func newMCPError(code int64, msg string, data any) error {
+	return &jsonrpc.Error{Code: code, Message: msg, Data: mcpErrorData(data)}
+}
+
 // mcpErrorData marshals data to JSON for use in jsonrpc.Error.Data field.
 // Returns nil if marshaling fails to avoid errors in error handling.
 func mcpErrorData(v any) json.RawMessage {
@@ -176,15 +182,11 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 	// If validation is enabled but no actor is specified, deny access
 	if actor == "" {
 		mcpLog.Printf("Tool %s: access denied (no actor specified, validation enabled)", toolName)
-		return &jsonrpc.Error{
-			Code:    jsonrpc.CodeInvalidRequest,
-			Message: "permission denied: insufficient role",
-			Data: mcpErrorData(map[string]any{
-				"error":  "GITHUB_ACTOR environment variable not set",
-				"tool":   toolName,
-				"reason": "This tool requires at least write access to the repository. Set GITHUB_ACTOR environment variable to enable access.",
-			}),
-		}
+		return newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: insufficient role", map[string]any{
+			"error":  "GITHUB_ACTOR environment variable not set",
+			"tool":   toolName,
+			"reason": "This tool requires at least write access to the repository. Set GITHUB_ACTOR environment variable to enable access.",
+		})
 	}
 
 	// Get repository using cached lookup
@@ -208,35 +210,27 @@ func checkActorPermission(ctx context.Context, actor string, validateActor bool,
 	permission, err := queryActorRole(ctx, actor, repo)
 	if err != nil {
 		mcpLog.Printf("Tool %s: failed to query actor role, denying access: %v", toolName, err)
-		return &jsonrpc.Error{
-			Code:    jsonrpc.CodeInternalError,
-			Message: "permission denied: unable to verify repository access",
-			Data: mcpErrorData(map[string]any{
-				"error":      err.Error(),
-				"tool":       toolName,
-				"actor":      actor,
-				"repository": repo,
-				"reason":     "Failed to query actor's repository permissions from GitHub API.",
-			}),
-		}
+		return newMCPError(jsonrpc.CodeInternalError, "permission denied: unable to verify repository access", map[string]any{
+			"error":      err.Error(),
+			"tool":       toolName,
+			"actor":      actor,
+			"repository": repo,
+			"reason":     "Failed to query actor's repository permissions from GitHub API.",
+		})
 	}
 
 	// Check if the actor has write+ access
 	if !hasWriteAccess(permission) {
 		mcpLog.Printf("Tool %s: access denied for actor %s (permission: %s, requires: write+)", toolName, actor, permission)
-		return &jsonrpc.Error{
-			Code:    jsonrpc.CodeInvalidRequest,
-			Message: "permission denied: insufficient role",
-			Data: mcpErrorData(map[string]any{
-				"error":      "insufficient repository permissions",
-				"tool":       toolName,
-				"actor":      actor,
-				"repository": repo,
-				"role":       permission,
-				"required":   "write, maintain, or admin",
-				"reason":     fmt.Sprintf("Actor %s has %s access to %s. This tool requires at least write access.", actor, permission, repo),
-			}),
-		}
+		return newMCPError(jsonrpc.CodeInvalidRequest, "permission denied: insufficient role", map[string]any{
+			"error":      "insufficient repository permissions",
+			"tool":       toolName,
+			"actor":      actor,
+			"repository": repo,
+			"role":       permission,
+			"required":   "write, maintain, or admin",
+			"reason":     fmt.Sprintf("Actor %s has %s access to %s. This tool requires at least write access.", actor, permission, repo),
+		})
 	}
 
 	mcpLog.Printf("Tool %s: access allowed for actor %s (permission: %s)", toolName, actor, permission)
