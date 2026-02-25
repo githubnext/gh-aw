@@ -89,6 +89,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		// Include path setup before AWF command (runs on host before AWF)
 		command = fmt.Sprintf(`set -o pipefail
 %s
+# shellcheck disable=SC1003
 %s %s \
   -- %s 2>&1 | tee -a %s`,
 			config.PathSetup,
@@ -98,6 +99,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 			shellEscapeArg(config.LogFile))
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
+# shellcheck disable=SC1003
 %s %s \
   -- %s 2>&1 | tee -a %s`,
 			awfCommand,
