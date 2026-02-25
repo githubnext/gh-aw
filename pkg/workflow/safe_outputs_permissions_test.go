@@ -72,7 +72,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "add-comment default - includes pull-requests, excludes discussions",
+			name: "add-comment default - includes pull-requests and discussions",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
@@ -82,6 +82,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{
@@ -122,8 +123,9 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionContents:    PermissionRead,
+				PermissionIssues:      PermissionWrite,
+				PermissionDiscussions: PermissionWrite,
 			},
 		},
 		{
@@ -137,6 +139,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionRead,
 				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{

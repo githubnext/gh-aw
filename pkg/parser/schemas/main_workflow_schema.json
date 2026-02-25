@@ -5023,7 +5023,7 @@
                 },
                 "discussions": {
                   "type": "boolean",
-                  "description": "Controls whether the workflow requests discussions:write permission for add-comment and includes discussions in the event trigger condition. Default: false (excludes discussions:write). Set to true if you want the agent to comment on discussions."
+                  "description": "Controls whether the workflow requests discussions:write permission for add-comment and includes discussions in the event trigger condition. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
                 },
                 "issues": {
                   "type": "boolean",
