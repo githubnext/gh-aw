@@ -267,7 +267,8 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
-      expect(result).toContain("View source at");
+      expect(result).toContain("[agentic workflow](https://github.com/owner/repo)");
+      expect(result).not.toContain("View source at");
     });
 
     it("should use custom install template", async () => {
