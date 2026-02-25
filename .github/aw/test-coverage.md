@@ -27,14 +27,13 @@ Include this decision block in every coverage workflow prompt:
 
 ```yaml
 engine: copilot
-triggers:
+on:
   pull_request:
     types: [opened, synchronize]
 permissions:
   pull-requests: write  # post coverage comment
   actions: read         # download artifacts
-network:
-  defaults: true
+network: defaults
 tools:
   github:
     toolsets: [default, actions]  # actions toolset enables artifact download
