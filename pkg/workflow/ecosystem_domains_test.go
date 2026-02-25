@@ -241,6 +241,104 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 	})
 
+	t.Run("bazel ecosystem includes Bazel registry and download domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"bazel"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"releases.bazel.build",
+			"mirror.bazel.build",
+			"bcr.bazel.build",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in bazel ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
+	t.Run("julia ecosystem includes Julia package registry domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"julia"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"pkg.julialang.org",
+			"julialang.org",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in julia ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
+	t.Run("lua ecosystem includes LuaRocks domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"lua"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"luarocks.org",
+			"www.luarocks.org",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in lua ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
+	t.Run("ocaml ecosystem includes opam domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"ocaml"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"opam.ocaml.org",
+			"ocaml.org",
+			"erratique.ch",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in ocaml ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
+	t.Run("r ecosystem includes CRAN domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"r"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"cloud.r-project.org",
+			"cran.r-project.org",
+			"cran.rstudio.com",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in r ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
 	t.Run("multiple ecosystems can be combined", func(t *testing.T) {
 		permissions := &NetworkPermissions{
 			Allowed: []string{"defaults", "dotnet", "python", "example.com"},
@@ -290,9 +388,9 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 func TestAllEcosystemDomainFunctions(t *testing.T) {
 	// Test that all ecosystem categories return non-empty slices
 	ecosystemCategories := []string{
-		"defaults", "containers", "dotnet", "dart", "github", "go",
-		"terraform", "haskell", "java", "linux-distros", "node",
-		"perl", "php", "playwright", "python", "ruby", "rust", "swift",
+		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
+		"terraform", "haskell", "java", "julia", "linux-distros", "lua", "node",
+		"ocaml", "perl", "php", "playwright", "python", "r", "ruby", "rust", "swift",
 	}
 
 	for _, category := range ecosystemCategories {
@@ -315,9 +413,9 @@ func TestAllEcosystemDomainFunctions(t *testing.T) {
 func TestEcosystemDomainsUniqueness(t *testing.T) {
 	// Test that each ecosystem category returns unique domains (no duplicates)
 	ecosystemCategories := []string{
-		"defaults", "containers", "dotnet", "dart", "github", "go",
-		"terraform", "haskell", "java", "linux-distros", "node",
-		"perl", "php", "playwright", "python", "ruby", "rust", "swift",
+		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
+		"terraform", "haskell", "java", "julia", "linux-distros", "lua", "node",
+		"ocaml", "perl", "php", "playwright", "python", "r", "ruby", "rust", "swift",
 	}
 
 	for _, category := range ecosystemCategories {
