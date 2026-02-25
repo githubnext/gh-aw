@@ -5,7 +5,7 @@ on:
 if: ${{ github.event.deployment_status.state == 'failure' }}
 permissions:
   contents: read
-  issues: write
+  issues: read
   deployments: read
 tools:
   github:
