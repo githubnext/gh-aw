@@ -1,5 +1,16 @@
 ---
-description: Reference workflow for monitoring external deployment failures (Heroku, Vercel, Railway, Fly.io, etc.) using the deployment_status trigger and creating incident issues automatically.
+description: Reference pattern for monitoring external deployment failures using the deployment_status trigger and creating incident issues automatically.
+---
+
+# Deployment Status Monitoring
+
+Consult this file when creating an agentic workflow that responds to external deployment failures from services like Heroku, Vercel, Railway, or Fly.io that post deployment status back to GitHub.
+
+## Trigger and Frontmatter
+
+Use the `deployment_status` trigger with an `if:` condition to filter to failed deployments only:
+
+```yaml
 on:
   deployment_status:
 if: ${{ github.event.deployment_status.state == 'failure' }}
@@ -16,45 +27,36 @@ safe-outputs:
     title-prefix: "[Deployment Failure] "
     close-older-issues: true
   noop:
----
+```
 
-# Deployment Failure Incident Creator
+## Available Event Context
 
-You are an AI agent that monitors external deployment failures and creates incident issues automatically.
+The following expressions are available in the prompt body:
 
-## Current Context
+| Expression | Description |
+|---|---|
+| `${{ github.event.deployment.environment }}` | Target environment (e.g. `production`) |
+| `${{ github.event.deployment_status.state }}` | Status (`failure`, `success`, `error`, etc.) |
+| `${{ github.event.deployment_status.target_url }}` | URL to the external service deployment logs |
+| `${{ github.event.deployment_status.description }}` | Human-readable error message from the service |
+| `${{ github.event.deployment.ref }}` | Branch or tag that was deployed |
+| `${{ github.event.deployment.sha }}` | Commit SHA that was deployed |
+| `${{ github.event.deployment.creator.login }}` | GitHub user who triggered the deployment |
 
-- **Environment**: ${{ github.event.deployment.environment }}
-- **Deployment State**: ${{ github.event.deployment_status.state }}
-- **Deployment URL**: ${{ github.event.deployment_status.target_url }}
-- **Description**: ${{ github.event.deployment_status.description }}
-- **Creator**: ${{ github.event.deployment.creator.login }}
-- **Ref**: ${{ github.event.deployment.ref }}
-- **SHA**: ${{ github.event.deployment.sha }}
+## Agent Instructions Pattern
 
-## Your Task
-
+```markdown
 A deployment to **${{ github.event.deployment.environment }}** has failed.
 
-1. **Verify the failure**: Confirm that `${{ github.event.deployment_status.state }}` is `failure`. If not, call `noop` immediately and stop.
-2. **Gather context**:
-   - Review the deployment ref (`${{ github.event.deployment.ref }}`), SHA (`${{ github.event.deployment.sha }}`), and environment (`${{ github.event.deployment.environment }}`)
-   - Check the deployment status description for any error message: `${{ github.event.deployment_status.description }}`
-   - Look up recent commits on the ref to identify what changed
-3. **Search for existing incidents**: Search open issues with the `[Deployment Failure]` title prefix to avoid duplicate reports
-4. **Create an incident issue** if no duplicate exists, including:
-   - Environment, ref/SHA, and deployment URL
-   - Error description from the deployment status
-   - Links to recent commits that may have caused the failure
-   - Suggested next steps (rollback, investigate logs, contact on-call)
+1. **Verify the failure**: Confirm `${{ github.event.deployment_status.state }}` is `failure`. If not, call `noop` and stop.
+2. **Gather context**: Review ref (`${{ github.event.deployment.ref }}`), SHA (`${{ github.event.deployment.sha }}`), and error description (`${{ github.event.deployment_status.description }}`).
+3. **Check for duplicates**: Search open issues with the `[Deployment Failure]` title prefix.
+4. **Create an incident issue** if none exists, including environment, ref/SHA, deployment URL, error details, and suggested next steps.
 
-## Safe Outputs
+Use `noop` if the deployment did not fail or a duplicate issue already exists.
+```
 
-- **`create_issue`**: Use when a new incident issue should be filed
-- **`noop`**: Use when the deployment did not fail, or a duplicate incident issue already exists
+## When to Use `deployment_status` vs `workflow_run`
 
-## Guidelines
-
-- Always check for duplicate open issues before creating a new one
-- Keep the incident issue concise: environment, what failed, key details, and next steps
-- Link to the deployment URL (`${{ github.event.deployment_status.target_url }}`) for quick access to external service logs
+- **`deployment_status`**: External services (Heroku, Vercel, Railway, Fly.io) that integrate with the GitHub Deployments API — they post a deployment status event back to GitHub when a deploy finishes.
+- **`workflow_run`**: In-repo GitHub Actions pipelines — use when reacting to the success or failure of another Actions workflow in the same repository.
