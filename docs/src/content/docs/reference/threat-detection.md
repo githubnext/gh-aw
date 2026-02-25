@@ -64,6 +64,9 @@ safe-outputs:
   threat-detection: false  # Disable threat detection
 ```
 
+> [!NOTE]
+> When a workflow explicitly sets `threat-detection: false`, that setting takes precedence over any imported fragments. Imported shared workflows that configure safe outputs without a `threat-detection` key will not re-enable threat detection in the importing workflow.
+
 ### Advanced Configuration
 
 Use object syntax for fine-grained control:

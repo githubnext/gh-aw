@@ -231,6 +231,25 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 **Shared Workflows:** Workflows without an `on` field are detected as shared components. Validated with relaxed schema and skip compilation. See [Imports reference](/gh-aw/reference/imports/).
 
+#### `validate`
+
+Validate agentic workflows by running the compiler with all linters enabled, without generating lock files. Equivalent to `gh aw compile --validate --no-emit --zizmor --actionlint --poutine`.
+
+```bash wrap
+gh aw validate                              # Validate all workflows
+gh aw validate my-workflow                  # Validate specific workflow
+gh aw validate my-workflow daily            # Validate multiple workflows
+gh aw validate --json                       # Output results in JSON format
+gh aw validate --strict                     # Enforce strict mode validation
+gh aw validate --fail-fast                  # Stop at the first error
+gh aw validate --dir custom/workflows       # Validate from custom directory
+gh aw validate --engine copilot             # Override AI engine
+```
+
+**Options:** `--engine/-e`, `--dir/-d`, `--strict`, `--json/-j`, `--fail-fast`, `--stats`, `--no-check-update`
+
+All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
+
 ### Testing
 
 #### `trial`
