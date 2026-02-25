@@ -135,8 +135,8 @@
         },
         "state_reason": {
           "type": "string",
-          "enum": ["completed", "not_planned", "duplicate"],
-          "description": "The reason for closing the issue. Use 'completed' for resolved issues, 'not_planned' for issues that won't be addressed, or 'duplicate' for duplicate issues. Defaults to 'completed'."
+          "enum": ["COMPLETED", "NOT_PLANNED", "DUPLICATE"],
+          "description": "The reason for closing the issue. Use 'COMPLETED' for resolved issues, 'NOT_PLANNED' for issues that won't be addressed, or 'DUPLICATE' for duplicate issues. Defaults to 'COMPLETED'."
         }
       },
       "additionalProperties": false
