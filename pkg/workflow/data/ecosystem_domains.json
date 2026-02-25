@@ -143,9 +143,9 @@
     "googlechromelabs.github.io",
     "cdn.jsdelivr.net"
   ],
-  "node-cdns": ["cdn.jsdelivr.net"],
+  "node-cdns": ["cdn.jsdelivr.net", "data.jsdelivr.com", "code.jquery.com", "cdn.sheetjs.com"],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
-  "php": ["repo.packagist.org", "packagist.org", "getcomposer.org"],
+  "php": ["repo.packagist.org", "packagist.org", "getcomposer.org", "bitbucket.org"],
   "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],
   "python": [
     "pypi.python.org",
