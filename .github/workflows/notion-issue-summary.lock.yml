@@ -237,8 +237,6 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: notionissuesummary
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
-      detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
-      detection_success: ${{ steps.detection_conclusion.outputs.success }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
@@ -791,119 +789,6 @@ jobs:
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
           if-no-files-found: ignore
-      # --- Threat Detection (inline) ---
-      - name: Check if detection needed
-        id: detection_guard
-        if: always()
-        env:
-          OUTPUT_TYPES: ${{ steps.collect_output.outputs.output_types }}
-          HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
-        run: |
-          if [[ -n "$OUTPUT_TYPES" || "$HAS_PATCH" == "true" ]]; then
-            echo "run_detection=true" >> "$GITHUB_OUTPUT"
-            echo "Detection will run: output_types=$OUTPUT_TYPES, has_patch=$HAS_PATCH"
-          else
-            echo "run_detection=false" >> "$GITHUB_OUTPUT"
-            echo "Detection skipped: no agent outputs or patches to analyze"
-          fi
-      - name: Clear MCP configuration for detection
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        run: |
-          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json
-          rm -f /home/runner/.copilot/mcp-config.json
-          rm -f "$GITHUB_WORKSPACE/.gemini/settings.json"
-      - name: Prepare threat detection files
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        run: |
-          mkdir -p /tmp/gh-aw/threat-detection/aw-prompts
-          cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true
-          cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true
-          for f in /tmp/gh-aw/aw-*.patch; do
-            [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
-          done
-          echo "Prepared threat detection files:"
-          ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true
-      - name: Setup threat detection
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          WORKFLOW_NAME: "Issue Summary to Notion"
-          WORKFLOW_DESCRIPTION: "Creates issue summaries and syncs them to Notion for project management and tracking"
-          HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/setup_threat_detection.cjs');
-            await main();
-      - name: Ensure threat-detection directory and log
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        run: |
-          mkdir -p /tmp/gh-aw/threat-detection
-          touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Execute GitHub Copilot CLI
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        id: detection_agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
-        timeout-minutes: 20
-        run: |
-          set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org,telemetry.enterprise.githubcopilot.com" --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.23.0 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(jq)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(wc)'\'' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
-        env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
-      - name: Parse threat detection results
-        id: parse_detection_results
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_threat_detection_results.cjs');
-            await main();
-      - name: Upload threat detection log
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: threat-detection.log
-          path: /tmp/gh-aw/threat-detection/detection.log
-          if-no-files-found: ignore
-      - name: Set detection conclusion
-        id: detection_conclusion
-        if: always()
-        env:
-          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}
-          DETECTION_SUCCESS: ${{ steps.parse_detection_results.outputs.success }}
-        run: |
-          if [[ "$RUN_DETECTION" != "true" ]]; then
-            echo "conclusion=skipped" >> "$GITHUB_OUTPUT"
-            echo "success=true" >> "$GITHUB_OUTPUT"
-            echo "Detection was not needed, marking as skipped"
-          elif [[ "$DETECTION_SUCCESS" == "true" ]]; then
-            echo "conclusion=success" >> "$GITHUB_OUTPUT"
-            echo "success=true" >> "$GITHUB_OUTPUT"
-            echo "Detection passed successfully"
-          else
-            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
-            echo "success=false" >> "$GITHUB_OUTPUT"
-            echo "Detection found issues"
-          fi
 
   conclusion:
     needs:
@@ -1133,7 +1018,7 @@ jobs:
 
   safe_outputs:
     needs: agent
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
+    if: (!cancelled()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     timeout-minutes: 15
     env:
