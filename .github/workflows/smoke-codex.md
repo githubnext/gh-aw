@@ -62,6 +62,8 @@ safe-outputs:
       run-success: "✨ The prophecy is fulfilled... [{workflow_name}]({run_url}) has completed its mystical journey. The stars align. 🌟"
       run-failure: "🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation..."
 timeout-minutes: 15
+checkout:
+  fetch-depth: 2
 ---
 
 # Smoke Test: Codex Engine Validation

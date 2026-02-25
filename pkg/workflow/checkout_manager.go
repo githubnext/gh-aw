@@ -435,6 +435,12 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		case int:
 			depth := n
 			cfg.FetchDepth = &depth
+		case int64:
+			depth := int(n)
+			cfg.FetchDepth = &depth
+		case uint64:
+			depth := int(n)
+			cfg.FetchDepth = &depth
 		case float64:
 			depth := int(n)
 			cfg.FetchDepth = &depth

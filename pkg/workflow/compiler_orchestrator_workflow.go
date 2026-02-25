@@ -184,9 +184,15 @@ func (c *Compiler) buildInitialWorkflowData(
 		InlinedImports:        inlinedImports,
 	}
 
-	// Populate checkout configs from parsed frontmatter
+	// Populate checkout configs from parsed frontmatter.
+	// Fall back to raw frontmatter parsing when full ParseFrontmatterConfig fails
+	// (e.g. due to unrecognised tool config shapes like bash: ["*"]).
 	if toolsResult.parsedFrontmatter != nil {
 		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
+	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
+		if configs, err := ParseCheckoutConfigs(rawCheckout); err == nil {
+			workflowData.CheckoutConfigs = configs
+		}
 	}
 
 	return workflowData
