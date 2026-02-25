@@ -125,6 +125,10 @@ Configuration field in the `create-pull-request` safe output specifying which br
 
 A safe output capability for hiding or minimizing GitHub comments without requiring write permissions. When minimized, comments are classified as SPAM. Requires GraphQL node IDs to identify comments. Useful for content moderation workflows.
 
+### Unassign from User
+
+A safe output capability for removing user assignments from issues or pull requests. Supports an `allowed` list to restrict which users can be unassigned, and a `blocked` list using glob patterns to prevent unassignment of specific users regardless of the allow list. Configured via `unassign-from-user:` in `safe-outputs`.
+
 ## Workflow Components
 
 ### Cron Schedule
