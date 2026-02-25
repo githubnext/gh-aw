@@ -15,11 +15,21 @@ var schemaSuggestionsLog = logger.New("parser:schema_suggestions")
 
 // Constants for suggestion limits and field generation
 const (
-	maxClosestMatches = 3  // Maximum number of closest matches to find
-	maxSuggestions    = 5  // Maximum number of suggestions to show
-	maxAcceptedFields = 10 // Maximum number of accepted fields to display
-	maxExampleFields  = 3  // Maximum number of fields to include in example JSON
+	maxClosestMatches       = 3  // Maximum number of closest matches to find
+	maxSuggestions          = 5  // Maximum number of suggestions to show
+	maxAcceptedFields       = 10 // Maximum number of accepted fields to display
+	maxExampleFields        = 3  // Maximum number of fields to include in example JSON
+	maxPathSearchDistance   = 2  // Maximum Levenshtein distance for high-confidence path suggestions
+	maxPathSuggestions      = 3  // Maximum number of path locations to suggest
+	schemaTraversalMaxDepth = 15 // Maximum recursion depth when traversing schema
 )
+
+// schemaFieldLocation represents a location in the schema where a field is valid as a property.
+type schemaFieldLocation struct {
+	FieldName  string // the actual field name in the schema (may differ from query if fuzzy match)
+	SchemaPath string // the parent schema path where this field is valid (e.g., "/on", "/safe-outputs")
+	Distance   int    // Levenshtein distance from the query field name (0 = exact match)
+}
 
 // generateSchemaBasedSuggestions generates helpful suggestions based on the schema and error type.
 // frontmatterContent is the raw YAML frontmatter text, used to extract the user's typed value for enum suggestions.
@@ -56,9 +66,23 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 		invalidProps := extractAdditionalPropertyNames(errorMessage)
 		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
 
+		var suggestions []string
+
 		if len(acceptedFields) > 0 {
 			schemaSuggestionsLog.Printf("Found %d accepted fields for invalid properties %v", len(acceptedFields), invalidProps)
-			return generateFieldSuggestions(invalidProps, acceptedFields)
+			if s := generateFieldSuggestions(invalidProps, acceptedFields); s != "" {
+				suggestions = append(suggestions, s)
+			}
+		}
+
+		// Search the whole schema for where these fields belong (path heuristic)
+		if s := generatePathLocationSuggestion(invalidProps, schemaDoc, jsonPath); s != "" {
+			schemaSuggestionsLog.Printf("Found path location suggestion: %s", s)
+			suggestions = append(suggestions, s)
+		}
+
+		if len(suggestions) > 0 {
+			return strings.Join(suggestions, ". ")
 		}
 	}
 
@@ -474,4 +498,181 @@ func extractYAMLValueAtPath(yamlContent, jsonPath string) string {
 		return strings.TrimSpace(match[1])
 	}
 	return ""
+}
+
+// collectSchemaPropertyPaths recursively collects all (fieldName, parentPath) pairs from a JSON schema document.
+// It traverses properties, oneOf/anyOf/allOf, and items to build a complete picture of valid fields across the schema.
+func collectSchemaPropertyPaths(schemaDoc any, currentPath string, depth int) []schemaFieldLocation {
+	if depth > schemaTraversalMaxDepth {
+		return nil
+	}
+
+	schemaMap, ok := schemaDoc.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	var results []schemaFieldLocation
+
+	// Collect fields from properties and recurse into each property's schema
+	if properties, ok := schemaMap["properties"].(map[string]any); ok {
+		for fieldName, fieldSchema := range properties {
+			results = append(results, schemaFieldLocation{FieldName: fieldName, SchemaPath: currentPath})
+			sub := collectSchemaPropertyPaths(fieldSchema, currentPath+"/"+fieldName, depth+1)
+			results = append(results, sub...)
+		}
+	}
+
+	// Recurse into oneOf/anyOf/allOf variants (schema composition keywords)
+	for _, keyword := range []string{"oneOf", "anyOf", "allOf"} {
+		if variants, ok := schemaMap[keyword].([]any); ok {
+			for _, variant := range variants {
+				sub := collectSchemaPropertyPaths(variant, currentPath, depth+1)
+				results = append(results, sub...)
+			}
+		}
+	}
+
+	// Recurse into items for array schemas
+	if items, ok := schemaMap["items"].(map[string]any); ok {
+		sub := collectSchemaPropertyPaths(items, currentPath, depth+1)
+		results = append(results, sub...)
+	}
+
+	return results
+}
+
+// findFieldLocationsInSchema searches the entire schema for where the given field name is valid as a property.
+// It first attempts an exact match, then falls back to fuzzy matching with a high-confidence distance threshold.
+// The currentPath is excluded so we never suggest the same location that triggered the error.
+func findFieldLocationsInSchema(schemaDoc any, targetField, currentPath string) []schemaFieldLocation {
+	allLocations := collectSchemaPropertyPaths(schemaDoc, "", 0)
+	targetLower := strings.ToLower(targetField)
+
+	seen := make(map[string]bool)
+
+	// Collect exact matches first
+	var exactMatches []schemaFieldLocation
+	for _, loc := range allLocations {
+		if loc.SchemaPath == currentPath {
+			continue
+		}
+		key := loc.FieldName + "|" + loc.SchemaPath
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		if strings.ToLower(loc.FieldName) == targetLower {
+			loc.Distance = 0
+			exactMatches = append(exactMatches, loc)
+		}
+	}
+
+	if len(exactMatches) > 0 {
+		schemaSuggestionsLog.Printf("Found %d exact schema locations for field '%s'", len(exactMatches), targetField)
+		return exactMatches
+	}
+
+	// Fall back to fuzzy matching with a stricter distance threshold for high confidence
+	seenFuzzy := make(map[string]bool)
+	var fuzzyMatches []schemaFieldLocation
+	for _, loc := range allLocations {
+		if loc.SchemaPath == currentPath {
+			continue
+		}
+		key := loc.FieldName + "|" + loc.SchemaPath
+		if seenFuzzy[key] {
+			continue
+		}
+		seenFuzzy[key] = true
+
+		dist := LevenshteinDistance(targetLower, strings.ToLower(loc.FieldName))
+		if dist > 0 && dist <= maxPathSearchDistance {
+			loc.Distance = dist
+			fuzzyMatches = append(fuzzyMatches, loc)
+		}
+	}
+
+	// Sort fuzzy matches by distance (ascending), then path for stable output
+	sort.Slice(fuzzyMatches, func(i, j int) bool {
+		if fuzzyMatches[i].Distance != fuzzyMatches[j].Distance {
+			return fuzzyMatches[i].Distance < fuzzyMatches[j].Distance
+		}
+		return fuzzyMatches[i].SchemaPath < fuzzyMatches[j].SchemaPath
+	})
+
+	schemaSuggestionsLog.Printf("Found %d fuzzy schema locations for field '%s'", len(fuzzyMatches), targetField)
+	return fuzzyMatches
+}
+
+// formatSchemaPathForDisplay converts a JSON schema path to a human-readable string.
+// e.g., "/on" → "on", "" → the root level
+func formatSchemaPathForDisplay(schemaPath string) string {
+	if schemaPath == "" {
+		return "the root level"
+	}
+	return strings.TrimPrefix(schemaPath, "/")
+}
+
+// generatePathLocationSuggestion generates a suggestion message indicating where invalid fields
+// belong in the schema. It searches the entire schema for each field and suggests the correct path.
+func generatePathLocationSuggestion(invalidProps []string, schemaDoc any, currentPath string) string {
+	if len(invalidProps) == 0 {
+		return ""
+	}
+
+	var parts []string
+	for _, prop := range invalidProps {
+		locations := findFieldLocationsInSchema(schemaDoc, prop, currentPath)
+		if len(locations) == 0 {
+			continue
+		}
+
+		// Limit to the top N locations
+		if len(locations) > maxPathSuggestions {
+			locations = locations[:maxPathSuggestions]
+		}
+
+		// Collect unique path display names; track the actual field name for fuzzy matches
+		actualFieldName := locations[0].FieldName
+		var pathNames []string
+		seenPaths := make(map[string]bool)
+		for _, loc := range locations {
+			display := "'" + formatSchemaPathForDisplay(loc.SchemaPath) + "'"
+			if !seenPaths[display] {
+				seenPaths[display] = true
+				pathNames = append(pathNames, display)
+			}
+		}
+		if len(pathNames) == 0 {
+			continue
+		}
+
+		var msg strings.Builder
+		if !strings.EqualFold(actualFieldName, prop) {
+			// Fuzzy match — tell the user the actual field name and where it belongs
+			msg.WriteString("Did you mean '")
+			msg.WriteString(actualFieldName)
+			msg.WriteString("'? It belongs under ")
+		} else {
+			// Exact match — the field exists in the schema but in a different location
+			msg.WriteString("'")
+			msg.WriteString(prop)
+			msg.WriteString("' belongs under ")
+		}
+
+		if len(pathNames) == 1 {
+			msg.WriteString(pathNames[0])
+		} else {
+			last := pathNames[len(pathNames)-1]
+			msg.WriteString(strings.Join(pathNames[:len(pathNames)-1], ", "))
+			msg.WriteString(" or ")
+			msg.WriteString(last)
+		}
+
+		parts = append(parts, msg.String())
+	}
+
+	return strings.Join(parts, ". ")
 }

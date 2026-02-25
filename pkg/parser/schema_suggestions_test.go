@@ -4,6 +4,7 @@ package parser
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -483,6 +484,268 @@ func TestGenerateExampleFromSchemaWithExamples(t *testing.T) {
 			}
 			if !strings.Contains(string(exampleJSON), tt.wantContains) {
 				t.Errorf("Expected result to contain %q, got %s", tt.wantContains, string(exampleJSON))
+			}
+		})
+	}
+}
+
+// schemaWithNestedFields is a test schema where "skip-if-match" lives under "on", not at the root or under "actions".
+var schemaWithNestedFields = `{
+	"type": "object",
+	"properties": {
+		"on": {
+			"type": "object",
+			"properties": {
+				"skip-if-match": {"type": "string"},
+				"skip-if-no-match": {"type": "string"}
+			},
+			"additionalProperties": false
+		},
+		"actions": {
+			"type": "object",
+			"properties": {
+				"body": {"type": "string"},
+				"branch": {"type": "string"}
+			},
+			"additionalProperties": false
+		},
+		"engine": {"type": "string"},
+		"permissions": {
+			"type": "object",
+			"properties": {
+				"contents": {"type": "string"},
+				"issues": {"type": "string"}
+			},
+			"additionalProperties": false
+		}
+	},
+	"additionalProperties": false
+}`
+
+func TestCollectSchemaPropertyPaths(t *testing.T) {
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc); err != nil {
+		t.Fatalf("Failed to unmarshal schema: %v", err)
+	}
+
+	locations := collectSchemaPropertyPaths(schemaDoc, "", 0)
+
+	// Build a map of field -> parent paths for easy assertions
+	fieldPaths := make(map[string][]string)
+	for _, loc := range locations {
+		fieldPaths[loc.FieldName] = append(fieldPaths[loc.FieldName], loc.SchemaPath)
+	}
+
+	tests := []struct {
+		fieldName      string
+		wantParentPath string
+	}{
+		{"engine", ""},
+		{"permissions", ""},
+		{"on", ""},
+		{"skip-if-match", "/on"},
+		{"skip-if-no-match", "/on"},
+		{"body", "/actions"},
+		{"branch", "/actions"},
+		{"contents", "/permissions"},
+		{"issues", "/permissions"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.fieldName, func(t *testing.T) {
+			paths, ok := fieldPaths[tt.fieldName]
+			if !ok {
+				t.Errorf("Field %q not found in collected paths", tt.fieldName)
+				return
+			}
+			if !slices.Contains(paths, tt.wantParentPath) {
+				t.Errorf("Field %q: expected parent path %q, got paths: %v", tt.fieldName, tt.wantParentPath, paths)
+			}
+		})
+	}
+}
+
+func TestFindFieldLocationsInSchema(t *testing.T) {
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc); err != nil {
+		t.Fatalf("Failed to unmarshal schema: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		targetField string
+		currentPath string
+		wantLen     int
+		wantPath    string // expected SchemaPath of first result (if any)
+		wantField   string // expected FieldName (for fuzzy matches)
+		wantDist    int    // expected Distance
+	}{
+		{
+			name:        "exact match found at different path",
+			targetField: "skip-if-match",
+			currentPath: "/actions",
+			wantLen:     1,
+			wantPath:    "/on",
+			wantField:   "skip-if-match",
+			wantDist:    0,
+		},
+		{
+			name:        "fuzzy match found at different path",
+			targetField: "skip-if-mach",
+			currentPath: "/actions",
+			wantLen:     1,
+			wantPath:    "/on",
+			wantField:   "skip-if-match",
+			wantDist:    1,
+		},
+		{
+			name:        "same path excluded from results",
+			targetField: "skip-if-match",
+			currentPath: "/on",
+			wantLen:     0,
+		},
+		{
+			name:        "field not in schema returns empty",
+			targetField: "totally-unknown-field",
+			currentPath: "",
+			wantLen:     0,
+		},
+		{
+			name:        "field too far for fuzzy match",
+			targetField: "abcdefghij",
+			currentPath: "",
+			wantLen:     0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := findFieldLocationsInSchema(schemaDoc, tt.targetField, tt.currentPath)
+			if len(results) != tt.wantLen {
+				t.Errorf("Expected %d results, got %d: %+v", tt.wantLen, len(results), results)
+				return
+			}
+			if tt.wantLen == 0 {
+				return
+			}
+			if results[0].SchemaPath != tt.wantPath {
+				t.Errorf("Expected SchemaPath %q, got %q", tt.wantPath, results[0].SchemaPath)
+			}
+			if results[0].FieldName != tt.wantField {
+				t.Errorf("Expected FieldName %q, got %q", tt.wantField, results[0].FieldName)
+			}
+			if results[0].Distance != tt.wantDist {
+				t.Errorf("Expected Distance %d, got %d", tt.wantDist, results[0].Distance)
+			}
+		})
+	}
+}
+
+func TestGeneratePathLocationSuggestion(t *testing.T) {
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(schemaWithNestedFields), &schemaDoc); err != nil {
+		t.Fatalf("Failed to unmarshal schema: %v", err)
+	}
+
+	tests := []struct {
+		name         string
+		invalidProps []string
+		currentPath  string
+		wantContains []string
+		wantEmpty    bool
+	}{
+		{
+			name:         "exact match suggests correct parent path",
+			invalidProps: []string{"skip-if-match"},
+			currentPath:  "/actions",
+			wantContains: []string{"skip-if-match", "belongs under", "on"},
+		},
+		{
+			name:         "fuzzy match suggests field name and path",
+			invalidProps: []string{"skip-if-mach"},
+			currentPath:  "/actions",
+			wantContains: []string{"Did you mean", "skip-if-match", "belongs under", "on"},
+		},
+		{
+			name:         "field valid at current path excluded",
+			invalidProps: []string{"skip-if-match"},
+			currentPath:  "/on",
+			wantEmpty:    true,
+		},
+		{
+			name:         "field not in schema returns empty",
+			invalidProps: []string{"completely-unknown"},
+			currentPath:  "",
+			wantEmpty:    true,
+		},
+		{
+			name:         "empty invalid props returns empty",
+			invalidProps: []string{},
+			currentPath:  "",
+			wantEmpty:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generatePathLocationSuggestion(tt.invalidProps, schemaDoc, tt.currentPath)
+			if tt.wantEmpty {
+				if result != "" {
+					t.Errorf("Expected empty result, got: %q", result)
+				}
+				return
+			}
+			for _, want := range tt.wantContains {
+				if !strings.Contains(result, want) {
+					t.Errorf("Expected result to contain %q, got: %q", want, result)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateSchemaBasedSuggestionsWithPathHeuristic(t *testing.T) {
+	tests := []struct {
+		name         string
+		errorMessage string
+		jsonPath     string
+		wantContains []string
+		wantEmpty    bool
+	}{
+		{
+			name:         "misplaced field suggests correct path",
+			errorMessage: "additional property 'skip-if-match' not allowed",
+			jsonPath:     "/actions",
+			wantContains: []string{"skip-if-match", "belongs under", "on"},
+		},
+		{
+			name:         "fuzzy misplaced field suggests field name and path",
+			errorMessage: "additional property 'skip-if-mach' not allowed",
+			jsonPath:     "/actions",
+			wantContains: []string{"Did you mean", "skip-if-match", "on"},
+		},
+		{
+			name:         "typo at correct location does not suggest path",
+			errorMessage: "additional property 'isues' not allowed",
+			jsonPath:     "/permissions",
+			// Should suggest 'issues' (typo fix), not path suggestion for same location
+			wantContains: []string{"Did you mean", "issues"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateSchemaBasedSuggestions(schemaWithNestedFields, tt.errorMessage, tt.jsonPath, "")
+			if tt.wantEmpty {
+				if result != "" {
+					t.Errorf("Expected empty result, got: %q", result)
+				}
+				return
+			}
+			for _, want := range tt.wantContains {
+				if !strings.Contains(result, want) {
+					t.Errorf("Expected result to contain %q, got: %q", want, result)
+				}
 			}
 		})
 	}
