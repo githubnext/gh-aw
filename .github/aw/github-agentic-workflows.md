@@ -246,11 +246,11 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, or `"codex"`
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, or `"gemini"`
   - Object format for extended configuration:
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, or codex)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, or gemini)
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
@@ -264,6 +264,7 @@ The YAML frontmatter supports these fields:
           level_group: 1
     ```
   - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, `web-search`, or plugins. Supports AWF firewall and LLM gateway.
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)
@@ -1378,7 +1379,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 
-All other expressions are dissallowed.
+All other expressions are disallowed.
 
 ### Sanitized Context Text (`needs.activation.outputs.text`)
 
@@ -2064,8 +2065,8 @@ Agentic workflows compile to GitHub Actions YAML:
 
 ### Breaking Configuration Changes
 
-- **`custom` engine removed** (v0.46.1) - The `custom` engine type is no longer supported. Workflows using `engine: custom` must migrate to `copilot`, `claude`, or `codex`.
-- **`copilot-sdk` engine removed** (v0.46.1) - The `copilot-sdk` engine has been removed. Update any workflows referencing this engine.
+- **`custom` engine removed** - The `custom` engine type is no longer supported. Workflows using `engine: custom` must migrate to `copilot`, `claude`, `codex`, or `gemini`.
+- **`copilot-sdk` engine removed** - The `copilot-sdk` engine has been removed. Update any workflows referencing this engine.
 - **Status Comments**: Status comments must now be explicitly enabled with `status-comment: true`. Previously coupled with `reaction`, now independently configured.
 - **Temporary ID Format**: Changed from `aw_` + 12 hex chars to `aw_` + 3-8 alphanumeric chars. Update references in existing workflows accordingly.
 
