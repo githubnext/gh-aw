@@ -442,7 +442,7 @@ The YAML frontmatter supports these fields:
         target: "*"                     # Optional: target for comments (default: "triggering")
         hide-older-comments: true       # Optional: minimize previous comments from same workflow
         allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
-        discussions: false              # Optional: set false to exclude discussions:write permission (default: true)
+        discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
