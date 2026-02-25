@@ -30,14 +30,7 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.AddComments != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
-		// Check if discussions permission should be excluded (discussions: false)
-		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
-		// Note: PR comments are issue comments, so only issues:write is needed, not pull_requests:write
-		if safeOutputs.AddComments.Discussions != nil && !*safeOutputs.AddComments.Discussions {
-			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-		} else {
-			permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
-		}
+		permissions.Merge(buildAddCommentPermissions(safeOutputs.AddComments))
 	}
 	if safeOutputs.CloseIssues != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")

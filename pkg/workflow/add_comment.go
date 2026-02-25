@@ -24,7 +24,9 @@ type AddCommentsConfig struct {
 	Discussion           *bool    `yaml:"discussion,omitempty"`          // Target discussion comments instead of issue/PR comments. Must be true if present.
 	HideOlderComments    *string  `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 	AllowedReasons       []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
-	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission.
+	Issues               *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
+	PullRequests         *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
+	Discussions          *bool    `yaml:"discussions,omitempty"`         // When true, includes discussions:write permission and discussions in event condition. Default (nil or false) excludes discussions:write.
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
@@ -91,14 +93,20 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Build job condition with event check if target is not specified
 	jobCondition := BuildSafeOutputType("add_comment")
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
-		eventCondition := BuildOr(
-			BuildOr(
-				BuildPropertyAccess("github.event.issue.number"),
-				BuildPropertyAccess("github.event.pull_request.number"),
-			),
-			BuildPropertyAccess("github.event.discussion.number"),
-		)
-		jobCondition = BuildAnd(jobCondition, eventCondition)
+		var eventTerms []ConditionNode
+		if data.SafeOutputs.AddComments.Issues == nil || *data.SafeOutputs.AddComments.Issues {
+			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.issue.number"))
+		}
+		if data.SafeOutputs.AddComments.PullRequests == nil || *data.SafeOutputs.AddComments.PullRequests {
+			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.pull_request.number"))
+		}
+		if data.SafeOutputs.AddComments.Discussions != nil && *data.SafeOutputs.AddComments.Discussions {
+			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.discussion.number"))
+		}
+		if len(eventTerms) > 0 {
+			eventCondition := &DisjunctionNode{Terms: eventTerms}
+			jobCondition = BuildAnd(jobCondition, eventCondition)
+		}
 	}
 
 	// Build the needs list - always depend on mainJobName, and conditionally on the other jobs
@@ -113,15 +121,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		needs = append(needs, createPullRequestJobName)
 	}
 
-	// Determine permissions based on discussions field
-	// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
-	// Note: PR comments are issue comments, so only issues:write is needed, not pull_requests:write
-	var permissions *Permissions
-	if data.SafeOutputs.AddComments.Discussions != nil && !*data.SafeOutputs.AddComments.Discussions {
-		permissions = NewPermissionsContentsReadIssuesWrite()
-	} else {
-		permissions = NewPermissionsContentsReadIssuesWriteDiscussionsWrite()
-	}
+	// Determine permissions based on Issues, PullRequests, and Discussions fields.
+	// Issues: nil or true → issues:write (default: true)
+	// PullRequests: nil or true → pull-requests:write (default: true)
+	// Discussions: explicitly true → discussions:write (default: false)
+	permissions := buildAddCommentPermissions(data.SafeOutputs.AddComments)
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
@@ -190,4 +194,24 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	}
 
 	return &config
+}
+
+// buildAddCommentPermissions computes the permissions for the add_comment job based on config.
+// Issues: nil or true → issues:write (default: true)
+// PullRequests: nil or true → pull-requests:write (default: true)
+// Discussions: explicitly true → discussions:write (default: false)
+func buildAddCommentPermissions(config *AddCommentsConfig) *Permissions {
+	permMap := map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+	}
+	if config == nil || config.Issues == nil || *config.Issues {
+		permMap[PermissionIssues] = PermissionWrite
+	}
+	if config == nil || config.PullRequests == nil || *config.PullRequests {
+		permMap[PermissionPullRequests] = PermissionWrite
+	}
+	if config != nil && config.Discussions != nil && *config.Discussions {
+		permMap[PermissionDiscussions] = PermissionWrite
+	}
+	return NewPermissionsFromMap(permMap)
 }
