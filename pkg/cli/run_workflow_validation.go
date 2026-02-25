@@ -285,7 +285,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	if err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
-			return fmt.Errorf("failed to list workflows in repository '%s': %s", repoOverride, string(exitError.Stderr))
+			return fmt.Errorf("failed to list workflows in repository '%s': %s: %w", repoOverride, string(exitError.Stderr), err)
 		}
 		return fmt.Errorf("failed to list workflows in repository '%s': %w", repoOverride, err)
 	}
