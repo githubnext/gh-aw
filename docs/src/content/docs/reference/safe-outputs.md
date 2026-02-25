@@ -215,11 +215,12 @@ safe-outputs:
     required-title-prefix: "[bot]"    # only close matching prefix
     max: 20                           # max closures (default: 1)
     target-repo: "owner/repo"         # cross-repository
+    state-reason: "duplicate"         # completed (default), not_planned, duplicate
 ```
 
 **Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
 
-**State Reasons**: `completed`, `not_planned`, `reopened` (default: `completed`).
+**State Reasons**: `completed`, `not_planned`, `duplicate` (default: `completed`). Can also be set per-item in agent output.
 
 ### Comment Creation (`add-comment:`)
 

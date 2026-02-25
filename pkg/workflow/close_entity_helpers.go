@@ -69,6 +69,7 @@ type CloseEntityConfig struct {
 	SafeOutputTargetConfig           `yaml:",inline"`
 	SafeOutputFilterConfig           `yaml:",inline"`
 	SafeOutputDiscussionFilterConfig `yaml:",inline"` // Only used for discussions
+	StateReason                      string           `yaml:"state-reason,omitempty"` // Only used for issues
 }
 
 // CloseEntityJobParams holds the parameters needed to build a close entity job

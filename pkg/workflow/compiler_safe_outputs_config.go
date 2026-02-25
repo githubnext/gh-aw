@@ -197,6 +197,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("state_reason", c.StateReason).
 			Build()
 	},
 	"close_discussion": func(cfg *SafeOutputsConfig) map[string]any {

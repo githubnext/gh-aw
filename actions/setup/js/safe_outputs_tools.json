@@ -132,6 +132,11 @@
         "issue_number": {
           "type": ["number", "string"],
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger)."
+        },
+        "state_reason": {
+          "type": "string",
+          "enum": ["completed", "not_planned", "duplicate"],
+          "description": "The reason for closing the issue. Use 'completed' for resolved issues, 'not_planned' for issues that won't be addressed, or 'duplicate' for duplicate issues. Defaults to 'completed'."
         }
       },
       "additionalProperties": false

@@ -59,14 +59,16 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
+ * @param {string} [stateReason] - The reason for closing: "completed", "not_planned", or "duplicate"
  * @returns {Promise<{number: number, html_url: string, title: string}>} Issue details
  */
-async function closeIssue(github, owner, repo, issueNumber) {
+async function closeIssue(github, owner, repo, issueNumber, stateReason) {
   const { data: issue } = await github.rest.issues.update({
     owner,
     repo,
     issue_number: issueNumber,
     state: "closed",
+    state_reason: stateReason || "completed",
   });
 
   return issue;
@@ -83,12 +85,13 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const comment = config.comment || "";
+  const configStateReason = config.state_reason || "completed";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  core.info(`Close issue configuration: max=${maxCount}`);
+  core.info(`Close issue configuration: max=${maxCount}, state_reason=${configStateReason}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -259,8 +262,10 @@ async function main(config = {}) {
         core.info(`Issue #${issueNumber} was already closed, comment added successfully`);
         closedIssue = issue;
       } else {
-        core.info(`Closing issue #${issueNumber} in ${itemRepo}`);
-        closedIssue = await closeIssue(github, repoParts.owner, repoParts.repo, issueNumber);
+        // Use item-level state_reason if provided, otherwise fall back to config-level default
+        const stateReason = item.state_reason || configStateReason;
+        core.info(`Closing issue #${issueNumber} in ${itemRepo} with state_reason=${stateReason}`);
+        closedIssue = await closeIssue(github, repoParts.owner, repoParts.repo, issueNumber, stateReason);
         core.info(`✓ Issue #${issueNumber} closed successfully: ${closedIssue.html_url}`);
       }
 
