@@ -208,7 +208,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - `Package.swift`, `*.podspec` → add `swift`
      - `composer.json` → add `php`
      - `pubspec.yaml` → add `dart`
-   - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
+   - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool. For **visual regression testing** (comparing screenshots across PRs), consult `.github/aw/visual-regression.md` for the reference pattern using `playwright` + `cache-memory`.
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: all`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.
 
    **Scheduling Best Practices:**
