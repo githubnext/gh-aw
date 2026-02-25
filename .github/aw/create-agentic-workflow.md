@@ -577,6 +577,9 @@ Based on the parsed requirements, determine:
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
    - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
+   - **External deployment monitoring** (Heroku, Vercel, Railway, Fly.io, etc.) → `on: deployment_status:` with `if: ${{ github.event.deployment_status.state == 'failure' }}` — use this when third-party services post deployment status back to GitHub. See reference: @.github/aw/deployment-status.md
+   - **GitHub Actions pipeline monitoring** → `on: workflow_run:` with `if: ${{ github.event.workflow_run.conclusion == 'failure' }}` — use this when monitoring other GitHub Actions workflows in the same repo
+   - **`deployment_status` vs `workflow_run`**: Use `deployment_status` for **external deployment services** that integrate with the GitHub Deployments API; use `workflow_run` for **GitHub Actions-internal** pipelines. Never use `workflow_run` as a workaround for external deployment failures.
    - **Note**: `workflow_dispatch:` is automatically added ONLY for fuzzy schedules (`daily`, `weekly`, etc.). For other triggers, add it explicitly if manual execution is desired.
 3. **Tools**: Determine required tools:
    - **`bash` and `edit` are enabled by default** - No need to add (sandboxed by AWF)
