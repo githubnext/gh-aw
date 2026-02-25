@@ -13,38 +13,43 @@ import (
 
 func TestImportCache(t *testing.T) {
 	tempDir := t.TempDir()
-
-	// Create a new cache
 	cache := NewImportCache(tempDir)
-
-	// Test Set and Get
+	const (
+		owner = "testowner"
+		repo  = "testrepo"
+		path  = "workflows/test.md"
+		sha   = "abc123"
+	)
 	testContent := []byte("# Test Workflow\n\nTest content")
-	owner := "testowner"
-	repo := "testrepo"
-	path := "workflows/test.md"
-	sha := "abc123"
 
-	cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
-	require.NoError(t, err, "Set should succeed for valid inputs")
+	t.Run("Set creates file and returns path", func(t *testing.T) {
+		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
+		require.NoError(t, err, "Set should succeed for valid inputs")
+		require.FileExists(t, cachedPath, "cache file should be created at expected path")
+	})
 
-	// Verify file was created
-	require.FileExists(t, cachedPath, "cache file should be created at expected path")
+	t.Run("Get returns cached path after Set", func(t *testing.T) {
+		cachedPath, _ := cache.Set(owner, repo, path, sha, testContent)
+		retrievedPath, found := cache.Get(owner, repo, path, sha)
+		assert.True(t, found, "cache entry should be found after Set")
+		assert.Equal(t, cachedPath, retrievedPath, "retrieved path should match path returned by Set")
+	})
 
-	// Verify content
-	content, err := os.ReadFile(cachedPath)
-	require.NoError(t, err, "reading cached file should succeed")
-	assert.Equal(t, string(testContent), string(content), "cached content should match original")
+	t.Run("Cached file content matches original", func(t *testing.T) {
+		cachedPath, err := cache.Set(owner, repo, path, sha, testContent)
+		require.NoError(t, err, "Set should succeed")
+		content, err := os.ReadFile(cachedPath)
+		require.NoError(t, err, "reading cached file should succeed")
+		assert.Equal(t, string(testContent), string(content), "cached content should match original")
+	})
 
-	// Test Get
-	retrievedPath, found := cache.Get(owner, repo, path, sha)
-	assert.True(t, found, "cache entry should be found after Set")
-	assert.Equal(t, cachedPath, retrievedPath, "retrieved path from Get should match path returned by Set")
-
-	// Test that a new cache instance can find the file
-	cache2 := NewImportCache(tempDir)
-	retrievedPath2, found := cache2.Get(owner, repo, path, sha)
-	assert.True(t, found, "cache entry should be found from new cache instance")
-	assert.Equal(t, cachedPath, retrievedPath2, "path from new cache instance should match original cached path")
+	t.Run("New cache instance finds existing entry", func(t *testing.T) {
+		cachedPath, _ := cache.Set(owner, repo, path, sha, testContent)
+		cache2 := NewImportCache(tempDir)
+		retrievedPath2, found := cache2.Get(owner, repo, path, sha)
+		assert.True(t, found, "cache entry should be found from new cache instance")
+		assert.Equal(t, cachedPath, retrievedPath2, "path from new instance should match original")
+	})
 }
 
 func TestImportCacheDirectory(t *testing.T) {
@@ -131,6 +136,26 @@ func TestSanitizePath(t *testing.T) {
 			input:    "a/./b/file.md",
 			expected: "a_b_file.md",
 		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: ".",
+		},
+		{
+			name:     "trailing slash",
+			input:    "a/b/",
+			expected: "a_b",
+		},
+		{
+			name:     "single dot component",
+			input:    "a/./b",
+			expected: "a_b",
+		},
+		{
+			name:     "leading slash becomes root-like",
+			input:    "/absolute/path",
+			expected: "_absolute_path",
+		},
 	}
 
 	for _, tt := range tests {
@@ -204,6 +229,33 @@ func TestValidatePathComponents(t *testing.T) {
 			shouldErr: true,
 			errMsg:    "absolute path",
 		},
+		{
+			name:      "empty repo",
+			owner:     "testowner",
+			repo:      "",
+			path:      "test.md",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "empty component",
+		},
+		{
+			name:      "empty path",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "",
+			sha:       "abc123",
+			shouldErr: true,
+			errMsg:    "empty component",
+		},
+		{
+			name:      "path traversal embedded in sha",
+			owner:     "testowner",
+			repo:      "testrepo",
+			path:      "test.md",
+			sha:       "abc..def",
+			shouldErr: true,
+			errMsg:    "..",
+		},
 	}
 
 	for _, tt := range tests {
@@ -272,6 +324,15 @@ func TestImportCacheSet_Validation(t *testing.T) {
 			shouldErr: true,
 			errMsg:    "invalid path components",
 		},
+		{
+			name:      "valid inputs succeed",
+			owner:     "owner",
+			repo:      "repo",
+			path:      "workflows/test.md",
+			sha:       "abc123def456",
+			content:   []byte("# valid content"),
+			shouldErr: false,
+		},
 	}
 
 	cache := NewImportCache(tempDir)
@@ -286,4 +347,34 @@ func TestImportCacheSet_Validation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestImportCacheSetIdempotent(t *testing.T) {
+	tempDir := t.TempDir()
+	cache := NewImportCache(tempDir)
+
+	firstContent := []byte("first content")
+	secondContent := []byte("second content")
+
+	path1, err := cache.Set("owner", "repo", "test.md", "sha1", firstContent)
+	require.NoError(t, err, "first Set should succeed")
+
+	path2, err := cache.Set("owner", "repo", "test.md", "sha1", secondContent)
+	require.NoError(t, err, "second Set with same key should succeed (overwrite)")
+	assert.Equal(t, path1, path2, "both Set calls should return the same cache path")
+
+	content, err := os.ReadFile(path2)
+	require.NoError(t, err, "reading overwritten file should succeed")
+	assert.Equal(t, string(secondContent), string(content), "file should contain second (latest) content")
+}
+
+func TestImportCacheGetDoesNotValidateComponents(t *testing.T) {
+	// Document that Get does not validate components (unlike Set).
+	// If validation is added in the future, this test should be updated.
+	tempDir := t.TempDir()
+	cache := NewImportCache(tempDir)
+
+	// Should return not-found (not panic or error), even with suspicious inputs.
+	_, found := cache.Get("../etc", "repo", "test.md", "sha")
+	assert.False(t, found, "Get with path traversal input should return not-found, not panic")
 }
