@@ -673,16 +673,23 @@ async function main(config = {}) {
 >
 > The patch file is available in the \`agent-artifacts\` artifact in the workflow run linked above.
 
-To apply the patch locally:
+To create a pull request with the changes:
 
 \`\`\`sh
-# Download the artifact from the workflow run ${runUrl}
-# (Use GitHub MCP tools if gh CLI is not available)
+# Download the artifact from the workflow run
 gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}
 
-# The patch file will be at agent-artifacts/tmp/gh-aw/${patchFileName} after download
+# Create a new branch
+git checkout -b ${branchName}
+
 # Apply the patch (--3way handles cross-repo patches where files may already exist)
 git am --3way /tmp/agent-artifacts-${runId}/${patchFileName}
+
+# Push the branch to origin
+git push origin ${branchName}
+
+# Create the pull request
+gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\`
 ${patchPreview}`;
 
@@ -936,11 +943,17 @@ ${patchPreview}`;
 
 ---
 
-**Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+> [!NOTE]
+> This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+>
+> **Original error:** ${errorMessage}
 
-**Original error:** ${errorMessage}
+To create the pull request manually:
 
-You can manually create a pull request from the branch if needed.${patchPreview}`;
+\`\`\`sh
+gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
+\`\`\`
+${patchPreview}`;
 
       try {
         const { data: issue } = await github.rest.issues.create({
