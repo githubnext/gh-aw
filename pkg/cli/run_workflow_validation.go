@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -197,10 +199,7 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 	// Check for typos in provided input names
 	var typos []string
 	var suggestions []string
-	validInputNames := make([]string, 0, len(workflowInputs))
-	for inputName := range workflowInputs {
-		validInputNames = append(validInputNames, inputName)
-	}
+	validInputNames := slices.Collect(maps.Keys(workflowInputs))
 
 	for providedName := range providedInputsMap {
 		// Check if this is a valid input name

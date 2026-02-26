@@ -39,6 +39,8 @@ tools:
 safe-outputs:
   add-comment:
     max: 1
+  add-labels:
+    max: 1
   messages:
     footer: "> 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*"
     run-started: "🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}..."
@@ -200,6 +202,10 @@ No relevant findings were discovered for this research request.
 ## SHORTER IS BETTER
 
 Focus on the most relevant and actionable information. Avoid overwhelming detail. Keep it concise and to the point.
+
+## Labeling
+
+After completing your research, **always label the triggering issue or pull request** with the `scout` label using the `add-label` safe output. This helps track which issues have been researched.
 
 ## Important Notes
 

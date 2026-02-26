@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -153,10 +154,11 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
 		consolidatedSafeOutputsStepsLog.Printf("Using base-branch from create-pull-request for checkout ref: %s", checkoutRef)
 	} else {
-		// Default to github.base_ref (PR base branch) with fallback to github.ref_name (push event branch)
-		// This handles PR contexts where github.ref_name is "123/merge" which is invalid for checkout
-		checkoutRef = "${{ github.base_ref || github.ref_name }}"
-		consolidatedSafeOutputsStepsLog.Print("Using github.base_ref || github.ref_name for checkout ref")
+		// Default to github.base_ref (PR base branch) with fallback to github.event.pull_request.base.ref
+		// (pull_request_review events) and then github.ref_name (push event branch).
+		// This handles PR contexts where github.ref_name is "123/merge" which is invalid for checkout.
+		checkoutRef = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}"
+		consolidatedSafeOutputsStepsLog.Print("Using github.base_ref || github.event.pull_request.base.ref || github.ref_name for checkout ref")
 	}
 
 	// Step 1: Checkout repository with conditional execution
@@ -225,6 +227,22 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+
+	// Add allowed domains configuration for URL sanitization in safe output handlers.
+	// Without this, sanitizeContent() in safe_output_handler_manager.cjs only allows
+	// default GitHub domains, causing user-configured allowed domains to be redacted.
+	var domainsStr string
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
+		domainsStr = strings.Join(data.SafeOutputs.AllowedDomains, ",")
+	} else {
+		domainsStr = c.computeAllowedDomainsForSanitization(data)
+	}
+	if domainsStr != "" {
+		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr))
+	}
+	// Pass GitHub server/API URLs so buildAllowedDomains() can add GHES domains dynamically
+	steps = append(steps, "          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	steps = append(steps, "          GITHUB_API_URL: ${{ github.api_url }}\n")
 
 	// Note: The project handler manager has been removed.
 	// All project-related operations are now handled by the unified handler.

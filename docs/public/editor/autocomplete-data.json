@@ -1431,7 +1431,7 @@
         },
         "group-reports": {
           "type": "boolean",
-          "desc": "When true, creates a parent '[agentics] Failed runs' issue that tracks all workflow failures as sub-issues.",
+          "desc": "When true, creates a parent '[aw] Failed runs' issue that tracks all workflow failures as sub-issues.",
           "enum": [true, false],
           "leaf": true
         },

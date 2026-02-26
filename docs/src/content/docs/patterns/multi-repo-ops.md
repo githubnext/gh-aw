@@ -257,6 +257,7 @@ For organization-wide workflows:
 
 ## Related Documentation
 
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout and target-repo configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API toolsets
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and token security

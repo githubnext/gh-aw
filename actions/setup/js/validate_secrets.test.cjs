@@ -1,7 +1,7 @@
 // @ts-check
 
 import { describe, it, expect } from "vitest";
-import { testGitHubRESTAPI, testGitHubGraphQLAPI, testCopilotCLI, testAnthropicAPI, testOpenAIAPI, testBraveSearchAPI, testNotionAPI, generateMarkdownReport } from "./validate_secrets.cjs";
+import { testGitHubRESTAPI, testGitHubGraphQLAPI, testCopilotCLI, testAnthropicAPI, testOpenAIAPI, testBraveSearchAPI, testNotionAPI, generateMarkdownReport, isForkRepository } from "./validate_secrets.cjs";
 
 describe("validate_secrets", () => {
   describe("testGitHubRESTAPI", () => {
@@ -209,6 +209,36 @@ describe("validate_secrets", () => {
       expect(report).toContain("(2 tests)");
       expect(report).toContain("GitHub REST API");
       expect(report).toContain("GitHub GraphQL API");
+    });
+  });
+
+  describe("isForkRepository", () => {
+    it("should return true when repository.fork is true", () => {
+      const payload = { repository: { fork: true } };
+      expect(isForkRepository(payload)).toBe(true);
+    });
+
+    it("should return false when repository.fork is false", () => {
+      const payload = { repository: { fork: false } };
+      expect(isForkRepository(payload)).toBe(false);
+    });
+
+    it("should return false when repository.fork is absent", () => {
+      const payload = { repository: {} };
+      expect(isForkRepository(payload)).toBe(false);
+    });
+
+    it("should return false when repository is absent", () => {
+      const payload = {};
+      expect(isForkRepository(payload)).toBe(false);
+    });
+
+    it("should return false when payload is null", () => {
+      expect(isForkRepository(null)).toBe(false);
+    });
+
+    it("should return false when payload is undefined", () => {
+      expect(isForkRepository(undefined)).toBe(false);
     });
   });
 });

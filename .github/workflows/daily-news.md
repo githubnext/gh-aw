@@ -280,6 +280,8 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trends.md
+features:
+  copilot-requests: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

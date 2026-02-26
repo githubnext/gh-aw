@@ -25,6 +25,8 @@ safe-outputs:
     labels: [automation, cli, documentation, cookie]
     max: 1
 timeout-minutes: 20
+features:
+  copilot-requests: true
 ---
 
 # CLI Consistency Checker

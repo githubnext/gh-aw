@@ -35,6 +35,8 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/reporting.md
+features:
+  copilot-requests: true
 ---
 
 # Breaking Change Checker

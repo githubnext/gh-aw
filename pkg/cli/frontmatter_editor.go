@@ -31,13 +31,26 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 		frontmatterEditorLog.Printf("Using raw frontmatter lines for field update (%d lines)", len(result.FrontmatterLines))
 		// Look for existing field in the raw lines
 		fieldUpdated := false
-		frontmatterLines := append([]string(nil), result.FrontmatterLines...)
+		skipChildren := false
+		fieldIndentLevel := 0
+		newFrontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 
-		// Try to find and update the field in place
-		for i, line := range frontmatterLines {
+		for _, line := range result.FrontmatterLines {
 			trimmedLine := strings.TrimSpace(line)
+
+			// If we just updated the field, skip its child lines (block mapping values)
+			if skipChildren {
+				currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+				if currentIndent > fieldIndentLevel {
+					// This line is a child of the replaced field — drop it
+					continue
+				}
+				// No longer in the child block
+				skipChildren = false
+			}
+
 			// Check if this line contains our field
-			if strings.HasPrefix(trimmedLine, fieldName+":") {
+			if !fieldUpdated && strings.HasPrefix(trimmedLine, fieldName+":") {
 				// Preserve the original indentation and comments
 				leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 
@@ -49,28 +62,35 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 				}
 
 				// Update the field value while preserving formatting
+				var updatedLine string
 				if comment != "" {
-					frontmatterLines[i] = fmt.Sprintf("%s%s: %s %s", leadingSpace, fieldName, fieldValue, comment)
+					updatedLine = fmt.Sprintf("%s%s: %s %s", leadingSpace, fieldName, fieldValue, comment)
 				} else {
-					frontmatterLines[i] = fmt.Sprintf("%s%s: %s", leadingSpace, fieldName, fieldValue)
+					updatedLine = fmt.Sprintf("%s%s: %s", leadingSpace, fieldName, fieldValue)
 				}
+				newFrontmatterLines = append(newFrontmatterLines, updatedLine)
 				fieldUpdated = true
-				frontmatterEditorLog.Printf("Updated existing field %s in place (line %d)", fieldName, i+1)
-				break
+				// Track the indent level so we can skip any child lines that follow
+				fieldIndentLevel = len(leadingSpace)
+				skipChildren = true
+				frontmatterEditorLog.Printf("Updated existing field %s", fieldName)
+				continue
 			}
+
+			newFrontmatterLines = append(newFrontmatterLines, line)
 		}
 
 		// If field wasn't found in the raw lines, add it at the end
 		if !fieldUpdated {
 			newField := fmt.Sprintf("%s: %s", fieldName, fieldValue)
-			frontmatterLines = append(frontmatterLines, newField)
+			newFrontmatterLines = append(newFrontmatterLines, newField)
 			frontmatterEditorLog.Printf("Added new field %s at end of frontmatter", fieldName)
 		}
 
 		// Reconstruct the file with preserved formatting
 		var lines []string
 		lines = append(lines, "---")
-		lines = append(lines, frontmatterLines...)
+		lines = append(lines, newFrontmatterLines...)
 		lines = append(lines, "---")
 		if result.Markdown != "" {
 			// Add empty line before markdown content to match original format

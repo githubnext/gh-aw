@@ -107,8 +107,13 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 
-	// Add environment variables for extracted expressions
+	// Add environment variables for extracted expressions (deduplicated by EnvVar)
+	seen := make(map[string]bool)
 	for _, mapping := range expressionMappings {
+		if seen[mapping.EnvVar] {
+			continue
+		}
+		seen[mapping.EnvVar] = true
 		// Write the environment variable with the original GitHub expression
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}

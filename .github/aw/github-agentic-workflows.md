@@ -997,7 +997,7 @@ The YAML frontmatter supports these fields:
   - `max-patch-size:` - Maximum allowed git patch size in kilobytes (integer, default: 1024 KB = 1 MB)
     - Patches exceeding this size are rejected to prevent accidental large changes
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
-    - When `true`, creates a parent `[agentics] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
+    - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
   - `app:` - GitHub App credentials for minting installation access tokens (object)
     - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
     - Fields:

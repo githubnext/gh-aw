@@ -284,12 +284,12 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "default checkout ref uses github.base_ref || github.ref_name",
+			name: "default checkout ref uses github.base_ref || github.event.pull_request.base.ref || github.ref_name",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"ref: ${{ github.base_ref || github.ref_name }}",
+				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}",
 			},
 		},
 		{
@@ -499,6 +499,28 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 			},
 			checkNotContains: []string{
 				"GH_AW_PROJECT_URL",
+			},
+		},
+		{
+			name: "handler manager with allowed-domains propagates to process step",
+			safeOutputs: &SafeOutputsConfig{
+				AllowedDomains: []string{"docs.example.com", "api.example.com"},
+				AddComments:    &AddCommentsConfig{},
+			},
+			checkContains: []string{
+				"GH_AW_ALLOWED_DOMAINS: \"docs.example.com,api.example.com\"",
+				"GITHUB_SERVER_URL: ${{ github.server_url }}",
+				"GITHUB_API_URL: ${{ github.api_url }}",
+			},
+		},
+		{
+			name: "handler manager without allowed-domains still includes github urls",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			checkContains: []string{
+				"GITHUB_SERVER_URL: ${{ github.server_url }}",
+				"GITHUB_API_URL: ${{ github.api_url }}",
 			},
 		},
 		// Note: create_project is now handled by the unified handler manager,

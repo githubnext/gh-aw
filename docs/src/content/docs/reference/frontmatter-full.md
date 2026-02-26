@@ -4179,7 +4179,7 @@ safe-outputs:
   # (optional)
   footer: true
 
-  # When true, creates a parent '[agentics] Failed runs' issue that tracks all
+  # When true, creates a parent '[aw] Failed runs' issue that tracks all
   # workflow failures as sub-issues. Helps organize failure tracking but may be
   # unnecessary in smaller repositories. Defaults to false.
   # (optional)
