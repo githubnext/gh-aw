@@ -50,7 +50,7 @@ func CheckInteractivePreconditions(verbose bool) (*PreconditionCheckResult, erro
 	}
 
 	// Step 4: Check user permissions
-	if err := checkUserPermissionsShared(repoSlug, verbose); err != nil {
+	if _, err := checkUserPermissionsShared(repoSlug, verbose); err != nil {
 		return nil, err
 	}
 
@@ -241,22 +241,25 @@ func parseJSON(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// checkUserPermissionsShared verifies the user has write/admin access
-func checkUserPermissionsShared(repoSlug string, verbose bool) error {
+// checkUserPermissionsShared verifies the user has write/admin access.
+// Returns (hasWriteAccess, error) to allow callers to track write access status.
+func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 	preconditionsLog.Print("Checking user permissions")
 
 	parts := strings.Split(repoSlug, "/")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid repository format: %s", repoSlug)
+		return false, fmt.Errorf("invalid repository format: %s", repoSlug)
 	}
 	owner, repo := parts[0], parts[1]
 
 	hasAccess, err := checkRepositoryAccess(owner, repo)
 	if err != nil {
 		preconditionsLog.Printf("Failed to check repository access: %v", err)
-		// If we can't check, warn but continue - actual operations will fail if no access
+		// If we can't verify permissions, assume no write access to avoid
+		// prompting users for secrets they cannot configure. Users can always
+		// set secrets manually later with: gh aw secrets set <SECRET> --repo <REPO>
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify repository permissions. Proceeding anyway..."))
-		return nil
+		return false, nil
 	}
 
 	if !hasAccess {
@@ -268,7 +271,7 @@ func checkUserPermissionsShared(repoSlug string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository permissions verified"))
 	}
 
-	return nil
+	return hasAccess, nil
 }
 
 // checkRepoVisibilityShared checks if the repository is public or private

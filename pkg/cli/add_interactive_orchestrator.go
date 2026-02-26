@@ -30,6 +30,10 @@ type AddInteractiveConfig struct {
 	// This is populated by checkGitRepository() when determining the repo
 	isPublicRepo bool
 
+	// hasWriteAccess tracks whether the user has write access to the target repository.
+	// When false, secrets configuration is skipped since users cannot configure repository secrets.
+	hasWriteAccess bool
+
 	// existingSecrets tracks which secrets already exist in the repository
 	// This is populated by checkExistingSecrets() before engine selection
 	existingSecrets map[string]bool
@@ -110,9 +114,12 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 	}
 
 	// Step 8: Confirm with user
-	secretName, secretValue, err := config.getSecretInfo()
-	if err != nil {
-		return err
+	var secretName, secretValue string
+	if config.hasWriteAccess {
+		secretName, secretValue, err = config.getSecretInfo()
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := config.confirmChanges(filesToAdd, initFiles, secretName, secretValue); err != nil {

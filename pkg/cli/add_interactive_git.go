@@ -86,8 +86,10 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 		}
 	}
 
-	// Step 8c: Add the secret (skip if already exists in repository)
-	if secretValue == "" {
+	// Step 8c: Add the secret (skip if no secret configured or already exists in repository)
+	if secretName == "" {
+		// No secret to configure (e.g., user doesn't have write access to the repository)
+	} else if secretValue == "" {
 		// Secret already exists in repo, nothing to do
 		if c.Verbose {
 			fmt.Fprintln(os.Stderr, "")

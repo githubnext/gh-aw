@@ -83,5 +83,10 @@ func (c *AddInteractiveConfig) checkActionsEnabled() error {
 
 // checkUserPermissions verifies the user has write/admin access
 func (c *AddInteractiveConfig) checkUserPermissions() error {
-	return checkUserPermissionsShared(c.RepoOverride, c.Verbose)
+	hasWrite, err := checkUserPermissionsShared(c.RepoOverride, c.Verbose)
+	if err != nil {
+		return err
+	}
+	c.hasWriteAccess = hasWrite
+	return nil
 }

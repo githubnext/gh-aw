@@ -133,6 +133,20 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
+	// If user doesn't have write access, skip secrets configuration.
+	// Users without write access cannot configure repository secrets.
+	if !c.hasWriteAccess {
+		opt := constants.GetEngineOption(engine)
+		if opt != nil {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping %s secret setup — write access is required to configure repository secrets.", opt.SecretName)))
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "Once you have write access or an admin configures the repository, set the secret with:")
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  gh aw secrets set %s --repo %s", opt.SecretName, c.RepoOverride)))
+		}
+		return nil
+	}
+
 	// Use the unified checkAndEnsureEngineSecrets function
 	config := EngineSecretConfig{
 		RepoSlug:             c.RepoOverride,
