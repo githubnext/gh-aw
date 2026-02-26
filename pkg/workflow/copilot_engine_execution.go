@@ -255,6 +255,12 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
 		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
 		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
+		// Pass GitHub server URL and API URL for GitHub Enterprise compatibility.
+		// In standard GitHub.com environments these resolve to https://github.com and
+		// https://api.github.com. In GitHub Enterprise they resolve to the enterprise
+		// server URL (e.g. https://COMPANY.ghe.com and https://COMPANY.ghe.com/api/v3).
+		"GITHUB_SERVER_URL": "${{ github.server_url }}",
+		"GITHUB_API_URL":    "${{ github.api_url }}",
 	}
 
 	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
