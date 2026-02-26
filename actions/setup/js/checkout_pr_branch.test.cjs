@@ -187,8 +187,9 @@ If the pull request is still open, verify that:
       expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch + checkout");
 
       // Verify actual checkout commands
-      expect(mockCore.info).toHaveBeenCalledWith("Fetching branch: feature-branch from origin");
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch"]);
+      // commits is undefined in mock payload, so defaults to 1; depth = 1+1 = 2
+      expect(mockCore.info).toHaveBeenCalledWith("Fetching branch: feature-branch from origin (depth: 2 for 1 PR commit(s))");
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
 
       expect(mockCore.info).toHaveBeenCalledWith("Checking out branch: feature-branch");
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
@@ -378,7 +379,7 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature/new-feature"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature/new-feature", "--depth=2"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature/new-feature"]);
     });
 
@@ -387,7 +388,7 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "fix-issue-#123"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "fix-issue-#123", "--depth=2"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "fix-issue-#123"]);
     });
 
@@ -397,7 +398,7 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", longBranchName]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", longBranchName, "--depth=2"]);
     });
   });
 
