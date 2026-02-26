@@ -53,79 +53,79 @@ export default defineConfig({
 	},
 	redirects: {
 		// Status → Labs → Agent Factory → Agent Factory Status chain
-		'/status/': '/agent-factory-status/',
-		'/labs/': '/agent-factory-status/',
-		'/agent-factory/': '/agent-factory-status/',
+		'/status/': '/gh-aw/agent-factory-status/',
+		'/labs/': '/gh-aw/agent-factory-status/',
+		'/agent-factory/': '/gh-aw/agent-factory-status/',
 
 		// Blog post date correction
-		'/blog/2026-01-12-meet-the-workflows/': '/blog/2026-01-13-meet-the-workflows/',
+		'/blog/2026-01-12-meet-the-workflows/': '/gh-aw/blog/2026-01-13-meet-the-workflows/',
 
 		// Start-here → Get-started → current paths
-		'/start-here/concepts/': '/introduction/how-they-work/',
-		'/start-here/quick-start/': '/setup/quick-start/',
+		'/start-here/concepts/': '/gh-aw/introduction/how-they-work/',
+		'/start-here/quick-start/': '/gh-aw/setup/quick-start/',
 
 		// Get-started → current paths
-		'/get-started/concepts/': '/introduction/how-they-work/',
-		'/get-started/quick-start/': '/setup/quick-start/',
+		'/get-started/concepts/': '/gh-aw/introduction/how-they-work/',
+		'/get-started/quick-start/': '/gh-aw/setup/quick-start/',
 
 		// Introduction how-it-works → how-they-work
-		'/introduction/how-it-works/': '/introduction/how-they-work/',
+		'/introduction/how-it-works/': '/gh-aw/introduction/how-they-work/',
 
 		// Tools → Setup renames
-		'/tools/cli/': '/setup/cli/',
-		'/tools/mcp-server/': '/reference/gh-aw-as-mcp-server/',
-		'/tools/agentic-authoring/': '/setup/creating-workflows/',
+		'/tools/cli/': '/gh-aw/setup/cli/',
+		'/tools/mcp-server/': '/gh-aw/reference/gh-aw-as-mcp-server/',
+		'/tools/agentic-authoring/': '/gh-aw/setup/creating-workflows/',
 
 		// Samples → Examples renames
-		'/samples/coding-development/': '/examples/issue-pr-events/coding-development/',
-		'/samples/quality-testing/': '/examples/issue-pr-events/quality-testing/',
-		'/samples/triage-analysis/': '/examples/issue-pr-events/triage-analysis/',
-		'/samples/research-planning/': '/examples/scheduled/research-planning/',
+		'/samples/coding-development/': '/gh-aw/examples/issue-pr-events/coding-development/',
+		'/samples/quality-testing/': '/gh-aw/examples/issue-pr-events/quality-testing/',
+		'/samples/triage-analysis/': '/gh-aw/examples/issue-pr-events/triage-analysis/',
+		'/samples/research-planning/': '/gh-aw/examples/scheduled/research-planning/',
 
 		// Setup renames
-		'/setup/agentic-authoring/': '/setup/creating-workflows/',
-		'/setup/mcp-server/': '/reference/gh-aw-as-mcp-server/',
+		'/setup/agentic-authoring/': '/gh-aw/setup/creating-workflows/',
+		'/setup/mcp-server/': '/gh-aw/reference/gh-aw-as-mcp-server/',
 
 		// Reference renames
-		'/reference/tokens/': '/reference/auth/',
-		'/reference/custom-agents/': '/reference/copilot-custom-agents/',
-		'/reference/custom-agent/': '/reference/custom-agent-for-aw/',
+		'/reference/tokens/': '/gh-aw/reference/auth/',
+		'/reference/custom-agents/': '/gh-aw/reference/copilot-custom-agents/',
+		'/reference/custom-agent/': '/gh-aw/reference/custom-agent-for-aw/',
 
 		// Guides → Patterns renames
-		'/guides/chatops/': '/patterns/chat-ops/',
-		'/guides/issueops/': '/patterns/issue-ops/',
-		'/guides/labelops/': '/patterns/label-ops/',
-		'/guides/dailyops/': '/patterns/daily-ops/',
-		'/guides/dispatchops/': '/patterns/dispatch-ops/',
-		'/guides/monitoring/': '/patterns/monitoring/',
-		'/guides/multirepoops/': '/patterns/multi-repo-ops/',
-		'/guides/orchestration/': '/patterns/orchestration/',
-		'/guides/siderepoops/': '/patterns/side-repo-ops/',
-		'/guides/specops/': '/patterns/spec-ops/',
-		'/guides/researchplanassign/': '/patterns/task-ops/',
-		'/guides/trialops/': '/patterns/trial-ops/',
+		'/guides/chatops/': '/gh-aw/patterns/chat-ops/',
+		'/guides/issueops/': '/gh-aw/patterns/issue-ops/',
+		'/guides/labelops/': '/gh-aw/patterns/label-ops/',
+		'/guides/dailyops/': '/gh-aw/patterns/daily-ops/',
+		'/guides/dispatchops/': '/gh-aw/patterns/dispatch-ops/',
+		'/guides/monitoring/': '/gh-aw/patterns/monitoring/',
+		'/guides/multirepoops/': '/gh-aw/patterns/multi-repo-ops/',
+		'/guides/orchestration/': '/gh-aw/patterns/orchestration/',
+		'/guides/siderepoops/': '/gh-aw/patterns/side-repo-ops/',
+		'/guides/specops/': '/gh-aw/patterns/spec-ops/',
+		'/guides/researchplanassign/': '/gh-aw/patterns/task-ops/',
+		'/guides/trialops/': '/gh-aw/patterns/trial-ops/',
 
 		// Examples → Patterns renames
-		'/examples/comment-triggered/chatops/': '/patterns/chat-ops/',
-		'/examples/scheduled/dailyops/': '/patterns/daily-ops/',
-		'/examples/issue-pr-events/issueops/': '/patterns/issue-ops/',
-		'/examples/issue-pr-events/labelops/': '/patterns/label-ops/',
-		'/examples/issue-pr-events/projectops/': '/patterns/project-ops/',
+		'/examples/comment-triggered/chatops/': '/gh-aw/patterns/chat-ops/',
+		'/examples/scheduled/dailyops/': '/gh-aw/patterns/daily-ops/',
+		'/examples/issue-pr-events/issueops/': '/gh-aw/patterns/issue-ops/',
+		'/examples/issue-pr-events/labelops/': '/gh-aw/patterns/label-ops/',
+		'/examples/issue-pr-events/projectops/': '/gh-aw/patterns/project-ops/',
 
 		// Patterns unhyphenated → hyphenated slugs
-		'/patterns/centralrepoops/': '/patterns/central-repo-ops/',
-		'/patterns/chatops/': '/patterns/chat-ops/',
-		'/patterns/dailyops/': '/patterns/daily-ops/',
-		'/patterns/dataops/': '/patterns/data-ops/',
-		'/patterns/dispatchops/': '/patterns/dispatch-ops/',
-		'/patterns/issueops/': '/patterns/issue-ops/',
-		'/patterns/labelops/': '/patterns/label-ops/',
-		'/patterns/multirepoops/': '/patterns/multi-repo-ops/',
-		'/patterns/projectops/': '/patterns/project-ops/',
-		'/patterns/siderepoops/': '/patterns/side-repo-ops/',
-		'/patterns/specops/': '/patterns/spec-ops/',
-		'/patterns/taskops/': '/patterns/task-ops/',
-		'/patterns/trialops/': '/patterns/trial-ops/',
+		'/patterns/centralrepoops/': '/gh-aw/patterns/central-repo-ops/',
+		'/patterns/chatops/': '/gh-aw/patterns/chat-ops/',
+		'/patterns/dailyops/': '/gh-aw/patterns/daily-ops/',
+		'/patterns/dataops/': '/gh-aw/patterns/data-ops/',
+		'/patterns/dispatchops/': '/gh-aw/patterns/dispatch-ops/',
+		'/patterns/issueops/': '/gh-aw/patterns/issue-ops/',
+		'/patterns/labelops/': '/gh-aw/patterns/label-ops/',
+		'/patterns/multirepoops/': '/gh-aw/patterns/multi-repo-ops/',
+		'/patterns/projectops/': '/gh-aw/patterns/project-ops/',
+		'/patterns/siderepoops/': '/gh-aw/patterns/side-repo-ops/',
+		'/patterns/specops/': '/gh-aw/patterns/spec-ops/',
+		'/patterns/taskops/': '/gh-aw/patterns/task-ops/',
+		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
 	},
 	integrations: [
 		mermaid(),

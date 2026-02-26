@@ -395,7 +395,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.417",
+              agent_version: "0.0.418",
               workflow_name: "Copilot PR Conversation NLP Analysis",
               experimental: false,
               supports_tools_allowlist: true,
@@ -427,7 +427,7 @@ jobs:
             // Set model as output for reuse in other steps/jobs
             core.setOutput('model', awInfo.model);
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.417
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.418
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
