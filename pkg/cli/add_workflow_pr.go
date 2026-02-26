@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -142,7 +141,7 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 				"  git checkout -b %s\n"+
 				"  git commit -m %q\n"+
 				"  git push -u origin %s\n"+
-				"  gh pr create --title %q\n",
+				"  gh pr create --title %q",
 			err, commitMessage, branchName, commitMessage, branchName, prTitle,
 		)
 	}
