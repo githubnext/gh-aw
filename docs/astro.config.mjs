@@ -255,7 +255,6 @@ export default defineConfig({
 					items: [
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
-						{ label: 'Fork Support', link: '/guides/fork-support/' },
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
 						{ label: 'Reusing Workflows', link: '/guides/packaging-imports/' },
 						{ label: 'Self-Hosted Runners', link: '/guides/self-hosted-runners/' },
@@ -327,6 +326,7 @@ export default defineConfig({
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
+						{ label: 'Fork Support', link: '/reference/fork-support/' },
 					],
 				},
 				{
