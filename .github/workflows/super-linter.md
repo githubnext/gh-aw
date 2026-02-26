@@ -29,7 +29,7 @@ jobs:
       statuses: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           # super-linter needs the full git history to get the
           # list of files that changed across commits
@@ -66,14 +66,14 @@ jobs:
       
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v7.0.0
         with:
           name: super-linter-log
           path: super-linter.log
           retention-days: 7
 steps:
   - name: Download super-linter log
-    uses: actions/download-artifact@v6
+    uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v8.0.0
     with:
       name: super-linter-log
       path: /tmp/gh-aw/

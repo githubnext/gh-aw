@@ -21,13 +21,13 @@ safe-outputs:
 
 steps:
   - name: Setup Node.js
-    uses: actions/setup-node@v6
+    uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
     with:
       node-version: "24"
       cache: npm
       cache-dependency-path: actions/setup/js/package-lock.json
   - name: Setup Go
-    uses: actions/setup-go@v6
+    uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417  # v6.3.0
     with:
       go-version-file: go.mod
       cache: true

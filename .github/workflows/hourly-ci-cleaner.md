@@ -50,7 +50,7 @@ jobs:
       ci_run_id: ${{ steps.ci_check.outputs.ci_run_id }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Check last CI workflow run status on main branch
@@ -90,12 +90,12 @@ steps:
       sudo apt-get update
       sudo apt-get install -y make
   - name: Setup Go
-    uses: actions/setup-go@v6
+    uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417  # v6.3.0
     with:
       go-version-file: go.mod
       cache: true
   - name: Setup Node.js
-    uses: actions/setup-node@v6
+    uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
     with:
       node-version: "24"
       cache: npm

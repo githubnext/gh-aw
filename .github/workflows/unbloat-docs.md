@@ -94,12 +94,12 @@ timeout-minutes: 30
 # Build steps for documentation
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v6
+    uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
     with:
       persist-credentials: false
 
   - name: Setup Node.js
-    uses: actions/setup-node@v6
+    uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
     with:
       node-version: '24'
       cache: 'npm'
