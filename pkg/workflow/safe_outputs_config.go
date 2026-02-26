@@ -459,6 +459,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle steps (user-provided steps injected after checkout/setup, before safe-output code)
+			if steps, exists := outputMap["steps"]; exists {
+				if stepsList, ok := steps.([]any); ok {
+					config.Steps = stepsList
+					safeOutputsConfigLog.Printf("Configured %d user-provided steps for safe-outputs", len(stepsList))
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {

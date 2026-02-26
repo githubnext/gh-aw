@@ -6949,6 +6949,21 @@
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"
+        },
+        "steps": {
+          "type": "array",
+          "description": "Custom steps to inject into all safe-output jobs. These steps run after checking out the repository and setting up the action, and before any safe-output code executes.",
+          "items": {
+            "$ref": "#/$defs/githubActionsStep"
+          },
+          "examples": [
+            [
+              {
+                "name": "Install custom dependencies",
+                "run": "npm install my-package"
+              }
+            ]
+          ]
         }
       },
       "additionalProperties": false
