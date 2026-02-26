@@ -81,7 +81,7 @@ async function findPullRequestForCurrentBranch() {
  */
 async function ensureParentIssue(previousParentNumber = null) {
   const { owner, repo } = context.repo;
-  const parentTitle = "[agentics] Failed runs";
+  const parentTitle = "[aw] Failed runs";
   const parentLabel = "agentic-workflows";
 
   core.info(`Searching for parent issue: "${parentTitle}"`);
@@ -288,6 +288,17 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
   }
   context += "\n";
   return context;
+}
+
+/**
+ * Build a fork context hint string when the repository is a fork.
+ * @returns {string} Fork hint string, or empty string if not a fork
+ */
+function buildForkContextHint() {
+  if (context.payload?.repository?.fork) {
+    return "\n💡 **This repository is a fork.** If this failure is due to missing API keys or tokens, note that secrets from the parent repository are not inherited. Configure the required secrets directly in your fork's Settings → Secrets and variables → Actions.\n";
+  }
+  return "";
 }
 
 /**
@@ -534,7 +545,7 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[agentics] ${sanitizedWorkflowName} failed`;
+    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
 
     core.info(`Checking for existing issue with title: "${issueTitle}"`);
 
@@ -617,6 +628,9 @@ async function main() {
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
         }
 
+        // Build fork context hint
+        const forkContext = buildForkContextHint();
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -635,6 +649,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
+          fork_context: forkContext,
         };
 
         // Render the comment template
@@ -725,6 +740,9 @@ async function main() {
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
         }
 
+        // Build fork context hint
+        const forkContext = buildForkContextHint();
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -744,6 +762,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
+          fork_context: forkContext,
         };
 
         // Render the issue template

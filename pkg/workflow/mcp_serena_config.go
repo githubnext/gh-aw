@@ -2,18 +2,24 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var serenaConfigLog = logger.New("workflow:mcp_serena_config")
 
 // isSerenaInLocalMode checks if Serena tool is configured with local mode
 func isSerenaInLocalMode(tools *ToolsConfig) bool {
 	if tools == nil || tools.Serena == nil {
 		return false
 	}
+	serenaConfigLog.Printf("Serena tool mode: %s", tools.Serena.Mode)
 	return tools.Serena.Mode == "local"
 }
 
 // generateSerenaLocalModeSteps generates steps to start Serena MCP server locally using uvx
 func generateSerenaLocalModeSteps(yaml *strings.Builder) {
+	serenaConfigLog.Print("Generating Serena local mode startup steps")
 	// Step 1: Choose port for Serena HTTP server
 	yaml.WriteString("      - name: Generate Serena MCP Server Config\n")
 	yaml.WriteString("        id: serena-config\n")

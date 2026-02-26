@@ -38,6 +38,8 @@ tools:
 
 timeout-minutes: 30
 
+features:
+  copilot-requests: true
 ---
 
 # Claude Code User Documentation Review

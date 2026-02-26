@@ -824,7 +824,7 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 		{
 			name:               "default base branch",
 			baseBranch:         "",
-			expectedBaseBranch: "${{ github.base_ref || github.ref_name }}",
+			expectedBaseBranch: "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}",
 		},
 		{
 			name:               "branch with slash",

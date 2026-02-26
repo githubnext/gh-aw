@@ -75,6 +75,28 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, checkoutSteps...)
 	}
 
+	// Add user-provided steps after checkout/setup, before safe-output code
+	if len(data.SafeOutputs.Steps) > 0 {
+		consolidatedSafeOutputsJobLog.Printf("Adding %d user-provided steps to safe-outputs job", len(data.SafeOutputs.Steps))
+		for i, step := range data.SafeOutputs.Steps {
+			stepMap, ok := step.(map[string]any)
+			if !ok {
+				consolidatedSafeOutputsJobLog.Printf("Warning: safe-outputs step at index %d is not a valid step object (must be a map with properties like name, run, uses). Skipping this step.", i)
+				continue
+			}
+			typedStep, err := MapToStep(stepMap)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
+			}
+			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
+			}
+			steps = append(steps, stepYAML)
+		}
+	}
+
 	// Note: Unlock step has been moved to dedicated unlock job
 	// The safe_outputs job now depends on the unlock job, so the issue
 	// will already be unlocked when this job runs
