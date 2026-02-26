@@ -411,6 +411,8 @@ gh aw remove my-workflow
 
 Update workflows based on `source` field (`owner/repo/path@ref`). By default, performs a 3-way merge to preserve local changes; use `--no-merge` to override with upstream. Semantic versions update within same major version.
 
+If no workflows in the repository contain a `source` field, the command exits gracefully with an informational message rather than an error. This is expected behavior for repositories that have not yet added updatable workflows.
+
 ```bash wrap
 gh aw update                              # Update all with source field
 gh aw update ci-doctor                    # Update specific workflow (3-way merge)
