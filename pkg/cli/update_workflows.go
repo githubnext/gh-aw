@@ -34,7 +34,8 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 		if len(workflowNames) > 0 {
 			return errors.New("no workflows found matching the specified names with source field")
 		}
-		return errors.New("no workflows found with source field")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("no workflows found with source field"))
+		return nil
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) to update", len(workflows))))

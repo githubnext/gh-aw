@@ -968,7 +968,7 @@ func TestIsBranchRef(t *testing.T) {
 	}
 }
 
-// TestRunUpdateWorkflows_NoSourceWorkflows tests that RunUpdateWorkflows errors when no source workflows exist
+// TestRunUpdateWorkflows_NoSourceWorkflows tests that RunUpdateWorkflows reports a message (not an error) when no source workflows exist
 func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	originalDir, _ := os.Getwd()
@@ -979,10 +979,9 @@ func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
 	os.Chdir(tmpDir)
 
-	// Running update with no source workflows should fail
+	// Running update with no source workflows should succeed with an info message, not an error
 	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false)
-	require.Error(t, err, "Should error when no workflows with source field exist")
-	assert.Contains(t, err.Error(), "no workflows found with source field")
+	assert.NoError(t, err, "Should not error when no workflows with source field exist")
 }
 
 // TestRunUpdateWorkflows_SpecificWorkflowNotFound tests that RunUpdateWorkflows errors for unknown workflow name
