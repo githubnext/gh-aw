@@ -35,6 +35,8 @@ safe-outputs:
     close-older-discussions: true
     max: 1
 timeout-minutes: 15
+features:
+  copilot-requests: true
 ---
 
 # Auto-Triage Issues Agent 🏷️

@@ -23,7 +23,7 @@
 #
 # Reviews project documentation from the perspective of a Claude Code user who does not use GitHub Copilot or Copilot CLI
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6ef1abc1f763449d6fa166ff18e68c6d7994cd9789e5e2e543b648e6cb698cf5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5686ea2651d50165672d00ee1181e76e2493c8a1eed6993edfe9a0b6da21d0cd"}
 
 name: "Claude Code User Documentation Review"
 "on":
@@ -226,6 +226,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      copilot-requests: write
       discussions: read
       issues: read
       pull-requests: read

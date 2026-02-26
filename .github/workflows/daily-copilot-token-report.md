@@ -47,6 +47,8 @@ imports:
   - copilot-setup-steps.yml    # Import setup steps from copilot-setup-steps.yml
   - shared/reporting.md
   - shared/python-dataviz.md
+features:
+  copilot-requests: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
