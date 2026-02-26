@@ -92,8 +92,11 @@ safe-outputs:
     group: true                      # group as sub-issues under parent
     close-older-issues: true         # close previous issues from same workflow
     target-repo: "owner/repo"        # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for comprehensive documentation on `target-repo`, `allowed-repos`, and cross-repository authentication.
 
 > [!TIP]
 > Use `footer: false` to omit the AI-generated footer while preserving workflow-id markers for searchability. See [Footer Control](/gh-aw/reference/footers/) for details.
@@ -134,10 +137,6 @@ safe-outputs:
 ```
 
 In this example, if the workflow creates 5 issues, all will be automatically grouped under a parent issue, making it easy to track related work items together.
-
-#### Temporary IDs for Issue References
-
-Use temporary IDs (`aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in bodies are replaced with actual numbers. The `parent` field creates sub-issue relationships.
 
 #### Auto-Close Older Issues
 
@@ -215,6 +214,7 @@ safe-outputs:
     required-title-prefix: "[bot]"    # only close matching prefix
     max: 20                           # max closures (default: 1)
     target-repo: "owner/repo"         # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     state-reason: "duplicate"         # completed (default), not_planned, duplicate
 ```
 
@@ -233,6 +233,7 @@ safe-outputs:
     target: "*"                  # "triggering" (default), "*", or number
     discussion: true             # target discussions
     target-repo: "owner/repo"    # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     hide-older-comments: true    # hide previous comments from same workflow
     allowed-reasons: [outdated]  # restrict hiding reasons (optional)
 ```
@@ -280,6 +281,7 @@ safe-outputs:
     max: 3                       # max labels (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
 ```
 
 #### Blocked Label Patterns
@@ -314,6 +316,7 @@ safe-outputs:
     max: 3                       # max operations (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
 ```
 
 **Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
@@ -685,6 +688,7 @@ safe-outputs:
     expires: 14                   # auto-close after 14 days (same-repo only)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
     target-repo: "owner/repo"     # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
     fallback-as-issue: false      # disable issue fallback (default: true)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
@@ -736,6 +740,7 @@ safe-outputs:
     side: "RIGHT"             # "LEFT" or "RIGHT" (default: "RIGHT")
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     footer: "if-body"         # footer control: "always", "none", or "if-body"
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
@@ -972,6 +977,7 @@ safe-outputs:
     expires: 3                   # auto-close after 3 days (or false to disable)
     max: 3                       # max discussions (default: 1)
     target-repo: "owner/repo"    # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     fallback-to-issue: true      # fallback to issue creation on permission errors (default: true)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
@@ -1130,7 +1136,17 @@ To respect GitHub API rate limits, the handler automatically enforces a 5-second
 
 ### Agent Session Creation (`create-agent-session:`)
 
-Creates Copilot coding agent sessions.
+Creates Copilot coding agent sessions from workflow output. Allows workflows to spawn new agent sessions for follow-up work.
+
+```yaml wrap
+safe-outputs:
+  create-agent-session:
+    base: "main"                 # base branch for agent session PR
+    max: 1                       # max sessions (default: 1, maximum: 10)
+    target-repo: "owner/repo"    # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+```
 
 ### Assign to Agent (`assign-to-agent:`)
 
@@ -1168,6 +1184,7 @@ safe-outputs:
     max: 3                     # max assignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     unassign-first: true       # unassign all current assignees before assigning (default: false)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
@@ -1183,12 +1200,20 @@ safe-outputs:
     max: 1                     # max unassignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
 ## Cross-Repository Operations
 
-Most safe outputs support `target-repo`. This will generally require additional authentication (`github-token` or `app:`) to take effect.
+Most safe outputs support cross-repository operations:
+
+- **`target-repo`**: Set a default target repository for all operations of this type
+- **`allowed-repos`**: Allow the agent to dynamically choose which repository to target (from an allowlist)
+
+When `allowed-repos` is configured, the agent can include a `repo` field in its output to specify which repository to target. The target repository (current or configured `target-repo`) is always implicitly allowed.
+
+**Example: Fixed target repository**
 
 ```yaml wrap
 safe-outputs:
@@ -1196,6 +1221,38 @@ safe-outputs:
     target-repo: "org/tracking-repo"
     github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
 ```
+
+**Example: Agent-selected repository from allowlist**
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    allowed-repos: ["org/frontend", "org/backend", "org/docs"]
+    github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
+```
+
+The agent can then create issues in any of the allowed repositories:
+
+```json
+{"type": "create_issue", "title": "Fix typo", "body": "...", "repo": "org/docs"}
+```
+
+**Safe outputs supporting `allowed-repos`:**
+
+| Safe Output | Purpose |
+|-------------|---------|
+| `create-issue` | Cross-repo issue creation |
+| `close-issue` | Cross-repo issue closing |
+| `add-comment` | Cross-repo commenting on issues/PRs/discussions |
+| `create-discussion` | Cross-repo discussion creation |
+| `create-pull-request` | Cross-repo PR creation |
+| `create-pull-request-review-comment` | Cross-repo PR review comments |
+| `reply-to-pull-request-review-comment` | Cross-repo PR comment replies |
+| `add-labels` | Cross-repo label addition |
+| `remove-labels` | Cross-repo label removal |
+| `assign-to-user` | Cross-repo user assignment |
+| `unassign-from-user` | Cross-repo user unassignment |
+| `create-agent-session` | Cross-repo agent session creation |
 
 ## Global Configuration Options
 

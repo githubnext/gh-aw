@@ -157,6 +157,7 @@ For comprehensive documentation on the MultiRepoOps design pattern, see:
 
 ## Related Documentation
 
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout and target-repo configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Configuration options
 - [GitHub Tools](/gh-aw/reference/github-tools/) - API access configuration
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and security
