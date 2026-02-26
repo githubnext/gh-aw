@@ -22,14 +22,14 @@ jobs:
 
       - name: Run vet
         id: vet
-        uses: safedep/vet-action@v1
+        uses: safedep/vet-action@e2a78850eb517b8305b1085bca947bef29213a22  # v1.1.11
         with:
           policy: .github/vet/policy.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@bb471cdcf4dda2c934c5b656f554d43c1434ed13  # v4
         if: ${{ steps.vet.outputs.report != '' }}
         with:
           sarif_file: ${{ steps.vet.outputs.report }}
