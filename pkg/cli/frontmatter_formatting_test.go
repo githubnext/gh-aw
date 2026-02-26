@@ -142,7 +142,9 @@ This is test content.`
 // TestUpdateFieldInFrontmatterBlockMapping tests that UpdateFieldInFrontmatter correctly replaces
 // a block-mapped field (multi-line YAML object) with a scalar value, removing child lines.
 // This mirrors the add-wizard bug where a block-mapped engine:
-//   id: claude
+//
+//	id: claude
+//
 // was updated to engine: copilot but the child "  id: claude" line remained, producing invalid YAML.
 func TestUpdateFieldInFrontmatterBlockMapping(t *testing.T) {
 	t.Run("replace block-mapped engine with scalar value removes child lines", func(t *testing.T) {
