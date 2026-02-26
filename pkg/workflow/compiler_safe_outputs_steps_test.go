@@ -501,6 +501,28 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"GH_AW_PROJECT_URL",
 			},
 		},
+		{
+			name: "handler manager with allowed-domains propagates to process step",
+			safeOutputs: &SafeOutputsConfig{
+				AllowedDomains: []string{"docs.example.com", "api.example.com"},
+				AddComments:    &AddCommentsConfig{},
+			},
+			checkContains: []string{
+				"GH_AW_ALLOWED_DOMAINS: \"docs.example.com,api.example.com\"",
+				"GITHUB_SERVER_URL: ${{ github.server_url }}",
+				"GITHUB_API_URL: ${{ github.api_url }}",
+			},
+		},
+		{
+			name: "handler manager without allowed-domains still includes github urls",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			checkContains: []string{
+				"GITHUB_SERVER_URL: ${{ github.server_url }}",
+				"GITHUB_API_URL: ${{ github.api_url }}",
+			},
+		},
 		// Note: create_project is now handled by the unified handler manager,
 		// not the separate project handler manager
 	}
