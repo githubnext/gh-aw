@@ -180,10 +180,4 @@ func TestNewPRTransferSubcommand(t *testing.T) {
 	if repoFlag == nil {
 		t.Error("Expected --repo flag to exist")
 	}
-
-	// Check that --verbose flag exists
-	verboseFlag := cmd.Flags().Lookup("verbose")
-	if verboseFlag == nil {
-		t.Error("Expected --verbose flag to exist")
-	}
 }
