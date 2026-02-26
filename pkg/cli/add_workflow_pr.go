@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -127,10 +128,26 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 	}
 
 	if err := commitChanges(commitMessage, opts.Verbose); err != nil {
-		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
-		}
-		return 0, "", fmt.Errorf("failed to commit files: %w", err)
+		// Don't rollback - leave the workflow files on disk for manual recovery.
+		// Print clear instructions so the user can commit and push manually.
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to commit workflow files: %v", err)))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "The workflow files have been written to disk and staged in git.")
+		fmt.Fprintln(os.Stderr, "Please commit the files manually, then either push them to the")
+		fmt.Fprintln(os.Stderr, "repository or create a pull request:")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  git commit -m \"%s\"", commitMessage)))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git push"))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Or to create a pull request:")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git checkout -b "+branchName))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  git commit -m \"%s\"", commitMessage)))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git push -u origin "+branchName))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  gh pr create --title \"%s\"", prTitle)))
+		fmt.Fprintln(os.Stderr, "")
+		return 0, "", errors.New("failed to commit workflow files")
 	}
 
 	// Push branch

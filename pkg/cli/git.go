@@ -339,7 +339,12 @@ func commitChanges(message string, verbose bool) error {
 	console.LogVerbose(verbose, "Committing changes with message: "+message)
 
 	cmd := exec.Command("git", "commit", "-m", message)
-	if err := cmd.Run(); err != nil {
+	if output, err := cmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to commit: %v, output: %s", err, string(output))
+		outputStr := strings.TrimSpace(string(output))
+		if outputStr != "" {
+			return fmt.Errorf("failed to commit changes: %w\n%s", err, outputStr)
+		}
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
