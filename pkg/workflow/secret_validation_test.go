@@ -150,17 +150,17 @@ func TestClaudeEngineHasSecretValidation(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{}
 
-	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) < 1 {
-		t.Fatal("Expected at least one installation step")
+	// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty secret validation step")
 	}
 
-	// First step should be secret validation (only ANTHROPIC_API_KEY)
-	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate ANTHROPIC_API_KEY secret") {
-		t.Error("First installation step should validate ANTHROPIC_API_KEY secret")
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate ANTHROPIC_API_KEY secret") {
+		t.Error("Secret validation step should validate ANTHROPIC_API_KEY secret")
 	}
-	if !strings.Contains(firstStep, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
+	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Error("Secret validation step should reference secrets.ANTHROPIC_API_KEY")
 	}
 }
@@ -169,17 +169,17 @@ func TestCopilotEngineHasSecretValidation(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{}
 
-	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) < 1 {
-		t.Fatal("Expected at least one installation step")
+	// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty secret validation step")
 	}
 
-	// First step should be secret validation
-	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate COPILOT_GITHUB_TOKEN secret") {
-		t.Error("First installation step should validate COPILOT_GITHUB_TOKEN secret")
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate COPILOT_GITHUB_TOKEN secret") {
+		t.Error("Secret validation step should validate COPILOT_GITHUB_TOKEN secret")
 	}
-	if !strings.Contains(firstStep, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+	if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
 		t.Error("Secret validation step should reference secrets.COPILOT_GITHUB_TOKEN")
 	}
 }
@@ -188,30 +188,30 @@ func TestCodexEngineHasSecretValidation(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{}
 
-	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) < 1 {
-		t.Fatal("Expected at least one installation step")
+	// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty secret validation step")
 	}
 
-	// First step should be secret validation
-	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate CODEX_API_KEY or OPENAI_API_KEY secret") {
-		t.Error("First installation step should validate CODEX_API_KEY or OPENAI_API_KEY secret")
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate CODEX_API_KEY or OPENAI_API_KEY secret") {
+		t.Error("Secret validation step should validate CODEX_API_KEY or OPENAI_API_KEY secret")
 	}
 
 	// Should check for both secrets
-	if !strings.Contains(firstStep, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}") {
+	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}") {
 		t.Error("Secret validation step should reference secrets.CODEX_API_KEY")
 	}
-	if !strings.Contains(firstStep, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
+	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
 		t.Error("Secret validation step should reference secrets.OPENAI_API_KEY")
 	}
 
 	// Should call the validate_multi_secret.sh script with both secret names
-	if !strings.Contains(firstStep, "/opt/gh-aw/actions/validate_multi_secret.sh") {
+	if !strings.Contains(stepContent, "/opt/gh-aw/actions/validate_multi_secret.sh") {
 		t.Error("Should call validate_multi_secret.sh script")
 	}
-	if !strings.Contains(firstStep, "CODEX_API_KEY OPENAI_API_KEY") {
+	if !strings.Contains(stepContent, "CODEX_API_KEY OPENAI_API_KEY") {
 		t.Error("Should pass both CODEX_API_KEY and OPENAI_API_KEY to the script")
 	}
 }
@@ -316,23 +316,13 @@ func TestValidationStepUsesEngineEnvOverride(t *testing.T) {
 				},
 			}
 
-			steps := tt.engine.GetInstallationSteps(workflowData)
-			if len(steps) < 1 {
-				t.Fatal("Expected at least one installation step")
+			// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+			step := tt.engine.GetSecretValidationStep(workflowData)
+			if len(step) == 0 {
+				t.Fatal("Expected a non-empty secret validation step")
 			}
 
-			// Find the validate-secret step
-			var validationStep string
-			for _, step := range steps {
-				content := strings.Join(step, "\n")
-				if strings.Contains(content, "id: validate-secret") {
-					validationStep = content
-					break
-				}
-			}
-			if validationStep == "" {
-				t.Fatal("Expected to find a validate-secret step")
-			}
+			validationStep := strings.Join(step, "\n")
 
 			// The validation step should use the overridden secret expression
 			expectedExpr := fmt.Sprintf("%s: ${{ secrets.%s }}", tt.tokenKey, tt.overrideSecret)

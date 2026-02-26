@@ -83,6 +83,10 @@ func TestInterfaceSegregation(t *testing.T) {
 			installSteps := engine.GetInstallationSteps(workflowData)
 			assert.NotNil(t, installSteps, "GetInstallationSteps should not return nil")
 
+			// Test GetSecretValidationStep (can return empty step)
+			secretStep := engine.GetSecretValidationStep(workflowData)
+			assert.NotNil(t, secretStep, "GetSecretValidationStep should not return nil for engine %s", engine.GetID())
+
 			// Test GetExecutionSteps (can return empty list)
 			execSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 			assert.NotNil(t, execSteps, "GetExecutionSteps should not return nil")
@@ -236,8 +240,9 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 				Tools:       map[string]any{},
 			}
 			installSteps := we.GetInstallationSteps(workflowData)
+			secretStep := we.GetSecretValidationStep(workflowData)
 			execSteps := we.GetExecutionSteps(workflowData, "/tmp/test.log")
-			return installSteps != nil && execSteps != nil
+			return installSteps != nil && secretStep != nil && execSteps != nil
 		}
 
 		// All engines should satisfy this
@@ -286,6 +291,7 @@ func TestBaseEngineImplementsAllInterfaces(t *testing.T) {
 		Tools:       map[string]any{},
 	}
 	assert.Empty(t, base.GetRequiredSecretNames(workflowData))
+	assert.Empty(t, base.GetSecretValidationStep(workflowData), "BaseEngine default should return empty secret validation step")
 }
 
 // TestEngineCapabilityVariety validates that different engines have different capabilities

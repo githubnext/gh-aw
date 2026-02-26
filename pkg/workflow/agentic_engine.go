@@ -148,6 +148,11 @@ type WorkflowExecutor interface {
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
 	GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
 
+	// GetSecretValidationStep returns the step that validates required secrets are available.
+	// This step is added to the activation job before context variable validation.
+	// Returns an empty GitHubActionStep if no secret validation is needed.
+	GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep
+
 	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 }
@@ -304,6 +309,12 @@ func (e *BaseEngine) GetLogFileForParsing() string {
 // Engines must override this to specify their required secrets
 func (e *BaseEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	return []string{}
+}
+
+// GetSecretValidationStep returns an empty step by default.
+// Engines that require secret validation must override this method.
+func (e *BaseEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	return GitHubActionStep{}
 }
 
 // ParseLogMetrics provides a default no-op implementation for log parsing

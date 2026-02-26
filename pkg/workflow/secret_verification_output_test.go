@@ -12,7 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestSecretVerificationOutput tests that the agent job outputs include secret_verification_result
+// TestSecretVerificationOutput tests that the activation job outputs include secret_verification_result
 func TestSecretVerificationOutput(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-secret-verification-output-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
@@ -42,9 +42,9 @@ Test workflow`
 
 	lockStr := string(lockContent)
 
-	// Check that agent job has secret_verification_result output
+	// Check that activation job has secret_verification_result output
 	if !strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
-		t.Error("Expected agent job to have secret_verification_result output")
+		t.Error("Expected activation job to have secret_verification_result output")
 	}
 
 	// Check that validate-secret step has an id
@@ -86,8 +86,8 @@ Test workflow`
 
 	lockStr := string(lockContent)
 
-	// Check that conclusion job receives secret verification result
-	if !strings.Contains(lockStr, "GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}") {
-		t.Error("Expected conclusion job to receive secret_verification_result from agent job")
+	// Check that conclusion job receives secret verification result from activation job
+	if !strings.Contains(lockStr, "GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}") {
+		t.Error("Expected conclusion job to receive secret_verification_result from activation job")
 	}
 }

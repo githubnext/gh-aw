@@ -38,15 +38,16 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 		engine := NewClaudeEngine()
 		steps := engine.GetInstallationSteps(workflowData)
 
-		// With AWF enabled: secret validation, Node.js setup, AWF install, Claude install
-		if len(steps) != 4 {
-			t.Errorf("Expected 4 installation steps with firewall enabled (secret validation + Node.js setup + AWF install + Claude install), got %d", len(steps))
+		// With AWF enabled: Node.js setup, AWF install, Claude install = 3 steps
+		// (secret validation is now in the activation job)
+		if len(steps) != 3 {
+			t.Errorf("Expected 3 installation steps with firewall enabled (Node.js setup + AWF install + Claude install), got %d", len(steps))
 		}
 
-		// Check AWF installation step (3rd step, index 2)
-		awfStepStr := strings.Join(steps[2], "\n")
+		// Check AWF installation step (2nd step, index 1)
+		awfStepStr := strings.Join(steps[1], "\n")
 		if !strings.Contains(awfStepStr, "Install awf binary") {
-			t.Error("Third step should install AWF binary")
+			t.Error("Second step should install AWF binary")
 		}
 	})
 

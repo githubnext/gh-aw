@@ -465,6 +465,23 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
+	// Add secret validation step before context variable validation.
+	// This validates that the required engine secrets are available before any other checks.
+	engine, err := c.getAgenticEngine(data.AI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
+	}
+	secretValidationStep := engine.GetSecretValidationStep(data)
+	if len(secretValidationStep) > 0 {
+		for _, line := range secretValidationStep {
+			steps = append(steps, line+"\n")
+		}
+		outputs["secret_verification_result"] = "${{ steps.validate-secret.outputs.verification_result }}"
+		compilerActivationJobsLog.Printf("Added validate-secret step to activation job")
+	} else {
+		compilerActivationJobsLog.Printf("Skipped validate-secret step (engine does not require secret validation)")
+	}
+
 	// Add context variable validation step to ensure numeric fields contain only integers
 	// This prevents malicious payloads from hiding special text or code in numeric fields
 	// The validation reads directly from the GitHub context object (no env vars needed)
@@ -852,18 +869,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		"model": "${{ steps.generate_aw_info.outputs.model }}",
 	}
 
-	// Only add secret_verification_result output if the engine adds the validate-secret step
-	// The validate-secret step is only added by engines that include it in GetInstallationSteps()
-	engine, err := c.getAgenticEngine(data.AI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
-	}
-	if EngineHasValidateSecretStep(engine, data) {
-		outputs["secret_verification_result"] = "${{ steps.validate-secret.outputs.verification_result }}"
-		compilerActivationJobsLog.Printf("Added secret_verification_result output (engine includes validate-secret step)")
-	} else {
-		compilerActivationJobsLog.Printf("Skipped secret_verification_result output (engine does not include validate-secret step)")
-	}
+	// Note: secret_verification_result is now an output of the activation job (not the agent job).
+	// The validate-secret step runs in the activation job, before context variable validation.
 
 	// Add safe-output specific outputs if the workflow uses the safe-outputs feature
 	if data.SafeOutputs != nil {

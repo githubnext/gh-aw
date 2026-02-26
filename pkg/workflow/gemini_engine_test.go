@@ -74,25 +74,20 @@ func TestGeminiEngineInstallation(t *testing.T) {
 		steps := engine.GetInstallationSteps(workflowData)
 		require.NotEmpty(t, steps, "Should generate installation steps")
 
-		// Should have at least: Secret validation + Node.js setup + Install Gemini
-		assert.GreaterOrEqual(t, len(steps), 3, "Should have at least 3 installation steps")
+		// Should have at least: Node.js setup + Install Gemini
+		// (secret validation is now in the activation job via GetSecretValidationStep)
+		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
 
-		// Verify first step is secret validation
+		// Verify first step is Node.js setup
 		if len(steps) > 0 && len(steps[0]) > 0 {
 			stepContent := strings.Join(steps[0], "\n")
-			assert.Contains(t, stepContent, "Validate GEMINI_API_KEY secret", "First step should validate GEMINI_API_KEY")
+			assert.Contains(t, stepContent, "Setup Node.js", "First step should setup Node.js")
 		}
 
-		// Verify second step is Node.js setup
+		// Verify second step is Install Gemini CLI
 		if len(steps) > 1 && len(steps[1]) > 0 {
 			stepContent := strings.Join(steps[1], "\n")
-			assert.Contains(t, stepContent, "Setup Node.js", "Second step should setup Node.js")
-		}
-
-		// Verify third step is Install Gemini CLI
-		if len(steps) > 2 && len(steps[2]) > 0 {
-			stepContent := strings.Join(steps[2], "\n")
-			assert.Contains(t, stepContent, "Install Gemini CLI", "Third step should install Gemini CLI")
+			assert.Contains(t, stepContent, "Install Gemini CLI", "Second step should install Gemini CLI")
 			assert.Contains(t, stepContent, "@google/gemini-cli", "Should install @google/gemini-cli package")
 		}
 	})

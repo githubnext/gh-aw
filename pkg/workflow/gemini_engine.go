@@ -85,6 +85,21 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 	return secrets
 }
 
+// GetSecretValidationStep returns the secret validation step for the Gemini engine.
+// Returns an empty step if custom command is specified.
+func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		geminiLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return GitHubActionStep{}
+	}
+	return GenerateMultiSecretValidationStep(
+		[]string{"GEMINI_API_KEY"},
+		"Gemini CLI",
+		"https://geminicli.com/docs/get-started/authentication/",
+		getEngineEnvOverrides(workflowData),
+	)
+}
+
 func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	geminiLog.Printf("Generating installation steps for Gemini engine: workflow=%s", workflowData.Name)
 
@@ -107,14 +122,7 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		InstallStepName: "Install Gemini CLI",
 	}
 
-	// Add secret validation step
-	secretValidation := GenerateMultiSecretValidationStep(
-		config.Secrets,
-		config.Name,
-		config.DocsURL,
-		getEngineEnvOverrides(workflowData),
-	)
-	steps = append(steps, secretValidation)
+	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
 
 	// Determine Gemini version
 	geminiVersion := config.Version

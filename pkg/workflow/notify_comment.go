@@ -127,14 +127,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 
-	// Only add secret_verification_result if the engine adds the validate-secret step
-	// The validate-secret step is only added by engines that include it in GetInstallationSteps()
+	// Only add secret_verification_result if the engine provides a validate-secret step.
+	// The validate-secret step runs in the activation job, so the output is on needs.activation.
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
 	}
 	if EngineHasValidateSecretStep(engine, data) {
-		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.%s.outputs.secret_verification_result }}\n", mainJobName))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.%s.outputs.secret_verification_result }}\n", string(constants.ActivationJobName)))
 	}
 
 	// Add checkout_pr_success to detect PR checkout failures (e.g., PR merged and branch deleted)

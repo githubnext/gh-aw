@@ -4,7 +4,7 @@
 // the GitHub Copilot CLI and related sandbox infrastructure (AWF or SRT).
 //
 // Installation order:
-//  1. Secret validation (COPILOT_GITHUB_TOKEN)
+//  1. Secret validation (COPILOT_GITHUB_TOKEN) — runs in the activation job
 //  2. Node.js setup
 //  3. Sandbox installation (SRT or AWF, if needed)
 //  4. Copilot CLI installation
@@ -23,13 +23,32 @@ import (
 
 var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
 
+// GetSecretValidationStep returns the secret validation step for the Copilot engine.
+// Returns an empty step if copilot-requests feature is enabled or custom command is specified.
+func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		copilotInstallLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return GitHubActionStep{}
+	}
+	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
+		copilotInstallLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
+		return GitHubActionStep{}
+	}
+	return GenerateMultiSecretValidationStep(
+		[]string{"COPILOT_GITHUB_TOKEN"},
+		"GitHub Copilot CLI",
+		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+		getEngineEnvOverrides(workflowData),
+	)
+}
+
 // GetInstallationSteps generates the complete installation workflow for Copilot CLI.
-// This includes secret validation, Node.js setup, sandbox installation (SRT or AWF),
-// and Copilot CLI installation. The installation order is critical:
-// 1. Secret validation
-// 2. Node.js setup
-// 3. Sandbox installation (SRT or AWF, if needed)
-// 4. Copilot CLI installation
+// This includes Node.js setup, sandbox installation (SRT or AWF), and Copilot CLI installation.
+// Secret validation is handled separately in the activation job via GetSecretValidationStep.
+// The installation order is:
+// 1. Node.js setup
+// 2. Sandbox installation (SRT or AWF, if needed)
+// 3. Copilot CLI installation
 //
 // If a custom command is specified in the engine configuration, this function returns
 // an empty list of steps, skipping the standard installation process.
@@ -55,20 +74,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		InstallStepName: "Install GitHub Copilot CLI",
 	}
 
-	// Add secret validation step unless copilot-requests feature is enabled.
-	// When copilot-requests is enabled, the GitHub Actions token is used directly
-	// (no COPILOT_GITHUB_TOKEN secret required).
-	if !isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
-		secretValidation := GenerateMultiSecretValidationStep(
-			config.Secrets,
-			config.Name,
-			config.DocsURL,
-			getEngineEnvOverrides(workflowData),
-		)
-		steps = append(steps, secretValidation)
-	} else {
-		copilotInstallLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
-	}
+	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
 
 	// Determine Copilot version
 	copilotVersion := config.Version

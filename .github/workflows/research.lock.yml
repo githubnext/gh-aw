@@ -54,6 +54,7 @@ jobs:
     outputs:
       comment_id: ""
       comment_repo: ""
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -65,6 +66,11 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Validate context variables
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -249,7 +255,6 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
-      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -336,11 +341,6 @@ jobs:
             
             // Set model as output for reuse in other steps/jobs
             core.setOutput('model', awInfo.model);
-      - name: Validate COPILOT_GITHUB_TOKEN secret
-        id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.417
       - name: Install awf binary
@@ -1022,7 +1022,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "research"
-          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
+          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_CREATE_DISCUSSION_ERRORS: ${{ needs.safe_outputs.outputs.create_discussion_errors }}
           GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}

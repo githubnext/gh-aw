@@ -103,9 +103,9 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version (firewall feature disabled by default)
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	// When firewall is disabled: secret validation + install (no Node.js needed with new installer) = 2 steps
-	if len(steps) != 2 {
-		t.Errorf("Expected 2 installation steps (secret validation + install), got %d", len(steps))
+	// Secret validation is now in the activation job; installation only has the install step = 1 step
+	if len(steps) != 1 {
+		t.Errorf("Expected 1 installation step (install), got %d", len(steps))
 	}
 
 	// Test with version (firewall feature disabled by default)
@@ -113,9 +113,9 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	// When firewall is disabled: secret validation + install (no Node.js needed with new installer) = 2 steps
-	if len(stepsWithVersion) != 2 {
-		t.Errorf("Expected 2 installation steps with version (secret validation + install), got %d", len(stepsWithVersion))
+	// Secret validation is now in the activation job; installation only has the install step = 1 step
+	if len(stepsWithVersion) != 1 {
+		t.Errorf("Expected 1 installation step with version (install), got %d", len(stepsWithVersion))
 	}
 }
 

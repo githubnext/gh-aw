@@ -19,8 +19,9 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		}
 
 		steps := engine.GetInstallationSteps(workflowData)
-		if len(steps) != 3 {
-			t.Errorf("Expected 3 installation steps without network permissions (secret validation + Node.js setup + install), got %d", len(steps))
+		// Secret validation is now in the activation job; installation has Node.js setup + install = 2 steps
+		if len(steps) != 2 {
+			t.Errorf("Expected 2 installation steps without network permissions (Node.js setup + install), got %d", len(steps))
 		}
 	})
 
@@ -37,15 +38,16 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		}
 
 		steps := engine.GetInstallationSteps(workflowData)
-		// With AWF enabled: secret validation + Node.js setup + AWF install + Claude install
-		if len(steps) != 4 {
-			t.Errorf("Expected 4 installation steps with network permissions and AWF (secret validation + Node.js setup + AWF install + Claude install), got %d", len(steps))
+		// With AWF enabled: Node.js setup + AWF install + Claude install = 3 steps
+		// (secret validation is now in the activation job)
+		if len(steps) != 3 {
+			t.Errorf("Expected 3 installation steps with network permissions and AWF (Node.js setup + AWF install + Claude install), got %d", len(steps))
 		}
 
-		// Check AWF installation step (3rd step, index 2)
-		awfStepStr := strings.Join(steps[2], "\n")
+		// Check AWF installation step (2nd step, index 1)
+		awfStepStr := strings.Join(steps[1], "\n")
 		if !strings.Contains(awfStepStr, "Install awf binary") {
-			t.Error("Third step should install AWF binary")
+			t.Error("Second step should install AWF binary")
 		}
 	})
 
@@ -188,15 +190,16 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 
 		// Get installation steps
 		steps := engine.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})
-		// With AWF enabled: secret validation + Node.js setup + AWF install + Claude install
-		if len(steps) != 4 {
-			t.Fatalf("Expected 4 installation steps (secret validation + Node.js setup + AWF install + Claude install), got %d", len(steps))
+		// With AWF enabled: Node.js setup + AWF install + Claude install = 3 steps
+		// (secret validation is now in the activation job)
+		if len(steps) != 3 {
+			t.Fatalf("Expected 3 installation steps (Node.js setup + AWF install + Claude install), got %d", len(steps))
 		}
 
-		// Verify AWF installation step (third step, index 2)
-		awfStep := strings.Join(steps[2], "\n")
+		// Verify AWF installation step (second step, index 1)
+		awfStep := strings.Join(steps[1], "\n")
 		if !strings.Contains(awfStep, "Install awf binary") {
-			t.Error("Third step should install AWF binary")
+			t.Error("Second step should install AWF binary")
 		}
 
 		// Get execution steps

@@ -12,9 +12,10 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestAwInfoBeforeValidateSecret verifies that the generate_aw_info step
-// appears before the validate-secret step in the generated workflow.
-func TestAwInfoBeforeValidateSecret(t *testing.T) {
+// TestValidateSecretBeforeAwInfo verifies that the validate-secret step in the activation job
+// appears before the generate_aw_info step in the agent job in the generated workflow.
+// The validate-secret step runs in the activation job, which executes before the agent job.
+func TestValidateSecretBeforeAwInfo(t *testing.T) {
 	tests := []struct {
 		name            string
 		workflowContent string
@@ -33,7 +34,7 @@ engine: copilot
 
 # Test Copilot Workflow
 
-This workflow tests that generate_aw_info appears before validate-secret.
+This workflow tests that validate-secret appears before generate_aw_info.
 `,
 			engine: "copilot",
 		},
@@ -50,7 +51,7 @@ engine: claude
 
 # Test Claude Workflow
 
-This workflow tests that generate_aw_info appears before validate-secret.
+This workflow tests that validate-secret appears before generate_aw_info.
 `,
 			engine: "claude",
 		},
@@ -67,7 +68,7 @@ engine: codex
 
 # Test Codex Workflow
 
-This workflow tests that generate_aw_info appears before validate-secret.
+This workflow tests that validate-secret appears before generate_aw_info.
 `,
 			engine: "codex",
 		},
@@ -100,25 +101,25 @@ This workflow tests that generate_aw_info appears before validate-secret.
 			lockStr := string(lockContent)
 
 			// Find the positions of both steps
-			awInfoPos := strings.Index(lockStr, "id: generate_aw_info")
 			validateSecretPos := strings.Index(lockStr, "id: validate-secret")
+			awInfoPos := strings.Index(lockStr, "id: generate_aw_info")
 
 			// Both steps should exist
-			if awInfoPos == -1 {
-				t.Error("Expected 'id: generate_aw_info' to be present in generated workflow")
-			}
 			if validateSecretPos == -1 {
 				t.Error("Expected 'id: validate-secret' to be present in generated workflow")
 			}
+			if awInfoPos == -1 {
+				t.Error("Expected 'id: generate_aw_info' to be present in generated workflow")
+			}
 
-			// generate_aw_info must come before validate-secret
-			if awInfoPos != -1 && validateSecretPos != -1 {
-				if awInfoPos > validateSecretPos {
-					t.Errorf("Step ordering error: generate_aw_info (pos %d) should come before validate-secret (pos %d)",
-						awInfoPos, validateSecretPos)
+			// validate-secret (activation job) must come before generate_aw_info (agent job)
+			if validateSecretPos != -1 && awInfoPos != -1 {
+				if validateSecretPos > awInfoPos {
+					t.Errorf("Step ordering error: validate-secret (pos %d) should come before generate_aw_info (pos %d)",
+						validateSecretPos, awInfoPos)
 				} else {
-					t.Logf("✓ Step ordering correct: generate_aw_info (pos %d) comes before validate-secret (pos %d)",
-						awInfoPos, validateSecretPos)
+					t.Logf("✓ Step ordering correct: validate-secret (pos %d) comes before generate_aw_info (pos %d)",
+						validateSecretPos, awInfoPos)
 				}
 			}
 		})
