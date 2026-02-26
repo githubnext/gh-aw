@@ -64,7 +64,7 @@ The issue body includes the workflow name, run URL, and failure status, making i
 
 ### Grouping failures as sub-issues
 
-When multiple workflow runs fail, the `group-reports` option links each failure report as a sub-issue under a shared parent issue titled "[agentics] Failed runs". This is useful for scheduled or high-frequency workflows where failures can accumulate.
+When multiple workflow runs fail, the `group-reports` option links each failure report as a sub-issue under a shared parent issue titled "[aw] Failed runs". This is useful for scheduled or high-frequency workflows where failures can accumulate.
 
 ```yaml wrap
 safe-outputs:
@@ -76,7 +76,7 @@ safe-outputs:
 
 When `group-reports` is enabled:
 
-- A parent "[agentics] Failed runs" issue is automatically created and managed.
+- A parent "[aw] Failed runs" issue is automatically created and managed.
 - Each failure run report is linked as a sub-issue under the parent.
 - Up to 64 sub-issues are tracked per parent issue.
 

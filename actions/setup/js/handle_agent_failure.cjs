@@ -81,7 +81,7 @@ async function findPullRequestForCurrentBranch() {
  */
 async function ensureParentIssue(previousParentNumber = null) {
   const { owner, repo } = context.repo;
-  const parentTitle = "[agentics] Failed runs";
+  const parentTitle = "[aw] Failed runs";
   const parentLabel = "agentic-workflows";
 
   core.info(`Searching for parent issue: "${parentTitle}"`);
@@ -545,7 +545,7 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    const issueTitle = `[agentics] ${sanitizedWorkflowName} failed`;
+    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
 
     core.info(`Checking for existing issue with title: "${issueTitle}"`);
 
