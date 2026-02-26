@@ -220,36 +220,7 @@ safe-outputs:
 
 ### GitHub App Installation Token
 
-For enhanced security, use GitHub Apps with automatic token revocation:
-
-```yaml wrap
-jobs:
-  get-token:
-    runs-on: ubuntu-latest
-    outputs:
-      token: ${{ steps.app-token.outputs.token }}
-    steps:
-      - id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          repositories: "target-repo-1,target-repo-2"
-
-safe-outputs:
-  github-token: ${{ needs.get-token.outputs.token }}
-  create-issue:
-    target-repo: "org/target-repo-1"
-```
-
-GitHub App tokens provide:
-
-- Per-job minting and automatic revocation
-- Fine-grained permissions per repository
-- Better attribution in audit logs
-- No long-lived credentials
-
-See [Authentication Reference](/gh-aw/reference/auth/) for complete GitHub App configuration.
+For enhanced security, use GitHub Apps. See [Authentication Reference](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete configuration examples.
 
 ## Deterministic Multi-Repo Workflows
 
@@ -284,48 +255,10 @@ Compare code structure between main-repo and secondary-repo.
 
 This approach provides full control over checkout timing and configuration.
 
-## Patterns
-
-Cross-repository workflows commonly follow these architectural patterns:
-
-### Hub-and-Spoke
-
-Central repository aggregates information from multiple component repositories:
-
-```text
-Component Repo A ──┐
-Component Repo B ──┼──> Central Tracker
-Component Repo C ──┘
-```
-
-See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for complete examples.
-
-### Upstream-to-Downstream Sync
-
-Main repository propagates changes to downstream repositories:
-
-```text
-Main Repo ──> Sub-Repo Alpha
-          ──> Sub-Repo Beta
-          ──> Sub-Repo Gamma
-```
-
-### Central Control Plane
-
-Private repository orchestrates operations across many repositories:
-
-```text
-Control Repo ──dispatch──> Repo 1
-             ──dispatch──> Repo 2
-             ──dispatch──> Repo N
-```
-
-See [CentralRepoOps](/gh-aw/patterns/central-repo-ops/) for orchestrator/worker patterns.
-
 ## Related Documentation
 
-- [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow patterns
-- [CentralRepoOps Pattern](/gh-aw/patterns/central-repo-ops/) - Central control plane operations
+- [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow pattern
+- [CentralRepoOps Pattern](/gh-aw/patterns/central-repo-ops/) - Central control plane pattern
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
 - [Multi-Repository Examples](/gh-aw/examples/multi-repo/) - Complete working examples
