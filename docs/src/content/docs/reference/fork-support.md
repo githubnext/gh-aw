@@ -60,24 +60,3 @@ on:
 
 > [!WARNING]
 > Allowing all forks (`"*"`) means any user who forks your repository can trigger agent execution. Workflows triggered from fork PRs run with the permissions configured in the workflow — review those permissions carefully before allowing untrusted forks.
-
-The compiler injects repository ID comparison checks (not name-based checks) for reliable fork detection that is unaffected by repository renames.
-
-## Compatibility table
-
-| Scenario | Status | Notes |
-|---|---|---|
-| Running workflows in a fork | ❌ Not supported | Jobs skip via `!github.event.repository.fork` |
-| Inbound fork PRs (default) | ❌ Blocked | Repo ID check injected at compile time |
-| Inbound fork PRs with `forks:` | ✅ Works | Trusted fork allow-list with glob support |
-| `workflow_run` cross-fork safety | ✅ Works | Fork check injected at compile time |
-| Agentic maintenance in forks | ⏭️ Skipped | Fork detection added; skips gracefully |
-| Secrets from upstream repo | ❌ Not available | Must configure own secrets in fork settings |
-
-## Known limitations
-
-Regardless of how `forks:` is configured, the following limitations apply:
-
-- Workflows cannot read secrets from the upstream repository in a fork context.
-- The `workflow_run` trigger always validates that the triggering workflow originated in the same repository.
-- Self-update and maintenance workflows never run inside forked repositories.
