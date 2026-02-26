@@ -73,7 +73,7 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 				// Track the indent level so we can skip any child lines that follow
 				fieldIndentLevel = len(leadingSpace)
 				skipChildren = true
-				frontmatterEditorLog.Printf("Updated existing field %s in place", fieldName)
+				frontmatterEditorLog.Printf("Updated existing field %s", fieldName)
 				continue
 			}
 
