@@ -326,6 +326,7 @@ export default defineConfig({
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
+						{ label: 'Fork Support', link: '/reference/fork-support/' },
 					],
 				},
 				{

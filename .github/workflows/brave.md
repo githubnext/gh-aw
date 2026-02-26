@@ -22,6 +22,8 @@ safe-outputs:
     run-success: "🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆"
     run-failure: "🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored..."
 timeout-minutes: 10
+features:
+  copilot-requests: true
 ---
 
 # Brave Web Search Agent

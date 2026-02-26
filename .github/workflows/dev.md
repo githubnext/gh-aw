@@ -18,6 +18,8 @@ safe-outputs:
   create-issue:
     expires: 7d
     title-prefix: "[Daily Report] "
+features:
+  copilot-requests: true
 ---
 
 # Daily Status Report

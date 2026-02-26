@@ -82,6 +82,8 @@ jobs:
             - File operations failed`,
               labels: ['bug', 'firewall', 'automated']
             });
+features:
+  copilot-requests: true
 ---
 
 # The Great Escapi

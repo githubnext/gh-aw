@@ -42,6 +42,8 @@ tools:
 
 timeout-minutes: 15
 
+features:
+  copilot-requests: true
 ---
 
 # Copilot PR Prompt Pattern Analysis
