@@ -1211,48 +1211,7 @@ Most safe outputs support cross-repository operations:
 - **`target-repo`**: Set a default target repository for all operations of this type
 - **`allowed-repos`**: Allow the agent to dynamically choose which repository to target (from an allowlist)
 
-When `allowed-repos` is configured, the agent can include a `repo` field in its output to specify which repository to target. The target repository (current or configured `target-repo`) is always implicitly allowed.
-
-**Example: Fixed target repository**
-
-```yaml wrap
-safe-outputs:
-  create-issue:
-    target-repo: "org/tracking-repo"
-    github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
-```
-
-**Example: Agent-selected repository from allowlist**
-
-```yaml wrap
-safe-outputs:
-  create-issue:
-    allowed-repos: ["org/frontend", "org/backend", "org/docs"]
-    github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
-```
-
-The agent can then create issues in any of the allowed repositories:
-
-```json
-{"type": "create_issue", "title": "Fix typo", "body": "...", "repo": "org/docs"}
-```
-
-**Safe outputs supporting `allowed-repos`:**
-
-| Safe Output | Purpose |
-|-------------|---------|
-| `create-issue` | Cross-repo issue creation |
-| `close-issue` | Cross-repo issue closing |
-| `add-comment` | Cross-repo commenting on issues/PRs/discussions |
-| `create-discussion` | Cross-repo discussion creation |
-| `create-pull-request` | Cross-repo PR creation |
-| `create-pull-request-review-comment` | Cross-repo PR review comments |
-| `reply-to-pull-request-review-comment` | Cross-repo PR comment replies |
-| `add-labels` | Cross-repo label addition |
-| `remove-labels` | Cross-repo label removal |
-| `assign-to-user` | Cross-repo user assignment |
-| `unassign-from-user` | Cross-repo user unassignment |
-| `create-agent-session` | Cross-repo agent session creation |
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) technical details.
 
 ## Global Configuration Options
 
