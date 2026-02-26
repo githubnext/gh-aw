@@ -66,7 +66,8 @@ When multiple configurations target the same path and repository:
 
 - **Fetch depth**: Deepest value wins (`0` = full history always takes precedence)
 - **Sparse patterns**: Merged (union of all patterns)
-- **LFS/Submodules**: OR-ed (if any config enables them, result enables them)
+- **LFS**: OR-ed (if any config enables `lfs`, the merged configuration enables it)
+- **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
 - **Ref/Token**: First-seen wins
 
 ### Example: Monorepo Development
