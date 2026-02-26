@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -725,10 +727,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 		}
 
 		// Sort tools by call count
-		var toolNames []string
-		for name := range toolStats {
-			toolNames = append(toolNames, name)
-		}
+		toolNames := slices.Collect(maps.Keys(toolStats))
 
 		// Display top tools
 		report.WriteString("| Tool | Calls | Max Input | Max Output | Max Duration |\n")

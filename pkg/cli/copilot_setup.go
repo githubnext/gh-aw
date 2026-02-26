@@ -354,11 +354,9 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 	insertPosition := 0
 
 	// Prepare steps to insert based on mode
-	var stepsToInsert []CopilotWorkflowStep
+	stepsToInsert := []CopilotWorkflowStep{installStep}
 	if actionMode.IsRelease() {
 		stepsToInsert = []CopilotWorkflowStep{checkoutStep, installStep}
-	} else {
-		stepsToInsert = []CopilotWorkflowStep{installStep}
 	}
 
 	// Insert steps at the determined position
