@@ -41,6 +41,8 @@ tools:
     - "find docs -name '*.md' -exec cat {} +"
     - "grep -r '*' docs"
     - "git"
+    - "find pkg/parser/schemas -name '*.json'"
+    - "cat pkg/parser/schemas/*.json"
 
 timeout-minutes: 45
 
@@ -68,6 +70,20 @@ Use the GitHub tools to:
 - Review commits from the last 24 hours using `list_commits`
 - Get detailed commit information using `get_commit` for significant changes
 
+### 1b. Check Open Documentation Issues
+
+Search for open issues labeled `documentation` that may represent unaddressed gaps:
+
+```
+repo:${{ github.repository }} is:issue is:open label:documentation
+```
+
+For each open issue:
+1. Read the issue body to understand the described gap.
+2. Check the referenced documentation file to verify the gap still exists.
+3. If confirmed, include a fix in this run's PR and reference the issue with `Closes #NNN`.
+4. If the gap is already fixed, note it (do not reopen or comment on the issue).
+
 ### 2. Analyze Changes
 
 For each merged PR and commit, analyze:
@@ -76,6 +92,7 @@ For each merged PR and commit, analyze:
 - **Features Removed**: Deprecated or removed functionality
 - **Features Modified**: Changed behavior, updated APIs, or modified interfaces
 - **Breaking Changes**: Any changes that affect existing users
+- **Removed Features in Docs**: Search docs for references to properties, flags, or options that no longer exist in the current schema. Check `pkg/parser/schemas/` or run `gh aw compile` on representative workflows to confirm current valid properties.
 
 Create a summary of changes that should be documented.
 
@@ -202,6 +219,8 @@ This PR updates the documentation based on features merged in the last 24 hours.
 - **Use Proper Format**: Use the correct Diátaxis category and Astro Starlight syntax
 - **Link References**: Include links to relevant PRs and issues where appropriate
 - **Test Understanding**: If unsure about a feature, review the code changes in detail
+- **Issue-Driven**: Proactively check open `documentation` issues — do not wait for them to be reported manually.
+- **Validate Examples**: YAML frontmatter examples in docs must be structurally valid. When in doubt, test with `gh aw compile`.
 
 ## Important Notes
 
