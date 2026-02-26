@@ -476,6 +476,15 @@ async function testNotionAPI(token) {
 }
 
 /**
+ * Check if running in a forked repository
+ * @param {Object|null|undefined} payload - GitHub context payload
+ * @returns {boolean}
+ */
+function isForkRepository(payload) {
+  return payload?.repository?.fork === true;
+}
+
+/**
  * Format status emoji
  * @param {string} status
  * @returns {string}
@@ -615,6 +624,10 @@ async function main() {
   try {
     core.info("Starting secret validation...");
 
+    if (isForkRepository(context.payload)) {
+      core.warning(`⚠️ This repository is a fork. Secrets from the parent repository are not inherited. You must configure each secret listed below directly in your fork's repository settings.`);
+    }
+
     const owner = context.repo.owner;
     const repo = context.repo.repo;
 
@@ -749,6 +762,7 @@ async function main() {
 
 module.exports = {
   main,
+  isForkRepository,
   testGitHubRESTAPI,
   testGitHubGraphQLAPI,
   testCopilotCLI,
