@@ -23,7 +23,7 @@
 #
 # Self-healing companion to the Daily Documentation Updater that detects documentation gaps missed by DDUw and proposes corrections
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"688d103b38a890eb74d185e34c336314c841ba6b84fd17ed405aa33b7ada5da1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ea22cf3cae7f01b85d1c7223dfff4219798b9c1821418b55b53182a2c992c638"}
 
 name: "Daily Documentation Healer"
 "on":
@@ -372,7 +372,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_issue":{"expires":72,"max":1},"create_pull_request":{"auto_merge":true,"expires":72,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_issue":{"expires":72,"max":1},"create_pull_request":{"expires":72,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -418,7 +418,7 @@ jobs:
               "name": "create_issue"
             },
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[docs] \". Labels [documentation automation] will be automatically added. Reviewers [copilot] will be assigned.",
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[docs] \". Labels [documentation automation] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1327,7 +1327,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"assignees\":[\"copilot\"],\"expires\":72,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"title_prefix\":\"[doc-healer] \"},\"create_pull_request\":{\"auto_merge\":true,\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"draft\":false,\"expires\":72,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"max_patch_size\":1024,\"reviewers\":[\"copilot\"],\"title_prefix\":\"[docs] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"assignees\":[\"copilot\"],\"expires\":72,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"title_prefix\":\"[doc-healer] \"},\"create_pull_request\":{\"base_branch\":\"${{ github.base_ref || github.ref_name }}\",\"expires\":72,\"labels\":[\"documentation\",\"automation\"],\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[docs] \"},\"missing_data\":{},\"missing_tool\":{}}"
           GH_AW_ASSIGN_COPILOT: "true"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:

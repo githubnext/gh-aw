@@ -25,9 +25,7 @@ safe-outputs:
     expires: 3d
     title-prefix: "[docs] "
     labels: [documentation, automation]
-    reviewers: [copilot]
-    draft: false
-    auto-merge: true
+
   create-issue:
     expires: 3d
     title-prefix: "[doc-healer] "
