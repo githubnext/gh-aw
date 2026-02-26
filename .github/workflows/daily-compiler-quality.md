@@ -33,6 +33,8 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 30
 strict: true
+features:
+  copilot-requests: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

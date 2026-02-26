@@ -110,9 +110,9 @@ func (c *Compiler) buildCreateOutputAgentSessionJob(data *WorkflowData, mainJobN
 	if data.SafeOutputs.CreateAgentSessions.Base != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_AGENT_SESSION_BASE: %q\n", data.SafeOutputs.CreateAgentSessions.Base))
 	} else {
-		// Default to the PR base branch with fallback to current branch
-		// This handles PR contexts where github.ref_name is "123/merge" which is invalid
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_AGENT_SESSION_BASE: ${{ github.base_ref || github.ref_name }}\n")
+		// Default to the PR base branch with fallback for pull_request_review events and push events.
+		// This handles PR contexts where github.ref_name is "123/merge" which is invalid.
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_AGENT_SESSION_BASE: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}\n")
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)

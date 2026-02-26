@@ -139,6 +139,103 @@ This is test content.`
 	})
 }
 
+// TestUpdateFieldInFrontmatterBlockMapping tests that UpdateFieldInFrontmatter correctly replaces
+// a block-mapped field (multi-line YAML object) with a scalar value, removing child lines.
+// This mirrors the add-wizard bug where a block-mapped engine:
+//
+//	id: claude
+//
+// was updated to engine: copilot but the child "  id: claude" line remained, producing invalid YAML.
+func TestUpdateFieldInFrontmatterBlockMapping(t *testing.T) {
+	t.Run("replace block-mapped engine with scalar value removes child lines", func(t *testing.T) {
+		content := `---
+engine:
+  id: claude
+permissions:
+  contents: read
+---
+
+# Test Workflow`
+
+		result, err := UpdateFieldInFrontmatter(content, "engine", "copilot")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// Should have the new scalar engine value
+		if !strings.Contains(result, "engine: copilot") {
+			t.Error("engine field was not updated to copilot")
+		}
+
+		// The child line "  id: claude" must be removed
+		if strings.Contains(result, "id: claude") {
+			t.Error("child line 'id: claude' was not removed when replacing block-mapped engine")
+		}
+
+		// Other fields should be preserved
+		if !strings.Contains(result, "permissions:") {
+			t.Error("permissions field was removed unexpectedly")
+		}
+		if !strings.Contains(result, "contents: read") {
+			t.Error("permissions contents field was removed unexpectedly")
+		}
+	})
+
+	t.Run("replace block-mapped engine with deeper nesting removes all child lines", func(t *testing.T) {
+		content := `---
+engine:
+  id: claude
+  model: claude-3-5-sonnet
+source: owner/repo/workflow.md@main
+---
+
+# Test`
+
+		result, err := UpdateFieldInFrontmatter(content, "engine", "copilot")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if !strings.Contains(result, "engine: copilot") {
+			t.Error("engine field was not updated to copilot")
+		}
+		if strings.Contains(result, "id: claude") {
+			t.Error("child line 'id: claude' was not removed")
+		}
+		if strings.Contains(result, "model: claude-3-5-sonnet") {
+			t.Error("child line 'model: claude-3-5-sonnet' was not removed")
+		}
+		if !strings.Contains(result, "source: owner/repo/workflow.md@main") {
+			t.Error("source field was removed unexpectedly")
+		}
+	})
+
+	t.Run("replace scalar engine still works correctly", func(t *testing.T) {
+		content := `---
+engine: claude
+permissions:
+  contents: read
+---
+
+# Test`
+
+		result, err := UpdateFieldInFrontmatter(content, "engine", "copilot")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if !strings.Contains(result, "engine: copilot") {
+			t.Error("engine field was not updated to copilot")
+		}
+		if strings.Contains(result, "engine: claude") {
+			t.Error("old engine value was not replaced")
+		}
+		if !strings.Contains(result, "permissions:") {
+			t.Error("permissions field was removed unexpectedly")
+		}
+	})
+}
+
 // TestRemoveFieldFromOnTriggerEdgeCases tests edge cases for field removal
 func TestRemoveFieldFromOnTriggerEdgeCases(t *testing.T) {
 	t.Run("remove field that doesn't exist", func(t *testing.T) {

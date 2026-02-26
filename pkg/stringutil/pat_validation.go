@@ -3,7 +3,11 @@ package stringutil
 import (
 	"errors"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var patLog = logger.New("stringutil:pat_validation")
 
 // PATType represents the type of a GitHub Personal Access Token
 type PATType string
@@ -47,16 +51,19 @@ func (p PATType) IsValid() bool {
 // Returns:
 //   - PATType: The type of the token
 func ClassifyPAT(token string) PATType {
+	var patType PATType
 	switch {
 	case strings.HasPrefix(token, "github_pat_"):
-		return PATTypeFineGrained
+		patType = PATTypeFineGrained
 	case strings.HasPrefix(token, "ghp_"):
-		return PATTypeClassic
+		patType = PATTypeClassic
 	case strings.HasPrefix(token, "gho_"):
-		return PATTypeOAuth
+		patType = PATTypeOAuth
 	default:
-		return PATTypeUnknown
+		patType = PATTypeUnknown
 	}
+	patLog.Printf("Classified PAT type: %s", patType)
+	return patType
 }
 
 // IsFineGrainedPAT returns true if the token is a fine-grained personal access token
@@ -84,6 +91,7 @@ func IsOAuthToken(token string) bool {
 //   - error: An error with a descriptive message if the token is not valid, nil otherwise
 func ValidateCopilotPAT(token string) error {
 	patType := ClassifyPAT(token)
+	patLog.Printf("Validating Copilot PAT: type=%s", patType)
 
 	switch patType {
 	case PATTypeFineGrained:

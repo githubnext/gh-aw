@@ -294,6 +294,7 @@ export default defineConfig({
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
 						{ label: 'Copilot Agent Files', link: '/reference/copilot-custom-agents/' },
+						{ label: 'Cross-Repository', link: '/reference/cross-repository/' },
 						{ label: 'Custom Safe Outputs', link: '/reference/custom-safe-outputs/' },
 						{ label: 'Dependabot', link: '/reference/dependabot/' },
 						{ label: 'Environment Variables', link: '/reference/environment-variables/' },
@@ -326,6 +327,7 @@ export default defineConfig({
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
+						{ label: 'Fork Support', link: '/reference/fork-support/' },
 					],
 				},
 				{

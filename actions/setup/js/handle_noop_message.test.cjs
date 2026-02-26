@@ -345,13 +345,13 @@ This issue helps you:
 
     // Verify search was performed
     expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
-      q: expect.stringContaining("[agentics] No-Op Runs"),
+      q: expect.stringContaining("[aw] No-Op Runs"),
       per_page: 1,
     });
 
     // Verify issue was created with correct title
     const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
-    expect(createCall.title).toBe("[agentics] No-Op Runs");
+    expect(createCall.title).toBe("[aw] No-Op Runs");
     expect(createCall.labels).toContain("agentic-workflows");
     expect(createCall.body).toContain("tracks all no-op runs");
 
