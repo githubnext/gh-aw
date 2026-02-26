@@ -321,7 +321,7 @@ const PublicGitHubHost URL = "https://github.com"
 const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.56"
+const DefaultClaudeCodeVersion Version = "2.1.59"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -390,7 +390,7 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.104.0"
+const DefaultCodexVersion Version = "0.105.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.29.0"
