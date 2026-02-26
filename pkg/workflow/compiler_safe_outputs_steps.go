@@ -154,10 +154,11 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
 		consolidatedSafeOutputsStepsLog.Printf("Using base-branch from create-pull-request for checkout ref: %s", checkoutRef)
 	} else {
-		// Default to github.base_ref (PR base branch) with fallback to github.ref_name (push event branch)
-		// This handles PR contexts where github.ref_name is "123/merge" which is invalid for checkout
-		checkoutRef = "${{ github.base_ref || github.ref_name }}"
-		consolidatedSafeOutputsStepsLog.Print("Using github.base_ref || github.ref_name for checkout ref")
+		// Default to github.base_ref (PR base branch) with fallback to github.event.pull_request.base.ref
+		// (pull_request_review events) and then github.ref_name (push event branch).
+		// This handles PR contexts where github.ref_name is "123/merge" which is invalid for checkout.
+		checkoutRef = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}"
+		consolidatedSafeOutputsStepsLog.Print("Using github.base_ref || github.event.pull_request.base.ref || github.ref_name for checkout ref")
 	}
 
 	// Step 1: Checkout repository with conditional execution
