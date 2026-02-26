@@ -110,6 +110,11 @@
       "version": "v6",
       "sha": "b7c566a772e6b6bfb58ed0dc250532a479d7789f"
     },
+    "anchore/sbom-action@v0": {
+      "repo": "anchore/sbom-action",
+      "version": "v0",
+      "sha": "17ae1740179002c89186b61233e0f892c3118b11"
+    },
     "anchore/sbom-action@v0.22.2": {
       "repo": "anchore/sbom-action",
       "version": "v0.22.2",
