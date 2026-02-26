@@ -176,6 +176,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 	// Auto-detect action mode based on version in case version has been update
 	c.actionMode = DetectActionMode(c.version)
 
+	logTypes.Printf("Created compiler: version=%s, actionMode=%s, skipValidation=%t, strictMode=%t", c.version, c.actionMode, c.skipValidation, c.strictMode)
+
 	return c
 }
 
