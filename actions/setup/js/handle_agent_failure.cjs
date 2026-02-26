@@ -291,6 +291,17 @@ function buildCreateDiscussionErrorsContext(createDiscussionErrors) {
 }
 
 /**
+ * Build a fork context hint string when the repository is a fork.
+ * @returns {string} Fork hint string, or empty string if not a fork
+ */
+function buildForkContextHint() {
+  if (context.payload?.repository?.fork) {
+    return "\n💡 **This repository is a fork.** If this failure is due to missing API keys or tokens, note that secrets from the parent repository are not inherited. Configure the required secrets directly in your fork's Settings → Secrets and variables → Actions.\n";
+  }
+  return "";
+}
+
+/**
  * Build a context string describing code-push failures for inclusion in failure issue/comment bodies.
  * @param {string} codePushFailureErrors - Newline-separated list of "type:error" entries
  * @param {{number: number, html_url: string, head_sha?: string, mergeable?: boolean | null, mergeable_state?: string, updated_at?: string} | null} pullRequest - PR info if available
@@ -617,6 +628,9 @@ async function main() {
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
         }
 
+        // Build fork context hint
+        const forkContext = buildForkContextHint();
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -635,6 +649,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
+          fork_context: forkContext,
         };
 
         // Render the comment template
@@ -725,6 +740,9 @@ async function main() {
           missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
         }
 
+        // Build fork context hint
+        const forkContext = buildForkContextHint();
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -744,6 +762,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
+          fork_context: forkContext,
         };
 
         // Render the issue template
