@@ -255,6 +255,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
+						{ label: 'Fork Support', link: '/guides/fork-support/' },
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
 						{ label: 'Reusing Workflows', link: '/guides/packaging-imports/' },
 						{ label: 'Self-Hosted Runners', link: '/guides/self-hosted-runners/' },
