@@ -166,8 +166,9 @@ func TestUpdateCommand_NoMergeFlag(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	// It should fail because there are no workflows with source, not because --no-merge is unknown
-	assert.Error(t, err, "Should fail (no source workflows), output: %s", outputStr)
+	// The --no-merge flag should be recognized (not "unknown flag").
+	// When no source workflows exist, the command succeeds with an info message.
+	assert.NoError(t, err, "Should succeed (no source workflows = info message, not error), output: %s", outputStr)
 	assert.NotContains(t, outputStr, "unknown flag", "The --no-merge flag should be recognized")
 	assert.Contains(t, outputStr, "no workflows found", "Should report no workflows found")
 }
