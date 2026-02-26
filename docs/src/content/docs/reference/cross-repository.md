@@ -140,27 +140,6 @@ When `allowed-repos` is specified:
 - Target repository (from `target-repo` or current repo) is always implicitly allowed
 - Creates a union of allowed destinations
 
-### Supported Safe Output Types
-
-| Safe Output | Cross-Repo | Description |
-|-------------|------------|-------------|
-| `create-issue` | ✅ | Create issues in external repositories |
-| `update-issue` | ✅ | Update issue status, title, or body |
-| `close-issue` | ✅ | Close issues with comment |
-| `add-comment` | ✅ | Comment on issues or PRs |
-| `add-labels` | ✅ | Add labels to issues or PRs |
-| `remove-labels` | ✅ | Remove labels from issues or PRs |
-| `create-pull-request` | ✅ | Create PRs in downstream repositories |
-| `create-discussion` | ✅ | Create discussions |
-| `update-discussion` | ✅ | Update discussion content |
-| `close-discussion` | ✅ | Close discussions |
-| `create-agent-session` | ✅ | Create Copilot coding agent sessions |
-| `update-release` | ✅ | Update release notes |
-| `create-project` | ✅ | Create GitHub Projects boards |
-| `dispatch-workflow` | ❌ | Same-repo only |
-| `push-to-pull-request-branch` | ❌ | Same-repo only |
-| `upload-asset` | ❌ | Same-repo only |
-
 ### Example: Hub-and-Spoke Tracking
 
 ```aw wrap
