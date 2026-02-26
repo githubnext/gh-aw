@@ -689,7 +689,7 @@ git am --3way /tmp/agent-artifacts-${runId}/${patchFileName}
 git push origin ${branchName}
 
 # Create the pull request
-gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
+gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\`
 ${patchPreview}`;
 
