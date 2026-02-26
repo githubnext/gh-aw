@@ -18,11 +18,6 @@ If no `network:` permission is specified, it defaults to `network: defaults` whi
 ## Configuration
 
 ```yaml wrap
-# Default: basic infrastructure only
-engine:
-  id: copilot
-network: defaults
-
 # Ecosystems + custom domains
 network:
   allowed:
@@ -31,40 +26,11 @@ network:
     - node                 # Node.js/NPM ecosystem
     - "api.example.com"    # Custom domain
 
-# Custom domains with wildcard patterns
-network:
-  allowed:
-    - "api.example.com"      # Exact domain (also matches subdomains)
-    - "*.cdn.example.com"    # Wildcard: matches any subdomain of cdn.example.com
-
-# Protocol-specific domain filtering (Copilot and Claude engines only)
-network:
-  allowed:
-    - "https://secure.api.example.com"   # HTTPS-only access
-    - "http://legacy.example.com"        # HTTP-only access
-    - "example.org"                      # Both HTTP and HTTPS (default)
-
 # No network access
 network: {}
-
-# Block specific domains
-network:
-  allowed:
-    - defaults              # Basic infrastructure
-    - python               # Python/PyPI ecosystem
-  blocked:
-    - "tracker.example.com" # Block specific tracking domain
-    - "analytics.example.com" # Block analytics
-
-# Block entire ecosystems
-network:
-  allowed:
-    - defaults
-    - github
-    - node
-  blocked:
-    - python               # Block Python/PyPI even if in defaults
 ```
+
+See dedicated sections below for [blocking domains](#blocking-domains), [protocol-specific filtering](#protocol-specific-domain-filtering), and [wildcard patterns](#wildcard-domain-patterns).
 
 ## Blocking Domains
 
@@ -270,30 +236,6 @@ network:
 
 The `ssl-bump` feature enables deep packet inspection of HTTPS traffic, allowing the firewall to filter based on URL paths instead of just domain names. When SSL bump is enabled, use `allow-urls` to specify HTTPS URL patterns that should be permitted through the firewall.
 
-**Configuration Options:**
-
-- `ssl-bump`: Boolean flag to enable SSL Bump for HTTPS content inspection (default: `false`)
-- `allow-urls`: Array of HTTPS URL patterns to allow when SSL bump is enabled. Each pattern:
-  - Must use the `https://` scheme
-  - Supports wildcards (`*`) for flexible path matching
-  - Example patterns: `https://github.com/githubnext/*`, `https://api.github.com/repos/*/issues`
-
-**Usage Example with Log Level:**
-
-```yaml wrap
-network:
-  firewall:
-    ssl-bump: true
-    allow-urls:
-      - "https://github.com/githubnext/*"
-      - "https://api.github.com/repos/*"
-    log-level: debug
-  allowed:
-    - defaults
-    - "github.com"
-    - "api.github.com"
-```
-
 **Security Considerations**
 
 - SSL bump intercepts and decrypts HTTPS traffic for inspection, acting as a man-in-the-middle
@@ -331,14 +273,7 @@ network:
     - "*.storage.example.com" # Matches files.storage.example.com
 ```
 
-**Wildcard matching behavior:**
-
-- `*.example.com` matches `subdomain.example.com` and `deep.nested.example.com`
-- `*.example.com` also matches the base domain `example.com`
-- Only a single wildcard at the start is allowed (e.g., `*.*.example.com` is invalid)
-- The wildcard must be followed by a dot and domain (e.g., `*` alone is not allowed in strict mode)
-
-Both `example.com` (simpler) and `*.example.com` (explicit about subdomain intent) match all subdomains.
+Wildcards match the base domain and all subdomains at any depth. Only a single leading wildcard is allowed (e.g., `*.*.example.com` is invalid), and it must be followed by a dot and domain. Both `example.com` and `*.example.com` match all subdomains — use the wildcard form when you want to be explicit about subdomain intent.
 
 ## Best Practices
 
