@@ -177,7 +177,18 @@ The YAML frontmatter supports these fields:
       window: 60
       ignored-roles: [admin, maintain]
     ```
-- **`features:`** - Feature flags for experimental features (object)
+- **`features:`** - Feature flags for experimental or optional features (object)
+  - Each flag is a key-value pair; boolean flags (`true`/`false`) or string values are accepted
+  - Known feature flags:
+    - `copilot-requests: true` - Use GitHub Actions token for Copilot authentication instead of `COPILOT_GITHUB_TOKEN` secret; injects `copilot-requests: write` permission and sets `S2STOKENS=true` (Copilot engine only)
+    - `mcp-gateway: true` - Enable MCP Gateway for routing MCP server calls through a unified HTTP gateway (experimental)
+    - `dangerous-permissions-write: true` - Allow explicitly granting write permissions in strict mode (use with caution)
+    - `disable-xpia-prompt: true` - Disable the built-in cross-prompt injection attack (XPIA) system prompt
+  - Example:
+    ```yaml
+    features:
+      copilot-requests: true
+    ```
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
   - Markdown files under `.github/agents/` are treated as custom agent files
@@ -229,6 +240,33 @@ The YAML frontmatter supports these fields:
         version: "1.22"
         if: "hashFiles('go.mod') != ''"   # Only install Go when go.mod exists
     ```
+
+- **`checkout:`** - Override how the repository is checked out in the agent job (object or array)
+  - By default, the workflow automatically checks out the repository. Use this field to customize checkout behavior.
+  - Single checkout (object):
+    ```yaml
+    checkout:
+      fetch-depth: 0              # Fetch full history (default: 1 = shallow clone)
+      github-token: ${{ secrets.MY_PAT }}  # Override token for private repos
+    ```
+  - Multiple checkouts (array):
+    ```yaml
+    checkout:
+      - path: .
+        fetch-depth: 0
+      - repository: owner/other-repo
+        path: ./libs/other
+        ref: main
+    ```
+  - Supported fields per checkout entry:
+    - `repository:` - Repository in `owner/repo` format (defaults to current repository)
+    - `ref:` - Branch, tag, or SHA to check out (defaults to triggering ref)
+    - `path:` - Relative path within `GITHUB_WORKSPACE` (defaults to workspace root)
+    - `fetch-depth:` - Number of commits to fetch; `0` = full history, `1` = shallow (default)
+    - `sparse-checkout:` - Newline-separated glob patterns for sparse checkout
+    - `submodules:` - Submodule handling: `"recursive"`, `"true"`, or `"false"`
+    - `lfs:` - Download Git LFS objects (boolean, default: `false`)
+    - `github-token:` - Token for authentication (`${{ secrets.MY_PAT }}`); credentials removed after checkout
 
 - **`jobs:`** - Groups together all the jobs that run in the workflow (object)
   - Standard GitHub Actions jobs configuration
@@ -980,6 +1018,16 @@ The YAML frontmatter supports these fields:
     - When `true`, emits step summary messages instead of making GitHub API calls; useful for testing without side effects
   - `env:` - Environment variables passed to all safe output jobs (object)
     - Values typically reference secrets: `MY_VAR: ${{ secrets.MY_SECRET }}`
+  - `steps:` - Custom steps injected into all safe-output jobs, running after repository checkout and before safe-output code (array)
+    - Useful for installing dependencies or performing setup needed by safe-output logic
+    - Example:
+      ```yaml
+      safe-outputs:
+        steps:
+          - name: Install custom dependencies
+            run: npm install my-package
+        create-issue:
+      ```
   - `max-bot-mentions:` - Maximum bot trigger references (e.g. `@copilot`, `@github-actions`) allowed in output before all excess are escaped with backticks (integer or expression, default: 10)
     - Set to `0` to escape all bot trigger phrases
     - Example: `max-bot-mentions: 3`
