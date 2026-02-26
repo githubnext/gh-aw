@@ -262,14 +262,14 @@ The following files are justified despite their size due to domain complexity:
 ```go
 func extractString(data map[string]any, key string) string
 func extractBool(data map[string]any, key string) bool
-```text
+```
 
 **Domain-specific extraction** (feature files):
 ```go
 // In create_issue.go
 func parseTitlePrefixFromConfig(configMap map[string]any) string
 func parseLabelsFromConfig(configMap map[string]any) []string
-```text
+```
 
 **Guideline**: Use centralized extractors for primitive types, domain-specific parsers for complex types.
 

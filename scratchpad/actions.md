@@ -212,7 +212,7 @@ inputs:
 runs:
   using: 'node20'
   main: 'index.js'
-```text
+```
 
 ### Source File Pattern
 
@@ -234,7 +234,7 @@ for (const [filename, content] of Object.entries(FILES)) {
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
   fs.writeFileSync(filepath, content, 'utf8');
 }
-```text
+```
 
 ## Build System
 
@@ -283,7 +283,7 @@ make actions-validate
 
 # Clean generated files
 make actions-clean
-```text
+```
 
 ### Implementation Details
 
@@ -301,7 +301,7 @@ func getActionDependencies(actionName string) []string {
 
     return []string{}
 }
-```text
+```
 
 #### File Embedding
 
@@ -314,7 +314,7 @@ outputContent := filesRegex.ReplaceAllString(
     string(sourceContent), 
     fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON))
 )
-```text
+```
 
 ## Architectural Decisions
 
@@ -408,7 +408,7 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /tmp/scripts
-```text
+```
 
 ### Creating a New Action
 
@@ -499,7 +499,7 @@ actions-build:
     - run: go mod verify
     - run: make actions-build
     - run: make actions-validate
-```text
+```
 
 ### Trigger Conditions
 
@@ -904,7 +904,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // JavaScript code here
-```text
+```
 
 ### Design Decisions
 
@@ -963,7 +963,7 @@ EOF
 # Update dependency mapping in pkg/cli/actions_build_command.go
 # Build the action
 make actions-build
-```text
+```
 
 #### 2. Register and Compile
 
@@ -980,7 +980,7 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
 compiler := workflow.NewCompilerWithVersion("1.0.0")
 compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
-```text
+```
 
 #### 3. Result
 
@@ -995,7 +995,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           agent-output: /tmp/agent-output.json
-```text
+```
 
 ### Current Status
 

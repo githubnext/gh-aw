@@ -326,7 +326,7 @@ func validateExpressionSafety(markdownContent string) error {
     }
     return nil
 }
-```text
+```
 
 **When to use**:
 - Security-sensitive validation
@@ -354,7 +354,7 @@ func validateDockerImage(image string, verbose bool) error {
     }
     return nil
 }
-```text
+```
 
 **When to use**:
 - Validating external dependencies
@@ -386,7 +386,7 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
     }
     return nil
 }
-```text
+```
 
 **When to use**:
 - Configuration file validation
@@ -424,7 +424,7 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
     
     return nil
 }
-```text
+```
 
 **When to use**:
 - Multiple related validation steps
@@ -458,7 +458,7 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
         }
     }
 }
-```text
+```
 
 **When to use**:
 - Optional dependency validation
@@ -484,7 +484,7 @@ for _, item := range items {
 if len(errors) > 0 {
     return fmt.Errorf("validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 }
-```text
+```
 
 ### Verbose Logging
 
@@ -499,7 +499,7 @@ func validateSomething() error {
     validationLog.Printf("Validated %d items", count)
     return nil
 }
-```text
+```
 
 Enable with: `DEBUG=workflow:validation gh aw compile`
 
@@ -523,7 +523,7 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 if c.verbose {
     fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Validating configuration..."))
 }
-```text
+```
 
 ## Testing Validation
 
@@ -561,7 +561,7 @@ func TestValidateExpressionSafety(t *testing.T) {
         })
     }
 }
-```text
+```
 
 ### Integration Tests
 
@@ -585,7 +585,7 @@ func TestStrictModeValidation(t *testing.T) {
         t.Error("expected strict mode to reject write permissions")
     }
 }
-```text
+```
 
 ## Contributing: Adding New Validation
 
@@ -618,7 +618,7 @@ Each validation function should have a comment explaining:
 func validateDockerImage(image string, verbose bool) error {
     // Implementation
 }
-```text
+```
 
 ### 4. Include Tests
 
@@ -632,7 +632,7 @@ Format error messages for readability:
 
 ```go
 return fmt.Errorf("validation failed for %s: %w", item, err)
-```text
+```
 
 Collect multiple errors:
 
@@ -640,7 +640,7 @@ Collect multiple errors:
 var errors []string
 // ... collect errors
 return fmt.Errorf("validation failed:\n  - %s", strings.Join(errors, "\n  - "))
-```text
+```
 
 ### 6. Add Logging
 
@@ -655,7 +655,7 @@ func validateSomething() error {
     myLog.Printf("Validated %d items", count)
     return nil
 }
-```text
+```
 
 ### 7. Update Documentation
 
@@ -676,7 +676,7 @@ func validateRequired(value interface{}, fieldName string) error {
     }
     return nil
 }
-```text
+```
 
 ### Validating Against Allowlist
 
@@ -691,7 +691,7 @@ func validateEngine(engine string) error {
     }
     return fmt.Errorf("unsupported engine: %s (allowed: %v)", engine, allowedEngines)
 }
-```text
+```
 
 ### Validating External Resources
 
@@ -706,7 +706,7 @@ func validateResourceExists(url string) error {
     }
     return nil
 }
-```text
+```
 
 ### Validating Repository Features
 
@@ -720,7 +720,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
     
     return nil
 }
-```text
+```
 
 ## References
 

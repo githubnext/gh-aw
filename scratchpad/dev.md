@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.0
-**Last Updated**: 2026-02-25
+**Version**: 3.1
+**Last Updated**: 2026-02-26
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2056,6 +2056,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v3.1 (2026-02-26): Fixed 173 non-standard code fence closing markers across 20 spec files (`` ```text `` incorrectly closing `` ```go ``, `` ```yaml ``, and other language blocks); files fixed include code-organization.md, validation-architecture.md, actions.md, safe-output-messages.md, github-actions-security-best-practices.md, and 15 others
 - v3.0 (2026-02-25): Added YAML Parser Compatibility section (YAML 1.1 vs 1.2 boolean parsing, `on:` trigger key false positive, YAML 1.2 parser recommendations); added yaml-version-gotchas.md to Related Documentation; fixed 17 non-standard closing code fences in yaml-version-gotchas.md
 - v2.9 (2026-02-24): Added Engine Interface Architecture (ISP 7-interface design, BaseEngine, EngineRegistry), JavaScript Content Sanitization Pipeline with HTML entity bypass fix (T24 template delimiter neutralization), and Activation Output Transformations compiler behavior; added 4 new Related Documentation links
 - v2.8 (2026-02-23): Documented PR #17769 features: unassign-from-user safe output, blocked deny-list for assign/unassign, standardized error code registry, templatable integer fields, safe outputs prompt template system, XPIA defense policy, MCP template expression escaping, status-comment decoupling, sandbox.agent migration, agent instruction files in .github/agents/

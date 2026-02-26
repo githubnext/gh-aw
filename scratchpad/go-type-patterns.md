@@ -506,7 +506,7 @@ func ProcessImportsFromFrontmatter(
 ) (mergedTools string, mergedEngines []string, err error) {
     // Parse dynamic YAML structure...
 }
-```text
+```
 
 **Why `map[string]any`**:
 - Frontmatter structure varies by workflow
@@ -616,7 +616,7 @@ type CodingAgentEngine interface {
     // GenerateSteps creates workflow steps for this engine
     GenerateSteps(config EngineConfig) ([]Step, error)
 }
-```text
+```
 
 **Benefits**:
 - Multiple engine implementations (Copilot, Claude, Codex)
@@ -639,7 +639,7 @@ type ToolConfig interface {
     GetType() string
     Validate() error
 }
-```text
+```
 
 **Benefits**:
 - Different tools can have different configuration structures
@@ -709,7 +709,7 @@ func Compile(v Validator) error {
 type Validator interface {
     Validate() error
 }
-```text
+```
 
 3. **Document interface contracts**: Explain what implementations must do
 

@@ -66,7 +66,7 @@ graph TD
     C --> F[Examples:<br/>'GitHub Agentic Workflows CLI'<br/>'GitHub Agentic Workflows from GitHub Next']
     D --> G[Examples:<br/>'Enable agentic workflows'<br/>'Initialize repository for agentic workflows'<br/>'Download agentic workflow logs']
     E --> H[Examples:<br/>'Compile Markdown workflows to GitHub Actions YAML'<br/>'MCP helpers']
-```text
+```
 
 ## Implementation
 

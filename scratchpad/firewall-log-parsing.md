@@ -175,7 +175,7 @@ Blocked Domains:
     }
   }
 }
-```text
+```
 
 ## Integration Points
 
@@ -210,17 +210,17 @@ The `audit` command now automatically:
 make test-unit
 # or
 go test ./pkg/cli -run "Firewall|IsRequest"
-```text
+```
 
 ### Integration Tests (2 total)
 ```bash
 go test ./pkg/cli -run TestFirewallLogIntegration
-```text
+```
 
 ### All Tests
 ```bash
 make agent-finish
-```text
+```
 
 ## Validation Results
 
