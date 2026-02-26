@@ -198,6 +198,8 @@ Context: "${{ needs.activation.outputs.text }}"
 
 Trigger on pull request events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
 
+**Code availability:** When triggered by a pull request event, the coding agent has access to both the PR branch and the default branch.
+
 ```yaml wrap
 on:
   pull_request:
@@ -226,6 +228,9 @@ on:
 The compiler uses repository ID comparison for reliable fork detection that is not affected by repository renames.
 
 ### Comment Triggers
+
+**Note:** `issue_comment` events also fire for comments on pull requests (GitHub models PR comments as issue comments). When a comment is on a pull request, the coding agent has access to both the PR branch and the default branch.
+
 ```yaml wrap
 on:
   issue_comment:
@@ -266,8 +271,6 @@ on:
       - develop
 ```
 
-#### Security Protections
-
 Workflows with `workflow_run` triggers include automatic security protections:
 
 - **Repository/fork validation:** The compiler injects repository ID and fork checks, rejecting cross-repository or fork-triggered runs.
@@ -277,55 +280,7 @@ See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 ### Command Triggers (`slash_command:`)
 
-The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
-
-Three equivalent forms are supported — full syntax, string shorthand (`on: slash_command: "my-bot"`), or ultra-short (`on: /my-bot`, which also adds `workflow_dispatch`):
-
-```yaml wrap
-on:
-  slash_command:
-    name: my-bot
-```
-
-**With Event Filtering:**
-```yaml wrap
-on:
-  slash_command:
-    name: summarize
-    events: [issues, issue_comment]  # Only in issue bodies and comments
-```
-
-**Complete Workflow Example:**
-```aw wrap
----
-on:
-  slash_command:
-    name: code-review
-    events: [pull_request, pull_request_comment]
-permissions:
-  contents: read
-  pull-requests: write
-tools:
-  github:
-    toolsets: [pull_requests]
-safe-outputs:
-  add-comment:
-    max: 5
-timeout-minutes: 10
----
-
-# Code Review Assistant
-
-When someone mentions /code-review in a pull request or PR comment,
-analyze the code changes and provide detailed feedback.
-
-The current context is: "${{ needs.activation.outputs.text }}"
-
-Review the pull request changes and add helpful review comments on specific
-lines of code where improvements can be made.
-```
-
-The command must appear as the **first word** in the comment or body text. Command workflows automatically add the "eyes" (👀) reaction and edit comments with workflow run links.
+The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation including event filtering, context text, reactions, and examples.
 
 ### Label Filtering (`names:`)
 
@@ -337,8 +292,6 @@ on:
     types: [labeled, unlabeled]
     names: [bug, critical, security]
 ```
-
-#### Shorthand Syntax
 
 Use convenient shorthand for label-based triggers:
 

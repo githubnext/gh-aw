@@ -33,9 +33,14 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	yaml.WriteString("      - name: Checkout PR branch\n")
 	yaml.WriteString("        id: checkout-pr\n")
 
-	// Build condition that checks if github.event.pull_request exists
-	// This will be true for pull_request events and comment events on PRs
-	condition := BuildPropertyAccess("github.event.pull_request")
+	// Build condition that checks if github.event.pull_request exists (for pull_request events)
+	// OR github.event.issue.pull_request exists (for issue_comment events on PRs).
+	// Note: issue_comment events on PRs do NOT set github.event.pull_request; instead
+	// github.event.issue.pull_request is set to indicate the issue is a PR.
+	condition := BuildOr(
+		BuildPropertyAccess("github.event.pull_request"),
+		BuildPropertyAccess("github.event.issue.pull_request"),
+	)
 	RenderConditionAsIf(yaml, condition, "          ")
 
 	// Use actions/github-script instead of shell script

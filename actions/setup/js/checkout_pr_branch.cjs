@@ -79,6 +79,19 @@ function logPRContext(eventName, pullRequest) {
 }
 
 /**
+ * Fetch full PR commit count from the GitHub API.
+ * Used when the commit count is not available in the webhook payload.
+ */
+async function fetchPRCommitCount(prNumber) {
+  const { data } = await github.rest.pulls.get({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: prNumber,
+  });
+  return { commitCount: data.commits, headRef: data.head.ref };
+}
+
+/**
  * Log the checkout strategy being used
  */
 function logCheckoutStrategy(eventName, strategy, reason) {
@@ -91,7 +104,19 @@ function logCheckoutStrategy(eventName, strategy, reason) {
 
 async function main() {
   const eventName = context.eventName;
-  const pullRequest = context.payload.pull_request;
+  // For pull_request events, the PR context is in context.payload.pull_request.
+  // For issue_comment events on PRs, context.payload.pull_request is not set;
+  // instead context.payload.issue.pull_request indicates the issue is a PR.
+  let pullRequest = context.payload.pull_request;
+
+  // Handle issue_comment (and similar) events triggered on a PR
+  if (!pullRequest && context.payload.issue?.pull_request) {
+    pullRequest = {
+      number: context.payload.issue.number,
+      state: context.payload.issue.state || "open",
+    };
+    core.info(`Detected ${eventName} event on PR #${pullRequest.number}, will use gh pr checkout`);
+  }
 
   if (!pullRequest) {
     core.info("No pull request context available, skipping checkout");
@@ -116,11 +141,14 @@ async function main() {
       // For pull_request events, we run in the merge commit context
       // The PR branch is already available, so we can use direct git commands
       const branchName = pullRequest.head.ref;
+      // commits is in the payload for pull_request events; +1 to include the merge base
+      const commitCount = pullRequest.commits || 1;
+      const fetchDepth = commitCount + 1;
 
       logCheckoutStrategy(eventName, "git fetch + checkout", "pull_request event runs in merge commit context with PR branch available");
 
-      core.info(`Fetching branch: ${branchName} from origin`);
-      await exec.exec("git", ["fetch", "origin", branchName]);
+      core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
+      await exec.exec("git", ["fetch", "origin", branchName, `--depth=${fetchDepth}`]);
 
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
@@ -153,6 +181,21 @@ async function main() {
         },
       });
       currentBranch = currentBranch.trim();
+
+      // Deepen history to cover all PR commits (gh pr checkout fetches --depth=1 by default)
+      try {
+        const { commitCount, headRef } = await fetchPRCommitCount(prNumber);
+        const fetchDepth = commitCount + 1; // +1 to include the merge base
+        const branchRef = headRef || currentBranch;
+        core.info(`Deepening history for PR #${prNumber}: fetching ${fetchDepth} commits (${commitCount} PR commit(s) + merge base)`);
+        if (branchRef) {
+          await exec.exec("git", ["fetch", "origin", branchRef, `--depth=${fetchDepth}`]);
+        } else {
+          await exec.exec("git", ["fetch", `--depth=${fetchDepth}`]);
+        }
+      } catch (depthError) {
+        core.warning(`Could not deepen PR history: ${getErrorMessage(depthError)}`);
+      }
 
       core.info(`✅ Successfully checked out PR #${prNumber}`);
       core.info(`Current branch: ${currentBranch || "detached HEAD"}`);

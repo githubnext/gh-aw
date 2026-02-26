@@ -56,6 +56,8 @@ This feature enables command aliases and grouped command handlers without workfl
 
 This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
 
+**Code availability:** When a command is triggered from a pull request body, PR comment, or PR review comment, the coding agent has access to both the PR branch and the default branch.
+
 The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
 
 You can combine `slash_command:` with other events like `workflow_dispatch` or `schedule`:
@@ -116,6 +118,37 @@ When someone mentions /summarize-issue in an issue or comment,
 analyze and provide a helpful summary.
 
 The current context text is: "${{ needs.activation.outputs.text }}"
+```
+
+PR-focused example using event filtering to restrict to pull requests and PR comments:
+
+```aw wrap
+---
+on:
+  slash_command:
+    name: code-review
+    events: [pull_request, pull_request_comment]
+permissions:
+  contents: read
+  pull-requests: write
+tools:
+  github:
+    toolsets: [pull_requests]
+safe-outputs:
+  add-comment:
+    max: 5
+timeout-minutes: 10
+---
+
+# Code Review Assistant
+
+When someone mentions /code-review in a pull request or PR comment,
+analyze the code changes and provide detailed feedback.
+
+The current context is: "${{ needs.activation.outputs.text }}"
+
+Review the pull request changes and add helpful review comments on specific
+lines of code where improvements can be made.
 ```
 
 ## Context Text
