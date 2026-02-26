@@ -36,6 +36,8 @@ tools:
 
 timeout-minutes: 15
 
+features:
+  copilot-requests: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

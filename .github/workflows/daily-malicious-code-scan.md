@@ -21,6 +21,8 @@ timeout-minutes: 15
 strict: true
 imports:
   - shared/reporting.md
+features:
+  copilot-requests: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

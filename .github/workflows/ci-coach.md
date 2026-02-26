@@ -24,6 +24,8 @@ imports:
   - shared/ci-data-analysis.md
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
+features:
+  copilot-requests: true
 ---
 
 # CI Optimization Coach
