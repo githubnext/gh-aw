@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -195,14 +196,29 @@ steps:
 			// Check expected setup steps
 			for _, expected := range tt.expectSetup {
 				if !strings.Contains(lockContent, expected) {
-					t.Errorf("Expected to find '%s' in lock file but didn't.\nLock file content:\n%s", expected, lockContent)
+					// Show a snippet of the lock file for context (first 100 lines)
+					lines := strings.Split(lockContent, "\n")
+					snippet := strings.Join(lines[:min(100, len(lines))], "\n")
+					t.Errorf("Expected to find '%s' in lock file but didn't.\nFirst 100 lines:\n%s\n...(truncated)", expected, snippet)
 				}
 			}
 
 			// Check that unwanted setup steps are not present
 			for _, notExpected := range tt.notExpectSetup {
 				if strings.Contains(lockContent, notExpected) {
-					t.Errorf("Did not expect to find '%s' in lock file but it was present.\nLock file content:\n%s", notExpected, lockContent)
+					// Find the line containing the unexpected string for context
+					lines := strings.Split(lockContent, "\n")
+					var contextLines []string
+					for i, line := range lines {
+						if strings.Contains(line, notExpected) {
+							start := max(0, i-3)
+							end := min(len(lines), i+4)
+							contextLines = append(contextLines, fmt.Sprintf("Lines %d-%d:", start+1, end))
+							contextLines = append(contextLines, lines[start:end]...)
+							break
+						}
+					}
+					t.Errorf("Did not expect to find '%s' in lock file but it was present.\nContext:\n%s", notExpected, strings.Join(contextLines, "\n"))
 				}
 			}
 		})

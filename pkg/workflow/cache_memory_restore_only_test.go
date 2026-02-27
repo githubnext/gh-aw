@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -149,14 +150,29 @@ tools:
 			// Check expected strings are present
 			for _, expected := range tt.expectedInLock {
 				if !strings.Contains(lockStr, expected) {
-					t.Errorf("Expected to find '%s' in lock file but it was missing.\nLock file content:\n%s", expected, lockStr)
+					// Show a snippet of the lock file for context (first 100 lines)
+					lines := strings.Split(lockStr, "\n")
+					snippet := strings.Join(lines[:min(100, len(lines))], "\n")
+					t.Errorf("Expected to find '%s' in lock file but it was missing.\nFirst 100 lines of lock file:\n%s\n...(truncated)", expected, snippet)
 				}
 			}
 
 			// Check unexpected strings are NOT present
 			for _, notExpected := range tt.notExpectedInLock {
 				if strings.Contains(lockStr, notExpected) {
-					t.Errorf("Did not expect to find '%s' in lock file but it was present.\nLock file content:\n%s", notExpected, lockStr)
+					// Find the line containing the unexpected string for context
+					lines := strings.Split(lockStr, "\n")
+					var contextLines []string
+					for i, line := range lines {
+						if strings.Contains(line, notExpected) {
+							start := max(0, i-3)
+							end := min(len(lines), i+4)
+							contextLines = append(contextLines, fmt.Sprintf("Lines %d-%d:", start+1, end))
+							contextLines = append(contextLines, lines[start:end]...)
+							break
+						}
+					}
+					t.Errorf("Did not expect to find '%s' in lock file but it was present.\nContext:\n%s", notExpected, strings.Join(contextLines, "\n"))
 				}
 			}
 		})
