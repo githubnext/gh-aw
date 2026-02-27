@@ -6,9 +6,15 @@ const fs = require("fs");
 const path = require("path");
 
 /**
+ * @typedef {Object} LoadConfigResult
+ * @property {Record<string, any>} config - The processed configuration
+ * @property {string} outputFile - Path to the output file
+ */
+
+/**
  * Load and process safe outputs configuration
  * @param {Object} server - The MCP server instance for logging
- * @returns {Object} An object containing the processed config and output file path
+ * @returns {LoadConfigResult} An object containing the processed config and output file path
  */
 function loadConfig(server) {
   // Read configuration from file

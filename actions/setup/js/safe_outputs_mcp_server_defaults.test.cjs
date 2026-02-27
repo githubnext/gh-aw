@@ -2,7 +2,27 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
-(describe.sequential("safe_outputs_mcp_server.cjs defaults handling", () => {
+
+// Check if /opt/gh-aw/safeoutputs is writable (only available in agent container)
+function canWriteToDefaultPath() {
+  try {
+    const testDir = "/opt/gh-aw/safeoutputs";
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+    const testFile = path.join(testDir, ".write-test");
+    fs.writeFileSync(testFile, "test");
+    fs.unlinkSync(testFile);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const canWriteDefault = canWriteToDefaultPath();
+
+// Skip tests that require /opt access when running locally without permissions
+(describe.skipIf(!canWriteDefault).sequential("safe_outputs_mcp_server.cjs defaults handling", () => {
   let originalEnv, tempConfigFile, tempOutputDir;
   (beforeEach(() => {
     ((originalEnv = { ...process.env }),
@@ -145,6 +165,7 @@ import { spawn } from "child_process";
     }));
 }),
   describe.sequential("safe_outputs_mcp_server.cjs branch parameter handling", () => {
+    const toolsJsonPath = path.join(__dirname, "safe_outputs_tools.json");
     (it("should have optional branch parameter for create_pull_request", async () => {
       const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
       fs.writeFileSync(tempConfigPath, JSON.stringify({ create_pull_request: {} }));
@@ -153,7 +174,10 @@ import { spawn } from "child_process";
         const timeout = setTimeout(() => {
             (child.kill(), reject(new Error("Test timeout")));
           }, 5e3),
-          child = spawn("node", [serverPath], { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl" } });
+          child = spawn("node", [serverPath], {
+            stdio: ["pipe", "pipe", "pipe"],
+            env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl", GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath },
+          });
         let receivedMessages = [];
         (child.stdout.on("data", data => {
           data
@@ -201,7 +225,10 @@ import { spawn } from "child_process";
           const timeout = setTimeout(() => {
               (child.kill(), reject(new Error("Test timeout")));
             }, 5e3),
-            child = spawn("node", [serverPath], { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: `/tmp/gh-aw/test-outputs-push-${Date.now()}.jsonl` } });
+            child = spawn("node", [serverPath], {
+              stdio: ["pipe", "pipe", "pipe"],
+              env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: `/tmp/gh-aw/test-outputs-push-${Date.now()}.jsonl`, GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath },
+            });
           let receivedMessages = [];
           (child.stdout.on("data", data => {
             data
@@ -243,6 +270,7 @@ import { spawn } from "child_process";
       }));
   }),
   describe.sequential("safe_outputs_mcp_server.cjs tool call response format", () => {
+    const toolsJsonPath = path.join(__dirname, "safe_outputs_tools.json");
     (it("should include isError field in tool call responses", async () => {
       const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
       fs.writeFileSync(tempConfigPath, JSON.stringify({ create_issue: {} }));
@@ -251,7 +279,10 @@ import { spawn } from "child_process";
         const timeout = setTimeout(() => {
             (child.kill(), reject(new Error("Test timeout")));
           }, 5e3),
-          child = spawn("node", [serverPath], { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl" } });
+          child = spawn("node", [serverPath], {
+            stdio: ["pipe", "pipe", "pipe"],
+            env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl", GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath },
+          });
         let receivedMessages = [];
         (child.stdout.on("data", data => {
           data
@@ -297,7 +328,10 @@ import { spawn } from "child_process";
           const timeout = setTimeout(() => {
               (child.kill(), reject(new Error("Test timeout")));
             }, 5e3),
-            child = spawn("node", [serverPath], { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl" } });
+            child = spawn("node", [serverPath], {
+              stdio: ["pipe", "pipe", "pipe"],
+              env: { ...process.env, GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath, GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl", GH_AW_SAFE_OUTPUTS_TOOLS_PATH: toolsJsonPath },
+            });
           let receivedMessages = [];
           (child.stdout.on("data", data => {
             data
