@@ -229,21 +229,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.Lockdown = lockdown
 		}
 
-		// Parse repos list for restricting GitHub MCP server to specific repositories
-		if repos, ok := configMap["repos"].([]any); ok {
-			config.Repos = make([]string, 0, len(repos))
-			for _, item := range repos {
-				if str, ok := item.(string); ok {
-					config.Repos = append(config.Repos, str)
-				}
-			}
-		}
-
-		// Parse min-integrity for container image integrity pinning
-		if minIntegrity, ok := configMap["min-integrity"].(string); ok {
-			config.MinIntegrity = minIntegrity
-		}
-
 		// Parse app configuration for GitHub App token minting
 		if app, ok := configMap["app"].(map[string]any); ok {
 			config.App = parseAppConfig(app)

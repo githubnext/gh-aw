@@ -144,39 +144,6 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"command": "docker"`,
 			},
 		},
-		{
-			name: "Repos restriction via GITHUB_REPOSITORIES",
-			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
-				DockerImageVersion: "latest",
-				IncludeTypeField:   false,
-				Repos:              []string{"owner/repo1", "owner/repo2"},
-			},
-			expected: []string{
-				`"container": "ghcr.io/github/github-mcp-server:latest"`,
-				`"GITHUB_REPOSITORIES": "owner/repo1,owner/repo2"`,
-			},
-			notFound: []string{
-				`"command": "docker"`,
-			},
-		},
-		{
-			name: "Min-integrity appended to container image as digest",
-			options: GitHubMCPDockerOptions{
-				ReadOnly:           false,
-				Toolsets:           "default",
-				DockerImageVersion: "v1.5.0",
-				IncludeTypeField:   false,
-				MinIntegrity:       "sha256:abc123def456",
-			},
-			expected: []string{
-				`"container": "ghcr.io/github/github-mcp-server:v1.5.0@sha256:abc123def456"`,
-			},
-			notFound: []string{
-				`"container": "ghcr.io/github/github-mcp-server:v1.5.0"`,
-			},
-		},
 	}
 
 	for _, tt := range tests {

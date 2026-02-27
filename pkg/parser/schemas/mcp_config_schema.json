@@ -65,7 +65,7 @@
     },
     "container": {
       "type": "string",
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_@.-]*$",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
       "description": "Container image for stdio MCP connections (alternative to command)",
       "examples": ["docker.io/mcp/brave-search", "mcp/memory", "ghcr.io/github/github-mcp-server:latest"]
     },
@@ -204,20 +204,7 @@
       "examples": ["latest", "v1.0.0", "stable", 20, 3.11]
     }
   },
-  "anyOf": [
-    {
-      "required": ["type"]
-    },
-    {
-      "required": ["url"]
-    },
-    {
-      "required": ["command"]
-    },
-    {
-      "required": ["container"]
-    }
-  ],
+  "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],
   "additionalProperties": false,
   "allOf": [
     {
@@ -231,17 +218,7 @@
       "then": {
         "required": ["url"],
         "not": {
-          "anyOf": [
-            {
-              "required": ["command"]
-            },
-            {
-              "required": ["container"]
-            },
-            {
-              "required": ["network"]
-            }
-          ]
+          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }, { "required": ["network"] }]
         }
       }
     },
@@ -254,23 +231,9 @@
         }
       },
       "then": {
-        "anyOf": [
-          {
-            "required": ["command"]
-          },
-          {
-            "required": ["container"]
-          }
-        ],
+        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }],
         "not": {
-          "allOf": [
-            {
-              "required": ["command"]
-            },
-            {
-              "required": ["container"]
-            }
-          ]
+          "allOf": [{ "required": ["command"] }, { "required": ["container"] }]
         }
       }
     },
@@ -290,14 +253,7 @@
     },
     {
       "if": {
-        "anyOf": [
-          {
-            "required": ["command"]
-          },
-          {
-            "required": ["container"]
-          }
-        ]
+        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
       },
       "then": {
         "not": {

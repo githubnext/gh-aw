@@ -186,8 +186,6 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			IncludeTypeField:   r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			EffectiveToken:     "", // Token passed via env
-			Repos:              getGitHubRepos(githubTool),
-			MinIntegrity:       getGitHubMinIntegrity(githubTool),
 		})
 	}
 
@@ -528,12 +526,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		mounts := getGitHubMounts(githubTool)
 
 		// MCP Gateway spec fields for containerized stdio servers
-		// Append min-integrity as a digest to the container image name for pinning (e.g., image:tag@sha256:hash)
-		containerImage := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
-		if minIntegrity := getGitHubMinIntegrity(githubTool); minIntegrity != "" {
-			containerImage += "@" + minIntegrity
-		}
-		yaml.WriteString("          container = \"" + containerImage + "\"\n")
+		yaml.WriteString("          container = \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
 
 		// Append custom args if present (these are Docker runtime args, go before container image)
 		if len(customArgs) > 0 {
@@ -570,10 +563,7 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 
 		envVars["GITHUB_TOOLSETS"] = toolsets
 
-		// Restrict to specific repositories if configured
-		if repos := getGitHubRepos(githubTool); len(repos) > 0 {
-			envVars["GITHUB_REPOSITORIES"] = strings.Join(repos, ",")
-		}
+		// Write environment variables in sorted order for deterministic output
 		envKeys := make([]string, 0, len(envVars))
 		for key := range envVars {
 			envKeys = append(envKeys, key)
@@ -686,10 +676,6 @@ type GitHubMCPDockerOptions struct {
 	EffectiveToken string
 	// Mounts specifies volume mounts for the GitHub MCP server container (format: "host:container:mode")
 	Mounts []string
-	// Repos specifies repositories to restrict the GitHub MCP server access to (passed as GITHUB_REPOSITORIES)
-	Repos []string
-	// MinIntegrity specifies a minimum integrity hash appended to the container image as a digest (e.g., sha256:abc123...)
-	MinIntegrity string
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
@@ -707,12 +693,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
-	// Append min-integrity as a digest to the container image name for pinning (e.g., image:tag@sha256:hash)
-	containerImage := "ghcr.io/github/github-mcp-server:" + options.DockerImageVersion
-	if options.MinIntegrity != "" {
-		containerImage += "@" + options.MinIntegrity
-	}
-	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")
+	yaml.WriteString("                \"container\": \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\",\n")
 
 	// Append custom args if present (these are Docker runtime args, go before container image)
 	if len(options.CustomArgs) > 0 {
@@ -773,11 +754,6 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 
 	// Toolsets (always configured, defaults to "default")
 	envVars["GITHUB_TOOLSETS"] = options.Toolsets
-
-	// Restrict to specific repositories if configured
-	if len(options.Repos) > 0 {
-		envVars["GITHUB_REPOSITORIES"] = strings.Join(options.Repos, ",")
-	}
 
 	// Write environment variables in sorted order for deterministic output
 	envKeys := make([]string, 0, len(envVars))
