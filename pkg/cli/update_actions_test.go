@@ -282,7 +282,8 @@ func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
   - uses: github/codeql-action/upload-sarif@v3
   - run: echo hello`
 
-	changed, newContent, err := updateActionRefsInContent(input, false)
+	cache := make(map[string]latestReleaseResult)
+	changed, newContent, err := updateActionRefsInContent(input, cache, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -300,11 +301,107 @@ steps:
   - run: echo hello
   - run: echo world`
 
-	changed, _, err := updateActionRefsInContent(input, false)
+	cache := make(map[string]latestReleaseResult)
+	changed, _, err := updateActionRefsInContent(input, cache, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
 	if changed {
 		t.Errorf("updateActionRefsInContent() changed = true, want false for content with no action refs")
+	}
+}
+
+func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
+	// Stub getLatestActionReleaseFn so the test doesn't hit the network
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+
+	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		switch repo {
+		case "actions/checkout":
+			return "v6", "de0fac2e4500dabe0009e67214ff5f5447ce83dd", nil
+		case "actions/setup-go":
+			return "v6", "4b73464bb391a5985ede5d7fd8a6c0c9c59c4c4e", nil
+		default:
+			return currentVersion, "", nil
+		}
+	}
+
+	input := `steps:
+  - uses: actions/checkout@v4
+  - uses: actions/setup-go@v5
+  - run: echo hello`
+
+	want := `steps:
+  - uses: actions/checkout@v6
+  - uses: actions/setup-go@v6
+  - run: echo hello`
+
+	cache := make(map[string]latestReleaseResult)
+	changed, got, err := updateActionRefsInContent(input, cache, false)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContent() error = %v", err)
+	}
+	if !changed {
+		t.Error("updateActionRefsInContent() changed = false, want true")
+	}
+	if got != want {
+		t.Errorf("updateActionRefsInContent() output mismatch\nGot:\n%s\nWant:\n%s", got, want)
+	}
+}
+
+func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
+	// Stub getLatestActionReleaseFn so the test doesn't hit the network
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+
+	newSHA := "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		return "v6.0.2", newSHA, nil
+	}
+
+	oldSHA := "11bd71901bbe5b1630ceea73d27597364c9af683"
+	input := "        uses: actions/checkout@" + oldSHA + " # v5.0.0"
+	want := "        uses: actions/checkout@" + newSHA + "  # v6.0.2"
+
+	cache := make(map[string]latestReleaseResult)
+	changed, got, err := updateActionRefsInContent(input, cache, false)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContent() error = %v", err)
+	}
+	if !changed {
+		t.Error("updateActionRefsInContent() changed = false, want true")
+	}
+	if got != want {
+		t.Errorf("updateActionRefsInContent() output mismatch\nGot:  %s\nWant: %s", got, want)
+	}
+}
+
+func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
+	// Verify that the cache prevents duplicate calls to getLatestActionReleaseFn
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+
+	callCount := 0
+	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		callCount++
+		return "v8", "ed597411d8f9245be5a6f5b7f5d52e63b7e62e96", nil
+	}
+
+	// Two lines referencing the same repo@version: should resolve via cache after first call
+	input := `steps:
+  - uses: actions/github-script@v7
+  - uses: actions/github-script@v7`
+
+	cache := make(map[string]latestReleaseResult)
+	changed, _, err := updateActionRefsInContent(input, cache, false)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContent() error = %v", err)
+	}
+	if !changed {
+		t.Error("updateActionRefsInContent() changed = false, want true")
+	}
+	if callCount != 1 {
+		t.Errorf("getLatestActionReleaseFn called %d times, want 1 (cache should prevent second call)", callCount)
 	}
 }

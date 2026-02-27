@@ -469,12 +469,23 @@ func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
 
 // actionRefPattern matches "uses: actions/repo@SHA-or-tag" in workflow files.
 // Captures: (1) indentation+uses prefix, (2) repo path, (3) SHA or version tag,
-// (4) optional version comment (e.g., "v6.0.2" from "# v6.0.2").
+// (4) optional version comment (e.g., "v6.0.2" from "# v6.0.2"), (5) trailing whitespace.
 var actionRefPattern = regexp.MustCompile(`(uses:\s+)(actions/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([a-fA-F0-9]{40}|[^\s#\n]+?)(\s*#\s*\S+)?(\s*)$`)
 
-// UpdateActionsInWorkflowFiles scans all workflow .md files in workflowsDir
-// and updates any "uses: actions/*@version" references to the latest major version.
-// Updated files are recompiled. Core actions (actions/*) always update to latest major.
+// getLatestActionReleaseFn is the function used to fetch the latest release for an action.
+// It can be replaced in tests to avoid network calls.
+var getLatestActionReleaseFn = getLatestActionRelease
+
+// latestReleaseResult caches a resolved version/SHA pair.
+type latestReleaseResult struct {
+	version string
+	sha     string
+}
+
+// UpdateActionsInWorkflowFiles scans all workflow .md files under workflowsDir
+// (recursively) and updates any "uses: actions/*@version" references to the latest
+// major version. Updated files are recompiled. Core actions (actions/*) always update
+// to latest major.
 func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose bool) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
@@ -482,52 +493,56 @@ func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose b
 
 	updateLog.Printf("Updating action references in workflow files: dir=%s", workflowsDir)
 
-	entries, err := os.ReadDir(workflowsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read workflows directory: %w", err)
-	}
+	// Per-invocation cache: key = "repo@currentVersion", avoids repeated API calls
+	cache := make(map[string]latestReleaseResult)
 
 	var updatedFiles []string
 
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
+	err := filepath.WalkDir(workflowsDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
+			return nil
 		}
 
-		filePath := filepath.Join(workflowsDir, entry.Name())
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(path)
 		if err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", filePath, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", path, err)))
 			}
-			continue
+			return nil
 		}
 
-		updated, newContent, err := updateActionRefsInContent(string(content), verbose)
+		updated, newContent, err := updateActionRefsInContent(string(content), cache, verbose)
 		if err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", filePath, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
 			}
-			continue
+			return nil
 		}
 
 		if !updated {
-			continue
+			return nil
 		}
 
-		if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
-			return fmt.Errorf("failed to write updated workflow %s: %w", filePath, err)
+		if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
+			return fmt.Errorf("failed to write updated workflow %s: %w", path, err)
 		}
 
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action references in "+entry.Name()))
-		updatedFiles = append(updatedFiles, filePath)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action references in "+d.Name()))
+		updatedFiles = append(updatedFiles, path)
 
 		// Recompile the updated workflow
-		if err := compileWorkflowWithRefresh(filePath, verbose, false, engineOverride, false); err != nil {
+		if err := compileWorkflowWithRefresh(path, verbose, false, engineOverride, false); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", filePath, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to walk workflows directory: %w", err)
 	}
 
 	if len(updatedFiles) == 0 && verbose {
@@ -539,7 +554,8 @@ func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose b
 
 // updateActionRefsInContent replaces outdated "uses: actions/*@version" references
 // in content with the latest major version and SHA. Returns (changed, newContent, error).
-func updateActionRefsInContent(content string, verbose bool) (bool, string, error) {
+// cache is keyed by "repo@currentVersion" and avoids redundant API calls across lines/files.
+func updateActionRefsInContent(content string, cache map[string]latestReleaseResult, verbose bool) (bool, string, error) {
 	changed := false
 	lines := strings.Split(content, "\n")
 
@@ -562,7 +578,7 @@ func updateActionRefsInContent(content string, verbose bool) (bool, string, erro
 			trailing = line[match[10]:match[11]]
 		}
 
-		// Determine the "current version" to pass to getLatestActionRelease
+		// Determine the "current version" to pass to getLatestActionReleaseFn
 		isSHA := IsCommitSHA(ref)
 		currentVersion := ref
 		if isSHA {
@@ -579,12 +595,20 @@ func updateActionRefsInContent(content string, verbose bool) (bool, string, erro
 			}
 		}
 
-		// Get the latest version for this core action (always allow major)
-		latestVersion, latestSHA, err := getLatestActionRelease(repo, currentVersion, true, verbose)
-		if err != nil {
-			updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
-			continue
+		// Resolve latest version/SHA, using the cache to avoid redundant API calls
+		cacheKey := repo + "@" + currentVersion
+		result, cached := cache[cacheKey]
+		if !cached {
+			latestVersion, latestSHA, err := getLatestActionReleaseFn(repo, currentVersion, true, verbose)
+			if err != nil {
+				updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
+				continue
+			}
+			result = latestReleaseResult{version: latestVersion, sha: latestSHA}
+			cache[cacheKey] = result
 		}
+		latestVersion := result.version
+		latestSHA := result.sha
 
 		if isSHA {
 			if latestSHA == ref {
