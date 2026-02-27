@@ -1010,8 +1010,13 @@ jobs:
           
           echo "Installing golangci-lint $GOLANGCI_LINT_VERSION for $GOOS/$GOARCH..."
           DOWNLOAD_URL="https://github.com/golangci/golangci-lint/releases/download/$GOLANGCI_LINT_VERSION/golangci-lint-${GOLANGCI_LINT_VERSION#v}-$GOOS-$GOARCH.tar.gz"
+          ARCHIVE="/tmp/golangci-lint.tar.gz"
           
-          curl -sSL "$DOWNLOAD_URL" | tar -xz -C /tmp
+          # Save archive to disk first so we can verify it before extracting.
+          # --fail causes curl to exit non-zero on HTTP errors (4xx/5xx),
+          # --retry 3 retries transient network failures automatically.
+          curl --fail --retry 3 -sSL "$DOWNLOAD_URL" -o "$ARCHIVE"
+          tar -xz -C /tmp -f "$ARCHIVE"
           mkdir -p "$GOPATH/bin"
           mv /tmp/golangci-lint-*/$BINARY_NAME "$GOPATH/bin/$BINARY_NAME"
           chmod +x "$GOPATH/bin/$BINARY_NAME"
