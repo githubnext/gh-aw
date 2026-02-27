@@ -1,0 +1,14 @@
+name: Smoke Trigger
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  call-smoke-workflow-call:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'smoke-workflow-call'
+    uses: ./.github/workflows/smoke-workflow-call.lock.yml
+    permissions:
+      contents: read
+      pull-requests: write
