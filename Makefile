@@ -550,15 +550,15 @@ fmt-go:
 .PHONY: fmt-cjs
 fmt-cjs:
 	@echo "→ Formatting JavaScript files..."
-	@cd actions/setup/js && npm run format:cjs
-	@npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
+	@cd actions/setup/js && npm run format:cjs --silent >/dev/null 2>&1
+	@npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore --log-level=error 2>&1
 	@echo "✓ JavaScript files formatted"
 
 # Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
 	@echo "→ Formatting JSON files..."
-	@cd actions/setup/js && npm run format:pkg-json
+	@cd actions/setup/js && npm run format:pkg-json --silent >/dev/null 2>&1
 	@echo "✓ JSON files formatted"
 
 # Check formatting
