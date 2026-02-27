@@ -19,7 +19,7 @@ import (
 // TestDownloadRunArtifactsConcurrent_EmptyRuns tests that empty runs slice returns empty results
 func TestDownloadRunArtifactsConcurrent_EmptyRuns(t *testing.T) {
 	ctx := context.Background()
-	results := downloadRunArtifactsConcurrent(ctx, []WorkflowRun{}, "./test-logs", false, 5)
+	results := downloadRunArtifactsConcurrent(ctx, []WorkflowRun{}, "./test-logs", false, 5, "")
 
 	assert.Empty(t, results, "Expected empty results for empty runs slice")
 }
@@ -38,7 +38,7 @@ func TestDownloadRunArtifactsConcurrent_ResultOrdering(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 5)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 5, "")
 
 	// Verify we got all results
 	require.Len(t, results, 5, "Expected 5 results")
@@ -71,7 +71,7 @@ func TestDownloadRunArtifactsConcurrent_AllProcessed(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
 
 	// Pass maxRuns=3 as a hint, but all runs should still be processed
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 3)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 3, "")
 
 	// All runs should be processed to account for caching/filtering
 	require.Len(t, results, 5, "All runs should be processed regardless of maxRuns parameter")
@@ -101,7 +101,7 @@ func TestDownloadRunArtifactsConcurrent_ContextCancellation(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 5)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 5, "")
 
 	// Should still get results for all runs
 	require.Len(t, results, 3, "Expected 3 results even with cancelled context")
@@ -130,7 +130,7 @@ func TestDownloadRunArtifactsConcurrent_PartialCancellation(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 20)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 20, "")
 
 	// Should get results for all runs (some may be skipped due to timeout)
 	assert.Len(t, results, 20, "Should get results for all runs")
@@ -165,7 +165,7 @@ func TestDownloadRunArtifactsConcurrent_NoResourceLeaks(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 3)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 3, "")
 
 	require.Len(t, results, 3, "Expected 3 results")
 
@@ -248,7 +248,7 @@ func TestDownloadRunArtifactsConcurrent_ConcurrencyLimit(t *testing.T) {
 			// We can't directly test the pool's behavior without mocking,
 			// but we can verify the limit is configured correctly
 			tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-			results := downloadRunArtifactsConcurrent(context.Background(), runs, tmpDir, false, tt.runs)
+			results := downloadRunArtifactsConcurrent(context.Background(), runs, tmpDir, false, tt.runs, "")
 
 			require.Len(t, results, tt.runs, "Expected %d results", tt.runs)
 
@@ -271,7 +271,7 @@ func TestDownloadRunArtifactsConcurrent_LogsPath(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 2)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 2, "")
 
 	require.Len(t, results, 2, "Expected 2 results")
 
@@ -295,7 +295,7 @@ func TestDownloadRunArtifactsConcurrent_ErrorHandling(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 2)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 2, "")
 
 	require.Len(t, results, 2, "Expected 2 results even with errors")
 
@@ -324,7 +324,7 @@ func TestDownloadRunArtifactsConcurrent_MixedConclusions(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 5)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 5, "")
 
 	require.Len(t, results, 5, "Expected 5 results")
 
@@ -354,11 +354,11 @@ func TestDownloadRunArtifactsConcurrent_VerboseMode(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
 
 	// Test with verbose=false
-	resultsNonVerbose := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 2)
+	resultsNonVerbose := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 2, "")
 	require.Len(t, resultsNonVerbose, 2, "Non-verbose mode should return 2 results")
 
 	// Test with verbose=true
-	resultsVerbose := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, true, 2)
+	resultsVerbose := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, true, 2, "")
 	require.Len(t, resultsVerbose, 2, "Verbose mode should return 2 results")
 
 	// Verify both modes return the same set of IDs (regardless of order)
@@ -392,7 +392,7 @@ func TestDownloadRunArtifactsConcurrent_ResultStructure(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, []WorkflowRun{run}, tmpDir, false, 1)
+	results := downloadRunArtifactsConcurrent(ctx, []WorkflowRun{run}, tmpDir, false, 1, "")
 
 	require.Len(t, results, 1, "Expected 1 result")
 
@@ -437,7 +437,7 @@ func TestDownloadRunArtifactsConcurrent_PanicRecovery(t *testing.T) {
 	}
 
 	tmpDir := testutil.TempDir(t, "test-orchestrator-*")
-	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 3)
+	results := downloadRunArtifactsConcurrent(ctx, runs, tmpDir, false, 3, "")
 
 	// Even if one download panicked, we should get results for all runs
 	// (The actual panic recovery is tested by the conc pool library)

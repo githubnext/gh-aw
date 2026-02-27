@@ -511,10 +511,14 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Created output directory "+outputDir))
 	}
 
-	// Build gh run download command with optional repo override for cross-repo support
+	// Build gh run download command with optional repo/hostname override for cross-repo and multi-host support
 	ghArgs := []string{"run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir}
 	if owner != "" && repo != "" {
-		ghArgs = append(ghArgs, "-R", owner+"/"+repo)
+		if hostname != "" && hostname != "github.com" {
+			ghArgs = append(ghArgs, "-R", hostname+"/"+owner+"/"+repo)
+		} else {
+			ghArgs = append(ghArgs, "-R", owner+"/"+repo)
+		}
 	}
 
 	if verbose {
