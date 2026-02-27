@@ -58,8 +58,6 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
   const mode = options.mode || "full";
   const patchPath = getPatchPath(branchName);
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-  // baseBranch is now provided by the caller, who has already resolved it
-  // using getBaseBranch() with the appropriate target repository context.
   const defaultBranch = baseBranch;
   const githubSha = process.env.GITHUB_SHA;
 

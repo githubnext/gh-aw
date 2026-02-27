@@ -9,6 +9,69 @@
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/**
+ * Parsed repository owner and name
+ * @typedef {Object} RepoParts
+ * @property {string} owner - Repository owner (organization or user)
+ * @property {string} repo - Repository name
+ */
+
+/**
+ * Result of repository validation
+ * @typedef {Object} RepoValidationResult
+ * @property {boolean} valid - Whether the repository is allowed
+ * @property {string|null} error - Error message if validation failed, null otherwise
+ * @property {string} qualifiedRepo - Fully qualified repository slug (owner/repo)
+ */
+
+/**
+ * Successful result from resolveAndValidateRepo
+ * @typedef {Object} RepoResolutionSuccess
+ * @property {true} success - Always true for success
+ * @property {string} repo - Fully qualified repository slug (owner/repo)
+ * @property {RepoParts} repoParts - Parsed owner and repo components
+ */
+
+/**
+ * Failed result from resolveAndValidateRepo
+ * @typedef {Object} RepoResolutionError
+ * @property {false} success - Always false for error
+ * @property {string} error - Error message describing why resolution failed
+ */
+
+/**
+ * Union type for resolveAndValidateRepo result
+ * @typedef {RepoResolutionSuccess | RepoResolutionError} RepoResolutionResult
+ */
+
+/**
+ * Result of resolveTargetRepoConfig
+ * @typedef {Object} TargetRepoConfig
+ * @property {string} defaultTargetRepo - Default target repository slug
+ * @property {Set<string>} allowedRepos - Set of allowed repository patterns
+ */
+
+/**
+ * Handler configuration object with repository settings
+ * @typedef {Object} HandlerRepoConfig
+ * @property {string} [target-repo] - Configured target repository
+ * @property {string[]|string} [allowed_repos] - Allowed repositories (array or comma-separated)
+ */
+
+/**
+ * Message item that may contain a repo field
+ * @typedef {Object} MessageItemWithRepo
+ * @property {string} [repo] - Optional repository slug override
+ */
+
+// ============================================================================
+// Functions
+// ============================================================================
+
 /**
  * Parse the allowed repos from config value (array or comma-separated string)
  * @param {string[]|string|undefined} allowedReposValue - Allowed repos from config (array or comma-separated string)
@@ -33,7 +96,7 @@ function parseAllowedRepos(allowedReposValue) {
 
 /**
  * Get the default target repository
- * @param {Object} [config] - Optional config object with target-repo field
+ * @param {HandlerRepoConfig | import('./types/handler-factory').HandlerConfig} [config] - Optional config object with target-repo field
  * @returns {string} Repository slug in "owner/repo" format
  */
 function getDefaultTargetRepo(config) {
@@ -86,7 +149,7 @@ function isRepoAllowed(qualifiedRepo, allowedRepos) {
  * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
  * @param {string} defaultRepo - Default target repository
  * @param {Set<string>} allowedRepos - Set of explicitly allowed repo patterns
- * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
+ * @returns {RepoValidationResult}
  */
 function validateRepo(repo, defaultRepo, allowedRepos) {
   // If repo is a bare name (no slash), qualify it with the default repo's org
@@ -116,7 +179,7 @@ function validateRepo(repo, defaultRepo, allowedRepos) {
 /**
  * Parse owner and repo from a repository slug
  * @param {string} repoSlug - Repository slug in "owner/repo" format
- * @returns {{owner: string, repo: string}|null}
+ * @returns {RepoParts|null}
  */
 function parseRepoSlug(repoSlug) {
   const parts = repoSlug.split("/");
@@ -129,8 +192,8 @@ function parseRepoSlug(repoSlug) {
 /**
  * Resolve target repository configuration from handler config
  * Combines parsing of allowed-repos and resolution of default target repo
- * @param {Object} config - Handler configuration object
- * @returns {{defaultTargetRepo: string, allowedRepos: Set<string>}}
+ * @param {HandlerRepoConfig | import('./types/handler-factory').HandlerConfig} config - Handler configuration object
+ * @returns {TargetRepoConfig}
  */
 function resolveTargetRepoConfig(config) {
   const defaultTargetRepo = getDefaultTargetRepo(config);
@@ -144,11 +207,11 @@ function resolveTargetRepoConfig(config) {
 /**
  * Resolve and validate target repository from a message item
  * Combines repo resolution, validation, and parsing into a single function
- * @param {Object} item - Message item that may contain a repo field
+ * @param {MessageItemWithRepo} item - Message item that may contain a repo field
  * @param {string} defaultTargetRepo - Default target repository slug
  * @param {Set<string>} allowedRepos - Set of allowed repository slugs
  * @param {string} operationType - Type of operation (e.g., "comment", "pull request", "issue") for error messages
- * @returns {{success: true, repo: string, repoParts: {owner: string, repo: string}}|{success: false, error: string}}
+ * @returns {RepoResolutionResult}
  */
 function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operationType) {
   // Determine target repository for this operation
@@ -196,7 +259,7 @@ function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operation
  * @param {string} repo - Repository slug to validate (can be "owner/repo" or just "repo")
  * @param {string} defaultRepo - Default (always-allowed) target repository
  * @param {Set<string>} allowedRepos - Set of explicitly allowed repo patterns
- * @returns {{valid: boolean, error: string|null, qualifiedRepo: string}}
+ * @returns {RepoValidationResult}
  */
 function validateTargetRepo(repo, defaultRepo, allowedRepos) {
   return validateRepo(repo, defaultRepo, allowedRepos);
