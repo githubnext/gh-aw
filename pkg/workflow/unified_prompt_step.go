@@ -705,6 +705,11 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.MissingData != nil {
 		tools = append(tools, "missing_data")
 	}
+	// noop is always included: it is auto-injected by extractSafeOutputsConfig and
+	// must always appear in the tools list so agents can signal no-op completion.
+	if safeOutputs.NoOp != nil {
+		tools = append(tools, "noop")
+	}
 
 	if len(tools) == 0 {
 		return nil

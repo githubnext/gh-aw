@@ -113,6 +113,58 @@ func TestSafeOutputsPrompt_IncludesPerToolInstructions(t *testing.T) {
 	}
 }
 
+func TestSafeOutputsPrompt_AlwaysIncludesNoop(t *testing.T) {
+	// noop should always appear in the <safe-output-tools> Tools list for any
+	// workflow that has a safe-outputs section, regardless of whether noop was
+	// explicitly listed in the frontmatter (it is auto-injected).
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+	}{
+		{
+			name: "noop only",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+		},
+		{
+			name: "noop with other tools",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				NoOp:         &NoOpConfig{},
+			},
+		},
+		{
+			name: "auto-injected noop (missing_tool and missing_data auto-enabled)",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				MissingTool:  &MissingToolConfig{},
+				MissingData:  &MissingDataConfig{},
+				NoOp:         &NoOpConfig{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := &Compiler{}
+			var yaml strings.Builder
+
+			data := &WorkflowData{
+				ParsedTools: NewTools(map[string]any{}),
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			compiler.generateUnifiedPromptStep(&yaml, data)
+			output := yaml.String()
+
+			if !strings.Contains(output, "noop") {
+				t.Errorf("Expected 'noop' to be present in <safe-output-tools> Tools list, got:\n%s", output)
+			}
+		})
+	}
+}
+
 // ============================================================================
 // Cache Memory Prompt Tests
 // ============================================================================

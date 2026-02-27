@@ -150,7 +150,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: add_comment, create_issue, create_pull_request, add_labels, remove_labels, update_project, create_project_status_update, missing_tool, missing_data
+          Tools: add_comment, create_issue, create_pull_request, add_labels, remove_labels, update_project, create_project_status_update, missing_tool, missing_data, noop
           GH_AW_PROMPT_EOF
           cat "/opt/gh-aw/prompts/safe_outputs_create_pull_request.md"
           cat << 'GH_AW_PROMPT_EOF'
