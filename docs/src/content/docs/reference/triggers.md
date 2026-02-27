@@ -378,6 +378,134 @@ on:
 
 A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions.
 
+## Trigger Shorthands
+
+Instead of writing full YAML trigger configurations, you can use natural-language shorthand strings with `on:`. The compiler expands these into standard GitHub Actions trigger syntax. Most shorthands automatically include a `workflow_dispatch` trigger so the workflow can also be run manually.
+
+### Source Control Shorthands
+
+**Push triggers:**
+
+```yaml wrap
+on: push to main                    # Push to specific branch
+on: push to release/**              # Push to branches matching pattern
+on: push tags v*                    # Push tags matching pattern
+```
+
+**Pull request triggers:**
+
+```yaml wrap
+on: pull_request opened             # PR opened
+on: pull_request closed             # PR closed
+on: pull_request merged             # PR merged (maps to closed + merge condition)
+on: pull_request synchronize        # PR updated with new commits
+on: pull_request labeled            # Label added to PR
+on: pull_request review_requested   # Review requested on PR
+on: pull_request affecting src/**   # PR touching specific paths (defaults to opened, synchronize, reopened)
+on: pull_request opened affecting docs/**  # PR opened touching specific paths
+```
+
+`pull` can be used as an alias for `pull_request`:
+
+```yaml wrap
+on: pull opened                     # Same as pull_request opened
+```
+
+Valid pull request activity types: `opened`, `edited`, `closed`, `reopened`, `synchronize`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `review_requested`, `merged`.
+
+### Issue Shorthands
+
+```yaml wrap
+on: issue opened                    # Issue opened
+on: issue edited                    # Issue edited
+on: issue closed                    # Issue closed
+on: issue reopened                  # Issue reopened
+on: issue assigned                  # Issue assigned
+on: issue opened labeled bug        # Issue opened with "bug" label (adds job condition)
+```
+
+Valid issue activity types: `opened`, `edited`, `closed`, `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `deleted`, `transferred`.
+
+### Discussion Shorthands
+
+```yaml wrap
+on: discussion created              # Discussion created
+on: discussion edited               # Discussion edited
+on: discussion answered             # Discussion answered
+on: discussion category_changed     # Discussion category changed
+```
+
+Valid discussion activity types: `created`, `edited`, `deleted`, `transferred`, `pinned`, `unpinned`, `labeled`, `unlabeled`, `locked`, `unlocked`, `category_changed`, `answered`, `unanswered`.
+
+### Manual and Workflow Shorthands
+
+```yaml wrap
+on: manual                          # workflow_dispatch (run manually)
+on: manual with input version       # workflow_dispatch with a string input
+on: workflow completed ci-test       # Trigger after another workflow completes
+```
+
+### Comment Shorthands
+
+```yaml wrap
+on: comment created                 # Issue or PR comment created (issue_comment event)
+```
+
+### Release and Repository Shorthands
+
+```yaml wrap
+on: release published               # Release published
+on: release prereleased             # Pre-release published
+on: release created                 # Release created
+on: repository starred              # Repository starred (maps to watch event)
+on: repository forked               # Repository forked
+```
+
+Valid release activity types: `published`, `unpublished`, `created`, `edited`, `deleted`, `prereleased`, `released`.
+
+### Security Shorthands
+
+```yaml wrap
+on: dependabot pull request         # PR from Dependabot (adds actor condition)
+on: security alert                  # Code scanning alert (created, reopened, fixed)
+on: code scanning alert             # Same as security alert
+```
+
+### External Integration Shorthands
+
+```yaml wrap
+on: api dispatch custom-event       # Repository dispatch with custom event type
+```
+
+### Shorthand Reference Table
+
+| Shorthand | Expands To | Auto-includes `workflow_dispatch` |
+|-----------|-----------|----------------------------------|
+| `push to <branch>` | `push` with `branches` filter | Yes |
+| `push tags <pattern>` | `push` with `tags` filter | Yes |
+| `pull_request <type>` | `pull_request` with activity type | Yes |
+| `pull_request merged` | `pull_request` type `closed` + merge condition | Yes |
+| `pull_request affecting <path>` | `pull_request` with `paths` filter | Yes |
+| `issue <type>` | `issues` with activity type | Yes |
+| `issue <type> labeled <label>` | `issues` with type + label condition | Yes |
+| `issue labeled <labels>` | `issues` type `labeled` + label names | Yes |
+| `pull_request labeled <labels>` | `pull_request` type `labeled` + label names | Yes |
+| `discussion <type>` | `discussion` with activity type | Yes |
+| `discussion labeled <labels>` | `discussion` type `labeled` + label names | Yes |
+| `manual` | `workflow_dispatch` | — |
+| `manual with input <name>` | `workflow_dispatch` with input | — |
+| `workflow completed <name>` | `workflow_run` type `completed` | No |
+| `comment created` | `issue_comment` type `created` | Yes |
+| `release <type>` | `release` with activity type | Yes |
+| `repository starred` | `watch` type `started` | Yes |
+| `repository forked` | `fork` event | Yes |
+| `dependabot pull request` | `pull_request` + actor condition | Yes |
+| `security alert` | `code_scanning_alert` | Yes |
+| `code scanning alert` | `code_scanning_alert` | Yes |
+| `api dispatch <type>` | `repository_dispatch` with event type | No |
+| `/<command>` | `slash_command` | Yes |
+| `daily`, `weekly`, etc. | `schedule` with cron | — |
+
 ## Related Documentation
 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference
