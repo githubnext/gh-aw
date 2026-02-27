@@ -59,10 +59,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
   // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
   if (typeof baseBranch !== "string" || baseBranch.trim() === "") {
-    const errorMessage =
-      "baseBranch is required and must be a non-empty string (received: " +
-      String(baseBranch) +
-      ")";
+    const errorMessage = "baseBranch is required and must be a non-empty string (received: " + String(baseBranch) + ")";
     debugLog(`Invalid baseBranch: ${errorMessage}`);
     return {
       patchPath,
