@@ -382,8 +382,8 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "valid guard policy with repos=all",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     "all",
-					"integrity": "reader",
+					"repos":         "all",
+					"min-integrity": "reader",
 				},
 			},
 			shouldError: false,
@@ -392,8 +392,8 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "valid guard policy with repos=public",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     "public",
-					"integrity": "writer",
+					"repos":         "public",
+					"min-integrity": "writer",
 				},
 			},
 			shouldError: false,
@@ -402,18 +402,18 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "valid guard policy with repos array ([]any)",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     []any{"owner/repo", "owner/*"},
-					"integrity": "merged",
+					"repos":         []any{"owner/repo", "owner/*"},
+					"min-integrity": "merged",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "valid guard policy with integrity=none",
+			name: "valid guard policy with min-integrity=none",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     "all",
-					"integrity": "none",
+					"repos":         "all",
+					"min-integrity": "none",
 				},
 			},
 			shouldError: false,
@@ -422,39 +422,39 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "missing repos field",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"integrity": "reader",
+					"min-integrity": "reader",
 				},
 			},
 			shouldError: true,
 			errorMsg:    "'github.repos' is required",
 		},
 		{
-			name: "missing integrity field",
+			name: "missing min-integrity field",
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos": "all",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'github.integrity' is required",
+			errorMsg:    "'github.min-integrity' is required",
 		},
 		{
-			name: "invalid integrity value",
+			name: "invalid min-integrity value",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     "all",
-					"integrity": "superuser",
+					"repos":         "all",
+					"min-integrity": "superuser",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'github.integrity' must be one of",
+			errorMsg:    "'github.min-integrity' must be one of",
 		},
 		{
 			name: "invalid repos string value",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     "private",
-					"integrity": "reader",
+					"repos":         "private",
+					"min-integrity": "reader",
 				},
 			},
 			shouldError: true,
@@ -464,8 +464,8 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "empty repos array",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     []any{},
-					"integrity": "reader",
+					"repos":         []any{},
+					"min-integrity": "reader",
 				},
 			},
 			shouldError: true,
@@ -475,8 +475,8 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "repos array with uppercase pattern",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     []any{"Owner/repo"},
-					"integrity": "reader",
+					"repos":         []any{"Owner/repo"},
+					"min-integrity": "reader",
 				},
 			},
 			shouldError: true,
@@ -486,8 +486,8 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "repos array with invalid pattern format",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":     []any{"just-a-name"},
-					"integrity": "reader",
+					"repos":         []any{"just-a-name"},
+					"min-integrity": "reader",
 				},
 			},
 			shouldError: true,

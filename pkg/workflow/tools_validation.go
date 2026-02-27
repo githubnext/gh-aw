@@ -88,7 +88,7 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 }
 
 // validateGitHubGuardPolicy validates the GitHub guard policy configuration.
-// Guard policy fields (repos, integrity) are specified flat under github:.
+// Guard policy fields (repos, min-integrity) are specified flat under github:.
 // Both fields must be present if either is specified.
 func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	if tools == nil || tools.GitHub == nil {
@@ -97,14 +97,14 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 
 	github := tools.GitHub
 	hasRepos := github.Repos != nil
-	hasIntegrity := github.Integrity != ""
+	hasMinIntegrity := github.MinIntegrity != ""
 
 	// No guard policy fields present - nothing to validate
-	if !hasRepos && !hasIntegrity {
+	if !hasRepos && !hasMinIntegrity {
 		return nil
 	}
 
-	// Validate repos field (required when integrity is set)
+	// Validate repos field (required when min-integrity is set)
 	if !hasRepos {
 		toolsValidationLog.Printf("Missing repos in guard policy for workflow: %s", workflowName)
 		return errors.New("invalid guard policy: 'github.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
@@ -115,13 +115,13 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		return err
 	}
 
-	// Validate integrity field (required when repos is set)
-	if !hasIntegrity {
-		toolsValidationLog.Printf("Missing integrity in guard policy for workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'github.integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
+	// Validate min-integrity field (required when repos is set)
+	if !hasMinIntegrity {
+		toolsValidationLog.Printf("Missing min-integrity in guard policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.min-integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
 	}
 
-	// Validate integrity value
+	// Validate min-integrity value
 	validIntegrityLevels := map[GitHubIntegrityLevel]bool{
 		GitHubIntegrityNone:   true,
 		GitHubIntegrityReader: true,
@@ -129,9 +129,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		GitHubIntegrityMerged: true,
 	}
 
-	if !validIntegrityLevels[github.Integrity] {
-		toolsValidationLog.Printf("Invalid integrity level '%s' in workflow: %s", github.Integrity, workflowName)
-		return errors.New("invalid guard policy: 'github.integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(github.Integrity) + "'")
+	if !validIntegrityLevels[github.MinIntegrity] {
+		toolsValidationLog.Printf("Invalid min-integrity level '%s' in workflow: %s", github.MinIntegrity, workflowName)
+		return errors.New("invalid guard policy: 'github.min-integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(github.MinIntegrity) + "'")
 	}
 
 	return nil

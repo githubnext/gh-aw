@@ -297,8 +297,8 @@ type GitHubToolConfig struct {
 	// Repos defines the access scope for policy enforcement.
 	// Supports: "all", "public", or an array of patterns ["owner/repo", "owner/*"] (lowercase)
 	Repos GitHubReposScope `yaml:"repos,omitempty"`
-	// Integrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
-	Integrity GitHubIntegrityLevel `yaml:"integrity,omitempty"`
+	// MinIntegrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
+	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

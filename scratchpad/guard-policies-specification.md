@@ -10,7 +10,7 @@ The user requested support for guard policies in the MCP gateway configuration, 
 
 1. Support GitHub-specific guard policies with flat frontmatter syntax:
    - `repos` (scope): Repository access patterns
-   - `integrity` (minintegrity): Minimum integrity level required
+   - `min-integrity` (minintegrity): Minimum min-min-integrity level required
 
 2. Design an extensible system that can support future MCP servers (Jira, WorkIQ) with different policy schemas
 
@@ -23,7 +23,7 @@ The user requested support for guard policies in the MCP gateway configuration, 
 ```
 GitHubToolConfig (GitHub-specific)
   ├── Repos: GitHubReposScope (string or []any)
-  └── Integrity: GitHubIntegrityLevel (enum)
+  └── MinIntegrity: GitHubIntegrityLevel (enum)
 
 MCPServerConfig (general)
   └── GuardPolicies: map[string]any (extensible for all servers)
@@ -42,7 +42,7 @@ Based on the provided JSON schema, the implementation supports:
   - `"owner/prefix*"` - Repositories with name prefix under owner
 
 **Integrity Levels:**
-- `"none"` - No integrity requirements
+- `"none"` - No min-integrity requirements
 - `"reader"` - Read-level integrity
 - `"writer"` - Write-level integrity
 - `"merged"` - Merged-level integrity
@@ -56,7 +56,7 @@ tools:
     mode: remote
     toolsets: [default]
     repos: "all"
-    integrity: reader
+    min-integrity: reader
 ```
 
 **With Repository Patterns:**
@@ -69,7 +69,7 @@ tools:
       - "myorg/*"
       - "partner/shared-repo"
       - "docs/api-*"
-    integrity: writer
+    min-integrity: writer
 ```
 
 **Public Repositories Only:**
@@ -77,24 +77,24 @@ tools:
 tools:
   github:
     repos: "public"
-    integrity: none
+    min-integrity: none
 ```
 
 ### 4. MCP Gateway Configuration Flow
 
 1. **Frontmatter Parsing** (`tools_parser.go`):
-   - Extracts `repos` and `integrity` directly from GitHub tool config
+   - Extracts `repos` and `min-integrity` directly from GitHub tool config
    - Stores them as fields on `GitHubToolConfig`
    - Validates structure and types
 
 2. **Validation** (`tools_validation.go`):
    - Validates repos format (all/public or valid patterns)
-   - Validates integrity level (none/reader/writer/merged)
+   - Validates min-integrity level (none/reader/writer/merged)
    - Validates repository pattern syntax (lowercase, valid characters, wildcard placement)
    - Called during workflow compilation
 
 3. **Compilation**:
-   - Guard policy fields (repos, integrity) included in compiled GitHub tool configuration
+   - Guard policy fields (repos, min-integrity) included in compiled GitHub tool configuration
    - Passed through to MCP Gateway configuration
 
 4. **Runtime (MCP Gateway)**:
@@ -140,7 +140,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 1. **pkg/workflow/tools_types.go**
    - Added `GitHubIntegrityLevel` enum type
    - Added `GitHubReposScope` type alias
-   - Extended `GitHubToolConfig` with flat `Repos` and `Integrity` fields
+   - Extended `GitHubToolConfig` with flat `Repos` and `MinIntegrity` fields
    - Extended `MCPServerConfig` with `GuardPolicies` field
 
 2. **pkg/workflow/schemas/mcp-gateway-config.schema.json**
@@ -149,7 +149,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
    - Set `additionalProperties: true` for server-specific schemas
 
 3. **pkg/workflow/tools_parser.go**
-   - Extended `parseGitHubTool()` to extract `repos` and `integrity` directly
+   - Extended `parseGitHubTool()` to extract `repos` and `min-integrity` directly
 
 4. **pkg/workflow/tools_validation.go**
    - Updated `validateGitHubGuardPolicy()` function (validates flat fields)
@@ -177,7 +177,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 - Case-sensitive
 
 **Required Fields:**
-- Both `repos` and `integrity` are required when either is specified under `github:`
+- Both `repos` and `min-integrity` are required when either is specified under `github:`
 
 ## Error Messages
 
@@ -192,7 +192,7 @@ invalid guard policy: repository pattern 'Owner/Repo' must be lowercase
 invalid guard policy: repository pattern 'owner/re*po' has wildcard in the middle.
 Wildcards only allowed at the end (e.g., 'prefix*')
 
-invalid guard policy: 'github.integrity' must be one of: 'none', 'reader', 'writer', 'merged'.
+invalid guard policy: 'github.min-integrity' must be one of: 'none', 'reader', 'writer', 'merged'.
 Got: 'admin'
 ```
 
@@ -207,7 +207,7 @@ tools:
     toolsets: [default]
     repos:
       - "myorg/*"
-    integrity: reader
+    min-integrity: reader
 ```
 
 ### Example 2: Multiple Organizations
@@ -221,7 +221,7 @@ tools:
       - "frontend-org/*"
       - "backend-org/*"
       - "shared/infrastructure"
-    integrity: writer
+    min-integrity: writer
 ```
 
 ### Example 3: Public Repositories Only
@@ -232,7 +232,7 @@ tools:
     mode: remote
     toolsets: [repos, issues]
     repos: "public"
-    integrity: none
+    min-integrity: none
 ```
 
 ### Example 4: Prefix Matching
@@ -245,7 +245,7 @@ tools:
     repos:
       - "myorg/api-*"     # Matches api-gateway, api-service, etc.
       - "myorg/web-*"     # Matches web-frontend, web-backend, etc.
-    integrity: writer
+    min-integrity: writer
 ```
 
 ## Testing Strategy
@@ -282,7 +282,7 @@ tools:
 ## Benefits
 
 1. **Security**: Restrict AI agent access to specific repositories
-2. **Compliance**: Enforce minimum integrity requirements
+2. **Compliance**: Enforce minimum min-integrity requirements
 3. **Flexibility**: Support diverse repository patterns and wildcards
 4. **Extensibility**: Easy to add policies for Jira, WorkIQ, etc.
 5. **Clarity**: Clear error messages and validation
