@@ -82,9 +82,9 @@ func rewriteLocalhostToDockerHost(url string) string {
 // running on the host. Rewriting is enabled whenever the agent sandbox is active
 // (i.e. sandbox.agent is not explicitly disabled).
 func shouldRewriteLocalhostToDocker(workflowData *WorkflowData) bool {
-return workflowData != nil && (workflowData.SandboxConfig == nil ||
-workflowData.SandboxConfig.Agent == nil ||
-!workflowData.SandboxConfig.Agent.Disabled)
+	return workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
 }
 
 // noOpCacheMemoryRenderer is a no-op MCPToolRenderers.RenderCacheMemory function for engines

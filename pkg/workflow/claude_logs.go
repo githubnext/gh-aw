@@ -308,6 +308,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				if messageMap, ok := message.(map[string]any); ok {
 					if content, exists := messageMap["content"]; exists {
 						if contentArray, ok := content.([]any); ok {
+							// Sequence return value intentionally discarded; only toolCallMap is needed here.
 							e.parseToolCallsWithSequence(contentArray, toolCallMap)
 						}
 					}
