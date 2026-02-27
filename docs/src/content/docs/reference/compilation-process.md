@@ -96,7 +96,7 @@ All GitHub Actions are pinned to commit SHAs for security:
 1. Check action cache for cached resolution
 2. Try dynamic resolution via GitHub API
 3. Fall back to embedded action pins data
-4. Add version comment (e.g., `actions/checkout@sha # v4`)
+4. Add version comment (e.g., `actions/checkout@sha # v6`)
 
 ### Phase 5: YAML Generation
 
@@ -271,7 +271,7 @@ This artifact-based handoff ensures the detection job cannot be influenced by th
 
 ## Action Pinning
 
-All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v4`) to prevent supply chain attacks and ensure reproducibility. Tags can be moved to malicious commits, but SHA commits are immutable.
+All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to prevent supply chain attacks and ensure reproducibility. Tags can be moved to malicious commits, but SHA commits are immutable.
 
 **Resolution process**: Check cache (`.github/aw/actions-lock.json`) → Query GitHub API for latest SHA → Fall back to embedded pins → Cache result for future compilations. Dynamic resolution fetches current SHAs for tag references and stores them with timestamps.
 

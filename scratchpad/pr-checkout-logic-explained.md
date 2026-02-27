@@ -355,14 +355,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This is SAFE - we're in base repo context
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       # This adds a comment using base repo code (trusted)
       - name: Add comment
         run: gh pr comment ${{ github.event.pull_request.number }} --body "Labeled!"
       
       # ❌ DANGEROUS - Never do this without validation
-      # - uses: actions/checkout@v4
+      # - uses: actions/checkout@v6
       #   with:
       #     ref: ${{ github.event.pull_request.head.sha }}
       # - run: npm install  # Could execute malicious code from PR

@@ -84,7 +84,7 @@ This is required when your workflow requires any of the following:
 
 If additional authentication is required, one way is to create a fine-grained PAT with appropriate permissions, add it as a repository secret, and reference it in your workflow:
 
-1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?description=GitHub+Agentic+Workflows+-+GitHub+tools+access&contents=read&issues=read&pull_requests=read) (this link pre-fills the description and common read permissions) with:
 
    - **Repository access**:
      - Select specific repos or "All repositories"

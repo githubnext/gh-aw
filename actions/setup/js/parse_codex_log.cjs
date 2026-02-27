@@ -123,6 +123,42 @@ function extractMCPInitialization(lines) {
 }
 
 /**
+ * Extract error messages from Codex logs (e.g., model access blocked, cyber_policy_violation)
+ * @param {string[]} lines - Array of log lines
+ * @returns {{hasErrors: boolean, messages: string[], reconnectCount: number, maxReconnects: number}} Error info
+ */
+function extractCodexErrorMessages(lines) {
+  const messages = new Set();
+  let reconnectCount = 0;
+  let maxReconnects = 0;
+
+  for (const line of lines) {
+    // Match: ERROR: <message> (final error after all retries exhausted)
+    const errorMatch = line.match(/^ERROR:\s*(.+)$/);
+    if (errorMatch) {
+      messages.add(errorMatch[1].trim());
+    }
+
+    // Match: Reconnecting... N/M (error message) - reconnect attempts with error details
+    const reconnectMatch = line.match(/^Reconnecting\.\.\.\s+(\d+)\/(\d+)\s*\((.+)\)$/);
+    if (reconnectMatch) {
+      const attempt = parseInt(reconnectMatch[1]);
+      const total = parseInt(reconnectMatch[2]);
+      if (attempt > reconnectCount) reconnectCount = attempt;
+      if (total > maxReconnects) maxReconnects = total;
+      messages.add(reconnectMatch[3].trim());
+    }
+  }
+
+  return {
+    hasErrors: messages.size > 0,
+    messages: Array.from(messages),
+    reconnectCount,
+    maxReconnects,
+  };
+}
+
+/**
  * Convert parsed Codex data to logEntries format for plain text rendering
  * @param {Array<{type: string, content?: string, toolName?: string, params?: string, response?: string, statusIcon?: string}>} parsedData - Parsed Codex log data
  * @returns {Array} logEntries array in the format expected by generatePlainTextSummary
@@ -255,6 +291,18 @@ function parseCodexLog(logContent) {
     markdown += mcpInfo.markdown;
   }
 
+  // Extract error messages (e.g., model access blocked, cyber_policy_violation)
+  const errorInfo = extractCodexErrorMessages(lines);
+  if (errorInfo.hasErrors) {
+    markdown += "## ⚠️ Errors\n\n";
+    for (const message of errorInfo.messages) {
+      markdown += `> ${message}\n\n`;
+    }
+    if (errorInfo.reconnectCount > 0) {
+      markdown += `> Reconnect attempts: ${errorInfo.reconnectCount}/${errorInfo.maxReconnects}\n\n`;
+    }
+  }
+
   markdown += "## 🤖 Reasoning\n\n";
 
   // Second pass: process full conversation flow with interleaved reasoning and tools
@@ -297,8 +345,8 @@ function parseCodexLog(logContent) {
       continue;
     }
 
-    // Tool call line "tool github.list_pull_requests(...)"
-    const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+    // Tool call line "tool github.list_pull_requests(...)" (new Codex format without timestamp prefix)
+    const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\((.*)\)$/);
     if (toolMatch) {
       // Save previous thinking content if any
       if (inThinkingSection && thinkingContent.length > 0) {
@@ -312,19 +360,62 @@ function parseCodexLog(logContent) {
 
       const server = toolMatch[1];
       const toolName = toolMatch[2];
+      const params = toolMatch[3];
 
-      // Look ahead to find the result status
+      // Look ahead to find the result status and response
       let statusIcon = "❓"; // Unknown by default
+      let response = "";
       for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
         const nextLine = lines[j];
-        if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-          statusIcon = "✅";
-          break;
-        } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-          statusIcon = "❌";
+        if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+          const isError = nextLine.includes("failed in");
+          statusIcon = isError ? "❌" : "✅";
+
+          // Extract response - it's the JSON object following this line
+          let jsonLines = [];
+          let braceCount = 0;
+          let inJson = false;
+
+          for (let k = j + 1; k < Math.min(j + LOOKAHEAD_WINDOW, lines.length); k++) {
+            const respLine = lines[k];
+
+            // Stop if we hit the next tool call or tokens used
+            if (respLine.match(/^tool\s+\w+\.\w+\(/) || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+              break;
+            }
+
+            // Count braces to track JSON boundaries
+            for (const char of respLine) {
+              if (char === "{") {
+                braceCount++;
+                inJson = true;
+              } else if (char === "}") {
+                braceCount--;
+              }
+            }
+
+            if (inJson) {
+              jsonLines.push(respLine);
+            }
+
+            if (inJson && braceCount === 0) {
+              break;
+            }
+          }
+
+          response = jsonLines.join("\n");
           break;
         }
       }
+
+      // Add to parsedData so this tool call appears in logEntries for the common renderer
+      parsedData.push({
+        type: "tool",
+        toolName: `${server}__${toolName}`,
+        params,
+        response,
+        statusIcon,
+      });
 
       markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
       continue;
@@ -619,5 +710,6 @@ if (typeof module !== "undefined" && module.exports) {
     formatCodexToolCall,
     formatCodexBashCall,
     extractMCPInitialization,
+    extractCodexErrorMessages,
   };
 }

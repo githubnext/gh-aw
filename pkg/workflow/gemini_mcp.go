@@ -40,7 +40,7 @@ func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer := createRenderer(isLast)
 				renderer.RenderSerenaMCP(yaml, serenaTool)
 			},
-			RenderCacheMemory: e.renderCacheMemoryMCPConfig,
+			RenderCacheMemory: noOpCacheMemoryRenderer,
 			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
 				renderer := createRenderer(isLast)
 				renderer.RenderAgenticWorkflowsMCP(yaml)
@@ -61,11 +61,4 @@ func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			},
 		},
 	})
-}
-
-// renderCacheMemoryMCPConfig handles cache-memory configuration for Gemini
-func (e *GeminiEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	// Cache-memory is a simple file share, not an MCP server
-	// No MCP configuration needed
-	geminiMCPLog.Print("Cache-memory tool detected, no MCP config needed")
 }

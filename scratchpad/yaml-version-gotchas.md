@@ -302,7 +302,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       # Install gh-aw
       - run: gh extension install github/gh-aw

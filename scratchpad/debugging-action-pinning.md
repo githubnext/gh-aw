@@ -288,9 +288,9 @@ Create a style guide for your team:
 
 All workflow files must use full semantic versioning for actions:
 
-- ✅ `actions/checkout@v5.0.1`
+- ✅ `actions/checkout@v6.0.2`
 - ✅ `actions/setup-node@v6.1.0`
-- ❌ `actions/checkout@v5`
+- ❌ `actions/checkout@v6`
 - ❌ `actions/setup-node@v6`
 ```
 

@@ -155,6 +155,11 @@ type WorkflowExecutor interface {
 
 	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
+
+	// GetFirewallLogsCollectionStep returns steps that collect firewall-related log files
+	// before secret redaction runs. Engines that copy session or firewall state files should
+	// override this; the default implementation returns an empty slice.
+	GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep
 }
 
 // MCPConfigProvider handles MCP (Model Context Protocol) configuration
@@ -315,6 +320,12 @@ func (e *BaseEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string
 // Engines that require secret validation must override this method.
 func (e *BaseEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	return GitHubActionStep{}
+}
+
+// GetFirewallLogsCollectionStep returns an empty slice by default.
+// Engines that need to copy session or firewall state files before secret redaction should override this.
+func (e *BaseEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	return []GitHubActionStep{}
 }
 
 // ParseLogMetrics provides a default no-op implementation for log parsing

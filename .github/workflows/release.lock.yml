@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5127c5873ad20ebcf2c49850a53a671243b02c72ada8cd7fcd977c63114823db"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e3397ad5bd389e6aafb3dc65af1f61179419caa966a25715f12fd46e88f4fa48"}
 
 name: "Release"
 "on":
@@ -125,7 +125,7 @@ jobs:
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
-          Tools: update_release, missing_tool, missing_data
+          Tools: update_release, missing_tool, missing_data, noop
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -316,7 +316,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.418",
+              agent_version: "0.0.419",
               workflow_name: "Release",
               experimental: false,
               supports_tools_allowlist: true,
@@ -332,7 +332,7 @@ jobs:
               allowed_domains: ["defaults","node","github.github.com"],
               firewall_enabled: true,
               awf_version: "v0.23.0",
-              awmg_version: "v0.1.5",
+              awmg_version: "v0.1.6",
               steps: {
                 firewall: "squid"
               },
@@ -348,7 +348,7 @@ jobs:
             // Set model as output for reuse in other steps/jobs
             core.setOutput('model', awInfo.model);
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.418
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.419
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -362,7 +362,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.23.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.23.0 ghcr.io/github/gh-aw-firewall/squid:0.23.0 ghcr.io/github/gh-aw-mcpg:v0.1.5 ghcr.io/github/github-mcp-server:v0.31.0 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.23.0 ghcr.io/github/gh-aw-firewall/api-proxy:0.23.0 ghcr.io/github/gh-aw-firewall/squid:0.23.0 ghcr.io/github/gh-aw-mcpg:v0.1.6 ghcr.io/github/github-mcp-server:v0.31.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -620,11 +620,10 @@ jobs:
           export MCP_GATEWAY_API_KEY
           export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
           mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
-          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD="524288"
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.5'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.6'
           
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -652,8 +651,7 @@ jobs:
               "port": $MCP_GATEWAY_PORT,
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}",
-              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
-              "payloadSizeThreshold": 524288
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
           GH_AW_MCP_CONFIG_EOF
@@ -1058,13 +1056,13 @@ jobs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Compute release configuration
         id: compute_config
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const releaseType = context.payload.inputs.release_type;
@@ -1204,7 +1202,7 @@ jobs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -1219,7 +1217,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # 4dc6199c7b1a012772edbd06daecab0f50c9053c
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           cache: false
           go-version-file: go.mod
@@ -1231,9 +1229,9 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx (pre-validation)
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Build Docker image (validation only)
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           build-args: |
             BINARY=dist/linux-amd64
@@ -1264,13 +1262,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
@@ -1284,7 +1282,7 @@ jobs:
           fi
           echo "✓ No secrets detected in SBOM files"
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: sbom-artifacts
           path: |
@@ -1302,16 +1300,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
           username: ${{ github.actor }}
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -1322,7 +1320,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           build-args: |
             BINARY=dist/linux-amd64

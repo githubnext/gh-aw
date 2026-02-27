@@ -468,21 +468,5 @@ func (e *ClaudeEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData)
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *ClaudeEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	// Only add upload and parsing steps if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		claudeLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
-
-		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
-		steps = append(steps, squidLogsUpload)
-
-		// Add firewall log parsing step to create step summary
-		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
-		steps = append(steps, firewallLogParsing)
-	} else {
-		claudeLog.Print("Firewall disabled, skipping Squid logs upload")
-	}
-
-	return steps
+	return defaultGetSquidLogsSteps(workflowData, claudeLog)
 }

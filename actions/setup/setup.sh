@@ -229,6 +229,8 @@ SAFE_OUTPUTS_FILES=(
   "mcp_enhanced_errors.cjs"
   "comment_limit_helpers.cjs"
   "shim.cjs"
+  "repo_helpers.cjs"
+  "glob_pattern_helpers.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

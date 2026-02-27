@@ -107,3 +107,27 @@ Reports should:
 - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
 - Include up to 3 most relevant run URLs at the end under `**References:**`
 - Do NOT add footer attribution — the system appends it automatically
+
+## Avoiding Mentions and Backlinks
+
+Reports often reference issues, PRs, or users. Without filtering, `@username` sends a notification and `#123` creates a cross-reference backlink on that issue or PR — adding noise every time the report runs.
+
+Use the built-in safe-outputs filtering options to suppress this automatically:
+
+- **`mentions: false`** — escapes all `@mentions` in AI-generated output so no notifications are sent.
+- **`allowed-github-references: []`** — escapes all `#123` / `owner/repo#123` references so no backlinks are created on referenced items.
+- **`max-bot-mentions: 0`** — neutralizes bot-trigger phrases such as `fixes #123` or `closes #456` that would otherwise close referenced issues.
+
+```yaml
+safe-outputs:
+  mentions: false
+  allowed-github-references: []
+  max-bot-mentions: 0
+  create-issue:
+    title-prefix: "Weekly Status:"
+    labels: [report]
+    close-older-issues: true
+    expires: 30
+```
+
+These options apply globally to all safe-output types (issues, comments, discussions) and are the recommended way to keep reports from polluting unrelated items.

@@ -813,7 +813,7 @@ func TestUpdateActions_NoFile(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should not error when file doesn't exist
-	err := UpdateActions(false, false)
+	err := UpdateActions(false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when actions-lock.json doesn't exist, got: %v", err)
 	}
@@ -844,7 +844,7 @@ func TestUpdateActions_EmptyFile(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should not error with empty file
-	err := UpdateActions(false, false)
+	err := UpdateActions(false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error with empty actions-lock.json, got: %v", err)
 	}
@@ -873,7 +873,7 @@ func TestUpdateActions_InvalidJSON(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should error with invalid JSON
-	err := UpdateActions(false, false)
+	err := UpdateActions(false, false, false)
 	if err == nil {
 		t.Error("Expected error with invalid JSON, got nil")
 	}
@@ -980,7 +980,7 @@ func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Running update with no source workflows should succeed with an info message, not an error
-	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false)
+	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false, false)
 	assert.NoError(t, err, "Should not error when no workflows with source field exist")
 }
 
@@ -996,7 +996,7 @@ func TestRunUpdateWorkflows_SpecificWorkflowNotFound(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Running update with a specific name that doesn't exist should fail
-	err := RunUpdateWorkflows([]string{"nonexistent"}, false, false, false, "", "", false, "", false)
+	err := RunUpdateWorkflows([]string{"nonexistent"}, false, false, false, "", "", false, "", false, false)
 	require.Error(t, err, "Should error when specified workflow not found")
 	assert.Contains(t, err.Error(), "no workflows found matching the specified names")
 }

@@ -64,7 +64,7 @@ cd my-project-automation
 
 ### 2. Configure Personal Access Token (PAT)
 
-Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with repository access to your main repository and grant these permissions: **Contents** (Read), **Issues** (Read+Write), **Pull requests** (Read+Write), and **Metadata** (Read).
+Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_MAIN_REPO_TOKEN&description=GitHub+Agentic+Workflows+-+Cross-repository+access&contents=read&issues=write&pull_requests=write) (this link pre-fills the token name, description, and permissions) with repository access to your main repository and grant these permissions: **Contents** (Read), **Issues** (Read+Write), **Pull requests** (Read+Write), and **Metadata** (Read).
 
 For classic PATs, use the `repo` scope. Store the token as a secret:
 

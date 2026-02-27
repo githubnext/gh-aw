@@ -558,7 +558,7 @@ func TestEnsureCopilotSetupSteps_ReleaseMode(t *testing.T) {
 	}
 
 	// Verify it has checkout step
-	if !strings.Contains(contentStr, "actions/checkout@v4") {
+	if !strings.Contains(contentStr, "actions/checkout@v6") {
 		t.Error("Expected copilot-setup-steps.yml to have checkout step in release mode")
 	}
 
@@ -647,7 +647,7 @@ func TestEnsureCopilotSetupSteps_CreateWithReleaseMode(t *testing.T) {
 	if !strings.Contains(contentStr, "version: v2.0.0") {
 		t.Errorf("Expected version parameter v2.0.0, got:\n%s", contentStr)
 	}
-	if !strings.Contains(contentStr, "actions/checkout@v4") {
+	if !strings.Contains(contentStr, "actions/checkout@v6") {
 		t.Errorf("Expected checkout step in release mode")
 	}
 }
@@ -968,8 +968,8 @@ func TestInjectExtensionInstallStep_ReleaseMode(t *testing.T) {
 	if job.Steps[0].Name != "Checkout repository" {
 		t.Errorf("First step should be checkout, got: %s", job.Steps[0].Name)
 	}
-	if job.Steps[0].Uses != "actions/checkout@v4" {
-		t.Errorf("Checkout should use actions/checkout@v4, got: %s", job.Steps[0].Uses)
+	if job.Steps[0].Uses != "actions/checkout@v6" {
+		t.Errorf("Checkout should use actions/checkout@v6, got: %s", job.Steps[0].Uses)
 	}
 
 	// Verify install step

@@ -81,7 +81,7 @@ Categorize and orchestrate Dependabot rollout across repositories.
 ```
 
 Compile this workflow to generate the lock file: `gh aw compile`.
-Create a fine-grained PAT `GH_AW_READ_ORG_TOKEN` with the organization as an owner,
+Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_READ_ORG_TOKEN&description=GitHub+Agentic+Workflows+-+Org+read+access&contents=read) `GH_AW_READ_ORG_TOKEN` (this link pre-fills the token name, description, and Contents: Read permission) with the organization as an owner,
 select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read-only`.
 Add this into your Actions repository secrets. This gives the orchestrator read access to all candidate repositories.
 
@@ -259,11 +259,11 @@ In the PR/issue body, explain **why** you chose this specific configuration (not
 ````
 
 Compile this workflow to generate the lock file: `gh aw compile`.
-Create a fine-grained PAT `ORG_REPO_CHECKOUT_TOKEN` with the organization as an owner,
+Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=ORG_REPO_CHECKOUT_TOKEN&description=GitHub+Agentic+Workflows+-+Checkout+token&contents=write&actions=write) `ORG_REPO_CHECKOUT_TOKEN` (this link pre-fills the token name, description, and permissions) with the organization as an owner,
 select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Read & write`, `Actions: Read & write`.
 This allows the worker to check out the target repository.
 
-Also create a fine-grained PAT `REPO_SAFE_OUTPUTS_TOKEN` with the organization as an owner,
+Also create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=REPO_SAFE_OUTPUTS_TOKEN&description=GitHub+Agentic+Workflows+-+Safe+outputs+token&contents=write&issues=write&pull_requests=write) `REPO_SAFE_OUTPUTS_TOKEN` (this link pre-fills the token name, description, and permissions) with the organization as an owner,
 select "All repositories" (or allowlist of specific repos), and grant Repository permission: `Contents: Write`, `Issues: Write`, `Pull Requests: Write`.
 This allows the worker to create pull requests and issues in the target repository based on the orchestrator's instructions.
 

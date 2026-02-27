@@ -6946,6 +6946,12 @@
             }
           ]
         },
+        "id-token": {
+          "type": "string",
+          "enum": ["write", "none"],
+          "description": "Override the id-token permission for the safe-outputs job. Use 'write' to force-enable the id-token: write permission (required for OIDC authentication with cloud providers). Use 'none' to suppress automatic detection and prevent adding id-token: write even when vault/OIDC actions are detected in steps. By default, the compiler auto-detects known OIDC/vault actions (aws-actions/configure-aws-credentials, azure/login, google-github-actions/auth, hashicorp/vault-action, cyberark/conjur-action) and adds id-token: write automatically.",
+          "examples": ["write", "none"]
+        },
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"

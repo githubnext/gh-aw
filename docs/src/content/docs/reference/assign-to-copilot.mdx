@@ -71,7 +71,7 @@ The required token type and permissions depend on whether you own the repository
 
 1. **Create the PAT**:
 
-   For User-owned Repositories, [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   For User-owned Repositories, [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write) (this link pre-fills the token name, description, and permissions) with:
    - **Resource owner**: Your user account
    - **Repository access**: "Public repositories" or select specific repos
    - **Repository permissions**:
@@ -80,7 +80,7 @@ The required token type and permissions depend on whether you own the repository
      - Issues: Write
      - Pull requests: Write
 
-   For Organization-owned Repositories: [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   For Organization-owned Repositories: [create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write) (this link pre-fills the token name, description, and permissions) with:
    - **Resource owner**: The organization that owns the repository
    - **Repository access**: Select the specific repositories that will use the workflow
    - **Repository permissions**:

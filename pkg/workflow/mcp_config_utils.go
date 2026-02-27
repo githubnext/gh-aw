@@ -76,3 +76,18 @@ func rewriteLocalhostToDockerHost(url string) string {
 
 	return url
 }
+
+// shouldRewriteLocalhostToDocker returns true when MCP server localhost URLs should be
+// rewritten to host.docker.internal so that containerised AI agents can reach servers
+// running on the host. Rewriting is enabled whenever the agent sandbox is active
+// (i.e. sandbox.agent is not explicitly disabled).
+func shouldRewriteLocalhostToDocker(workflowData *WorkflowData) bool {
+	return workflowData != nil && (workflowData.SandboxConfig == nil ||
+		workflowData.SandboxConfig.Agent == nil ||
+		!workflowData.SandboxConfig.Agent.Disabled)
+}
+
+// noOpCacheMemoryRenderer is a no-op MCPToolRenderers.RenderCacheMemory function for engines
+// that do not need an MCP server entry for cache-memory. Cache-memory is a simple file share
+// accessible at /tmp/gh-aw/cache-memory/ and requires no MCP configuration.
+func noOpCacheMemoryRenderer(_ *strings.Builder, _ bool, _ *WorkflowData) {}

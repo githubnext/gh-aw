@@ -2,7 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -41,6 +43,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` update --no-merge         # Override local changes with upstream
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
+  ` + string(constants.CLIExtensionPrefix) + ` update --disable-release-bump  # Update without force-bumping all action versions
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			majorFlag, _ := cmd.Flags().GetBool("major")
@@ -51,12 +54,13 @@ Examples:
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			noMergeFlag, _ := cmd.Flags().GetBool("no-merge")
+			disableReleaseBump, _ := cmd.Flags().GetBool("disable-release-bump")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
 
-			return RunUpdateWorkflows(args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag)
+			return RunUpdateWorkflows(args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump)
 		},
 	}
 
@@ -67,6 +71,7 @@ Examples:
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("no-merge", false, "Override local changes with upstream version instead of merging")
+	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
@@ -78,12 +83,29 @@ Examples:
 
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
-func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v", workflowNames, allowMajor, force, noMerge)
+func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump)
+
+	var firstErr error
 
 	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge); err != nil {
-		return fmt.Errorf("workflow update failed: %w", err)
+		firstErr = fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	return nil
+	// Update GitHub Actions versions in actions-lock.json.
+	// By default all actions are updated to the latest major version.
+	// Pass --disable-release-bump to revert to only forcing updates for core (actions/*) actions.
+	if err := UpdateActions(allowMajor, verbose, disableReleaseBump); err != nil {
+		// Non-fatal: warn but don't fail the update
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
+	}
+
+	// Update action references in user-provided steps within workflow .md files.
+	// By default all org/repo@version references are updated to the latest major version.
+	if err := UpdateActionsInWorkflowFiles(workflowsDir, engineOverride, verbose, disableReleaseBump); err != nil {
+		// Non-fatal: warn but don't fail the update
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
+	}
+
+	return firstErr
 }

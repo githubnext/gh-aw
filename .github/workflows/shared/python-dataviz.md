@@ -58,7 +58,7 @@ steps:
 
   - name: Upload charts
     if: always()
-    uses: actions/upload-artifact@v6
+    uses: actions/upload-artifact@v7.0.0
     with:
       name: data-charts
       path: /tmp/gh-aw/python/charts/*.png
@@ -67,7 +67,7 @@ steps:
 
   - name: Upload source files and data
     if: always()
-    uses: actions/upload-artifact@v6
+    uses: actions/upload-artifact@v7.0.0
     with:
       name: python-source-and-data
       path: |
