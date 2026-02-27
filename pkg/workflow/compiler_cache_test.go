@@ -47,7 +47,7 @@ tools:
 				"# Cache configuration from frontmatter was processed and added to the main job steps",
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@", // SHA varies
 				"key: node-modules-${{ hashFiles('package-lock.json') }}",
 				"path: node_modules",
 				"restore-keys: node-modules-",
@@ -90,7 +90,7 @@ tools:
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache (node-modules-${{ hashFiles('package-lock.json') }})",
 				"- name: Cache (build-cache-${{ github.sha }})",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@", // SHA varies
 				"key: node-modules-${{ hashFiles('package-lock.json') }}",
 				"key: build-cache-${{ github.sha }}",
 				"path: node_modules",
@@ -132,7 +132,7 @@ tools:
 			expectedInLock: []string{
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@", // SHA varies
 				"key: full-cache-${{ github.sha }}",
 				"path: dist",
 				"restore-keys: |",

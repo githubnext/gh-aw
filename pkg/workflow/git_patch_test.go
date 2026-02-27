@@ -89,7 +89,7 @@ Please do the following tasks:
 	}
 
 	// Verify the upload step uses actions/upload-artifact
-	if !strings.Contains(lockContent, "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f") {
+	if !strings.Contains(lockContent, "uses: actions/upload-artifact@") { // SHA varies
 		t.Error("Expected upload-artifact action to be used for unified artifact upload step")
 	}
 

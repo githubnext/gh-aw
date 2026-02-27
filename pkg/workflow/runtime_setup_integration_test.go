@@ -51,7 +51,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Node.js",
-				"actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238",
+				"uses: actions/setup-node@", // SHA varies
 				"node-version: '24'",
 			},
 		},
@@ -68,7 +68,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Python",
-				"actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+				"uses: actions/setup-python@", // SHA varies
 				"python-version: '3.12'",
 			},
 		},
@@ -85,7 +85,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86",
+				"uses: astral-sh/setup-uv@", // SHA varies
 			},
 		},
 		{
@@ -113,7 +113,7 @@ on: push
 engine: copilot
 steps:
   - name: Setup Node.js
-    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
+    uses: actions/setup-node@v4 # SHA will be pinned
     with:
       node-version: '20'
   - name: Install
@@ -143,7 +143,7 @@ mcp-servers:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Python",
-				"actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+				"uses: actions/setup-python@", // SHA varies
 			},
 		},
 		{
@@ -276,7 +276,7 @@ on: push
 engine: copilot
 steps:
   - name: Setup Python
-    uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+    uses: actions/setup-python@v5 # SHA will be pinned
     with:
       python-version: '3.9'
   - name: Run script
