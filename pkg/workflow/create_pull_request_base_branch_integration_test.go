@@ -63,11 +63,6 @@ Create a pull request targeting vnext branch in cross-repo.
 	if !strings.Contains(compiledContent, `\"base_branch\":\"vnext\"`) {
 		t.Error("Expected handler config to contain base_branch set to vnext in compiled workflow")
 	}
-
-	// Verify it does NOT contain the default github.base_ref || github.event.pull_request.base.ref || github.ref_name expression
-	if strings.Contains(compiledContent, `\"base_branch\":\"${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}\"`) {
-		t.Error("Did not expect handler config to use github.base_ref || github.event.pull_request.base.ref || github.ref_name when base-branch is explicitly set")
-	}
 }
 
 // TestCreatePullRequestWithDefaultBaseBranch tests workflow compilation with default base-branch

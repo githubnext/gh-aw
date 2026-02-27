@@ -150,7 +150,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// of an old commit followed by git fetch/checkout may not properly update all files,
 	// leading to spurious "workflow file changed" errors on push.
 	//
-	// Fallback expression: github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch
+	// Fallback expression: github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch
 	// - github.base_ref: set for pull_request/pull_request_target events
 	// - github.event.pull_request.base.ref: set for pull_request_review, pull_request_review_comment events
 	// - github.event.repository.default_branch: fallback for issue_comment events and other edge cases
@@ -159,7 +159,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// the default branch instead of the actual PR base branch. This is a known limitation because
 	// issue_comment payloads don't include PR base ref info and we can't make API calls in YAML expressions.
 	// For most PRs targeting main/master, this works correctly.
-	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}"
+	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
 	var checkoutRef string
 	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
 		checkoutRef = data.SafeOutputs.CreatePullRequests.BaseBranch
