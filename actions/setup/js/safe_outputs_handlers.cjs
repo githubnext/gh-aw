@@ -188,9 +188,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes (unless allow-empty is true)
    */
-  const createPullRequestHandler = args => {
+  const createPullRequestHandler = async args => {
     const entry = { ...args, type: "create_pull_request" };
-    const baseBranch = getBaseBranch();
+    const baseBranch = await getBaseBranch();
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -229,7 +229,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Generate git patch
     server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
-    const patchResult = generateGitPatch(entry.branch);
+    const patchResult = await generateGitPatch(entry.branch);
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty
@@ -285,9 +285,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Note: Fork PR detection is handled by push_to_pull_request_branch.cjs handler
    * which fetches the PR and calls detectForkPR() with full PR data.
    */
-  const pushToPullRequestBranchHandler = args => {
+  const pushToPullRequestBranchHandler = async args => {
     const entry = { ...args, type: "push_to_pull_request_branch" };
-    const baseBranch = getBaseBranch();
+    const baseBranch = await getBaseBranch();
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -307,7 +307,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Incremental mode only includes commits since origin/branchName,
     // preventing patches that include already-existing commits
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}`);
-    const patchResult = generateGitPatch(entry.branch, { mode: "incremental" });
+    const patchResult = await generateGitPatch(entry.branch, { mode: "incremental" });
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty

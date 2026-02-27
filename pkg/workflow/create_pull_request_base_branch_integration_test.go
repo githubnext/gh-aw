@@ -117,10 +117,10 @@ Create a pull request with default base branch.
 
 	compiledContent := string(compiledBytes)
 
-	// Verify GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG uses github.base_ref || github.event.pull_request.base.ref || github.ref_name by default
-	// The JSON is escaped in YAML, so we need to look for the escaped version
-	if !strings.Contains(compiledContent, `\"base_branch\":\"${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}\"`) {
-		t.Error("Expected handler config to use github.base_ref || github.event.pull_request.base.ref || github.ref_name when base-branch is not specified")
+	// Verify GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG does NOT contain base_branch
+	// when no custom value is specified (JS resolves dynamically)
+	if strings.Contains(compiledContent, `\"base_branch\":\"`) {
+		t.Error("Expected handler config to NOT contain base_branch key when base-branch is not specified (JS resolves dynamically)")
 	}
 }
 

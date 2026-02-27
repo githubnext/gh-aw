@@ -35,7 +35,7 @@ describe("safe_outputs_mcp_server.cjs branch detection", () => {
       } catch (error) {
         return void console.log("Skipping test - git not available");
       }
-      ((process.env.GITHUB_WORKSPACE = testRepoDir), (process.env.GITHUB_REF_NAME = "main"), (process.env.GH_AW_BASE_BRANCH = "main"), path.join(process.cwd(), "pkg/workflow/js/safe_outputs_mcp_server.cjs"), expect(!0).toBe(!0));
+      ((process.env.GITHUB_WORKSPACE = testRepoDir), (process.env.GITHUB_REF_NAME = "main"), (process.env.GH_AW_CUSTOM_BASE_BRANCH = "main"), path.join(process.cwd(), "pkg/workflow/js/safe_outputs_mcp_server.cjs"), expect(!0).toBe(!0));
     }),
     it("should prioritize git branch over environment variables", () => {
       expect(!0).toBe(!0);

@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -64,11 +65,13 @@ async function main() {
     let summaryContent = "## 🎭 Staged Mode: Create Agent Sessions Preview\n\n";
     summaryContent += "The following agent sessions would be created if staged mode was disabled:\n\n";
 
+    // Resolve base branch: use custom config if set, otherwise resolve dynamically
+    const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch());
+
     for (const [index, item] of createAgentSessionItems.entries()) {
       summaryContent += `### Task ${index + 1}\n\n`;
       summaryContent += `**Description:**\n${item.body || "No description provided"}\n\n`;
 
-      const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || "main";
       summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
 
       summaryContent += `**Target Repository:** ${defaultTargetRepo}\n\n`;
@@ -82,8 +85,10 @@ async function main() {
     return;
   }
 
-  // Get base branch from environment or use current branch
-  const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || process.env.GITHUB_REF_NAME || "main";
+  // Resolve base branch: use custom config if set, otherwise resolve dynamically
+  // Dynamic resolution is needed for issue_comment events on PRs where the base branch
+  // is not available in GitHub Actions expressions and requires an API call
+  const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch());
 
   // Process all agent session items
   const createdTasks = [];

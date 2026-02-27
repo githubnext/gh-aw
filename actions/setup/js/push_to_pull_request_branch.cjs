@@ -10,6 +10,7 @@ const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -31,7 +32,10 @@ async function main(config = {}) {
   const ifNoChanges = config.if_no_changes || "warn";
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
-  const baseBranch = config.base_branch || "";
+  // Resolve base branch: use config value if set, otherwise resolve dynamically
+  // Dynamic resolution is needed for issue_comment events on PRs where the base branch
+  // is not available in GitHub Actions expressions and requires an API call
+  const baseBranch = config.base_branch || (await getBaseBranch());
   const maxCount = config.max || 0; // 0 means no limit
 
   // Cross-repo support: resolve target repository from config

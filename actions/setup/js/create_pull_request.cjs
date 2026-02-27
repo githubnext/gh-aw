@@ -7,7 +7,6 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -19,6 +18,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -100,7 +100,10 @@ async function main(config = {}) {
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
-  let baseBranch = config.base_branch || "";
+  // Resolve base branch: use config value if set, otherwise resolve dynamically
+  // Dynamic resolution is needed for issue_comment events on PRs where the base branch
+  // is not available in GitHub Actions expressions and requires an API call
+  let baseBranch = config.base_branch || (await getBaseBranch());
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
@@ -112,20 +115,16 @@ async function main(config = {}) {
     throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
   }
 
-  if (!baseBranch) {
-    throw new Error("base_branch configuration is required");
-  }
-
   // SECURITY: Sanitize base branch name to prevent shell injection (defense in depth)
-  // Even though base_branch comes from workflow config, normalize it for safety
+  // Even though baseBranch comes from workflow config, normalize it for safety
   const originalBaseBranch = baseBranch;
   baseBranch = normalizeBranchName(baseBranch);
   if (!baseBranch) {
-    throw new Error(`Invalid base_branch: sanitization resulted in empty string (original: "${originalBaseBranch}")`);
+    throw new Error(`Invalid baseBranch: sanitization resulted in empty string (original: "${originalBaseBranch}")`);
   }
   // Fail if base branch name changes during normalization (indicates invalid config)
   if (originalBaseBranch !== baseBranch) {
-    throw new Error(`Invalid base_branch: contains invalid characters (original: "${originalBaseBranch}", normalized: "${baseBranch}")`);
+    throw new Error(`Invalid baseBranch: contains invalid characters (original: "${originalBaseBranch}", normalized: "${baseBranch}")`);
   }
 
   // Extract triggering issue number from context (for auto-linking PRs to issues)

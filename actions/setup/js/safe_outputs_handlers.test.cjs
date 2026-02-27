@@ -240,7 +240,7 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
     });
 
-    it("should return error response when patch generation fails (not throw)", () => {
+    it("should return error response when patch generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
       // The actual patch generation will fail because we're not in a git repo
       const args = {
@@ -250,7 +250,7 @@ describe("safe_outputs_handlers", () => {
       };
 
       // The handler should NOT throw an error, it should return an error response
-      const result = handlers.createPullRequestHandler(args);
+      const result = await handlers.createPullRequestHandler(args);
 
       // Verify it returns an error response structure
       expect(result).toBeDefined();
@@ -272,14 +272,14 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
-    it("should include helpful details in error response", () => {
+    it("should include helpful details in error response", async () => {
       const args = {
         branch: "test-branch",
         title: "Test",
         body: "Description",
       };
 
-      const result = handlers.createPullRequestHandler(args);
+      const result = await handlers.createPullRequestHandler(args);
 
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
@@ -297,14 +297,14 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
     });
 
-    it("should return error response when patch generation fails (not throw)", () => {
+    it("should return error response when patch generation fails (not throw)", async () => {
       // This test verifies the error is returned as content, not thrown
       const args = {
         branch: "feature-branch",
       };
 
       // The handler should NOT throw an error, it should return an error response
-      const result = handlers.pushToPullRequestBranchHandler(args);
+      const result = await handlers.pushToPullRequestBranchHandler(args);
 
       // Verify it returns an error response structure
       expect(result).toBeDefined();
@@ -326,12 +326,12 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
-    it("should include helpful details in error response", () => {
+    it("should include helpful details in error response", async () => {
       const args = {
         branch: "test-branch",
       };
 
-      const result = handlers.pushToPullRequestBranchHandler(args);
+      const result = await handlers.pushToPullRequestBranchHandler(args);
 
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);

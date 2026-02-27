@@ -284,12 +284,12 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 		},
 		{
-			name: "default checkout ref uses github.base_ref || github.event.pull_request.base.ref || github.ref_name",
+			name: "default checkout ref uses github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}",
+				"ref: ${{ github.base_ref || github.event.pull_request.base.ref || github.event.repository.default_branch }}",
 			},
 		},
 		{

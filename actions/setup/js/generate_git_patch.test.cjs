@@ -30,7 +30,7 @@ describe("generateGitPatch", () => {
 
     const { generateGitPatch } = await import("./generate_git_patch.cjs");
 
-    const result = generateGitPatch(null);
+    const result = await generateGitPatch(null);
 
     expect(result.success).toBe(false);
     expect(result).toHaveProperty("error");
@@ -43,7 +43,7 @@ describe("generateGitPatch", () => {
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.GITHUB_SHA = "abc123";
 
-    const result = generateGitPatch("nonexistent-branch");
+    const result = await generateGitPatch("nonexistent-branch");
 
     expect(result.success).toBe(false);
     expect(result).toHaveProperty("error");
@@ -57,7 +57,7 @@ describe("generateGitPatch", () => {
     process.env.GITHUB_SHA = "abc123";
 
     // Even if it fails, it should try to create the directory
-    const result = generateGitPatch("test-branch");
+    const result = await generateGitPatch("test-branch");
 
     expect(result).toHaveProperty("patchPath");
     // Patch path includes sanitized branch name
@@ -70,7 +70,7 @@ describe("generateGitPatch", () => {
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.GITHUB_SHA = "abc123";
 
-    const result = generateGitPatch("test-branch");
+    const result = await generateGitPatch("test-branch");
 
     expect(result).toHaveProperty("success");
     expect(result).toHaveProperty("patchPath");
@@ -83,7 +83,7 @@ describe("generateGitPatch", () => {
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.GITHUB_SHA = "abc123";
 
-    const result = generateGitPatch(null);
+    const result = await generateGitPatch(null);
 
     expect(result).toHaveProperty("success");
     expect(result).toHaveProperty("patchPath");
@@ -95,7 +95,7 @@ describe("generateGitPatch", () => {
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.GITHUB_SHA = "abc123";
 
-    const result = generateGitPatch("");
+    const result = await generateGitPatch("");
 
     expect(result).toHaveProperty("success");
     expect(result).toHaveProperty("patchPath");
@@ -108,21 +108,21 @@ describe("generateGitPatch", () => {
     process.env.GITHUB_SHA = "abc123";
     process.env.DEFAULT_BRANCH = "develop";
 
-    const result = generateGitPatch("feature-branch");
+    const result = await generateGitPatch("feature-branch");
 
     expect(result).toHaveProperty("success");
     // Should attempt to use develop as default branch
   });
 
-  it("should fall back to GH_AW_BASE_BRANCH if DEFAULT_BRANCH not set", async () => {
+  it("should fall back to GH_AW_CUSTOM_BASE_BRANCH if DEFAULT_BRANCH not set", async () => {
     const { generateGitPatch } = await import("./generate_git_patch.cjs");
 
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.GITHUB_SHA = "abc123";
     delete process.env.DEFAULT_BRANCH;
-    process.env.GH_AW_BASE_BRANCH = "master";
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "master";
 
-    const result = generateGitPatch("feature-branch");
+    const result = await generateGitPatch("feature-branch");
 
     expect(result).toHaveProperty("success");
     // Should attempt to use master as base branch
@@ -138,7 +138,7 @@ describe("generateGitPatch", () => {
     const maliciousBranchNames = ["feature; rm -rf /", "feature && echo hacked", "feature | cat /etc/passwd", "feature$(whoami)", "feature`whoami`", "feature\nrm -rf /"];
 
     for (const branchName of maliciousBranchNames) {
-      const result = generateGitPatch(branchName);
+      const result = await generateGitPatch(branchName);
 
       // Should not throw an error and should handle safely
       expect(result).toHaveProperty("success");
@@ -155,7 +155,7 @@ describe("generateGitPatch", () => {
     // Test with malicious SHA that could cause shell injection
     process.env.GITHUB_SHA = "abc123; echo hacked";
 
-    const result = generateGitPatch("test-branch");
+    const result = await generateGitPatch("test-branch");
 
     // Should not throw an error and should handle safely
     expect(result).toHaveProperty("success");
@@ -172,7 +172,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
       GITHUB_SHA: process.env.GITHUB_SHA,
       GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
       DEFAULT_BRANCH: process.env.DEFAULT_BRANCH,
-      GH_AW_BASE_BRANCH: process.env.GH_AW_BASE_BRANCH,
+      GH_AW_CUSTOM_BASE_BRANCH: process.env.GH_AW_CUSTOM_BASE_BRANCH,
     };
   });
 
@@ -195,7 +195,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.GITHUB_SHA = "deadbeef123456789"; // SHA that doesn't exist in target repo
 
-    const result = generateGitPatch("feature-branch");
+    const result = await generateGitPatch("feature-branch");
 
     // Should fail gracefully, not crash
     expect(result).toHaveProperty("success");
@@ -211,7 +211,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
     process.env.GITHUB_SHA = "abc123";
     process.env.DEFAULT_BRANCH = "main";
 
-    const result = generateGitPatch("feature-branch");
+    const result = await generateGitPatch("feature-branch");
 
     // Should try multiple strategies and fail gracefully
     expect(result).toHaveProperty("success");
@@ -227,7 +227,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
     process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
     process.env.DEFAULT_BRANCH = "main";
 
-    const result = generateGitPatch("feature-branch");
+    const result = await generateGitPatch("feature-branch");
 
     // Should complete without hanging or crashing due to fetch attempts
     expect(result).toHaveProperty("success");
@@ -241,7 +241,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
     process.env.GITHUB_SHA = "sha-from-workflow-repo";
     process.env.DEFAULT_BRANCH = "main";
 
-    const result = generateGitPatch("agent-created-branch");
+    const result = await generateGitPatch("agent-created-branch");
 
     expect(result.success).toBe(false);
     expect(result).toHaveProperty("error");
@@ -257,7 +257,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
     process.env.DEFAULT_BRANCH = "main";
 
     // Incremental mode requires origin/branchName to exist - should fail clearly
-    const result = generateGitPatch("feature-branch", { mode: "incremental" });
+    const result = await generateGitPatch("feature-branch", { mode: "incremental" });
 
     expect(result.success).toBe(false);
     expect(result).toHaveProperty("error");
@@ -274,7 +274,7 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
     process.env.GITHUB_SHA = "side-repo-sha-not-in-target";
     process.env.DEFAULT_BRANCH = "main";
 
-    const result = generateGitPatch("agent-changes");
+    const result = await generateGitPatch("agent-changes");
 
     // Should not crash, should return failure with helpful error
     expect(result).toHaveProperty("success");

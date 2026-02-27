@@ -52,9 +52,9 @@ function getPatchPath(branchName) {
  *   - "full": Include all commits since merge-base with default branch (for create_pull_request)
  *   - "incremental": Only include commits since origin/branchName (for push_to_pull_request_branch)
  *     In incremental mode, origin/branchName is fetched explicitly and merge-base fallback is disabled.
- * @returns {Object} Object with patch info or error
+ * @returns {Promise<Object>} Object with patch info or error
  */
-function generateGitPatch(branchName, options = {}) {
+async function generateGitPatch(branchName, options = {}) {
   const mode = options.mode || "full";
   const patchPath = getPatchPath(branchName);
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -62,7 +62,7 @@ function generateGitPatch(branchName, options = {}) {
   // (via github.event.repository.default_branch), not the checked-out repository.
   // If the checked-out repo has a different default branch (e.g., "master" vs "main"),
   // Strategy 1's merge-base calculation may fail. Strategy 3 handles this gracefully.
-  const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
+  const defaultBranch = process.env.DEFAULT_BRANCH || (await getBaseBranch());
   const githubSha = process.env.GITHUB_SHA;
 
   debugLog(`Starting patch generation: mode=${mode}, branch=${branchName}, defaultBranch=${defaultBranch}`);

@@ -812,24 +812,28 @@ func TestAutoEnabledHandlers(t *testing.T) {
 // TestCreatePullRequestBaseBranch tests the base-branch field configuration
 func TestCreatePullRequestBaseBranch(t *testing.T) {
 	tests := []struct {
-		name               string
-		baseBranch         string
-		expectedBaseBranch string
+		name                    string
+		baseBranch              string
+		expectedBaseBranch      string
+		shouldHaveBaseBranchKey bool
 	}{
 		{
-			name:               "custom base branch",
-			baseBranch:         "vnext",
-			expectedBaseBranch: "vnext",
+			name:                    "custom base branch",
+			baseBranch:              "vnext",
+			expectedBaseBranch:      "vnext",
+			shouldHaveBaseBranchKey: true,
 		},
 		{
-			name:               "default base branch",
-			baseBranch:         "",
-			expectedBaseBranch: "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name }}",
+			name:                    "default base branch - no key in config",
+			baseBranch:              "",
+			expectedBaseBranch:      "",
+			shouldHaveBaseBranchKey: false, // JS resolves dynamically
 		},
 		{
-			name:               "branch with slash",
-			baseBranch:         "release/v1.0",
-			expectedBaseBranch: "release/v1.0",
+			name:                    "branch with slash",
+			baseBranch:              "release/v1.0",
+			expectedBaseBranch:      "release/v1.0",
+			shouldHaveBaseBranchKey: true,
 		},
 	}
 
@@ -871,9 +875,12 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 						require.True(t, ok, "create_pull_request config should exist")
 
 						baseBranch, ok := prConfig["base_branch"]
-						require.True(t, ok, "base_branch should be in config")
-
-						assert.Equal(t, tt.expectedBaseBranch, baseBranch, "base_branch should match expected value")
+						if tt.shouldHaveBaseBranchKey {
+							require.True(t, ok, "base_branch should be in config")
+							assert.Equal(t, tt.expectedBaseBranch, baseBranch, "base_branch should match expected value")
+						} else {
+							require.False(t, ok, "base_branch should NOT be in config when no custom value set")
+						}
 					}
 				}
 			}

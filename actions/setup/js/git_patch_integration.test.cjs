@@ -527,7 +527,7 @@ describe("git patch integration tests", () => {
       cleanupTestRepo(workingRepo);
     });
 
-    it("should only include new commits after origin/branch in incremental mode", () => {
+    it("should only include new commits after origin/branch in incremental mode", async () => {
       // Create a feature branch with first commit
       execGit(["checkout", "-b", "feature-branch"], { cwd: workingRepo });
       fs.writeFileSync(path.join(workingRepo, "feature.txt"), "First commit content\n");
@@ -554,7 +554,7 @@ describe("git patch integration tests", () => {
       process.env.DEFAULT_BRANCH = "main";
 
       try {
-        const result = generateGitPatch("feature-branch", { mode: "incremental" });
+        const result = await generateGitPatch("feature-branch", { mode: "incremental" });
 
         expect(result.success).toBe(true);
         expect(result.patchPath).toBeDefined();
@@ -583,7 +583,7 @@ describe("git patch integration tests", () => {
       }
     });
 
-    it("should fail clearly when origin/branch doesnt exist in incremental mode", () => {
+    it("should fail clearly when origin/branch doesnt exist in incremental mode", async () => {
       // Create a local branch without pushing
       execGit(["checkout", "-b", "local-only-branch"], { cwd: workingRepo });
       fs.writeFileSync(path.join(workingRepo, "local.txt"), "Local content\n");
@@ -598,7 +598,7 @@ describe("git patch integration tests", () => {
       process.env.DEFAULT_BRANCH = "main";
 
       try {
-        const result = generateGitPatch("local-only-branch", { mode: "incremental" });
+        const result = await generateGitPatch("local-only-branch", { mode: "incremental" });
 
         // Should fail with a clear error message
         expect(result.success).toBe(false);
@@ -610,7 +610,7 @@ describe("git patch integration tests", () => {
       }
     });
 
-    it("should include all commits in full mode even when origin/branch exists", () => {
+    it("should include all commits in full mode even when origin/branch exists", async () => {
       // Create a feature branch with first commit
       execGit(["checkout", "-b", "full-mode-branch"], { cwd: workingRepo });
       fs.writeFileSync(path.join(workingRepo, "full1.txt"), "First commit\n");
@@ -638,7 +638,7 @@ describe("git patch integration tests", () => {
 
       try {
         // Full mode (default) - should fall back to merge-base and include all commits
-        const result = generateGitPatch("full-mode-branch", { mode: "full" });
+        const result = await generateGitPatch("full-mode-branch", { mode: "full" });
 
         // Debug output if test fails
         if (!result.success) {
