@@ -272,7 +272,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (repoSlug) {
       patchOptions.repoSlug = repoSlug;
     }
-    const patchResult = await generateGitPatch(entry.branch);
+    const patchResult = await generateGitPatch(entry.branch, patchOptions);
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty
