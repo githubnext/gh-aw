@@ -18,11 +18,8 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
-<<<<<<< HEAD
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
-=======
 const { getBaseBranch } = require("./get_base_branch.cjs");
->>>>>>> 5d2d05f1049081d038daab64ba789cf2c5e73a25
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
