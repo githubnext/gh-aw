@@ -2,7 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -81,9 +83,25 @@ Examples:
 func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool) error {
 	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v", workflowNames, allowMajor, force, noMerge)
 
+	var firstErr error
+
 	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge); err != nil {
-		return fmt.Errorf("workflow update failed: %w", err)
+		firstErr = fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	return nil
+	// Update GitHub Actions versions in actions-lock.json.
+	// Core actions (actions/*) are always updated to the latest major version.
+	if err := UpdateActions(allowMajor, verbose); err != nil {
+		// Non-fatal: warn but don't fail the update
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
+	}
+
+	// Update action references in user-provided steps within workflow .md files.
+	// This covers both generated and hand-written steps that reference actions/*.
+	if err := UpdateActionsInWorkflowFiles(workflowsDir, engineOverride, verbose); err != nil {
+		// Non-fatal: warn but don't fail the update
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
+	}
+
+	return firstErr
 }

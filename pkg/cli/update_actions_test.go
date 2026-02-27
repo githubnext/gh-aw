@@ -249,3 +249,62 @@ func TestMajorVersionPreference(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCoreAction(t *testing.T) {
+	tests := []struct {
+		name string
+		repo string
+		want bool
+	}{
+		{"actions/checkout is core", "actions/checkout", true},
+		{"actions/setup-go is core", "actions/setup-go", true},
+		{"actions/cache/restore is core", "actions/cache/restore", true},
+		{"github/codeql-action is not core", "github/codeql-action", false},
+		{"docker/login-action is not core", "docker/login-action", false},
+		{"super-linter/super-linter is not core", "super-linter/super-linter", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCoreAction(tt.repo)
+			if got != tt.want {
+				t.Errorf("isCoreAction(%q) = %v, want %v", tt.repo, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
+	// Non-actions/* org references should not be modified by updateActionRefsInContent
+	// since it only processes "uses: actions/" prefixed references.
+	input := `steps:
+  - uses: docker/login-action@v3
+  - uses: github/codeql-action/upload-sarif@v3
+  - run: echo hello`
+
+	changed, newContent, err := updateActionRefsInContent(input, false)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContent() error = %v", err)
+	}
+	if changed {
+		t.Errorf("updateActionRefsInContent() changed = true, want false for non-actions/* refs")
+	}
+	if newContent != input {
+		t.Errorf("updateActionRefsInContent() modified content for non-actions/* refs\nGot: %s\nWant: %s", newContent, input)
+	}
+}
+
+func TestUpdateActionRefsInContent_NoActionRefs(t *testing.T) {
+	input := `description: Test workflow
+steps:
+  - run: echo hello
+  - run: echo world`
+
+	changed, _, err := updateActionRefsInContent(input, false)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContent() error = %v", err)
+	}
+	if changed {
+		t.Errorf("updateActionRefsInContent() changed = true, want false for content with no action refs")
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -26,6 +27,12 @@ func extractBaseRepo(actionPath string) string {
 	}
 	// If less than 2 parts, return as-is (shouldn't happen in practice)
 	return actionPath
+}
+
+// isCoreAction returns true if the repo is a GitHub-maintained core action (actions/* org).
+// Core actions are always updated to the latest major version without requiring --major.
+func isCoreAction(repo string) bool {
+	return strings.HasPrefix(repo, "actions/")
 }
 
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
@@ -70,8 +77,11 @@ func UpdateActions(allowMajor, verbose bool) error {
 	for key, entry := range actionsLock.Entries {
 		updateLog.Printf("Checking action: %s@%s", entry.Repo, entry.Version)
 
+		// Core actions (actions/*) always update to the latest major version
+		effectiveAllowMajor := allowMajor || isCoreAction(entry.Repo)
+
 		// Check for latest release
-		latestVersion, latestSHA, err := getLatestActionRelease(entry.Repo, entry.Version, allowMajor, verbose)
+		latestVersion, latestSHA, err := getLatestActionRelease(entry.Repo, entry.Version, effectiveAllowMajor, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %s: %v", entry.Repo, err)))
@@ -455,4 +465,151 @@ func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
 
 	buf.WriteString("  }\n}")
 	return []byte(buf.String()), nil
+}
+
+// actionRefPattern matches "uses: actions/repo@SHA-or-tag" in workflow files.
+// Captures: (1) indentation+uses prefix, (2) repo path, (3) SHA or version tag,
+// (4) optional version comment (e.g., "v6.0.2" from "# v6.0.2").
+var actionRefPattern = regexp.MustCompile(`(uses:\s+)(actions/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([a-fA-F0-9]{40}|[^\s#\n]+?)(\s*#\s*\S+)?(\s*)$`)
+
+// UpdateActionsInWorkflowFiles scans all workflow .md files in workflowsDir
+// and updates any "uses: actions/*@version" references to the latest major version.
+// Updated files are recompiled. Core actions (actions/*) always update to latest major.
+func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose bool) error {
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
+
+	updateLog.Printf("Updating action references in workflow files: dir=%s", workflowsDir)
+
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil {
+		return fmt.Errorf("failed to read workflows directory: %w", err)
+	}
+
+	var updatedFiles []string
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+
+		filePath := filepath.Join(workflowsDir, entry.Name())
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", filePath, err)))
+			}
+			continue
+		}
+
+		updated, newContent, err := updateActionRefsInContent(string(content), verbose)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", filePath, err)))
+			}
+			continue
+		}
+
+		if !updated {
+			continue
+		}
+
+		if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
+			return fmt.Errorf("failed to write updated workflow %s: %w", filePath, err)
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action references in "+entry.Name()))
+		updatedFiles = append(updatedFiles, filePath)
+
+		// Recompile the updated workflow
+		if err := compileWorkflowWithRefresh(filePath, verbose, false, engineOverride, false); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", filePath, err)))
+			}
+		}
+	}
+
+	if len(updatedFiles) == 0 && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No action references needed updating in workflow files"))
+	}
+
+	return nil
+}
+
+// updateActionRefsInContent replaces outdated "uses: actions/*@version" references
+// in content with the latest major version and SHA. Returns (changed, newContent, error).
+func updateActionRefsInContent(content string, verbose bool) (bool, string, error) {
+	changed := false
+	lines := strings.Split(content, "\n")
+
+	for i, line := range lines {
+		match := actionRefPattern.FindStringSubmatchIndex(line)
+		if match == nil {
+			continue
+		}
+
+		// Extract matched groups
+		prefix := line[match[2]:match[3]] // "uses: "
+		repo := line[match[4]:match[5]]   // e.g. "actions/checkout"
+		ref := line[match[6]:match[7]]    // SHA or version tag
+		comment := ""
+		if match[8] >= 0 {
+			comment = line[match[8]:match[9]] // e.g. " # v6.0.2"
+		}
+		trailing := ""
+		if match[10] >= 0 {
+			trailing = line[match[10]:match[11]]
+		}
+
+		// Determine the "current version" to pass to getLatestActionRelease
+		isSHA := IsCommitSHA(ref)
+		currentVersion := ref
+		if isSHA {
+			// Extract version from comment (e.g., " # v6.0.2" -> "v6.0.2")
+			if comment != "" {
+				commentVersion := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(comment), "#"))
+				if commentVersion != "" {
+					currentVersion = commentVersion
+				} else {
+					currentVersion = ""
+				}
+			} else {
+				currentVersion = ""
+			}
+		}
+
+		// Get the latest version for this core action (always allow major)
+		latestVersion, latestSHA, err := getLatestActionRelease(repo, currentVersion, true, verbose)
+		if err != nil {
+			updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
+			continue
+		}
+
+		if isSHA {
+			if latestSHA == ref {
+				continue // SHA unchanged
+			}
+		} else {
+			if latestVersion == ref {
+				continue // Version tag unchanged
+			}
+		}
+
+		// Build the new uses line
+		var newRef string
+		if isSHA {
+			// SHA-pinned references stay SHA-pinned, updated to latest SHA + version comment
+			newRef = fmt.Sprintf("%s%s%s@%s  # %s%s", line[:match[2]], prefix, repo, latestSHA, latestVersion, trailing)
+		} else {
+			// Version tag references just get the new version tag
+			newRef = fmt.Sprintf("%s%s%s@%s%s%s", line[:match[2]], prefix, repo, latestVersion, comment, trailing)
+		}
+
+		updateLog.Printf("Updating %s from %s to %s in line %d", repo, ref, latestVersion, i+1)
+		lines[i] = newRef
+		changed = true
+	}
+
+	return changed, strings.Join(lines, "\n"), nil
 }
