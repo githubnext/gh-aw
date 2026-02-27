@@ -263,6 +263,9 @@ If the pull request is still open, verify that:
       // Verify fork is detected via fork flag
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head.repo.fork flag is true)");
 
+      // Verify correct strategy reason for fork PR
+      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; head branch exists only in fork, not in origin");
+
       // Verify gh pr checkout is used
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", expect.anything()]);
@@ -270,10 +273,13 @@ If the pull request is still open, verify that:
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should still use git fetch for non-fork pull_request event", async () => {
+    it("should use git fetch for non-fork pull_request event", async () => {
       // Default mock context is non-fork (same repo)
 
       await runScript();
+
+      // Verify non-fork detection
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
 
       // Verify git fetch + checkout is used for non-fork
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
