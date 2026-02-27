@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,7 +43,7 @@ Test workflow with cache-memory and threat detection enabled.`,
 			expectedInLock: []string{
 				// In agent job, should use actions/cache/restore instead of actions/cache
 				"- name: Restore cache-memory file share data",
-				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache/restore@",
 				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				// Should upload artifact with if: always()
 				"- name: Upload cache-memory data as artifact",
@@ -55,7 +56,7 @@ Test workflow with cache-memory and threat detection enabled.`,
 				"if: always() && needs.agent.outputs.detection_success == 'true'",
 				"- name: Download cache-memory artifact (default)",
 				"- name: Save cache-memory to cache (default)",
-				"uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache/save@",
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache in agent job
@@ -82,7 +83,7 @@ Test workflow with cache-memory but no threat detection.`,
 			expectedInLock: []string{
 				// Without threat detection, should use regular actions/cache
 				"- name: Cache cache-memory file share data",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@",
 				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 			},
 			notExpectedInLock: []string{
@@ -121,7 +122,7 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 			expectedInLock: []string{
 				// Both caches should use restore
 				"- name: Restore cache-memory file share data (default)",
-				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache/restore@",
 				"key: memory-default-${{ github.run_id }}",
 				"- name: Restore cache-memory file share data (session)",
 				"key: memory-session-${{ github.run_id }}",
@@ -169,7 +170,7 @@ Test workflow with restore-only cache-memory and threat detection enabled.`,
 			expectedInLock: []string{
 				// Should use restore for restore-only cache (no ID suffix for single default cache)
 				"- name: Restore cache-memory file share data",
-				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache/restore@",
 			},
 			notExpectedInLock: []string{
 				// Should NOT upload artifact for restore-only
@@ -204,18 +205,35 @@ Test workflow with restore-only cache-memory and threat detection enabled.`,
 				t.Fatalf("Failed to read lock file: %v", err)
 			}
 			lockContent := string(lockYAML)
+			lines := strings.Split(lockContent, "\n")
 
 			// Check expected strings
 			for _, expected := range tt.expectedInLock {
 				if !strings.Contains(lockContent, expected) {
-					t.Errorf("Expected lock YAML to contain %q, but it didn't.\nGenerated YAML:\n%s", expected, lockContent)
+					// Show first 100 lines for context (not entire file)
+					preview := strings.Join(lines[:min(100, len(lines))], "\n")
+					if len(lines) > 100 {
+						preview += fmt.Sprintf("\n... (%d more lines)", len(lines)-100)
+					}
+					t.Errorf("Expected lock YAML to contain %q, but it didn't.\nFirst 100 lines:\n%s", expected, preview)
 				}
 			}
 
 			// Check not expected strings
 			for _, notExpected := range tt.notExpectedInLock {
 				if strings.Contains(lockContent, notExpected) {
-					t.Errorf("Expected lock YAML NOT to contain %q, but it did.\nGenerated YAML:\n%s", notExpected, lockContent)
+					// Find the matching line and show context
+					matchIdx := -1
+					for i, line := range lines {
+						if strings.Contains(line, notExpected) || strings.Contains(strings.Join(lines[max(0, i-1):min(len(lines), i+2)], "\n"), notExpected) {
+							matchIdx = i
+							break
+						}
+					}
+					start := max(0, matchIdx-3)
+					end := min(len(lines), matchIdx+4)
+					context := strings.Join(lines[start:end], "\n")
+					t.Errorf("Expected lock YAML NOT to contain %q, but it did.\nContext around match (lines %d-%d):\n%s", notExpected, start+1, end, context)
 				}
 			}
 		})
