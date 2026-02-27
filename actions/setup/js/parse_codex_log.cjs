@@ -123,6 +123,42 @@ function extractMCPInitialization(lines) {
 }
 
 /**
+ * Extract error messages from Codex logs (e.g., model access blocked, cyber_policy_violation)
+ * @param {string[]} lines - Array of log lines
+ * @returns {{hasErrors: boolean, messages: string[], reconnectCount: number, maxReconnects: number}} Error info
+ */
+function extractCodexErrorMessages(lines) {
+  const messages = new Set();
+  let reconnectCount = 0;
+  let maxReconnects = 0;
+
+  for (const line of lines) {
+    // Match: ERROR: <message> (final error after all retries exhausted)
+    const errorMatch = line.match(/^ERROR:\s*(.+)$/);
+    if (errorMatch) {
+      messages.add(errorMatch[1].trim());
+    }
+
+    // Match: Reconnecting... N/M (error message) - reconnect attempts with error details
+    const reconnectMatch = line.match(/^Reconnecting\.\.\.\s+(\d+)\/(\d+)\s*\((.+)\)$/);
+    if (reconnectMatch) {
+      const attempt = parseInt(reconnectMatch[1]);
+      const total = parseInt(reconnectMatch[2]);
+      if (attempt > reconnectCount) reconnectCount = attempt;
+      if (total > maxReconnects) maxReconnects = total;
+      messages.add(reconnectMatch[3].trim());
+    }
+  }
+
+  return {
+    hasErrors: messages.size > 0,
+    messages: Array.from(messages),
+    reconnectCount,
+    maxReconnects,
+  };
+}
+
+/**
  * Convert parsed Codex data to logEntries format for plain text rendering
  * @param {Array<{type: string, content?: string, toolName?: string, params?: string, response?: string, statusIcon?: string}>} parsedData - Parsed Codex log data
  * @returns {Array} logEntries array in the format expected by generatePlainTextSummary
@@ -253,6 +289,18 @@ function parseCodexLog(logContent) {
   if (mcpInfo.hasInfo) {
     markdown += "## 🚀 Initialization\n\n";
     markdown += mcpInfo.markdown;
+  }
+
+  // Extract error messages (e.g., model access blocked, cyber_policy_violation)
+  const errorInfo = extractCodexErrorMessages(lines);
+  if (errorInfo.hasErrors) {
+    markdown += "## ⚠️ Errors\n\n";
+    for (const message of errorInfo.messages) {
+      markdown += `> ${message}\n\n`;
+    }
+    if (errorInfo.reconnectCount > 0) {
+      markdown += `> Reconnect attempts: ${errorInfo.reconnectCount}/${errorInfo.maxReconnects}\n\n`;
+    }
   }
 
   markdown += "## 🤖 Reasoning\n\n";
@@ -662,5 +710,6 @@ if (typeof module !== "undefined" && module.exports) {
     formatCodexToolCall,
     formatCodexBashCall,
     extractMCPInitialization,
+    extractCodexErrorMessages,
   };
 }

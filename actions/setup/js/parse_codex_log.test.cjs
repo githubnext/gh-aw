@@ -542,4 +542,120 @@ I will analyze the code`;
       expect(result.markdown).toContain("## 🤖 Reasoning");
     });
   });
+
+  describe("extractCodexErrorMessages function", () => {
+    let extractCodexErrorMessages;
+
+    beforeEach(async () => {
+      const module = await import("./parse_codex_log.cjs");
+      extractCodexErrorMessages = module.extractCodexErrorMessages;
+    });
+
+    it("should extract ERROR: lines", () => {
+      const lines = [
+        "thinking",
+        "Some thinking content here",
+        "ERROR: stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity. Learn more about our safety mitigations: https://platform.openai.com/docs/guides/safety-checks/cybersecurity",
+      ];
+
+      const result = extractCodexErrorMessages(lines);
+
+      expect(result.hasErrors).toBe(true);
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0]).toContain("stream disconnected before completion");
+      expect(result.messages[0]).toContain("cyber");
+    });
+
+    it("should extract Reconnecting messages with error details", () => {
+      const lines = [
+        "Reconnecting... 1/5 (stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity. Learn more about our safety mitigations: https://platform.openai.com/docs/guides/safety-checks/cybersecurity)",
+        "Reconnecting... 2/5 (stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity. Learn more about our safety mitigations: https://platform.openai.com/docs/guides/safety-checks/cybersecurity)",
+      ];
+
+      const result = extractCodexErrorMessages(lines);
+
+      expect(result.hasErrors).toBe(true);
+      expect(result.messages).toHaveLength(1); // De-duplicated
+      expect(result.reconnectCount).toBe(2);
+      expect(result.maxReconnects).toBe(5);
+    });
+
+    it("should de-duplicate identical error messages from retries", () => {
+      const errorMsg = "stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited";
+      const lines = [`Reconnecting... 1/5 (${errorMsg})`, `Reconnecting... 2/5 (${errorMsg})`, `Reconnecting... 3/5 (${errorMsg})`, `ERROR: ${errorMsg}`];
+
+      const result = extractCodexErrorMessages(lines);
+
+      expect(result.hasErrors).toBe(true);
+      expect(result.messages).toHaveLength(1);
+      expect(result.reconnectCount).toBe(3);
+    });
+
+    it("should return no errors for normal log lines", () => {
+      const lines = ["thinking", "I will list the open pull requests", "tool github.list_pull_requests({})"];
+
+      const result = extractCodexErrorMessages(lines);
+
+      expect(result.hasErrors).toBe(false);
+      expect(result.messages).toHaveLength(0);
+      expect(result.reconnectCount).toBe(0);
+      expect(result.maxReconnects).toBe(0);
+    });
+
+    it("should handle empty lines array", () => {
+      const result = extractCodexErrorMessages([]);
+
+      expect(result.hasErrors).toBe(false);
+      expect(result.messages).toHaveLength(0);
+    });
+  });
+
+  describe("parseCodexLog with model access errors", () => {
+    it("should include Errors section when ERROR: line is present", () => {
+      const logContent = `2026-02-27T14:06:41.886993Z  INFO session_loop: codex_core::codex: Turn error: stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity. Learn more about our safety mitigations: https://platform.openai.com/docs/guides/safety-checks/cybersecurity
+ERROR: stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity. Learn more about our safety mitigations: https://platform.openai.com/docs/guides/safety-checks/cybersecurity`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.markdown).toContain("## ⚠️ Errors");
+      expect(result.markdown).toContain("stream disconnected before completion");
+      expect(result.markdown).toContain("cybersecurity");
+    });
+
+    it("should include Errors section with reconnect count when retries occurred", () => {
+      const logContent = `Reconnecting... 1/5 (stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity)
+Reconnecting... 2/5 (stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity)
+Reconnecting... 3/5 (stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity)
+ERROR: stream disconnected before completion: This user's access to gpt-5.3-codex has been temporarily limited for potentially suspicious activity related to cybersecurity`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.markdown).toContain("## ⚠️ Errors");
+      expect(result.markdown).toContain("Reconnect attempts: 3/5");
+    });
+
+    it("should not include Errors section for normal logs", () => {
+      const logContent = `thinking
+I will list the open pull requests
+tool github.list_pull_requests({"state":"open"})
+github.list_pull_requests(...) success in 123ms:
+{"items": []}`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.markdown).not.toContain("## ⚠️ Errors");
+    });
+
+    it("should place Errors section before Reasoning section", () => {
+      const logContent = `ERROR: This user's access to gpt-5.3-codex has been temporarily limited`;
+
+      const result = parseCodexLog(logContent);
+
+      const errorsIndex = result.markdown.indexOf("## ⚠️ Errors");
+      const reasoningIndex = result.markdown.indexOf("## 🤖 Reasoning");
+      expect(errorsIndex).toBeGreaterThan(-1);
+      expect(reasoningIndex).toBeGreaterThan(-1);
+      expect(errorsIndex).toBeLessThan(reasoningIndex);
+    });
+  });
 });
