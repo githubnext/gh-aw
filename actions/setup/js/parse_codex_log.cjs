@@ -297,8 +297,8 @@ function parseCodexLog(logContent) {
       continue;
     }
 
-    // Tool call line "tool github.list_pull_requests(...)"
-    const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+    // Tool call line "tool github.list_pull_requests(...)" (new Codex format without timestamp prefix)
+    const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\((.*)\)$/);
     if (toolMatch) {
       // Save previous thinking content if any
       if (inThinkingSection && thinkingContent.length > 0) {
@@ -312,19 +312,62 @@ function parseCodexLog(logContent) {
 
       const server = toolMatch[1];
       const toolName = toolMatch[2];
+      const params = toolMatch[3];
 
-      // Look ahead to find the result status
+      // Look ahead to find the result status and response
       let statusIcon = "❓"; // Unknown by default
+      let response = "";
       for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
         const nextLine = lines[j];
-        if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-          statusIcon = "✅";
-          break;
-        } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-          statusIcon = "❌";
+        if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+          const isError = nextLine.includes("failed in");
+          statusIcon = isError ? "❌" : "✅";
+
+          // Extract response - it's the JSON object following this line
+          let jsonLines = [];
+          let braceCount = 0;
+          let inJson = false;
+
+          for (let k = j + 1; k < Math.min(j + LOOKAHEAD_WINDOW, lines.length); k++) {
+            const respLine = lines[k];
+
+            // Stop if we hit the next tool call or tokens used
+            if (respLine.match(/^tool\s+\w+\.\w+\(/) || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+              break;
+            }
+
+            // Count braces to track JSON boundaries
+            for (const char of respLine) {
+              if (char === "{") {
+                braceCount++;
+                inJson = true;
+              } else if (char === "}") {
+                braceCount--;
+              }
+            }
+
+            if (inJson) {
+              jsonLines.push(respLine);
+            }
+
+            if (inJson && braceCount === 0) {
+              break;
+            }
+          }
+
+          response = jsonLines.join("\n");
           break;
         }
       }
+
+      // Add to parsedData so this tool call appears in logEntries for the common renderer
+      parsedData.push({
+        type: "tool",
+        toolName: `${server}__${toolName}`,
+        params,
+        response,
+        statusIcon,
+      });
 
       markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
       continue;

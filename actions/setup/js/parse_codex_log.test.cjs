@@ -190,6 +190,60 @@ x`;
       expect(result.markdown).toContain("**Tool Calls:** 1");
     });
 
+    it("should populate logEntries for new-format tool calls without timestamps", () => {
+      const logContent = `thinking
+I will list the open pull requests
+tool github.list_pull_requests({"state":"open"})
+github.list_pull_requests(...) success in 123ms:
+{"items": [{"number": 1, "title": "Test PR"}]}`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.logEntries).toBeDefined();
+      expect(result.logEntries.length).toBeGreaterThan(0);
+
+      // Should contain a tool_use entry for the tool call
+      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
+      expect(assistantEntries.length).toBeGreaterThan(0);
+
+      const toolUseEntry = assistantEntries.find(e => e.message?.content?.some(c => c.type === "tool_use"));
+      expect(toolUseEntry).toBeDefined();
+      expect(toolUseEntry.message.content[0].name).toBe("github__list_pull_requests");
+    });
+
+    it("should populate logEntries with response for new-format tool calls", () => {
+      const logContent = `tool github.create_issue({"title":"Bug report"})
+github.create_issue(...) success in 200ms:
+{"id": 42, "number": 5}`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.logEntries.length).toBeGreaterThan(0);
+
+      // Should have a tool_result entry (user entry with tool_result)
+      const userEntries = result.logEntries.filter(e => e.type === "user");
+      expect(userEntries.length).toBeGreaterThan(0);
+
+      const toolResultEntry = userEntries.find(e => e.message?.content?.some(c => c.type === "tool_result"));
+      expect(toolResultEntry).toBeDefined();
+      expect(toolResultEntry.message.content[0].is_error).toBe(false);
+    });
+
+    it("should mark failed new-format tool calls as errors in logEntries", () => {
+      const logContent = `tool github.create_issue({"title":"Test"})
+github.create_issue(...) failed in 100ms:
+{"error": "permission denied"}`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.logEntries.length).toBeGreaterThan(0);
+
+      const userEntries = result.logEntries.filter(e => e.type === "user");
+      const toolResultEntry = userEntries.find(e => e.message?.content?.some(c => c.type === "tool_result"));
+      expect(toolResultEntry).toBeDefined();
+      expect(toolResultEntry.message.content[0].is_error).toBe(true);
+    });
+
     it("should handle tokens with commas in final count", () => {
       const logContent = `tokens used
 12,345`;
