@@ -11,4 +11,6 @@ jobs:
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
     permissions:
       contents: read
+      discussions: write
+      issues: write
       pull-requests: write
