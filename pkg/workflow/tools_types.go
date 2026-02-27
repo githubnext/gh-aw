@@ -304,16 +304,16 @@ type GitHubGuardPolicy struct {
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
-	Allowed      GitHubAllowedTools `yaml:"allowed,omitempty"`
-	Mode         string             `yaml:"mode,omitempty"`
-	Version      string             `yaml:"version,omitempty"`
-	Args         []string           `yaml:"args,omitempty"`
-	ReadOnly     bool               `yaml:"read-only,omitempty"`
-	GitHubToken  string             `yaml:"github-token,omitempty"`
-	Toolset      GitHubToolsets     `yaml:"toolsets,omitempty"`
-	Lockdown     bool               `yaml:"lockdown,omitempty"`
-	App          *GitHubAppConfig   `yaml:"app,omitempty"`          // GitHub App configuration for token minting
-	GuardPolicy  *GitHubGuardPolicy `yaml:"guard-policy,omitempty"` // Guard policy configuration for access control
+	Allowed       GitHubAllowedTools `yaml:"allowed,omitempty"`
+	Mode          string             `yaml:"mode,omitempty"`
+	Version       string             `yaml:"version,omitempty"`
+	Args          []string           `yaml:"args,omitempty"`
+	ReadOnly      bool               `yaml:"read-only,omitempty"`
+	GitHubToken   string             `yaml:"github-token,omitempty"`
+	Toolset       GitHubToolsets     `yaml:"toolsets,omitempty"`
+	Lockdown      bool               `yaml:"lockdown,omitempty"`
+	App           *GitHubAppConfig   `yaml:"app,omitempty"`            // GitHub App configuration for token minting
+	GuardPolicy   *GitHubGuardPolicy `yaml:"guard-policy,omitempty"`   // Guard policy configuration for access control
 	GuardPolicies *GitHubGuardPolicy `yaml:"guard-policies,omitempty"` // Alias for guard-policy (supports both singular and plural)
 }
 
