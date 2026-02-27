@@ -107,3 +107,26 @@ Reports should:
 - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
 - Include up to 3 most relevant run URLs at the end under `**References:**`
 - Do NOT add footer attribution — the system appends it automatically
+
+## Avoiding Mentions and Backlinks
+
+Reports are often posted on a schedule and reference many issues, PRs, or users. Unescaped references create noise: `@username` sends a notification, and `#123` creates a cross-reference backlink on that issue or PR.
+
+### Disable mentions
+
+**Never use bare `@mentions` in reports.** Mentioning a user or team by name will send a notification even if the report is just summarizing activity.
+
+- ❌ `@alice reviewed this PR`
+- ✅ `alice reviewed this PR` (drop the `@`)
+- ✅ `` `@alice` `` (wrap in backticks to render as code — no notification sent)
+
+### Escape GitHub automatic references
+
+GitHub automatically converts short references such as `#123`, `GH-123`, `owner/repo#123`, and bare commit SHAs into links and creates a backlink on the referenced item. To suppress this in reports, escape or reformat the reference:
+
+- ❌ `#123` — creates a backlink on issue/PR 123
+- ✅ `[#123](URL)` — renders as a link but **does not** create a backlink
+- ✅ `` `#123` `` — renders as inline code, no backlink created
+- ✅ `\#123` — escapes the `#`, renders literally, no backlink created
+
+Apply the same treatment to commit SHAs and cross-repo references (e.g. `owner/repo#123`) when they appear as plain text in a report body.
