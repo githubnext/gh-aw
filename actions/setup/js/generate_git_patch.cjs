@@ -55,8 +55,23 @@ function getPatchPath(branchName) {
  * @returns {Promise<Object>} Object with patch info or error
  */
 async function generateGitPatch(branchName, baseBranch, options = {}) {
-  const mode = options.mode || "full";
   const patchPath = getPatchPath(branchName);
+
+  // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
+  if (typeof baseBranch !== "string" || baseBranch.trim() === "") {
+    const errorMessage =
+      "baseBranch is required and must be a non-empty string (received: " +
+      String(baseBranch) +
+      ")";
+    debugLog(`Invalid baseBranch: ${errorMessage}`);
+    return {
+      patchPath,
+      patchGenerated: false,
+      errorMessage,
+    };
+  }
+
+  const mode = options.mode || "full";
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   const defaultBranch = baseBranch;
   const githubSha = process.env.GITHUB_SHA;
