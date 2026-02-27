@@ -132,7 +132,7 @@ describe("safe_outputs_config", () => {
 
       try {
         /** @type {import("./safe_outputs_config.cjs").LoadConfigResult} */
-      const result = loadConfig(mockServer);
+        const result = loadConfig(mockServer);
 
         expect(result.outputFile).toBe("/opt/gh-aw/safeoutputs/outputs.jsonl");
         expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SAFE_OUTPUTS not set"));
