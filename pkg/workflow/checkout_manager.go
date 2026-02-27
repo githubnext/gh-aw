@@ -55,6 +55,12 @@ type CheckoutConfig struct {
 
 	// LFS enables checkout of Git LFS objects.
 	LFS bool `json:"lfs,omitempty"`
+
+	// Current marks this checkout as the logical "current" repository for the workflow.
+	// When set, the AI agent will treat this repository as its primary working target.
+	// Only one checkout may have Current set to true.
+	// This is useful for workflows that run from a central repo targeting a different repo.
+	Current bool `json:"current,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
@@ -74,6 +80,7 @@ type resolvedCheckout struct {
 	sparsePatterns []string // merged sparse-checkout patterns
 	submodules     string
 	lfs            bool
+	current        bool // true if this checkout is the logical current repository
 }
 
 // CheckoutManager collects checkout requests and merges them to minimize
@@ -132,6 +139,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.LFS {
 			entry.lfs = true
 		}
+		if cfg.Current {
+			entry.current = true
+		}
 		if cfg.Submodules != "" && entry.submodules == "" {
 			entry.submodules = cfg.Submodules
 		}
@@ -144,6 +154,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 			fetchDepth: cfg.FetchDepth,
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
+			current:    cfg.Current,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
@@ -167,6 +178,18 @@ func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {
 		return cm.ordered[idx]
 	}
 	return nil
+}
+
+// GetCurrentRepository returns the repository of the checkout marked as current (current: true).
+// Returns an empty string if no checkout is marked as current or if the current checkout
+// uses the default repository (empty Repository field).
+func (cm *CheckoutManager) GetCurrentRepository() string {
+	for _, entry := range cm.ordered {
+		if entry.current {
+			return entry.key.repository
+		}
+	}
+	return ""
 }
 
 // GenerateAdditionalCheckoutSteps generates YAML step lines for all non-default
@@ -369,18 +392,18 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 	}
 	checkoutManagerLog.Printf("Parsing checkout configuration: type=%T", raw)
 
+	var configs []*CheckoutConfig
+
 	// Try single object first
 	if singleMap, ok := raw.(map[string]any); ok {
 		cfg, err := checkoutConfigFromMap(singleMap)
 		if err != nil {
 			return nil, fmt.Errorf("invalid checkout configuration: %w", err)
 		}
-		return []*CheckoutConfig{cfg}, nil
-	}
-
-	// Try array of objects
-	if arr, ok := raw.([]any); ok {
-		configs := make([]*CheckoutConfig, 0, len(arr))
+		configs = []*CheckoutConfig{cfg}
+	} else if arr, ok := raw.([]any); ok {
+		// Try array of objects
+		configs = make([]*CheckoutConfig, 0, len(arr))
 		for i, item := range arr {
 			itemMap, ok := item.(map[string]any)
 			if !ok {
@@ -392,10 +415,24 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 			}
 			configs = append(configs, cfg)
 		}
-		return configs, nil
+	} else {
+		return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T", raw)
 	}
 
-	return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T", raw)
+	// Validate that at most one checkout has current: true.
+	// Multiple current checkouts are not allowed since only one repo can be
+	// the logical primary target for the agent at a time.
+	currentCount := 0
+	for _, cfg := range configs {
+		if cfg.Current {
+			currentCount++
+		}
+	}
+	if currentCount > 1 {
+		return nil, fmt.Errorf("only one checkout may have current: true, found %d", currentCount)
+	}
+
+	return configs, nil
 }
 
 // checkoutConfigFromMap converts a raw map to a CheckoutConfig.
@@ -487,5 +524,25 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.LFS = b
 	}
 
+	if v, ok := m["current"]; ok {
+		b, ok := v.(bool)
+		if !ok {
+			return nil, errors.New("checkout.current must be a boolean")
+		}
+		cfg.Current = b
+	}
+
 	return cfg, nil
+}
+
+// getCurrentCheckoutRepository returns the repository of the checkout marked as current (current: true).
+// Returns an empty string if no checkout has current: true or if the current checkout
+// uses the default repository (empty Repository field).
+func getCurrentCheckoutRepository(checkouts []*CheckoutConfig) string {
+	for _, cfg := range checkouts {
+		if cfg != nil && cfg.Current {
+			return cfg.Repository
+		}
+	}
+	return ""
 }

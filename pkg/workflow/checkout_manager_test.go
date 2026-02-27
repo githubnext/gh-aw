@@ -336,3 +336,116 @@ func TestMergeSparsePatterns(t *testing.T) {
 		assert.Equal(t, []string{"src/"}, result, "should preserve existing patterns")
 	})
 }
+
+// TestCheckoutCurrentFlag verifies the current: true checkout flag behavior.
+func TestCheckoutCurrentFlag(t *testing.T) {
+	t.Run("parse current: true from single object", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"current":    true,
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse without error")
+		require.Len(t, configs, 1, "should produce one config")
+		assert.True(t, configs[0].Current, "current flag should be true")
+		assert.Equal(t, "owner/target-repo", configs[0].Repository, "repository should be set")
+	})
+
+	t.Run("parse current: false from map", func(t *testing.T) {
+		raw := map[string]any{"current": false}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse without error")
+		require.Len(t, configs, 1)
+		assert.False(t, configs[0].Current, "current flag should be false")
+	})
+
+	t.Run("invalid current type returns error", func(t *testing.T) {
+		raw := map[string]any{"current": "yes"}
+		_, err := ParseCheckoutConfigs(raw)
+		assert.Error(t, err, "non-boolean current should return error")
+	})
+
+	t.Run("multiple current: true in array returns error", func(t *testing.T) {
+		raw := []any{
+			map[string]any{"repository": "owner/repo1", "path": "./r1", "current": true},
+			map[string]any{"repository": "owner/repo2", "path": "./r2", "current": true},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "multiple current: true should return error")
+		assert.Contains(t, err.Error(), "only one checkout may have current: true", "error should mention the constraint")
+	})
+
+	t.Run("single current: true in array is valid", func(t *testing.T) {
+		raw := []any{
+			map[string]any{"path": "."},
+			map[string]any{"repository": "owner/target", "path": "./target", "current": true},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "single current: true in array should be valid")
+		require.Len(t, configs, 2)
+		assert.False(t, configs[0].Current, "first checkout should not be current")
+		assert.True(t, configs[1].Current, "second checkout should be current")
+	})
+}
+
+// TestGetCurrentRepository verifies CheckoutManager.GetCurrentRepository behavior.
+func TestGetCurrentRepository(t *testing.T) {
+	t.Run("returns empty string when no current checkout", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./libs"},
+		})
+		assert.Empty(t, cm.GetCurrentRepository(), "should return empty string without current flag")
+	})
+
+	t.Run("returns repository when current: true is set", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/target-repo", Path: "./target", Current: true},
+		})
+		assert.Equal(t, "owner/target-repo", cm.GetCurrentRepository(), "should return current checkout repository")
+	})
+
+	t.Run("returns empty string when current: true but no repository", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: ".", Current: true},
+		})
+		assert.Empty(t, cm.GetCurrentRepository(), "should return empty string when repository is not set")
+	})
+
+	t.Run("returns repository from current in multiple checkouts", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "."},
+			{Repository: "owner/central", Path: "./central"},
+			{Repository: "owner/target", Path: "./target", Current: true},
+		})
+		assert.Equal(t, "owner/target", cm.GetCurrentRepository(), "should return the current checkout repository")
+	})
+}
+
+// TestGetCurrentCheckoutRepository verifies the standalone helper function.
+func TestGetCurrentCheckoutRepository(t *testing.T) {
+	t.Run("nil slice returns empty string", func(t *testing.T) {
+		assert.Empty(t, getCurrentCheckoutRepository(nil), "nil slice should return empty string")
+	})
+
+	t.Run("no current flag returns empty string", func(t *testing.T) {
+		configs := []*CheckoutConfig{
+			{Repository: "owner/repo"},
+		}
+		assert.Empty(t, getCurrentCheckoutRepository(configs), "no current flag should return empty string")
+	})
+
+	t.Run("current: true returns repository", func(t *testing.T) {
+		configs := []*CheckoutConfig{
+			{Repository: "owner/other"},
+			{Repository: "owner/target", Current: true},
+		}
+		assert.Equal(t, "owner/target", getCurrentCheckoutRepository(configs), "should return current checkout repository")
+	})
+
+	t.Run("current: true with no repository returns empty string", func(t *testing.T) {
+		configs := []*CheckoutConfig{
+			{Current: true},
+		}
+		assert.Empty(t, getCurrentCheckoutRepository(configs), "current without repository should return empty string")
+	})
+}

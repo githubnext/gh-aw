@@ -7898,6 +7898,10 @@
           "type": "string",
           "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Credentials are always removed after checkout (persist-credentials: false is enforced).",
           "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.GITHUB_TOKEN }}"]
+        },
+        "current": {
+          "type": "boolean",
+          "description": "Marks this checkout as the logical current repository for the workflow. When set to true, the AI agent will treat this repository as its primary working target. Only one checkout may have current set to true. Useful for central-repo workflows targeting a different repository."
         }
       }
     }

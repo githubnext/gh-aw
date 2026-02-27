@@ -304,6 +304,23 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			// Replace expressions with environment variable references
 			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(githubContextPromptText)
 
+			// If a checkout is marked as current and has a non-default repository,
+			// inject it into the GitHub context so the agent knows its primary target.
+			if currentRepo := getCurrentCheckoutRepository(data.CheckoutConfigs); currentRepo != "" {
+				unifiedPromptLog.Printf("Injecting current-repository into GitHub context: %s", currentRepo)
+				currentRepoLine := "- **current-repository**: " + currentRepo +
+					" (this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
+				// Append the current-repository line before the closing </github-context> tag.
+				// We build the insertion safely by finding the tag boundary.
+				const closeTag = "</github-context>"
+				if idx := strings.LastIndex(modifiedPromptText, closeTag); idx >= 0 {
+					modifiedPromptText = modifiedPromptText[:idx] + currentRepoLine + "\n" + modifiedPromptText[idx:]
+				} else {
+					// Closing tag not found — append at the end as a safe fallback.
+					modifiedPromptText += "\n" + currentRepoLine + "\n"
+				}
+			}
+
 			// Build environment variables map
 			envVars := make(map[string]string)
 			for _, mapping := range expressionMappings {
