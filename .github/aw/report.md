@@ -110,23 +110,24 @@ Reports should:
 
 ## Avoiding Mentions and Backlinks
 
-Reports are often posted on a schedule and reference many issues, PRs, or users. Unescaped references create noise: `@username` sends a notification, and `#123` creates a cross-reference backlink on that issue or PR.
+Reports often reference issues, PRs, or users. Without filtering, `@username` sends a notification and `#123` creates a cross-reference backlink on that issue or PR — adding noise every time the report runs.
 
-### Disable mentions
+Use the built-in safe-outputs filtering options to suppress this automatically:
 
-**Never use bare `@mentions` in reports.** Mentioning a user or team by name will send a notification even if the report is just summarizing activity.
+- **`mentions: false`** — escapes all `@mentions` in AI-generated output so no notifications are sent.
+- **`allowed-github-references: []`** — escapes all `#123` / `owner/repo#123` references so no backlinks are created on referenced items.
+- **`max-bot-mentions: 0`** — neutralizes bot-trigger phrases such as `fixes #123` or `closes #456` that would otherwise close referenced issues.
 
-- ❌ `@alice reviewed this PR`
-- ✅ `alice reviewed this PR` (drop the `@`)
-- ✅ `` `@alice` `` (wrap in backticks to render as code — no notification sent)
+```yaml
+safe-outputs:
+  mentions: false
+  allowed-github-references: []
+  max-bot-mentions: 0
+  create-issue:
+    title-prefix: "Weekly Status:"
+    labels: [report]
+    close-older-issues: true
+    expires: 30
+```
 
-### Escape GitHub automatic references
-
-GitHub automatically converts short references such as `#123`, `GH-123`, `owner/repo#123`, and bare commit SHAs into links and creates a backlink on the referenced item. To suppress this in reports, escape or reformat the reference:
-
-- ❌ `#123` — creates a backlink on issue/PR 123
-- ✅ `[#123](URL)` — renders as a link but **does not** create a backlink
-- ✅ `` `#123` `` — renders as inline code, no backlink created
-- ✅ `\#123` — escapes the `#`, renders literally, no backlink created
-
-Apply the same treatment to commit SHAs and cross-repo references (e.g. `owner/repo#123`) when they appear as plain text in a report body.
+These options apply globally to all safe-output types (issues, comments, discussions) and are the recommended way to keep reports from polluting unrelated items.
