@@ -234,12 +234,56 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.App = parseAppConfig(app)
 		}
 
+		// Parse guard policy configuration (support both singular and plural forms)
+		if guardPolicy, ok := configMap["guard-policy"].(map[string]any); ok {
+			config.GuardPolicy = parseGitHubGuardPolicy(guardPolicy)
+		} else if guardPolicies, ok := configMap["guard-policies"].(map[string]any); ok {
+			config.GuardPolicies = parseGitHubGuardPolicy(guardPolicies)
+		}
+
 		return config
 	}
 
 	return &GitHubToolConfig{
 		ReadOnly: true, // default to read-only for security
 	}
+}
+
+// parseGitHubGuardPolicy converts raw guard policy configuration to GitHubGuardPolicy
+func parseGitHubGuardPolicy(policyMap map[string]any) *GitHubGuardPolicy {
+	if policyMap == nil {
+		return nil
+	}
+
+	policy := &GitHubGuardPolicy{}
+
+	// Parse allowonly policy
+	if allowOnly, ok := policyMap["allowonly"].(map[string]any); ok {
+		policy.AllowOnly = parseGitHubAllowOnlyPolicy(allowOnly)
+	}
+
+	return policy
+}
+
+// parseGitHubAllowOnlyPolicy parses the allowonly guard policy
+func parseGitHubAllowOnlyPolicy(allowOnlyMap map[string]any) *GitHubAllowOnlyPolicy {
+	if allowOnlyMap == nil {
+		return nil
+	}
+
+	policy := &GitHubAllowOnlyPolicy{}
+
+	// Parse repos field - can be string ("all", "public") or array of patterns
+	if repos, ok := allowOnlyMap["repos"]; ok {
+		policy.Repos = repos // Store as-is, validation will happen later
+	}
+
+	// Parse integrity field
+	if integrity, ok := allowOnlyMap["integrity"].(string); ok {
+		policy.Integrity = GitHubIntegrityLevel(integrity)
+	}
+
+	return policy
 }
 
 // parseBashTool converts raw bash tool configuration to BashToolConfig
