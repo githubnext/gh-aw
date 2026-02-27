@@ -513,6 +513,19 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_DIR=\"" + payloadDir + "\"\n")
 	yaml.WriteString("          mkdir -p \"${MCP_GATEWAY_PAYLOAD_DIR}\"\n")
 
+	// Export payload path prefix if configured
+	payloadPathPrefix := gatewayConfig.PayloadPathPrefix
+	if payloadPathPrefix != "" {
+		yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_PATH_PREFIX=\"" + payloadPathPrefix + "\"\n")
+	}
+
+	// Export payload size threshold (use default if not configured)
+	payloadSizeThreshold := gatewayConfig.PayloadSizeThreshold
+	if payloadSizeThreshold == 0 {
+		payloadSizeThreshold = constants.DefaultMCPGatewayPayloadSizeThreshold
+	}
+	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=\"" + strconv.Itoa(payloadSizeThreshold) + "\"\n")
+
 	yaml.WriteString("          export DEBUG=\"*\"\n")
 	yaml.WriteString("          \n")
 
@@ -555,6 +568,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	containerCmd.WriteString(" -e MCP_GATEWAY_DOMAIN")
 	containerCmd.WriteString(" -e MCP_GATEWAY_API_KEY")
 	containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_DIR")
+	if payloadPathPrefix != "" {
+		containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_PATH_PREFIX")
+	}
+	containerCmd.WriteString(" -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD")
 	containerCmd.WriteString(" -e DEBUG")
 	// Pass environment variables that MCP servers reference in their config
 	// These are needed because awmg v0.0.12+ validates and resolves ${VAR} patterns at config load time

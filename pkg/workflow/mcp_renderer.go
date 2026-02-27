@@ -952,12 +952,28 @@ func RenderJSONMCPConfig(
 		fmt.Fprintf(&configBuilder, "              \"port\": $MCP_GATEWAY_PORT,\n")
 		fmt.Fprintf(&configBuilder, "              \"domain\": \"%s\",\n", options.GatewayConfig.Domain)
 		fmt.Fprintf(&configBuilder, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
-		// Add payloadDir if specified
+
+		// Add optional fields if specified
+		needsComma := true
 		if options.GatewayConfig.PayloadDir != "" {
-			fmt.Fprintf(&configBuilder, ",\n              \"payloadDir\": \"%s\"\n", options.GatewayConfig.PayloadDir)
-		} else {
-			configBuilder.WriteString("\n")
+			if needsComma {
+				configBuilder.WriteString(",")
+			}
+			fmt.Fprintf(&configBuilder, "\n              \"payloadDir\": \"%s\"", options.GatewayConfig.PayloadDir)
 		}
+		if options.GatewayConfig.PayloadPathPrefix != "" {
+			if needsComma || options.GatewayConfig.PayloadDir != "" {
+				configBuilder.WriteString(",")
+			}
+			fmt.Fprintf(&configBuilder, "\n              \"payloadPathPrefix\": \"%s\"", options.GatewayConfig.PayloadPathPrefix)
+		}
+		if options.GatewayConfig.PayloadSizeThreshold > 0 {
+			if needsComma || options.GatewayConfig.PayloadDir != "" || options.GatewayConfig.PayloadPathPrefix != "" {
+				configBuilder.WriteString(",")
+			}
+			fmt.Fprintf(&configBuilder, "\n              \"payloadSizeThreshold\": %d", options.GatewayConfig.PayloadSizeThreshold)
+		}
+		configBuilder.WriteString("\n")
 		configBuilder.WriteString("            }\n")
 	} else {
 		configBuilder.WriteString("            }\n")
