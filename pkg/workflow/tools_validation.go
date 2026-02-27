@@ -93,21 +93,9 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		return nil
 	}
 
-	// Get the guard policy (check both singular and plural forms)
-	var guardPolicy *GitHubGuardPolicy
-	if tools.GitHub.GuardPolicy != nil {
-		guardPolicy = tools.GitHub.GuardPolicy
-	} else if tools.GitHub.GuardPolicies != nil {
-		guardPolicy = tools.GitHub.GuardPolicies
-	}
-
-	if guardPolicy == nil {
-		return nil // No guard policy configured
-	}
-
 	// Validate allowonly policy if present
-	if guardPolicy.AllowOnly != nil {
-		if err := validateGitHubAllowOnlyPolicy(guardPolicy.AllowOnly, workflowName); err != nil {
+	if tools.GitHub.AllowOnly != nil {
+		if err := validateGitHubAllowOnlyPolicy(tools.GitHub.AllowOnly, workflowName); err != nil {
 			return err
 		}
 	}

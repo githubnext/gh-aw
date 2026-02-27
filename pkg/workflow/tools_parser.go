@@ -234,11 +234,9 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.App = parseAppConfig(app)
 		}
 
-		// Parse guard policy configuration (support both singular and plural forms)
-		if guardPolicy, ok := configMap["guard-policy"].(map[string]any); ok {
-			config.GuardPolicy = parseGitHubGuardPolicy(guardPolicy)
-		} else if guardPolicies, ok := configMap["guard-policies"].(map[string]any); ok {
-			config.GuardPolicies = parseGitHubGuardPolicy(guardPolicies)
+		// Parse allowonly guard policy configuration
+		if allowOnly, ok := configMap["allowonly"].(map[string]any); ok {
+			config.AllowOnly = parseGitHubAllowOnlyPolicy(allowOnly)
 		}
 
 		return config
@@ -247,22 +245,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 	return &GitHubToolConfig{
 		ReadOnly: true, // default to read-only for security
 	}
-}
-
-// parseGitHubGuardPolicy converts raw guard policy configuration to GitHubGuardPolicy
-func parseGitHubGuardPolicy(policyMap map[string]any) *GitHubGuardPolicy {
-	if policyMap == nil {
-		return nil
-	}
-
-	policy := &GitHubGuardPolicy{}
-
-	// Parse allowonly policy
-	if allowOnly, ok := policyMap["allowonly"].(map[string]any); ok {
-		policy.AllowOnly = parseGitHubAllowOnlyPolicy(allowOnly)
-	}
-
-	return policy
 }
 
 // parseGitHubAllowOnlyPolicy parses the allowonly guard policy
