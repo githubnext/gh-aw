@@ -10,6 +10,7 @@ import (
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
 // firstNonEmpty returns the first non-empty string from the given values.
+// firstNonEmpty returns the first non-empty string from the given values, or an empty string if all values are empty.
 func firstNonEmpty(values ...string) string {
 	for _, v := range values {
 		if v != "" {
@@ -415,6 +416,13 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	}
 	// Fall back to per-output tokens when no project token is set.
 	// This enables cross-repo operations where only one safe output type is configured with a custom token.
+	// Token precedence order (first non-empty wins):
+	//   1. so.GitHubToken      - global safe-outputs token (highest precedence)
+	//   2. add-comment token
+	//   3. create-issue token
+	//   4. create-discussion token
+	//   5. update-issue token
+	//   6. create-code-scanning-alert token
 	if configToken == "" && data.SafeOutputs != nil {
 		so := data.SafeOutputs
 		configToken = firstNonEmpty(

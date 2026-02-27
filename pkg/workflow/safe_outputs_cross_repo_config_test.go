@@ -575,7 +575,7 @@ func TestParseAllowedReposFromConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseAllowedReposFromConfig(tt.input)
 			if tt.expected == nil {
-				assert.Empty(t, result, "parseAllowedReposFromConfig should return nil or empty for: %s", tt.name)
+				assert.Emptyf(t, result, "parseAllowedReposFromConfig should return nil or empty for: %s", tt.name)
 			} else {
 				assert.Equal(t, tt.expected, result, "parseAllowedReposFromConfig mismatch")
 			}
