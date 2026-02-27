@@ -18,14 +18,25 @@ async function main() {
   const { owner, repo } = context.repo;
 
   // Check if the actor has repository access (admin, maintain permissions)
-  const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-    owner: owner,
-    repo: repo,
-    username: actor,
-  });
-
-  const permission = repoPermission.data.permission;
-  core.info(`Repository permission level: ${permission}`);
+  // Non-user actors (bots, GitHub Apps like "Copilot") may not have a user record,
+  // causing the API to throw an error (e.g., "Copilot is not a user").
+  // In that case, treat them as unauthorized and return empty outputs.
+  let permission;
+  try {
+    const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+      owner: owner,
+      repo: repo,
+      username: actor,
+    });
+    permission = repoPermission.data.permission;
+    core.info(`Repository permission level: ${permission}`);
+  } catch (permError) {
+    core.warning(`Permission check failed for actor '${actor}': ${getErrorMessage(permError)}`);
+    core.setOutput("text", "");
+    core.setOutput("title", "");
+    core.setOutput("body", "");
+    return;
+  }
 
   if (permission !== "admin" && permission !== "maintain") {
     core.setOutput("text", "");
