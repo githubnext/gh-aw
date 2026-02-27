@@ -263,6 +263,8 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(result).toContain("> <summary>⚠️ Firewall blocked 1 domain</summary>");
       expect(result).toContain("> - `blocked.example.com`");
       expect(result).toContain("> The following domain was blocked by the firewall during workflow execution:");
+      expect(result).toContain('> ```yaml\n> network:\n>   allowed:\n>     - defaults\n>     - "blocked.example.com"\n> ```');
+      expect(result).toContain("> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.");
     });
 
     it("should generate details section for multiple blocked domains", () => {
@@ -276,6 +278,8 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(result).toContain("> - `alpha.example.com`");
       expect(result).toContain("> - `beta.example.com`");
       expect(result).toContain("> - `gamma.example.com`");
+      expect(result).toContain('> ```yaml\n> network:\n>   allowed:\n>     - defaults\n>     - "alpha.example.com"\n>     - "beta.example.com"\n>     - "gamma.example.com"\n> ```');
+      expect(result).toContain("> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.");
     });
 
     it("should use correct singular/plural form", () => {
