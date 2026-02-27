@@ -87,6 +87,172 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 	return nil
 }
 
+// validateGitHubGuardPolicy validates the GitHub guard policy configuration
+func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
+	if tools == nil || tools.GitHub == nil {
+		return nil
+	}
+
+	// Get the guard policy (check both singular and plural forms)
+	var guardPolicy *GitHubGuardPolicy
+	if tools.GitHub.GuardPolicy != nil {
+		guardPolicy = tools.GitHub.GuardPolicy
+	} else if tools.GitHub.GuardPolicies != nil {
+		guardPolicy = tools.GitHub.GuardPolicies
+	}
+
+	if guardPolicy == nil {
+		return nil // No guard policy configured
+	}
+
+	// Validate allowonly policy if present
+	if guardPolicy.AllowOnly != nil {
+		if err := validateGitHubAllowOnlyPolicy(guardPolicy.AllowOnly, workflowName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateGitHubAllowOnlyPolicy validates the allowonly guard policy configuration
+func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName string) error {
+	if policy == nil {
+		return nil
+	}
+
+	// Validate repos field (required)
+	if policy.Repos == nil {
+		toolsValidationLog.Printf("Missing repos in allowonly policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'allowonly.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
+	}
+
+	// Validate repos format
+	if err := validateReposScope(policy.Repos, workflowName); err != nil {
+		return err
+	}
+
+	// Validate integrity field (required)
+	if policy.Integrity == "" {
+		toolsValidationLog.Printf("Missing integrity in allowonly policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'allowonly.integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
+	}
+
+	// Validate integrity value
+	validIntegrityLevels := map[GitHubIntegrityLevel]bool{
+		GitHubIntegrityNone:   true,
+		GitHubIntegrityReader: true,
+		GitHubIntegrityWriter: true,
+		GitHubIntegrityMerged: true,
+	}
+
+	if !validIntegrityLevels[policy.Integrity] {
+		toolsValidationLog.Printf("Invalid integrity level '%s' in workflow: %s", policy.Integrity, workflowName)
+		return errors.New("invalid guard policy: 'allowonly.integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(policy.Integrity) + "'")
+	}
+
+	return nil
+}
+
+// validateReposScope validates the repos field in allowonly policy
+func validateReposScope(repos any, workflowName string) error {
+	// Case 1: String value ("all" or "public")
+	if reposStr, ok := repos.(string); ok {
+		if reposStr != "all" && reposStr != "public" {
+			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
+			return errors.New("invalid guard policy: 'allowonly.repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
+		}
+		return nil
+	}
+
+	// Case 2: Array of patterns
+	if reposArray, ok := repos.([]any); ok {
+		if len(reposArray) == 0 {
+			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
+			return errors.New("invalid guard policy: 'allowonly.repos' array cannot be empty. Provide at least one repository pattern")
+		}
+
+		for i, item := range reposArray {
+			pattern, ok := item.(string)
+			if !ok {
+				toolsValidationLog.Printf("Non-string item in repos array at index %d in workflow: %s", i, workflowName)
+				return errors.New("invalid guard policy: 'allowonly.repos' array must contain only strings")
+			}
+
+			if err := validateRepoPattern(pattern, workflowName); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	// Invalid type
+	toolsValidationLog.Printf("Invalid repos type in workflow: %s", workflowName)
+	return errors.New("invalid guard policy: 'allowonly.repos' must be 'all', 'public', or an array of repository patterns")
+}
+
+// validateRepoPattern validates a single repository pattern
+func validateRepoPattern(pattern string, workflowName string) error {
+	// Pattern must be lowercase
+	if strings.ToLower(pattern) != pattern {
+		toolsValidationLog.Printf("Repository pattern '%s' is not lowercase in workflow: %s", pattern, workflowName)
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' must be lowercase")
+	}
+
+	// Check for valid pattern formats:
+	// 1. owner/repo (exact match)
+	// 2. owner/* (owner wildcard)
+	// 3. owner/re* (repository prefix wildcard)
+	parts := strings.Split(pattern, "/")
+	if len(parts) != 2 {
+		toolsValidationLog.Printf("Invalid repository pattern '%s' in workflow: %s", pattern, workflowName)
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' must be in format 'owner/repo', 'owner/*', or 'owner/prefix*'")
+	}
+
+	owner := parts[0]
+	repo := parts[1]
+
+	// Validate owner part (must be non-empty and contain only valid characters)
+	if owner == "" {
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' has empty owner")
+	}
+
+	if !isValidOwnerOrRepo(owner) {
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' has invalid owner. Must contain only lowercase letters, numbers, hyphens, and underscores")
+	}
+
+	// Validate repo part
+	if repo == "" {
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' has empty repository name")
+	}
+
+	// Allow wildcard '*' or prefix with trailing '*'
+	if repo != "*" && !isValidOwnerOrRepo(strings.TrimSuffix(repo, "*")) {
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' has invalid repository name. Must contain only lowercase letters, numbers, hyphens, underscores, or be '*' or 'prefix*'")
+	}
+
+	// Validate that wildcard is only at the end (not in the middle)
+	if strings.Contains(strings.TrimSuffix(repo, "*"), "*") {
+		return errors.New("invalid guard policy: repository pattern '" + pattern + "' has wildcard in the middle. Wildcards only allowed at the end (e.g., 'prefix*')")
+	}
+
+	return nil
+}
+
+// isValidOwnerOrRepo checks if a string contains only valid GitHub owner/repo characters
+func isValidOwnerOrRepo(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_') {
+			return false
+		}
+	}
+	return true
+}
+
 // Note: validateGitToolForSafeOutputs was removed because git commands are automatically
 // injected by the compiler when safe-outputs needs them (see compiler_safe_outputs.go).
 // The validation was misleading - it would fail even though the compiler would add the
