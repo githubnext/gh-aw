@@ -36,7 +36,7 @@ const mockCore = {
   describe("compute_text.cjs", () => {
     let computeTextScript, sanitizeIncomingTextFunction;
     (beforeEach(() => {
-      (vi.clearAllMocks(), (mockContext.eventName = "issues"), (mockContext.payload = {}), delete process.env.GH_AW_ALLOWED_DOMAINS);
+      (vi.clearAllMocks(), (mockContext.eventName = "issues"), (mockContext.payload = {}), (mockContext.actor = "test-user"), delete process.env.GH_AW_ALLOWED_DOMAINS, delete process.env.GH_AW_ALLOWED_BOTS);
       const scriptPath = path.join(process.cwd(), "compute_text.cjs");
       computeTextScript = fs.readFileSync(scriptPath, "utf8");
       const scriptWithExport = computeTextScript.replace("module.exports = { main };", "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;");
@@ -199,6 +199,39 @@ const mockCore = {
               expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""),
               expect(mockCore.setOutput).toHaveBeenCalledWith("title", ""),
               expect(mockCore.setOutput).toHaveBeenCalledWith("body", ""));
+          }),
+          it("should allow access for write permission users", async () => {
+            (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write" } }),
+              (mockContext.eventName = "issues"),
+              (mockContext.payload = { issue: { title: "Test Issue", body: "Issue description" } }),
+              await testMain(),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Test Issue\n\nIssue description"),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("title", "Test Issue"),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("body", "Issue description"));
+          }),
+          it("should return empty outputs when permission check fails for non-user actors like Copilot", async () => {
+            (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(new Error("Copilot is not a user")),
+              (mockContext.actor = "Copilot"),
+              (mockContext.eventName = "issues"),
+              (mockContext.payload = { issue: { title: "Test Issue", body: "Issue description" } }),
+              await testMain(),
+              expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Permission check failed for actor 'Copilot'")),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("title", ""),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("body", ""));
+          }),
+          it("should extract text for allowed bot actors when permission check fails", async () => {
+            ((process.env.GH_AW_ALLOWED_BOTS = "Copilot,dependabot[bot]"),
+              mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(new Error("Copilot is not a user")),
+              (mockContext.actor = "Copilot"),
+              (mockContext.eventName = "issues"),
+              (mockContext.payload = { issue: { title: "Bot Issue", body: "Bot description" } }),
+              await testMain(),
+              expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Permission check failed for actor 'Copilot'")),
+              expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("allowed bots list")),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Bot Issue\n\nBot description"),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("title", "Bot Issue"),
+              expect(mockCore.setOutput).toHaveBeenCalledWith("body", "Bot description"));
           }),
           it("should sanitize extracted text before output", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test @user fixes #123", body: "Visit https://evil.com" } }), await testMain());

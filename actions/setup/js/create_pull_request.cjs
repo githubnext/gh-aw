@@ -101,12 +101,24 @@ async function main(config = {}) {
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
-  // Resolve base branch: use config value if set, otherwise resolve dynamically
-  // Dynamic resolution is needed for issue_comment events on PRs where the base branch
-  // is not available in GitHub Actions expressions and requires an API call
-  let baseBranch = config.base_branch || (await getBaseBranch());
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+
+  // Base branch from config (if set) - validated at factory level if explicit
+  // Dynamic base branch resolution happens per-message after resolving the actual target repo
+  const configBaseBranch = config.base_branch || null;
+
+  // SECURITY: If base branch is explicitly configured, validate it at factory level
+  if (configBaseBranch) {
+    const normalizedConfigBase = normalizeBranchName(configBaseBranch);
+    if (!normalizedConfigBase) {
+      throw new Error(`Invalid baseBranch: sanitization resulted in empty string (original: "${configBaseBranch}")`);
+    }
+    if (configBaseBranch !== normalizedConfigBase) {
+      throw new Error(`Invalid baseBranch: contains invalid characters (original: "${configBaseBranch}", normalized: "${normalizedConfigBase}")`);
+    }
+  }
+
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
 
@@ -116,25 +128,13 @@ async function main(config = {}) {
     throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
   }
 
-  // SECURITY: Sanitize base branch name to prevent shell injection (defense in depth)
-  // Even though baseBranch comes from workflow config, normalize it for safety
-  const originalBaseBranch = baseBranch;
-  baseBranch = normalizeBranchName(baseBranch);
-  if (!baseBranch) {
-    throw new Error(`Invalid baseBranch: sanitization resulted in empty string (original: "${originalBaseBranch}")`);
-  }
-  // Fail if base branch name changes during normalization (indicates invalid config)
-  if (originalBaseBranch !== baseBranch) {
-    throw new Error(`Invalid baseBranch: contains invalid characters (original: "${originalBaseBranch}", normalized: "${baseBranch}")`);
-  }
-
   // Extract triggering issue number from context (for auto-linking PRs to issues)
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  core.info(`Base branch: ${baseBranch}`);
+  core.info(`Base branch: ${configBaseBranch || "(dynamic - resolved per target repo)"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
@@ -249,6 +249,29 @@ async function main(config = {}) {
         core.info(`Switched checkout to repository: ${itemRepo}`);
       }
     }
+
+    // Resolve base branch for this target repository
+    // Use config value if set, otherwise resolve dynamically for the specific target repo
+    // Dynamic resolution is needed for issue_comment events on PRs where the base branch
+    // is not available in GitHub Actions expressions and requires an API call
+    let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+
+    // SECURITY: Sanitize dynamically resolved base branch to prevent shell injection
+    const originalBaseBranch = baseBranch;
+    baseBranch = normalizeBranchName(baseBranch);
+    if (!baseBranch) {
+      return {
+        success: false,
+        error: `Invalid base branch: sanitization resulted in empty string (original: "${originalBaseBranch}")`,
+      };
+    }
+    if (originalBaseBranch !== baseBranch) {
+      return {
+        success: false,
+        error: `Invalid base branch: contains invalid characters (original: "${originalBaseBranch}", normalized: "${baseBranch}")`,
+      };
+    }
+    core.info(`Base branch for ${itemRepo}: ${baseBranch}`);
 
     // Check if patch file exists and has valid content
     if (!patchFilePath || !fs.existsSync(patchFilePath)) {

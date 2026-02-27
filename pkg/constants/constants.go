@@ -935,6 +935,27 @@ var DefaultGitHubToolsRemote = DefaultReadOnlyGitHubTools
 // Kept for backward compatibility and defaults to local mode tools.
 var DefaultGitHubTools = DefaultGitHubToolsLocal
 
+// CopilotStemCommands defines commands that Copilot CLI treats as "stem" commands
+// (commands with subcommand matching via tree-sitter). When these appear in bash
+// tool lists without an explicit `:*` wildcard, the compiler automatically appends
+// `:*` to ensure proper permission matching for all subcommands.
+//
+// For example, `bash: ["dotnet"]` compiles to `--allow-tool shell(dotnet:*)` so that
+// "dotnet build", "dotnet test", etc. are all permitted.
+//
+// This list must be kept in sync with the stem configurations in Copilot CLI's
+// shell command parser (tree-sitter based).
+var CopilotStemCommands = map[string]bool{
+	"git": true, "gh": true, "glab": true,
+	"npm": true, "npx": true, "yarn": true, "pnpm": true,
+	"cargo": true, "go": true,
+	"composer": true, "pip": true, "pipenv": true, "poetry": true, "conda": true,
+	"mvn": true, "gradle": true, "gradlew": true,
+	"dotnet": true,
+	"bundle": true, "swift": true, "sbt": true, "flutter": true,
+	"mix": true, "cabal": true, "stack": true,
+}
+
 // DefaultBashTools defines basic bash commands that should be available by default when bash is enabled
 var DefaultBashTools = []string{
 	"echo",

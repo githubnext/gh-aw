@@ -4,7 +4,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const { getBaseBranch } = require("./get_base_branch.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
 
@@ -74,6 +73,7 @@ function getPatchPathForRepo(branchName, repoSlug) {
 /**
  * Generates a git patch file for the current changes
  * @param {string} branchName - The branch name to generate patch for
+ * @param {string} baseBranch - The base branch to diff against (e.g., "main", "master")
  * @param {Object} [options] - Optional parameters
  * @param {string} [options.mode="full"] - Patch generation mode:
  *   - "full": Include all commits since merge-base with default branch (for create_pull_request)
@@ -85,17 +85,36 @@ function getPatchPathForRepo(branchName, repoSlug) {
  *   Required for multi-repo scenarios to prevent patch file collisions.
  * @returns {Promise<Object>} Object with patch info or error
  */
+<<<<<<< HEAD
 async function generateGitPatch(branchName, options = {}) {
-  const mode = options.mode || "full";
-  // Support custom cwd for multi-repo scenarios
-  const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
-  // Include repo slug in patch path for multi-repo disambiguation
-  const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
   // NOTE: In cross-repo scenarios, DEFAULT_BRANCH comes from the workflow repository
   // (via github.event.repository.default_branch), not the checked-out repository.
   // If the checked-out repo has a different default branch (e.g., "master" vs "main"),
   // Strategy 1's merge-base calculation may fail. Strategy 3 handles this gracefully.
   const defaultBranch = process.env.DEFAULT_BRANCH || (await getBaseBranch());
+=======
+async function generateGitPatch(branchName, baseBranch, options = {}) {
+  const mode = options.mode || "full";
+  // Support custom cwd for multi-repo scenarios
+  const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
+  // Include repo slug in patch path for multi-repo disambiguation
+  const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
+
+  // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
+  if (typeof baseBranch !== "string" || baseBranch.trim() === "") {
+    const errorMessage = "baseBranch is required and must be a non-empty string (received: " + String(baseBranch) + ")";
+    debugLog(`Invalid baseBranch: ${errorMessage}`);
+    return {
+      patchPath,
+      patchGenerated: false,
+      errorMessage,
+    };
+  }
+
+  const mode = options.mode || "full";
+  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+  const defaultBranch = baseBranch;
+>>>>>>> 4f14974e775500a96d298d049e5c144449d26a04
   const githubSha = process.env.GITHUB_SHA;
 
   debugLog(`Starting patch generation: mode=${mode}, branch=${branchName}, defaultBranch=${defaultBranch}`);

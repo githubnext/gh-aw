@@ -554,7 +554,7 @@ describe("git patch integration tests", () => {
       process.env.DEFAULT_BRANCH = "main";
 
       try {
-        const result = await generateGitPatch("feature-branch", { mode: "incremental" });
+        const result = await generateGitPatch("feature-branch", "main", { mode: "incremental" });
 
         expect(result.success).toBe(true);
         expect(result.patchPath).toBeDefined();
@@ -598,7 +598,7 @@ describe("git patch integration tests", () => {
       process.env.DEFAULT_BRANCH = "main";
 
       try {
-        const result = await generateGitPatch("local-only-branch", { mode: "incremental" });
+        const result = await generateGitPatch("local-only-branch", "main", { mode: "incremental" });
 
         // Should fail with a clear error message
         expect(result.success).toBe(false);
@@ -638,7 +638,7 @@ describe("git patch integration tests", () => {
 
       try {
         // Full mode (default) - should fall back to merge-base and include all commits
-        const result = await generateGitPatch("full-mode-branch", { mode: "full" });
+        const result = await generateGitPatch("full-mode-branch", "main", { mode: "full" });
 
         // Debug output if test fails
         if (!result.success) {

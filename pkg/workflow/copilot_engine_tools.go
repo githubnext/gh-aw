@@ -65,7 +65,16 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			// Add specific shell commands
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
-					args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+					// For stem commands (like dotnet, npm, cargo), Copilot CLI uses
+					// subcommand matching. When the user specifies just the base command
+					// (e.g., "dotnet"), append :* so "dotnet build", "dotnet test", etc.
+					// are all permitted. Skip if the command already has a colon (explicit
+					// matching) or a space (user already specified the subcommand).
+					if !strings.Contains(cmdStr, ":") && !strings.Contains(cmdStr, " ") && constants.CopilotStemCommands[cmdStr] {
+						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", cmdStr))
+					} else {
+						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+					}
 				}
 			}
 		} else {

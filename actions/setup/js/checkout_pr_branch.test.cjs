@@ -229,6 +229,63 @@ If the pull request is still open, verify that:
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git checkout failed`);
     });
+
+    it("should use gh pr checkout for fork PR in pull_request event", async () => {
+      // Set up fork PR: head repo is different from base repo
+      mockContext.payload.pull_request.head.repo.full_name = "fork-owner/test-repo";
+      mockContext.payload.pull_request.head.repo.owner.login = "fork-owner";
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request");
+
+      // Verify fork is detected
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (different repository names)");
+      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
+
+      // Verify strategy is gh pr checkout, not git fetch
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: gh pr checkout");
+      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; head branch exists only in fork, not in origin");
+
+      // Verify gh pr checkout is used instead of git fetch
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should use gh pr checkout for fork PR with fork flag set", async () => {
+      // Set up fork PR via the fork flag
+      mockContext.payload.pull_request.head.repo.fork = true;
+
+      await runScript();
+
+      // Verify fork is detected via fork flag
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head.repo.fork flag is true)");
+
+      // Verify correct strategy reason for fork PR
+      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; head branch exists only in fork, not in origin");
+
+      // Verify gh pr checkout is used
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", expect.anything()]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should use git fetch for non-fork pull_request event", async () => {
+      // Default mock context is non-fork (same repo)
+
+      await runScript();
+
+      // Verify non-fork detection
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
+
+      // Verify git fetch + checkout is used for non-fork
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+    });
   });
 
   describe("comment events on PRs", () => {
