@@ -85,14 +85,6 @@ function getPatchPathForRepo(branchName, repoSlug) {
  *   Required for multi-repo scenarios to prevent patch file collisions.
  * @returns {Promise<Object>} Object with patch info or error
  */
-<<<<<<< HEAD
-async function generateGitPatch(branchName, options = {}) {
-  // NOTE: In cross-repo scenarios, DEFAULT_BRANCH comes from the workflow repository
-  // (via github.event.repository.default_branch), not the checked-out repository.
-  // If the checked-out repo has a different default branch (e.g., "master" vs "main"),
-  // Strategy 1's merge-base calculation may fail. Strategy 3 handles this gracefully.
-  const defaultBranch = process.env.DEFAULT_BRANCH || (await getBaseBranch());
-=======
 async function generateGitPatch(branchName, baseBranch, options = {}) {
   const mode = options.mode || "full";
   // Support custom cwd for multi-repo scenarios
@@ -111,10 +103,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     };
   }
 
-  const mode = options.mode || "full";
-  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   const defaultBranch = baseBranch;
->>>>>>> 4f14974e775500a96d298d049e5c144449d26a04
   const githubSha = process.env.GITHUB_SHA;
 
   debugLog(`Starting patch generation: mode=${mode}, branch=${branchName}, defaultBranch=${defaultBranch}`);
