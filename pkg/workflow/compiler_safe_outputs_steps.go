@@ -159,6 +159,14 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// the default branch instead of the actual PR base branch. This is a known limitation because
 	// issue_comment payloads don't include PR base ref info and we can't make API calls in YAML expressions.
 	// For most PRs targeting main/master, this works correctly.
+	//
+	// TODO: @dsyme says: We must remove this. Indeed the important longer term thing is that we need the processing
+	// of the application of safe outputs to be independent of
+	// * event trigger context
+	// * ideally repository context too
+	// So safe outputs are "self-describing" and already know which base branch, repository etc. they're
+	// targeting.  Then a lot of this gnarly event code will be only on the "front end" (prepping the
+	// coding agent) not the "backend" (applying the safe outputs)
 	const baseBranchFallbackExpr = "${{ github.base_ref || github.event.pull_request.base.ref || github.ref_name || github.event.repository.default_branch }}"
 	var checkoutRef string
 	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.CreatePullRequests.BaseBranch != "" {
