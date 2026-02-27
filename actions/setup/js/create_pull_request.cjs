@@ -161,7 +161,7 @@ async function main(config = {}) {
   // Create checkout manager for multi-repo support
   // Token is available via GITHUB_TOKEN environment variable (set by the workflow job)
   const checkoutToken = process.env.GITHUB_TOKEN;
-  const checkoutManager = checkoutToken ? createCheckoutManager(checkoutToken, { defaultBaseBranch: baseBranch }) : null;
+  const checkoutManager = checkoutToken ? createCheckoutManager(checkoutToken, { defaultBaseBranch: configBaseBranch }) : null;
 
   // Log multi-repo support status
   if (allowedRepos.size > 0 && checkoutManager) {
@@ -237,7 +237,7 @@ async function main(config = {}) {
     // Multi-repo support: Switch checkout to target repo if different from current
     // This enables creating PRs in multiple repos from a single workflow run
     if (checkoutManager && itemRepo) {
-      const switchResult = await checkoutManager.switchTo(itemRepo, { baseBranch });
+      const switchResult = await checkoutManager.switchTo(itemRepo, { baseBranch: configBaseBranch });
       if (!switchResult.success) {
         core.warning(`Failed to switch to repository ${itemRepo}: ${switchResult.error}`);
         return {
