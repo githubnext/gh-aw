@@ -1202,10 +1202,10 @@ steps:
 **Pinned Actions**:
 ```yaml
 # ✅ Pin actions to SHA
-- uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
 # ❌ Avoid unpinned versions
-- uses: actions/checkout@v3
+- uses: actions/checkout@v6
 ```
 
 ### Input Validation
@@ -1499,7 +1499,7 @@ sequenceDiagram
 ```yaml
 # .github/workflows/common-setup.yml
 steps:
-  - uses: actions/checkout@v3
+  - uses: actions/checkout@v6
   - uses: actions/setup-go@v4
     with:
       go-version: '1.21'

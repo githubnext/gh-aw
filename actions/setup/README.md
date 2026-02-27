@@ -41,7 +41,7 @@ The number of files copied to the destination directory (should be 124: 117 Java
 
 ```yaml
 steps:
-  - uses: actions/checkout@v5
+  - uses: actions/checkout@v6
     with:
       sparse-checkout: |
         actions

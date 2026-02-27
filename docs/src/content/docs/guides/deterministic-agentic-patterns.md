@@ -75,7 +75,7 @@ jobs:
   run-analysis:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - run: ./gh-aw compile --zizmor --poutine > /tmp/gh-aw/agent/analysis.txt
 
 steps:

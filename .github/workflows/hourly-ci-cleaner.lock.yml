@@ -27,7 +27,7 @@
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5cac230b2f0f2fcc27828a9aaf4154331f9127efa96c20c52258a51dc5502be5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"671a14d4b1a43ceb00db004fb0c5c4ba09d7ae14da6fd2703f3218a72d3d841f"}
 
 name: "CI Cleaner"
 "on":
@@ -1015,7 +1015,7 @@ jobs:
       ci_status: ${{ steps.ci_check.outputs.ci_status }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - name: Check last CI workflow run status on main branch
