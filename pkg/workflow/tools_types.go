@@ -280,33 +280,25 @@ const (
 // Can be one of: "all", "public", or an array of repository patterns
 type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
 
-// GitHubAllowOnlyPolicy represents the allowonly guard policy configuration
-type GitHubAllowOnlyPolicy struct {
-	// Repos defines the access scope for policy enforcement
-	// Supports:
-	// - "all": all repositories
-	// - "public": public repositories only
-	// - array of patterns: ["owner/repo", "owner/*", "owner/re*"] (lowercase)
-	Repos GitHubReposScope `json:"repos" yaml:"repos"`
-
-	// Integrity defines the minimum integrity level required
-	// Valid values: "none", "reader", "writer", "merged"
-	Integrity GitHubIntegrityLevel `json:"integrity" yaml:"integrity"`
-}
-
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
-	Allowed     GitHubAllowedTools     `yaml:"allowed,omitempty"`
-	Mode        string                 `yaml:"mode,omitempty"`
-	Version     string                 `yaml:"version,omitempty"`
-	Args        []string               `yaml:"args,omitempty"`
-	ReadOnly    bool                   `yaml:"read-only,omitempty"`
-	GitHubToken string                 `yaml:"github-token,omitempty"`
-	Toolset     GitHubToolsets         `yaml:"toolsets,omitempty"`
-	Lockdown    bool                   `yaml:"lockdown,omitempty"`
-	App         *GitHubAppConfig       `yaml:"app,omitempty"`        // GitHub App configuration for token minting
-	AllowOnly   *GitHubAllowOnlyPolicy `yaml:"allow-only,omitempty"` // Guard policy for repository access control
+	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
+	Mode        string             `yaml:"mode,omitempty"`
+	Version     string             `yaml:"version,omitempty"`
+	Args        []string           `yaml:"args,omitempty"`
+	ReadOnly    bool               `yaml:"read-only,omitempty"`
+	GitHubToken string             `yaml:"github-token,omitempty"`
+	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
+	Lockdown    bool               `yaml:"lockdown,omitempty"`
+	App         *GitHubAppConfig   `yaml:"app,omitempty"` // GitHub App configuration for token minting
+
+	// Guard policy fields (flat syntax under github:)
+	// Repos defines the access scope for policy enforcement.
+	// Supports: "all", "public", or an array of patterns ["owner/repo", "owner/*"] (lowercase)
+	Repos GitHubReposScope `yaml:"repos,omitempty"`
+	// Integrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
+	Integrity GitHubIntegrityLevel `yaml:"integrity,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

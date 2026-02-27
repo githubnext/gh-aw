@@ -87,43 +87,38 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 	return nil
 }
 
-// validateGitHubGuardPolicy validates the GitHub guard policy configuration
+// validateGitHubGuardPolicy validates the GitHub guard policy configuration.
+// Guard policy fields (repos, integrity) are specified flat under github:.
+// Both fields must be present if either is specified.
 func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	if tools == nil || tools.GitHub == nil {
 		return nil
 	}
 
-	// Validate allowonly policy if present
-	if tools.GitHub.AllowOnly != nil {
-		if err := validateGitHubAllowOnlyPolicy(tools.GitHub.AllowOnly, workflowName); err != nil {
-			return err
-		}
-	}
+	github := tools.GitHub
+	hasRepos := github.Repos != nil
+	hasIntegrity := github.Integrity != ""
 
-	return nil
-}
-
-// validateGitHubAllowOnlyPolicy validates the allow-only guard policy configuration
-func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName string) error {
-	if policy == nil {
+	// No guard policy fields present - nothing to validate
+	if !hasRepos && !hasIntegrity {
 		return nil
 	}
 
-	// Validate repos field (required)
-	if policy.Repos == nil {
-		toolsValidationLog.Printf("Missing repos in allow-only policy for workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'allow-only.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
+	// Validate repos field (required when integrity is set)
+	if !hasRepos {
+		toolsValidationLog.Printf("Missing repos in guard policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
 	}
 
 	// Validate repos format
-	if err := validateReposScope(policy.Repos, workflowName); err != nil {
+	if err := validateReposScope(github.Repos, workflowName); err != nil {
 		return err
 	}
 
-	// Validate integrity field (required)
-	if policy.Integrity == "" {
-		toolsValidationLog.Printf("Missing integrity in allow-only policy for workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'allow-only.integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
+	// Validate integrity field (required when repos is set)
+	if !hasIntegrity {
+		toolsValidationLog.Printf("Missing integrity in guard policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'github.integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
 	}
 
 	// Validate integrity value
@@ -134,21 +129,21 @@ func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName s
 		GitHubIntegrityMerged: true,
 	}
 
-	if !validIntegrityLevels[policy.Integrity] {
-		toolsValidationLog.Printf("Invalid integrity level '%s' in workflow: %s", policy.Integrity, workflowName)
-		return errors.New("invalid guard policy: 'allow-only.integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(policy.Integrity) + "'")
+	if !validIntegrityLevels[github.Integrity] {
+		toolsValidationLog.Printf("Invalid integrity level '%s' in workflow: %s", github.Integrity, workflowName)
+		return errors.New("invalid guard policy: 'github.integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(github.Integrity) + "'")
 	}
 
 	return nil
 }
 
-// validateReposScope validates the repos field in allow-only policy
+// validateReposScope validates the repos field in the guard policy
 func validateReposScope(repos any, workflowName string) error {
 	// Case 1: String value ("all" or "public")
 	if reposStr, ok := repos.(string); ok {
 		if reposStr != "all" && reposStr != "public" {
 			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
-			return errors.New("invalid guard policy: 'allow-only.repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
+			return errors.New("invalid guard policy: 'github.repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
 		}
 		return nil
 	}
@@ -157,14 +152,14 @@ func validateReposScope(repos any, workflowName string) error {
 	if reposArray, ok := repos.([]any); ok {
 		if len(reposArray) == 0 {
 			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("invalid guard policy: 'allow-only.repos' array cannot be empty. Provide at least one repository pattern")
+			return errors.New("invalid guard policy: 'github.repos' array cannot be empty. Provide at least one repository pattern")
 		}
 
 		for i, item := range reposArray {
 			pattern, ok := item.(string)
 			if !ok {
 				toolsValidationLog.Printf("Non-string item in repos array at index %d in workflow: %s", i, workflowName)
-				return errors.New("invalid guard policy: 'allow-only.repos' array must contain only strings")
+				return errors.New("invalid guard policy: 'github.repos' array must contain only strings")
 			}
 
 			if err := validateRepoPattern(pattern, workflowName); err != nil {
@@ -179,7 +174,7 @@ func validateReposScope(repos any, workflowName string) error {
 	if reposArray, ok := repos.([]string); ok {
 		if len(reposArray) == 0 {
 			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("invalid guard policy: 'allow-only.repos' array cannot be empty. Provide at least one repository pattern")
+			return errors.New("invalid guard policy: 'github.repos' array cannot be empty. Provide at least one repository pattern")
 		}
 
 		for _, pattern := range reposArray {
@@ -193,7 +188,7 @@ func validateReposScope(repos any, workflowName string) error {
 
 	// Invalid type
 	toolsValidationLog.Printf("Invalid repos type in workflow: %s", workflowName)
-	return errors.New("invalid guard policy: 'allow-only.repos' must be 'all', 'public', or an array of repository patterns")
+	return errors.New("invalid guard policy: 'github.repos' must be 'all', 'public', or an array of repository patterns")
 }
 
 // validateRepoPattern validates a single repository pattern

@@ -374,54 +374,46 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:        "github tool without allow-only is valid",
+			name:        "github tool without guard policy fields is valid",
 			toolsMap:    map[string]any{"github": map[string]any{"mode": "remote"}},
 			shouldError: false,
 		},
 		{
-			name: "valid allow-only with repos=all",
+			name: "valid guard policy with repos=all",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     "all",
-						"integrity": "reader",
-					},
+					"repos":     "all",
+					"integrity": "reader",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "valid allow-only with repos=public",
+			name: "valid guard policy with repos=public",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     "public",
-						"integrity": "writer",
-					},
+					"repos":     "public",
+					"integrity": "writer",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "valid allow-only with repos array ([]any)",
+			name: "valid guard policy with repos array ([]any)",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     []any{"owner/repo", "owner/*"},
-						"integrity": "merged",
-					},
+					"repos":     []any{"owner/repo", "owner/*"},
+					"integrity": "merged",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "valid allow-only with integrity=none",
+			name: "valid guard policy with integrity=none",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     "all",
-						"integrity": "none",
-					},
+					"repos":     "all",
+					"integrity": "none",
 				},
 			},
 			shouldError: false,
@@ -430,73 +422,61 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "missing repos field",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"integrity": "reader",
-					},
+					"integrity": "reader",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'allow-only.repos' is required",
+			errorMsg:    "'github.repos' is required",
 		},
 		{
 			name: "missing integrity field",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos": "all",
-					},
+					"repos": "all",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'allow-only.integrity' is required",
+			errorMsg:    "'github.integrity' is required",
 		},
 		{
 			name: "invalid integrity value",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     "all",
-						"integrity": "superuser",
-					},
+					"repos":     "all",
+					"integrity": "superuser",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'allow-only.integrity' must be one of",
+			errorMsg:    "'github.integrity' must be one of",
 		},
 		{
 			name: "invalid repos string value",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     "private",
-						"integrity": "reader",
-					},
+					"repos":     "private",
+					"integrity": "reader",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'allow-only.repos' string must be 'all' or 'public'",
+			errorMsg:    "'github.repos' string must be 'all' or 'public'",
 		},
 		{
 			name: "empty repos array",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     []any{},
-						"integrity": "reader",
-					},
+					"repos":     []any{},
+					"integrity": "reader",
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'allow-only.repos' array cannot be empty",
+			errorMsg:    "'github.repos' array cannot be empty",
 		},
 		{
 			name: "repos array with uppercase pattern",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     []any{"Owner/repo"},
-						"integrity": "reader",
-					},
+					"repos":     []any{"Owner/repo"},
+					"integrity": "reader",
 				},
 			},
 			shouldError: true,
@@ -506,10 +486,8 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "repos array with invalid pattern format",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"allow-only": map[string]any{
-						"repos":     []any{"just-a-name"},
-						"integrity": "reader",
-					},
+					"repos":     []any{"just-a-name"},
+					"integrity": "reader",
 				},
 			},
 			shouldError: true,

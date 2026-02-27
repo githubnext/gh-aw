@@ -242,15 +242,22 @@ func getGitHubAllowedTools(githubTool any) []string {
 }
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
-// It converts the allow-only policy into a map suitable for MCP gateway rendering.
+// It reads the flat repos/integrity fields and wraps them for MCP gateway rendering.
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if allowOnly, exists := toolConfig["allow-only"]; exists {
-			if allowOnlyMap, ok := allowOnly.(map[string]any); ok {
-				return map[string]any{
-					"allow-only": allowOnlyMap,
-				}
+		repos, hasRepos := toolConfig["repos"]
+		integrity, hasIntegrity := toolConfig["integrity"]
+		if hasRepos || hasIntegrity {
+			policy := map[string]any{}
+			if hasRepos {
+				policy["repos"] = repos
+			}
+			if hasIntegrity {
+				policy["integrity"] = integrity
+			}
+			return map[string]any{
+				"allow-only": policy,
 			}
 		}
 	}

@@ -234,9 +234,12 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.App = parseAppConfig(app)
 		}
 
-		// Parse allow-only guard policy configuration
-		if allowOnly, ok := configMap["allow-only"].(map[string]any); ok {
-			config.AllowOnly = parseGitHubAllowOnlyPolicy(allowOnly)
+		// Parse guard policy fields (flat syntax: repos and integrity directly under github:)
+		if repos, ok := configMap["repos"]; ok {
+			config.Repos = repos // Store as-is, validation will happen later
+		}
+		if integrity, ok := configMap["integrity"].(string); ok {
+			config.Integrity = GitHubIntegrityLevel(integrity)
 		}
 
 		return config
@@ -245,27 +248,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 	return &GitHubToolConfig{
 		ReadOnly: true, // default to read-only for security
 	}
-}
-
-// parseGitHubAllowOnlyPolicy parses the allow-only guard policy
-func parseGitHubAllowOnlyPolicy(allowOnlyMap map[string]any) *GitHubAllowOnlyPolicy {
-	if allowOnlyMap == nil {
-		return nil
-	}
-
-	policy := &GitHubAllowOnlyPolicy{}
-
-	// Parse repos field - can be string ("all", "public") or array of patterns
-	if repos, ok := allowOnlyMap["repos"]; ok {
-		policy.Repos = repos // Store as-is, validation will happen later
-	}
-
-	// Parse integrity field
-	if integrity, ok := allowOnlyMap["integrity"].(string); ok {
-		policy.Integrity = GitHubIntegrityLevel(integrity)
-	}
-
-	return policy
 }
 
 // parseBashTool converts raw bash tool configuration to BashToolConfig

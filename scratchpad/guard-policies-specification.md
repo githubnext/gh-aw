@@ -8,7 +8,7 @@ This document proposes an extensible guard policies framework for the MCP Gatewa
 
 The user requested support for guard policies in the MCP gateway configuration, with the following requirements:
 
-1. Support GitHub-specific "allowonly" guard policies with:
+1. Support GitHub-specific guard policies with flat frontmatter syntax:
    - `repos` (scope): Repository access patterns
    - `integrity` (minintegrity): Minimum integrity level required
 
@@ -22,9 +22,8 @@ The user requested support for guard policies in the MCP gateway configuration, 
 
 ```
 GitHubToolConfig (GitHub-specific)
-  └── AllowOnly: *GitHubAllowOnlyPolicy
-      ├── Repos: GitHubReposScope (string or []string)
-      └── Integrity: GitHubIntegrityLevel (enum)
+  ├── Repos: GitHubReposScope (string or []any)
+  └── Integrity: GitHubIntegrityLevel (enum)
 
 MCPServerConfig (general)
   └── GuardPolicies: map[string]any (extensible for all servers)
@@ -56,9 +55,8 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    allowonly:
-      repos: "all"
-      integrity: reader
+    repos: "all"
+    integrity: reader
 ```
 
 **With Repository Patterns:**
@@ -67,28 +65,26 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    allowonly:
-      repos:
-        - "myorg/*"
-        - "partner/shared-repo"
-        - "docs/api-*"
-      integrity: writer
+    repos:
+      - "myorg/*"
+      - "partner/shared-repo"
+      - "docs/api-*"
+    integrity: writer
 ```
 
 **Public Repositories Only:**
 ```yaml
 tools:
   github:
-    allowonly:
-      repos: "public"
-      integrity: none
+    repos: "public"
+    integrity: none
 ```
 
 ### 4. MCP Gateway Configuration Flow
 
 1. **Frontmatter Parsing** (`tools_parser.go`):
-   - Extracts `allowonly` directly from GitHub tool config
-   - Parses into `GitHubAllowOnlyPolicy` struct
+   - Extracts `repos` and `integrity` directly from GitHub tool config
+   - Stores them as fields on `GitHubToolConfig`
    - Validates structure and types
 
 2. **Validation** (`tools_validation.go`):
@@ -98,7 +94,7 @@ tools:
    - Called during workflow compilation
 
 3. **Compilation**:
-   - AllowOnly policy included in compiled GitHub tool configuration
+   - Guard policy fields (repos, integrity) included in compiled GitHub tool configuration
    - Passed through to MCP Gateway configuration
 
 4. **Runtime (MCP Gateway)**:
@@ -114,12 +110,9 @@ The design supports future MCP servers (Jira, WorkIQ) through:
    ```go
    type JiraToolConfig struct {
        // ... other fields ...
-       AllowOnly *JiraAllowOnlyPolicy `yaml:"allowonly,omitempty"`
-   }
-
-   type JiraAllowOnlyPolicy struct {
-       Projects   []string `json:"projects"`            // Jira-specific field
-       IssueTypes []string `json:"issue_types,omitempty"`
+       // Guard policy fields (flat syntax under jira:)
+       Projects   []string `yaml:"projects,omitempty"`
+       IssueTypes []string `yaml:"issue-types,omitempty"`
    }
    ```
 
@@ -136,9 +129,8 @@ The design supports future MCP servers (Jira, WorkIQ) through:
    tools:
      jira:
        mode: remote
-       allowonly:
-         projects: ["PROJ-*", "SHARED"]
-         issue_types: ["Bug", "Story"]
+       projects: ["PROJ-*", "SHARED"]
+       issue-types: ["Bug", "Story"]
    ```
 
 ## Implementation Details
@@ -148,8 +140,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 1. **pkg/workflow/tools_types.go**
    - Added `GitHubIntegrityLevel` enum type
    - Added `GitHubReposScope` type alias
-   - Added `GitHubAllowOnlyPolicy` struct
-   - Extended `GitHubToolConfig` with `AllowOnly` field
+   - Extended `GitHubToolConfig` with flat `Repos` and `Integrity` fields
    - Extended `MCPServerConfig` with `GuardPolicies` field
 
 2. **pkg/workflow/schemas/mcp-gateway-config.schema.json**
@@ -158,12 +149,10 @@ The design supports future MCP servers (Jira, WorkIQ) through:
    - Set `additionalProperties: true` for server-specific schemas
 
 3. **pkg/workflow/tools_parser.go**
-   - Added `parseGitHubAllowOnlyPolicy()` function
-   - Extended `parseGitHubTool()` to extract allowonly policy
+   - Extended `parseGitHubTool()` to extract `repos` and `integrity` directly
 
 4. **pkg/workflow/tools_validation.go**
-   - Updated `validateGitHubGuardPolicy()` function
-   - Added `validateGitHubAllowOnlyPolicy()` function
+   - Updated `validateGitHubGuardPolicy()` function (validates flat fields)
    - Added `validateReposScope()` function
    - Added `validateRepoPattern()` function
    - Added `isValidOwnerOrRepo()` helper function
@@ -188,14 +177,14 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 - Case-sensitive
 
 **Required Fields:**
-- Both `repos` and `integrity` are required in `allowonly` policy
+- Both `repos` and `integrity` are required when either is specified under `github:`
 
 ## Error Messages
 
 The implementation provides clear, actionable error messages:
 
 ```
-invalid guard policy: 'allowonly.repos' is required.
+invalid guard policy: 'github.repos' is required.
 Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])
 
 invalid guard policy: repository pattern 'Owner/Repo' must be lowercase
@@ -203,7 +192,7 @@ invalid guard policy: repository pattern 'Owner/Repo' must be lowercase
 invalid guard policy: repository pattern 'owner/re*po' has wildcard in the middle.
 Wildcards only allowed at the end (e.g., 'prefix*')
 
-invalid guard policy: 'allowonly.integrity' must be one of: 'none', 'reader', 'writer', 'merged'.
+invalid guard policy: 'github.integrity' must be one of: 'none', 'reader', 'writer', 'merged'.
 Got: 'admin'
 ```
 
@@ -216,10 +205,9 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    allowonly:
-      repos:
-        - "myorg/*"
-      integrity: reader
+    repos:
+      - "myorg/*"
+    integrity: reader
 ```
 
 ### Example 2: Multiple Organizations
@@ -229,12 +217,11 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    allowonly:
-      repos:
-        - "frontend-org/*"
-        - "backend-org/*"
-        - "shared/infrastructure"
-      integrity: writer
+    repos:
+      - "frontend-org/*"
+      - "backend-org/*"
+      - "shared/infrastructure"
+    integrity: writer
 ```
 
 ### Example 3: Public Repositories Only
@@ -244,9 +231,8 @@ tools:
   github:
     mode: remote
     toolsets: [repos, issues]
-    allowonly:
-      repos: "public"
-      integrity: none
+    repos: "public"
+    integrity: none
 ```
 
 ### Example 4: Prefix Matching
@@ -256,11 +242,10 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-    allowonly:
-      repos:
-        - "myorg/api-*"     # Matches api-gateway, api-service, etc.
-        - "myorg/web-*"     # Matches web-frontend, web-backend, etc.
-      integrity: writer
+    repos:
+      - "myorg/api-*"     # Matches api-gateway, api-service, etc.
+      - "myorg/web-*"     # Matches web-frontend, web-backend, etc.
+    integrity: writer
 ```
 
 ## Testing Strategy
