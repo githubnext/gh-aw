@@ -469,6 +469,18 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle id-token permission override ("write" to force-add, "none" to disable auto-detection)
+			if idToken, exists := outputMap["id-token"]; exists {
+				if idTokenStr, ok := idToken.(string); ok {
+					if idTokenStr == "write" || idTokenStr == "none" {
+						config.IDToken = &idTokenStr
+						safeOutputsConfigLog.Printf("Configured id-token permission override: %s", idTokenStr)
+					} else {
+						safeOutputsConfigLog.Printf("Warning: unrecognized safe-outputs id-token value %q (expected \"write\" or \"none\"); ignoring", idTokenStr)
+					}
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {

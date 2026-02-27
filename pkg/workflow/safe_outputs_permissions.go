@@ -1,8 +1,47 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"slices"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var safeOutputsPermissionsLog = logger.New("workflow:safe_outputs_permissions")
+
+// oidcVaultActions is the list of known GitHub Actions that require id-token: write
+// to authenticate with secret vaults or cloud providers via OIDC (OpenID Connect).
+// Inclusion criteria: actions that use the GitHub OIDC token to authenticate to
+// external cloud providers or secret management systems. Add new entries when
+// a well-known action is identified that exchanges an OIDC JWT for cloud credentials.
+var oidcVaultActions = []string{
+	"aws-actions/configure-aws-credentials", // AWS OIDC / Secrets Manager
+	"azure/login",                           // Azure Key Vault / OIDC
+	"google-github-actions/auth",            // GCP Secret Manager / OIDC
+	"hashicorp/vault-action",                // HashiCorp Vault
+	"cyberark/conjur-action",                // CyberArk Conjur
+}
+
+// stepsRequireIDToken returns true if any of the provided steps use a known
+// OIDC/secret-vault action that requires the id-token: write permission.
+func stepsRequireIDToken(steps []any) bool {
+	for _, step := range steps {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		uses, ok := stepMap["uses"].(string)
+		if !ok || uses == "" {
+			continue
+		}
+		// Strip the @version suffix before matching
+		actionRef, _, _ := strings.Cut(uses, "@")
+		if slices.Contains(oidcVaultActions, actionRef) {
+			return true
+		}
+	}
+	return false
+}
 
 // ComputePermissionsForSafeOutputs computes the minimal required permissions
 // based on the configured safe-outputs. This function is used by both the
@@ -162,6 +201,19 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 
 	// NoOp and MissingTool don't require write permissions beyond what's already included
 	// They only need to comment if add-comment is already configured
+
+	// Handle id-token permission for OIDC/secret vault actions in user-provided steps.
+	// Explicit "none" disables auto-detection; explicit "write" always adds it;
+	// otherwise auto-detect from the steps list.
+	if safeOutputs.IDToken != nil && *safeOutputs.IDToken == "none" {
+		safeOutputsPermissionsLog.Print("id-token permission explicitly disabled (none)")
+	} else if safeOutputs.IDToken != nil && *safeOutputs.IDToken == "write" {
+		safeOutputsPermissionsLog.Print("id-token: write explicitly requested")
+		permissions.Set(PermissionIdToken, PermissionWrite)
+	} else if stepsRequireIDToken(safeOutputs.Steps) {
+		safeOutputsPermissionsLog.Print("Auto-detected OIDC/vault action in steps; adding id-token: write")
+		permissions.Set(PermissionIdToken, PermissionWrite)
+	}
 
 	safeOutputsPermissionsLog.Printf("Computed permissions with %d scopes", len(permissions.permissions))
 	return permissions
