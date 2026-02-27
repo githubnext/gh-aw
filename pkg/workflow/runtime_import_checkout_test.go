@@ -277,3 +277,91 @@ features:
 	// These are the default behaviors of actions/checkout when no parameters are specified
 	// For runtime-imports, this is exactly what we want - minimal checkout with no credentials
 }
+
+// TestActivationJobCheckoutWithoutExplicitContentsRead verifies that the activation job
+// still gets the checkout step for .github and .agents folders even when the workflow
+// does not explicitly specify contents: read permission. This is critical for runtime-imports
+// to work correctly, since the activation job always has contents: read added to it.
+func TestActivationJobCheckoutWithoutExplicitContentsRead(t *testing.T) {
+	// This workflow only has issues: read permission, no explicit contents: read
+	// The activation job should still have the checkout step because it always gets
+	// contents: read added for GitHub API access and runtime imports
+	frontmatter := `---
+on:
+  workflow_dispatch:
+permissions:
+  issues: read
+engine: claude
+strict: false
+---`
+	markdown := "# Agent\n\nCreate an issue with title \"Test\" and body \"Hello World\"."
+
+	tmpDir := testutil.TempDir(t, "activation-checkout-no-contents-test")
+
+	// Create workflow file
+	workflowPath := filepath.Join(tmpDir, "test.md")
+	content := frontmatter + "\n\n" + markdown
+	if err := os.WriteFile(workflowPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Calculate the lock file path
+	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+
+	// Read the generated lock file
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Find the activation job section
+	activationJobStart := strings.Index(lockContentStr, "activation:")
+	if activationJobStart == -1 {
+		t.Fatal("Activation job not found in compiled workflow")
+	}
+
+	// Find the end of the activation job (next job definition)
+	activationJobEnd := len(lockContentStr)
+	nextJobPattern := "\n  "
+	searchStart := activationJobStart + len("activation:")
+	remaining := lockContentStr[searchStart:]
+	lines := strings.Split(remaining, "\n")
+	charCount := 0
+	for i, line := range lines {
+		charCount += len(line) + 1 // +1 for newline
+		if i > 0 && len(line) > 2 && line[0:2] == "  " && line[2] != ' ' && strings.Contains(line, ":") {
+			activationJobEnd = searchStart + charCount - len(line) - 1
+			break
+		}
+	}
+	_ = nextJobPattern // silence unused warning
+
+	activationJobSection := lockContentStr[activationJobStart:activationJobEnd]
+
+	// Verify that the activation job contains the checkout step for .github and .agents folders
+	if !strings.Contains(activationJobSection, "Checkout .github and .agents folders") {
+		t.Error("Activation job should contain 'Checkout .github and .agents folders' step even without explicit contents: read permission")
+		t.Logf("Activation job section:\n%s", activationJobSection)
+	}
+
+	// Verify the checkout has sparse-checkout configuration
+	if !strings.Contains(activationJobSection, "sparse-checkout:") {
+		t.Error("Checkout step should use sparse-checkout")
+	}
+
+	// Verify both .github and .agents are in the sparse-checkout
+	if !strings.Contains(activationJobSection, ".github") {
+		t.Error("Sparse checkout should include .github folder")
+	}
+	if !strings.Contains(activationJobSection, ".agents") {
+		t.Error("Sparse checkout should include .agents folder")
+	}
+}

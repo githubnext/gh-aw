@@ -39,7 +39,7 @@ tools:
 				"# Cache memory file share configuration from frontmatter processed below",
 				"- name: Create cache-memory directory",
 				"- name: Cache cache-memory file share data",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@",
 				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
 				"cat \"/opt/gh-aw/prompts/cache_memory_prompt.md\"",

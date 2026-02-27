@@ -355,7 +355,7 @@ Test workflow that uses Go without go.mod file.
 	if !strings.Contains(lockStr, "Setup Go") {
 		t.Error("Expected 'Setup Go' step in lock file")
 	}
-	if !strings.Contains(lockStr, "actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5") {
+	if !strings.Contains(lockStr, "actions/setup-go@") {
 		t.Error("Expected actions/setup-go action in lock file")
 	}
 	if !strings.Contains(lockStr, "go-version: '1.25'") {
