@@ -595,8 +595,9 @@ func updateActionRefsInContent(content string, cache map[string]latestReleaseRes
 			}
 		}
 
-		// Resolve latest version/SHA, using the cache to avoid redundant API calls
-		cacheKey := repo + "@" + currentVersion
+		// Resolve latest version/SHA, using the cache to avoid redundant API calls.
+		// Use "|" as separator since GitHub repo names cannot contain "|".
+		cacheKey := repo + "|" + currentVersion
 		result, cached := cache[cacheKey]
 		if !cached {
 			latestVersion, latestSHA, err := getLatestActionReleaseFn(repo, currentVersion, true, verbose)
