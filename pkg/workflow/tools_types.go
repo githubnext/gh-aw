@@ -260,15 +260,17 @@ func (g GitHubToolsets) ToStringSlice() []string {
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
-	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
-	Mode        string             `yaml:"mode,omitempty"`
-	Version     string             `yaml:"version,omitempty"`
-	Args        []string           `yaml:"args,omitempty"`
-	ReadOnly    bool               `yaml:"read-only,omitempty"`
-	GitHubToken string             `yaml:"github-token,omitempty"`
-	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
-	Lockdown    bool               `yaml:"lockdown,omitempty"`
-	App         *GitHubAppConfig   `yaml:"app,omitempty"` // GitHub App configuration for token minting
+	Allowed      GitHubAllowedTools `yaml:"allowed,omitempty"`
+	Mode         string             `yaml:"mode,omitempty"`
+	Version      string             `yaml:"version,omitempty"`
+	Args         []string           `yaml:"args,omitempty"`
+	ReadOnly     bool               `yaml:"read-only,omitempty"`
+	GitHubToken  string             `yaml:"github-token,omitempty"`
+	Toolset      GitHubToolsets     `yaml:"toolsets,omitempty"`
+	Lockdown     bool               `yaml:"lockdown,omitempty"`
+	App          *GitHubAppConfig   `yaml:"app,omitempty"`           // GitHub App configuration for token minting
+	Repos        []string           `yaml:"repos,omitempty"`         // Restrict GitHub MCP server to specific repositories (passed as GITHUB_REPOSITORIES env var)
+	MinIntegrity string             `yaml:"min-integrity,omitempty"` // Minimum integrity hash for the GitHub MCP server container image (e.g., sha256:abc123...)
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

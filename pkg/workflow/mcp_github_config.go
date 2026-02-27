@@ -265,6 +265,40 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
+// getGitHubRepos extracts the repos list from GitHub tool configuration.
+// These repos are passed as the GITHUB_REPOSITORIES env var to restrict
+// which repositories the GitHub MCP server can access.
+func getGitHubRepos(githubTool any) []string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if reposSetting, exists := toolConfig["repos"]; exists {
+			if reposList, ok := reposSetting.([]any); ok {
+				repos := make([]string, 0, len(reposList))
+				for _, item := range reposList {
+					if str, ok := item.(string); ok {
+						repos = append(repos, str)
+					}
+				}
+				return repos
+			}
+		}
+	}
+	return nil
+}
+
+// getGitHubMinIntegrity extracts the min-integrity value from GitHub tool configuration.
+// When set, this integrity hash is appended to the container image name as a digest
+// (e.g., ghcr.io/github/github-mcp-server:v1.0.0@sha256:abc123...) for image pinning.
+func getGitHubMinIntegrity(githubTool any) string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if integritySetting, exists := toolConfig["min-integrity"]; exists {
+			if str, ok := integritySetting.(string); ok {
+				return str
+			}
+		}
+	}
+	return ""
+}
+
 // generateGitHubMCPLockdownDetectionStep generates a step to determine automatic lockdown mode
 // for GitHub MCP server based on repository visibility and token availability.
 // This step is added when:

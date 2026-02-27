@@ -2481,7 +2481,7 @@
               "properties": {
                 "container": {
                   "type": "string",
-                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_@.-]*$",
                   "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
@@ -3003,6 +3003,21 @@
                       "repositories": ["repo1", "repo2"]
                     }
                   ]
+                },
+                "repos": {
+                  "type": "array",
+                  "description": "List of repositories to restrict GitHub MCP server access to (passed as GITHUB_REPOSITORIES env var). Each item is an 'owner/repo' slug.",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+                    "description": "Repository slug in the format 'owner/repo'"
+                  },
+                  "examples": [["owner/repo1", "owner/repo2"], ["myorg/myrepo"]]
+                },
+                "min-integrity": {
+                  "type": "string",
+                  "description": "Minimum integrity hash for the GitHub MCP server container image. When set, appended to the container image as a digest (e.g., 'sha256:abc123...') to pin the image to a specific version.",
+                  "examples": ["sha256:abc123def456..."]
                 }
               },
               "additionalProperties": false,
@@ -7599,7 +7614,7 @@
         },
         "container": {
           "type": "string",
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_@.-]*$",
           "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified. Validated by 'not.allOf' constraint below.",
           "description": "Container image for stdio MCP connections"
         },
