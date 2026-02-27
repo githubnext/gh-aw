@@ -1564,7 +1564,7 @@ strict: true
 jobs:
   test:
     steps:
-      - uses: actions/checkout@v4  # ❌ Blocked in strict mode
+      - uses: actions/checkout@v6  # ❌ Blocked in strict mode
 ```
 
 **Error**: `strict mode requires actions to be pinned to commit SHA, not tag`
@@ -1639,7 +1639,7 @@ network:
 
 **Don't**:
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v6
 - uses: actions/setup-node@main
 ```
 

@@ -15,6 +15,11 @@
       "version": "v5",
       "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     },
+    "actions/checkout@v6": {
+      "repo": "actions/checkout",
+      "version": "v6.0.2",
+      "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+    },
     "actions/setup-node@v4": {
       "repo": "actions/setup-node",
       "version": "v4",

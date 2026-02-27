@@ -81,21 +81,13 @@ If using Copilot as your AI engine, you need a GitHub Actions Secret set to a Gi
 [**Create a fine-grained PAT**](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read) (this link pre-fills the token name, description, and Copilot Requests permission). Verify the following settings before generating:
 
 1. **Resource owner** is your **user account**, not an organization.
-2. **Repository access** is set to **Public repositories**, even if you will be using it with private repositories. This is required for the "Copilot Requests" permission to be available.
-3. Under **Permissions → Account permissions**, **Copilot Requests** is set to **Read**.
-4. Click **Generate token** and copy the token value.
-5. Add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI.
+2. Under **Permissions → Account permissions**, **Copilot Requests** is set to **Read**.
+3. Click **Generate token** and copy the token value.
+4. Add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI.
 
    ```bash wrap
    gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
    ```
-
-<Video
-  src="/gh-aw/videos/create-pat-user-copilot.mp4"
-  caption="Creating a fine-grained PAT for user-owned repositories with Copilot permissions"
-  aspectRatio="16:9"
-  silenced={true}
-/>
 
 **Troubleshooting**:
 

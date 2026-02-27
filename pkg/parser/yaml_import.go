@@ -259,7 +259,7 @@ func ensureCheckoutStepFirst(steps []any) []any {
 	yamlImportLog.Print("No checkout step found in copilot-setup-steps, adding default checkout step at beginning")
 	defaultCheckoutStep := map[string]any{
 		"name": "Checkout code",
-		"uses": "actions/checkout@v4",
+		"uses": "actions/checkout@v6",
 	}
 	steps = append([]any{defaultCheckoutStep}, steps...)
 	return steps
