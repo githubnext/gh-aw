@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 
 const fs = require("fs");
@@ -61,12 +61,18 @@ async function main() {
     allowed_repos: process.env.GH_AW_ALLOWED_REPOS,
   });
 
+  // Parse default target repo for use in base branch resolution
+  // This is needed for cross-repo scenarios where the base branch API call
+  // should target the configured repo, not context.repo
+  const defaultTargetRepoParts = parseRepoSlug(defaultTargetRepo);
+
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Create Agent Sessions Preview\n\n";
     summaryContent += "The following agent sessions would be created if staged mode was disabled:\n\n";
 
     // Resolve base branch: use custom config if set, otherwise resolve dynamically
-    const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch());
+    // Pass target repo for cross-repo scenarios
+    const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch(defaultTargetRepoParts));
 
     for (const [index, item] of createAgentSessionItems.entries()) {
       summaryContent += `### Task ${index + 1}\n\n`;
@@ -88,7 +94,8 @@ async function main() {
   // Resolve base branch: use custom config if set, otherwise resolve dynamically
   // Dynamic resolution is needed for issue_comment events on PRs where the base branch
   // is not available in GitHub Actions expressions and requires an API call
-  const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch());
+  // Pass target repo for cross-repo scenarios
+  const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch(defaultTargetRepoParts));
 
   // Process all agent session items
   const createdTasks = [];

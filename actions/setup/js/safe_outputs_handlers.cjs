@@ -13,6 +13,7 @@ const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { resolveTargetRepoConfig, parseRepoSlug } = require("./repo_helpers.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -190,7 +191,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const createPullRequestHandler = async args => {
     const entry = { ...args, type: "create_pull_request" };
-    const baseBranch = await getBaseBranch();
+
+    // Resolve target repo for base branch resolution (cross-repo scenarios)
+    const prConfig = config.create_pull_request || {};
+    const { defaultTargetRepo } = resolveTargetRepoConfig(prConfig);
+    const targetRepoParts = parseRepoSlug(defaultTargetRepo);
+    const baseBranch = await getBaseBranch(targetRepoParts);
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -228,8 +234,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Generate git patch
-    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
-    const patchResult = await generateGitPatch(entry.branch);
+    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+    const patchResult = await generateGitPatch(entry.branch, baseBranch);
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty
@@ -287,7 +293,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const pushToPullRequestBranchHandler = async args => {
     const entry = { ...args, type: "push_to_pull_request_branch" };
-    const baseBranch = await getBaseBranch();
+
+    // Resolve target repo for base branch resolution (cross-repo scenarios)
+    const pushConfig = config.push_to_pull_request_branch || {};
+    const { defaultTargetRepo } = resolveTargetRepoConfig(pushConfig);
+    const targetRepoParts = parseRepoSlug(defaultTargetRepo);
+    const baseBranch = await getBaseBranch(targetRepoParts);
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -306,8 +317,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Generate git patch in incremental mode
     // Incremental mode only includes commits since origin/branchName,
     // preventing patches that include already-existing commits
-    server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}`);
-    const patchResult = await generateGitPatch(entry.branch, { mode: "incremental" });
+    server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+    const patchResult = await generateGitPatch(entry.branch, baseBranch, { mode: "incremental" });
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty

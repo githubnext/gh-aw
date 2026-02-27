@@ -14,8 +14,19 @@ const mockCore = {
   setOutput: vi.fn(),
 };
 
+// Mock context object used by repo_helpers.cjs
+const mockContext = {
+  repo: {
+    owner: "test-owner",
+    repo: "test-repo",
+  },
+  eventName: "push",
+  payload: {},
+};
+
 // Set up global mocks before importing the module
 global.core = mockCore;
+global.context = mockContext;
 
 describe("safe_outputs_handlers", () => {
   let mockServer;

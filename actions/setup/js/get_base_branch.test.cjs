@@ -80,4 +80,23 @@ describe("getBaseBranch", () => {
     process.env.GH_AW_CUSTOM_BASE_BRANCH = "feature/new-feature";
     expect(await getBaseBranch()).toBe("feature/new-feature");
   });
+
+  it("should accept optional targetRepo parameter without affecting simple cases", async () => {
+    // When env vars are set, targetRepo doesn't change the result
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "custom-branch";
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+
+    // With targetRepo parameter
+    const result = await getBaseBranch({ owner: "other-owner", repo: "other-repo" });
+    expect(result).toBe("custom-branch");
+
+    // Without targetRepo parameter (null)
+    const result2 = await getBaseBranch(null);
+    expect(result2).toBe("custom-branch");
+
+    // Without targetRepo parameter (undefined)
+    const result3 = await getBaseBranch();
+    expect(result3).toBe("custom-branch");
+  });
 });

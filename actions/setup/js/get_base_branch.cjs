@@ -11,9 +11,13 @@
  * 4. API lookup for issue_comment events on PRs (the PR's base ref is not in the payload)
  * 5. Fallback to DEFAULT_BRANCH env var or "main"
  *
+ * @param {{owner: string, repo: string}|null} [targetRepo] - Optional target repository.
+ *   If provided, API calls (step 4) use this instead of context.repo,
+ *   which is needed for cross-repo scenarios where the target repo differs
+ *   from the workflow repository.
  * @returns {Promise<string>} The base branch name
  */
-async function getBaseBranch() {
+async function getBaseBranch(targetRepo = null) {
   // 1. Custom base branch from workflow configuration
   if (process.env.GH_AW_CUSTOM_BASE_BRANCH) {
     return process.env.GH_AW_CUSTOM_BASE_BRANCH;
@@ -30,12 +34,15 @@ async function getBaseBranch() {
   }
 
   // 4. For issue_comment events on PRs - must call API since base ref not in payload
+  // Use targetRepo if provided (cross-repo scenarios), otherwise fall back to context.repo
   if (typeof context !== "undefined" && context.eventName === "issue_comment" && context.payload?.issue?.pull_request) {
     try {
       if (typeof github !== "undefined") {
+        const repoOwner = targetRepo?.owner ?? context.repo.owner;
+        const repoName = targetRepo?.repo ?? context.repo.repo;
         const { data: pr } = await github.rest.pulls.get({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: repoOwner,
+          repo: repoName,
           pull_number: context.payload.issue.number,
         });
         return pr.base.ref;

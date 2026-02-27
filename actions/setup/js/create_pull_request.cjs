@@ -11,7 +11,7 @@ const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_titl
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences, isTemporaryId } = require("./temporary_id.cjs");
-const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -100,12 +100,19 @@ async function main(config = {}) {
   const autoMerge = parseBoolTemplatable(config.auto_merge, false);
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
+  const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+
+  // Parse default target repo for use in base branch resolution
+  // This is needed for cross-repo scenarios where the base branch API call
+  // should target the configured repo, not context.repo
+  const defaultTargetRepoParts = parseRepoSlug(defaultTargetRepo);
+
   // Resolve base branch: use config value if set, otherwise resolve dynamically
   // Dynamic resolution is needed for issue_comment events on PRs where the base branch
   // is not available in GitHub Actions expressions and requires an API call
-  let baseBranch = config.base_branch || (await getBaseBranch());
-  const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
-  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  // Pass target repo for cross-repo scenarios
+  let baseBranch = config.base_branch || (await getBaseBranch(defaultTargetRepoParts));
   const includeFooter = parseBoolTemplatable(config.footer, true);
   const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
 

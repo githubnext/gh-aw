@@ -4,7 +4,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const { getBaseBranch } = require("./get_base_branch.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
 
@@ -47,6 +46,7 @@ function getPatchPath(branchName) {
 /**
  * Generates a git patch file for the current changes
  * @param {string} branchName - The branch name to generate patch for
+ * @param {string} baseBranch - The base branch to diff against (e.g., "main", "master")
  * @param {Object} [options] - Optional parameters
  * @param {string} [options.mode="full"] - Patch generation mode:
  *   - "full": Include all commits since merge-base with default branch (for create_pull_request)
@@ -54,15 +54,13 @@ function getPatchPath(branchName) {
  *     In incremental mode, origin/branchName is fetched explicitly and merge-base fallback is disabled.
  * @returns {Promise<Object>} Object with patch info or error
  */
-async function generateGitPatch(branchName, options = {}) {
+async function generateGitPatch(branchName, baseBranch, options = {}) {
   const mode = options.mode || "full";
   const patchPath = getPatchPath(branchName);
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-  // NOTE: In cross-repo scenarios, DEFAULT_BRANCH comes from the workflow repository
-  // (via github.event.repository.default_branch), not the checked-out repository.
-  // If the checked-out repo has a different default branch (e.g., "master" vs "main"),
-  // Strategy 1's merge-base calculation may fail. Strategy 3 handles this gracefully.
-  const defaultBranch = process.env.DEFAULT_BRANCH || (await getBaseBranch());
+  // baseBranch is now provided by the caller, who has already resolved it
+  // using getBaseBranch() with the appropriate target repository context.
+  const defaultBranch = baseBranch;
   const githubSha = process.env.GITHUB_SHA;
 
   debugLog(`Starting patch generation: mode=${mode}, branch=${branchName}, defaultBranch=${defaultBranch}`);
