@@ -399,7 +399,7 @@ on: pull_request opened             # PR opened
 on: pull_request closed             # PR closed
 on: pull_request merged             # PR merged (maps to closed + merge condition)
 on: pull_request synchronize        # PR updated with new commits
-on: pull_request labeled            # Label added to PR
+on: pull_request labeled            # Any label added to PR (no filtering)
 on: pull_request review_requested   # Review requested on PR
 on: pull_request affecting src/**   # PR touching specific paths (defaults to opened, synchronize, reopened)
 on: pull_request opened affecting docs/**  # PR opened touching specific paths
