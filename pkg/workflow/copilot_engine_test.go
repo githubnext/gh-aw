@@ -423,6 +423,73 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			expected: []string{"--allow-tool", "github(get_file_contents)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
 		},
+		// Stem command tests - commands that Copilot CLI matches with subcommands
+		{
+			name: "stem command gets wildcard suffix",
+			tools: map[string]any{
+				"bash": []any{"dotnet"},
+			},
+			expected: []string{"--allow-tool", "shell(dotnet:*)"},
+		},
+		{
+			name: "multiple stem commands get wildcard suffix",
+			tools: map[string]any{
+				"bash": []any{"cargo", "go", "npm"},
+			},
+			expected: []string{"--allow-tool", "shell(cargo:*)", "--allow-tool", "shell(go:*)", "--allow-tool", "shell(npm:*)"},
+		},
+		{
+			name: "stem command with space does not get wildcard",
+			tools: map[string]any{
+				"bash": []any{"dotnet build"},
+			},
+			expected: []string{"--allow-tool", "shell(dotnet build)"},
+		},
+		{
+			name: "stem command with explicit colon does not get wildcard",
+			tools: map[string]any{
+				"bash": []any{"git:checkout"},
+			},
+			expected: []string{"--allow-tool", "shell(git:checkout)"},
+		},
+		{
+			name: "non-stem command does not get wildcard",
+			tools: map[string]any{
+				"bash": []any{"echo", "curl"},
+			},
+			expected: []string{"--allow-tool", "shell(curl)", "--allow-tool", "shell(echo)"},
+		},
+		{
+			name: "mixed stem and non-stem commands",
+			tools: map[string]any{
+				"bash": []any{"dotnet", "echo", "npm", "curl", "git status"},
+			},
+			expected: []string{"--allow-tool", "shell(curl)", "--allow-tool", "shell(dotnet:*)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm:*)"},
+		},
+		{
+			name: "all stem commands get wildcard",
+			tools: map[string]any{
+				"bash": []any{"git", "gh", "npm", "yarn", "cargo", "go", "pip", "dotnet", "flutter"},
+			},
+			expected: []string{
+				"--allow-tool", "shell(cargo:*)",
+				"--allow-tool", "shell(dotnet:*)",
+				"--allow-tool", "shell(flutter:*)",
+				"--allow-tool", "shell(gh:*)",
+				"--allow-tool", "shell(git:*)",
+				"--allow-tool", "shell(go:*)",
+				"--allow-tool", "shell(npm:*)",
+				"--allow-tool", "shell(pip:*)",
+				"--allow-tool", "shell(yarn:*)",
+			},
+		},
+		{
+			name: "stem command with existing :* wildcard passes through",
+			tools: map[string]any{
+				"bash": []any{"git:*"},
+			},
+			expected: []string{"--allow-tool", "shell(git:*)"},
+		},
 	}
 
 	for _, tt := range tests {
