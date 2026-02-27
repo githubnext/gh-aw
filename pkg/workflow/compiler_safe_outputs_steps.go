@@ -9,6 +9,52 @@ import (
 
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
+// firstNonEmpty returns the first non-empty string from the given values.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// Nil-safe token accessors for per-output github-token fields.
+func tokenFromAddComments(so *SafeOutputsConfig) string {
+	if so.AddComments == nil {
+		return ""
+	}
+	return so.AddComments.GitHubToken
+}
+
+func tokenFromCreateIssues(so *SafeOutputsConfig) string {
+	if so.CreateIssues == nil {
+		return ""
+	}
+	return so.CreateIssues.GitHubToken
+}
+
+func tokenFromCreateDiscussions(so *SafeOutputsConfig) string {
+	if so.CreateDiscussions == nil {
+		return ""
+	}
+	return so.CreateDiscussions.GitHubToken
+}
+
+func tokenFromUpdateIssues(so *SafeOutputsConfig) string {
+	if so.UpdateIssues == nil {
+		return ""
+	}
+	return so.UpdateIssues.GitHubToken
+}
+
+func tokenFromCreateCodeScanningAlerts(so *SafeOutputsConfig) string {
+	if so.CreateCodeScanningAlerts == nil {
+		return ""
+	}
+	return so.CreateCodeScanningAlerts.GitHubToken
+}
+
 // buildConsolidatedSafeOutputStep builds a single step for a safe output operation
 // within the consolidated safe-outputs job. This function handles both inline script
 // mode and file mode (requiring from local filesystem).
@@ -361,10 +407,24 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Rationale: update_project/create_project_status_update call the Projects v2 GraphQL API, which
 	// cannot be accessed with the default GITHUB_TOKEN. GH_AW_PROJECT_GITHUB_TOKEN is the required
 	// token for Projects v2 operations.
+	// If no project token, fall back to per-output tokens from handler types that support github-token.
 	steps = append(steps, "        with:\n")
 	configToken := ""
 	if projectToken != "" {
 		configToken = projectToken
+	}
+	// Fall back to per-output tokens when no project token is set.
+	// This enables cross-repo operations where only one safe output type is configured with a custom token.
+	if configToken == "" && data.SafeOutputs != nil {
+		so := data.SafeOutputs
+		configToken = firstNonEmpty(
+			so.GitHubToken,
+			tokenFromAddComments(so),
+			tokenFromCreateIssues(so),
+			tokenFromCreateDiscussions(so),
+			tokenFromUpdateIssues(so),
+			tokenFromCreateCodeScanningAlerts(so),
+		)
 	}
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, configToken)
 

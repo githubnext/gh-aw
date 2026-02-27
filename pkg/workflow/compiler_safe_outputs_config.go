@@ -150,6 +150,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("group", c.Group).
 			AddTemplatableBool("close_older_issues", c.CloseOlderIssues).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {
@@ -163,6 +164,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("hide_older_comments", c.HideOlderComments).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			Build()
 	},
 	"create_discussion": func(cfg *SafeOutputsConfig) map[string]any {
@@ -183,6 +185,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("fallback_to_issue", c.FallbackToIssue).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			Build()
 	},
 	"close_issue": func(cfg *SafeOutputsConfig) map[string]any {
@@ -298,6 +301,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("driver", c.Driver).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			Build()
 	},
 	"create_agent_session": func(cfg *SafeOutputsConfig) map[string]any {
@@ -333,6 +339,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return builder.
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
@@ -476,6 +483,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
