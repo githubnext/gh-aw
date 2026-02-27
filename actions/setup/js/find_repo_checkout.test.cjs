@@ -1,5 +1,3 @@
-// @ts-check
-
 const fs = require("fs");
 const path = require("path");
 const { extractRepoSlugFromUrl, normalizeRepoSlug, findGitDirectories, findRepoCheckout, buildRepoCheckoutMap } = require("./find_repo_checkout.cjs");
