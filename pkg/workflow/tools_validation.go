@@ -103,7 +103,7 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 	return nil
 }
 
-// validateGitHubAllowOnlyPolicy validates the allowonly guard policy configuration
+// validateGitHubAllowOnlyPolicy validates the allow-only guard policy configuration
 func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName string) error {
 	if policy == nil {
 		return nil
@@ -111,8 +111,8 @@ func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName s
 
 	// Validate repos field (required)
 	if policy.Repos == nil {
-		toolsValidationLog.Printf("Missing repos in allowonly policy for workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'allowonly.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
+		toolsValidationLog.Printf("Missing repos in allow-only policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'allow-only.repos' is required. Use 'all', 'public', or an array of repository patterns (e.g., ['owner/repo', 'owner/*'])")
 	}
 
 	// Validate repos format
@@ -122,8 +122,8 @@ func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName s
 
 	// Validate integrity field (required)
 	if policy.Integrity == "" {
-		toolsValidationLog.Printf("Missing integrity in allowonly policy for workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'allowonly.integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
+		toolsValidationLog.Printf("Missing integrity in allow-only policy for workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'allow-only.integrity' is required. Valid values: 'none', 'reader', 'writer', 'merged'")
 	}
 
 	// Validate integrity value
@@ -136,35 +136,35 @@ func validateGitHubAllowOnlyPolicy(policy *GitHubAllowOnlyPolicy, workflowName s
 
 	if !validIntegrityLevels[policy.Integrity] {
 		toolsValidationLog.Printf("Invalid integrity level '%s' in workflow: %s", policy.Integrity, workflowName)
-		return errors.New("invalid guard policy: 'allowonly.integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(policy.Integrity) + "'")
+		return errors.New("invalid guard policy: 'allow-only.integrity' must be one of: 'none', 'reader', 'writer', 'merged'. Got: '" + string(policy.Integrity) + "'")
 	}
 
 	return nil
 }
 
-// validateReposScope validates the repos field in allowonly policy
+// validateReposScope validates the repos field in allow-only policy
 func validateReposScope(repos any, workflowName string) error {
 	// Case 1: String value ("all" or "public")
 	if reposStr, ok := repos.(string); ok {
 		if reposStr != "all" && reposStr != "public" {
 			toolsValidationLog.Printf("Invalid repos string '%s' in workflow: %s", reposStr, workflowName)
-			return errors.New("invalid guard policy: 'allowonly.repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
+			return errors.New("invalid guard policy: 'allow-only.repos' string must be 'all' or 'public'. Got: '" + reposStr + "'")
 		}
 		return nil
 	}
 
-	// Case 2: Array of patterns
+	// Case 2a: Array of patterns from YAML parsing ([]any)
 	if reposArray, ok := repos.([]any); ok {
 		if len(reposArray) == 0 {
 			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
-			return errors.New("invalid guard policy: 'allowonly.repos' array cannot be empty. Provide at least one repository pattern")
+			return errors.New("invalid guard policy: 'allow-only.repos' array cannot be empty. Provide at least one repository pattern")
 		}
 
 		for i, item := range reposArray {
 			pattern, ok := item.(string)
 			if !ok {
 				toolsValidationLog.Printf("Non-string item in repos array at index %d in workflow: %s", i, workflowName)
-				return errors.New("invalid guard policy: 'allowonly.repos' array must contain only strings")
+				return errors.New("invalid guard policy: 'allow-only.repos' array must contain only strings")
 			}
 
 			if err := validateRepoPattern(pattern, workflowName); err != nil {
@@ -175,9 +175,25 @@ func validateReposScope(repos any, workflowName string) error {
 		return nil
 	}
 
+	// Case 2b: Array of patterns from programmatic construction ([]string)
+	if reposArray, ok := repos.([]string); ok {
+		if len(reposArray) == 0 {
+			toolsValidationLog.Printf("Empty repos array in workflow: %s", workflowName)
+			return errors.New("invalid guard policy: 'allow-only.repos' array cannot be empty. Provide at least one repository pattern")
+		}
+
+		for _, pattern := range reposArray {
+			if err := validateRepoPattern(pattern, workflowName); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	// Invalid type
 	toolsValidationLog.Printf("Invalid repos type in workflow: %s", workflowName)
-	return errors.New("invalid guard policy: 'allowonly.repos' must be 'all', 'public', or an array of repository patterns")
+	return errors.New("invalid guard policy: 'allow-only.repos' must be 'all', 'public', or an array of repository patterns")
 }
 
 // validateRepoPattern validates a single repository pattern
@@ -234,7 +250,7 @@ func isValidOwnerOrRepo(s string) bool {
 		return false
 	}
 	for _, ch := range s {
-		if !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_') {
+		if (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' {
 			return false
 		}
 	}

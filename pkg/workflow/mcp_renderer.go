@@ -76,6 +76,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -168,6 +169,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			IncludeToolsField:  r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			IncludeEnvSection:  r.options.IncludeCopilotFields,
+			GuardPolicies:      getGitHubGuardPolicies(githubTool),
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -186,6 +188,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			IncludeTypeField:   r.options.IncludeCopilotFields,
 			AllowedTools:       getGitHubAllowedTools(githubTool),
 			EffectiveToken:     "", // Token passed via env
+			GuardPolicies:      getGitHubGuardPolicies(githubTool),
 		})
 	}
 
@@ -676,6 +679,8 @@ type GitHubMCPDockerOptions struct {
 	EffectiveToken string
 	// Mounts specifies volume mounts for the GitHub MCP server container (format: "host:container:mode")
 	Mounts []string
+	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
+	GuardPolicies map[string]any
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
@@ -771,7 +776,13 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, envVars[key], comma)
 	}
 
-	yaml.WriteString("                }\n")
+	// Close env section, with trailing comma if guard-policies follows
+	if len(options.GuardPolicies) > 0 {
+		yaml.WriteString("                },\n")
+		renderGuardPoliciesJSON(yaml, options.GuardPolicies, "                ")
+	} else {
+		yaml.WriteString("                }\n")
+	}
 }
 
 // GitHubMCPRemoteOptions defines configuration for GitHub MCP remote mode rendering
@@ -794,6 +805,8 @@ type GitHubMCPRemoteOptions struct {
 	AllowedTools []string
 	// IncludeEnvSection indicates whether to include the env section (Copilot needs it, Claude doesn't)
 	IncludeEnvSection bool
+	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
+	GuardPolicies map[string]any
 }
 
 // RenderGitHubMCPRemoteConfig renders the GitHub MCP server configuration for remote (hosted) mode.
@@ -836,7 +849,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	writeHeadersToYAML(yaml, headers, "                  ")
 
 	// Close headers section
-	if options.IncludeToolsField || options.IncludeEnvSection {
+	if options.IncludeToolsField || options.IncludeEnvSection || len(options.GuardPolicies) > 0 {
 		yaml.WriteString("                },\n")
 	} else {
 		yaml.WriteString("                }\n")
@@ -856,7 +869,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 			}
 			yaml.WriteString("\n")
 		}
-		if options.IncludeEnvSection {
+		if options.IncludeEnvSection || len(options.GuardPolicies) > 0 {
 			yaml.WriteString("                ],\n")
 		} else {
 			yaml.WriteString("                ]\n")
@@ -867,8 +880,36 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	if options.IncludeEnvSection {
 		yaml.WriteString("                \"env\": {\n")
 		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
-		yaml.WriteString("                }\n")
+		// Close env section, with trailing comma if guard-policies follows
+		if len(options.GuardPolicies) > 0 {
+			yaml.WriteString("                },\n")
+		} else {
+			yaml.WriteString("                }\n")
+		}
 	}
+
+	// Add guard-policies if configured
+	if len(options.GuardPolicies) > 0 {
+		renderGuardPoliciesJSON(yaml, options.GuardPolicies, "                ")
+	}
+}
+
+// renderGuardPoliciesJSON renders a "guard-policies" JSON field at the given indent level.
+// The policies map contains policy names (e.g., "allow-only") mapped to their configurations.
+// Renders as the last field (no trailing comma) with the given base indent.
+func renderGuardPoliciesJSON(yaml *strings.Builder, policies map[string]any, indent string) {
+	if len(policies) == 0 {
+		return
+	}
+
+	// Marshal to JSON with indentation, then re-indent to match the current indent level
+	jsonBytes, err := json.MarshalIndent(policies, indent, "  ")
+	if err != nil {
+		mcpRendererLog.Printf("Failed to marshal guard-policies: %v", err)
+		return
+	}
+
+	fmt.Fprintf(yaml, "%s\"guard-policies\": %s\n", indent, string(jsonBytes))
 }
 
 // RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.

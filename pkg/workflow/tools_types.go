@@ -278,7 +278,7 @@ const (
 
 // GitHubReposScope represents the repository scope for guard policy enforcement
 // Can be one of: "all", "public", or an array of repository patterns
-type GitHubReposScope any // string or []string
+type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
 
 // GitHubAllowOnlyPolicy represents the allowonly guard policy configuration
 type GitHubAllowOnlyPolicy struct {
@@ -305,8 +305,8 @@ type GitHubToolConfig struct {
 	GitHubToken string                 `yaml:"github-token,omitempty"`
 	Toolset     GitHubToolsets         `yaml:"toolsets,omitempty"`
 	Lockdown    bool                   `yaml:"lockdown,omitempty"`
-	App         *GitHubAppConfig       `yaml:"app,omitempty"`       // GitHub App configuration for token minting
-	AllowOnly   *GitHubAllowOnlyPolicy `yaml:"allowonly,omitempty"` // Guard policy for repository access control
+	App         *GitHubAppConfig       `yaml:"app,omitempty"`        // GitHub App configuration for token minting
+	AllowOnly   *GitHubAllowOnlyPolicy `yaml:"allow-only,omitempty"` // Guard policy for repository access control
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
@@ -379,7 +379,7 @@ type MCPServerConfig struct {
 
 	// Guard policies for access control at the MCP gateway level
 	// This is a general field that can hold server-specific policy configurations
-	// For GitHub: use GitHubGuardPolicy
+	// For GitHub: policies are represented via GitHubAllowOnlyPolicy on GitHubToolConfig
 	// For Jira/WorkIQ: define similar server-specific policy types
 	GuardPolicies map[string]any `yaml:"guard-policies,omitempty"`
 

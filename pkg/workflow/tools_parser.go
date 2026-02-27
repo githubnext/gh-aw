@@ -234,8 +234,8 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.App = parseAppConfig(app)
 		}
 
-		// Parse allowonly guard policy configuration
-		if allowOnly, ok := configMap["allowonly"].(map[string]any); ok {
+		// Parse allow-only guard policy configuration
+		if allowOnly, ok := configMap["allow-only"].(map[string]any); ok {
 			config.AllowOnly = parseGitHubAllowOnlyPolicy(allowOnly)
 		}
 
@@ -247,7 +247,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 	}
 }
 
-// parseGitHubAllowOnlyPolicy parses the allowonly guard policy
+// parseGitHubAllowOnlyPolicy parses the allow-only guard policy
 func parseGitHubAllowOnlyPolicy(allowOnlyMap map[string]any) *GitHubAllowOnlyPolicy {
 	if allowOnlyMap == nil {
 		return nil

@@ -241,6 +241,22 @@ func getGitHubAllowedTools(githubTool any) []string {
 	return nil
 }
 
+// getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
+// It converts the allow-only policy into a map suitable for MCP gateway rendering.
+// Returns nil if no guard policies are configured.
+func getGitHubGuardPolicies(githubTool any) map[string]any {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if allowOnly, exists := toolConfig["allow-only"]; exists {
+			if allowOnlyMap, ok := allowOnly.(map[string]any); ok {
+				return map[string]any{
+					"allow-only": allowOnlyMap,
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties
