@@ -10,7 +10,7 @@ The user requested support for guard policies in the MCP gateway configuration, 
 
 1. Support GitHub-specific guard policies with flat frontmatter syntax:
    - `repos` (scope): Repository access patterns
-   - `min-integrity` (minintegrity): Minimum min-min-integrity level required
+   - `min-integrity` (minintegrity): Minimum min-integrity level required
 
 2. Design an extensible system that can support future MCP servers (Jira, WorkIQ) with different policy schemas
 
@@ -250,11 +250,10 @@ tools:
 
 ## Testing Strategy
 
-1. **Unit Tests** (Pending):
-   - Test parsing of valid configurations
-   - Test validation of invalid configurations
-   - Test error messages for various failure modes
-   - Test edge cases (empty strings, special characters, etc.)
+1. **Unit Tests** (Complete):
+   - `TestValidateGitHubGuardPolicy`: 14 cases covering valid/invalid repos values, invalid min-integrity, missing fields
+   - `TestValidateReposScopeWithStringSlice`: 4 cases covering `[]string` and `[]any` input types
+   - Tests live in `pkg/workflow/tools_validation_test.go`
 
 2. **Integration Tests** (Pending):
    - Test end-to-end workflow compilation with guard policies
