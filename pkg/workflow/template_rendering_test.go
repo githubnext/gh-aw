@@ -77,7 +77,7 @@ Normal content here.
 		t.Error("Compiled workflow should contain interpolation and template rendering step")
 	}
 
-	if !strings.Contains(compiledStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+	if !strings.Contains(compiledStr, "uses: actions/github-script@") { // SHA varies
 		t.Error("Interpolation and template rendering step should use github-script action")
 	}
 

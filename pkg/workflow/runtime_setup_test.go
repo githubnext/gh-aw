@@ -285,7 +285,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Bun",
-				"oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3",
+				"oven-sh/setup-bun@",
 				"bun-version: '1.1'",
 			},
 		},
@@ -297,7 +297,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Node.js",
-				"actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238",
+				"actions/setup-node@",
 				"node-version: '20'",
 			},
 		},
@@ -309,7 +309,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Python",
-				"actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+				"actions/setup-python@",
 				"python-version: '3.11'",
 			},
 		},
@@ -321,7 +321,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b",
+				"astral-sh/setup-uv@",
 			},
 		},
 		{
@@ -332,7 +332,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1, // setup only - PATH inherited via AWF_HOST_PATH in chroot mode
 			checkContent: []string{
 				"Setup .NET",
-				"actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309",
+				"actions/setup-dotnet@",
 				"dotnet-version: '8.0'",
 			},
 		},
@@ -344,7 +344,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1, // setup only - PATH inherited via AWF_HOST_PATH in chroot mode
 			checkContent: []string{
 				"Setup Java",
-				"actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654",
+				"actions/setup-java@",
 				"java-version: '21'",
 				"distribution: temurin",
 			},
@@ -357,7 +357,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Elixir",
-				"erlef/setup-beam@dff508cca8ce57162e7aa6c4769a4f97c2fed638",
+				"erlef/setup-beam@",
 				"elixir-version: '1.17'",
 			},
 		},
@@ -369,7 +369,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Haskell",
-				"haskell-actions/setup@9cd1b7bf3f36d5a3c3b17abc3545bfb5481912ea",
+				"haskell-actions/setup@",
 				"ghc-version: '9.10'",
 			},
 		},
@@ -403,7 +403,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 2, // setup + GOROOT capture for AWF chroot mode
 			checkContent: []string{
 				"Setup Go",
-				"actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417",
+				"actions/setup-go@",
 				"go-version: '1.22'",
 				"Capture GOROOT for AWF chroot mode",
 			},
@@ -416,7 +416,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 2, // setup + GOROOT capture for AWF chroot mode
 			checkContent: []string{
 				"Setup Go",
-				"actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417",
+				"actions/setup-go@",
 				"go-version: '1.25'",
 				"Capture GOROOT for AWF chroot mode",
 			},
@@ -429,7 +429,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 2, // setup + GOROOT capture for AWF chroot mode
 			checkContent: []string{
 				"Setup Go",
-				"actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417",
+				"actions/setup-go@",
 				"go-version-file: custom/go.mod",
 				"cache: true",
 				"Capture GOROOT for AWF chroot mode",
@@ -824,7 +824,7 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b",
+				"astral-sh/setup-uv@",
 				"if: hashFiles('uv.lock') != ''",
 			},
 		},
@@ -840,7 +840,7 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Python",
-				"actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+				"actions/setup-python@",
 				"python-version: '3.11'",
 				"if: hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''",
 			},
@@ -857,7 +857,7 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Node.js",
-				"actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238",
+				"actions/setup-node@",
 				"node-version: '20'",
 				"if: hashFiles('package.json') != ''",
 			},

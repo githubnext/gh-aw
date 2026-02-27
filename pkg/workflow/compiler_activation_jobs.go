@@ -1026,12 +1026,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		}
 	}
 
-	// Check if we have contents permission - without it, checkout is not possible
-	permParser := NewPermissionsParser(data.Permissions)
-	if !permParser.HasContentsReadAccess() {
-		compilerActivationJobsLog.Print("Skipping .github checkout in activation: no contents read access")
-		return nil
-	}
+	// Note: We don't check data.Permissions for contents read access here because
+	// the activation job ALWAYS gets contents:read added to its permissions (see buildActivationJob
+	// around line 720). The workflow's original permissions may not include contents:read,
+	// but the activation job will always have it for GitHub API access and runtime imports.
 
 	// For activation job, always add sparse checkout of .github and .agents folders
 	// This is needed for runtime imports during prompt generation
