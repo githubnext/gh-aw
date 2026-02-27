@@ -105,7 +105,7 @@ Create a custom actions system that:
 │  │  └── README.md                                     │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
-```text
+```
 
 ### Component Responsibilities
 
@@ -166,7 +166,7 @@ gh-aw/
 ├── Makefile                         # Build targets (NO sync-shell-scripts or sync-js-scripts)
 └── .github/workflows/
     └── ci.yml                       # CI pipeline
-```text
+```
 
 **Runtime File Copy Flow (Current Architecture):**
 
@@ -197,7 +197,7 @@ actions/{action-name}/
 ├── src/                # Source files
 │   └── index.js        # Main entry point with FILES placeholder
 └── README.md           # Action documentation
-```text
+```
 
 ### action.yml Format
 
@@ -261,7 +261,7 @@ The build system is implemented entirely in Go and follows these steps:
 ```text
 actions/setup/js/*.cjs  (SOURCE OF TRUTH)  →  Runtime copy to /tmp/gh-aw/actions
 actions/setup/sh/*.sh   (SOURCE OF TRUTH)  →  Runtime copy to /tmp/gh-aw/actions
-```text
+```
 
 **Why this pattern?**
 - JavaScript and shell scripts live in `actions/setup/js/` and `actions/setup/sh/` as source of truth

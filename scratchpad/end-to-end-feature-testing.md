@@ -28,7 +28,7 @@ In your pull request, instruct the GitHub Copilot coding agent to modify the `de
 - Adding the necessary configuration in the frontmatter
 - Updating the task description to use the feature
 - Including validation steps to verify the feature works correctly
-```text
+```
 
 **What the agent should do:**
 
@@ -120,7 +120,7 @@ Based on the results:
 
 ```text
 Modify dev.md → Recompile → Trigger workflow → Review results → Iterate
-```text
+```
 
 Continue this cycle until the workflow succeeds and the feature works as expected.
 

@@ -124,7 +124,7 @@ The hierarchical agent system consists of specialized meta-orchestrator workflow
 │  │  1   │  │  2   │  │  3   │  │  4   │   │
 │  └──────┘  └──────┘  └──────┘  └──────┘   │
 └─────────────────────────────────────────────┘
-```text
+```
 
 ### Key Principles
 

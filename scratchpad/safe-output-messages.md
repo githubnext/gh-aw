@@ -895,7 +895,7 @@ pkg/workflow/js/
 ├── messages_run_status.cjs        # Run status messages (getRunStartedMessage, getRunSuccessMessage, getRunFailureMessage)
 ├── messages_close_discussion.cjs  # Close discussion messages (getCloseOlderDiscussionMessage)
 └── messages.cjs                   # Barrel file for backward compatibility
-```text
+```
 
 ### Module Descriptions
 

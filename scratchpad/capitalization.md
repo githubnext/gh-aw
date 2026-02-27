@@ -30,7 +30,7 @@ When referring to the gh-aw tool or GitHub Agentic Workflows as a product:
 ```text
 GitHub Agentic Workflows CLI from GitHub Next
 GitHub Agentic Workflows from GitHub Next
-```text
+```
 
 ### Generic Workflow References (Lowercase)
 
@@ -41,7 +41,7 @@ Enable agentic workflows
 Initialize repository for agentic workflows
 Download and analyze agentic workflow logs
 Add an MCP tool to an agentic workflow
-```text
+```
 
 ### Technical Terms (Capitalized)
 
@@ -50,7 +50,7 @@ Proper nouns and acronyms maintain their standard capitalization:
 ```text
 Compile Markdown workflows to GitHub Actions YAML
 MCP helpers
-```text
+```
 
 ## Decision Flow
 

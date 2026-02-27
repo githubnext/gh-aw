@@ -138,7 +138,7 @@ Need to process a string?
 └─ Need to standardize format? → Use NORMALIZE
    ├─ Remove file extensions → normalizeWorkflowName()
    └─ Convert conventions → normalizeSafeOutputIdentifier()
-```text
+```
 
 ## Common Patterns
 

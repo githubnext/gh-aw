@@ -113,7 +113,7 @@ The codebase follows several consistent patterns that should be emulated:
 create_issue.go (160 lines)
 create_pull_request.go (238 lines)
 create_discussion.go (118 lines)
-```text
+```
 
 **Avoid**: Single large file with all creation logic (600+ lines)
 
@@ -125,14 +125,14 @@ create_issue.go            # Issue creation logic
 create_issue_test.go       # Issue creation tests
 add_comment.go             # Comment addition logic
 add_comment_test.go        # Comment tests
-```text
+```
 
 **Avoid**: Type-based organization
 ```text
 models.go                  # All structs
 logic.go                   # All business logic
 tests.go                   # All tests
-```text
+```
 
 ### 3. Use Descriptive File Names
 
@@ -292,14 +292,14 @@ This demonstrates that even large subsystems benefit from logical file splits.
 ```text
 // Don't create files like this
 workflow.go (5000+ lines)  // Everything related to workflows
-```text
+```
 
 **Solution**: Split by responsibility
 ```text
 workflow_parser.go
 workflow_compiler.go
 workflow_validation.go
-```text
+```
 
 ### ❌ 2. Vague Naming
 
@@ -309,13 +309,13 @@ utils.go
 helpers.go
 misc.go
 common.go
-```text
+```
 
 **Solution**: Use specific names
 ```text
 string_utils.go        // If really needed
 engine_helpers.go      // Shared engine utilities
-```text
+```
 
 ### ❌ 3. Mixed Concerns
 
@@ -325,7 +325,7 @@ engine_helpers.go      // Shared engine utilities
 func CreateIssue() {}
 func ValidateNetwork() {}  // Unrelated!
 func CompileYAML() {}      // Unrelated!
-```text
+```
 
 **Solution**: Keep files focused on one domain
 
@@ -334,14 +334,14 @@ func CompileYAML() {}      // Unrelated!
 **Problem**: All tests in one massive file
 ```text
 workflow_test.go (10000+ lines)  // All tests
-```text
+```
 
 **Solution**: Split by scenario
 ```text
 workflow_parser_test.go
 workflow_compiler_test.go
 workflow_integration_test.go
-```text
+```
 
 ### ❌ 5. Premature Abstraction
 
@@ -350,7 +350,7 @@ workflow_integration_test.go
 // Don't create these preemptively
 future_feature_helpers.go
 maybe_needed_utils.go
-```text
+```
 
 **Solution**: Wait until you have 2-3 use cases, then extract common patterns
 
@@ -374,7 +374,7 @@ Is this a new safe output type (create_*)?
          Is this functionality independent?
          ├─ YES → Create new file
          └─ NO → Add to existing file
-```text
+```
 
 ### Should I Split an Existing File?
 
@@ -394,7 +394,7 @@ Is the file > 1000 lines?
          Are there frequent merge conflicts?
          ├─ YES → CONSIDER splitting
          └─ NO → Keep as is
-```text
+```
 
 ### What Should I Name This File?
 
@@ -414,7 +414,7 @@ Is it a create operation for GitHub entity?
          Is it a cohesive feature?
          ├─ YES → <feature>.go
          └─ NO → Reconsider the organization
-```text
+```
 
 ## Examples from the Codebase
 
@@ -428,7 +428,7 @@ pkg/workflow/
 ├── create_discussion.go               (118 lines)
 ├── create_code_scanning_alert.go      (136 lines)
 └── create_agent_task.go               (120 lines)
-```text
+```
 
 ### Recommended: Engine Organization
 ```text
@@ -439,7 +439,7 @@ pkg/workflow/
 ├── codex_engine.go                    (639 lines) - Codex implementation
 ├── custom_engine.go                   (300 lines) - Custom engine
 └── engine_helpers.go                  (424 lines) - Shared utilities
-```text
+```
 
 ### Recommended: Focused Utilities
 ```text
@@ -448,7 +448,7 @@ pkg/workflow/
 ├── expressions.go                     (948 lines) - Expression handling
 ├── artifacts.go                       (60 lines) - Artifact management
 └── args.go                            (65 lines) - Argument parsing
-```text
+```
 
 ## Quick Reference
 

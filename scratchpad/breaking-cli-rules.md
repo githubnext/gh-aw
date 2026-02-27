@@ -171,7 +171,7 @@ The following changes are **not breaking** and typically require:
                        │
                        ▼ NO
                   NOT BREAKING
-```text
+```
 
 ## Guidelines for Contributors
 

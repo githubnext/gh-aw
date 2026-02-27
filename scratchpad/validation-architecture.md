@@ -296,7 +296,7 @@ Use this decision tree to determine where to place new validation logic:
                │ NO
                ▼
           validation.go
-```text
+```
 
 ## Validation Patterns
 

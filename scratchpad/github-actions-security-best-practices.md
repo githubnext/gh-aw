@@ -121,7 +121,7 @@ steps:
       if [ "$COMMENT_BODY" = "approved" ]; then
         echo "Approved"
       fi
-```yaml
+```
 
 ---
 
@@ -266,7 +266,7 @@ steps:
       # Safe command usage
       result=$(grep -r "$INPUT_VALUE" . || true)
       echo "$result"
-```yaml
+```
 
 ---
 
@@ -708,7 +708,7 @@ safe-outputs:
   create-pull-request:
 
 # AI never has direct write access
-```yaml
+```
 
 ---
 
@@ -800,7 +800,7 @@ jobs:
 ```text
 workflow.yml:10:5: shellcheck reported issue in this script: SC2086:info:1:6: Double quote to prevent globbing and word splitting [shellcheck]
 workflow.yml:15:3: property "runs-on" is not set [syntax-check]
-```text
+```
 
 **Action**: Fix shell quoting issues, add missing required fields.
 
@@ -812,7 +812,7 @@ finding: artipacked
     level: Medium
     desc: Actions that upload artifacts without retention limits
   location: workflow.yml:25
-```text
+```
 
 **Action**: Add `retention-days` to artifact uploads.
 
@@ -879,7 +879,7 @@ steps:
 # .github/CODEOWNERS
 .github/workflows/ @security-team
 .github/actions/ @security-team
-```text
+```
 
 **Why**: Ensures workflow changes are reviewed by security team before merge.
 
@@ -936,7 +936,7 @@ network:
     
 # Or deny all network access
 network: {}
-```yaml
+```
 
 ---
 
