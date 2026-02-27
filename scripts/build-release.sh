@@ -20,6 +20,7 @@ platforms=(
   linux-amd64
   linux-arm
   linux-arm64
+  android-arm64
   windows-amd64
   windows-arm64
 )

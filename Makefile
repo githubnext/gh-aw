@@ -24,7 +24,7 @@ build: sync-action-pins sync-action-scripts
 
 # Build for all platforms
 .PHONY: build-all
-build-all: build-linux build-darwin build-windows
+build-all: build-linux build-darwin build-windows build-android
 
 .PHONY: build-linux
 build-linux:
@@ -39,6 +39,10 @@ build-darwin:
 .PHONY: build-windows
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
+
+.PHONY: build-android
+build-android:
+	CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-android-arm64 ./cmd/gh-aw
 
 # Build WebAssembly module for browser usage
 # Optionally runs wasm-opt (from Binaryen) if available for ~8% size reduction

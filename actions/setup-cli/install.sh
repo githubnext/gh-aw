@@ -111,7 +111,11 @@ ARCH=$(uname -m)
 # Normalize OS name
 case $OS in
     Linux)
-        OS_NAME="linux"
+        if [ -n "$ANDROID_ROOT" ]; then
+            OS_NAME="android"
+        else
+            OS_NAME="linux"
+        fi
         ;;
     Darwin)
         OS_NAME="darwin"
@@ -124,7 +128,7 @@ case $OS in
         ;;
     *)
         print_error "Unsupported operating system: $OS"
-        print_info "Supported operating systems: Linux, macOS (Darwin), FreeBSD, Windows"
+        print_info "Supported operating systems: Linux, macOS (Darwin), FreeBSD, Windows, Android (Termux)"
         exit 1
         ;;
 esac
