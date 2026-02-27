@@ -152,6 +152,11 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 		result["mounts"] = config.Mounts
 	}
 
+	// Add guard policies if set
+	if len(config.GuardPolicies) > 0 {
+		result["guard-policies"] = config.GuardPolicies
+	}
+
 	// Add custom fields (these override standard fields if there are conflicts)
 	maps.Copy(result, config.CustomFields)
 
@@ -257,18 +262,59 @@ func (g GitHubToolsets) ToStringSlice() []string {
 	return result
 }
 
+// GitHubIntegrityLevel represents the minimum integrity level required for repository access
+type GitHubIntegrityLevel string
+
+const (
+	// GitHubIntegrityNone allows access with no integrity requirements
+	GitHubIntegrityNone GitHubIntegrityLevel = "none"
+	// GitHubIntegrityReader requires read-level integrity
+	GitHubIntegrityReader GitHubIntegrityLevel = "reader"
+	// GitHubIntegrityWriter requires write-level integrity
+	GitHubIntegrityWriter GitHubIntegrityLevel = "writer"
+	// GitHubIntegrityMerged requires merged-level integrity
+	GitHubIntegrityMerged GitHubIntegrityLevel = "merged"
+)
+
+// GitHubReposScope represents the repository scope for guard policy enforcement
+// Can be one of: "all", "public", or an array of repository patterns
+type GitHubReposScope any // string or []string
+
+// GitHubAllowOnlyPolicy represents the allowonly guard policy configuration
+type GitHubAllowOnlyPolicy struct {
+	// Repos defines the access scope for policy enforcement
+	// Supports:
+	// - "all": all repositories
+	// - "public": public repositories only
+	// - array of patterns: ["owner/repo", "owner/*", "owner/re*"] (lowercase)
+	Repos GitHubReposScope `json:"repos" yaml:"repos"`
+
+	// Integrity defines the minimum integrity level required
+	// Valid values: "none", "reader", "writer", "merged"
+	Integrity GitHubIntegrityLevel `json:"integrity" yaml:"integrity"`
+}
+
+// GitHubGuardPolicy represents guard policy configuration for GitHub MCP server
+// Guard policies enforce access control at the MCP gateway level
+type GitHubGuardPolicy struct {
+	// AllowOnly policy restricts access based on repository scope and integrity level
+	AllowOnly *GitHubAllowOnlyPolicy `json:"allowonly,omitempty" yaml:"allowonly,omitempty"`
+}
+
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
-	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
-	Mode        string             `yaml:"mode,omitempty"`
-	Version     string             `yaml:"version,omitempty"`
-	Args        []string           `yaml:"args,omitempty"`
-	ReadOnly    bool               `yaml:"read-only,omitempty"`
-	GitHubToken string             `yaml:"github-token,omitempty"`
-	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
-	Lockdown    bool               `yaml:"lockdown,omitempty"`
-	App         *GitHubAppConfig   `yaml:"app,omitempty"` // GitHub App configuration for token minting
+	Allowed      GitHubAllowedTools `yaml:"allowed,omitempty"`
+	Mode         string             `yaml:"mode,omitempty"`
+	Version      string             `yaml:"version,omitempty"`
+	Args         []string           `yaml:"args,omitempty"`
+	ReadOnly     bool               `yaml:"read-only,omitempty"`
+	GitHubToken  string             `yaml:"github-token,omitempty"`
+	Toolset      GitHubToolsets     `yaml:"toolsets,omitempty"`
+	Lockdown     bool               `yaml:"lockdown,omitempty"`
+	App          *GitHubAppConfig   `yaml:"app,omitempty"`          // GitHub App configuration for token minting
+	GuardPolicy  *GitHubGuardPolicy `yaml:"guard-policy,omitempty"` // Guard policy configuration for access control
+	GuardPolicies *GitHubGuardPolicy `yaml:"guard-policies,omitempty"` // Alias for guard-policy (supports both singular and plural)
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
@@ -338,6 +384,12 @@ type MCPServerConfig struct {
 	// Workflow-specific fields
 	Mode     string   `yaml:"mode,omitempty"`     // MCP server mode (stdio, http, remote, local)
 	Toolsets []string `yaml:"toolsets,omitempty"` // Toolsets to enable
+
+	// Guard policies for access control at the MCP gateway level
+	// This is a general field that can hold server-specific policy configurations
+	// For GitHub: use GitHubGuardPolicy
+	// For Jira/WorkIQ: define similar server-specific policy types
+	GuardPolicies map[string]any `yaml:"guard-policies,omitempty"`
 
 	// For truly dynamic configuration (server-specific fields not covered above)
 	CustomFields map[string]any `yaml:",inline"`
