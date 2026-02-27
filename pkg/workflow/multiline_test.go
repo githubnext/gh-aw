@@ -129,7 +129,7 @@ func TestEngineStepSerialization(t *testing.T) {
 
 	stepMap := map[string]any{
 		"name": "Test multiline in engine",
-		"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
+		"uses": "actions/github-script@v7",
 		"with": map[string]any{
 			"script": `const multiline = 'hello';
 This is a multiline
