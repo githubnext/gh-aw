@@ -55,7 +55,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
 	// Both of these safe outputs require the patch file to apply changes
 	// Download from unified agent-artifacts artifact
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 			ArtifactName: "agent-artifacts",
@@ -64,12 +64,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			StepName:     "Download patch artifact",
 		})
 		steps = append(steps, patchDownloadSteps...)
-	}
 
-	// Add shared checkout and git config steps for PR operations
-	// Both create-pull-request and push-to-pull-request-branch need these steps,
-	// so we add them once with a combined condition to avoid duplication
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		// Add checkout and git config steps for PR operations
 		consolidatedSafeOutputsJobLog.Print("Adding shared checkout step for PR operations")
 		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
 		steps = append(steps, checkoutSteps...)
@@ -242,17 +238,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
-	// Note: Update Pull Request step - now handled by handler manager
-
-	// Note: Push To Pull Request Branch step - now handled by handler manager
-
 	// Note: Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
 	// This was moved out of the consolidated job to allow proper git configuration
 	// for pushing to orphaned branches
-
-	// Note: Update Release step - now handled by handler manager
-	// Note: Link Sub Issue step - now handled by handler manager
-	// Note: Hide Comment step - now handled by handler manager
 
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
@@ -280,7 +268,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Add patch download steps if present
 		// Download from unified agent-artifacts artifact
-		if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		if usesPatchesAndCheckouts(data.SafeOutputs) {
 			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 				ArtifactName: "agent-artifacts",
 				DownloadPath: "/tmp/gh-aw/",
@@ -333,7 +321,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Build dependencies — detection is now inline in the agent job, no separate dependency needed
 	needs := []string{mainJobName}
 	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil || data.LockForAgent {
+	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent {
 		needs = append(needs, string(constants.ActivationJobName))
 	}
 	// Add unlock job dependency if lock-for-agent is enabled
