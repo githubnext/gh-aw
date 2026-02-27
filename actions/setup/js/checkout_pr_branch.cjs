@@ -137,9 +137,11 @@ async function main() {
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
 
-    if (eventName === "pull_request") {
-      // For pull_request events, we run in the merge commit context
-      // The PR branch is already available, so we can use direct git commands
+    if (eventName === "pull_request" && !isFork) {
+      // For non-fork pull_request events, we run in the merge commit context.
+      // The PR branch is in the same repo as origin, so we can use direct git commands.
+      // Fork PRs cannot use git fetch because their head branch only exists in the fork
+      // (not in origin/base repo), so they must use gh pr checkout in the else branch below.
       const branchName = pullRequest.head.ref;
       // commits is in the payload for pull_request events; +1 to include the merge base
       const commitCount = pullRequest.commits || 1;
@@ -155,12 +157,18 @@ async function main() {
 
       core.info(`✅ Successfully checked out branch: ${branchName}`);
     } else {
-      // For pull_request_target and other PR events, we run in base repository context
+      // For pull_request_target, fork pull_request events, and other PR events,
+      // we run in base repository context.
       // IMPORTANT: For fork PRs, the head branch doesn't exist in the base repo
       // We must use `gh pr checkout` which handles fetching from forks
       const prNumber = pullRequest.number;
 
-      const strategyReason = eventName === "pull_request_target" ? "pull_request_target runs in base repo context; for fork PRs, head branch doesn't exist in origin" : `${eventName} event runs in base repo context; must fetch PR branch`;
+      const strategyReason =
+        eventName === "pull_request_target"
+          ? "pull_request_target runs in base repo context; for fork PRs, head branch doesn't exist in origin"
+          : eventName === "pull_request" && isFork
+            ? "pull_request event from fork repository; head branch exists only in fork, not in origin"
+            : `${eventName} event runs in base repo context; must fetch PR branch`;
 
       logCheckoutStrategy(eventName, "gh pr checkout", strategyReason);
 
