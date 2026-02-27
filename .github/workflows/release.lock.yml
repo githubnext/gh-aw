@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5127c5873ad20ebcf2c49850a53a671243b02c72ada8cd7fcd977c63114823db"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6e1c4327b76ef6c7191012d95530b88b4c3d8d8d18ebbdb75a5e8630f0713d96"}
 
 name: "Release"
 "on":
@@ -1062,7 +1062,7 @@ jobs:
           persist-credentials: false
       - name: Compute release configuration
         id: compute_config
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const releaseType = context.payload.inputs.release_type;
@@ -1217,7 +1217,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # 4dc6199c7b1a012772edbd06daecab0f50c9053c
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           cache: false
           go-version-file: go.mod

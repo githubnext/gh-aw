@@ -33,7 +33,7 @@ timeout-minutes: 20
 strict: true
 steps:
   - name: Setup Go
-    uses: actions/setup-go@v5
+    uses: actions/setup-go@v6
     with:
       go-version-file: go.mod
       cache: true

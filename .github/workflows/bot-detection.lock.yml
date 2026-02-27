@@ -23,7 +23,7 @@
 #
 # Investigates suspicious repository activity and maintains a single triage issue
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e4945922152cf00d6e0bfcc4b0b869b00af9e4067e3978ad70218706f4945164"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"45b5b917f22b3ce4657e92078ab1e4c13bda07e7c2497a72f877acf95ead5941"}
 
 name: "Bot Detection"
 "on":
@@ -1080,7 +1080,7 @@ jobs:
     steps:
       - name: Precompute deterministic findings
         id: precompute
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           github-token: ${{ secrets.GH_AW_BOT_DETECTION_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

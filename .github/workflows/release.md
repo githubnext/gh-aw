@@ -51,7 +51,7 @@ jobs:
       
       - name: Compute release configuration
         id: compute_config
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const releaseType = context.payload.inputs.release_type;
@@ -172,7 +172,7 @@ jobs:
           echo "✓ Tag created: $RELEASE_TAG"
           
       - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5  # v6.2.0
         with:
           go-version-file: go.mod
           cache: false  # Disabled for release security - prevent cache poisoning attacks
