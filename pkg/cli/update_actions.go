@@ -36,8 +36,10 @@ func isCoreAction(repo string) bool {
 }
 
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
-// It checks each action for newer releases and updates the SHA if a newer version is found
-func UpdateActions(allowMajor, verbose bool) error {
+// It checks each action for newer releases and updates the SHA if a newer version is found.
+// By default all actions are updated to the latest major version; pass disableReleaseBump=true
+// to revert to the old behaviour where only core (actions/*) actions bypass the --major flag.
+func UpdateActions(allowMajor, verbose, disableReleaseBump bool) error {
 	updateLog.Print("Starting action updates")
 
 	if verbose {
@@ -77,8 +79,9 @@ func UpdateActions(allowMajor, verbose bool) error {
 	for key, entry := range actionsLock.Entries {
 		updateLog.Printf("Checking action: %s@%s", entry.Repo, entry.Version)
 
-		// Core actions (actions/*) always update to the latest major version
-		effectiveAllowMajor := allowMajor || isCoreAction(entry.Repo)
+		// By default all actions are force-updated to the latest major version.
+		// When disableReleaseBump is set, only core actions (actions/*) bypass the --major flag.
+		effectiveAllowMajor := !disableReleaseBump || allowMajor || isCoreAction(entry.Repo)
 
 		// Check for latest release
 		latestVersion, latestSHA, err := getLatestActionRelease(entry.Repo, entry.Version, effectiveAllowMajor, verbose)
@@ -467,10 +470,13 @@ func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
 	return []byte(buf.String()), nil
 }
 
-// actionRefPattern matches "uses: actions/repo@SHA-or-tag" in workflow files.
+// actionRefPattern matches "uses: org/repo@SHA-or-tag" in workflow files for any org.
+// Requires the org to start with an alphanumeric character and contain only alphanumeric,
+// hyphens, or underscores (no dots, matching GitHub's org naming rules) to exclude local
+// paths (e.g. "./..."). Repository names may additionally contain dots.
 // Captures: (1) indentation+uses prefix, (2) repo path, (3) SHA or version tag,
 // (4) optional version comment (e.g., "v6.0.2" from "# v6.0.2"), (5) trailing whitespace.
-var actionRefPattern = regexp.MustCompile(`(uses:\s+)(actions/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([a-fA-F0-9]{40}|[^\s#\n]+?)(\s*#\s*\S+)?(\s*)$`)
+var actionRefPattern = regexp.MustCompile(`(uses:\s+)([a-zA-Z0-9][a-zA-Z0-9_-]*/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([a-fA-F0-9]{40}|[^\s#\n]+?)(\s*#\s*\S+)?(\s*)$`)
 
 // getLatestActionReleaseFn is the function used to fetch the latest release for an action.
 // It can be replaced in tests to avoid network calls.
@@ -483,10 +489,11 @@ type latestReleaseResult struct {
 }
 
 // UpdateActionsInWorkflowFiles scans all workflow .md files under workflowsDir
-// (recursively) and updates any "uses: actions/*@version" references to the latest
-// major version. Updated files are recompiled. Core actions (actions/*) always update
-// to latest major.
-func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose bool) error {
+// (recursively) and updates any "uses: org/repo@version" references to the latest
+// major version. Updated files are recompiled. By default all actions are updated to
+// the latest major version; pass disableReleaseBump=true to only update core
+// (actions/*) references.
+func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose, disableReleaseBump bool) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -514,7 +521,7 @@ func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose b
 			return nil
 		}
 
-		updated, newContent, err := updateActionRefsInContent(string(content), cache, verbose)
+		updated, newContent, err := updateActionRefsInContent(string(content), cache, !disableReleaseBump, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
@@ -552,10 +559,13 @@ func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose b
 	return nil
 }
 
-// updateActionRefsInContent replaces outdated "uses: actions/*@version" references
+// updateActionRefsInContent replaces outdated "uses: org/repo@version" references
 // in content with the latest major version and SHA. Returns (changed, newContent, error).
 // cache is keyed by "repo@currentVersion" and avoids redundant API calls across lines/files.
-func updateActionRefsInContent(content string, cache map[string]latestReleaseResult, verbose bool) (bool, string, error) {
+// When allowMajor is true (the default), all matched actions are updated to the latest
+// major version. When allowMajor is false (--disable-release-bump), non-core (non
+// actions/*) action refs are skipped; core actions are always updated.
+func updateActionRefsInContent(content string, cache map[string]latestReleaseResult, allowMajor, verbose bool) (bool, string, error) {
 	changed := false
 	lines := strings.Split(content, "\n")
 
@@ -576,6 +586,12 @@ func updateActionRefsInContent(content string, cache map[string]latestReleaseRes
 		trailing := ""
 		if match[10] >= 0 {
 			trailing = line[match[10]:match[11]]
+		}
+
+		// When release bumps are disabled, skip non-core (non actions/*) action refs.
+		effectiveAllowMajor := allowMajor || isCoreAction(repo)
+		if !effectiveAllowMajor {
+			continue
 		}
 
 		// Determine the "current version" to pass to getLatestActionReleaseFn
@@ -600,7 +616,7 @@ func updateActionRefsInContent(content string, cache map[string]latestReleaseRes
 		cacheKey := repo + "|" + currentVersion
 		result, cached := cache[cacheKey]
 		if !cached {
-			latestVersion, latestSHA, err := getLatestActionReleaseFn(repo, currentVersion, true, verbose)
+			latestVersion, latestSHA, err := getLatestActionReleaseFn(repo, currentVersion, effectiveAllowMajor, verbose)
 			if err != nil {
 				updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
 				continue

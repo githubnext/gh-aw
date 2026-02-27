@@ -189,7 +189,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating GitHub Actions versions..."))
 		upgradeLog.Print("Updating GitHub Actions versions")
 
-		if err := UpdateActions(false, verbose); err != nil {
+		if err := UpdateActions(false, verbose, false); err != nil {
 			upgradeLog.Printf("Failed to update actions: %v", err)
 			// Don't fail the upgrade if action updates fail - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions: %v", err)))
