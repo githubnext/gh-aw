@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Precompute deterministic findings
         id: precompute
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GH_AW_BOT_DETECTION_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

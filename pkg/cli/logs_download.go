@@ -288,8 +288,8 @@ func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
 }
 
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
-func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error {
-	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s", runID, outputDir)
+func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
+	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
 
 	// Create a temporary file for the zip download
 	tmpZip := filepath.Join(os.TempDir(), fmt.Sprintf("workflow-logs-%d.zip", runID))
@@ -301,7 +301,19 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 
 	// Use gh api to download the logs zip file
 	// The endpoint returns a 302 redirect to the actual zip file
-	output, err := workflow.RunGH("Downloading workflow logs...", "api", "repos/{owner}/{repo}/actions/runs/"+strconv.FormatInt(runID, 10)+"/logs")
+	var endpoint string
+	if owner != "" && repo != "" {
+		endpoint = fmt.Sprintf("repos/%s/%s/actions/runs/%d/logs", owner, repo, runID)
+	} else {
+		endpoint = fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/logs", runID)
+	}
+
+	args := []string{"api", endpoint}
+	if hostname != "" && hostname != "github.com" {
+		args = append(args, "--hostname", hostname)
+	}
+
+	output, err := workflow.RunGH("Downloading workflow logs...", args...)
 	if err != nil {
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
@@ -469,8 +481,8 @@ func listArtifacts(outputDir string) ([]string, error) {
 }
 
 // downloadRunArtifacts downloads artifacts for a specific workflow run
-func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
-	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s", runID, outputDir)
+func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
+	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
 
 	// Check if artifacts already exist on disk (since they're immutable)
 	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
@@ -499,8 +511,18 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Created output directory "+outputDir))
 	}
 
+	// Build gh run download command with optional repo/hostname override for cross-repo and multi-host support
+	ghArgs := []string{"run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir}
+	if owner != "" && repo != "" {
+		if hostname != "" && hostname != "github.com" {
+			ghArgs = append(ghArgs, "-R", hostname+"/"+owner+"/"+repo)
+		} else {
+			ghArgs = append(ghArgs, "-R", owner+"/"+repo)
+		}
+	}
+
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh run download %s --dir %s", strconv.FormatInt(runID, 10), outputDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(ghArgs, " ")))
 	}
 
 	// Start spinner for network operation
@@ -509,7 +531,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		spinner.Start()
 	}
 
-	cmd := workflow.ExecGH("run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir)
+	cmd := workflow.ExecGH(ghArgs...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -560,7 +582,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	}
 
 	// Download and unzip workflow run logs
-	if err := downloadWorkflowRunLogs(runID, outputDir, verbose); err != nil {
+	if err := downloadWorkflowRunLogs(runID, outputDir, verbose, owner, repo, hostname); err != nil {
 		// Log the error but don't fail the entire download process
 		// Logs may not be available for all runs (e.g., expired or deleted)
 		if verbose {

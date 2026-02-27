@@ -402,7 +402,7 @@ jobs:
   my-job:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - name: Setup Workflow Scripts
         uses: ./actions/setup
@@ -491,7 +491,7 @@ actions-build:
   needs: [lint]
   runs-on: ubuntu-latest
   steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-go@v6
       with:
         go-version-file: go.mod
@@ -745,7 +745,7 @@ Script mode implements direct shell script execution instead of using GitHub Act
 **Checkout Step** (`generateCheckoutActionsFolder`):
 ```yaml
 - name: Checkout actions folder
-  uses: actions/checkout@v5
+  uses: actions/checkout@v6
   with:
     repository: github/gh-aw
     sparse-checkout: |
@@ -842,7 +842,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             actions
@@ -867,7 +867,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: github/gh-aw
           sparse-checkout: |

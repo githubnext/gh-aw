@@ -632,7 +632,7 @@ jobs:
   super_linter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run Super-Linter
         uses: super-linter/super-linter@v7
         env:

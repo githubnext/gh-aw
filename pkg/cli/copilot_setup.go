@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install gh-aw extension
         uses: github/gh-aw/actions/setup-cli%s
         with:
@@ -257,7 +257,7 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 
 	if actionMode.IsRelease() {
 		fmt.Fprintln(os.Stderr, "      - name: Checkout repository")
-		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v4")
+		fmt.Fprintln(os.Stderr, "        uses: actions/checkout@v6")
 		fmt.Fprintf(os.Stderr, "      - name: Install gh-aw extension\n")
 		fmt.Fprintf(os.Stderr, "        uses: github/gh-aw/actions/setup-cli%s\n", actionRef)
 		fmt.Fprintln(os.Stderr, "        with:")
@@ -327,7 +327,7 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 		// In release mode, use the actions/setup-cli action
 		checkoutStep = CopilotWorkflowStep{
 			Name: "Checkout repository",
-			Uses: "actions/checkout@v4",
+			Uses: "actions/checkout@v6",
 		}
 		installStep = CopilotWorkflowStep{
 			Name: "Install gh-aw extension",

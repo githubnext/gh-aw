@@ -281,7 +281,7 @@ Supply chain attacks target dependencies in CI/CD pipelines. Secure your workflo
 ```yaml
 # VULNERABLE: Tags and branches can be changed
 steps:
-  - uses: actions/checkout@v5           # Tag can be moved
+  - uses: actions/checkout@v6           # Tag can be moved
   - uses: actions/setup-node@main       # Branch can be updated
   - uses: thirdparty/action@latest      # Always points to latest
 ```
@@ -819,7 +819,7 @@ finding: artipacked
 #### poutine Output
 ```yaml
 [CRITICAL] Unpinned action at .github/workflows/ci.yml:10
-  - uses: actions/checkout@v5
+  - uses: actions/checkout@v6
   - Recommendation: Pin to SHA
 ```
 

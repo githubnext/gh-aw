@@ -925,7 +925,7 @@ func TestAuditCachingBehavior(t *testing.T) {
 	// Verify that downloadRunArtifacts skips download when valid summary exists
 	// This is tested by checking that the function returns without error
 	// and doesn't attempt to call `gh run download`
-	err := downloadRunArtifacts(run.DatabaseID, runOutputDir, false)
+	err := downloadRunArtifacts(run.DatabaseID, runOutputDir, false, "", "", "")
 	if err != nil {
 		t.Errorf("downloadRunArtifacts should skip download when valid summary exists, but got error: %v", err)
 	}

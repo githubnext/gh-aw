@@ -228,7 +228,7 @@ func TestExtractStepsFromCopilotSetup_AddsCheckoutIfMissing(t *testing.T) {
 
 	// Verify checkout step was added
 	assert.Contains(t, stepsYAML, "Checkout code", "Should contain added checkout step")
-	assert.Contains(t, stepsYAML, "actions/checkout@v4", "Should contain checkout action")
+	assert.Contains(t, stepsYAML, "actions/checkout@v6", "Should contain checkout action")
 
 	// Verify checkout step is first
 	lines := strings.Split(stepsYAML, "\n")

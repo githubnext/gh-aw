@@ -197,7 +197,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 
 		// Download artifacts for the run
 		auditLog.Printf("Downloading artifacts for run %d", runID)
-		err := downloadRunArtifacts(runID, runOutputDir, verbose)
+		err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname)
 		if err != nil {
 			// Gracefully handle cases where the run legitimately has no artifacts
 			if errors.Is(err, ErrNoArtifacts) {

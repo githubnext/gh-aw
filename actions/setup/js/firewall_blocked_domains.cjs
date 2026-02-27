@@ -193,6 +193,19 @@ function generateBlockedDomainsSection(blockedDomains) {
   }
 
   section += `>\n`;
+  section += `> To allow these domains, add them to the \`network.allowed\` list in your workflow frontmatter:\n`;
+  section += `>\n`;
+  section += `> \`\`\`yaml\n`;
+  section += `> network:\n`;
+  section += `>   allowed:\n`;
+  section += `>     - defaults\n`;
+  for (const domain of blockedDomains) {
+    section += `>     - "${domain}"\n`;
+  }
+  section += `> \`\`\`\n`;
+  section += `>\n`;
+  section += `> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.\n`;
+  section += `>\n`;
   section += `> </details>\n`;
 
   return section;

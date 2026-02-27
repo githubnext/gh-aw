@@ -29,7 +29,7 @@ tools:
     - "mv *"
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v5
+    uses: actions/checkout@v6
 
   - name: Setup Node.js
     uses: actions/setup-node@v6

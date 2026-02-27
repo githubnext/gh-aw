@@ -46,14 +46,14 @@ steps:
       done
   
   - name: Setup Node.js
-    uses: actions/setup-node@v6
+    uses: actions/setup-node@v6.2.0
     with:
       node-version: "24"
       cache: npm
       cache-dependency-path: actions/setup/js/package-lock.json
   
   - name: Setup Go
-    uses: actions/setup-go@v6
+    uses: actions/setup-go@v6.3.0
     with:
       go-version-file: go.mod
       cache: true

@@ -168,12 +168,12 @@ engine:
 
 steps:
   - name: Checkout main repo
-    uses: actions/checkout@v5
+    uses: actions/checkout@v6
     with:
       path: main-repo
 
   - name: Checkout secondary repo
-    uses: actions/checkout@v5
+    uses: actions/checkout@v6
     with:
       repository: org/secondary-repo
       token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}

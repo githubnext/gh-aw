@@ -45,7 +45,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer := createRenderer(isLast)
 				renderer.RenderSerenaMCP(yaml, serenaTool)
 			},
-			RenderCacheMemory: e.renderCacheMemoryMCPConfig,
+			RenderCacheMemory: noOpCacheMemoryRenderer,
 			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
 				renderer := createRenderer(isLast)
 				renderer.RenderAgenticWorkflowsMCP(yaml)
@@ -72,13 +72,4 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 // This version includes workflowData to determine if localhost URLs should be rewritten
 func (e *ClaudeEngine) renderClaudeMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
 	return renderCustomMCPConfigWrapperWithContext(yaml, toolName, toolConfig, isLast, workflowData)
-}
-
-// renderCacheMemoryMCPConfig handles cache-memory configuration without MCP server mounting
-// Cache-memory is now a simple file share, not an MCP server
-func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	// Cache-memory no longer uses MCP server mounting
-	// The cache folder is available as a simple file share at /tmp/gh-aw/cache-memory/
-	// The folder is created by the cache step and is accessible to all tools
-	// No MCP configuration is needed for simple file access
 }

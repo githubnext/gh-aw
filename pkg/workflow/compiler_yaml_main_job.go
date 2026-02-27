@@ -276,36 +276,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
-	if copilotEngine, ok := engine.(*CopilotEngine); ok {
-		collectionSteps := copilotEngine.GetFirewallLogsCollectionStep(data)
-		for _, step := range collectionSteps {
-			for _, line := range step {
-				yaml.WriteString(line + "\n")
-			}
-		}
-	}
-	if codexEngine, ok := engine.(*CodexEngine); ok {
-		collectionSteps := codexEngine.GetFirewallLogsCollectionStep(data)
-		for _, step := range collectionSteps {
-			for _, line := range step {
-				yaml.WriteString(line + "\n")
-			}
-		}
-	}
-	if claudeEngine, ok := engine.(*ClaudeEngine); ok {
-		collectionSteps := claudeEngine.GetFirewallLogsCollectionStep(data)
-		for _, step := range collectionSteps {
-			for _, line := range step {
-				yaml.WriteString(line + "\n")
-			}
-		}
-	}
-	if codexEngine, ok := engine.(*CodexEngine); ok {
-		collectionSteps := codexEngine.GetFirewallLogsCollectionStep(data)
-		for _, step := range collectionSteps {
-			for _, line := range step {
-				yaml.WriteString(line + "\n")
-			}
+	for _, step := range engine.GetFirewallLogsCollectionStep(data) {
+		for _, line := range step {
+			yaml.WriteString(line + "\n")
 		}
 	}
 

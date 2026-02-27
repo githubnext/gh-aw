@@ -9,6 +9,9 @@ jobs:
   call-smoke-workflow-call:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'smoke-workflow-call'
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
+    secrets: inherit
     permissions:
       contents: read
+      discussions: write
+      issues: write
       pull-requests: write

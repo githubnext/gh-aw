@@ -352,23 +352,7 @@ func (e *CodexEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) 
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *CodexEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	// Only add upload and parsing steps if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		codexEngineLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
-
-		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
-		steps = append(steps, squidLogsUpload)
-
-		// Add firewall log parsing step to create step summary
-		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
-		steps = append(steps, firewallLogParsing)
-	} else {
-		codexEngineLog.Print("Firewall disabled, skipping Squid logs upload")
-	}
-
-	return steps
+	return defaultGetSquidLogsSteps(workflowData, codexEngineLog)
 }
 
 // expandNeutralToolsToCodexTools converts neutral tools to Codex-specific tools format
