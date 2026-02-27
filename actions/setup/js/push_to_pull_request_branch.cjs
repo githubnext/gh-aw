@@ -9,8 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
-const { resolveTargetRepoConfig, resolveAndValidateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
-const { getBaseBranch } = require("./get_base_branch.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -38,23 +37,16 @@ async function main(config = {}) {
   // This allows pushing to PRs in a different repository than the workflow
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
-  // Parse default target repo for use in base branch resolution
-  // This is needed for cross-repo scenarios where the base branch API call
-  // should target the configured repo, not context.repo
-  const defaultTargetRepoParts = parseRepoSlug(defaultTargetRepo);
-
-  // Resolve base branch: use config value if set, otherwise resolve dynamically
-  // Dynamic resolution is needed for issue_comment events on PRs where the base branch
-  // is not available in GitHub Actions expressions and requires an API call
-  // Pass target repo for cross-repo scenarios
-  const baseBranch = config.base_branch || (await getBaseBranch(defaultTargetRepoParts));
+  // Base branch from config (if set) - used only for logging at factory level
+  // Dynamic base branch resolution happens per-message after resolving the actual target repo
+  const configBaseBranch = config.base_branch || null;
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Target: ${target}`);
-  if (baseBranch) {
-    core.info(`Base branch: ${baseBranch}`);
+  if (configBaseBranch) {
+    core.info(`Base branch (from config): ${configBaseBranch}`);
   }
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);

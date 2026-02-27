@@ -13,7 +13,7 @@ const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
-const { resolveTargetRepoConfig, parseRepoSlug } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -192,11 +192,32 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const createPullRequestHandler = async args => {
     const entry = { ...args, type: "create_pull_request" };
 
-    // Resolve target repo for base branch resolution (cross-repo scenarios)
+    // Resolve target repo configuration and validate the target repo early
+    // This is needed before getBaseBranch to ensure we resolve the base branch
+    // for the correct repository (especially in cross-repo scenarios)
     const prConfig = config.create_pull_request || {};
-    const { defaultTargetRepo } = resolveTargetRepoConfig(prConfig);
-    const targetRepoParts = parseRepoSlug(defaultTargetRepo);
-    const baseBranch = await getBaseBranch(targetRepoParts);
+    const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(prConfig);
+
+    // Resolve and validate the target repository from the entry
+    const repoResult = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "pull request");
+    if (!repoResult.success) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: repoResult.error,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    const { repoParts } = repoResult;
+
+    // Get base branch for the resolved target repository
+    const baseBranch = await getBaseBranch(repoParts);
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -294,11 +315,32 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const pushToPullRequestBranchHandler = async args => {
     const entry = { ...args, type: "push_to_pull_request_branch" };
 
-    // Resolve target repo for base branch resolution (cross-repo scenarios)
+    // Resolve target repo configuration and validate the target repo early
+    // This is needed before getBaseBranch to ensure we resolve the base branch
+    // for the correct repository (especially in cross-repo scenarios)
     const pushConfig = config.push_to_pull_request_branch || {};
-    const { defaultTargetRepo } = resolveTargetRepoConfig(pushConfig);
-    const targetRepoParts = parseRepoSlug(defaultTargetRepo);
-    const baseBranch = await getBaseBranch(targetRepoParts);
+    const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(pushConfig);
+
+    // Resolve and validate the target repository from the entry
+    const repoResult = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "push to PR branch");
+    if (!repoResult.success) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: repoResult.error,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    const { repoParts } = repoResult;
+
+    // Get base branch for the resolved target repository
+    const baseBranch = await getBaseBranch(repoParts);
 
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
