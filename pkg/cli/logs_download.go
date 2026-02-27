@@ -305,7 +305,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool, owner,
 	if owner != "" && repo != "" {
 		endpoint = fmt.Sprintf("repos/%s/%s/actions/runs/%d/logs", owner, repo, runID)
 	} else {
-		endpoint = "repos/{owner}/{repo}/actions/runs/" + strconv.FormatInt(runID, 10) + "/logs"
+		endpoint = fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/logs", runID)
 	}
 
 	args := []string{"api", endpoint}

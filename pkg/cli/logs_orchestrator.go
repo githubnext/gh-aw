@@ -541,6 +541,16 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// Get configured max concurrent downloads (default or from environment variable)
 	maxConcurrent := getMaxConcurrentDownloads()
 
+	// Parse repoOverride into owner/repo once for cross-repo artifact download
+	var dlOwner, dlRepo string
+	if repoOverride != "" {
+		parts := strings.SplitN(repoOverride, "/", 2)
+		if len(parts) == 2 {
+			dlOwner = parts[0]
+			dlRepo = parts[1]
+		}
+	}
+
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
 	// WithContext enables graceful cancellation via Ctrl+C.
@@ -598,15 +608,6 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			}
 
 			// No cached summary or version mismatch - download and process
-			// Parse repoOverride into owner/repo for cross-repo artifact download
-			var dlOwner, dlRepo string
-			if repoOverride != "" {
-				parts := strings.SplitN(repoOverride, "/", 2)
-				if len(parts) == 2 {
-					dlOwner = parts[0]
-					dlRepo = parts[1]
-				}
-			}
 			err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose, dlOwner, dlRepo, "")
 
 			result := DownloadResult{
