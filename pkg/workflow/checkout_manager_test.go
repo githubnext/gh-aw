@@ -449,3 +449,65 @@ func TestGetCurrentCheckoutRepository(t *testing.T) {
 		assert.Empty(t, getCurrentCheckoutRepository(configs), "current without repository should return empty string")
 	})
 }
+
+// TestBuildCheckoutsPromptContent verifies the prompt content generation for the checkout list.
+func TestBuildCheckoutsPromptContent(t *testing.T) {
+	t.Run("nil slice returns empty string", func(t *testing.T) {
+		assert.Empty(t, buildCheckoutsPromptContent(nil), "nil should return empty string")
+	})
+
+	t.Run("empty slice returns empty string", func(t *testing.T) {
+		assert.Empty(t, buildCheckoutsPromptContent([]*CheckoutConfig{}), "empty slice should return empty string")
+	})
+
+	t.Run("default checkout with no repo uses github.repository expression", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{},
+		})
+		assert.Contains(t, content, "`.`", "should show '.' path for empty path")
+		assert.Contains(t, content, "${{ github.repository }}", "should reference github.repository expression for default checkout")
+	})
+
+	t.Run("path dot treated same as empty path", func(t *testing.T) {
+		emptyContent := buildCheckoutsPromptContent([]*CheckoutConfig{{Path: ""}})
+		dotContent := buildCheckoutsPromptContent([]*CheckoutConfig{{Path: "."}})
+		assert.Equal(t, emptyContent, dotContent, "empty path and '.' should produce identical output")
+	})
+
+	t.Run("checkout with explicit repo shows repo", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/target", Path: "./target"},
+		})
+		assert.Contains(t, content, "./target", "should show the configured path")
+		assert.Contains(t, content, "owner/target", "should show the configured repo")
+		assert.NotContains(t, content, "github.repository", "should not include github.repository expression for explicit repo")
+	})
+
+	t.Run("current checkout is marked", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/target", Path: "./target", Current: true},
+		})
+		assert.Contains(t, content, "**current**", "current checkout should be marked")
+		assert.Contains(t, content, "this is the repository you are working on", "current checkout should have instructions")
+	})
+
+	t.Run("non-current checkout is not marked", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/libs", Path: "./libs"},
+		})
+		assert.NotContains(t, content, "**current**", "non-current checkout should not be marked")
+	})
+
+	t.Run("multiple checkouts all listed", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Path: "."},
+			{Repository: "owner/target", Path: "./target", Current: true},
+			{Repository: "owner/libs", Path: "./libs"},
+		})
+		assert.Contains(t, content, "./target", "should include target checkout")
+		assert.Contains(t, content, "owner/target", "should include target repo")
+		assert.Contains(t, content, "./libs", "should include libs checkout")
+		assert.Contains(t, content, "owner/libs", "should include libs repo")
+		assert.Contains(t, content, "**current**", "current checkout should be marked")
+	})
+}

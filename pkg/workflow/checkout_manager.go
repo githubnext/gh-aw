@@ -546,3 +546,46 @@ func getCurrentCheckoutRepository(checkouts []*CheckoutConfig) string {
 	}
 	return ""
 }
+
+// buildCheckoutsPromptContent returns a markdown bullet list describing all user-configured
+// checkouts for inclusion in the GitHub context prompt.
+// Returns an empty string when no checkouts are configured.
+//
+// The generated content may include "${{ github.repository }}" for any checkout that does
+// not have an explicit repository configured (defaulting to the triggering repository).
+// Callers must ensure these expressions are processed by an ExpressionExtractor so the
+// placeholder substitution step can resolve them at runtime.
+func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
+	if len(checkouts) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("- **checkouts**: The following repositories have been checked out and are available in the workspace:\n")
+
+	for _, cfg := range checkouts {
+		if cfg == nil {
+			continue
+		}
+
+		// Determine human-readable path label
+		path := cfg.Path
+		if path == "" {
+			path = "."
+		}
+
+		// Determine repo: use configured value or fall back to the triggering repository expression
+		repo := cfg.Repository
+		if repo == "" {
+			repo = "${{ github.repository }}"
+		}
+
+		line := fmt.Sprintf("  - `%s` → `%s`", path, repo)
+		if cfg.Current {
+			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
+		}
+		sb.WriteString(line + "\n")
+	}
+
+	return sb.String()
+}

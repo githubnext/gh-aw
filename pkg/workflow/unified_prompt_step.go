@@ -297,29 +297,27 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 8. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
-		// Extract expressions from GitHub context prompt
-		extractor := NewExpressionExtractor()
-		expressionMappings, err := extractor.ExtractExpressions(githubContextPromptText)
-		if err == nil && len(expressionMappings) > 0 {
-			// Replace expressions with environment variable references
-			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(githubContextPromptText)
 
-			// If a checkout is marked as current and has a non-default repository,
-			// inject it into the GitHub context so the agent knows its primary target.
-			if currentRepo := getCurrentCheckoutRepository(data.CheckoutConfigs); currentRepo != "" {
-				unifiedPromptLog.Printf("Injecting current-repository into GitHub context: %s", currentRepo)
-				currentRepoLine := "- **current-repository**: " + currentRepo +
-					" (this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
-				// Append the current-repository line before the closing </github-context> tag.
-				// We build the insertion safely by finding the tag boundary.
-				const closeTag = "</github-context>"
-				if idx := strings.LastIndex(modifiedPromptText, closeTag); idx >= 0 {
-					modifiedPromptText = modifiedPromptText[:idx] + currentRepoLine + "\n" + modifiedPromptText[idx:]
-				} else {
-					// Closing tag not found — append at the end as a safe fallback.
-					modifiedPromptText += "\n" + currentRepoLine + "\n"
-				}
+		// Build the combined prompt text: base github context + optional checkout list.
+		// The checkout list may contain ${{ github.repository }} which must go through
+		// the expression extractor so the placeholder substitution step can resolve it.
+		combinedPromptText := githubContextPromptText
+		if checkoutsContent := buildCheckoutsPromptContent(data.CheckoutConfigs); checkoutsContent != "" {
+			unifiedPromptLog.Printf("Injecting checkout list into GitHub context (%d checkouts)", len(data.CheckoutConfigs))
+			const closeTag = "</github-context>"
+			if idx := strings.LastIndex(combinedPromptText, closeTag); idx >= 0 {
+				combinedPromptText = combinedPromptText[:idx] + checkoutsContent + combinedPromptText[idx:]
+			} else {
+				combinedPromptText += "\n" + checkoutsContent
 			}
+		}
+
+		// Extract expressions from the combined content (includes any new expressions
+		// introduced by the checkout list, e.g. ${{ github.repository }}).
+		extractor := NewExpressionExtractor()
+		expressionMappings, err := extractor.ExtractExpressions(combinedPromptText)
+		if err == nil && len(expressionMappings) > 0 {
+			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(combinedPromptText)
 
 			// Build environment variables map
 			envVars := make(map[string]string)
