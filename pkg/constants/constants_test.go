@@ -456,14 +456,6 @@ func TestSemanticTypeAliases(t *testing.T) {
 		if string(testWorkflow) != "ci-doctor" {
 			t.Errorf("WorkflowID conversion failed: got %q, want %q", testWorkflow, "ci-doctor")
 		}
-
-		// Test that WorkflowID can hold typical workflow identifiers
-		workflows := []WorkflowID{"ci-doctor", "deploy-prod", "test-workflow"}
-		for i, wf := range workflows {
-			if !wf.IsValid() {
-				t.Errorf("WorkflowID[%d] should be valid: %q", i, wf)
-			}
-		}
 	})
 
 	// Test EngineName type
@@ -528,26 +520,6 @@ func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
 
 // TestHelperMethods tests the helper methods on semantic types
 func TestHelperMethods(t *testing.T) {
-	t.Run("LineLength", func(t *testing.T) {
-		length := LineLength(120)
-		if length.String() != "120" {
-			t.Errorf("LineLength.String() = %q, want %q", length.String(), "120")
-		}
-		if !length.IsValid() {
-			t.Error("LineLength.IsValid() = false, want true for positive value")
-		}
-
-		invalidLength := LineLength(0)
-		if invalidLength.IsValid() {
-			t.Error("LineLength.IsValid() = true, want false for zero value")
-		}
-
-		negativeLength := LineLength(-1)
-		if negativeLength.IsValid() {
-			t.Error("LineLength.IsValid() = true, want false for negative value")
-		}
-	})
-
 	t.Run("Version", func(t *testing.T) {
 		version := Version("1.0.0")
 		if version.String() != "1.0.0" {
@@ -560,51 +532,6 @@ func TestHelperMethods(t *testing.T) {
 		emptyVersion := Version("")
 		if emptyVersion.IsValid() {
 			t.Error("Version.IsValid() = true, want false for empty value")
-		}
-	})
-
-	t.Run("FeatureFlag", func(t *testing.T) {
-		flag := FeatureFlag("test-flag")
-		if flag.String() != "test-flag" {
-			t.Errorf("FeatureFlag.String() = %q, want %q", flag.String(), "test-flag")
-		}
-		if !flag.IsValid() {
-			t.Error("FeatureFlag.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyFlag := FeatureFlag("")
-		if emptyFlag.IsValid() {
-			t.Error("FeatureFlag.IsValid() = true, want false for empty value")
-		}
-	})
-
-	t.Run("URL", func(t *testing.T) {
-		url := URL("https://example.com")
-		if url.String() != "https://example.com" {
-			t.Errorf("URL.String() = %q, want %q", url.String(), "https://example.com")
-		}
-		if !url.IsValid() {
-			t.Error("URL.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyURL := URL("")
-		if emptyURL.IsValid() {
-			t.Error("URL.IsValid() = true, want false for empty value")
-		}
-	})
-
-	t.Run("ModelName", func(t *testing.T) {
-		model := ModelName("gpt-5-mini")
-		if model.String() != "gpt-5-mini" {
-			t.Errorf("ModelName.String() = %q, want %q", model.String(), "gpt-5-mini")
-		}
-		if !model.IsValid() {
-			t.Error("ModelName.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyModel := ModelName("")
-		if emptyModel.IsValid() {
-			t.Error("ModelName.IsValid() = true, want false for empty value")
 		}
 	})
 
@@ -653,35 +580,6 @@ func TestHelperMethods(t *testing.T) {
 		}
 	})
 
-	t.Run("WorkflowID", func(t *testing.T) {
-		workflow := WorkflowID("ci-doctor")
-		if workflow.String() != "ci-doctor" {
-			t.Errorf("WorkflowID.String() = %q, want %q", workflow.String(), "ci-doctor")
-		}
-		if !workflow.IsValid() {
-			t.Error("WorkflowID.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyWorkflow := WorkflowID("")
-		if emptyWorkflow.IsValid() {
-			t.Error("WorkflowID.IsValid() = true, want false for empty value")
-		}
-	})
-
-	t.Run("EngineName", func(t *testing.T) {
-		engine := EngineName("copilot")
-		if engine.String() != "copilot" {
-			t.Errorf("EngineName.String() = %q, want %q", engine.String(), "copilot")
-		}
-		if !engine.IsValid() {
-			t.Error("EngineName.IsValid() = false, want true for non-empty value")
-		}
-
-		emptyEngine := EngineName("")
-		if emptyEngine.IsValid() {
-			t.Error("EngineName.IsValid() = true, want false for empty value")
-		}
-	})
 }
 
 func TestGetAllEngineSecretNames(t *testing.T) {

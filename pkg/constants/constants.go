@@ -1,7 +1,6 @@
 package constants
 
 import (
-	"fmt"
 	"path/filepath"
 	"time"
 )
@@ -34,16 +33,6 @@ const CLIExtensionPrefix CommandPrefix = "gh aw"
 //	}
 type LineLength int
 
-// String returns the string representation of the line length
-func (l LineLength) String() string {
-	return fmt.Sprintf("%d", l)
-}
-
-// IsValid returns true if the line length is positive
-func (l LineLength) IsValid() bool {
-	return l > 0
-}
-
 // Version represents a software version string.
 // This semantic type distinguishes version strings from arbitrary strings,
 // enabling future validation logic (e.g., semver parsing) and making
@@ -75,16 +64,6 @@ func (v Version) IsValid() bool {
 //	func IsFeatureEnabled(flag FeatureFlag) bool { ... }
 type FeatureFlag string
 
-// String returns the string representation of the feature flag
-func (f FeatureFlag) String() string {
-	return string(f)
-}
-
-// IsValid returns true if the feature flag is non-empty
-func (f FeatureFlag) IsValid() bool {
-	return len(f) > 0
-}
-
 // URL represents a URL string.
 // This semantic type distinguishes URLs from arbitrary strings,
 // making URL parameters explicit and enabling future validation logic.
@@ -95,16 +74,6 @@ func (f FeatureFlag) IsValid() bool {
 //	func FetchFromRegistry(url URL) error { ... }
 type URL string
 
-// String returns the string representation of the URL
-func (u URL) String() string {
-	return string(u)
-}
-
-// IsValid returns true if the URL is non-empty
-func (u URL) IsValid() bool {
-	return len(u) > 0
-}
-
 // ModelName represents an AI model name identifier.
 // This semantic type distinguishes model names from arbitrary strings,
 // making model selection explicit in function signatures.
@@ -114,16 +83,6 @@ func (u URL) IsValid() bool {
 //	const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
 //	func ExecuteWithModel(model ModelName) error { ... }
 type ModelName string
-
-// String returns the string representation of the model name
-func (m ModelName) String() string {
-	return string(m)
-}
-
-// IsValid returns true if the model name is non-empty
-func (m ModelName) IsValid() bool {
-	return len(m) > 0
-}
 
 // JobName represents a GitHub Actions job identifier.
 // This semantic type distinguishes job names from arbitrary strings,
@@ -195,16 +154,6 @@ func (c CommandPrefix) IsValid() bool {
 //	func CompileWorkflow(id WorkflowID) error { ... }
 type WorkflowID string
 
-// String returns the string representation of the workflow ID
-func (w WorkflowID) String() string {
-	return string(w)
-}
-
-// IsValid returns true if the workflow ID is non-empty
-func (w WorkflowID) IsValid() bool {
-	return len(w) > 0
-}
-
 // EngineName represents an AI engine name identifier (copilot, claude, codex, custom).
 // This semantic type distinguishes engine names from arbitrary strings,
 // making engine selection explicit and type-safe.
@@ -214,16 +163,6 @@ func (w WorkflowID) IsValid() bool {
 //	const CopilotEngine EngineName = "copilot"
 //	func SetEngine(engine EngineName) error { ... }
 type EngineName string
-
-// String returns the string representation of the engine name
-func (e EngineName) String() string {
-	return string(e)
-}
-
-// IsValid returns true if the engine name is non-empty
-func (e EngineName) IsValid() bool {
-	return len(e) > 0
-}
 
 // DocURL represents a documentation URL for error messages and help text.
 // This semantic type distinguishes documentation URLs from arbitrary URLs,
@@ -664,11 +603,6 @@ type MCPServerID string
 // String returns the string representation of the MCP server ID
 func (m MCPServerID) String() string {
 	return string(m)
-}
-
-// IsValid returns true if the MCP server ID is non-empty
-func (m MCPServerID) IsValid() bool {
-	return len(m) > 0
 }
 
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
