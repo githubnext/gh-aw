@@ -163,7 +163,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             } else {
               // No remote refs available - fall through to Strategy 2
               debugLog(`Strategy 1 (full): No remote refs available, falling through to Strategy 2`);
-              throw new Error("No remote refs available for merge-base calculation");
+              throw new Error("E005: No remote refs available for merge-base calculation");
             }
           }
         }
