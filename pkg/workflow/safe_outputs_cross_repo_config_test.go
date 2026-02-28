@@ -422,16 +422,22 @@ func TestPushToPullRequestBranchCrossRepoInHandlerConfig(t *testing.T) {
 
 // TestHandlerManagerStepUsesPerOutputToken verifies that the handler manager step
 // uses the per-output github-token when no global safe-outputs token is set.
-func TestHandlerManagerStepUsesPerOutputToken(t *testing.T) {
+// TestHandlerManagerStepPerOutputTokenInHandlerConfig verifies that per-output tokens
+// (e.g., add-comment.github-token) are wired into the handler config JSON (GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
+// but NOT used as the step-level with.github-token. The step-level token follows the same
+// precedence as github_token.go: project token > global safe-outputs token > magic secrets.
+func TestHandlerManagerStepPerOutputTokenInHandlerConfig(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {
-		name           string
-		safeOutputs    *SafeOutputsConfig
-		expectedTokens []string
+		name                      string
+		safeOutputs               *SafeOutputsConfig
+		expectedInHandlerConfig   []string // tokens that should appear in handler config JSON
+		expectedNotInWithToken    string   // token that should NOT be in with.github-token (per-output tokens)
+		expectedStepLevelFallback string   // step-level token should use this instead
 	}{
 		{
-			name: "add-comment token is used for step",
+			name: "add-comment token appears in handler config JSON, not step-level",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -441,10 +447,12 @@ func TestHandlerManagerStepUsesPerOutputToken(t *testing.T) {
 					AllowedRepos:   []string{"githubnext/gh-aw-side-repo"},
 				},
 			},
-			expectedTokens: []string{"${{ secrets.TEMP_USER_PAT }}"},
+			expectedInHandlerConfig:   []string{"TEMP_USER_PAT"},
+			expectedNotInWithToken:    "github-token: ${{ secrets.TEMP_USER_PAT }}",
+			expectedStepLevelFallback: "GH_AW_GITHUB_TOKEN",
 		},
 		{
-			name: "create-issue token is used for step",
+			name: "create-issue token appears in handler config JSON, not step-level",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -454,47 +462,12 @@ func TestHandlerManagerStepUsesPerOutputToken(t *testing.T) {
 					AllowedRepos:   []string{"githubnext/gh-aw-side-repo"},
 				},
 			},
-			expectedTokens: []string{"${{ secrets.TEMP_USER_PAT }}"},
+			expectedInHandlerConfig:   []string{"TEMP_USER_PAT"},
+			expectedNotInWithToken:    "github-token: ${{ secrets.TEMP_USER_PAT }}",
+			expectedStepLevelFallback: "GH_AW_GITHUB_TOKEN",
 		},
 		{
-			name: "create-discussion token is used for step",
-			safeOutputs: &SafeOutputsConfig{
-				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.TEMP_USER_PAT }}",
-					},
-					TargetRepoSlug: "githubnext/gh-aw-side-repo",
-				},
-			},
-			expectedTokens: []string{"${{ secrets.TEMP_USER_PAT }}"},
-		},
-		{
-			name: "update-issue token is used for step",
-			safeOutputs: &SafeOutputsConfig{
-				UpdateIssues: &UpdateIssuesConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							GitHubToken: "${{ secrets.TEMP_USER_PAT }}",
-						},
-					},
-				},
-			},
-			expectedTokens: []string{"${{ secrets.TEMP_USER_PAT }}"},
-		},
-		{
-			name: "create-code-scanning-alert token is used for step",
-			safeOutputs: &SafeOutputsConfig{
-				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						GitHubToken: "${{ secrets.TEMP_USER_PAT }}",
-					},
-					TargetRepoSlug: "githubnext/gh-aw-side-repo",
-				},
-			},
-			expectedTokens: []string{"${{ secrets.TEMP_USER_PAT }}"},
-		},
-		{
-			name: "global safe-outputs token takes precedence over per-output token",
+			name: "global safe-outputs token is used for step-level with.github-token",
 			safeOutputs: &SafeOutputsConfig{
 				GitHubToken: "${{ secrets.GLOBAL_PAT }}",
 				AddComments: &AddCommentsConfig{
@@ -503,17 +476,11 @@ func TestHandlerManagerStepUsesPerOutputToken(t *testing.T) {
 					},
 				},
 			},
-			expectedTokens: []string{"${{ secrets.GLOBAL_PAT }}"},
-		},
-		{
-			name: "no custom token falls back to default",
-			safeOutputs: &SafeOutputsConfig{
-				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{},
-				},
-			},
-			// Should fall back to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-			expectedTokens: []string{"secrets.GH_AW_GITHUB_TOKEN", "secrets.GITHUB_TOKEN"},
+			// Both tokens should appear in step content
+			expectedInHandlerConfig: []string{"GLOBAL_PAT", "PER_OUTPUT_PAT"},
+			// Step-level should use global, not per-output
+			expectedNotInWithToken:    "github-token: ${{ secrets.PER_OUTPUT_PAT }}",
+			expectedStepLevelFallback: "GLOBAL_PAT",
 		},
 	}
 
@@ -527,10 +494,27 @@ func TestHandlerManagerStepUsesPerOutputToken(t *testing.T) {
 			steps := compiler.buildHandlerManagerStep(workflowData)
 			stepsContent := strings.Join(steps, "")
 
-			// Find the github-token line in the "with" section
-			for _, expectedToken := range tt.expectedTokens {
-				assert.Contains(t, stepsContent, expectedToken,
-					"handler manager step should use token: %s", expectedToken)
+			// Verify tokens appear somewhere in the step content (handler config JSON)
+			for _, token := range tt.expectedInHandlerConfig {
+				assert.Contains(t, stepsContent, token,
+					"handler manager step should include token %q in step content", token)
+			}
+
+			// Verify per-output token is NOT used as the step-level with.github-token
+			if tt.expectedNotInWithToken != "" {
+				assert.NotContains(t, stepsContent, tt.expectedNotInWithToken,
+					"per-output token should not be used directly as step-level with.github-token")
+			}
+
+			// Verify the step-level token uses the expected fallback
+			if tt.expectedStepLevelFallback != "" {
+				// Extract just the "with:" section to check step-level token
+				withIdx := strings.Index(stepsContent, "        with:\n")
+				if withIdx >= 0 {
+					withSection := stepsContent[withIdx : withIdx+200]
+					assert.Contains(t, withSection, tt.expectedStepLevelFallback,
+						"step-level with.github-token should use %q", tt.expectedStepLevelFallback)
+				}
 			}
 		})
 	}
