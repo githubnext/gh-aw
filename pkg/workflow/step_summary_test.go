@@ -239,24 +239,17 @@ This workflow tests the workflow overview for Claude engine.
 				t.Error("Expected 'Generate agentic run info' step")
 			}
 
-			// Verify that the "Generate workflow overview" step exists
-			if !strings.Contains(lockContent, "- name: Generate workflow overview") {
-				t.Error("Expected 'Generate workflow overview' step")
+			// Verify workflow overview is merged into the generate_aw_info step (no separate step)
+			if strings.Contains(lockContent, "- name: Generate workflow overview") {
+				t.Error("Expected no separate 'Generate workflow overview' step (should be merged into 'Generate agentic run info')")
 			}
 
-			// Verify "Generate agentic run info" runs BEFORE "Generate workflow overview"
-			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run info")
-			overviewIdx := strings.Index(lockContent, "- name: Generate workflow overview")
-			if awInfoIdx >= overviewIdx {
-				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Generate workflow overview' step")
-			}
-
-			// Verify workflow overview uses require to call the .cjs file
+			// Verify workflow overview call is present in the generate_aw_info step
 			if !strings.Contains(lockContent, "const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');") {
-				t.Error("Expected workflow overview step to use require to invoke generate_workflow_overview.cjs")
+				t.Error("Expected workflow overview require call inside 'Generate agentic run info' step")
 			}
 			if !strings.Contains(lockContent, "await generateWorkflowOverview(core);") {
-				t.Error("Expected workflow overview step to call generateWorkflowOverview function")
+				t.Error("Expected generateWorkflowOverview call inside 'Generate agentic run info' step")
 			}
 
 			// Verify engine ID is present in aw_info.json
@@ -301,12 +294,13 @@ This workflow tests the workflow overview for Claude engine.
 				}
 			}
 
-			// Verify step runs before "Download prompt artifact" (in the same agent job)
-			// Note: "Create prompt" is in the activation job, so we compare against
-			// "Download prompt artifact" which is in the same agent job
-			promptIdx := strings.Index(lockContent, "- name: Download prompt artifact")
-			if overviewIdx >= promptIdx {
-				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Download prompt artifact' step")
+			// Verify step runs before "Download activation artifact" (activation job appears before agent job in YAML)
+			// Note: "Generate agentic run info" (which includes the overview) is in the activation job,
+			// and "Download activation artifact" is in the agent job, which follows activation in the YAML.
+			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run info")
+			promptIdx := strings.Index(lockContent, "- name: Download activation artifact")
+			if awInfoIdx >= promptIdx {
+				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Download activation artifact' step")
 			}
 
 			// Note: HTML details/summary format is now in generate_workflow_overview.cjs

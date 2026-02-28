@@ -297,12 +297,27 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 8. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
-		// Extract expressions from GitHub context prompt
+
+		// Build the combined prompt text: base github context + optional checkout list.
+		// The checkout list may contain ${{ github.repository }} which must go through
+		// the expression extractor so the placeholder substitution step can resolve it.
+		combinedPromptText := githubContextPromptText
+		if checkoutsContent := buildCheckoutsPromptContent(data.CheckoutConfigs); checkoutsContent != "" {
+			unifiedPromptLog.Printf("Injecting checkout list into GitHub context (%d checkouts)", len(data.CheckoutConfigs))
+			const closeTag = "</github-context>"
+			if idx := strings.LastIndex(combinedPromptText, closeTag); idx >= 0 {
+				combinedPromptText = combinedPromptText[:idx] + checkoutsContent + combinedPromptText[idx:]
+			} else {
+				combinedPromptText += "\n" + checkoutsContent
+			}
+		}
+
+		// Extract expressions from the combined content (includes any new expressions
+		// introduced by the checkout list, e.g. ${{ github.repository }}).
 		extractor := NewExpressionExtractor()
-		expressionMappings, err := extractor.ExtractExpressions(githubContextPromptText)
+		expressionMappings, err := extractor.ExtractExpressions(combinedPromptText)
 		if err == nil && len(expressionMappings) > 0 {
-			// Replace expressions with environment variable references
-			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(githubContextPromptText)
+			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(combinedPromptText)
 
 			// Build environment variables map
 			envVars := make(map[string]string)

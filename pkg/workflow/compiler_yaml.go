@@ -495,15 +495,6 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 }
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const fs = require('fs');\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            const awInfo = {\n")
-
 	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
 	engineID := engine.GetID()
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
@@ -511,24 +502,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	} else if data.AI != "" {
 		engineID = data.AI
 	}
-	fmt.Fprintf(yaml, "              engine_id: \"%s\",\n", engineID)
-
-	// Engine display name
-	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
 
 	// Model information - resolve from explicit config or environment variable
 	// If model is explicitly configured, use it directly
 	// Otherwise, resolve from environment variable at runtime
-	// Note: aw_info is always generated in the agent job, so use agent-specific env vars
+	// Note: aw_info is generated in the activation job, so the env var is set via the step env section
 	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
-	if modelConfigured {
-		// Explicit model - output as static string
-		fmt.Fprintf(yaml, "              model: \"%s\",\n", data.EngineConfig.Model)
-	} else {
-		// Model from environment variable - resolve at runtime
-		// Use agent-specific env var since aw_info is generated in agent job
-		var modelEnvVar string
-
+	var modelEnvVar string
+	if !modelConfigured {
 		switch engineID {
 		case "copilot":
 			modelEnvVar = constants.EnvVarModelAgentCopilot
@@ -543,8 +524,33 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			// This provides a fallback while maintaining consistency
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		}
+	}
 
-		// Generate JavaScript to resolve model from environment variable at runtime
+	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("        id: generate_aw_info\n")
+	// When model is not explicitly configured, set the env var from the vars context
+	// so the JavaScript can read it via process.env at runtime
+	if !modelConfigured {
+		yaml.WriteString("        env:\n")
+		fmt.Fprintf(yaml, "          %s: ${{ vars.%s || '' }}\n", modelEnvVar, modelEnvVar)
+	}
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            const awInfo = {\n")
+
+	fmt.Fprintf(yaml, "              engine_id: \"%s\",\n", engineID)
+
+	// Engine display name
+	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
+
+	if modelConfigured {
+		// Explicit model - output as static string
+		fmt.Fprintf(yaml, "              model: \"%s\",\n", data.EngineConfig.Model)
+	} else {
+		// Model from environment variable - resolve at runtime
 		fmt.Fprintf(yaml, "              model: process.env.%s || \"\",\n", modelEnvVar)
 	}
 
@@ -647,16 +653,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            \n")
 	yaml.WriteString("            // Set model as output for reuse in other steps/jobs\n")
 	yaml.WriteString("            core.setOutput('model', awInfo.model);\n")
-}
-
-// generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
-// This runs after aw_info.json is created and reads from it for consistent data display.
-// Uses HTML details/summary tags for collapsible output.
-func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	yaml.WriteString("      - name: Generate workflow overview\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Generate workflow overview and write to step summary\n")
 	yaml.WriteString("            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');\n")
 	yaml.WriteString("            await generateWorkflowOverview(core);\n")
 }

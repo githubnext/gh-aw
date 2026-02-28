@@ -14,7 +14,7 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 	t.Run("logs schema can be generated (for future use)", func(t *testing.T) {
 		// The logs tool currently doesn't use output schemas, but we verify
 		// the helper can generate them for when they're needed in the future
-		schema, err := GenerateOutputSchema[LogsData]()
+		schema, err := GenerateSchema[LogsData]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema for LogsData: %v", err)
 		}
@@ -52,7 +52,7 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 	t.Run("audit schema can be generated (for future use)", func(t *testing.T) {
 		// The audit tool currently doesn't use output schemas (output can be filtered with jq),
 		// but we verify the helper can generate them for when they're needed in the future
-		schema, err := GenerateOutputSchema[AuditData]()
+		schema, err := GenerateSchema[AuditData]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema for AuditData: %v", err)
 		}
@@ -90,7 +90,7 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 	t.Run("status tool array schema can be generated", func(t *testing.T) {
 		// Even though status tool doesn't use the schema (MCP requires objects),
 		// verify the helper can generate a schema for the array type
-		schema, err := GenerateOutputSchema[[]WorkflowStatus]()
+		schema, err := GenerateSchema[[]WorkflowStatus]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema for []WorkflowStatus: %v", err)
 		}

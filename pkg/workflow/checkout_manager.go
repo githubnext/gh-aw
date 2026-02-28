@@ -22,8 +22,7 @@ var checkoutManagerLog = logger.New("workflow:checkout_manager")
 // Or multiple checkouts:
 //
 //	checkout:
-//	  - path: .
-//	    fetch-depth: 0
+//	  - fetch-depth: 0
 //	  - repository: owner/other-repo
 //	    path: ./libs/other
 //	    ref: main
@@ -39,6 +38,10 @@ type CheckoutConfig struct {
 
 	// GitHubToken overrides the default GITHUB_TOKEN for authentication.
 	// Use ${{ secrets.MY_TOKEN }} to reference a repository secret.
+	//
+	// Frontmatter key: "github-token" (user-facing name used here and in the schema)
+	// Generated YAML key: "token" (the actual input name for actions/checkout)
+	// The compiler maps frontmatter "github-token" → lock.yml "token" during step generation.
 	GitHubToken string `json:"github-token,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
@@ -55,6 +58,12 @@ type CheckoutConfig struct {
 
 	// LFS enables checkout of Git LFS objects.
 	LFS bool `json:"lfs,omitempty"`
+
+	// Current marks this checkout as the logical "current" repository for the workflow.
+	// When set, the AI agent will treat this repository as its primary working target.
+	// Only one checkout may have Current set to true.
+	// This is useful for workflows that run from a central repo targeting a different repo.
+	Current bool `json:"current,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
@@ -74,6 +83,7 @@ type resolvedCheckout struct {
 	sparsePatterns []string // merged sparse-checkout patterns
 	submodules     string
 	lfs            bool
+	current        bool // true if this checkout is the logical current repository
 }
 
 // CheckoutManager collects checkout requests and merges them to minimize
@@ -111,9 +121,14 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		return
 	}
 
+	// Normalize path: "." and "" both refer to the workspace root.
+	normalizedPath := cfg.Path
+	if normalizedPath == "." {
+		normalizedPath = ""
+	}
 	key := checkoutKey{
 		repository: cfg.Repository,
-		path:       cfg.Path,
+		path:       normalizedPath,
 	}
 
 	if idx, exists := cm.index[key]; exists {
@@ -132,6 +147,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.LFS {
 			entry.lfs = true
 		}
+		if cfg.Current {
+			entry.current = true
+		}
 		if cfg.Submodules != "" && entry.submodules == "" {
 			entry.submodules = cfg.Submodules
 		}
@@ -144,6 +162,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 			fetchDepth: cfg.FetchDepth,
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
+			current:    cfg.Current,
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
@@ -162,6 +181,18 @@ func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {
 		return cm.ordered[idx]
 	}
 	return nil
+}
+
+// GetCurrentRepository returns the repository of the checkout marked as current (current: true).
+// Returns an empty string if no checkout is marked as current or if the current checkout
+// uses the default repository (empty Repository field).
+func (cm *CheckoutManager) GetCurrentRepository() string {
+	for _, entry := range cm.ordered {
+		if entry.current {
+			return entry.key.repository
+		}
+	}
+	return ""
 }
 
 // GenerateAdditionalCheckoutSteps generates YAML step lines for all non-default
@@ -226,7 +257,8 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
 		if override.token != "" {
-			fmt.Fprintf(&sb, "          github-token: %s\n", override.token)
+			// actions/checkout input is "token", not "github-token"
+			fmt.Fprintf(&sb, "          token: %s\n", override.token)
 		}
 		if override.fetchDepth != nil {
 			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
@@ -269,7 +301,8 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
 	if entry.token != "" {
-		fmt.Fprintf(&sb, "          github-token: %s\n", entry.token)
+		// actions/checkout input is "token", not "github-token"
+		fmt.Fprintf(&sb, "          token: %s\n", entry.token)
 	}
 	if entry.fetchDepth != nil {
 		fmt.Fprintf(&sb, "          fetch-depth: %d\n", *entry.fetchDepth)
@@ -364,18 +397,18 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 	}
 	checkoutManagerLog.Printf("Parsing checkout configuration: type=%T", raw)
 
+	var configs []*CheckoutConfig
+
 	// Try single object first
 	if singleMap, ok := raw.(map[string]any); ok {
 		cfg, err := checkoutConfigFromMap(singleMap)
 		if err != nil {
 			return nil, fmt.Errorf("invalid checkout configuration: %w", err)
 		}
-		return []*CheckoutConfig{cfg}, nil
-	}
-
-	// Try array of objects
-	if arr, ok := raw.([]any); ok {
-		configs := make([]*CheckoutConfig, 0, len(arr))
+		configs = []*CheckoutConfig{cfg}
+	} else if arr, ok := raw.([]any); ok {
+		// Try array of objects
+		configs = make([]*CheckoutConfig, 0, len(arr))
 		for i, item := range arr {
 			itemMap, ok := item.(map[string]any)
 			if !ok {
@@ -387,10 +420,31 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 			}
 			configs = append(configs, cfg)
 		}
-		return configs, nil
+	} else {
+		return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T", raw)
 	}
 
-	return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T", raw)
+	// Validate that at most one logical checkout target has current: true.
+	// Multiple current checkouts are not allowed since only one repo/path pair can be
+	// the primary target for the agent at a time. Multiple configs that merge into the
+	// same (repository, path) pair are treated as a single logical checkout.
+	currentTargets := make(map[string]struct{})
+	for _, cfg := range configs {
+		if !cfg.Current {
+			continue
+		}
+
+		repo := strings.TrimSpace(cfg.Repository)
+		path := strings.TrimSpace(cfg.Path)
+		key := repo + "\x00" + path
+
+		currentTargets[key] = struct{}{}
+	}
+	if len(currentTargets) > 1 {
+		return nil, fmt.Errorf("only one checkout target may have current: true, found %d", len(currentTargets))
+	}
+
+	return configs, nil
 }
 
 // checkoutConfigFromMap converts a raw map to a CheckoutConfig.
@@ -417,6 +471,11 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		s, ok := v.(string)
 		if !ok {
 			return nil, errors.New("checkout.path must be a string")
+		}
+		// Normalize "." to empty string: both mean the workspace root and
+		// are treated identically by the checkout step generator.
+		if s == "." {
+			s = ""
 		}
 		cfg.Path = s
 	}
@@ -482,5 +541,79 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.LFS = b
 	}
 
+	if v, ok := m["current"]; ok {
+		b, ok := v.(bool)
+		if !ok {
+			return nil, errors.New("checkout.current must be a boolean")
+		}
+		cfg.Current = b
+	}
+
 	return cfg, nil
+}
+
+// getCurrentCheckoutRepository returns the repository of the checkout marked as current (current: true).
+// Returns an empty string if no checkout has current: true or if the current checkout
+// uses the default repository (empty Repository field).
+func getCurrentCheckoutRepository(checkouts []*CheckoutConfig) string {
+	for _, cfg := range checkouts {
+		if cfg != nil && cfg.Current {
+			return cfg.Repository
+		}
+	}
+	return ""
+}
+
+// buildCheckoutsPromptContent returns a markdown bullet list describing all user-configured
+// checkouts for inclusion in the GitHub context prompt.
+// Returns an empty string when no checkouts are configured.
+//
+// Each checkout is shown with its full absolute path relative to $GITHUB_WORKSPACE.
+// The root checkout (path == "") is annotated as "(cwd)" since that is the working
+// directory of the agent process. The generated content may include
+// "${{ github.repository }}" for any checkout that does not have an explicit repository
+// configured; callers must ensure these expressions are processed by an ExpressionExtractor
+// so the placeholder substitution step can resolve them at runtime.
+func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
+	if len(checkouts) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("- **checkouts**: The following repositories have been checked out and are available in the workspace:\n")
+
+	for _, cfg := range checkouts {
+		if cfg == nil {
+			continue
+		}
+
+		// Build the full absolute path using $GITHUB_WORKSPACE as root.
+		// Normalize the path: strip "./" prefix; bare "." and "" both mean root.
+		relPath := strings.TrimPrefix(cfg.Path, "./")
+		if relPath == "." {
+			relPath = ""
+		}
+		isRoot := relPath == ""
+		absPath := "$GITHUB_WORKSPACE"
+		if !isRoot {
+			absPath += "/" + relPath
+		}
+
+		// Determine repo: use configured value or fall back to the triggering repository expression
+		repo := cfg.Repository
+		if repo == "" {
+			repo = "${{ github.repository }}"
+		}
+
+		line := fmt.Sprintf("  - `%s` → `%s`", absPath, repo)
+		if isRoot {
+			line += " (cwd)"
+		}
+		if cfg.Current {
+			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
+		}
+		sb.WriteString(line + "\n")
+	}
+
+	return sb.String()
 }

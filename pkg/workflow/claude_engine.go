@@ -26,17 +26,12 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsMaxTurns:       true,  // Claude supports max-turns feature
-			supportsWebFetch:       true,  // Claude has built-in WebFetch support
-			supportsWebSearch:      true,  // Claude has built-in WebSearch support
-			supportsLLMGateway:     false, // Claude does not support LLM gateway
+			supportsMaxTurns:       true, // Claude supports max-turns feature
+			supportsWebFetch:       true, // Claude has built-in WebFetch support
+			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			llmGatewayPort:         constants.ClaudeLLMGatewayPort,
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Claude engine
-func (e *ClaudeEngine) SupportsLLMGateway() int {
-	return constants.ClaudeLLMGatewayPort
 }
 
 // GetModelEnvVarName returns the native environment variable name that the Claude Code CLI uses
@@ -280,10 +275,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// Enable API proxy sidecar if this engine supports LLM gateway
-		llmGatewayPort := e.SupportsLLMGateway()
-		usesAPIProxy := llmGatewayPort > 0
-
 		// Build AWF command with all configuration
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
 		// AWF with --enable-chroot and --env-all handles most PATH setup natively:
@@ -302,7 +293,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
-			UsesAPIProxy:   usesAPIProxy,
 			AllowedDomains: allowedDomains,
 			PathSetup:      promptSetup, // Prompt setup runs BEFORE AWF on the host
 		})

@@ -37,48 +37,36 @@ import (
 
 var compileBatchOperationsLog = logger.New("cli:compile_batch_operations")
 
-// runBatchActionlint runs actionlint on all lock files in batch
-func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
+// runBatchLockFileTool runs a batch tool on lock files with uniform error handling
+func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, strict bool, runner func([]string, bool, bool) error) error {
 	if len(lockFiles) == 0 {
-		compileBatchOperationsLog.Print("No lock files to lint with actionlint")
+		compileBatchOperationsLog.Printf("No lock files to process with %s", toolName)
 		return nil
 	}
 
-	compileBatchOperationsLog.Printf("Running batch actionlint on %d lock files", len(lockFiles))
+	compileBatchOperationsLog.Printf("Running batch %s on %d lock files", toolName, len(lockFiles))
 
-	if err := RunActionlintOnFiles(lockFiles, verbose, strict); err != nil {
+	if err := runner(lockFiles, verbose, strict); err != nil {
 		if strict {
-			return fmt.Errorf("actionlint linter failed: %w", err)
+			return fmt.Errorf("%s failed: %w", toolName, err)
 		}
-		// In non-strict mode, actionlint errors are warnings
+		// In non-strict mode, errors are warnings
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("actionlint warnings: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s warnings: %v", toolName, err)))
 		}
 	}
 
 	return nil
 }
 
+// runBatchActionlint runs actionlint on all lock files in batch
+func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("actionlint", lockFiles, verbose, strict, RunActionlintOnFiles)
+}
+
 // runBatchZizmor runs zizmor security scanner on all lock files in batch
 func runBatchZizmor(lockFiles []string, verbose bool, strict bool) error {
-	if len(lockFiles) == 0 {
-		compileBatchOperationsLog.Print("No lock files to scan with zizmor")
-		return nil
-	}
-
-	compileBatchOperationsLog.Printf("Running batch zizmor on %d lock files", len(lockFiles))
-
-	if err := RunZizmorOnFiles(lockFiles, verbose, strict); err != nil {
-		if strict {
-			return fmt.Errorf("zizmor security scan failed: %w", err)
-		}
-		// In non-strict mode, zizmor errors are warnings
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("zizmor warnings: %v", err)))
-		}
-	}
-
-	return nil
+	return runBatchLockFileTool("zizmor", lockFiles, verbose, strict, RunZizmorOnFiles)
 }
 
 // runBatchPoutine runs poutine security scanner once for the entire directory

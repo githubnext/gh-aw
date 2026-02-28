@@ -455,46 +455,6 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 	}
 }
 
-func TestShouldSkipRuntimeSetup(t *testing.T) {
-	tests := []struct {
-		name     string
-		data     *WorkflowData
-		expected bool
-	}{
-		{
-			name: "never skip - runtime filtering handles existing setup actions",
-			data: &WorkflowData{
-				CustomSteps: `steps:
-  - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
-  - run: npm install`,
-			},
-			expected: false, // Changed: we no longer skip, we filter instead
-		},
-		{
-			name: "never skip when no setup actions",
-			data: &WorkflowData{
-				CustomSteps: `steps:
-  - run: npm install`,
-			},
-			expected: false,
-		},
-		{
-			name:     "never skip when no custom steps",
-			data:     &WorkflowData{},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ShouldSkipRuntimeSetup(tt.data)
-			if result != tt.expected {
-				t.Errorf("Expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
-
 // Helper functions
 
 func getRequirementIDs(requirements map[string]*RuntimeRequirement) []string {

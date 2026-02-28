@@ -11,16 +11,16 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
-func TestGenerateOutputSchema(t *testing.T) {
+func TestGenerateSchema(t *testing.T) {
 	t.Run("generates schema for simple struct", func(t *testing.T) {
 		type SimpleOutput struct {
 			Name  string `json:"name" jsonschema:"Name of the item"`
 			Count int    `json:"count" jsonschema:"Number of items"`
 		}
 
-		schema, err := GenerateOutputSchema[SimpleOutput]()
+		schema, err := GenerateSchema[SimpleOutput]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		if schema == nil {
@@ -54,9 +54,9 @@ func TestGenerateOutputSchema(t *testing.T) {
 			Optional *string `json:"optional,omitempty" jsonschema:"Optional field"`
 		}
 
-		schema, err := GenerateOutputSchema[OutputWithOptional]()
+		schema, err := GenerateSchema[OutputWithOptional]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		if schema == nil {
@@ -87,9 +87,9 @@ func TestGenerateOutputSchema(t *testing.T) {
 			Nested NestedData `json:"nested" jsonschema:"Nested data"`
 		}
 
-		schema, err := GenerateOutputSchema[OutputWithNested]()
+		schema, err := GenerateSchema[OutputWithNested]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		if schema == nil {
@@ -122,9 +122,9 @@ func TestGenerateOutputSchema(t *testing.T) {
 			Items []string `json:"items" jsonschema:"List of items"`
 		}
 
-		schema, err := GenerateOutputSchema[OutputWithSlice]()
+		schema, err := GenerateSchema[OutputWithSlice]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		if schema == nil {
@@ -157,9 +157,9 @@ func TestGenerateOutputSchema(t *testing.T) {
 	})
 
 	t.Run("generates schema for WorkflowStatus", func(t *testing.T) {
-		schema, err := GenerateOutputSchema[WorkflowStatus]()
+		schema, err := GenerateSchema[WorkflowStatus]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed for WorkflowStatus: %v", err)
+			t.Fatalf("GenerateSchema failed for WorkflowStatus: %v", err)
 		}
 
 		if schema == nil {
@@ -176,9 +176,9 @@ func TestGenerateOutputSchema(t *testing.T) {
 	})
 
 	t.Run("generates schema for LogsData", func(t *testing.T) {
-		schema, err := GenerateOutputSchema[LogsData]()
+		schema, err := GenerateSchema[LogsData]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed for LogsData: %v", err)
+			t.Fatalf("GenerateSchema failed for LogsData: %v", err)
 		}
 
 		if schema == nil {
@@ -195,9 +195,9 @@ func TestGenerateOutputSchema(t *testing.T) {
 	})
 
 	t.Run("generates schema for AuditData", func(t *testing.T) {
-		schema, err := GenerateOutputSchema[AuditData]()
+		schema, err := GenerateSchema[AuditData]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed for AuditData: %v", err)
+			t.Fatalf("GenerateSchema failed for AuditData: %v", err)
 		}
 
 		if schema == nil {
@@ -221,9 +221,9 @@ func TestAddSchemaDefault(t *testing.T) {
 			Count int    `json:"count" jsonschema:"Count field"`
 		}
 
-		schema, err := GenerateOutputSchema[TestStruct]()
+		schema, err := GenerateSchema[TestStruct]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		// Add defaults
@@ -263,9 +263,9 @@ func TestAddSchemaDefault(t *testing.T) {
 			Name string `json:"name" jsonschema:"Name field"`
 		}
 
-		schema, err := GenerateOutputSchema[TestStruct]()
+		schema, err := GenerateSchema[TestStruct]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		// Try to add default to non-existent property - should not error
@@ -282,7 +282,7 @@ func TestAddSchemaDefault(t *testing.T) {
 	})
 }
 
-func TestGenerateOutputSchemaWithDefaults(t *testing.T) {
+func TestGenerateSchemaWithDefaults(t *testing.T) {
 	t.Run("manually adds default values to schema", func(t *testing.T) {
 		type OutputWithDefaults struct {
 			Name    string `json:"name" jsonschema:"Name of the item"`
@@ -290,9 +290,9 @@ func TestGenerateOutputSchemaWithDefaults(t *testing.T) {
 			Enabled bool   `json:"enabled" jsonschema:"Whether enabled"`
 		}
 
-		schema, err := GenerateOutputSchema[OutputWithDefaults]()
+		schema, err := GenerateSchema[OutputWithDefaults]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		if schema == nil {
@@ -363,9 +363,9 @@ func TestGenerateOutputSchemaWithDefaults(t *testing.T) {
 func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 	t.Run("validates LogsData schema against real data", func(t *testing.T) {
 		// Generate schema for LogsData
-		schema, err := GenerateOutputSchema[LogsData]()
+		schema, err := GenerateSchema[LogsData]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		// Resolve the schema to prepare it for validation
@@ -420,9 +420,9 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 
 	t.Run("validates AuditData schema against real data", func(t *testing.T) {
 		// Generate schema for AuditData
-		schema, err := GenerateOutputSchema[AuditData]()
+		schema, err := GenerateSchema[AuditData]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		// Resolve the schema to prepare it for validation
@@ -476,9 +476,9 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 
 	t.Run("validates WorkflowStatus schema against real data", func(t *testing.T) {
 		// Generate schema for WorkflowStatus
-		schema, err := GenerateOutputSchema[WorkflowStatus]()
+		schema, err := GenerateSchema[WorkflowStatus]()
 		if err != nil {
-			t.Fatalf("GenerateOutputSchema failed: %v", err)
+			t.Fatalf("GenerateSchema failed: %v", err)
 		}
 
 		// Resolve the schema to prepare it for validation

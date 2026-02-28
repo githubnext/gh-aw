@@ -33,8 +33,7 @@ You can also use `checkout:` to check out additional repositories alongside the 
 
 ```yaml wrap
 checkout:
-  - path: .
-    fetch-depth: 0
+  - fetch-depth: 0
   - repository: owner/other-repo
     path: ./libs/other
     ref: main
@@ -53,6 +52,7 @@ checkout:
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
 | `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
 | `lfs` | boolean | Download Git LFS objects. |
+| `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
 
 ### Checkout Merging
 
@@ -66,6 +66,18 @@ When multiple `checkout:` entries target the same repository and path, their con
 - **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
 - **Ref/Token**: First-seen wins
 
+### Marking a Primary Repository (`current: true`)
+
+When a workflow running from a central repository targets a different repository, use `current: true` to tell the agent which repository to treat as its primary working target. The agent uses this as the default for all GitHub operations (creating issues, opening PRs, reading content) unless the prompt instructs otherwise. When omitted, the agent defaults to the repository where the workflow is running.
+
+```yaml wrap
+checkout:
+  - repository: org/target-repo
+    path: ./target
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    current: true                                    # agent's primary target
+```
+
 ## GitHub Tools - Reading Other Repositories
 
 When using [GitHub Tools](/gh-aw/reference/github-tools/) to read information from repositories other than the one where the workflow is running, you must configure additional authorization. The default `GITHUB_TOKEN` is scoped to the current repository only and cannot access other repositories.
@@ -78,6 +90,7 @@ tools:
     toolsets: [repos, issues, pull_requests]
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
+
 
 See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for complete details on configuring cross-repository read access for GitHub Tools.
 
@@ -133,8 +146,7 @@ on:
     types: [opened, synchronize]
 
 checkout:
-  - path: .
-    fetch-depth: 0
+  - fetch-depth: 0
   - repository: org/shared-libs
     path: ./libs/shared
     ref: main

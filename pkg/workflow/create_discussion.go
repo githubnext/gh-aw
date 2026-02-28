@@ -195,7 +195,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		StepID:         "create_discussion",
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
-		Script:         getCreateDiscussionScript(),
+		Script:         "",
 		Permissions:    NewPermissionsContentsReadIssuesWriteDiscussionsWrite(),
 		Outputs:        outputs,
 		Needs:          needs,

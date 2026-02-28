@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -117,11 +116,4 @@ func GetCurrentRepoSlug() (string, error) {
 
 	repoLog.Printf("Using cached repository slug: %s", result)
 	return result, nil
-}
-
-// SplitRepoSlug wraps repoutil.SplitRepoSlug for backward compatibility.
-// It splits a repository slug (owner/repo) into owner and repo parts.
-// New code should use repoutil.SplitRepoSlug directly.
-func SplitRepoSlug(slug string) (owner, repo string, err error) {
-	return repoutil.SplitRepoSlug(slug)
 }

@@ -134,7 +134,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		StepID:         "add_comment",
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
-		Script:         getAddCommentScript(),
+		Script:         "",
 		Permissions:    permissions,
 		Outputs:        outputs,
 		Condition:      jobCondition,

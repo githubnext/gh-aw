@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -576,7 +577,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		if err != nil {
 			return fmt.Errorf("failed to determine target repository: %w", err)
 		}
-		targetOwner, targetRepoName, err = SplitRepoSlug(slug)
+		targetOwner, targetRepoName, err = repoutil.SplitRepoSlug(slug)
 		if err != nil {
 			return fmt.Errorf("failed to parse target repository: %w", err)
 		}
@@ -603,7 +604,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		if isGitRepo() {
 			slug, err := GetCurrentRepoSlug()
 			if err == nil {
-				currentOwner, currentRepoName, err := SplitRepoSlug(slug)
+				currentOwner, currentRepoName, err := repoutil.SplitRepoSlug(slug)
 				if err == nil && currentOwner == targetOwner && currentRepoName == targetRepoName {
 					// We're already in the target repo
 					workingDir = "."

@@ -10,6 +10,14 @@ import (
 	"testing"
 )
 
+// isDockerAvailable checks if Docker is available on the system
+func isDockerAvailable() bool {
+	cmd := exec.Command("docker", "version")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Run() == nil
+}
+
 // TestDockerfile_Exists verifies the Dockerfile exists and has expected content
 func TestDockerfile_Exists(t *testing.T) {
 	// Get the repository root
