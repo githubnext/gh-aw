@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs");
 
@@ -16,12 +17,10 @@ const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs")
  * @returns {Promise<void>}
  */
 async function main(core, ctx) {
-  const fs = require("fs");
-
   // Validate required context variables
   const requiredContextFields = ["runId", "runNumber", "sha", "ref", "actor", "eventName", "repo"];
   for (const field of requiredContextFields) {
-    if (ctx[field] === undefined || ctx[field] === null) {
+    if (ctx[field] == null) {
       core.warning(`GitHub Actions context.${field} is not set`);
     }
   }
@@ -75,8 +74,8 @@ async function main(core, ctx) {
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";
   fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-  console.log("Generated aw_info.json at:", tmpPath);
-  console.log(JSON.stringify(awInfo, null, 2));
+  core.info("Generated aw_info.json at: " + tmpPath);
+  core.info(JSON.stringify(awInfo, null, 2));
 
   // Set model as output for reuse in other steps/jobs
   core.setOutput("model", awInfo.model);
