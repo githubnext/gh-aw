@@ -33,8 +33,7 @@ You can also use `checkout:` to check out additional repositories alongside the 
 
 ```yaml wrap
 checkout:
-  - path: .
-    fetch-depth: 0
+  - fetch-depth: 0
   - repository: owner/other-repo
     path: ./libs/other
     ref: main
@@ -147,8 +146,7 @@ on:
     types: [opened, synchronize]
 
 checkout:
-  - path: .
-    fetch-depth: 0
+  - fetch-depth: 0
   - repository: org/shared-libs
     path: ./libs/shared
     ref: main

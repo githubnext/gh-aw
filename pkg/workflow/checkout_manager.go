@@ -22,8 +22,7 @@ var checkoutManagerLog = logger.New("workflow:checkout_manager")
 // Or multiple checkouts:
 //
 //	checkout:
-//	  - path: .
-//	    fetch-depth: 0
+//	  - fetch-depth: 0
 //	  - repository: owner/other-repo
 //	    path: ./libs/other
 //	    ref: main
