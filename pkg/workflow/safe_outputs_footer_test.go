@@ -26,6 +26,63 @@ func TestFooterConfiguration(t *testing.T) {
 	assert.Equal(t, "false", *config.CreateIssues.Footer)
 }
 
+func TestAddCommentFooterConfiguration(t *testing.T) {
+	t.Run("footer: false on add-comment", func(t *testing.T) {
+		compiler := NewCompiler()
+		frontmatter := map[string]any{
+			"name": "Test",
+			"safe-outputs": map[string]any{
+				"add-comment": map[string]any{"footer": false},
+			},
+		}
+		config := compiler.extractSafeOutputsConfig(frontmatter)
+		require.NotNil(t, config)
+		require.NotNil(t, config.AddComments)
+		require.NotNil(t, config.AddComments.Footer)
+		assert.Equal(t, "false", *config.AddComments.Footer, "add-comment footer should be false")
+	})
+
+	t.Run("global footer: false propagates to add-comment", func(t *testing.T) {
+		compiler := NewCompiler()
+		frontmatter := map[string]any{
+			"name": "Test",
+			"safe-outputs": map[string]any{
+				"footer":      false,
+				"add-comment": map[string]any{},
+			},
+		}
+		config := compiler.extractSafeOutputsConfig(frontmatter)
+		require.NotNil(t, config)
+		require.NotNil(t, config.Footer)
+		assert.False(t, *config.Footer, "Global footer should be false")
+
+		workflowData := &WorkflowData{
+			Name:        "Test",
+			SafeOutputs: config,
+		}
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err)
+
+					addCommentConfig, ok := handlerConfig["add_comment"].(map[string]any)
+					require.True(t, ok, "add_comment handler config should exist")
+					assert.Equal(t, false, addCommentConfig["footer"], "add_comment should inherit global footer: false")
+				}
+			}
+		}
+	})
+}
+
 func TestGlobalFooterConfiguration(t *testing.T) {
 	t.Run("global footer: false applies to all handlers", func(t *testing.T) {
 		compiler := NewCompiler()
@@ -33,6 +90,7 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 			"name": "Test",
 			"safe-outputs": map[string]any{
 				"footer":              false, // Global footer control
+				"add-comment":         map[string]any{},
 				"create-issue":        map[string]any{"title-prefix": "[test] "},
 				"create-pull-request": nil,
 				"create-discussion":   nil,
@@ -69,6 +127,9 @@ func TestGlobalFooterConfiguration(t *testing.T) {
 					require.NoError(t, err)
 
 					// All handlers should have footer: false from global setting
+					addCommentConfig, ok := handlerConfig["add_comment"].(map[string]any)
+					require.True(t, ok, "add_comment handler config should exist in global footer test")
+					assert.Equal(t, false, addCommentConfig["footer"], "add_comment should inherit global footer: false")
 					if issueConfig, ok := handlerConfig["create_issue"].(map[string]any); ok {
 						assert.Equal(t, false, issueConfig["footer"], "create_issue should inherit global footer: false")
 					}

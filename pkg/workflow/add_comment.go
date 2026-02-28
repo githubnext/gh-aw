@@ -27,6 +27,7 @@ type AddCommentsConfig struct {
 	Issues               *bool    `yaml:"issues,omitempty"`              // When false, excludes issues:write permission and issues from event condition. Default (nil or true) includes issues:write.
 	PullRequests         *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
 	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission and discussions from event condition. Default (nil or true) includes discussions:write.
+	Footer               *string  `yaml:"footer,omitempty"`              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
@@ -160,6 +161,10 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	// Pre-process templatable bool fields
 	if err := preprocessBoolFieldAsString(configData, "hide-older-comments", addCommentLog); err != nil {
 		addCommentLog.Printf("Invalid hide-older-comments value: %v", err)
+		return nil
+	}
+	if err := preprocessBoolFieldAsString(configData, "footer", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid footer value: %v", err)
 		return nil
 	}
 

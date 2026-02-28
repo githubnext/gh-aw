@@ -157,6 +157,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			Build()
 	},
 	"create_discussion": func(cfg *SafeOutputsConfig) map[string]any {

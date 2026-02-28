@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -302,6 +302,7 @@ async function main(config = {}) {
   const commentTarget = config.target || "triggering";
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const includeFooter = parseBoolTemplatable(config.footer, true);
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
@@ -524,8 +525,13 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
-    // Use generateFooterWithMessages to respect custom footer configuration
-    processedBody += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
+    if (includeFooter) {
+      // When footer is enabled, add full footer with attribution and XML markers
+      processedBody += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
+    } else {
+      // When footer is disabled, only add XML marker for searchability (no visible attribution text)
+      processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);
+    }
 
     // Enforce max limits again after adding footer and metadata
     // This ensures the final body (including generated content) doesn't exceed limits
