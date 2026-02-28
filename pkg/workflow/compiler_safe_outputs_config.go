@@ -75,14 +75,6 @@ func (b *handlerConfigBuilder) AddIfNotEmpty(key string, value string) *handlerC
 	return b
 }
 
-// AddIfTrue adds a boolean field only if the value is true
-func (b *handlerConfigBuilder) AddIfTrue(key string, value bool) *handlerConfigBuilder {
-	if value {
-		b.config[key] = true
-	}
-	return b
-}
-
 // AddStringSlice adds a string slice field only if the slice is not empty
 func (b *handlerConfigBuilder) AddStringSlice(key string, value []string) *handlerConfigBuilder {
 	if len(value) > 0 {

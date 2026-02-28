@@ -92,6 +92,7 @@ tools:
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
+
 See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for complete details on configuring cross-repository read access for GitHub Tools.
 
 This authentication is for **reading** information from GitHub. Authorization for **writing** to other repositories (creating issues, PRs, comments) is configured separately, see below.

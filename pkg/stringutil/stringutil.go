@@ -81,27 +81,3 @@ func IsPositiveInteger(s string) bool {
 	num, err := strconv.ParseInt(s, 10, 64)
 	return err == nil && num > 0
 }
-
-// StripANSIEscapeCodes removes ANSI escape sequences from a string.
-// This prevents terminal color codes and other control sequences from
-// being accidentally included in generated files (e.g., YAML workflows).
-//
-// Common ANSI escape sequences that are removed:
-//   - Color codes: \x1b[31m (red), \x1b[0m (reset)
-//   - Text formatting: \x1b[1m (bold), \x1b[4m (underline)
-//   - Cursor control: \x1b[2J (clear screen)
-//
-// Example:
-//
-//	input := "Hello \x1b[31mWorld\x1b[0m"  // "Hello [red]World[reset]"
-//	output := StripANSIEscapeCodes(input)  // "Hello World"
-//
-// This function is particularly important for:
-//   - Workflow descriptions copied from terminal output
-//   - Comments in generated YAML files
-//   - Any text that should be plain ASCII
-//
-// Deprecated: Use StripANSI instead, which handles a broader range of terminal sequences.
-func StripANSIEscapeCodes(s string) string {
-	return StripANSI(s)
-}

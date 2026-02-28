@@ -68,7 +68,6 @@ func init() {
 // All getter functions return empty strings since embedded scripts were removed
 
 func getAddCommentScript() string              { return "" }
-func getAddLabelsScript() string               { return "" }
 func getAssignToAgentScript() string           { return "" }
 func getCreateCodeScanningAlertScript() string { return "" }
 func getCreateDiscussionScript() string        { return "" }

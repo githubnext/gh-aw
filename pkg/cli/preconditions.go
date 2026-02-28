@@ -14,52 +14,6 @@ import (
 
 var preconditionsLog = logger.New("cli:preconditions")
 
-// PreconditionCheckResult holds the result of precondition checks
-type PreconditionCheckResult struct {
-	RepoSlug     string // The repository slug (owner/repo)
-	IsPublicRepo bool   // Whether the repository is public
-}
-
-// CheckInteractivePreconditions runs common precondition checks for interactive commands
-// like `gh aw add` and `gh aw init`. These checks verify:
-// - GitHub CLI authentication
-// - Git repository presence
-// - GitHub Actions enabled
-// - User has write permissions
-//
-// The verbose parameter controls whether success messages are printed.
-// Returns the repository slug and whether it's public on success.
-func CheckInteractivePreconditions(verbose bool) (*PreconditionCheckResult, error) {
-	result := &PreconditionCheckResult{}
-
-	// Step 1: Check gh auth status
-	if err := checkGHAuthStatusShared(verbose); err != nil {
-		return nil, err
-	}
-
-	// Step 2: Check git repository and get org/repo
-	repoSlug, err := checkGitRepositoryShared(verbose)
-	if err != nil {
-		return nil, err
-	}
-	result.RepoSlug = repoSlug
-
-	// Step 3: Check GitHub Actions is enabled
-	if err := checkActionsEnabledShared(repoSlug, verbose); err != nil {
-		return nil, err
-	}
-
-	// Step 4: Check user permissions
-	if _, err := checkUserPermissionsShared(repoSlug, verbose); err != nil {
-		return nil, err
-	}
-
-	// Step 5: Check repository visibility
-	result.IsPublicRepo = checkRepoVisibilityShared(repoSlug)
-
-	return result, nil
-}
-
 // checkGHAuthStatusShared verifies the user is logged in to GitHub CLI
 func checkGHAuthStatusShared(verbose bool) error {
 	preconditionsLog.Print("Checking GitHub CLI authentication status")
@@ -82,42 +36,6 @@ func checkGHAuthStatusShared(verbose bool) error {
 	}
 
 	return nil
-}
-
-// checkGitRepositoryShared verifies we're in a git repo and returns the repo slug
-func checkGitRepositoryShared(verbose bool) (string, error) {
-	preconditionsLog.Print("Checking git repository status")
-
-	// Check if we're in a git repository
-	if !isGitRepo() {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Not in a git repository."))
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Please navigate to a git repository or initialize one with:")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git init"))
-		fmt.Fprintln(os.Stderr, "")
-		return "", errors.New("not in a git repository")
-	}
-
-	// Try to get the repository slug
-	repoSlug, err := GetCurrentRepoSlug()
-	if err != nil {
-		preconditionsLog.Printf("Could not determine repository automatically: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Could not determine the repository automatically."))
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Please ensure you have a remote configured:")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git remote add origin https://github.com/owner/repo.git"))
-		fmt.Fprintln(os.Stderr, "")
-		return "", fmt.Errorf("could not determine repository: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Target repository: "+repoSlug))
-	}
-	preconditionsLog.Printf("Target repository: %s", repoSlug)
-
-	return repoSlug, nil
 }
 
 // checkActionsEnabledShared verifies that GitHub Actions is enabled for the repository

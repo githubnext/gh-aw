@@ -66,31 +66,6 @@ func NewProgressBar(total int64) *ProgressBar {
 	}
 }
 
-// NewIndeterminateProgressBar creates a progress bar for when the total size is unknown
-// This mode shows activity without a specific completion percentage, useful for:
-//   - Streaming downloads with unknown size
-//   - Processing unknown number of items
-//   - Operations where duration cannot be predicted
-//
-// The progress bar automatically adapts to TTY/non-TTY environments
-func NewIndeterminateProgressBar() *ProgressBar {
-	progressLog.Print("Creating indeterminate progress bar")
-	prog := progress.New(
-		progress.WithScaledGradient("#BD93F9", "#8BE9FD"),
-		progress.WithWidth(40),
-	)
-
-	prog.EmptyColor = "#6272A4" // Muted purple-gray
-
-	return &ProgressBar{
-		progress:      prog,
-		total:         0,
-		current:       0,
-		indeterminate: true,
-		updateCount:   0,
-	}
-}
-
 // Update updates the current progress and returns a formatted string
 // In determinate mode:
 //   - TTY: Returns a visual progress bar with gradient and percentage

@@ -90,32 +90,11 @@ func NewPermissionsContentsReadIssuesWritePRWrite() *Permissions {
 	})
 }
 
-// NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite creates permissions with contents: read, issues: write, pull-requests: write, discussions: write
-func NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:     PermissionRead,
-		PermissionIssues:       PermissionWrite,
-		PermissionPullRequests: PermissionWrite,
-		PermissionDiscussions:  PermissionWrite,
-	})
-}
-
 // NewPermissionsActionsWrite creates permissions with actions: write
 // This is required for dispatching workflows via workflow_dispatch
 func NewPermissionsActionsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 		PermissionActions: PermissionWrite,
-	})
-}
-
-// NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite creates permissions with actions: write, contents: write, issues: write, pull-requests: write
-// This is required for the replaceActorsForAssignable GraphQL mutation used to assign GitHub Copilot coding agent to issues
-func NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionActions:      PermissionWrite,
-		PermissionContents:     PermissionWrite,
-		PermissionIssues:       PermissionWrite,
-		PermissionPullRequests: PermissionWrite,
 	})
 }
 
@@ -141,13 +120,6 @@ func NewPermissionsContentsWriteIssuesWritePRWrite() *Permissions {
 		PermissionContents:     PermissionWrite,
 		PermissionIssues:       PermissionWrite,
 		PermissionPullRequests: PermissionWrite,
-	})
-}
-
-// NewPermissionsDiscussionsWrite creates permissions with discussions: write
-func NewPermissionsDiscussionsWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionDiscussions: PermissionWrite,
 	})
 }
 
@@ -200,24 +172,5 @@ func NewPermissionsContentsReadProjectsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 		PermissionContents:         PermissionRead,
 		PermissionOrganizationProj: PermissionWrite,
-	})
-}
-
-// NewPermissionsContentsWritePRReadIssuesRead creates permissions with contents: write, pull-requests: read, issues: read
-func NewPermissionsContentsWritePRReadIssuesRead() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:     PermissionWrite,
-		PermissionPullRequests: PermissionRead,
-		PermissionIssues:       PermissionRead,
-	})
-}
-
-// NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite creates permissions with contents: write, issues: write, pull-requests: write, discussions: write
-func NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:     PermissionWrite,
-		PermissionIssues:       PermissionWrite,
-		PermissionPullRequests: PermissionWrite,
-		PermissionDiscussions:  PermissionWrite,
 	})
 }

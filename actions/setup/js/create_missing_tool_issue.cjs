@@ -18,6 +18,7 @@ const HANDLER_TYPE = "create_missing_tool_issue";
 const main = buildMissingIssueHandler({
   handlerType: HANDLER_TYPE,
   defaultTitlePrefix: "[missing tool]",
+  defaultLabels: ["agentic-workflows"],
   itemsField: "missing_tools",
   templatePath: "/opt/gh-aw/prompts/missing_tool_issue.md",
   templateListKey: "missing_tools_list",

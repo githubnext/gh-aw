@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestSafeInputsWithFirewallIncludesHostDockerInternal tests that host.docker.internal
@@ -59,7 +61,7 @@ func TestGetCopilotAllowedDomainsWithSafeInputs(t *testing.T) {
 			Allowed: []string{"github.com"},
 		}
 
-		result := GetCopilotAllowedDomainsWithSafeInputs(network, true)
+		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
 
 		if !strings.Contains(result, "host.docker.internal") {
 			t.Errorf("Expected result to contain 'host.docker.internal', got: %s", result)
@@ -75,7 +77,7 @@ func TestGetCopilotAllowedDomainsWithSafeInputs(t *testing.T) {
 			Allowed: []string{"github.com"},
 		}
 
-		result := GetCopilotAllowedDomainsWithSafeInputs(network, false)
+		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
 
 		// host.docker.internal is now in default domains, so it's always included
 		if !strings.Contains(result, "host.docker.internal") {
@@ -92,7 +94,7 @@ func TestGetCopilotAllowedDomainsWithSafeInputs(t *testing.T) {
 			Allowed: []string{"github.com"},
 		}
 
-		result := GetCopilotAllowedDomains(network)
+		result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
 
 		// host.docker.internal is now in default domains
 		if !strings.Contains(result, "host.docker.internal") {

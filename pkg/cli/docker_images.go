@@ -3,8 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -245,15 +243,6 @@ func ResetDockerPullState() {
 	pullState.mockAvailableInUse = false
 }
 
-// ValidateMCPServerDockerAvailability validates that Docker is available for MCP server operations
-// that require static analysis tools
-func ValidateMCPServerDockerAvailability() error {
-	if !isDockerAvailable() {
-		return errors.New("docker is not available - required for zizmor, poutine, and actionlint static analysis tools")
-	}
-	return nil
-}
-
 // SetDockerImageDownloading sets the downloading state for an image (for testing)
 func SetDockerImageDownloading(image string, downloading bool) {
 	pullState.mu.Lock()
@@ -271,13 +260,4 @@ func SetMockImageAvailable(image string, available bool) {
 	defer pullState.mu.Unlock()
 	pullState.mockAvailableInUse = true
 	pullState.mockAvailable[image] = available
-}
-
-// PrintDockerPullStatus prints the current pull status to stderr (for debugging)
-func PrintDockerPullStatus() {
-	pullState.mu.RLock()
-	defer pullState.mu.RUnlock()
-	if len(pullState.downloading) > 0 {
-		fmt.Fprintf(os.Stderr, "Currently downloading images: %v\n", pullState.downloading)
-	}
 }

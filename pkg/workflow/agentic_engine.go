@@ -39,8 +39,7 @@ type GitHubActionStep []string
 //   ├── SupportsToolsAllowlist()
 //   ├── SupportsMaxTurns()
 //   ├── SupportsWebFetch()
-//   ├── SupportsWebSearch()
-//   └── SupportsFirewall()
+//   └── SupportsWebSearch()
 //
 //   WorkflowExecutor (compilation - required)
 //   ├── GetDeclaredOutputFiles()
@@ -117,10 +116,6 @@ type CapabilityProvider interface {
 
 	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
 	SupportsWebSearch() bool
-
-	// SupportsFirewall returns true if this engine supports network firewalling/sandboxing
-	// When true, the engine can enforce network restrictions defined in the workflow
-	SupportsFirewall() bool
 
 	// SupportsPlugins returns true if this engine supports plugin installation
 	// When true, plugins can be installed using the engine's plugin install command
@@ -230,7 +225,6 @@ type BaseEngine struct {
 	supportsMaxContinuations bool
 	supportsWebFetch         bool
 	supportsWebSearch        bool
-	supportsFirewall         bool
 	supportsPlugins          bool
 	supportsLLMGateway       bool
 }
@@ -265,10 +259,6 @@ func (e *BaseEngine) SupportsWebFetch() bool {
 
 func (e *BaseEngine) SupportsWebSearch() bool {
 	return e.supportsWebSearch
-}
-
-func (e *BaseEngine) SupportsFirewall() bool {
-	return e.supportsFirewall
 }
 
 func (e *BaseEngine) SupportsPlugins() bool {

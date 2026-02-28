@@ -25,7 +25,6 @@ func TestGeminiEngine(t *testing.T) {
 		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
 		assert.False(t, engine.SupportsWebFetch(), "Should not support built-in web fetch")
 		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
-		assert.True(t, engine.SupportsFirewall(), "Should support firewall/AWF")
 		assert.False(t, engine.SupportsPlugins(), "Should not support plugins")
 		assert.Equal(t, 10003, engine.SupportsLLMGateway(), "Should support LLM gateway on port 10003")
 	})

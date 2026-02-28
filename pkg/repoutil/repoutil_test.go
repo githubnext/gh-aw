@@ -70,81 +70,6 @@ func TestSplitRepoSlug(t *testing.T) {
 	}
 }
 
-func TestParseGitHubURL(t *testing.T) {
-	tests := []struct {
-		name          string
-		url           string
-		expectedOwner string
-		expectedRepo  string
-		expectError   bool
-	}{
-		{
-			name:          "SSH format with .git",
-			url:           "git@github.com:github/gh-aw.git",
-			expectedOwner: "github",
-			expectedRepo:  "gh-aw",
-			expectError:   false,
-		},
-		{
-			name:          "SSH format without .git",
-			url:           "git@github.com:octocat/hello-world",
-			expectedOwner: "octocat",
-			expectedRepo:  "hello-world",
-			expectError:   false,
-		},
-		{
-			name:          "HTTPS format with .git",
-			url:           "https://github.com/github/gh-aw.git",
-			expectedOwner: "github",
-			expectedRepo:  "gh-aw",
-			expectError:   false,
-		},
-		{
-			name:          "HTTPS format without .git",
-			url:           "https://github.com/octocat/hello-world",
-			expectedOwner: "octocat",
-			expectedRepo:  "hello-world",
-			expectError:   false,
-		},
-		{
-			name:        "non-GitHub URL",
-			url:         "https://gitlab.com/user/repo.git",
-			expectError: true,
-		},
-		{
-			name:        "invalid URL",
-			url:         "not-a-url",
-			expectError: true,
-		},
-		{
-			name:        "empty URL",
-			url:         "",
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, err := ParseGitHubURL(tt.url)
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("ParseGitHubURL(%q) expected error, got nil", tt.url)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("ParseGitHubURL(%q) unexpected error: %v", tt.url, err)
-				}
-				if owner != tt.expectedOwner {
-					t.Errorf("ParseGitHubURL(%q) owner = %q; want %q", tt.url, owner, tt.expectedOwner)
-				}
-				if repo != tt.expectedRepo {
-					t.Errorf("ParseGitHubURL(%q) repo = %q; want %q", tt.url, repo, tt.expectedRepo)
-				}
-			}
-		})
-	}
-}
-
 func TestSanitizeForFilename(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -187,13 +112,6 @@ func BenchmarkSplitRepoSlug(b *testing.B) {
 	slug := "github/gh-aw"
 	for b.Loop() {
 		_, _, _ = SplitRepoSlug(slug)
-	}
-}
-
-func BenchmarkParseGitHubURL(b *testing.B) {
-	url := "https://github.com/github/gh-aw.git"
-	for b.Loop() {
-		_, _, _ = ParseGitHubURL(url)
 	}
 }
 
@@ -312,73 +230,6 @@ func TestSplitRepoSlug_SpecialCharacters(t *testing.T) {
 	}
 }
 
-func TestParseGitHubURL_Variants(t *testing.T) {
-	tests := []struct {
-		name          string
-		url           string
-		expectedOwner string
-		expectedRepo  string
-		expectError   bool
-	}{
-		{
-			name:          "SSH with port (invalid format)",
-			url:           "git@github.com:22:owner/repo.git",
-			expectedOwner: "",
-			expectedRepo:  "",
-			expectError:   false, // Will parse but give unexpected results
-		},
-		{
-			name:          "HTTPS with www",
-			url:           "https://www.github.com/owner/repo.git",
-			expectedOwner: "owner",
-			expectedRepo:  "repo",
-			expectError:   false,
-		},
-		{
-			name:          "HTTP instead of HTTPS",
-			url:           "http://github.com/owner/repo.git",
-			expectedOwner: "owner",
-			expectedRepo:  "repo",
-			expectError:   false,
-		},
-		{
-			name:          "URL with trailing slash (will fail)",
-			url:           "https://github.com/owner/repo/",
-			expectedOwner: "",
-			expectedRepo:  "",
-			expectError:   true, // Will fail due to extra slash
-		},
-		{
-			name:          "SSH without git extension",
-			url:           "git@github.com:owner/repo",
-			expectedOwner: "owner",
-			expectedRepo:  "repo",
-			expectError:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, err := ParseGitHubURL(tt.url)
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for URL %q", tt.url)
-				}
-			} else {
-				if err != nil && tt.expectedOwner != "" {
-					t.Errorf("Unexpected error for URL %q: %v", tt.url, err)
-				}
-				if err == nil && tt.expectedOwner != "" {
-					if owner != tt.expectedOwner || repo != tt.expectedRepo {
-						t.Errorf("ParseGitHubURL(%q) = (%q, %q); want (%q, %q)",
-							tt.url, owner, repo, tt.expectedOwner, tt.expectedRepo)
-					}
-				}
-			}
-		})
-	}
-}
-
 func TestSanitizeForFilename_SpecialCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -456,19 +307,5 @@ func BenchmarkSplitRepoSlug_Invalid(b *testing.B) {
 	slug := "invalid"
 	for b.Loop() {
 		_, _, _ = SplitRepoSlug(slug)
-	}
-}
-
-func BenchmarkParseGitHubURL_SSH(b *testing.B) {
-	url := "git@github.com:github/gh-aw.git"
-	for b.Loop() {
-		_, _, _ = ParseGitHubURL(url)
-	}
-}
-
-func BenchmarkParseGitHubURL_HTTPS(b *testing.B) {
-	url := "https://github.com/github/gh-aw.git"
-	for b.Loop() {
-		_, _, _ = ParseGitHubURL(url)
 	}
 }

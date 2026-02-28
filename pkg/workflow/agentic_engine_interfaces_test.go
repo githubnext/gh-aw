@@ -55,7 +55,6 @@ func TestInterfaceSegregation(t *testing.T) {
 			_ = engine.SupportsMaxTurns()
 			_ = engine.SupportsWebFetch()
 			_ = engine.SupportsWebSearch()
-			_ = engine.SupportsFirewall()
 		}
 	})
 
@@ -217,7 +216,6 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 				"max_turns":       cp.SupportsMaxTurns(),
 				"web_fetch":       cp.SupportsWebFetch(),
 				"web_search":      cp.SupportsWebSearch(),
-				"firewall":        cp.SupportsFirewall(),
 			}
 		}
 
@@ -225,7 +223,7 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 		for _, engine := range registry.GetAllEngines() {
 			caps := checkCapabilities(engine)
 			assert.NotNil(t, caps, "Engine %s should have capabilities", engine.GetID())
-			assert.Len(t, caps, 5, "Should have 5 capability flags")
+			assert.Len(t, caps, 4, "Should have 4 capability flags")
 		}
 	})
 
@@ -264,7 +262,6 @@ func TestBaseEngineImplementsAllInterfaces(t *testing.T) {
 		supportsMaxTurns:       true,
 		supportsWebFetch:       true,
 		supportsWebSearch:      true,
-		supportsFirewall:       true,
 	}
 
 	// Verify Engine interface methods
@@ -278,7 +275,6 @@ func TestBaseEngineImplementsAllInterfaces(t *testing.T) {
 	assert.True(t, base.SupportsMaxTurns())
 	assert.True(t, base.SupportsWebFetch())
 	assert.True(t, base.SupportsWebSearch())
-	assert.True(t, base.SupportsFirewall())
 
 	// Verify default implementations
 	assert.Empty(t, base.GetDeclaredOutputFiles())
@@ -308,7 +304,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 		assert.False(t, copilot.SupportsMaxTurns())
 		assert.True(t, copilot.SupportsWebFetch())
 		assert.False(t, copilot.SupportsWebSearch())
-		assert.True(t, copilot.SupportsFirewall())
 		assert.False(t, copilot.IsExperimental())
 	})
 
@@ -317,7 +312,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 		assert.True(t, claude.SupportsMaxTurns())
 		assert.True(t, claude.SupportsWebFetch())
 		assert.True(t, claude.SupportsWebSearch())
-		assert.True(t, claude.SupportsFirewall())
 		assert.False(t, claude.IsExperimental())
 	})
 
@@ -326,7 +320,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 		assert.False(t, codex.SupportsMaxTurns())
 		assert.False(t, codex.SupportsWebFetch())
 		assert.True(t, codex.SupportsWebSearch())
-		assert.True(t, codex.SupportsFirewall())
 		assert.False(t, codex.IsExperimental())
 	})
 }
