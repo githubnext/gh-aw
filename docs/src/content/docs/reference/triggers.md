@@ -419,6 +419,7 @@ on: repository starred              # Repository starred (maps to watch event)
 on: repository forked               # Repository forked
 on: dependabot pull request         # PR from Dependabot (adds actor condition)
 on: security alert                  # Code scanning alert
+on: code scanning alert             # Alias for security alert (code scanning alert)
 on: api dispatch custom-event       # Repository dispatch with custom event type
 ```
 
