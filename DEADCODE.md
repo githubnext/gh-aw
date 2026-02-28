@@ -28,6 +28,7 @@ It does NOT report unreachable constants, variables, or types — only functions
 
 **Important rules:**
 - **Always include `./internal/tools/...` in the deadcode command**
+- **Beware `//go:build js && wasm` files** — `cmd/gh-aw-wasm/` uses functions like `ParseWorkflowString` and `CompileToYAML` that deadcode can't see because the WASM binary can't be compiled without `GOOS=js GOARCH=wasm`. Always check `cmd/gh-aw-wasm/main.go` before deleting functions from `pkg/workflow/`.
 - Run `go build ./...` after every batch
 - Run `go vet ./...` to catch test compilation errors (cheaper than `go test`)
 - Run `go test -tags=integration ./pkg/affected/...` to spot-check
@@ -93,8 +94,8 @@ These are the JS bundler subsystem — entirely unused.
 - [ ] `pkg/workflow/bundler_script_validation.go` (2/2 dead)
 
 ### Group 1E: Workflow other fully dead files (9 files)
-- [ ] `pkg/workflow/compiler_string_api.go` (2/2 dead) → delete `compiler_string_api_test.go`
-- [ ] `pkg/workflow/compiler_test_helpers.go` (3/3 dead) — test helper, check usage
+- [x] `pkg/workflow/compiler_string_api.go` ~~(2/2 dead) → delete~~ **⚠️ DO NOT DELETE — used by `cmd/gh-aw-wasm/` (WASM binary has `//go:build js && wasm` constraint invisible to deadcode)**
+- [x] `pkg/workflow/compiler_test_helpers.go` (3/3 dead) — test helper, **DO NOT DELETE** (used by 15 test files)
 - [ ] `pkg/workflow/copilot_participant_steps.go` (3/3 dead)
 - [ ] `pkg/workflow/dependency_tracker.go` (2/2 dead)
 - [ ] `pkg/workflow/env_mirror.go` (2/2 dead)
