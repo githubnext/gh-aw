@@ -39,6 +39,10 @@ type CheckoutConfig struct {
 
 	// GitHubToken overrides the default GITHUB_TOKEN for authentication.
 	// Use ${{ secrets.MY_TOKEN }} to reference a repository secret.
+	//
+	// Frontmatter key: "github-token" (user-facing name used here and in the schema)
+	// Generated YAML key: "token" (the actual input name for actions/checkout)
+	// The compiler maps frontmatter "github-token" → lock.yml "token" during step generation.
 	GitHubToken string `json:"github-token,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
@@ -254,7 +258,8 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
 		if override.token != "" {
-			fmt.Fprintf(&sb, "          github-token: %s\n", override.token)
+			// actions/checkout input is "token", not "github-token"
+			fmt.Fprintf(&sb, "          token: %s\n", override.token)
 		}
 		if override.fetchDepth != nil {
 			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
@@ -297,7 +302,8 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
 	if entry.token != "" {
-		fmt.Fprintf(&sb, "          github-token: %s\n", entry.token)
+		// actions/checkout input is "token", not "github-token"
+		fmt.Fprintf(&sb, "          token: %s\n", entry.token)
 	}
 	if entry.fetchDepth != nil {
 		fmt.Fprintf(&sb, "          fetch-depth: %d\n", *entry.fetchDepth)

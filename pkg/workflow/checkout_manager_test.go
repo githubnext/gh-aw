@@ -124,7 +124,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "github-token: ${{ secrets.MY_TOKEN }}", "should include custom token")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "should include custom token")
 		assert.Contains(t, combined, "persist-credentials: false", "must always have persist-credentials: false even with custom token")
 	})
 
