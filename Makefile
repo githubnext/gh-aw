@@ -345,26 +345,6 @@ docker-clean:
 	@docker rmi $(DOCKER_IMAGE):latest 2>/dev/null || true
 	@echo "✓ Docker images cleaned"
 
-# Actions management targets
-.PHONY: actions-build
-actions-build:
-	@echo "Building all actions..."
-	@go run ./internal/tools/actions-build build
-
-.PHONY: actions-validate
-actions-validate:
-	@echo "Validating action.yml files..."
-	@go run ./internal/tools/actions-build validate
-
-.PHONY: actions-clean
-actions-clean:
-	@echo "Cleaning action artifacts..."
-	@go run ./internal/tools/actions-build clean
-
-.PHONY: generate-action-metadata
-generate-action-metadata:
-	@echo "Generating action metadata..."
-	@go run ./internal/tools/generate-action-metadata generate
 
 # Check Node.js version
 .PHONY: check-node-version
@@ -780,10 +760,6 @@ help:
 	@echo "  docker-test      - Test Docker image functionality"
 	@echo "  docker-push      - Push Docker images to registry"
 	@echo "  docker-clean     - Remove local Docker images"
-	@echo "  actions-build    - Build all custom GitHub Actions from source"
-	@echo "  actions-validate - Validate action.yml files"
-	@echo "  actions-clean    - Clean action build artifacts"
-	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
 	@echo "  tools            - Install build-time tools from tools.go"
 	@echo "  license-check    - Check dependency licenses for compliance"
 	@echo "  license-report   - Generate CSV license report"
