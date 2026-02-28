@@ -5,8 +5,6 @@ package workflow
 import (
 	"strings"
 	"testing"
-
-	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestValidateStrictFirewall_LLMGatewaySupport tests the LLM gateway validation in strict mode
@@ -176,7 +174,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine with LLM gateway support requires sandbox.agent to be enabled in strict mode", func(t *testing.T) {
+	t.Run("copilot engine requires sandbox.agent to be enabled in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -194,8 +192,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for copilot engine with sandbox.agent: false, got nil")
 		}
-		// Since copilot now supports LLM gateway, it should get the general error message
-		// (not the engine-specific "does not support LLM gateway" message)
+		// All engines use the general error message now (LLM gateway is always present)
 		if err != nil && !strings.Contains(err.Error(), "sandbox.agent: false") {
 			t.Errorf("Expected error about sandbox.agent: false, got: %v", err)
 		}
@@ -204,7 +201,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("codex engine with LLM gateway rejects sandbox.agent: false in strict mode", func(t *testing.T) {
+	t.Run("codex engine rejects sandbox.agent: false in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -261,53 +258,6 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 			t.Errorf("Expected no error for wildcard (skips all validation), got: %v", err)
 		}
 	})
-}
-
-// TestSupportsLLMGateway tests the SupportsLLMGateway method for each engine
-func TestSupportsLLMGateway(t *testing.T) {
-	registry := NewEngineRegistry()
-
-	tests := []struct {
-		engineID     string
-		expectedPort int
-		description  string
-	}{
-		{
-			engineID:     "codex",
-			expectedPort: constants.CodexLLMGatewayPort,
-			description:  "Codex engine uses dedicated port for LLM gateway",
-		},
-		{
-			engineID:     "claude",
-			expectedPort: constants.ClaudeLLMGatewayPort,
-			description:  "Claude engine uses dedicated port for LLM gateway",
-		},
-		{
-			engineID:     "copilot",
-			expectedPort: constants.CopilotLLMGatewayPort,
-			description:  "Copilot engine uses dedicated port for LLM gateway",
-		},
-		{
-			engineID:     "gemini",
-			expectedPort: constants.GeminiLLMGatewayPort,
-			description:  "Gemini engine uses dedicated port for LLM gateway",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.description, func(t *testing.T) {
-			engine, err := registry.GetEngine(tt.engineID)
-			if err != nil {
-				t.Fatalf("Failed to get engine '%s': %v", tt.engineID, err)
-			}
-
-			llmGatewayPort := engine.SupportsLLMGateway()
-			if llmGatewayPort != tt.expectedPort {
-				t.Errorf("Engine '%s': expected SupportsLLMGateway() = %d, got %d",
-					tt.engineID, tt.expectedPort, llmGatewayPort)
-			}
-		})
-	}
 }
 
 // TestValidateStrictFirewall_EcosystemSuggestions tests ecosystem suggestions in warning messages

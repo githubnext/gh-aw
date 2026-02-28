@@ -228,9 +228,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
 
-		// Enable API proxy sidecar if this engine supports LLM gateway
-		llmGatewayPort := e.SupportsLLMGateway()
-		usesAPIProxy := llmGatewayPort > 0
+		// All engines require the API proxy sidecar (LLM gateway is mandatory)
+		usesAPIProxy := true
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "gemini",

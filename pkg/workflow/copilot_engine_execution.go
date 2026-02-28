@@ -202,10 +202,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// Build AWF command with all configuration
-		// Enable API proxy sidecar if this engine supports LLM gateway
-		llmGatewayPort := e.SupportsLLMGateway()
-		usesAPIProxy := llmGatewayPort > 0
+		// All engines require the API proxy sidecar (LLM gateway is mandatory)
+		usesAPIProxy := true
 
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
 		// AWF v0.15.0+ with --env-all handles PATH natively (chroot mode is default):
