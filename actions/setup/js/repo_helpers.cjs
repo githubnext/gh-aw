@@ -109,8 +109,16 @@ function getDefaultTargetRepo(config) {
   if (targetRepoSlug) {
     return targetRepoSlug;
   }
-  // Fall back to context repo
-  return `${context.repo.owner}/${context.repo.repo}`;
+  // Fall back to GITHUB_REPOSITORY env var (available in standalone daemon mode)
+  const githubRepo = process.env.GITHUB_REPOSITORY;
+  if (githubRepo) {
+    return githubRepo;
+  }
+  // Fall back to context repo (only available in github-script or shim-provided context)
+  if (typeof context !== "undefined" && context.repo?.owner && context.repo?.repo) {
+    return `${context.repo.owner}/${context.repo.repo}`;
+  }
+  return "";
 }
 
 /**
@@ -214,6 +222,14 @@ function resolveTargetRepoConfig(config) {
  * @returns {RepoResolutionResult}
  */
 function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operationType) {
+  // Check for empty defaultTargetRepo, which indicates a configuration or environment issue
+  if (!defaultTargetRepo) {
+    return {
+      success: false,
+      error: `Unable to determine target repository for ${operationType}. Set GH_AW_TARGET_REPO_SLUG, ensure GITHUB_REPOSITORY is available, or configure target-repo in safe-outputs settings.`,
+    };
+  }
+
   // Determine target repository for this operation
   const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
 
