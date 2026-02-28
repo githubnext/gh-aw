@@ -218,6 +218,27 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["assign_to_user_assigned"] = "${{ steps.process_safe_outputs.outputs.assigned }}"
 	}
 
+	// Individual named outputs for first-created items (enables workflow_call consumers to access results)
+	if data.SafeOutputs.CreateIssues != nil {
+		outputs["created_issue_number"] = "${{ steps.process_safe_outputs.outputs.created_issue_number }}"
+		outputs["created_issue_url"] = "${{ steps.process_safe_outputs.outputs.created_issue_url }}"
+	}
+
+	if data.SafeOutputs.CreatePullRequests != nil {
+		outputs["created_pr_number"] = "${{ steps.process_safe_outputs.outputs.created_pr_number }}"
+		outputs["created_pr_url"] = "${{ steps.process_safe_outputs.outputs.created_pr_url }}"
+	}
+
+	if data.SafeOutputs.AddComments != nil {
+		outputs["comment_id"] = "${{ steps.process_safe_outputs.outputs.comment_id }}"
+		outputs["comment_url"] = "${{ steps.process_safe_outputs.outputs.comment_url }}"
+	}
+
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		outputs["push_commit_sha"] = "${{ steps.process_safe_outputs.outputs.push_commit_sha }}"
+		outputs["push_commit_url"] = "${{ steps.process_safe_outputs.outputs.push_commit_url }}"
+	}
+
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
 		consolidatedSafeOutputsJobLog.Print("No safe output steps were added")

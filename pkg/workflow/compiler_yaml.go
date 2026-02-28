@@ -150,7 +150,13 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowData) {
 	// Write basic workflow structure
 	fmt.Fprintf(yaml, "name: \"%s\"\n", data.Name)
-	yaml.WriteString(data.On + "\n\n")
+
+	// Inject on.workflow_call.outputs when workflow_call is configured and safe-outputs are present
+	onSection := data.On
+	if data.SafeOutputs != nil {
+		onSection = c.injectWorkflowCallOutputs(onSection, data.SafeOutputs)
+	}
+	yaml.WriteString(onSection + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
 	// The workflow_run safety check is added to individual jobs instead

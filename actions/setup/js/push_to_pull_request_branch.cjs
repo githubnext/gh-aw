@@ -491,6 +491,7 @@ async function main(config = {}) {
     return {
       success: true,
       branch_name: branchName,
+      commit_sha: commitSha,
       commit_url: commitUrl,
     };
   };
