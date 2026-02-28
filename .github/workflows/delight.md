@@ -258,12 +258,14 @@ For each selected item:
 
 ### Step 4: Create Improvement Report
 
+**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+
 Create a focused analysis report:
 
 ```markdown
-# User Experience Analysis Report - [DATE]
+### User Experience Analysis Report - [DATE]
 
-## Executive Summary
+### Executive Summary
 
 Today's analysis focused on:
 - [N] documentation file(s)
@@ -275,18 +277,18 @@ Today's analysis focused on:
 
 **Key Finding**: [One-sentence summary of most impactful improvement opportunity]
 
-## Quality Highlights ✅
+### Quality Highlights ✅
 
 [1-2 examples of aspects that demonstrate good user experience]
 
-### Example 1: [Title]
+#### Example 1: [Title]
 - **File**: `[path/to/file.ext]`
 - **What works well**: [Specific quality factors]
 - **Quote/Reference**: "[Actual example text or reference]"
 
-## Improvement Opportunities 💡
+### Improvement Opportunities 💡
 
-### High Priority
+#### High Priority
 
 #### Opportunity 1: [Title] - Single File Improvement
 - **File**: `[path/to/specific/file.ext]`
@@ -296,25 +298,25 @@ Today's analysis focused on:
 - **Suggested Change**: [Concrete, single-file improvement]
 - **Design Principle**: [Which principle applies]
 
-### Medium Priority
+#### Medium Priority
 
 [Repeat structure for additional opportunities if identified]
 
-## Files Reviewed
+### Files Reviewed
 
-### Documentation
+#### Documentation
 - `[file path]` - Rating: [✅/⚠️/❌]
 
-### CLI Commands
+#### CLI Commands
 - `gh aw [command]` - Rating: [✅/⚠️/❌]
 
-### Workflow Messages
+#### Workflow Messages
 - `[workflow-name]` - Rating: [✅/⚠️/❌]
 
-### Validation Code
+#### Validation Code
 - `[file path]` - Rating: [✅/⚠️/❌]
 
-## Metrics
+### Metrics
 
 - **Files Analyzed**: [N]
 - **Quality Distribution**:
@@ -334,11 +336,11 @@ For the **top 1-2 highest-impact improvement opportunities**, create actionable 
 Add an "Actionable Tasks" section to the discussion report with this format:
 
 ```markdown
-## 🎯 Actionable Tasks
+### 🎯 Actionable Tasks
 
 Here are 1-2 targeted improvement tasks, each affecting a single file:
 
-### Task 1: [Title] - Improve [Specific File]
+#### Task 1: [Title] - Improve [Specific File]
 
 **File to Modify**: `[exact/path/to/single/file.ext]`
 
@@ -383,7 +385,7 @@ Here are 1-2 targeted improvement tasks, each affecting a single file:
 
 ---
 
-### Task 2: [Title] - Improve [Different Specific File]
+#### Task 2: [Title] - Improve [Different Specific File]
 
 **File to Modify**: `[exact/path/to/different/file.ext]`
 
