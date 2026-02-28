@@ -42,7 +42,12 @@ func TestRenderMCPToolTable(t *testing.T) {
 			Tools:  []*mcp.Tool{},
 		}
 
-		opts := DefaultMCPToolTableOptions()
+		opts := MCPToolTableOptions{
+			TruncateLength:  60,
+			ShowSummary:     true,
+			SummaryFormat:   "\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n",
+			ShowVerboseHint: false,
+		}
 		result := renderMCPToolTable(emptyInfo, opts)
 
 		if result != "" {
@@ -51,7 +56,12 @@ func TestRenderMCPToolTable(t *testing.T) {
 	})
 
 	t.Run("renders_table_with_default_options", func(t *testing.T) {
-		opts := DefaultMCPToolTableOptions()
+		opts := MCPToolTableOptions{
+			TruncateLength:  60,
+			ShowSummary:     true,
+			SummaryFormat:   "\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n",
+			ShowVerboseHint: false,
+		}
 		result := renderMCPToolTable(mockInfo, opts)
 
 		// Verify table is rendered
@@ -234,24 +244,4 @@ func TestRenderMCPToolTable(t *testing.T) {
 			t.Error("Expected 0 not allowed with wildcard")
 		}
 	})
-}
-
-func TestDefaultMCPToolTableOptions(t *testing.T) {
-	opts := DefaultMCPToolTableOptions()
-
-	if opts.TruncateLength != 60 {
-		t.Errorf("Expected default TruncateLength to be 60, got %d", opts.TruncateLength)
-	}
-
-	if !opts.ShowSummary {
-		t.Error("Expected default ShowSummary to be true")
-	}
-
-	if opts.SummaryFormat != "\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n" {
-		t.Errorf("Expected default SummaryFormat, got: %s", opts.SummaryFormat)
-	}
-
-	if opts.ShowVerboseHint {
-		t.Error("Expected default ShowVerboseHint to be false")
-	}
 }

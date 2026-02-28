@@ -23,16 +23,6 @@ type MCPToolTableOptions struct {
 	ShowVerboseHint bool
 }
 
-// DefaultMCPToolTableOptions returns the default options for rendering MCP tool tables
-func DefaultMCPToolTableOptions() MCPToolTableOptions {
-	return MCPToolTableOptions{
-		TruncateLength:  60,
-		ShowSummary:     true,
-		SummaryFormat:   "\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n",
-		ShowVerboseHint: false,
-	}
-}
-
 // renderMCPToolTable renders an MCP tool table with configurable options
 // This is the shared rendering logic used by both mcp list-tools and mcp inspect commands
 func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) string {

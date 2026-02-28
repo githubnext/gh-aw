@@ -157,31 +157,6 @@ func TestGetLogsDataSchema(t *testing.T) {
 	}
 }
 
-func TestFormatGuardrailMessage(t *testing.T) {
-	guardrail := MCPLogsGuardrailResponse{
-		Message:         "Test message",
-		OutputTokens:    15000,
-		OutputSizeLimit: DefaultMaxMCPLogsOutputTokens,
-		Schema:          getLogsDataSchema(),
-	}
-
-	message := formatGuardrailMessage(guardrail)
-
-	// Verify message contains key components
-	if !strings.Contains(message, "Test message") {
-		t.Error("Formatted message should contain the original message")
-	}
-
-	if !strings.Contains(message, "Output Schema") {
-		t.Error("Formatted message should contain schema section")
-	}
-
-	// Verify it mentions some fields
-	if !strings.Contains(message, "summary") {
-		t.Error("Formatted message should mention 'summary' field")
-	}
-}
-
 func TestGuardrailResponseJSON(t *testing.T) {
 	// Create a large output to trigger guardrail
 	// Default limit is 12000 tokens = 48000 characters

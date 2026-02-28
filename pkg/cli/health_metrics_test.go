@@ -174,22 +174,6 @@ func TestGroupRunsByWorkflow(t *testing.T) {
 	assert.Len(t, grouped["workflow-c"], 1, "workflow-c should have 1 run")
 }
 
-func TestFilterWorkflowsByName(t *testing.T) {
-	runs := []WorkflowRun{
-		{WorkflowName: "workflow-a", Conclusion: "success"},
-		{WorkflowName: "workflow-b", Conclusion: "success"},
-		{WorkflowName: "workflow-a", Conclusion: "failure"},
-		{WorkflowName: "workflow-c", Conclusion: "success"},
-	}
-
-	filtered := FilterWorkflowsByName(runs, "workflow-a")
-
-	assert.Len(t, filtered, 2, "Should filter to 2 runs for workflow-a")
-	for _, run := range filtered {
-		assert.Equal(t, "workflow-a", run.WorkflowName, "All filtered runs should be workflow-a")
-	}
-}
-
 func TestCalculateHealthSummary(t *testing.T) {
 	workflowHealths := []WorkflowHealth{
 		{WorkflowName: "workflow-a", SuccessRate: 90.0, BelowThresh: false},

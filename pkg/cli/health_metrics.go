@@ -226,17 +226,6 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 	return summary
 }
 
-// FilterWorkflowsByName filters workflow runs by workflow name
-func FilterWorkflowsByName(runs []WorkflowRun, workflowName string) []WorkflowRun {
-	filtered := make([]WorkflowRun, 0)
-	for _, run := range runs {
-		if run.WorkflowName == workflowName {
-			filtered = append(filtered, run)
-		}
-	}
-	return filtered
-}
-
 // GroupRunsByWorkflow groups workflow runs by workflow name
 func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun {
 	grouped := make(map[string][]WorkflowRun)
