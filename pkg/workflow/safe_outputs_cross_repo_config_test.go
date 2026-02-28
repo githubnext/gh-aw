@@ -420,8 +420,6 @@ func TestPushToPullRequestBranchCrossRepoInHandlerConfig(t *testing.T) {
 	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
 }
 
-// TestHandlerManagerStepUsesPerOutputToken verifies that the handler manager step
-// uses the per-output github-token when no global safe-outputs token is set.
 // TestHandlerManagerStepPerOutputTokenInHandlerConfig verifies that per-output tokens
 // (e.g., add-comment.github-token) are wired into the handler config JSON (GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
 // but NOT used as the step-level with.github-token. The step-level token follows the same

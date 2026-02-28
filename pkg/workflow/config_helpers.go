@@ -165,7 +165,9 @@ func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
 }
 
 // parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
-// Returns a slice of repository slugs in "owner/repo" format, or nil if not present or invalid.
+// Returns a slice of repository slugs in "owner/repo" format.
+// Returns nil when the key is not present or the value is not a valid array type.
+// Returns an empty slice when the key exists but contains no valid strings.
 func parseAllowedReposFromConfig(configMap map[string]any) []string {
 	return ParseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
 }

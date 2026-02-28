@@ -375,7 +375,6 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Rationale: update_project/create_project_status_update call the Projects v2 GraphQL API, which
 	// cannot be accessed with the default GITHUB_TOKEN. GH_AW_PROJECT_GITHUB_TOKEN is the required
 	// token for Projects v2 operations.
-	// If no project token, fall back to per-output tokens from handler types that support github-token.
 	steps = append(steps, "        with:\n")
 	// Token precedence for the handler manager step:
 	//   1. Project token (if project operations are configured) - already set above
