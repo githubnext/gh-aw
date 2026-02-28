@@ -226,14 +226,6 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 	return nil
 }
 
-// isDockerAvailable checks if Docker is available on the system
-func isDockerAvailable() bool {
-	cmd := exec.Command("docker", "version")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run() == nil
-}
-
 // ResetDockerPullState resets the internal pull state (for testing)
 func ResetDockerPullState() {
 	pullState.mu.Lock()
