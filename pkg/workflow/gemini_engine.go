@@ -26,7 +26,6 @@ func NewGeminiEngine() *GeminiEngine {
 			supportsMaxTurns:       false,
 			supportsWebFetch:       false,
 			supportsWebSearch:      false,
-			supportsFirewall:       true, // Gemini supports network firewalling via AWF
 			supportsPlugins:        false,
 			supportsLLMGateway:     true, // Gemini supports LLM gateway on port 10003
 		},
