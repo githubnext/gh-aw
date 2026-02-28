@@ -1248,8 +1248,44 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.ref }}-fuzz
+      group: ci-${{ github.ref }}-fuzz-${{ matrix.group }}
       cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: Parser
+            tests: >-
+              FuzzParseFrontmatter:./pkg/parser/
+              FuzzScheduleParser:./pkg/parser/
+              FuzzRuntimeImportExpressionValidation:./pkg/parser/
+              FuzzRuntimeImportProcessExpressions:./pkg/parser/
+          - group: Workflow-Core
+            tests: >-
+              FuzzExpressionParser:./pkg/workflow/
+              FuzzMentionsFiltering:./pkg/workflow/
+              FuzzSanitizeOutput:./pkg/workflow/
+              FuzzSanitizeIncomingText:./pkg/workflow/
+              FuzzSanitizeLabelContent:./pkg/workflow/
+              FuzzWrapExpressionsInTemplateConditionals:./pkg/workflow/
+          - group: Workflow-Parsing
+            tests: >-
+              FuzzYAMLParsing:./pkg/workflow/
+              FuzzTemplateRendering:./pkg/workflow/
+              FuzzInputValidation:./pkg/workflow/
+              FuzzNetworkPermissions:./pkg/workflow/
+              FuzzSafeJobConfig:./pkg/workflow/
+              FuzzParseLabelTriggerShorthand:./pkg/workflow/
+          - group: Workflow-Triggers
+            tests: >-
+              FuzzExpandLabelTriggerShorthand:./pkg/workflow/
+              FuzzValidateNoTemplateInjection:./pkg/workflow/
+              FuzzRemoveHeredocContent:./pkg/workflow/
+              FuzzMarkdownCodeRegionBalancer:./pkg/workflow/
+              FuzzParseTriggerShorthand:./pkg/workflow/
+              FuzzTriggerIRToYAMLMap:./pkg/workflow/
+              FuzzParseInputDefinition:./pkg/workflow/
+              FuzzParseInputDefinitions:./pkg/workflow/
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1295,7 +1331,7 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
-      - name: Run fuzz tests
+      - name: Run fuzz tests (${{ matrix.group }})
         run: |
           set -o pipefail
           # Create directory for fuzz results
@@ -1326,31 +1362,12 @@ jobs:
             fi
           }
           
-          # Run fuzz tests and capture output
-          run_fuzz_test "FuzzParseFrontmatter" "./pkg/parser/"
-          run_fuzz_test "FuzzScheduleParser" "./pkg/parser/"
-          run_fuzz_test "FuzzRuntimeImportExpressionValidation" "./pkg/parser/"
-          run_fuzz_test "FuzzRuntimeImportProcessExpressions" "./pkg/parser/"
-          run_fuzz_test "FuzzExpressionParser" "./pkg/workflow/"
-          run_fuzz_test "FuzzMentionsFiltering" "./pkg/workflow/"
-          run_fuzz_test "FuzzSanitizeOutput" "./pkg/workflow/"
-          run_fuzz_test "FuzzSanitizeIncomingText" "./pkg/workflow/"
-          run_fuzz_test "FuzzSanitizeLabelContent" "./pkg/workflow/"
-          run_fuzz_test "FuzzWrapExpressionsInTemplateConditionals" "./pkg/workflow/"
-          run_fuzz_test "FuzzYAMLParsing" "./pkg/workflow/"
-          run_fuzz_test "FuzzTemplateRendering" "./pkg/workflow/"
-          run_fuzz_test "FuzzInputValidation" "./pkg/workflow/"
-          run_fuzz_test "FuzzNetworkPermissions" "./pkg/workflow/"
-          run_fuzz_test "FuzzSafeJobConfig" "./pkg/workflow/"
-          run_fuzz_test "FuzzParseLabelTriggerShorthand" "./pkg/workflow/"
-          run_fuzz_test "FuzzExpandLabelTriggerShorthand" "./pkg/workflow/"
-          run_fuzz_test "FuzzValidateNoTemplateInjection" "./pkg/workflow/"
-          run_fuzz_test "FuzzRemoveHeredocContent" "./pkg/workflow/"
-          run_fuzz_test "FuzzMarkdownCodeRegionBalancer" "./pkg/workflow/"
-          run_fuzz_test "FuzzParseTriggerShorthand" "./pkg/workflow/"
-          run_fuzz_test "FuzzTriggerIRToYAMLMap" "./pkg/workflow/"
-          run_fuzz_test "FuzzParseInputDefinition" "./pkg/workflow/"
-          run_fuzz_test "FuzzParseInputDefinitions" "./pkg/workflow/"
+          # Run fuzz tests for this matrix group
+          for entry in ${{ matrix.tests }}; do
+            fuzz_name="${entry%%:*}"
+            package="${entry##*:}"
+            run_fuzz_test "${fuzz_name}" "${package}"
+          done
           
           # Copy fuzz corpus data (testdata/fuzz directories)
           echo "Copying fuzz corpus data..."
@@ -1362,9 +1379,10 @@ jobs:
           done
 
       - name: Upload fuzz test results
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: fuzz-results
+          name: fuzz-results-${{ matrix.group }}
           path: fuzz-results/
           retention-days: 14
 

@@ -63,52 +63,25 @@ jobs:
       - name: Generate agentic run info
         id: generate_aw_info
         env:
-          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          GH_AW_INFO_ENGINE_ID: "copilot"
+          GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_AGENT_VERSION: "0.0.419"
+          GH_AW_INFO_WORKFLOW_NAME: "GPL Dependency Cleaner (gpclean)"
+          GH_AW_INFO_EXPERIMENTAL: "false"
+          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
+          GH_AW_INFO_STAGED: "false"
+          GH_AW_INFO_ALLOWED_DOMAINS: '["pkg.go.dev","proxy.golang.org","sum.golang.org","go.googlesource.com","api.github.com","github.com"]'
+          GH_AW_INFO_FIREWALL_ENABLED: "true"
+          GH_AW_INFO_AWF_VERSION: "v0.23.0"
+          GH_AW_INFO_AWMG_VERSION: ""
+          GH_AW_INFO_FIREWALL_TYPE: "squid"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
-              version: "",
-              agent_version: "0.0.419",
-              workflow_name: "GPL Dependency Cleaner (gpclean)",
-              experimental: false,
-              supports_tools_allowlist: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              allowed_domains: ["pkg.go.dev","proxy.golang.org","sum.golang.org","go.googlesource.com","api.github.com","github.com"],
-              firewall_enabled: true,
-              awf_version: "v0.23.0",
-              awmg_version: "",
-              steps: {
-                firewall: "squid"
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
-            
-            // Set model as output for reuse in other steps/jobs
-            core.setOutput('model', awInfo.model);
-            
-            // Generate workflow overview and write to step summary
-            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
-            await generateWorkflowOverview(core);
+            const { main } = require('/opt/gh-aw/actions/generate_aw_info.cjs');
+            await main(core, context);
       - name: Validate COPILOT_GITHUB_TOKEN secret
         id: validate-secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
