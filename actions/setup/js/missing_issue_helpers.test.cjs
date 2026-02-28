@@ -270,6 +270,48 @@ describe("missing_issue_helpers.cjs - buildMissingIssueHandler", () => {
 
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(expect.objectContaining({ labels: ["bug", "needs-triage"] }));
     });
+
+    it("should always apply defaultLabels from options even without config.labels", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 77, html_url: "https://github.com/owner/repo/issues/77" },
+      });
+
+      const handler = await buildMissingIssueHandler(makeOptions({ defaultLabels: ["agentic-workflows"] }))({});
+      await handler(defaultMessage);
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(expect.objectContaining({ labels: ["agentic-workflows"] }));
+    });
+
+    it("should merge defaultLabels with config.labels", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 77, html_url: "https://github.com/owner/repo/issues/77" },
+      });
+
+      const handler = await buildMissingIssueHandler(makeOptions({ defaultLabels: ["agentic-workflows"] }))({ labels: ["bug"] });
+      await handler(defaultMessage);
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(expect.objectContaining({ labels: ["agentic-workflows", "bug"] }));
+    });
+
+    it("should deduplicate labels when defaultLabels and config.labels overlap", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 77, html_url: "https://github.com/owner/repo/issues/77" },
+      });
+
+      const handler = await buildMissingIssueHandler(makeOptions({ defaultLabels: ["agentic-workflows"] }))({ labels: ["agentic-workflows", "bug"] });
+      await handler(defaultMessage);
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(expect.objectContaining({ labels: ["agentic-workflows", "bug"] }));
+    });
   });
 
   describe("error handling", () => {
