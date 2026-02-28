@@ -118,43 +118,6 @@ func CompleteEngineNames(cmd *cobra.Command, args []string, toComplete string) (
 	return filtered, cobra.ShellCompDirectiveNoFileComp
 }
 
-// CompleteMCPServerNames provides shell completion for MCP server names
-// If a workflow is specified, it returns the MCP servers defined in that workflow
-func CompleteMCPServerNames(workflowFile string) func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		completionsLog.Printf("Completing MCP server names for workflow: %s, prefix: %s", workflowFile, toComplete)
-
-		if workflowFile == "" {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// Resolve the workflow path
-		workflowPath, err := ResolveWorkflowPath(workflowFile)
-		if err != nil {
-			completionsLog.Printf("Failed to resolve workflow path: %v", err)
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// Load MCP configs from the workflow
-		// The second parameter is the server filter - empty string means no filtering
-		_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "" /* serverFilter */)
-		if err != nil {
-			completionsLog.Printf("Failed to load MCP configs: %v", err)
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		servers := sliceutil.FilterMap(mcpConfigs,
-			func(config parser.MCPServerConfig) bool {
-				return toComplete == "" || strings.HasPrefix(config.Name, toComplete)
-			},
-			func(config parser.MCPServerConfig) string { return config.Name },
-		)
-
-		completionsLog.Printf("Found %d matching MCP servers", len(servers))
-		return servers, cobra.ShellCompDirectiveNoFileComp
-	}
-}
-
 // CompleteDirectories provides shell completion for directory paths
 func CompleteDirectories(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	completionsLog.Printf("Completing directories with prefix: %s", toComplete)
