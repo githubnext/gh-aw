@@ -569,6 +569,70 @@ func TestEnhanceToolDescription(t *testing.T) {
 			wantNotContains: []string{"CONSTRAINTS:"},
 		},
 		{
+			name:            "push_to_pull_request_branch with title prefix",
+			toolName:        "push_to_pull_request_branch",
+			baseDescription: "Push changes to a pull request branch.",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TitlePrefix: "[bot] ",
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", `The target pull request title must start with "[bot] "`},
+		},
+		{
+			name:            "update_issue with title prefix",
+			toolName:        "update_issue",
+			baseDescription: "Update an issue.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateIssues: &UpdateIssuesConfig{
+					TitlePrefix: "[bot] ",
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", `The target issue title must start with "[bot] "`},
+		},
+		{
+			name:            "close_issue with required title prefix",
+			toolName:        "close_issue",
+			baseDescription: "Close an issue.",
+			safeOutputs: &SafeOutputsConfig{
+				CloseIssues: &CloseIssuesConfig{
+					SafeOutputFilterConfig: SafeOutputFilterConfig{
+						RequiredTitlePrefix: "[bot] ",
+					},
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", `Only issues with title prefix "[bot] " can be closed.`},
+		},
+		{
+			name:            "close_discussion with required title prefix",
+			toolName:        "close_discussion",
+			baseDescription: "Close a discussion.",
+			safeOutputs: &SafeOutputsConfig{
+				CloseDiscussions: &CloseDiscussionsConfig{
+					SafeOutputFilterConfig: SafeOutputFilterConfig{
+						RequiredTitlePrefix: "[bot] ",
+					},
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", `Only discussions with title prefix "[bot] " can be closed.`},
+		},
+		{
+			name:            "link_sub_issue with parent and sub title prefixes",
+			toolName:        "link_sub_issue",
+			baseDescription: "Link a sub-issue.",
+			safeOutputs: &SafeOutputsConfig{
+				LinkSubIssue: &LinkSubIssueConfig{
+					ParentTitlePrefix: "[parent] ",
+					SubTitlePrefix:    "[sub] ",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				`The parent issue title must start with "[parent] "`,
+				`The sub-issue title must start with "[sub] "`,
+			},
+		},
+		{
 			name:            "unknown tool returns base description",
 			toolName:        "unknown_tool",
 			baseDescription: "Unknown tool.",
