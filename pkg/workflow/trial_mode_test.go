@@ -74,8 +74,8 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected safe_outputs job in normal mode")
 		}
 
-		// Checkout should not include a token in normal mode
-		// Check specifically that the checkout step doesn't have a token parameter
+		// Checkout should not include an implicit/default token in normal mode when the workflow doesn't configure one
+		// Check specifically that the generated checkout step doesn't include a token parameter unless explicitly configured in the workflow
 		lines := strings.Split(lockContent, "\n")
 		for i, line := range lines {
 			if strings.Contains(line, "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {

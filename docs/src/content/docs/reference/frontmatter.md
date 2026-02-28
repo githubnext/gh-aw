@@ -575,11 +575,8 @@ Configure how `actions/checkout` is invoked in the agent job. Override default c
 # Single repository with custom settings
 checkout:
   fetch-depth: 0
-  github-token: ${{ secrets.MY_TOKEN }}
+  token: ${{ secrets.MY_TOKEN }}
 ```
-
-> [!NOTE]
-> The frontmatter key `github-token` is the user-facing name. The compiler emits it as the `token` input for `actions/checkout` (the action's actual input name). You use `github-token` in your workflow frontmatter; the compiled lock file contains `token:`.
 
 ```yaml wrap
 # Multiple repositories

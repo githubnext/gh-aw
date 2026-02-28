@@ -32,7 +32,7 @@ func TestNewCheckoutManager(t *testing.T) {
 
 	t.Run("custom token on default checkout", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
+			{Token: "${{ secrets.MY_TOKEN }}"},
 		})
 		override := cm.GetDefaultCheckoutOverride()
 		require.NotNil(t, override, "should have default override")
@@ -132,7 +132,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 
 	t.Run("user token is included in default checkout", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
+			{Token: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
@@ -161,7 +161,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 
 	t.Run("trial mode overrides user config", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
+			{Token: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(true, "owner/trial-repo", getPin)
 		combined := strings.Join(lines, "")
@@ -227,7 +227,7 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 
 	t.Run("additional checkout emits token not github-token", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Path: "./libs", Repository: "owner/libs", GitHubToken: "${{ secrets.MY_TOKEN }}"},
+			{Path: "./libs", Repository: "owner/libs", Token: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
@@ -246,13 +246,13 @@ func TestParseCheckoutConfigs(t *testing.T) {
 
 	t.Run("single object", func(t *testing.T) {
 		raw := map[string]any{
-			"fetch-depth":  float64(0),
-			"github-token": "${{ secrets.MY_TOKEN }}",
+			"fetch-depth": float64(0),
+			"token":       "${{ secrets.MY_TOKEN }}",
 		}
 		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "single object should parse without error")
 		require.Len(t, configs, 1, "should produce one config")
-		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "token should be set")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].Token, "token should be set")
 		require.NotNil(t, configs[0].FetchDepth, "fetch-depth should be set")
 		assert.Equal(t, 0, *configs[0].FetchDepth, "fetch-depth should be 0")
 	})

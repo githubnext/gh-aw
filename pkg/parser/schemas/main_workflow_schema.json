@@ -7894,7 +7894,7 @@
           "type": "boolean",
           "description": "Whether to download Git LFS objects. Defaults to false."
         },
-        "github-token": {
+        "token": {
           "type": "string",
           "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Credentials are always removed after checkout (persist-credentials: false is enforced).",
           "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.GITHUB_TOKEN }}"]

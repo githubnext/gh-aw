@@ -25,8 +25,8 @@ If only a the current repository, you can use `checkout:` to override default ch
 
 ```yaml wrap
 checkout:
-  fetch-depth: 0                           # Full git history
-  github-token: ${{ secrets.MY_TOKEN }}    # Custom authentication
+  fetch-depth: 0                        # Full git history
+  token: ${{ secrets.MY_TOKEN }}        # Custom authentication
 ```
 
 You can also use `checkout:` to check out additional repositories alongside the main repository:
@@ -37,7 +37,7 @@ checkout:
   - repository: owner/other-repo
     path: ./libs/other
     ref: main
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
 ### Checkout Configuration Options
@@ -47,7 +47,7 @@ checkout:
 | `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
-| `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
+| `token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
 | `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
@@ -74,7 +74,7 @@ When a workflow running from a central repository targets a different repository
 checkout:
   - repository: org/target-repo
     path: ./target
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    token: ${{ secrets.CROSS_REPO_PAT }}
     current: true                                    # agent's primary target
 ```
 
@@ -150,7 +150,7 @@ checkout:
   - repository: org/shared-libs
     path: ./libs/shared
     ref: main
-    github-token: ${{ secrets.LIBS_PAT }}
+    token: ${{ secrets.LIBS_PAT }}
   - repository: org/config-repo
     path: ./config
     sparse-checkout: |

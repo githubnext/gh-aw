@@ -17,7 +17,7 @@ var checkoutManagerLog = logger.New("workflow:checkout_manager")
 //
 //	checkout:
 //	  fetch-depth: 0
-//	  github-token: ${{ secrets.MY_TOKEN }}
+//	  token: ${{ secrets.MY_TOKEN }}
 //
 // Or multiple checkouts:
 //
@@ -36,13 +36,10 @@ type CheckoutConfig struct {
 	// Path within GITHUB_WORKSPACE to place the checkout. Defaults to the workspace root.
 	Path string `json:"path,omitempty"`
 
-	// GitHubToken overrides the default GITHUB_TOKEN for authentication.
+	// Token overrides the default GITHUB_TOKEN for authentication.
 	// Use ${{ secrets.MY_TOKEN }} to reference a repository secret.
-	//
-	// Frontmatter key: "github-token" (user-facing name used here and in the schema)
-	// Generated YAML key: "token" (the actual input name for actions/checkout)
-	// The compiler maps frontmatter "github-token" → lock.yml "token" during step generation.
-	GitHubToken string `json:"github-token,omitempty"`
+	// Matches the "token" input of actions/checkout.
+	Token string `json:"token,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
 	// 0 fetches all history (full clone). 1 is a shallow clone (default).
@@ -138,8 +135,8 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.Ref != "" && entry.ref == "" {
 			entry.ref = cfg.Ref // first-seen ref wins
 		}
-		if cfg.GitHubToken != "" && entry.token == "" {
-			entry.token = cfg.GitHubToken // first-seen token wins
+		if cfg.Token != "" && entry.token == "" {
+			entry.token = cfg.Token // first-seen token wins
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
@@ -158,7 +155,7 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		entry := &resolvedCheckout{
 			key:        key,
 			ref:        cfg.Ref,
-			token:      cfg.GitHubToken,
+			token:      cfg.Token,
 			fetchDepth: cfg.FetchDepth,
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
@@ -257,7 +254,6 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
 		if override.token != "" {
-			// actions/checkout input is "token", not "github-token"
 			fmt.Fprintf(&sb, "          token: %s\n", override.token)
 		}
 		if override.fetchDepth != nil {
@@ -301,7 +297,6 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
 	if entry.token != "" {
-		// actions/checkout input is "token", not "github-token"
 		fmt.Fprintf(&sb, "          token: %s\n", entry.token)
 	}
 	if entry.fetchDepth != nil {
@@ -480,12 +475,12 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.Path = s
 	}
 
-	if v, ok := m["github-token"]; ok {
+	if v, ok := m["token"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.github-token must be a string")
+			return nil, errors.New("checkout.token must be a string")
 		}
-		cfg.GitHubToken = s
+		cfg.Token = s
 	}
 
 	if v, ok := m["fetch-depth"]; ok {
