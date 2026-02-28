@@ -653,16 +653,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            \n")
 	yaml.WriteString("            // Set model as output for reuse in other steps/jobs\n")
 	yaml.WriteString("            core.setOutput('model', awInfo.model);\n")
-}
-
-// generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
-// This runs in the activation job after aw_info.json is created, and reads from it for consistent data display.
-// Uses HTML details/summary tags for collapsible output.
-func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	yaml.WriteString("      - name: Generate workflow overview\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Generate workflow overview and write to step summary\n")
 	yaml.WriteString("            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');\n")
 	yaml.WriteString("            await generateWorkflowOverview(core);\n")
 }

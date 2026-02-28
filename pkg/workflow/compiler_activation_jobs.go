@@ -714,13 +714,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	compilerActivationJobsLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
-	// Generate workflow overview in the activation job, after aw_info.json is created
-	// This writes the run summary to the GitHub step summary early, in the activation job
-	compilerActivationJobsLog.Print("Generating workflow overview step in activation job")
-	var overviewYaml strings.Builder
-	c.generateWorkflowOverviewStep(&overviewYaml, data, engine)
-	steps = append(steps, overviewYaml.String())
-
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download
 	compilerActivationJobsLog.Print("Adding activation artifact upload step")
 	steps = append(steps, "      - name: Upload activation artifact\n")
