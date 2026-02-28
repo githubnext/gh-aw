@@ -226,7 +226,7 @@ type BaseEngine struct {
 	supportsWebFetch         bool
 	supportsWebSearch        bool
 	supportsPlugins          bool
-	supportsLLMGateway       bool
+	llmGatewayPort           int
 }
 
 func (e *BaseEngine) GetID() string {
@@ -270,9 +270,7 @@ func (e *BaseEngine) SupportsMaxContinuations() bool {
 }
 
 func (e *BaseEngine) SupportsLLMGateway() int {
-	// Engines that support LLM gateway must override this method
-	// to return their specific port number (e.g., 10000, 10001, 10002)
-	return -1
+	return e.llmGatewayPort
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
@@ -381,6 +379,9 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 
 // Register adds an engine to the registry
 func (r *EngineRegistry) Register(engine CodingAgentEngine) {
+	if engine.SupportsLLMGateway() < 0 {
+		panic(fmt.Sprintf("engine '%s': llmGatewayPort must be >= 0, got %d", engine.GetID(), engine.SupportsLLMGateway()))
+	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine
 }

@@ -27,14 +27,9 @@ func NewGeminiEngine() *GeminiEngine {
 			supportsWebFetch:       false,
 			supportsWebSearch:      false,
 			supportsPlugins:        false,
-			supportsLLMGateway:     true, // Gemini supports LLM gateway on port 10003
+			llmGatewayPort:         constants.GeminiLLMGatewayPort,
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Gemini engine
-func (e *GeminiEngine) SupportsLLMGateway() int {
-	return constants.GeminiLLMGatewayPort
 }
 
 // GetModelEnvVarName returns the native environment variable name that the Gemini CLI uses

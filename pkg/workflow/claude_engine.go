@@ -26,17 +26,12 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsMaxTurns:       true,  // Claude supports max-turns feature
-			supportsWebFetch:       true,  // Claude has built-in WebFetch support
-			supportsWebSearch:      true,  // Claude has built-in WebSearch support
-			supportsLLMGateway:     false, // Claude does not support LLM gateway
+			supportsMaxTurns:       true, // Claude supports max-turns feature
+			supportsWebFetch:       true, // Claude has built-in WebFetch support
+			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			llmGatewayPort:         constants.ClaudeLLMGatewayPort,
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Claude engine
-func (e *ClaudeEngine) SupportsLLMGateway() int {
-	return constants.ClaudeLLMGatewayPort
 }
 
 // GetModelEnvVarName returns the native environment variable name that the Claude Code CLI uses
