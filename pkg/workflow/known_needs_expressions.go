@@ -182,64 +182,6 @@ func normalizeOutputNameForEnvVar(outputName string) string {
 	return normalizeJobNameForEnvVar(outputName)
 }
 
-// getSafeOutputJobNames returns a list of safe output job names based on the configuration
-func getSafeOutputJobNames(data *WorkflowData) []string {
-	var jobNames []string
-
-	if data.SafeOutputs == nil {
-		return jobNames
-	}
-
-	// These are the standard safe output job names that can be generated
-	if data.SafeOutputs.CreateIssues != nil {
-		jobNames = append(jobNames, "create_issue")
-	}
-	if data.SafeOutputs.CreateDiscussions != nil {
-		jobNames = append(jobNames, "create_discussion")
-	}
-	if data.SafeOutputs.AddComments != nil {
-		jobNames = append(jobNames, "add_comment")
-	}
-	if data.SafeOutputs.CreatePullRequests != nil {
-		jobNames = append(jobNames, "create_pull_request")
-	}
-	// Add the consolidated safe outputs job if it exists
-	// This is always named "safe_outputs" when multiple types are configured
-	if hasMultipleSafeOutputTypes(data.SafeOutputs) {
-		jobNames = append(jobNames, "safe_outputs")
-	}
-
-	// Also add custom safe-job names from safe-jobs configuration
-	if data.SafeOutputs.Jobs != nil {
-		for jobName := range data.SafeOutputs.Jobs {
-			jobNames = append(jobNames, jobName)
-		}
-	}
-
-	// Sort for consistent output
-	sort.Strings(jobNames)
-
-	return jobNames
-}
-
-// hasMultipleSafeOutputTypes checks if multiple safe output types are configured
-func hasMultipleSafeOutputTypes(config *SafeOutputsConfig) bool {
-	count := 0
-	if config.CreateIssues != nil {
-		count++
-	}
-	if config.CreateDiscussions != nil {
-		count++
-	}
-	if config.AddComments != nil {
-		count++
-	}
-	if config.CreatePullRequests != nil {
-		count++
-	}
-	return count > 1
-}
-
 // getCustomJobsBeforeActivation returns a list of custom job names that run before the activation job
 // A custom job runs before activation ONLY if it explicitly depends on pre_activation
 // Note: Jobs without explicit 'needs' will automatically get 'needs: activation' added by the compiler,
@@ -318,23 +260,4 @@ func parseNeedsField(needsField any) []string {
 	default:
 		return []string{}
 	}
-}
-
-// getCustomJobNames returns a list of all custom job names from frontmatter
-func getCustomJobNames(data *WorkflowData) []string {
-	var jobNames []string
-
-	if data.Jobs == nil {
-		return jobNames
-	}
-
-	// Extract job names from the Jobs map
-	for jobName := range data.Jobs {
-		jobNames = append(jobNames, jobName)
-	}
-
-	// Sort for consistent output
-	sort.Strings(jobNames)
-
-	return jobNames
 }

@@ -56,15 +56,6 @@ func (n *NotNode) Render() string {
 	return fmt.Sprintf("!(%s)", n.Child.Render())
 }
 
-// ParenthesesNode wraps a condition in parentheses for proper YAML interpretation
-type ParenthesesNode struct {
-	Child ConditionNode
-}
-
-func (p *ParenthesesNode) Render() string {
-	return fmt.Sprintf("(%s)", p.Child.Render())
-}
-
 // DisjunctionNode represents an OR operation with multiple terms to avoid deep nesting
 type DisjunctionNode struct {
 	Terms     []ConditionNode
@@ -169,15 +160,6 @@ func (b *BooleanLiteralNode) Render() string {
 	return "false"
 }
 
-// NumberLiteralNode represents a numeric literal value
-type NumberLiteralNode struct {
-	Value string
-}
-
-func (n *NumberLiteralNode) Render() string {
-	return n.Value
-}
-
 // ComparisonNode represents comparison operations like ==, !=, <, >, <=, >=
 type ComparisonNode struct {
 	Left     ConditionNode
@@ -187,25 +169,4 @@ type ComparisonNode struct {
 
 func (c *ComparisonNode) Render() string {
 	return fmt.Sprintf("%s %s %s", c.Left.Render(), c.Operator, c.Right.Render())
-}
-
-// TernaryNode represents ternary conditional expressions like condition ? true_value : false_value
-type TernaryNode struct {
-	Condition  ConditionNode
-	TrueValue  ConditionNode
-	FalseValue ConditionNode
-}
-
-func (t *TernaryNode) Render() string {
-	return fmt.Sprintf("%s ? %s : %s", t.Condition.Render(), t.TrueValue.Render(), t.FalseValue.Render())
-}
-
-// ContainsNode represents array membership checks using contains() function
-type ContainsNode struct {
-	Array ConditionNode
-	Value ConditionNode
-}
-
-func (c *ContainsNode) Render() string {
-	return fmt.Sprintf("contains(%s, %s)", c.Array.Render(), c.Value.Render())
 }
