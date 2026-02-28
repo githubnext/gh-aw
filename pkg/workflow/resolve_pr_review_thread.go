@@ -26,14 +26,11 @@ func (c *Compiler) parseResolvePullRequestReviewThreadConfig(outputMap map[strin
 			// Parse common base fields with default max of 10
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 10)
 
-			// Parse target config (target, target-repo, allowed-repos) with validation
-			targetConfig, isInvalid := ParseTargetConfig(configMap)
-			if isInvalid {
-				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
-			}
+			// Parse target config (target, target-repo, allowed-repos)
+			targetConfig, _ := ParseTargetConfig(configMap)
 			config.SafeOutputTargetConfig = targetConfig
 
-			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d, target_repo=%s", config.Max, config.TargetRepoSlug)
+			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d, target_repo=%s", templatableIntValue(config.Max), config.TargetRepoSlug)
 		} else {
 			// If configData is nil or not a map, still set the default max
 			config.Max = defaultIntStr(10)

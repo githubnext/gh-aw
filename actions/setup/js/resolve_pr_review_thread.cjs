@@ -9,7 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { resolveTargetRepoConfig } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, validateTargetRepo } = require("./repo_helpers.cjs");
 
 /**
  * Type constant for handler identification
@@ -21,7 +21,7 @@ const HANDLER_TYPE = "resolve_pull_request_review_thread";
  * Used to validate the thread before resolving.
  * @param {any} github - GitHub GraphQL instance
  * @param {string} threadId - Review thread node ID (e.g., 'PRRT_kwDOABCD...')
- * @returns {Promise<{prNumber: number, repoNameWithOwner: string}|null>} The PR number and repo, or null if not found
+ * @returns {Promise<{prNumber: number, repoNameWithOwner: string|null}|null>} The PR number and repo, or null if not found
  */
 async function getThreadPullRequestInfo(github, threadId) {
   const query = /* GraphQL */ `
@@ -92,9 +92,10 @@ async function main(config = {}) {
   const resolveTarget = config.target || "triggering";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
-  // Normalize repo names to lowercase once for case-insensitive comparison during validation
-  const normalizedDefaultTargetRepo = defaultTargetRepo ? defaultTargetRepo.toLowerCase() : null;
-  const normalizedAllowedRepos = new Set(Array.from(allowedRepos).map(r => r.toLowerCase()));
+  // Whether the user explicitly configured cross-repo targeting.
+  // defaultTargetRepo always has a value (falls back to context.repo), so we check
+  // the raw config keys to distinguish user-configured from default.
+  const hasExplicitTargetConfig = !!(config["target-repo"] || config.allowed_repos?.length > 0);
 
   const authClient = await createAuthenticatedGitHubClient(config);
 
@@ -156,23 +157,25 @@ async function main(config = {}) {
 
       const { prNumber: threadPRNumber, repoNameWithOwner: threadRepo } = threadInfo;
 
-      // When a target-repo or allowed-repos is configured, validate the thread's repository.
+      // When the user explicitly configured target-repo or allowed-repos, validate the thread's
+      // repository using validateTargetRepo (supports wildcards like "*", "org/*").
       // Otherwise, fall back to the legacy behavior of scoping to the triggering PR only.
-      const hasTargetRepoConfig = defaultTargetRepo || allowedRepos.size > 0;
-
-      if (hasTargetRepoConfig) {
-        // Cross-repo mode: validate thread repo against configured repos
-        if (threadRepo) {
-          const normalizedThreadRepo = threadRepo.toLowerCase();
-          const isDefaultRepo = normalizedDefaultTargetRepo && normalizedThreadRepo === normalizedDefaultTargetRepo;
-          const isAllowedRepo = isDefaultRepo || normalizedAllowedRepos.has(normalizedThreadRepo);
-          if (!isAllowedRepo) {
-            core.warning(`Thread ${threadId} belongs to repo ${threadRepo}, which is not in the allowed repos`);
-            return {
-              success: false,
-              error: `Thread belongs to repo '${threadRepo}', but only threads in allowed repositories can be resolved. Allowed: ${defaultTargetRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
-            };
-          }
+      if (hasExplicitTargetConfig) {
+        // Cross-repo mode: validate thread repo against configured repos (fail closed if missing)
+        if (!threadRepo) {
+          core.warning(`Could not determine repository for thread ${threadId}`);
+          return {
+            success: false,
+            error: `Could not determine the repository for thread ${threadId}`,
+          };
+        }
+        const repoValidation = validateTargetRepo(threadRepo, defaultTargetRepo, allowedRepos);
+        if (!repoValidation.valid) {
+          core.warning(`Thread ${threadId} belongs to repo ${threadRepo}, which is not in the allowed repos`);
+          return {
+            success: false,
+            error: repoValidation.error,
+          };
         }
 
         // Determine target PR number based on target config

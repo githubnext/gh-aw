@@ -464,6 +464,99 @@ describe("resolve_pr_review_thread - cross-repo support", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("pull request context");
   });
+
+  it("should allow resolving when allowed_repos uses '*' wildcard", async () => {
+    mockGraphqlForThread(10, "any-owner/any-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "default-owner/default-repo",
+      allowed_repos: ["*"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOWildcard",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should allow resolving when allowed_repos uses org/* pattern", async () => {
+    mockGraphqlForThread(10, "other-owner/specific-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "default-owner/default-repo",
+      allowed_repos: ["other-owner/*"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOOrgWildcard",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject resolving when org/* pattern does not match", async () => {
+    mockGraphqlForThread(10, "wrong-owner/specific-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "default-owner/default-repo",
+      allowed_repos: ["other-owner/*"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOOrgWildcard",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not in the allowed-repos list");
+  });
+
+  it("should fail closed when threadRepo is null in cross-repo mode", async () => {
+    // Simulate GraphQL returning a thread with no repository info
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({ resolveReviewThread: { thread: { id: "PRRT_x", isResolved: true } } });
+      }
+      return Promise.resolve({
+        node: { pullRequest: { number: 10, repository: null } },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "other-owner/other-repo",
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDONoRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Could not determine");
+  });
 });
 
 describe("getPRNumber (shared helper in update_context_helpers)", () => {
