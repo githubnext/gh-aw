@@ -9,51 +9,54 @@ import (
 
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
-// firstNonEmpty returns the first non-empty string from the given values.
-// firstNonEmpty returns the first non-empty string from the given values, or an empty string if all values are empty.
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
+// computeEffectiveProjectToken computes the effective project token using the precedence:
+//  1. Per-config token (e.g., from update-project, create-project-status-update)
+//  2. Safe-outputs level token
+//  3. Magic secret fallback via getEffectiveProjectGitHubToken()
+func computeEffectiveProjectToken(perConfigToken string, safeOutputsToken string) string {
+	configToken := perConfigToken
+	if configToken == "" && safeOutputsToken != "" {
+		configToken = safeOutputsToken
 	}
-	return ""
+	return getEffectiveProjectGitHubToken(configToken)
 }
 
-// Nil-safe token accessors for per-output github-token fields.
-func tokenFromAddComments(so *SafeOutputsConfig) string {
-	if so.AddComments == nil {
-		return ""
+// computeProjectURLAndToken computes the project URL and token from the various project-related
+// safe-output configurations. Priority order: update-project > create-project-status-update > create-project.
+// Returns the project URL (may be empty for create-project) and the effective token.
+func computeProjectURLAndToken(safeOutputs *SafeOutputsConfig) (projectURL, projectToken string) {
+	if safeOutputs == nil {
+		return "", ""
 	}
-	return so.AddComments.GitHubToken
-}
 
-func tokenFromCreateIssues(so *SafeOutputsConfig) string {
-	if so.CreateIssues == nil {
-		return ""
-	}
-	return so.CreateIssues.GitHubToken
-}
+	safeOutputsToken := safeOutputs.GitHubToken
 
-func tokenFromCreateDiscussions(so *SafeOutputsConfig) string {
-	if so.CreateDiscussions == nil {
-		return ""
+	// Check update-project first (highest priority)
+	if safeOutputs.UpdateProjects != nil && safeOutputs.UpdateProjects.Project != "" {
+		projectURL = safeOutputs.UpdateProjects.Project
+		projectToken = computeEffectiveProjectToken(safeOutputs.UpdateProjects.GitHubToken, safeOutputsToken)
+		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from update-project config: %s", projectURL)
+		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from update-project config")
+		return
 	}
-	return so.CreateDiscussions.GitHubToken
-}
 
-func tokenFromUpdateIssues(so *SafeOutputsConfig) string {
-	if so.UpdateIssues == nil {
-		return ""
+	// Check create-project-status-update second
+	if safeOutputs.CreateProjectStatusUpdates != nil && safeOutputs.CreateProjectStatusUpdates.Project != "" {
+		projectURL = safeOutputs.CreateProjectStatusUpdates.Project
+		projectToken = computeEffectiveProjectToken(safeOutputs.CreateProjectStatusUpdates.GitHubToken, safeOutputsToken)
+		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from create-project-status-update config: %s", projectURL)
+		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project-status-update config")
+		return
 	}
-	return so.UpdateIssues.GitHubToken
-}
 
-func tokenFromCreateCodeScanningAlerts(so *SafeOutputsConfig) string {
-	if so.CreateCodeScanningAlerts == nil {
-		return ""
+	// Check create-project for token even if no URL is set (create-project doesn't have a project URL field)
+	// This ensures GH_AW_PROJECT_GITHUB_TOKEN is set when create-project is configured
+	if safeOutputs.CreateProjects != nil {
+		projectToken = computeEffectiveProjectToken(safeOutputs.CreateProjects.GitHubToken, safeOutputsToken)
+		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project config")
 	}
-	return so.CreateCodeScanningAlerts.GitHubToken
+
+	return
 }
 
 // buildConsolidatedSafeOutputStep builds a single step for a safe output operation
@@ -356,43 +359,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	//
 	// Note: If multiple project configs are present, we prefer update-project > create-project-status-update > create-project
 	// This is only relevant for the environment variables - each configuration must explicitly specify its own settings
-	var projectURL string
-	var projectToken string
-
-	// Check update-project first (highest priority)
-	if data.SafeOutputs.UpdateProjects != nil && data.SafeOutputs.UpdateProjects.Project != "" {
-		projectURL = data.SafeOutputs.UpdateProjects.Project
-		// Use per-config token, fallback to safe-outputs level token, then default
-		configToken := data.SafeOutputs.UpdateProjects.GitHubToken
-		if configToken == "" && data.SafeOutputs.GitHubToken != "" {
-			configToken = data.SafeOutputs.GitHubToken
-		}
-		projectToken = getEffectiveProjectGitHubToken(configToken)
-		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from update-project config: %s", projectURL)
-		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from update-project config")
-	} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.Project != "" {
-		projectURL = data.SafeOutputs.CreateProjectStatusUpdates.Project
-		// Use per-config token, fallback to safe-outputs level token, then default
-		configToken := data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
-		if configToken == "" && data.SafeOutputs.GitHubToken != "" {
-			configToken = data.SafeOutputs.GitHubToken
-		}
-		projectToken = getEffectiveProjectGitHubToken(configToken)
-		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from create-project-status-update config: %s", projectURL)
-		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project-status-update config")
-	}
-
-	// Check create-project for token even if no URL is set (create-project doesn't have a project URL field)
-	// This ensures GH_AW_PROJECT_GITHUB_TOKEN is set when create-project is configured
-	if projectToken == "" && data.SafeOutputs.CreateProjects != nil {
-		// Use per-config token, fallback to safe-outputs level token, then default
-		configToken := data.SafeOutputs.CreateProjects.GitHubToken
-		if configToken == "" && data.SafeOutputs.GitHubToken != "" {
-			configToken = data.SafeOutputs.GitHubToken
-		}
-		projectToken = getEffectiveProjectGitHubToken(configToken)
-		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project config")
-	}
+	projectURL, projectToken := computeProjectURLAndToken(data.SafeOutputs)
 
 	if projectURL != "" {
 		steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_URL: %q\n", projectURL))
@@ -410,29 +377,19 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// token for Projects v2 operations.
 	// If no project token, fall back to per-output tokens from handler types that support github-token.
 	steps = append(steps, "        with:\n")
+	// Token precedence for the handler manager step:
+	//   1. Project token (if project operations are configured) - already set above
+	//   2. Safe-outputs level token (so.GitHubToken)
+	//   3. Magic secret fallback via getEffectiveSafeOutputGitHubToken()
+	//
+	// Note: We do NOT fall back to per-output tokens (add-comment, create-issue, etc.)
+	// because those are specific to their operations. The handler manager needs a
+	// general-purpose token for the github-script client.
 	configToken := ""
 	if projectToken != "" {
 		configToken = projectToken
-	}
-	// Fall back to per-output tokens when no project token is set.
-	// This enables cross-repo operations where only one safe output type is configured with a custom token.
-	// Token precedence order (first non-empty wins):
-	//   1. so.GitHubToken      - global safe-outputs token (highest precedence)
-	//   2. add-comment token
-	//   3. create-issue token
-	//   4. create-discussion token
-	//   5. update-issue token
-	//   6. create-code-scanning-alert token
-	if configToken == "" && data.SafeOutputs != nil {
-		so := data.SafeOutputs
-		configToken = firstNonEmpty(
-			so.GitHubToken,
-			tokenFromAddComments(so),
-			tokenFromCreateIssues(so),
-			tokenFromCreateDiscussions(so),
-			tokenFromUpdateIssues(so),
-			tokenFromCreateCodeScanningAlerts(so),
-		)
+	} else if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+		configToken = data.SafeOutputs.GitHubToken
 	}
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, configToken)
 

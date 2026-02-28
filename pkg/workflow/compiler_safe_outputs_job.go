@@ -190,8 +190,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
 		outputs["assign_to_agent_assignment_errors"] = "${{ steps.assign_to_agent.outputs.assignment_errors }}"
 		outputs["assign_to_agent_assignment_error_count"] = "${{ steps.assign_to_agent.outputs.assignment_error_count }}"
-
-		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
 	// 4. Create Agent Session step
@@ -203,56 +201,22 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
 		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
-
-		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
-	// Note: Create Pull Request is now handled by the handler manager
-	// The outputs and permissions are configured in the handler manager section above
-
-	// Note: Mark Pull Request as Ready for Review is now handled by the handler manager
-	// The permissions are configured in the handler manager section above
-
-	// Note: Create Code Scanning Alert is now handled by the handler manager
-	// The permissions are configured in the handler manager section above
-	// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
-
-	// Note: Create Project Status Update is now handled by the handler manager
-	// The permissions are configured in the handler manager section above
-	// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
-
-	// Note: Add Reviewer is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AddReviewer != nil {
 		outputs["add_reviewer_reviewers_added"] = "${{ steps.process_safe_outputs.outputs.reviewers_added }}"
-		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
-	// Note: Assign Milestone is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignMilestone != nil {
 		outputs["assign_milestone_milestone_assigned"] = "${{ steps.process_safe_outputs.outputs.milestone_assigned }}"
-		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
 
-	// Note: Assign To User is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
 		outputs["assign_to_user_assigned"] = "${{ steps.process_safe_outputs.outputs.assigned }}"
-		// Note: Permissions are computed centrally by ComputePermissionsForSafeOutputs()
 	}
-
-	// Note: Update Pull Request step - now handled by handler manager
-
-	// Note: Push To Pull Request Branch step - now handled by handler manager
-
-	// Note: Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
-	// This was moved out of the consolidated job to allow proper git configuration
-	// for pushing to orphaned branches
-
-	// Note: Update Release step - now handled by handler manager
-	// Note: Link Sub Issue step - now handled by handler manager
-	// Note: Hide Comment step - now handled by handler manager
 
 	// If no steps were added, return nil
 	if len(safeOutputStepNames) == 0 {
