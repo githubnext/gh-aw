@@ -57,7 +57,11 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 
 	lockStr := string(lockContent)
 
-	// Test 1: Verify aw_info.json is written to /tmp/gh-aw/aw_info.json
+	// Test 1: Verify /tmp/gh-aw directory is created before writing aw_info.json
+	if !strings.Contains(lockStr, "fs.mkdirSync('/tmp/gh-aw', { recursive: true });") {
+		t.Error("Expected fs.mkdirSync to create /tmp/gh-aw directory before writing aw_info.json")
+	}
+
 	if !strings.Contains(lockStr, "const tmpPath = '/tmp/gh-aw/aw_info.json';") {
 		t.Error("Expected tmpPath to be set to '/tmp/gh-aw/aw_info.json' in generated workflow")
 	}

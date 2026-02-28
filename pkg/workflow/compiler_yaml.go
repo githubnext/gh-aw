@@ -646,6 +646,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            };\n")
 	yaml.WriteString("            \n")
 	yaml.WriteString("            // Write to /tmp/gh-aw directory to avoid inclusion in PR\n")
+	yaml.WriteString("            fs.mkdirSync('/tmp/gh-aw', { recursive: true });\n")
 	yaml.WriteString("            const tmpPath = '/tmp/gh-aw/aw_info.json';\n")
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
