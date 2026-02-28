@@ -5065,14 +5065,14 @@
                   "type": "boolean",
                   "description": "Controls whether the workflow requests pull-requests:write permission for add-comment and includes pull requests in the event trigger condition. Default: true (includes pull-requests:write). Set to false to disable pull request commenting."
                 },
-                "github-token": {
-                  "$ref": "#/$defs/github_token",
-                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
-                },
                 "footer": {
                   "type": "boolean",
                   "description": "Controls whether AI-generated footer is added to the comment. When false, the visible footer content is omitted but XML markers (workflow-id, metadata) are still included for searchability. Defaults to true.",
                   "default": true
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false,
