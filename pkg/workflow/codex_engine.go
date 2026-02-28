@@ -201,9 +201,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// All engines require the API proxy sidecar (LLM gateway is mandatory)
-		usesAPIProxy := true
-
 		// Build the command with agent file handling if specified
 		// INSTRUCTION reading is done inside the AWF command to avoid Docker Compose interpolation
 		// issues with $ characters in the prompt.
@@ -230,7 +227,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Codex is not a TUI, outputs to stdout/stderr
-			UsesAPIProxy:   usesAPIProxy,
+			UsesAPIProxy:   true,
 			AllowedDomains: allowedDomains,
 			PathSetup:      "mkdir -p \"$CODEX_HOME/logs\"", // Create logs directory before AWF
 		})
