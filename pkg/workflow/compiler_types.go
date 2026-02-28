@@ -32,11 +32,6 @@ func WithVersion(version string) CompilerOption {
 	return func(c *Compiler) { c.version = version }
 }
 
-// WithActionMode overrides the auto-detected action mode
-func WithActionMode(mode ActionMode) CompilerOption {
-	return func(c *Compiler) { c.actionMode = mode }
-}
-
 // WithSkipValidation configures whether to skip schema validation
 func WithSkipValidation(skip bool) CompilerOption {
 	return func(c *Compiler) { c.skipValidation = skip }
@@ -67,23 +62,6 @@ func WithWorkflowIdentifier(identifier string) CompilerOption {
 	return func(c *Compiler) { c.workflowIdentifier = identifier }
 }
 
-// WithRepositorySlug sets the repository slug for schedule scattering
-func WithRepositorySlug(slug string) CompilerOption {
-	return func(c *Compiler) { c.repositorySlug = slug }
-}
-
-// WithGitRoot sets the git repository root directory for action cache path
-func WithGitRoot(gitRoot string) CompilerOption {
-	return func(c *Compiler) { c.gitRoot = gitRoot }
-}
-
-// WithInlinePrompt configures whether to inline markdown content directly in the compiled YAML
-// instead of using runtime-import macros. This is required for Wasm/browser builds where
-// the filesystem is unavailable at runtime.
-func WithInlinePrompt(inline bool) CompilerOption {
-	return func(c *Compiler) { c.inlinePrompt = inline }
-}
-
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
@@ -97,11 +75,6 @@ var defaultVersion = "dev"
 // This should be called once during CLI initialization
 func SetDefaultVersion(version string) {
 	defaultVersion = version
-}
-
-// GetDefaultVersion returns the default version
-func GetDefaultVersion() string {
-	return defaultVersion
 }
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
@@ -281,19 +254,9 @@ func (c *Compiler) SetWorkflowIdentifier(identifier string) {
 	c.workflowIdentifier = identifier
 }
 
-// GetWorkflowIdentifier returns the current workflow identifier
-func (c *Compiler) GetWorkflowIdentifier() string {
-	return c.workflowIdentifier
-}
-
 // SetRepositorySlug sets the repository slug for schedule scattering
 func (c *Compiler) SetRepositorySlug(slug string) {
 	c.repositorySlug = slug
-}
-
-// GetRepositorySlug returns the repository slug
-func (c *Compiler) GetRepositorySlug() string {
-	return c.repositorySlug
 }
 
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance

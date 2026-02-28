@@ -208,7 +208,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 
 	// Validate: threat detection requires sandbox.agent to be enabled (detection runs inside AWF)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection != nil && isAgentSandboxDisabled(workflowData) {
-		return formatCompilerError(markdownPath, "error", "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or remove the threat-detection configuration from safe-outputs.", errors.New("threat detection requires sandbox.agent"))
+		return formatCompilerError(markdownPath, "error", "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or use 'threat-detection: false' to disable the threat-detection configuration in safe-outputs.", errors.New("threat detection requires sandbox.agent"))
 	}
 
 	// Emit experimental warning for safe-inputs feature

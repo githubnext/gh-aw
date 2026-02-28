@@ -275,20 +275,20 @@ func TestIsCoreAction(t *testing.T) {
 }
 
 func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
-	// Non-actions/* org references should not be modified by updateActionRefsInContent
-	// since it only processes "uses: actions/" prefixed references.
+	// When allowMajor=false (--disable-release-bump), non-actions/* org references
+	// should not be modified because they are not core actions.
 	input := `steps:
   - uses: docker/login-action@v3
   - uses: github/codeql-action/upload-sarif@v3
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, newContent, err := updateActionRefsInContent(input, cache, false)
+	changed, newContent, err := updateActionRefsInContent(input, cache, false, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
 	if changed {
-		t.Errorf("updateActionRefsInContent() changed = true, want false for non-actions/* refs")
+		t.Errorf("updateActionRefsInContent() changed = true, want false for non-actions/* refs with allowMajor=false")
 	}
 	if newContent != input {
 		t.Errorf("updateActionRefsInContent() modified content for non-actions/* refs\nGot: %s\nWant: %s", newContent, input)
@@ -302,7 +302,7 @@ steps:
   - run: echo world`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(input, cache, false)
+	changed, _, err := updateActionRefsInContent(input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -338,7 +338,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(input, cache, false)
+	changed, got, err := updateActionRefsInContent(input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -365,7 +365,7 @@ func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
 	want := "        uses: actions/checkout@" + newSHA + "  # v6.0.2"
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(input, cache, false)
+	changed, got, err := updateActionRefsInContent(input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -394,7 +394,7 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
   - uses: actions/github-script@v7`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(input, cache, false)
+	changed, _, err := updateActionRefsInContent(input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -403,5 +403,43 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
 	}
 	if callCount != 1 {
 		t.Errorf("getLatestActionReleaseFn called %d times, want 1 (cache should prevent second call)", callCount)
+	}
+}
+
+func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
+	// With allowMajor=true (default behaviour), non-actions/* org references should
+	// also be updated to the latest major version.
+	orig := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = orig }()
+
+	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		switch repo {
+		case "docker/login-action":
+			return "v4", "newsha11234567890123456789012345678901234", nil
+		case "github/codeql-action":
+			return "v4", "newsha21234567890123456789012345678901234", nil
+		default:
+			return currentVersion, "", nil
+		}
+	}
+
+	input := `steps:
+  - uses: docker/login-action@v3
+  - uses: github/codeql-action@v3`
+
+	want := `steps:
+  - uses: docker/login-action@v4
+  - uses: github/codeql-action@v4`
+
+	cache := make(map[string]latestReleaseResult)
+	changed, got, err := updateActionRefsInContent(input, cache, true, false)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContent() error = %v", err)
+	}
+	if !changed {
+		t.Error("updateActionRefsInContent() changed = false, want true")
+	}
+	if got != want {
+		t.Errorf("updateActionRefsInContent() output mismatch\nGot:\n%s\nWant:\n%s", got, want)
 	}
 }

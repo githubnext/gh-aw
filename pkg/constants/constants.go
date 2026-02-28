@@ -422,6 +422,13 @@ const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
 // This directory is shared between the agent container and MCP gateway for large payload exchange
 const DefaultMCPGatewayPayloadDir = "/tmp/gh-aw/mcp-payloads"
 
+// DefaultMCPGatewayPayloadSizeThreshold is the default size threshold (in bytes) for storing payloads to disk.
+// Payloads larger than this threshold are stored to disk, smaller ones are returned inline.
+// Default: 524288 bytes (512KB) - chosen to accommodate typical MCP tool responses including
+// GitHub API queries (list_commits, list_issues, etc.) without triggering disk storage.
+// This prevents agent looping issues when payloadPath is not accessible in agent containers.
+const DefaultMCPGatewayPayloadSizeThreshold = 524288
+
 // DefaultFirewallRegistry is the container image registry for AWF (gh-aw-firewall) Docker images
 const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
 

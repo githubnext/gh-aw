@@ -378,6 +378,51 @@ on:
 
 A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions.
 
+## Trigger Shorthands
+
+Instead of writing full YAML trigger configurations, you can use natural-language shorthand strings with `on:`. The compiler expands these into standard GitHub Actions trigger syntax and automatically includes `workflow_dispatch` so the workflow can also be run manually.
+
+For label-based shorthands (`on: issue labeled bug`, `on: pull_request labeled needs-review`), see [Label Filtering](#label-filtering-names) above.
+
+### Push and Pull Request
+
+```yaml wrap
+on: push to main                    # Push to specific branch
+on: push tags v*                    # Push tags matching pattern
+on: pull_request opened             # PR with activity type
+on: pull_request merged             # PR merged (maps to closed + merge condition)
+on: pull_request affecting src/**   # PR touching paths (opened, synchronize, reopened)
+on: pull_request opened affecting docs/**  # Activity type + path filter
+```
+
+`pull` is an alias for `pull_request`. Valid activity types: `opened`, `edited`, `closed`, `reopened`, `synchronize`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `review_requested`, `merged`.
+
+### Issues and Discussions
+
+```yaml wrap
+on: issue opened                    # Issue with activity type
+on: issue opened labeled bug        # Issue opened with specific label (adds job condition)
+on: discussion created              # Discussion with activity type
+```
+
+Valid issue types: `opened`, `edited`, `closed`, `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `deleted`, `transferred`. Valid discussion types: `created`, `edited`, `deleted`, `transferred`, `pinned`, `unpinned`, `labeled`, `unlabeled`, `locked`, `unlocked`, `category_changed`, `answered`, `unanswered`.
+
+### Other Shorthands
+
+```yaml wrap
+on: manual                          # workflow_dispatch (run manually)
+on: manual with input version       # workflow_dispatch with a string input
+on: workflow completed ci-test       # Trigger after another workflow completes
+on: comment created                 # Issue or PR comment created
+on: release published               # Release event (published, created, prereleased, etc.)
+on: repository starred              # Repository starred (maps to watch event)
+on: repository forked               # Repository forked
+on: dependabot pull request         # PR from Dependabot (adds actor condition)
+on: security alert                  # Code scanning alert
+on: code scanning alert             # Alias for security alert (code scanning alert)
+on: api dispatch custom-event       # Repository dispatch with custom event type
+```
+
 ## Related Documentation
 
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Complete schedule format reference

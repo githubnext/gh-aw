@@ -165,6 +165,38 @@ func TestEnsureDefaultMCPGatewayConfig(t *testing.T) {
 				assert.Equal(t, "/custom/payloads", wd.SandboxConfig.MCP.PayloadDir, "Custom payloadDir should be preserved")
 			},
 		},
+		{
+			name: "preserves payloadPathPrefix when specified",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Container:         "custom-container",
+						Version:           "v1.0.0",
+						Port:              8080,
+						PayloadPathPrefix: "/workspace/payloads",
+					},
+				},
+			},
+			validate: func(t *testing.T, wd *WorkflowData) {
+				assert.Equal(t, "/workspace/payloads", wd.SandboxConfig.MCP.PayloadPathPrefix, "PayloadPathPrefix should be preserved")
+			},
+		},
+		{
+			name: "preserves payloadSizeThreshold when specified",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Container:            "custom-container",
+						Version:              "v1.0.0",
+						Port:                 8080,
+						PayloadSizeThreshold: 1048576, // 1MB
+					},
+				},
+			},
+			validate: func(t *testing.T, wd *WorkflowData) {
+				assert.Equal(t, 1048576, wd.SandboxConfig.MCP.PayloadSizeThreshold, "PayloadSizeThreshold should be preserved")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -196,20 +228,22 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				},
 			},
 			expected: &MCPGatewayRuntimeConfig{
-				Port:       int(DefaultMCPGatewayPort),
-				Domain:     "${MCP_GATEWAY_DOMAIN}",
-				APIKey:     "${MCP_GATEWAY_API_KEY}",
-				PayloadDir: "${MCP_GATEWAY_PAYLOAD_DIR}",
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
 			},
 		},
 		{
 			name:         "creates default gateway config",
 			workflowData: &WorkflowData{},
 			expected: &MCPGatewayRuntimeConfig{
-				Port:       int(DefaultMCPGatewayPort),
-				Domain:     "${MCP_GATEWAY_DOMAIN}",
-				APIKey:     "${MCP_GATEWAY_API_KEY}",
-				PayloadDir: "${MCP_GATEWAY_PAYLOAD_DIR}",
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
 			},
 		},
 		{
@@ -222,10 +256,63 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				},
 			},
 			expected: &MCPGatewayRuntimeConfig{
-				Port:       int(DefaultMCPGatewayPort),
-				Domain:     "${MCP_GATEWAY_DOMAIN}",
-				APIKey:     "${MCP_GATEWAY_API_KEY}",
-				PayloadDir: "${MCP_GATEWAY_PAYLOAD_DIR}",
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+			},
+		},
+		{
+			name: "with custom payloadPathPrefix",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						PayloadPathPrefix: "/workspace/payloads",
+					},
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadPathPrefix:    "/workspace/payloads",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
+			},
+		},
+		{
+			name: "with custom payloadSizeThreshold",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						PayloadSizeThreshold: 1048576, // 1MB
+					},
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: 1048576,
+			},
+		},
+		{
+			name: "uses default payloadSizeThreshold when not specified",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						// PayloadSizeThreshold not specified
+					},
+				},
+			},
+			expected: &MCPGatewayRuntimeConfig{
+				Port:                 int(DefaultMCPGatewayPort),
+				Domain:               "${MCP_GATEWAY_DOMAIN}",
+				APIKey:               "${MCP_GATEWAY_API_KEY}",
+				PayloadDir:           "${MCP_GATEWAY_PAYLOAD_DIR}",
+				PayloadSizeThreshold: constants.DefaultMCPGatewayPayloadSizeThreshold,
 			},
 		},
 	}
@@ -241,6 +328,8 @@ func TestBuildMCPGatewayConfig(t *testing.T) {
 				assert.Equal(t, tt.expected.Domain, result.Domain, "Domain should match")
 				assert.Equal(t, tt.expected.APIKey, result.APIKey, "APIKey should match")
 				assert.Equal(t, tt.expected.PayloadDir, result.PayloadDir, "PayloadDir should match")
+				assert.Equal(t, tt.expected.PayloadPathPrefix, result.PayloadPathPrefix, "PayloadPathPrefix should match")
+				assert.Equal(t, tt.expected.PayloadSizeThreshold, result.PayloadSizeThreshold, "PayloadSizeThreshold should match")
 			}
 		})
 	}

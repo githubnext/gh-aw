@@ -419,17 +419,24 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 		return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T", raw)
 	}
 
-	// Validate that at most one checkout has current: true.
-	// Multiple current checkouts are not allowed since only one repo can be
-	// the logical primary target for the agent at a time.
-	currentCount := 0
+	// Validate that at most one logical checkout target has current: true.
+	// Multiple current checkouts are not allowed since only one repo/path pair can be
+	// the primary target for the agent at a time. Multiple configs that merge into the
+	// same (repository, path) pair are treated as a single logical checkout.
+	currentTargets := make(map[string]struct{})
 	for _, cfg := range configs {
-		if cfg.Current {
-			currentCount++
+		if !cfg.Current {
+			continue
 		}
+
+		repo := strings.TrimSpace(cfg.Repository)
+		path := strings.TrimSpace(cfg.Path)
+		key := repo + "\x00" + path
+
+		currentTargets[key] = struct{}{}
 	}
-	if currentCount > 1 {
-		return nil, fmt.Errorf("only one checkout may have current: true, found %d", currentCount)
+	if len(currentTargets) > 1 {
+		return nil, fmt.Errorf("only one checkout target may have current: true, found %d", len(currentTargets))
 	}
 
 	return configs, nil
@@ -459,6 +466,11 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		s, ok := v.(string)
 		if !ok {
 			return nil, errors.New("checkout.path must be a string")
+		}
+		// Normalize "." to empty string: both mean the workspace root and
+		// are treated identically by the checkout step generator.
+		if s == "." {
+			s = ""
 		}
 		cfg.Path = s
 	}

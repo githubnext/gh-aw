@@ -99,7 +99,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `linux-distros` | Debian, Alpine, and other Linux package repositories |
 | `dotnet`, `dart`, `go`, `haskell`, `java`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
 | `terraform` | HashiCorp and Terraform domains |
-| `playwright` | Playwright testing framework domains |
+| `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
 
 Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists.
 
@@ -290,4 +290,5 @@ Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocke
 - [Network Configuration Guide](/gh-aw/guides/network-configuration/) - Practical examples and common patterns
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Tools](/gh-aw/reference/tools/) - Tool-specific network access configuration
+- [Playwright](/gh-aw/reference/playwright/) - Browser automation and network requirements
 - [Security Guide](/gh-aw/introduction/architecture/) - Comprehensive security guidance

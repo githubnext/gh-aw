@@ -26,9 +26,9 @@ func TestCustomStepsIndentation(t *testing.T) {
 			name: "standard_2_space_indentation",
 			stepsYAML: `steps:
   - name: Checkout code
-    uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+    uses: actions/checkout@v5
   - name: Set up Go
-    uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+    uses: actions/setup-go@v5
     with:
       go-version-file: go.mod
       cache: true`,
@@ -38,7 +38,7 @@ func TestCustomStepsIndentation(t *testing.T) {
 			name: "odd_3_space_indentation",
 			stepsYAML: `steps:
    - name: Odd indent
-     uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+     uses: actions/checkout@v5
      with:
        param: value`,
 			description: "3-space indentation should be normalized to standard format",

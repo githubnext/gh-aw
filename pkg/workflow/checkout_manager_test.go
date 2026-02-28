@@ -243,7 +243,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "array should parse without error")
 		require.Len(t, configs, 2, "should produce two configs")
-		assert.Equal(t, ".", configs[0].Path, "first path should be set")
+		assert.Empty(t, configs[0].Path, "first path should be normalized from '.' to empty")
 		assert.Equal(t, "owner/repo", configs[1].Repository, "second repo should be set")
 	})
 
@@ -372,7 +372,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "multiple current: true should return error")
-		assert.Contains(t, err.Error(), "only one checkout may have current: true", "error should mention the constraint")
+		assert.Contains(t, err.Error(), "only one checkout target may have current: true", "error should mention the constraint")
 	})
 
 	t.Run("single current: true in array is valid", func(t *testing.T) {
@@ -500,7 +500,7 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 
 	t.Run("multiple checkouts all listed", func(t *testing.T) {
 		content := buildCheckoutsPromptContent([]*CheckoutConfig{
-			{Path: "."},
+			{Path: ""},
 			{Repository: "owner/target", Path: "./target", Current: true},
 			{Repository: "owner/libs", Path: "./libs"},
 		})

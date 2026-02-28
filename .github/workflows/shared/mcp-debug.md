@@ -21,7 +21,7 @@ safe-outputs:
         pull-requests: write
       steps:
         - name: Checkout repository
-          uses: actions/checkout@v6
+          uses: actions/checkout@v6.0.2
         - name: Post diagnostic report to pull request
           uses: actions/github-script@v8
           with:
@@ -131,7 +131,7 @@ safe-outputs:
               }
 steps:
   - name: Setup Go
-    uses: actions/setup-go@v6
+    uses: actions/setup-go@v6.3.0
     with:
       go-version-file: go.mod
       cache: true

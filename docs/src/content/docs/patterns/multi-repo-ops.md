@@ -141,7 +141,11 @@ Enable GitHub toolsets to allow agents to query multiple repositories:
 tools:
   github:
     toolsets: [repos, issues, pull_requests, actions]
+    github-token: ${{ secrets.CROSS_REPO_PAT }}  # Required for cross-repo reading
 ```
+
+> [!IMPORTANT]
+> When reading from repositories other than the workflow's repository, you must configure additional authentication. The default `GITHUB_TOKEN` only has access to the current repository. Use a PAT, GitHub App token, or the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN`. See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for details.
 
 **Available Operations:**
 - **repos**: Read files, search code, list commits, get releases
