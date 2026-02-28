@@ -174,6 +174,12 @@ startHttpServer(configPath, {
 	return sb.String()
 }
 
+// formatMultiLineComment formats a description as comment lines using the given prefix (e.g., "# " or "// ").
+// Trailing newlines from YAML block scalars are trimmed so no empty comment line is emitted.
+func formatMultiLineComment(description, prefix string) string {
+	return prefix + strings.ReplaceAll(strings.TrimRight(description, "\n"), "\n", "\n"+prefix) + "\n"
+}
+
 // generateSafeInputJavaScriptToolScript generates the JavaScript tool file for a safe-input tool
 // The user's script code is automatically wrapped in a function with module.exports,
 // so users can write simple code without worrying about exports.
@@ -232,7 +238,7 @@ func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
 
 	sb.WriteString("#!/bin/bash\n")
 	sb.WriteString("# Auto-generated safe-input tool: " + toolConfig.Name + "\n")
-	sb.WriteString("# " + toolConfig.Description + "\n\n")
+	sb.WriteString(formatMultiLineComment(toolConfig.Description, "# ") + "\n")
 	sb.WriteString("set -euo pipefail\n\n")
 	sb.WriteString(toolConfig.Run + "\n")
 
@@ -251,7 +257,7 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 
 	sb.WriteString("#!/usr/bin/env python3\n")
 	sb.WriteString("# Auto-generated safe-input tool: " + toolConfig.Name + "\n")
-	sb.WriteString("# " + toolConfig.Description + "\n\n")
+	sb.WriteString(formatMultiLineComment(toolConfig.Description, "# ") + "\n")
 	sb.WriteString("import json\n")
 	sb.WriteString("import os\n")
 	sb.WriteString("import sys\n\n")
@@ -302,7 +308,7 @@ func generateSafeInputGoToolScript(toolConfig *SafeInputToolConfig) string {
 
 	sb.WriteString("package main\n\n")
 	sb.WriteString("// Auto-generated safe-input tool: " + toolConfig.Name + "\n")
-	sb.WriteString("// " + toolConfig.Description + "\n\n")
+	sb.WriteString(formatMultiLineComment(toolConfig.Description, "// ") + "\n")
 	sb.WriteString("import (\n")
 	sb.WriteString("\t\"encoding/json\"\n")
 	sb.WriteString("\t\"fmt\"\n")

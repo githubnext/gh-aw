@@ -253,6 +253,44 @@ func TestGenerateSafeInputShellToolScript(t *testing.T) {
 	}
 }
 
+func TestGenerateSafeInputShellToolScriptMultiLineDescription(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+	}{
+		{
+			name:        "with trailing newline (YAML block scalar)",
+			description: "First line of description.\nSecond line of description.\nThird line of description.\n",
+		},
+		{
+			name:        "without trailing newline",
+			description: "First line of description.\nSecond line of description.\nThird line of description.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &SafeInputToolConfig{
+				Name:        "test-shell-multiline",
+				Description: tt.description,
+				Run:         "echo hello",
+			}
+
+			script := generateSafeInputShellToolScript(config)
+
+			if !strings.Contains(script, "# First line of description.") {
+				t.Error("Script should have first description line prefixed with #")
+			}
+			if !strings.Contains(script, "# Second line of description.") {
+				t.Error("Script should have second description line prefixed with #")
+			}
+			if !strings.Contains(script, "# Third line of description.") {
+				t.Error("Script should have third description line prefixed with #")
+			}
+		})
+	}
+}
+
 func TestGenerateSafeInputPythonToolScript(t *testing.T) {
 	config := &SafeInputToolConfig{
 		Name:        "test-python",
@@ -303,6 +341,44 @@ func TestGenerateSafeInputPythonToolScript(t *testing.T) {
 
 	if !strings.Contains(script, "# count = inputs.get('count'") {
 		t.Error("Script should document count parameter access")
+	}
+}
+
+func TestGenerateSafeInputPythonToolScriptMultiLineDescription(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+	}{
+		{
+			name:        "with trailing newline (YAML block scalar)",
+			description: "First line of description.\nSecond line of description.\nThird line of description.\n",
+		},
+		{
+			name:        "without trailing newline",
+			description: "First line of description.\nSecond line of description.\nThird line of description.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &SafeInputToolConfig{
+				Name:        "test-python-multiline",
+				Description: tt.description,
+				Py:          "print('hello')",
+			}
+
+			script := generateSafeInputPythonToolScript(config)
+
+			if !strings.Contains(script, "# First line of description.") {
+				t.Error("Script should have first description line prefixed with #")
+			}
+			if !strings.Contains(script, "# Second line of description.") {
+				t.Error("Script should have second description line prefixed with #")
+			}
+			if !strings.Contains(script, "# Third line of description.") {
+				t.Error("Script should have third description line prefixed with #")
+			}
+		})
 	}
 }
 
@@ -479,5 +555,43 @@ func TestGenerateSafeInputGoToolScript(t *testing.T) {
 
 	if !strings.Contains(script, "// count := inputs[\"count\"]") {
 		t.Error("Script should document count parameter access")
+	}
+}
+
+func TestGenerateSafeInputGoToolScriptMultiLineDescription(t *testing.T) {
+	tests := []struct {
+		name        string
+		description string
+	}{
+		{
+			name:        "with trailing newline (YAML block scalar)",
+			description: "First line of description.\nSecond line of description.\nThird line of description.\n",
+		},
+		{
+			name:        "without trailing newline",
+			description: "First line of description.\nSecond line of description.\nThird line of description.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &SafeInputToolConfig{
+				Name:        "test-go-multiline",
+				Description: tt.description,
+				Go:          "fmt.Println(\"hello\")",
+			}
+
+			script := generateSafeInputGoToolScript(config)
+
+			if !strings.Contains(script, "// First line of description.") {
+				t.Error("Script should have first description line prefixed with //")
+			}
+			if !strings.Contains(script, "// Second line of description.") {
+				t.Error("Script should have second description line prefixed with //")
+			}
+			if !strings.Contains(script, "// Third line of description.") {
+				t.Error("Script should have third description line prefixed with //")
+			}
+		})
 	}
 }
