@@ -233,16 +233,30 @@ describe("redact_secrets.cjs", () => {
       });
 
       describe("Azure tokens", () => {
-        it("should redact Azure Storage Account Key", async () => {
+        it("should redact Azure Storage Account Key in connection string context", async () => {
           const testFile = path.join(tempDir, "test.txt");
-          const azureKey = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/ABCDEFGHIJKLMNOPQRSTUVWX==";
-          fs.writeFileSync(testFile, `Azure Key: ${azureKey}`);
+          // Azure Storage Account Keys are 64-byte (512-bit) values = 86 base64 chars + "==" padding
+          const azureKey = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/ABCDEFGHIJKLMNOPQRSTUV==";
+          fs.writeFileSync(testFile, `DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=${azureKey};EndpointSuffix=core.windows.net`);
           process.env.GH_AW_SECRET_NAMES = "";
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
-          expect(redacted).toBe("Azure Key: ***REDACTED***");
+          expect(redacted).toBe("DefaultEndpointsProtocol=https;AccountName=myaccount;***REDACTED***;EndpointSuffix=core.windows.net");
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Azure Storage Account Key"));
+        });
+
+        it("should not falsely redact plain base64 strings without AccountKey= context", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          // A different 86-char base64 string (not prefixed with AccountKey=) should NOT be redacted
+          const plainBase64 = "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA9876543210/+zyxwvutsrqponmlkjiha==";
+          const content = `some log output with base64: ${plainBase64} and more text`;
+          fs.writeFileSync(testFile, content);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const result = fs.readFileSync(testFile, "utf8");
+          expect(result).toBe(content);
         });
 
         it("should redact Azure SAS Token", async () => {
