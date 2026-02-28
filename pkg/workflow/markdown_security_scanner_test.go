@@ -115,7 +115,70 @@ func TestScanMarkdownSecurity_UnicodeAbuse_AllowsNormalWhitespace(t *testing.T) 
 	assert.Empty(t, findings, "should not flag normal whitespace characters")
 }
 
-// --- Hidden Content Tests ---
+func TestScanMarkdownSecurity_UnicodeAbuse_AllowsEmojiZWJ(t *testing.T) {
+	// ZWJ (U+200D) is legitimate between emoji codepoints and must not be flagged.
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "people holding hands (issue report example)",
+			content: "Status: \U0001F9D1\u200D\U0001F91D\u200D\U0001F9D1 Team Triage",
+		},
+		{
+			name:    "family emoji",
+			content: "Group: \U0001F468\u200D\U0001F469\u200D\U0001F467",
+		},
+		{
+			name:    "woman technologist",
+			content: "Role: \U0001F469\u200D\U0001F4BB",
+		},
+		{
+			name:    "rainbow flag (variation selector before ZWJ)",
+			content: "Flag: \U0001F3F3\uFE0F\u200D\U0001F308",
+		},
+		{
+			name:    "couple with heart (symbol-range emoji before ZWJ)",
+			content: "Love: \U0001F468\u200D\u2764\uFE0F\u200D\U0001F469",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings := ScanMarkdownSecurity(tt.content)
+			assert.Empty(t, findings, "should not flag emoji ZWJ sequence in %s", tt.name)
+		})
+	}
+}
+
+func TestScanMarkdownSecurity_UnicodeAbuse_FlagsNonEmojiZWJ(t *testing.T) {
+	// ZWJ between non-emoji (ASCII) characters is still suspicious and must be flagged.
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "ZWJ between ASCII letters",
+			content: "Hello\u200Dworld",
+		},
+		{
+			name:    "ZWJ at start of text",
+			content: "\u200DHello",
+		},
+		{
+			name:    "ZWJ at end of line",
+			content: "Hello\u200D",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings := ScanMarkdownSecurity(tt.content)
+			require.NotEmpty(t, findings, "should flag ZWJ outside emoji sequence in %s", tt.name)
+			assert.Equal(t, CategoryUnicodeAbuse, findings[0].Category, "category should be unicode-abuse")
+		})
+	}
+}
 
 func TestScanMarkdownSecurity_HiddenContent_SuspiciousHTMLComments(t *testing.T) {
 	tests := []struct {
