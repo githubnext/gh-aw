@@ -460,11 +460,12 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		assert.Empty(t, buildCheckoutsPromptContent([]*CheckoutConfig{}), "empty slice should return empty string")
 	})
 
-	t.Run("default checkout with no repo uses github.repository expression", func(t *testing.T) {
+	t.Run("default checkout with no repo uses github.repository expression and cwd", func(t *testing.T) {
 		content := buildCheckoutsPromptContent([]*CheckoutConfig{
 			{},
 		})
-		assert.Contains(t, content, "`.`", "should show '.' path for empty path")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE", "should show full workspace path for root checkout")
+		assert.Contains(t, content, "(cwd)", "root checkout should be marked as cwd")
 		assert.Contains(t, content, "${{ github.repository }}", "should reference github.repository expression for default checkout")
 	})
 
@@ -474,13 +475,14 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		assert.Equal(t, emptyContent, dotContent, "empty path and '.' should produce identical output")
 	})
 
-	t.Run("checkout with explicit repo shows repo", func(t *testing.T) {
+	t.Run("checkout with explicit repo shows full path", func(t *testing.T) {
 		content := buildCheckoutsPromptContent([]*CheckoutConfig{
 			{Repository: "owner/target", Path: "./target"},
 		})
-		assert.Contains(t, content, "./target", "should show the configured path")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE/target", "should show full workspace path")
 		assert.Contains(t, content, "owner/target", "should show the configured repo")
 		assert.NotContains(t, content, "github.repository", "should not include github.repository expression for explicit repo")
+		assert.NotContains(t, content, "(cwd)", "non-root checkout should not be marked as cwd")
 	})
 
 	t.Run("current checkout is marked", func(t *testing.T) {
@@ -504,9 +506,11 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 			{Repository: "owner/target", Path: "./target", Current: true},
 			{Repository: "owner/libs", Path: "./libs"},
 		})
-		assert.Contains(t, content, "./target", "should include target checkout")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE", "should include workspace root for root checkout")
+		assert.Contains(t, content, "(cwd)", "root checkout should be marked as cwd")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE/target", "should include full path for target checkout")
 		assert.Contains(t, content, "owner/target", "should include target repo")
-		assert.Contains(t, content, "./libs", "should include libs checkout")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE/libs", "should include full path for libs checkout")
 		assert.Contains(t, content, "owner/libs", "should include libs repo")
 		assert.Contains(t, content, "**current**", "current checkout should be marked")
 	})

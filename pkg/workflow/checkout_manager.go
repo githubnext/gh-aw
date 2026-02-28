@@ -563,10 +563,12 @@ func getCurrentCheckoutRepository(checkouts []*CheckoutConfig) string {
 // checkouts for inclusion in the GitHub context prompt.
 // Returns an empty string when no checkouts are configured.
 //
-// The generated content may include "${{ github.repository }}" for any checkout that does
-// not have an explicit repository configured (defaulting to the triggering repository).
-// Callers must ensure these expressions are processed by an ExpressionExtractor so the
-// placeholder substitution step can resolve them at runtime.
+// Each checkout is shown with its full absolute path relative to $GITHUB_WORKSPACE.
+// The root checkout (path == "") is annotated as "(cwd)" since that is the working
+// directory of the agent process. The generated content may include
+// "${{ github.repository }}" for any checkout that does not have an explicit repository
+// configured; callers must ensure these expressions are processed by an ExpressionExtractor
+// so the placeholder substitution step can resolve them at runtime.
 func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 	if len(checkouts) == 0 {
 		return ""
@@ -580,10 +582,16 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 			continue
 		}
 
-		// Determine human-readable path label
-		path := cfg.Path
-		if path == "" {
-			path = "."
+		// Build the full absolute path using $GITHUB_WORKSPACE as root.
+		// Normalize the path: strip "./" prefix; bare "." and "" both mean root.
+		relPath := strings.TrimPrefix(cfg.Path, "./")
+		if relPath == "." {
+			relPath = ""
+		}
+		isRoot := relPath == ""
+		absPath := "$GITHUB_WORKSPACE"
+		if !isRoot {
+			absPath += "/" + relPath
 		}
 
 		// Determine repo: use configured value or fall back to the triggering repository expression
@@ -592,7 +600,10 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 			repo = "${{ github.repository }}"
 		}
 
-		line := fmt.Sprintf("  - `%s` → `%s`", path, repo)
+		line := fmt.Sprintf("  - `%s` → `%s`", absPath, repo)
+		if isRoot {
+			line += " (cwd)"
+		}
 		if cfg.Current {
 			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
 		}
