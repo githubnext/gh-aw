@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
 func TestCopilotCodingAgentDetector_IsGitHubCopilotCodingAgent(t *testing.T) {
@@ -238,49 +236,6 @@ func TestExtractToolName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractToolName(tt.line)
-			if result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestExtractErrorMessage(t *testing.T) {
-	tests := []struct {
-		name     string
-		line     string
-		expected string
-	}{
-		{
-			name:     "removes ISO timestamp",
-			line:     "2024-01-15T10:00:00.123Z ERROR: Connection failed",
-			expected: "Connection failed",
-		},
-		{
-			name:     "removes bracketed timestamp",
-			line:     "[2024-01-15 10:00:00] ERROR: File not found",
-			expected: "File not found",
-		},
-		{
-			name:     "removes log level prefix",
-			line:     "ERROR: Invalid input",
-			expected: "Invalid input",
-		},
-		{
-			name:     "handles warning prefix",
-			line:     "WARNING: Deprecated API",
-			expected: "Deprecated API",
-		},
-		{
-			name:     "handles plain message",
-			line:     "   Simple error message   ",
-			expected: "Simple error message",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := logger.ExtractErrorMessage(tt.line)
 			if result != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
 			}

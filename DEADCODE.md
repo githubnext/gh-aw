@@ -49,6 +49,17 @@ The groups below are a rough guide but individual entries may differ.
 
 ---
 
+## Session 2 Analysis (2026-02-28)
+
+**Command:** `deadcode ./cmd/... ./internal/tools/... 2>/dev/null`  
+**Total dead entries:** 362  
+**Fully dead files:** 25  
+**Partially dead files:** 117  
+
+Confirmed NOT dead (correctly excluded now): `pkg/cli/actions_build_command.go`, `pkg/cli/generate_action_metadata_command.go`
+
+---
+
 ## Phase 1: Fully Dead Files
 
 These files have ALL their functions dead. Each must be checked for:
@@ -56,10 +67,8 @@ These files have ALL their functions dead. Each must be checked for:
 - [ ] Test files that reference the deleted functions
 - [ ] `internal/tools/` dependencies
 
-### Group 1A: CLI fully dead files (re-verify after fix)
-- [ ] `pkg/cli/actions_build_command.go` — **⚠️ NOT dead: used by `internal/tools/actions-build/`**
-- [ ] `pkg/cli/exec.go` — re-verify with corrected command
-- [ ] `pkg/cli/generate_action_metadata_command.go` — **⚠️ NOT dead: used by `internal/tools/generate-action-metadata/`**
+### Group 1A: CLI fully dead files (4 files)
+- [ ] `pkg/cli/exec.go` (4/4 dead)
 - [ ] `pkg/cli/logs_display.go` (1/1 dead) → surgery on `logs_overview_test.go`
 - [ ] `pkg/cli/mcp_inspect_safe_inputs_inspector.go` (1/1 dead) → delete `mcp_inspect_safe_inputs_test.go`
 - [ ] `pkg/cli/validation_output.go` (2/2 dead)
@@ -131,11 +140,19 @@ Used `deadcode ./cmd/...` — missed `internal/tools/` entry points. Deleted:
 - `internal/tools/actions-build/`, `internal/tools/generate-action-metadata/`
 - CI job `actions-build` from `.github/workflows/ci.yml`
 
-PR #18782 failed CI with `make: *** No rule to make target 'actions-build'`.
+PR #18782 failed CI with `make: *** No rule to make target 'actions-build'`. Reset to main.
 
-**Reset to main required before Session 2.**
+### Session 2 — In Progress
 
-### Session 2 — TODO (use corrected command: `./cmd/... ./internal/tools/...`)
+#### Batch 1: Groups 1A (CLI) + 1B (Console) + 1C (Misc) — COMPLETE ✅
+
+Deleted 17 files, surgery on 6 test files. `go build ./...` + `go vet ./...` + `make fmt` all clean.
+
+Deferred `pkg/stringutil/paths.go` to Batch 2 — callers in bundler files still present.
+
+#### Batch 2: Groups 1D + 1E (Workflow fully dead) — TODO
+#### Batch 3: Phase 2 (Near-fully dead, high-value partial files) — TODO
+#### Batch 4: Phase 3 (Individual function removals) — TODO
 
 ---
 
@@ -172,9 +189,7 @@ These live values are defined in files that are otherwise fully dead:
 
 | Test file | Reason to delete |
 |-----------|-----------------|
-| `pkg/cli/actions_build_command_test.go` | Tests deleted CLI commands |
 | `pkg/cli/exec_test.go` | Tests deleted exec functions |
-| `pkg/cli/generate_action_metadata_command_test.go` | Tests deleted command |
 | `pkg/cli/validation_output_test.go` | Tests deleted functions |
 | `pkg/cli/mcp_inspect_safe_inputs_test.go` | References `spawnSafeInputsInspector` (deleted) |
 | `pkg/console/form_test.go` | Tests deleted `RunForm` |
