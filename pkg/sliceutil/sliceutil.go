@@ -3,27 +3,11 @@ package sliceutil
 
 import (
 	"slices"
-	"strings"
 )
 
 // Contains checks if a string slice contains a specific string.
 func Contains(slice []string, item string) bool {
 	return slices.Contains(slice, item)
-}
-
-// ContainsAny checks if a string contains any of the given substrings.
-func ContainsAny(s string, substrings ...string) bool {
-	for _, sub := range substrings {
-		if strings.Contains(s, sub) {
-			return true
-		}
-	}
-	return false
-}
-
-// ContainsIgnoreCase checks if a string contains a substring, ignoring case.
-func ContainsIgnoreCase(s, substr string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // Filter returns a new slice containing only elements that match the predicate.
