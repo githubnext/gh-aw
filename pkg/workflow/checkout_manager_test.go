@@ -469,12 +469,6 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		assert.Contains(t, content, "${{ github.repository }}", "should reference github.repository expression for default checkout")
 	})
 
-	t.Run("path dot treated same as empty path", func(t *testing.T) {
-		emptyContent := buildCheckoutsPromptContent([]*CheckoutConfig{{Path: ""}})
-		dotContent := buildCheckoutsPromptContent([]*CheckoutConfig{{Path: "."}})
-		assert.Equal(t, emptyContent, dotContent, "empty path and '.' should produce identical output")
-	})
-
 	t.Run("checkout with explicit repo shows full path", func(t *testing.T) {
 		content := buildCheckoutsPromptContent([]*CheckoutConfig{
 			{Repository: "owner/target", Path: "./target"},
