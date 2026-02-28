@@ -55,6 +55,81 @@ tools:
     mode: local
 ```
 
+## Guard Policies
+
+Restrict which repositories and integrity levels the GitHub MCP server can access during agent execution. Guard policies apply fine-grained access control at the MCP gateway level.
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos: "all"
+    min-integrity: reader
+```
+
+Both `repos` and `min-integrity` are required when either is specified.
+
+### `repos`
+
+Specifies which repositories the agent can access through GitHub tools:
+
+- `"all"` — All repositories accessible by the configured token
+- `"public"` — Public repositories only
+- Array of patterns — Specific repositories and wildcards:
+  - `"owner/repo"` — Exact repository match
+  - `"owner/*"` — All repositories under an owner
+  - `"owner/prefix*"` — Repositories with a name prefix under an owner
+
+Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos:
+      - "myorg/*"
+      - "partner/shared-repo"
+      - "myorg/api-*"
+    min-integrity: writer
+```
+
+### `min-integrity`
+
+Sets the minimum integrity level required for repository access:
+
+| Level | Description |
+|-------|-------------|
+| `none` | No integrity requirements |
+| `reader` | Read-level integrity |
+| `writer` | Write-level integrity |
+| `merged` | Merged-level integrity |
+
+### Examples
+
+**Restrict to public repositories only:**
+
+```yaml wrap
+tools:
+  github:
+    repos: "public"
+    min-integrity: none
+```
+
+**Restrict to repositories in multiple organizations:**
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues]
+    repos:
+      - "frontend-org/*"
+      - "backend-org/*"
+    min-integrity: writer
+```
+
 ## Lockdown Mode for Public Repositories
 
 Lockdown Mode is a security feature that filters public repository content to only show issues, PRs, and comments from users with push access. Automatically enabled for public repositories when using custom tokens. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete documentation.
