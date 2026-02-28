@@ -229,6 +229,15 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for tools.github guard policy (repos/min-integrity)
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
+		github := workflowData.ParsedTools.GitHub
+		if github.Repos != nil || github.MinIntegrity != "" {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: tools.github guard policy (repos/min-integrity)"))
+			c.IncrementWarningCount()
+		}
+	}
+
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
