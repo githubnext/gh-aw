@@ -108,26 +108,37 @@ These are the JS bundler subsystem — entirely unused.
 
 ## Phase 2: Near-Fully Dead Files (high value, some surgery)
 
-These files are mostly dead and worth cleaning next:
-
-- [ ] `pkg/workflow/script_registry.go` (11/13 dead) — keep only `GetActionPath`, `DefaultScriptRegistry`
-- [ ] `pkg/workflow/artifact_manager.go` (14/16 dead) — remove 14 functions  
-- [ ] `pkg/constants/constants.go` (13/27 dead) — remove 13 constants
-- [ ] `pkg/workflow/map_helpers.go` (5/7 dead) — remove 5 functions
-- [ ] `pkg/workflow/js.go` (17/47 dead) — remove 17 JS bundle functions
-- [ ] `pkg/workflow/compiler_types.go` (17/45 dead) — remove 17 types/methods
+- [x] `pkg/workflow/script_registry.go` — rewritten minimal in batch 2 ✅
+- [x] `pkg/workflow/compiler_types.go` — 7 dead `With*` option funcs + 3 getters removed in batch 3; **10 dead remain** (see batch 4)
+- [x] `pkg/workflow/js.go` — 10 dead bundle/Get* funcs removed in batch 3; **7 dead remain** (see batch 4)
+- [ ] `pkg/workflow/artifact_manager.go` — **14 dead** — but tests call many of these; skip or do last
+- [ ] `pkg/constants/constants.go` — **13 dead** (all `String()`/`IsValid()` methods on type aliases) — safe to remove
+- [ ] `pkg/workflow/map_helpers.go` — **5 dead** — check test callers before removing
 
 ---
 
-## Phase 3: Partially Dead Files (1–6 dead per file)
+## Phase 3 / Batch 4 Targets (current dead count: 259)
 
-Individual function removals across ~100 files. To be tackled after Phase 1 and 2.
+Remaining high-value clusters from `deadcode ./cmd/... ./internal/tools/...`:
 
-High-count files to prioritize:
-- `pkg/workflow/expression_builder.go` (9/27 dead)
-- `pkg/workflow/validation_helpers.go` (6/10 dead)
-- `pkg/cli/docker_images.go` (6/11 dead)
-- `pkg/workflow/domains.go` (10/27 dead)
+| File | Dead | Notes |
+|------|------|-------|
+| `pkg/workflow/artifact_manager.go` | 14 | Many test callers; do last |
+| `pkg/constants/constants.go` | 13 | All `String()`/`IsValid()` on semantic types; safe |
+| `pkg/workflow/domains.go` | 10 | Check callers |
+| `pkg/workflow/compiler_types.go` | 10 | Remaining With*/Get* |
+| `pkg/workflow/expression_builder.go` | 9 | Check callers |
+| `pkg/workflow/js.go` | 7 | Remaining Get* stubs |
+| `pkg/workflow/validation_helpers.go` | 6 | Check callers |
+| `pkg/cli/docker_images.go` | 6 | Check callers |
+| `pkg/workflow/permissions_factory.go` | 5 | Check callers |
+| `pkg/workflow/map_helpers.go` | 5 | Check callers |
+| `pkg/workflow/engine_helpers.go` | 5 | Check callers |
+| `pkg/console/console.go` | 5 | Check callers |
+| `pkg/workflow/safe_outputs_env.go` | 4 | Check callers |
+| `pkg/workflow/expression_nodes.go` | 4 | Check callers |
+
+**Long tail:** ~80 remaining files with 1–3 dead functions each.
 
 ---
 
@@ -151,9 +162,25 @@ Deleted 17 files, surgery on 6 test files. `go build ./...` + `go vet ./...` + `
 
 Deferred `pkg/stringutil/paths.go` to Batch 2 — callers in bundler files still present.
 
-#### Batch 2: Groups 1D + 1E (Workflow fully dead) — TODO
-#### Batch 3: Phase 2 (Near-fully dead, high-value partial files) — TODO
-#### Batch 4: Phase 3 (Individual function removals) — TODO
+#### Batch 2: Groups 1D + 1E (Workflow fully dead) — COMPLETE ✅
+
+Deleted 35 files (bundler subsystem + env_mirror, copilot_participant_steps, dependency_tracker,
+markdown_unfencing, prompt_step, safe_output_builder, sh.go, stringutil/paths.go).
+Rescued: `prompt_constants.go`, `setup_action_paths.go`. Rewrote `script_registry.go` minimal.
+Surgery on 12 test files. ~7,856 lines deleted.
+
+⚠️ **Lessons learned in batch 2:**
+- `go vet ./...` misses integration tests — MUST also run `go vet -tags=integration ./...`
+- `cmd/gh-aw-wasm/` has `//go:build js && wasm` — deadcode can't see it; `compiler_string_api.go` was wrongly deleted and restored
+- Always check `cmd/gh-aw-wasm/main.go` before deleting `pkg/workflow` functions
+
+#### Batch 3: Phase 2 partial (compiler_types + js.go) — COMPLETE ✅
+
+Removed 7 dead `With*` option funcs + 3 dead getters from `compiler_types.go`.
+Removed 10 dead Get*/bundle funcs from `js.go`.
+~133 lines deleted. Dead count: 362 → 259.
+
+#### Batch 4: Remaining Phase 2 + Phase 3 (individual removals) — TODO
 
 ---
 
