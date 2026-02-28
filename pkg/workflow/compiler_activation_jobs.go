@@ -465,12 +465,21 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
-	// Add secret validation step before context variable validation.
-	// This validates that the required engine secrets are available before any other checks.
+	// Generate agentic run info immediately after setup so aw_info.json is ready as early as possible.
+	// This ensures it is available for prompt generation and can be uploaded together with prompt.txt.
 	engine, err := c.getAgenticEngine(data.AI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
 	}
+	compilerActivationJobsLog.Print("Generating aw_info step in activation job (first step after setup)")
+	var awInfoYaml strings.Builder
+	c.generateCreateAwInfo(&awInfoYaml, data, engine)
+	steps = append(steps, awInfoYaml.String())
+	// Expose the model output from the activation job so downstream jobs can reference it
+	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
+
+	// Add secret validation step before context variable validation.
+	// This validates that the required engine secrets are available before any other checks.
 	secretValidationStep := engine.GetSecretValidationStep(data)
 	if len(secretValidationStep) > 0 {
 		for _, line := range secretValidationStep {
@@ -700,15 +709,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if workflowRunRepoSafety != "" {
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
-
-	// Generate agentic run info in the activation job, before prompt generation
-	// This ensures aw_info.json is available when prompt is rendered and can be uploaded together
-	compilerActivationJobsLog.Print("Generating aw_info step in activation job")
-	var awInfoYaml strings.Builder
-	c.generateCreateAwInfo(&awInfoYaml, data, engine)
-	steps = append(steps, awInfoYaml.String())
-	// Expose the model output from the activation job so downstream jobs can reference it
-	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 
 	// Generate prompt in the activation job (before agent job runs)
 	compilerActivationJobsLog.Print("Generating prompt in activation job")

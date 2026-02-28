@@ -53,30 +53,6 @@ jobs:
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # a70c5eada06553e3510ac27f2c3bda9d3705bccb
         with:
           destination: /opt/gh-aw/actions
-      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
-        id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
-        env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      - name: Validate context variables
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
-            await main();
-      - name: Check workflow file timestamps
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_WORKFLOW_FILE: "daily-fact.lock.yml"
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
-            await main();
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -124,6 +100,30 @@ jobs:
             // Generate workflow overview and write to step summary
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
             await generateWorkflowOverview(core);
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
+        id: validate-secret
+        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Validate context variables
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
+            await main();
+      - name: Check workflow file timestamps
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_FILE: "daily-fact.lock.yml"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
