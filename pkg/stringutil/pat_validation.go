@@ -66,21 +66,6 @@ func ClassifyPAT(token string) PATType {
 	return patType
 }
 
-// IsFineGrainedPAT returns true if the token is a fine-grained personal access token
-func IsFineGrainedPAT(token string) bool {
-	return strings.HasPrefix(token, "github_pat_")
-}
-
-// IsClassicPAT returns true if the token is a classic personal access token
-func IsClassicPAT(token string) bool {
-	return strings.HasPrefix(token, "ghp_")
-}
-
-// IsOAuthToken returns true if the token is an OAuth token (not a PAT)
-func IsOAuthToken(token string) bool {
-	return strings.HasPrefix(token, "gho_")
-}
-
 // ValidateCopilotPAT validates that a token is a valid fine-grained PAT for Copilot.
 // Returns an error if the token is not a fine-grained PAT with a descriptive error message.
 //

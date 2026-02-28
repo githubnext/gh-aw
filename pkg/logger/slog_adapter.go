@@ -3,7 +3,6 @@ package logger
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"strings"
 )
@@ -91,21 +90,8 @@ func formatSlogValue(v any) string {
 	return slog.AnyValue(v).String()
 }
 
-// NewSlogLogger creates a new slog.Logger that uses gh-aw's logger package
-// This allows integration with libraries that expect slog.Logger
-func NewSlogLogger(namespace string) *slog.Logger {
-	logger := New(namespace)
-	handler := NewSlogHandler(logger)
-	return slog.New(handler)
-}
-
 // NewSlogLoggerWithHandler creates a new slog.Logger using an existing Logger instance
 func NewSlogLoggerWithHandler(logger *Logger) *slog.Logger {
 	handler := NewSlogHandler(logger)
 	return slog.New(handler)
-}
-
-// Discard returns a slog.Logger that discards all output
-func Discard() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

@@ -4,10 +4,9 @@ package cli
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 func TestCheckAndPrepareDockerImages_NoToolsRequested(t *testing.T) {
@@ -39,7 +38,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyDownloading(t *testing.T) {
 	// Error message should mention downloading and retry
 	if err != nil {
 		errMsg := err.Error()
-		if !sliceutil.ContainsAny(errMsg, "downloading", "retry") {
+		if !strings.Contains(errMsg, "downloading") && !strings.Contains(errMsg, "retry") {
 			t.Errorf("Expected error to mention downloading and retry, got: %s", errMsg)
 		}
 	}
@@ -110,7 +109,7 @@ func TestDockerImageConstants(t *testing.T) {
 	}
 
 	for name, image := range expectedImages {
-		if !sliceutil.ContainsAny(image, "/", ":") {
+		if !strings.Contains(image, "/") && !strings.Contains(image, ":") {
 			t.Errorf("%s image %s does not look like a Docker image reference", name, image)
 		}
 	}
@@ -138,7 +137,7 @@ func TestCheckAndPrepareDockerImages_MultipleImages(t *testing.T) {
 	// Error should mention downloading images
 	if err != nil {
 		errMsg := err.Error()
-		if !sliceutil.ContainsAny(errMsg, "downloading", "retry") {
+		if !strings.Contains(errMsg, "downloading") && !strings.Contains(errMsg, "retry") {
 			t.Errorf("Expected error to mention downloading and retry, got: %s", errMsg)
 		}
 	}
@@ -172,7 +171,7 @@ func TestCheckAndPrepareDockerImages_RetryMessageFormat(t *testing.T) {
 	}
 
 	for _, expected := range expectations {
-		if !sliceutil.ContainsAny(errMsg, expected) {
+		if !strings.Contains(errMsg, expected) {
 			t.Errorf("Expected error message to contain '%s', got: %s", expected, errMsg)
 		}
 	}
@@ -199,7 +198,7 @@ func TestCheckAndPrepareDockerImages_StartedDownloadingMessage(t *testing.T) {
 	errMsg := err.Error()
 
 	// Should contain zizmor since it's downloading
-	if !sliceutil.ContainsAny(errMsg, "zizmor") {
+	if !strings.Contains(errMsg, "zizmor") {
 		t.Errorf("Expected error message to mention zizmor, got: %s", errMsg)
 	}
 

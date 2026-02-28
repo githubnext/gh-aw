@@ -14,7 +14,7 @@ import (
 func TestNewCheckoutManager(t *testing.T) {
 	t.Run("empty configs produces empty manager", func(t *testing.T) {
 		cm := NewCheckoutManager(nil)
-		assert.False(t, cm.HasUserCheckouts(), "empty manager should report no user checkouts")
+		// HasUserCheckouts removed (dead code)
 		assert.Nil(t, cm.GetDefaultCheckoutOverride(), "empty manager should have no default override")
 	})
 
@@ -23,7 +23,7 @@ func TestNewCheckoutManager(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{FetchDepth: &depth},
 		})
-		assert.True(t, cm.HasUserCheckouts(), "should have user checkouts")
+		// HasUserCheckouts removed (dead code)
 		override := cm.GetDefaultCheckoutOverride()
 		require.NotNil(t, override, "should have default override")
 		require.NotNil(t, override.fetchDepth, "fetch depth should be set")
