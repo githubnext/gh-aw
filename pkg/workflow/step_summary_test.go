@@ -132,13 +132,14 @@ This workflow tests that the step summary includes agentic run information.
 		t.Error("Did not expect '## Agentic Run Information' section in step summary (it should only be in action logs)")
 	}
 
-	// Verify that the aw_info.json file is still created and logged to console
+	// Verify that the aw_info.json file is still referenced in the workflow
 	if !strings.Contains(lockContent, "aw_info.json") {
-		t.Error("Expected 'aw_info.json' to be created")
+		t.Error("Expected 'aw_info.json' to be referenced in the workflow")
 	}
 
-	if !strings.Contains(lockContent, "console.log('Generated aw_info.json at:', tmpPath);") {
-		t.Error("Expected console.log output for aw_info.json")
+	// Verify that the generate_aw_info.cjs helper is invoked from the step
+	if !strings.Contains(lockContent, "require('/opt/gh-aw/actions/generate_aw_info.cjs')") {
+		t.Error("Expected generate_aw_info.cjs require call in 'Generate agentic run info' step")
 	}
 
 	t.Log("Step correctly creates aw_info.json without adding to step summary")
@@ -245,44 +246,41 @@ This workflow tests the workflow overview for Claude engine.
 			}
 
 			// Verify workflow overview call is present in the generate_aw_info step
-			if !strings.Contains(lockContent, "const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');") {
-				t.Error("Expected workflow overview require call inside 'Generate agentic run info' step")
-			}
-			if !strings.Contains(lockContent, "await generateWorkflowOverview(core);") {
-				t.Error("Expected generateWorkflowOverview call inside 'Generate agentic run info' step")
+			if !strings.Contains(lockContent, "require('/opt/gh-aw/actions/generate_aw_info.cjs')") {
+				t.Error("Expected generate_aw_info.cjs require call inside 'Generate agentic run info' step")
 			}
 
-			// Verify engine ID is present in aw_info.json
-			if !strings.Contains(lockContent, "engine_id: \""+tt.expectEngineID+"\"") {
-				t.Errorf("Expected engine_id: %q in aw_info.json", tt.expectEngineID)
+			// Verify engine ID is set as an env var in the generate_aw_info step
+			if !strings.Contains(lockContent, "GH_AW_INFO_ENGINE_ID: \""+tt.expectEngineID+"\"") {
+				t.Errorf("Expected GH_AW_INFO_ENGINE_ID: %q in generate_aw_info step", tt.expectEngineID)
 			}
 
-			// Verify engine name is present in aw_info.json
-			if !strings.Contains(lockContent, "engine_name: \""+tt.expectEngineName+"\"") {
-				t.Errorf("Expected engine_name: %q in aw_info.json", tt.expectEngineName)
+			// Verify engine name is set as an env var in the generate_aw_info step
+			if !strings.Contains(lockContent, "GH_AW_INFO_ENGINE_NAME: \""+tt.expectEngineName+"\"") {
+				t.Errorf("Expected GH_AW_INFO_ENGINE_NAME: %q in generate_aw_info step", tt.expectEngineName)
 			}
 
-			// Verify model is present in aw_info.json
+			// Verify model is set as an env var in the generate_aw_info step
 			if tt.expectModel == "" {
-				// For empty model, check for the environment variable expression
-				if !strings.Contains(lockContent, "model: process.env.GH_AW_MODEL_AGENT_COPILOT || \"\"") &&
-					!strings.Contains(lockContent, "model: process.env.GH_AW_MODEL_DETECTION_COPILOT || \"\"") {
-					t.Errorf("Expected model to use environment variable with empty string fallback in aw_info.json")
+				// For empty model, check for the complete vars expression (with fallback)
+				if !strings.Contains(lockContent, "GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}") &&
+					!strings.Contains(lockContent, "GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}") {
+					t.Errorf("Expected GH_AW_INFO_MODEL to use vars expression in generate_aw_info step")
 				}
 			} else {
 				// For non-empty model, check for the literal value
-				if !strings.Contains(lockContent, "model: \""+tt.expectModel+"\"") {
-					t.Errorf("Expected model: %q in aw_info.json", tt.expectModel)
+				if !strings.Contains(lockContent, "GH_AW_INFO_MODEL: \""+tt.expectModel+"\"") {
+					t.Errorf("Expected GH_AW_INFO_MODEL: %q in generate_aw_info step", tt.expectModel)
 				}
 			}
 
-			// Verify firewall status in aw_info.json
+			// Verify firewall status is set as an env var in the generate_aw_info step
 			expectedFirewall := "false"
 			if tt.expectFirewall {
 				expectedFirewall = "true"
 			}
-			if !strings.Contains(lockContent, "firewall_enabled: "+expectedFirewall) {
-				t.Errorf("Expected firewall_enabled: %s in aw_info.json", expectedFirewall)
+			if !strings.Contains(lockContent, "GH_AW_INFO_FIREWALL_ENABLED: \""+expectedFirewall+"\"") {
+				t.Errorf("Expected GH_AW_INFO_FIREWALL_ENABLED: %q in generate_aw_info step", expectedFirewall)
 			}
 
 			// Verify allowed domains if specified (in aw_info.json)

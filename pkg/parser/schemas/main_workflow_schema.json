@@ -2966,6 +2966,30 @@
                   },
                   "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
                 },
+                "repos": {
+                  "description": "Guard policy: repository access configuration. Restricts which repositories the agent can access. Use 'all' to allow all repos or an array of 'owner/repo' strings.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["all"],
+                      "description": "Allow access to all repositories"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Allow access to specific repositories",
+                      "items": {
+                        "type": "string",
+                        "description": "Repository slug in the format 'owner/repo'"
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                },
+                "min-integrity": {
+                  "type": "string",
+                  "description": "Guard policy: minimum required integrity level for repository access. Restricts the agent to users with at least the specified permission level.",
+                  "enum": ["reader", "writer", "maintainer", "admin"]
+                },
                 "app": {
                   "type": "object",
                   "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
