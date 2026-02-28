@@ -76,22 +76,6 @@ func ParseFilterConfig(configMap map[string]any) SafeOutputFilterConfig {
 	return config
 }
 
-// ParseDiscussionFilterConfig parses filter config plus required-category for discussion operations.
-func ParseDiscussionFilterConfig(configMap map[string]any) SafeOutputDiscussionFilterConfig {
-	config := SafeOutputDiscussionFilterConfig{
-		SafeOutputFilterConfig: ParseFilterConfig(configMap),
-	}
-
-	// Parse required-category
-	if requiredCategory, exists := configMap["required-category"]; exists {
-		if categoryStr, ok := requiredCategory.(string); ok {
-			config.RequiredCategory = categoryStr
-		}
-	}
-
-	return config
-}
-
 // parseRequiredLabelsFromConfig extracts and validates required-labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
 func parseRequiredLabelsFromConfig(configMap map[string]any) []string {
@@ -102,67 +86,4 @@ func parseRequiredLabelsFromConfig(configMap map[string]any) []string {
 // Returns the prefix string, or empty string if not present or invalid.
 func parseRequiredTitlePrefixFromConfig(configMap map[string]any) string {
 	return extractStringFromMap(configMap, "required-title-prefix", safeOutputParserLog)
-}
-
-// ParseCloseJobConfig parses common close job fields from a config map.
-// Returns the parsed CloseJobConfig and a boolean indicating if there was a validation error.
-func ParseCloseJobConfig(configMap map[string]any) (CloseJobConfig, bool) {
-	config := CloseJobConfig{}
-
-	// Parse target config
-	targetConfig, isInvalid := ParseTargetConfig(configMap)
-	if isInvalid {
-		return config, true
-	}
-	config.SafeOutputTargetConfig = targetConfig
-
-	// Parse filter config
-	config.SafeOutputFilterConfig = ParseFilterConfig(configMap)
-
-	return config, false
-}
-
-// ParseListJobConfig parses common list job fields from a config map.
-// Returns the parsed ListJobConfig and a boolean indicating if there was a validation error.
-func ParseListJobConfig(configMap map[string]any, allowedKey string) (ListJobConfig, bool) {
-	config := ListJobConfig{}
-
-	// Parse target config
-	targetConfig, isInvalid := ParseTargetConfig(configMap)
-	if isInvalid {
-		return config, true
-	}
-	config.SafeOutputTargetConfig = targetConfig
-
-	// Parse allowed list (using the specified key like "allowed", "reviewers", etc.)
-	if allowed, exists := configMap[allowedKey]; exists {
-		// Handle single string format
-		if allowedStr, ok := allowed.(string); ok {
-			config.Allowed = []string{allowedStr}
-		} else if allowedArray, ok := allowed.([]any); ok {
-			// Handle array format
-			for _, item := range allowedArray {
-				if itemStr, ok := item.(string); ok {
-					config.Allowed = append(config.Allowed, itemStr)
-				}
-			}
-		}
-	}
-
-	// Parse blocked list
-	if blocked, exists := configMap["blocked"]; exists {
-		// Handle single string format
-		if blockedStr, ok := blocked.(string); ok {
-			config.Blocked = []string{blockedStr}
-		} else if blockedArray, ok := blocked.([]any); ok {
-			// Handle array format
-			for _, item := range blockedArray {
-				if itemStr, ok := item.(string); ok {
-					config.Blocked = append(config.Blocked, itemStr)
-				}
-			}
-		}
-	}
-
-	return config, false
 }
