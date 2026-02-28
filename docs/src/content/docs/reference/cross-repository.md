@@ -56,9 +56,23 @@ checkout:
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
 | `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
 | `lfs` | boolean | Download Git LFS objects. |
+| `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
 
 > [!TIP]
 > Credentials are always removed after checkout (`persist-credentials: false` is enforced) to prevent credential exfiltration by agents.
+
+### Marking a Primary Repository (`current: true`)
+
+When a workflow running from a central repository targets a different repository, use `current: true` to tell the agent which repository to treat as its primary working target. The agent uses this as the default for all GitHub operations (creating issues, opening PRs, reading content) unless the prompt instructs otherwise. When omitted, the agent defaults to the repository where the workflow is running.
+
+```yaml wrap
+checkout:
+  - path: .                                          # central/control repo
+  - repository: org/target-repo
+    path: ./target
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    current: true                                    # agent's primary target
+```
 
 ### Multiple Checkout Merging
 

@@ -189,7 +189,7 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           - **checkouts**: The following repositories have been checked out and are available in the workspace:
-            - `workspace root` → `__GH_AW_GITHUB_REPOSITORY__`
+            - `.` → `__GH_AW_GITHUB_REPOSITORY__`
           </github-context>
           
           GH_AW_PROMPT_EOF
