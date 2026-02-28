@@ -127,6 +127,30 @@ Alternatively, you can set the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` to a
 gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-pat-token>"
 ```
 
+## Cross-Repository Reading
+
+When GitHub Tools need to read information from repositories other than the one where the workflow is running, additional authorization is required. The default `GITHUB_TOKEN` only has access to the current repository.
+
+Configure cross-repository read access using the same authentication methods described above:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+```
+
+This enables operations like:
+- Reading files and searching code in external repositories
+- Querying issues and pull requests from other repos
+- Accessing commits, releases, and workflow runs across repositories
+- Reading organization-level information
+
+> [!NOTE]
+> This authorization is for **reading** from GitHub. For **writing** to other repositories (creating issues, PRs, comments), configure authentication separately through [Safe Outputs](/gh-aw/reference/safe-outputs/) with cross-repository operations.
+
+For complete cross-repository workflow patterns and examples, see [Cross-Repository Operations](/gh-aw/reference/cross-repository/).
+
 ## Related Documentation
 
 - [Tools Reference](/gh-aw/reference/tools/) - All tool configurations

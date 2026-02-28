@@ -41,9 +41,8 @@ func TestFirewallDisableIntegration(t *testing.T) {
 		}
 
 		// Check validation triggers warning
-		engine := NewCopilotEngine()
 		initialWarnings := compiler.warningCount
-		err := compiler.checkFirewallDisable(engine, networkPerms)
+		err := compiler.checkFirewallDisable(networkPerms)
 		if err != nil {
 			t.Errorf("Expected no error in non-strict mode, got: %v", err)
 		}
@@ -72,8 +71,7 @@ func TestFirewallDisableIntegration(t *testing.T) {
 			t.Fatal("Expected network permissions to be extracted")
 		}
 
-		engine := NewCopilotEngine()
-		err := compiler.checkFirewallDisable(engine, networkPerms)
+		err := compiler.checkFirewallDisable(networkPerms)
 		if err == nil {
 			t.Error("Expected error in strict mode when firewall is disabled with allowed domains")
 		}

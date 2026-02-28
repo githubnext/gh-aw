@@ -588,7 +588,7 @@ checkout:
     ref: main
 ```
 
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/#repository-checkout-checkout) for complete documentation on checkout configuration options, merging behavior, and cross-repo examples.
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options, merging behavior, and cross-repo examples.
 
 ## Custom Steps (`steps:`)
 

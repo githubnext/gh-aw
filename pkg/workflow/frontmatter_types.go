@@ -514,28 +514,6 @@ func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
 	return make(map[string]any)
 }
 
-// ExtractStringField is a convenience wrapper for extracting string fields.
-// Returns empty string if the key doesn't exist or cannot be converted.
-func ExtractStringField(frontmatter map[string]any, key string) string {
-	var result string
-	err := unmarshalFromMap(frontmatter, key, &result)
-	if err != nil {
-		return ""
-	}
-	return result
-}
-
-// ExtractIntField is a convenience wrapper for extracting integer fields.
-// Returns 0 if the key doesn't exist or cannot be converted.
-func ExtractIntField(frontmatter map[string]any, key string) int {
-	var result int
-	err := unmarshalFromMap(frontmatter, key, &result)
-	if err != nil {
-		return 0
-	}
-	return result
-}
-
 // ToMap converts FrontmatterConfig back to map[string]any for backward compatibility
 // This allows gradual migration from map[string]any to strongly-typed config
 func (fc *FrontmatterConfig) ToMap() map[string]any {

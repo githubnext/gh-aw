@@ -60,7 +60,7 @@ curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | 
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s v0.1.0      # Pinned
 ```
 
-Installs to `~/.local/share/gh/extensions/gh-aw/gh-aw`. Supports Linux, macOS, FreeBSD, and Windows. Works behind corporate firewalls using direct release download URLs.
+Installs to `~/.local/share/gh/extensions/gh-aw/gh-aw`. Supports Linux, macOS, FreeBSD, Windows, and Android (Termux). Works behind corporate firewalls using direct release download URLs.
 
 ### GitHub Actions Setup Action
 
@@ -411,6 +411,8 @@ gh aw remove my-workflow
 
 Update workflows based on `source` field (`owner/repo/path@ref`). By default, performs a 3-way merge to preserve local changes; use `--no-merge` to override with upstream. Semantic versions update within same major version.
 
+By default, `update` also force-updates all GitHub Actions referenced in your workflows (both in `actions-lock.json` and workflow files) to their latest major version. Use `--disable-release-bump` to restrict force-updates to core `actions/*` actions only.
+
 If no workflows in the repository contain a `source` field, the command exits gracefully with an informational message rather than an error. This is expected behavior for repositories that have not yet added updatable workflows.
 
 ```bash wrap
@@ -418,9 +420,10 @@ gh aw update                              # Update all with source field
 gh aw update ci-doctor                    # Update specific workflow (3-way merge)
 gh aw update ci-doctor --no-merge         # Override local changes with upstream
 gh aw update ci-doctor --major --force    # Allow major version updates
+gh aw update --disable-release-bump       # Update workflows; only force-update core actions/*
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`
 
 #### `upgrade`
 

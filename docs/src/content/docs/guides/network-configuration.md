@@ -36,7 +36,7 @@ network:
 | `rust` | crates.io | Rust crates |
 | `github` | githubusercontent.com | GitHub resources |
 | `terraform` | HashiCorp registry | Terraform modules |
-| `playwright` | Browser downloads | Web testing |
+| `playwright` | Browser downloads | Web testing ([reference](/gh-aw/reference/playwright/)) |
 | `linux-distros` | Debian, Ubuntu, Alpine | Linux packages |
 
 ## Common Configuration Patterns
@@ -192,5 +192,6 @@ View complete ecosystem domain lists in the [ecosystem domains source](https://g
 ## Related Documentation
 
 - [Network Permissions Reference](/gh-aw/reference/network/) - Complete network configuration reference
+- [Playwright Reference](/gh-aw/reference/playwright/) - Browser automation and network requirements
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices
 - [Troubleshooting](/gh-aw/troubleshooting/common-issues/) - Common issues and solutions

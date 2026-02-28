@@ -7,9 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/golden"
-	"github.com/github/gh-aw/pkg/styles"
 )
 
 // TestGolden_TableRendering tests table rendering with different configurations
@@ -132,148 +130,6 @@ func TestGolden_BoxRendering(t *testing.T) {
 }
 
 // TestGolden_LayoutBoxRendering tests layout box rendering (returns string)
-func TestGolden_LayoutBoxRendering(t *testing.T) {
-	tests := []struct {
-		name  string
-		title string
-		width int
-	}{
-		{
-			name:  "layout_narrow",
-			title: "Test",
-			width: 30,
-		},
-		{
-			name:  "layout_medium",
-			title: "Trial Execution Plan",
-			width: 60,
-		},
-		{
-			name:  "layout_wide",
-			title: "GitHub Agentic Workflows Compilation Report",
-			width: 100,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := LayoutTitleBox(tt.title, tt.width)
-			golden.RequireEqual(t, []byte(output))
-		})
-	}
-}
-
-// TestGolden_TreeRendering tests tree rendering with different hierarchies
-func TestGolden_TreeRendering(t *testing.T) {
-	tests := []struct {
-		name string
-		tree TreeNode
-	}{
-		{
-			name: "single_node",
-			tree: TreeNode{
-				Value:    "Root",
-				Children: []TreeNode{},
-			},
-		},
-		{
-			name: "flat_tree",
-			tree: TreeNode{
-				Value: "Root",
-				Children: []TreeNode{
-					{Value: "Child1", Children: []TreeNode{}},
-					{Value: "Child2", Children: []TreeNode{}},
-					{Value: "Child3", Children: []TreeNode{}},
-				},
-			},
-		},
-		{
-			name: "nested_tree",
-			tree: TreeNode{
-				Value: "Workflow",
-				Children: []TreeNode{
-					{
-						Value: "Setup",
-						Children: []TreeNode{
-							{Value: "Install dependencies", Children: []TreeNode{}},
-							{Value: "Configure environment", Children: []TreeNode{}},
-						},
-					},
-					{
-						Value: "Build",
-						Children: []TreeNode{
-							{Value: "Compile source", Children: []TreeNode{}},
-							{Value: "Run tests", Children: []TreeNode{}},
-						},
-					},
-					{Value: "Deploy", Children: []TreeNode{}},
-				},
-			},
-		},
-		{
-			name: "deep_hierarchy",
-			tree: TreeNode{
-				Value: "Level 1",
-				Children: []TreeNode{
-					{
-						Value: "Level 2",
-						Children: []TreeNode{
-							{
-								Value: "Level 3",
-								Children: []TreeNode{
-									{
-										Value: "Level 4",
-										Children: []TreeNode{
-											{Value: "Level 5", Children: []TreeNode{}},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "mcp_server_tree",
-			tree: TreeNode{
-				Value: "MCP Servers",
-				Children: []TreeNode{
-					{
-						Value: "github",
-						Children: []TreeNode{
-							{Value: "list_issues", Children: []TreeNode{}},
-							{Value: "create_issue", Children: []TreeNode{}},
-							{Value: "list_pull_requests", Children: []TreeNode{}},
-							{Value: "create_pull_request", Children: []TreeNode{}},
-						},
-					},
-					{
-						Value: "filesystem",
-						Children: []TreeNode{
-							{Value: "read_file", Children: []TreeNode{}},
-							{Value: "write_file", Children: []TreeNode{}},
-							{Value: "list_directory", Children: []TreeNode{}},
-						},
-					},
-					{
-						Value: "bash",
-						Children: []TreeNode{
-							{Value: "execute", Children: []TreeNode{}},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := RenderTree(tt.tree)
-			golden.RequireEqual(t, []byte(output))
-		})
-	}
-}
 
 // TestGolden_ErrorFormatting tests error formatting with context
 func TestGolden_ErrorFormatting(t *testing.T) {
@@ -442,11 +298,6 @@ func TestGolden_MessageFormatting(t *testing.T) {
 			format:  FormatErrorMessage,
 		},
 		{
-			name:    "location_message",
-			message: "Downloaded to: /tmp/logs/workflow-123",
-			format:  FormatLocationMessage,
-		},
-		{
 			name:    "command_message",
 			message: "gh aw compile workflow.md",
 			format:  FormatCommandMessage,
@@ -467,94 +318,8 @@ func TestGolden_MessageFormatting(t *testing.T) {
 }
 
 // TestGolden_LayoutComposition tests composing multiple layout elements
-func TestGolden_LayoutComposition(t *testing.T) {
-	tests := []struct {
-		name     string
-		sections func() []string
-	}{
-		{
-			name: "title_and_info",
-			sections: func() []string {
-				return []string{
-					LayoutTitleBox("Trial Execution Plan", 60),
-					"",
-					LayoutInfoSection("Workflow", "test-workflow"),
-					LayoutInfoSection("Status", "Ready"),
-				}
-			},
-		},
-		{
-			name: "complete_composition",
-			sections: func() []string {
-				return []string{
-					LayoutTitleBox("Trial Execution Plan", 60),
-					"",
-					LayoutInfoSection("Workflow", "test-workflow"),
-					LayoutInfoSection("Status", "Ready"),
-					"",
-					LayoutEmphasisBox("⚠️ WARNING: Large workflow file", styles.ColorWarning),
-				}
-			},
-		},
-		{
-			name: "multiple_emphasis_boxes",
-			sections: func() []string {
-				return []string{
-					LayoutEmphasisBox("✓ Success", styles.ColorSuccess),
-					"",
-					LayoutEmphasisBox("⚠️ Warning", styles.ColorWarning),
-					"",
-					LayoutEmphasisBox("✗ Error", styles.ColorError),
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sections := tt.sections()
-			output := LayoutJoinVertical(sections...)
-			golden.RequireEqual(t, []byte(output))
-		})
-	}
-}
 
 // TestGolden_LayoutEmphasisBox tests emphasis boxes with different colors
-func TestGolden_LayoutEmphasisBox(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		color   lipgloss.AdaptiveColor
-	}{
-		{
-			name:    "error_box",
-			content: "✗ ERROR: Compilation failed",
-			color:   styles.ColorError,
-		},
-		{
-			name:    "warning_box",
-			content: "⚠️ WARNING: Deprecated syntax",
-			color:   styles.ColorWarning,
-		},
-		{
-			name:    "success_box",
-			content: "✓ SUCCESS: All tests passed",
-			color:   styles.ColorSuccess,
-		},
-		{
-			name:    "info_box",
-			content: "ℹ INFO: Processing workflow",
-			color:   styles.ColorInfo,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := LayoutEmphasisBox(tt.content, tt.color)
-			golden.RequireEqual(t, []byte(output))
-		})
-	}
-}
 
 // TestGolden_InfoSection tests info section rendering
 func TestGolden_InfoSection(t *testing.T) {

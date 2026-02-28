@@ -355,3 +355,206 @@ func TestValidateGitHubToolConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateGitHubGuardPolicy(t *testing.T) {
+	tests := []struct {
+		name        string
+		toolsMap    map[string]any
+		shouldError bool
+		errorMsg    string
+	}{
+		{
+			name:        "nil tools is valid",
+			toolsMap:    nil,
+			shouldError: false,
+		},
+		{
+			name:        "no github tool is valid",
+			toolsMap:    map[string]any{"bash": true},
+			shouldError: false,
+		},
+		{
+			name:        "github tool without guard policy fields is valid",
+			toolsMap:    map[string]any{"github": map[string]any{"mode": "remote"}},
+			shouldError: false,
+		},
+		{
+			name: "valid guard policy with repos=all",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         "all",
+					"min-integrity": "reader",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid guard policy with repos=public",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         "public",
+					"min-integrity": "writer",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid guard policy with repos array ([]any)",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         []any{"owner/repo", "owner/*"},
+					"min-integrity": "merged",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid guard policy with min-integrity=none",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         "all",
+					"min-integrity": "none",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "missing repos field",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"min-integrity": "reader",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.repos' is required",
+		},
+		{
+			name: "missing min-integrity field",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos": "all",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.min-integrity' is required",
+		},
+		{
+			name: "invalid min-integrity value",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         "all",
+					"min-integrity": "superuser",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.min-integrity' must be one of",
+		},
+		{
+			name: "invalid repos string value",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         "private",
+					"min-integrity": "reader",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.repos' string must be 'all' or 'public'",
+		},
+		{
+			name: "empty repos array",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         []any{},
+					"min-integrity": "reader",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.repos' array cannot be empty",
+		},
+		{
+			name: "repos array with uppercase pattern",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         []any{"Owner/repo"},
+					"min-integrity": "reader",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "must be lowercase",
+		},
+		{
+			name: "repos array with invalid pattern format",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"repos":         []any{"just-a-name"},
+					"min-integrity": "reader",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "must be in format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tools := NewTools(tt.toolsMap)
+			err := validateGitHubGuardPolicy(tools, "test-workflow")
+
+			if tt.shouldError {
+				require.Error(t, err, "Expected error for %s", tt.name)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error for %s", tt.name)
+			}
+		})
+	}
+}
+
+func TestValidateReposScopeWithStringSlice(t *testing.T) {
+	tests := []struct {
+		name        string
+		repos       any
+		shouldError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid []string repos array",
+			repos:       []string{"owner/repo", "owner/*"},
+			shouldError: false,
+		},
+		{
+			name:        "valid []any repos array",
+			repos:       []any{"owner/repo", "owner/*"},
+			shouldError: false,
+		},
+		{
+			name:        "empty []string repos array",
+			repos:       []string{},
+			shouldError: true,
+			errorMsg:    "array cannot be empty",
+		},
+		{
+			name:        "[]string with invalid pattern",
+			repos:       []string{"Owner/Repo"},
+			shouldError: true,
+			errorMsg:    "must be lowercase",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateReposScope(tt.repos, "test-workflow")
+
+			if tt.shouldError {
+				require.Error(t, err, "Expected error for %s", tt.name)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error for %s", tt.name)
+			}
+		})
+	}
+}

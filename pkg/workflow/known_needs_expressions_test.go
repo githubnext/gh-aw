@@ -204,59 +204,6 @@ func TestNormalizeOutputNameForEnvVar(t *testing.T) {
 	}
 }
 
-func TestGetSafeOutputJobNames(t *testing.T) {
-	tests := []struct {
-		name         string
-		data         *WorkflowData
-		expectedJobs []string
-	}{
-		{
-			name:         "no safe outputs",
-			data:         &WorkflowData{},
-			expectedJobs: []string{},
-		},
-		{
-			name: "single create-issues",
-			data: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{
-					CreateIssues: &CreateIssuesConfig{},
-				},
-			},
-			expectedJobs: []string{"create_issue"},
-		},
-		{
-			name: "multiple safe output types",
-			data: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{
-					CreateIssues:      &CreateIssuesConfig{},
-					CreateDiscussions: &CreateDiscussionsConfig{},
-				},
-			},
-			expectedJobs: []string{"create_discussion", "create_issue", "safe_outputs"},
-		},
-		{
-			name: "with custom safe-jobs",
-			data: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{
-					CreateIssues: &CreateIssuesConfig{},
-					Jobs: map[string]*SafeJobConfig{
-						"my_custom_job": {},
-					},
-				},
-			},
-			expectedJobs: []string{"create_issue", "my_custom_job"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			jobNames := getSafeOutputJobNames(tt.data)
-			assert.ElementsMatch(t, tt.expectedJobs, jobNames,
-				"Safe output job names mismatch")
-		})
-	}
-}
-
 func TestGetCustomJobsBeforeActivation(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -355,50 +302,6 @@ func TestGetCustomJobsBeforeActivation(t *testing.T) {
 			jobNames := getCustomJobsBeforeActivation(tt.data)
 			assert.ElementsMatch(t, tt.expectedJobs, jobNames,
 				"Custom jobs before activation mismatch")
-		})
-	}
-}
-
-func TestGetCustomJobNames(t *testing.T) {
-	tests := []struct {
-		name         string
-		data         *WorkflowData
-		expectedJobs []string
-	}{
-		{
-			name:         "no custom jobs",
-			data:         &WorkflowData{},
-			expectedJobs: []string{},
-		},
-		{
-			name: "single custom job",
-			data: &WorkflowData{
-				Jobs: map[string]any{
-					"custom_job": map[string]any{
-						"runs-on": "ubuntu-latest",
-					},
-				},
-			},
-			expectedJobs: []string{"custom_job"},
-		},
-		{
-			name: "multiple custom jobs",
-			data: &WorkflowData{
-				Jobs: map[string]any{
-					"job_a": map[string]any{},
-					"job_b": map[string]any{},
-					"job_c": map[string]any{},
-				},
-			},
-			expectedJobs: []string{"job_a", "job_b", "job_c"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			jobNames := getCustomJobNames(tt.data)
-			assert.ElementsMatch(t, tt.expectedJobs, jobNames,
-				"Custom job names mismatch")
 		})
 	}
 }

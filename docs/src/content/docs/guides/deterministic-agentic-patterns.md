@@ -135,11 +135,7 @@ safe-outputs:
       inputs:
         summary: {required: true, type: string}
       steps:
-        - run: |
-            echo "## 🤖 AI Code Review\n\n${{ inputs.summary }}" > /tmp/report.md
-            gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/report.md
-          env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - ...
 ---
 
 # Code Review Agent

@@ -9,20 +9,19 @@ Cross-repository operations enable workflows to access code from multiple reposi
 
 ## Overview
 
-Cross-repository features fall into two categories:
+Cross-repository features fall into three categories:
 
 1. **Code access** - Check out code from multiple repositories into the workflow workspace using the `checkout:` frontmatter field
-2. **Resource creation** - Create issues, PRs, comments, and other resources in external repositories using `target-repo` and `allowed-repos` in safe outputs
+2. **GitHub tools** - Read information from other repositories using GitHub Tools with additional authentication
+3. **Safe outputs** - Create issues, PRs, comments, and other resources in external repositories using `target-repo` and `allowed-repos` in safe outputs
 
-Both require authentication beyond the default `GITHUB_TOKEN`, which is scoped to the current repository only.
+All require authentication beyond the default `GITHUB_TOKEN`, which is scoped to the current repository only.
 
-## Repository Checkout (`checkout:`)
+## Cross-repository Checkout (`checkout:`)
 
 The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Configure custom checkout settings or check out multiple repositories.
 
-### Single Repository Configuration
-
-Override default checkout settings for the main repository:
+If only a the current repository, you can use `checkout:` to override default checkout settings (e.g., fetch depth, sparse checkout) without needing to define a custom job:
 
 ```yaml wrap
 checkout:
@@ -30,9 +29,7 @@ checkout:
   github-token: ${{ secrets.MY_TOKEN }}    # Custom authentication
 ```
 
-### Multiple Repository Checkout
-
-Check out additional repositories alongside the main repository:
+You can also use `checkout:` to check out additional repositories alongside the main repository:
 
 ```yaml wrap
 checkout:
@@ -57,12 +54,11 @@ checkout:
 | `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
 | `lfs` | boolean | Download Git LFS objects. |
 
-> [!TIP]
-> Credentials are always removed after checkout (`persist-credentials: false` is enforced) to prevent credential exfiltration by agents.
+### Checkout Merging
 
-### Multiple Checkout Merging
+Multiple `checkout:` configurations can target the same path and repository. This is useful for monorepos where different parts of the repository must be merged into the same workspace directory with different settings (e.g., sparse checkout for some paths, full checkout for others).
 
-When multiple configurations target the same path and repository:
+When multiple `checkout:` entries target the same repository and path, their configurations are merged with the following rules:
 
 - **Fetch depth**: Deepest value wins (`0` = full history always takes precedence)
 - **Sparse patterns**: Merged (union of all patterns)
@@ -70,38 +66,22 @@ When multiple configurations target the same path and repository:
 - **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
 - **Ref/Token**: First-seen wins
 
-### Example: Monorepo Development
+## GitHub Tools - Reading Other Repositories
 
-```aw wrap
----
-on:
-  pull_request:
-    types: [opened, synchronize]
+When using [GitHub Tools](/gh-aw/reference/github-tools/) to read information from repositories other than the one where the workflow is running, you must configure additional authorization. The default `GITHUB_TOKEN` is scoped to the current repository only and cannot access other repositories.
 
-checkout:
-  - path: .
-    fetch-depth: 0
-  - repository: org/shared-libs
-    path: ./libs/shared
-    ref: main
-    github-token: ${{ secrets.LIBS_PAT }}
-  - repository: org/config-repo
-    path: ./config
-    sparse-checkout: |
-      defaults/
-      overrides/
+Configure the additional authentication in your GitHub Tools configuration. For example, using a PAT:
 
-permissions:
-  contents: read
-  pull-requests: read
----
-
-# Cross-Repo PR Analysis
-
-Analyze this PR considering shared library compatibility and configuration standards.
-
-Check compatibility with shared libraries in `./libs/shared` and verify configuration against standards in `./config`.
+```yaml wrap
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
+
+See [GitHub Tools Reference](/gh-aw/reference/github-tools/#cross-repository-reading) for complete details on configuring cross-repository read access for GitHub Tools.
+
+This authentication is for **reading** information from GitHub. Authorization for **writing** to other repositories (creating issues, PRs, comments) is configured separately, see below.
 
 ## Cross-Repository Safe Outputs
 
@@ -140,7 +120,46 @@ When `allowed-repos` is specified:
 - Target repository (from `target-repo` or current repo) is always implicitly allowed
 - Creates a union of allowed destinations
 
+## Examples
+
+### Example: Monorepo Development
+
+This uses multiple `checkout:` entries to check out different parts of the same repository with different settings:
+
+```aw wrap
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+checkout:
+  - path: .
+    fetch-depth: 0
+  - repository: org/shared-libs
+    path: ./libs/shared
+    ref: main
+    github-token: ${{ secrets.LIBS_PAT }}
+  - repository: org/config-repo
+    path: ./config
+    sparse-checkout: |
+      defaults/
+      overrides/
+
+permissions:
+  contents: read
+  pull-requests: read
+---
+
+# Cross-Repo PR Analysis
+
+Analyze this PR considering shared library compatibility and configuration standards.
+
+Check compatibility with shared libraries in `./libs/shared` and verify configuration against standards in `./config`.
+```
+
 ### Example: Hub-and-Spoke Tracking
+
+This creates issues in a central tracking repository when issues are opened in component repositories:
 
 ```aw wrap
 ---
@@ -171,38 +190,39 @@ Analyze the issue and create a tracking issue that:
 - Tags relevant teams for coordination
 ```
 
-## Authentication
+### Example: Cross-Repository Analysis
 
-Cross-repository operations require authentication with access to target repositories.
+This checks out multiple repositories and compares code patterns across them:
 
-### Personal Access Token (PAT)
+```aw wrap
+---
+on:
+  issue_comment:
+    types: [created]
 
-Create a fine-grained PAT with access to target repositories:
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
 
-```yaml wrap
+permissions:
+  contents: read
+  issues: read
+
 safe-outputs:
-  github-token: ${{ secrets.CROSS_REPO_PAT }}
-  create-issue:
-    target-repo: "org/target-repo"
+  github-token: ${{ secrets.CROSS_REPO_WRITE_PAT }}
+  add-comment:
+    max: 1
+---
+
+# Multi-Repository Code Search
+
+Search for similar patterns across org/repo-a, org/repo-b, and org/repo-c.
+
+Analyze how each repository implements authentication and provide a comparison.
 ```
 
-**Required permissions** (on target repositories only):
-
-| Operation | Permissions |
-|-----------|-------------|
-| Create/update issues | `issues: write` |
-| Create PRs | `contents: write`, `pull-requests: write` |
-| Add comments | `issues: write` or `pull-requests: write` |
-| Checkout code | `contents: read` |
-
-> [!TIP]
-> **Security Best Practice**: Scope PATs to have read access on source repositories and write access only on target repositories. Use separate tokens for different operations when possible.
-
-### GitHub App Installation Token
-
-For enhanced security, use GitHub Apps. See [Authentication Reference](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for complete configuration examples.
-
-## Deterministic Multi-Repo Workflows
+### Example: Deterministic Multi-Repo Workflows
 
 For direct repository access without agent involvement, use custom steps with `actions/checkout`:
 
@@ -239,6 +259,7 @@ This approach provides full control over checkout timing and configuration.
 
 - [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow pattern
 - [CentralRepoOps Pattern](/gh-aw/patterns/central-repo-ops/) - Central control plane pattern
+- [GitHub Tools Reference](/gh-aw/reference/github-tools/) - Complete GitHub Tools configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
 - [Multi-Repository Examples](/gh-aw/examples/multi-repo/) - Complete working examples

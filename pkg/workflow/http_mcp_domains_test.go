@@ -183,7 +183,7 @@ func TestGetCodexAllowedDomainsWithTools(t *testing.T) {
 		},
 	}
 
-	result := GetCodexAllowedDomainsWithTools(network, tools)
+	result := GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, nil)
 
 	// Should include Codex defaults, GitHub ecosystem, and Tavily domain
 	require.Contains(t, result, "mcp.tavily.com", "Should include HTTP MCP domain")
@@ -203,7 +203,7 @@ func TestGetCopilotAllowedDomainsWithTools(t *testing.T) {
 		},
 	}
 
-	result := GetCopilotAllowedDomainsWithTools(network, tools)
+	result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, nil)
 
 	// Should include Copilot defaults, Python ecosystem, and custom HTTP MCP domain
 	require.Contains(t, result, "api.custom.com", "Should include HTTP MCP domain")
@@ -224,7 +224,7 @@ func TestGetClaudeAllowedDomainsWithTools(t *testing.T) {
 		},
 	}
 
-	result := GetClaudeAllowedDomainsWithTools(network, tools)
+	result := GetAllowedDomainsForEngine(constants.ClaudeEngine, network, tools, nil)
 
 	// Should include Claude defaults, Node ecosystem, and example HTTP MCP domain
 	require.Contains(t, result, "mcp.example.org", "Should include HTTP MCP domain")
@@ -304,7 +304,7 @@ func TestGetCopilotAllowedDomainsWithPlaywright(t *testing.T) {
 		"playwright": map[string]any{},
 	}
 
-	result := GetCopilotAllowedDomainsWithTools(network, tools)
+	result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, nil)
 
 	// Should include Copilot defaults and Playwright ecosystem domains
 	require.Contains(t, result, "playwright.download.prss.microsoft.com", "Should include Playwright download domain")
@@ -322,7 +322,7 @@ func TestGetCodexAllowedDomainsWithPlaywright(t *testing.T) {
 		"playwright": map[string]any{},
 	}
 
-	result := GetCodexAllowedDomainsWithTools(network, tools)
+	result := GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, nil)
 
 	// Should include Codex defaults and Playwright ecosystem domains
 	require.Contains(t, result, "playwright.download.prss.microsoft.com", "Should include Playwright download domain")

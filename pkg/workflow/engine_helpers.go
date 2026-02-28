@@ -107,40 +107,6 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 	return steps
 }
 
-// ExtractAgentIdentifier extracts the agent identifier (filename without extension) from an agent file path.
-// This is used by the Copilot CLI which expects agent identifiers, not full paths.
-//
-// Parameters:
-//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md" or ".github/agents/test-agent.agent.md")
-//
-// Returns:
-//   - string: The agent identifier (e.g., "test-agent")
-//
-// Example:
-//
-//	identifier := ExtractAgentIdentifier(".github/agents/my-agent.md")
-//	// Returns: "my-agent"
-//
-//	identifier := ExtractAgentIdentifier(".github/agents/my-agent.agent.md")
-//	// Returns: "my-agent"
-func ExtractAgentIdentifier(agentFile string) string {
-	engineHelpersLog.Printf("Extracting agent identifier from: %s", agentFile)
-	// Extract the base filename from the path
-	lastSlash := strings.LastIndex(agentFile, "/")
-	filename := agentFile
-	if lastSlash >= 0 {
-		filename = agentFile[lastSlash+1:]
-	}
-
-	// Remove extensions in order: .agent.md, then .md, then .agent
-	// This handles all possible agent file naming conventions
-	filename = strings.TrimSuffix(filename, ".agent.md")
-	filename = strings.TrimSuffix(filename, ".md")
-	filename = strings.TrimSuffix(filename, ".agent")
-
-	return filename
-}
-
 // ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
 // This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
 //
@@ -299,49 +265,6 @@ func FilterEnvForSecrets(env map[string]string, allowedNamesAndKeys []string) ma
 	return filtered
 }
 
-// GetHostedToolcachePathSetup returns a shell command that adds all runtime binaries
-// from /opt/hostedtoolcache to PATH. This includes Node.js, Python, Go, Ruby, and other
-// runtimes installed via actions/setup-* steps.
-//
-// The hostedtoolcache directory structure is: /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
-// This function generates a command that finds all bin directories and adds them to PATH.
-//
-// IMPORTANT: The command uses GH_AW_TOOL_BINS (computed by GetToolBinsSetup) which contains
-// the specific tool paths from environment variables like GOROOT, JAVA_HOME, etc. These paths
-// are computed on the RUNNER side and passed to the container as a literal value via --env,
-// avoiding shell injection risks from variable expansion inside the container.
-//
-// This ensures that the version configured by actions/setup-* takes precedence over other
-// versions that may exist in hostedtoolcache. Without this, the generic `find` command
-// returns directories in alphabetical order, causing older versions (e.g., Go 1.22.12)
-// to shadow newer ones (e.g., Go 1.25.6) because "1.22" < "1.25" alphabetically.
-//
-// This is used by all engine implementations (Copilot, Claude, Codex) to ensure consistent
-// access to runtime tools inside the agent container.
-//
-// Returns:
-//   - string: A shell command that sets up PATH with all hostedtoolcache binaries
-//
-// Example output:
-//
-//	export PATH="$GH_AW_TOOL_BINS$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
-func GetHostedToolcachePathSetup() string {
-	// Use GH_AW_TOOL_BINS which is computed on the runner side by GetToolBinsSetup()
-	// and passed to the container via --env. This avoids shell injection risks from
-	// expanding variables like GOROOT inside the container.
-	//
-	// GH_AW_TOOL_BINS contains paths like "/opt/hostedtoolcache/go/1.25.6/x64/bin:"
-	// computed from GOROOT, JAVA_HOME, etc. on the runner where they are trusted.
-
-	// Generic find for all other hostedtoolcache binaries (Node.js, Python, etc.)
-	genericFind := `$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')`
-
-	// Build the raw PATH string, then sanitize it using GetSanitizedPATHExport()
-	// to remove empty elements, leading/trailing colons, and collapse multiple colons
-	rawPath := fmt.Sprintf(`$GH_AW_TOOL_BINS%s$PATH`, genericFind)
-	return GetSanitizedPATHExport(rawPath)
-}
-
 // GetNpmBinPathSetup returns a simple shell command that adds hostedtoolcache bin directories
 // to PATH. This is specifically for npm-installed CLIs (like Claude and Codex) that need
 // to find their binaries installed via `npm install -g`.
@@ -362,85 +285,6 @@ func GetNpmBinPathSetup() string {
 	// ensures the Go version set by actions/setup-go takes precedence.
 	// AWF's entrypoint.sh exports GOROOT before the user command runs.
 	return `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
-}
-
-// GetSanitizedPATHExport returns a shell command that sets PATH to the given value
-// with sanitization to remove security risks from malformed PATH entries.
-//
-// The sanitization removes:
-//   - Leading colons (e.g., ":/usr/bin" -> "/usr/bin")
-//   - Trailing colons (e.g., "/usr/bin:" -> "/usr/bin")
-//   - Empty elements (e.g., "/a::/b" -> "/a:/b", multiple colons collapsed to one)
-//
-// Empty PATH elements are a security risk because they cause the current directory
-// to be searched for executables, which could allow malicious code execution.
-//
-// The sanitization logic is implemented in actions/setup/sh/sanitize_path.sh and
-// is sourced at runtime from /opt/gh-aw/actions/sanitize_path.sh.
-//
-// Parameters:
-//   - rawPath: The unsanitized PATH value (may contain shell expansions like $PATH)
-//
-// Returns:
-//   - string: A shell command that sources the sanitize script to export the sanitized PATH
-//
-// Example:
-//
-//	GetSanitizedPATHExport("$GH_AW_TOOL_BINS$PATH")
-//	// Returns: source /opt/gh-aw/actions/sanitize_path.sh "$GH_AW_TOOL_BINS$PATH"
-func GetSanitizedPATHExport(rawPath string) string {
-	// Source the sanitize_path.sh script which handles:
-	// 1. Remove leading colons
-	// 2. Remove trailing colons
-	// 3. Collapse multiple colons into single colons
-	// 4. Export the sanitized PATH
-	return fmt.Sprintf(`source /opt/gh-aw/actions/sanitize_path.sh "%s"`, rawPath)
-}
-
-// GetToolBinsSetup returns a shell command that computes the GH_AW_TOOL_BINS environment
-// variable from specific tool paths (GOROOT, JAVA_HOME, etc.).
-//
-// This command should be run on the RUNNER side before invoking AWF, and the resulting
-// GH_AW_TOOL_BINS should be passed to the container via --env. This ensures the paths
-// are computed where they are trusted, avoiding shell injection risks.
-//
-// The computed paths are prepended to PATH (via GetHostedToolcachePathSetup) before the
-// generic find results, ensuring versions set by actions/setup-* take precedence over
-// alphabetically-earlier versions in hostedtoolcache.
-//
-// Returns:
-//   - string: A shell command that sets GH_AW_TOOL_BINS
-//
-// Example output when GOROOT=/opt/hostedtoolcache/go/1.25.6/x64 and JAVA_HOME=/opt/hostedtoolcache/Java/17.0.0/x64:
-//
-//	GH_AW_TOOL_BINS="/opt/hostedtoolcache/go/1.25.6/x64/bin:/opt/hostedtoolcache/Java/17.0.0/x64/bin:"
-func GetToolBinsSetup() string {
-	// Build GH_AW_TOOL_BINS from specific tool paths on the runner side.
-	// Each path is only added if the corresponding env var is set and non-empty.
-	// This runs on the runner where the env vars are trusted values from actions/setup-*.
-	//
-	// Tools with /bin subdirectory:
-	//   - Go: Detected via `go env GOROOT` (actions/setup-go doesn't export GOROOT)
-	//   - JAVA_HOME: Java installation root (actions/setup-java)
-	//   - CARGO_HOME: Cargo/Rust installation (rustup)
-	//   - GEM_HOME: Ruby gems (actions/setup-ruby)
-	//   - CONDA: Conda installation
-	//
-	// Tools where the path IS the bin directory (no /bin suffix needed):
-	//   - PIPX_BIN_DIR: pipx binary directory
-	//   - SWIFT_PATH: Swift binary path
-	//   - DOTNET_ROOT: .NET root (binaries are in root, not /bin)
-	return `GH_AW_TOOL_BINS=""; command -v go >/dev/null 2>&1 && GH_AW_TOOL_BINS="$(go env GOROOT)/bin:$GH_AW_TOOL_BINS"; [ -n "$JAVA_HOME" ] && GH_AW_TOOL_BINS="$JAVA_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CARGO_HOME" ] && GH_AW_TOOL_BINS="$CARGO_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$GEM_HOME" ] && GH_AW_TOOL_BINS="$GEM_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CONDA" ] && GH_AW_TOOL_BINS="$CONDA/bin:$GH_AW_TOOL_BINS"; [ -n "$PIPX_BIN_DIR" ] && GH_AW_TOOL_BINS="$PIPX_BIN_DIR:$GH_AW_TOOL_BINS"; [ -n "$SWIFT_PATH" ] && GH_AW_TOOL_BINS="$SWIFT_PATH:$GH_AW_TOOL_BINS"; [ -n "$DOTNET_ROOT" ] && GH_AW_TOOL_BINS="$DOTNET_ROOT:$GH_AW_TOOL_BINS"; export GH_AW_TOOL_BINS`
-}
-
-// GetToolBinsEnvArg returns the AWF --env argument for passing GH_AW_TOOL_BINS to the container.
-// This should be used after GetToolBinsSetup() has been run to compute the value.
-//
-// Returns:
-//   - []string: AWF arguments ["--env", "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS"]
-func GetToolBinsEnvArg() []string {
-	// Pre-wrap in double quotes so shellEscapeArg preserves them (allowing shell expansion)
-	return []string{"--env", "\"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\""}
 }
 
 // EngineHasValidateSecretStep checks if the engine provides a validate-secret step.

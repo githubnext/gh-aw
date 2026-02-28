@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestProtocolSpecificDomains tests that domains with protocol prefixes are correctly handled
@@ -97,7 +99,7 @@ func TestGetCopilotAllowedDomainsWithProtocol(t *testing.T) {
 		},
 	}
 
-	result := GetCopilotAllowedDomains(network)
+	result := GetAllowedDomainsForEngine(constants.CopilotEngine, network, nil, nil)
 
 	// Should contain protocol-specific domains
 	if !strings.Contains(result, "https://secure.example.com") {
@@ -121,7 +123,7 @@ func TestGetClaudeAllowedDomainsWithProtocol(t *testing.T) {
 		},
 	}
 
-	result := GetClaudeAllowedDomains(network)
+	result := GetAllowedDomainsForEngine(constants.ClaudeEngine, network, nil, nil)
 
 	// Should contain protocol-specific domain
 	if !strings.Contains(result, "https://api.example.com") {

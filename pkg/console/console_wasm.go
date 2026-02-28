@@ -127,5 +127,27 @@ func RenderComposedSections(sections []string) {
 }
 
 func RenderTree(root TreeNode) string {
-	return renderTreeSimple(root, "", true)
+	var render func(node TreeNode, prefix string, isLast bool) string
+	render = func(node TreeNode, prefix string, isLast bool) string {
+		var output strings.Builder
+		if prefix == "" {
+			output.WriteString(node.Value + "\n")
+		} else {
+			connector := "├── "
+			if isLast {
+				connector = "└── "
+			}
+			output.WriteString(prefix + connector + node.Value + "\n")
+		}
+		for i, child := range node.Children {
+			childIsLast := i == len(node.Children)-1
+			childPrefix := prefix + "│   "
+			if isLast {
+				childPrefix = prefix + "    "
+			}
+			output.WriteString(render(child, childPrefix, childIsLast))
+		}
+		return output.String()
+	}
+	return render(root, "", true)
 }

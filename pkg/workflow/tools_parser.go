@@ -234,6 +234,14 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.App = parseAppConfig(app)
 		}
 
+		// Parse guard policy fields (flat syntax: repos and min-integrity directly under github:)
+		if repos, ok := configMap["repos"]; ok {
+			config.Repos = repos // Store as-is, validation will happen later
+		}
+		if integrity, ok := configMap["min-integrity"].(string); ok {
+			config.MinIntegrity = GitHubIntegrityLevel(integrity)
+		}
+
 		return config
 	}
 

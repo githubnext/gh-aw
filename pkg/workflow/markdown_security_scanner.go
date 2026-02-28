@@ -212,6 +212,20 @@ var bidiOverrideRunes = map[rune]string{
 	'\u2069': "pop directional isolate (U+2069)",
 }
 
+// isEmojiLike reports whether r is in a Unicode range commonly used for emoji.
+// This is used to distinguish legitimate emoji ZWJ sequences (e.g., 🧑‍🤝‍🧑)
+// from abusive uses of U+200D to hide or obfuscate ASCII text.
+//
+// Ranges covered:
+//   - U+2194–U+27BF: arrows, misc symbols, and dingbats (includes ❤ U+2764, ♀ U+2640)
+//   - U+FE00–U+FE0F: variation selectors (e.g., U+FE0F forces emoji presentation)
+//   - U+1F000+:      supplementary multilingual plane where most modern emoji live
+func isEmojiLike(r rune) bool {
+	return (r >= 0x2194 && r <= 0x27BF) || // arrows, misc symbols, dingbats
+		(r >= 0xFE00 && r <= 0xFE0F) || // variation selectors
+		r >= 0x1F000 // supplementary multilingual plane (most modern emoji)
+}
+
 func scanUnicodeAbuse(content string) []SecurityFinding {
 	var findings []SecurityFinding
 	lines := strings.Split(content, "\n")
@@ -222,6 +236,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 		lineNo := lineNum + 1
 
 		// Check for zero-width and invisible characters
+		var prevRune rune
 		for i := 0; i < len(line); {
 			r, size := utf8.DecodeRuneInString(line[i:])
 			if r == utf8.RuneError && size <= 1 {
@@ -230,6 +245,22 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 			}
 
 			if name, ok := dangerousUnicodeRunes[r]; ok {
+				// U+200D (ZWJ) is a standard component of emoji sequences such as
+				// 🧑‍🤝‍🧑 (people holding hands) or 👨‍👩‍👧 (family). Only flag it when
+				// it is NOT flanked by emoji-range codepoints on both sides.
+				// prevRune is 0 (null) at the start of each line, so a ZWJ at
+				// the beginning of a line is always flagged (isEmojiLike(0)==false).
+				if r == '\u200D' {
+					var nextRune rune
+					if i+size < len(line) {
+						nextRune, _ = utf8.DecodeRuneInString(line[i+size:])
+					}
+					if isEmojiLike(prevRune) && isEmojiLike(nextRune) {
+						prevRune = r
+						i += size
+						continue
+					}
+				}
 				findings = append(findings, SecurityFinding{
 					Category:    CategoryUnicodeAbuse,
 					Description: "contains invisible character: " + name,
@@ -260,6 +291,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 				}
 			}
 
+			prevRune = r
 			i += size
 		}
 	}

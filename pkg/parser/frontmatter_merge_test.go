@@ -259,5 +259,3 @@ func TestMergeToolsFromJSON(t *testing.T) {
 		})
 	}
 }
-
-// Test StripANSI function
