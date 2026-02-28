@@ -207,7 +207,85 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 	return nil
 }
 
-// flattenAgentOutputsArtifact flattens the agent_outputs artifact directory
+// flattenActivationArtifact flattens the activation artifact directory structure
+// The activation artifact contains aw_info.json and aw-prompts/prompt.txt
+// This function moves those files to the root output directory and removes the nested structure
+func flattenActivationArtifact(outputDir string, verbose bool) error {
+	activationDir := filepath.Join(outputDir, "activation")
+
+	// Check if activation directory exists
+	if _, err := os.Stat(activationDir); os.IsNotExist(err) {
+		// No activation artifact, nothing to flatten
+		return nil
+	}
+
+	logsDownloadLog.Printf("Flattening activation artifact directory: %s", activationDir)
+
+	// Walk through activation directory and move all files to root output directory
+	err := filepath.Walk(activationDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the source directory itself
+		if path == activationDir {
+			return nil
+		}
+
+		// Calculate relative path from source
+		relPath, err := filepath.Rel(activationDir, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
+		}
+
+		destPath := filepath.Join(outputDir, relPath)
+
+		if info.IsDir() {
+			// Create directory in destination with owner+group permissions only (0750)
+			if err := os.MkdirAll(destPath, 0750); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
+			}
+			logsDownloadLog.Printf("Created directory: %s", destPath)
+		} else {
+			// Move file to destination
+			// Ensure parent directory exists with owner+group permissions only (0750)
+			if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
+				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
+			}
+
+			if err := os.Rename(path, destPath); err != nil {
+				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
+			}
+			logsDownloadLog.Printf("Moved file: %s → %s", path, destPath)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened: %s → %s", relPath, relPath)))
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to flatten activation artifact: %w", err)
+	}
+
+	// Remove the now-empty activation directory structure
+	if err := os.RemoveAll(activationDir); err != nil {
+		logsDownloadLog.Printf("Failed to remove activation directory %s: %v", activationDir, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove activation directory: %v", err)))
+		}
+		// Don't fail the entire operation if cleanup fails
+	} else {
+		logsDownloadLog.Printf("Removed activation directory: %s", activationDir)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened activation artifact and removed nested structure"))
+		}
+	}
+
+	return nil
+}
+
 // The agent_outputs artifact contains session logs with detailed token usage data
 // that are critical for accurate token count parsing
 func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
@@ -569,6 +647,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 	// Flatten single-file artifacts
 	if err := flattenSingleFileArtifacts(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten artifacts: %w", err)
+	}
+
+	// Flatten activation artifact directory structure (contains aw_info.json and prompt.txt)
+	if err := flattenActivationArtifact(outputDir, verbose); err != nil {
+		return fmt.Errorf("failed to flatten activation artifact: %w", err)
 	}
 
 	// Flatten unified agent-artifacts directory structure

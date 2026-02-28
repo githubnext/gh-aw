@@ -701,18 +701,29 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
 
+	// Generate agentic run info in the activation job, before prompt generation
+	// This ensures aw_info.json is available when prompt is rendered and can be uploaded together
+	compilerActivationJobsLog.Print("Generating aw_info step in activation job")
+	var awInfoYaml strings.Builder
+	c.generateCreateAwInfo(&awInfoYaml, data, engine)
+	steps = append(steps, awInfoYaml.String())
+	// Expose the model output from the activation job so downstream jobs can reference it
+	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
+
 	// Generate prompt in the activation job (before agent job runs)
 	compilerActivationJobsLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
-	// Upload prompt.txt as an artifact for the agent job to download
-	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
-	steps = append(steps, "      - name: Upload prompt artifact\n")
+	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download
+	compilerActivationJobsLog.Print("Adding activation artifact upload step")
+	steps = append(steps, "      - name: Upload activation artifact\n")
 	steps = append(steps, "        if: success()\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: prompt\n")
-	steps = append(steps, "          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	steps = append(steps, "          name: activation\n")
+	steps = append(steps, "          path: |\n")
+	steps = append(steps, "            /tmp/gh-aw/aw_info.json\n")
+	steps = append(steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	steps = append(steps, "          retention-days: 1\n")
 
 	// Set permissions - activation job always needs contents:read for GitHub API access
@@ -868,9 +879,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
 	// Build job outputs
-	// Always include model output for reuse in other jobs
+	// Always include model output for reuse in other jobs - now sourced from activation job
 	outputs := map[string]string{
-		"model": "${{ steps.generate_aw_info.outputs.model }}",
+		"model": "${{ needs.activation.outputs.model }}",
 	}
 
 	// Note: secret_verification_result is now an output of the activation job (not the agent job).
