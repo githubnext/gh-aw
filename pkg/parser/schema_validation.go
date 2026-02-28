@@ -5,10 +5,7 @@ import (
 	"maps"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/logger"
 )
-
-var schemaValidationLog = logger.New("parser:schema_validation")
 
 // sharedWorkflowForbiddenFields is a map for O(1) lookup of forbidden fields in shared workflows
 var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()

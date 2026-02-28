@@ -51,9 +51,6 @@ type AWFCommandConfig struct {
 	// UsesTTY indicates if the engine requires a TTY (e.g., Claude)
 	UsesTTY bool
 
-	// UsesAPIProxy indicates if the engine uses LLM API proxy
-	UsesAPIProxy bool
-
 	// AllowedDomains is the comma-separated list of allowed domains
 	AllowedDomains string
 
@@ -175,12 +172,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 	awfArgs = append(awfArgs, "--proxy-logs-dir", string(constants.AWFProxyLogsDir))
 
-	// Add --enable-host-access when MCP servers are configured (gateway is used)
-	// OR when the API proxy sidecar is enabled (needs to reach host.docker.internal:<port>)
-	if HasMCPServers(config.WorkflowData) || config.UsesAPIProxy {
-		awfArgs = append(awfArgs, "--enable-host-access")
-		awfHelpersLog.Print("Added --enable-host-access for MCP gateway communication")
-	}
+	// Always add --enable-host-access: needed for the API proxy sidecar
+	// (to reach host.docker.internal:<port>) and for MCP gateway communication
+	awfArgs = append(awfArgs, "--enable-host-access")
+	awfHelpersLog.Print("Added --enable-host-access for API proxy and MCP gateway")
 
 	// Pin AWF Docker image version to match the installed binary version
 	awfImageTag := getAWFImageTag(firewallConfig)
@@ -191,11 +186,9 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--skip-pull")
 	awfHelpersLog.Print("Using --skip-pull since images are pre-downloaded")
 
-	// Enable API proxy sidecar if needed
-	if config.UsesAPIProxy {
-		awfArgs = append(awfArgs, "--enable-api-proxy")
-		awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
-	}
+	// Enable API proxy sidecar (always required for LLM gateway)
+	awfArgs = append(awfArgs, "--enable-api-proxy")
+	awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
 
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 	sslBumpArgs := getSSLBumpArgs(firewallConfig)

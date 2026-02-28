@@ -35,12 +35,6 @@ func GenerateSchema[T any]() (*jsonschema.Schema, error) {
 	return jsonschema.For[T](nil)
 }
 
-// GenerateOutputSchema is deprecated. Use GenerateSchema instead.
-// This function is kept for backward compatibility but will be removed in a future version.
-func GenerateOutputSchema[T any]() (*jsonschema.Schema, error) {
-	return GenerateSchema[T]()
-}
-
 // AddSchemaDefault adds a default value to a property in a JSON schema.
 // This is useful for elicitation defaults (SEP-1024) that improve UX by
 // suggesting sensible starting values to MCP clients.

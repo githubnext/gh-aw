@@ -30,8 +30,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var validationHelpersLog = logger.New("workflow:validation_helpers")
-
 // validateIntRange validates that a value is within the specified inclusive range [min, max].
 // It returns an error if the value is outside the range, with a descriptive message
 // including the field name and the actual value.

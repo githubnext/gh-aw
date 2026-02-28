@@ -41,14 +41,9 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
-			supportsLLMGateway:     true,  // Codex supports LLM gateway on port 10001
+			llmGatewayPort:         constants.CodexLLMGatewayPort,
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Codex engine
-func (e *CodexEngine) SupportsLLMGateway() int {
-	return constants.CodexLLMGatewayPort
 }
 
 // GetModelEnvVarName returns an empty string because the Codex CLI does not support
@@ -206,10 +201,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// Enable API proxy sidecar if this engine supports LLM gateway
-		llmGatewayPort := e.SupportsLLMGateway()
-		usesAPIProxy := llmGatewayPort > 0
-
 		// Build the command with agent file handling if specified
 		// INSTRUCTION reading is done inside the AWF command to avoid Docker Compose interpolation
 		// issues with $ characters in the prompt.
@@ -236,7 +227,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Codex is not a TUI, outputs to stdout/stderr
-			UsesAPIProxy:   usesAPIProxy,
 			AllowedDomains: allowedDomains,
 			PathSetup:      "mkdir -p \"$CODEX_HOME/logs\"", // Create logs directory before AWF
 		})

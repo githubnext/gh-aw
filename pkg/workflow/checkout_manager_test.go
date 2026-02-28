@@ -103,6 +103,18 @@ func TestCheckoutManagerMerging(t *testing.T) {
 		assert.Len(t, cm.ordered, 1, "same path should be merged")
 		assert.Equal(t, "main", cm.ordered[0].ref, "first-seen ref should win")
 	})
+
+	t.Run("path dot and empty path are normalized to the same root checkout", func(t *testing.T) {
+		depth0 := 0
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: ".", FetchDepth: nil},
+			{Path: "", FetchDepth: &depth0},
+		})
+		assert.Len(t, cm.ordered, 1, "path '.' and '' should merge as the same root checkout")
+		assert.Empty(t, cm.ordered[0].key.path, "normalized path should be empty string")
+		require.NotNil(t, cm.ordered[0].fetchDepth, "fetch depth should be set from second config")
+		assert.Equal(t, 0, *cm.ordered[0].fetchDepth, "fetch depth 0 should win")
+	})
 }
 
 // TestGenerateDefaultCheckoutStep verifies the default checkout step output.
@@ -124,7 +136,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "github-token: ${{ secrets.MY_TOKEN }}", "should include custom token")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "should include custom token")
 		assert.Contains(t, combined, "persist-credentials: false", "must always have persist-credentials: false even with custom token")
 	})
 
@@ -243,7 +255,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "array should parse without error")
 		require.Len(t, configs, 2, "should produce two configs")
-		assert.Equal(t, ".", configs[0].Path, "first path should be set")
+		assert.Empty(t, configs[0].Path, "first path should be normalized from '.' to empty")
 		assert.Equal(t, "owner/repo", configs[1].Repository, "second repo should be set")
 	})
 
@@ -334,5 +346,178 @@ func TestMergeSparsePatterns(t *testing.T) {
 	t.Run("empty new patterns preserves existing", func(t *testing.T) {
 		result := mergeSparsePatterns([]string{"src/"}, "")
 		assert.Equal(t, []string{"src/"}, result, "should preserve existing patterns")
+	})
+}
+
+// TestCheckoutCurrentFlag verifies the current: true checkout flag behavior.
+func TestCheckoutCurrentFlag(t *testing.T) {
+	t.Run("parse current: true from single object", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"current":    true,
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse without error")
+		require.Len(t, configs, 1, "should produce one config")
+		assert.True(t, configs[0].Current, "current flag should be true")
+		assert.Equal(t, "owner/target-repo", configs[0].Repository, "repository should be set")
+	})
+
+	t.Run("parse current: false from map", func(t *testing.T) {
+		raw := map[string]any{"current": false}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse without error")
+		require.Len(t, configs, 1)
+		assert.False(t, configs[0].Current, "current flag should be false")
+	})
+
+	t.Run("invalid current type returns error", func(t *testing.T) {
+		raw := map[string]any{"current": "yes"}
+		_, err := ParseCheckoutConfigs(raw)
+		assert.Error(t, err, "non-boolean current should return error")
+	})
+
+	t.Run("multiple current: true in array returns error", func(t *testing.T) {
+		raw := []any{
+			map[string]any{"repository": "owner/repo1", "path": "./r1", "current": true},
+			map[string]any{"repository": "owner/repo2", "path": "./r2", "current": true},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "multiple current: true should return error")
+		assert.Contains(t, err.Error(), "only one checkout target may have current: true", "error should mention the constraint")
+	})
+
+	t.Run("single current: true in array is valid", func(t *testing.T) {
+		raw := []any{
+			map[string]any{"path": "."},
+			map[string]any{"repository": "owner/target", "path": "./target", "current": true},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "single current: true in array should be valid")
+		require.Len(t, configs, 2)
+		assert.False(t, configs[0].Current, "first checkout should not be current")
+		assert.True(t, configs[1].Current, "second checkout should be current")
+	})
+}
+
+// TestGetCurrentRepository verifies CheckoutManager.GetCurrentRepository behavior.
+func TestGetCurrentRepository(t *testing.T) {
+	t.Run("returns empty string when no current checkout", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./libs"},
+		})
+		assert.Empty(t, cm.GetCurrentRepository(), "should return empty string without current flag")
+	})
+
+	t.Run("returns repository when current: true is set", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/target-repo", Path: "./target", Current: true},
+		})
+		assert.Equal(t, "owner/target-repo", cm.GetCurrentRepository(), "should return current checkout repository")
+	})
+
+	t.Run("returns empty string when current: true but no repository", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: ".", Current: true},
+		})
+		assert.Empty(t, cm.GetCurrentRepository(), "should return empty string when repository is not set")
+	})
+
+	t.Run("returns repository from current in multiple checkouts", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "."},
+			{Repository: "owner/central", Path: "./central"},
+			{Repository: "owner/target", Path: "./target", Current: true},
+		})
+		assert.Equal(t, "owner/target", cm.GetCurrentRepository(), "should return the current checkout repository")
+	})
+}
+
+// TestGetCurrentCheckoutRepository verifies the standalone helper function.
+func TestGetCurrentCheckoutRepository(t *testing.T) {
+	t.Run("nil slice returns empty string", func(t *testing.T) {
+		assert.Empty(t, getCurrentCheckoutRepository(nil), "nil slice should return empty string")
+	})
+
+	t.Run("no current flag returns empty string", func(t *testing.T) {
+		configs := []*CheckoutConfig{
+			{Repository: "owner/repo"},
+		}
+		assert.Empty(t, getCurrentCheckoutRepository(configs), "no current flag should return empty string")
+	})
+
+	t.Run("current: true returns repository", func(t *testing.T) {
+		configs := []*CheckoutConfig{
+			{Repository: "owner/other"},
+			{Repository: "owner/target", Current: true},
+		}
+		assert.Equal(t, "owner/target", getCurrentCheckoutRepository(configs), "should return current checkout repository")
+	})
+
+	t.Run("current: true with no repository returns empty string", func(t *testing.T) {
+		configs := []*CheckoutConfig{
+			{Current: true},
+		}
+		assert.Empty(t, getCurrentCheckoutRepository(configs), "current without repository should return empty string")
+	})
+}
+
+// TestBuildCheckoutsPromptContent verifies the prompt content generation for the checkout list.
+func TestBuildCheckoutsPromptContent(t *testing.T) {
+	t.Run("nil slice returns empty string", func(t *testing.T) {
+		assert.Empty(t, buildCheckoutsPromptContent(nil), "nil should return empty string")
+	})
+
+	t.Run("empty slice returns empty string", func(t *testing.T) {
+		assert.Empty(t, buildCheckoutsPromptContent([]*CheckoutConfig{}), "empty slice should return empty string")
+	})
+
+	t.Run("default checkout with no repo uses github.repository expression and cwd", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{},
+		})
+		assert.Contains(t, content, "$GITHUB_WORKSPACE", "should show full workspace path for root checkout")
+		assert.Contains(t, content, "(cwd)", "root checkout should be marked as cwd")
+		assert.Contains(t, content, "${{ github.repository }}", "should reference github.repository expression for default checkout")
+	})
+
+	t.Run("checkout with explicit repo shows full path", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/target", Path: "./target"},
+		})
+		assert.Contains(t, content, "$GITHUB_WORKSPACE/target", "should show full workspace path")
+		assert.Contains(t, content, "owner/target", "should show the configured repo")
+		assert.NotContains(t, content, "github.repository", "should not include github.repository expression for explicit repo")
+		assert.NotContains(t, content, "(cwd)", "non-root checkout should not be marked as cwd")
+	})
+
+	t.Run("current checkout is marked", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/target", Path: "./target", Current: true},
+		})
+		assert.Contains(t, content, "**current**", "current checkout should be marked")
+		assert.Contains(t, content, "this is the repository you are working on", "current checkout should have instructions")
+	})
+
+	t.Run("non-current checkout is not marked", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/libs", Path: "./libs"},
+		})
+		assert.NotContains(t, content, "**current**", "non-current checkout should not be marked")
+	})
+
+	t.Run("multiple checkouts all listed", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Path: ""},
+			{Repository: "owner/target", Path: "./target", Current: true},
+			{Repository: "owner/libs", Path: "./libs"},
+		})
+		assert.Contains(t, content, "$GITHUB_WORKSPACE", "should include workspace root for root checkout")
+		assert.Contains(t, content, "(cwd)", "root checkout should be marked as cwd")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE/target", "should include full path for target checkout")
+		assert.Contains(t, content, "owner/target", "should include target repo")
+		assert.Contains(t, content, "$GITHUB_WORKSPACE/libs", "should include full path for libs checkout")
+		assert.Contains(t, content, "owner/libs", "should include libs repo")
+		assert.Contains(t, content, "**current**", "current checkout should be marked")
 	})
 }

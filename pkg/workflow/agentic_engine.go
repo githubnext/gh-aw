@@ -124,13 +124,6 @@ type CapabilityProvider interface {
 	// SupportsMaxContinuations returns true if this engine supports the max-continuations feature
 	// When true, max-continuations > 1 enables autopilot/multi-run mode for the engine
 	SupportsMaxContinuations() bool
-
-	// SupportsLLMGateway returns the LLM gateway port number for this engine
-	// Returns the port number (e.g., 10000) if the engine supports an LLM gateway
-	// Returns -1 if the engine does not support an LLM gateway
-	// The port is used to configure AWF api-proxy sidecar container
-	// In strict mode, engines without LLM gateway support require additional security constraints
-	SupportsLLMGateway() int
 }
 
 // WorkflowExecutor handles workflow compilation and execution
@@ -226,7 +219,7 @@ type BaseEngine struct {
 	supportsWebFetch         bool
 	supportsWebSearch        bool
 	supportsPlugins          bool
-	supportsLLMGateway       bool
+	llmGatewayPort           int
 }
 
 func (e *BaseEngine) GetID() string {
@@ -269,10 +262,8 @@ func (e *BaseEngine) SupportsMaxContinuations() bool {
 	return e.supportsMaxContinuations
 }
 
-func (e *BaseEngine) SupportsLLMGateway() int {
-	// Engines that support LLM gateway must override this method
-	// to return their specific port number (e.g., 10000, 10001, 10002)
-	return -1
+func (e *BaseEngine) getLLMGatewayPort() int {
+	return e.llmGatewayPort
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
@@ -381,6 +372,10 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 
 // Register adds an engine to the registry
 func (r *EngineRegistry) Register(engine CodingAgentEngine) {
+	type portProvider interface{ getLLMGatewayPort() int }
+	if p, ok := engine.(portProvider); ok && p.getLLMGatewayPort() < 0 {
+		panic(fmt.Sprintf("engine '%s': llmGatewayPort must be >= 0, got %d", engine.GetID(), p.getLLMGatewayPort()))
+	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine
 }
