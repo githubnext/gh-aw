@@ -820,7 +820,7 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 3 sub-issue link(s) can be created.",
+              "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 3 sub-issue link(s) can be created. The parent issue title must start with \"[🎭 POEM-BOT]\". The sub-issue title must start with \"[🎭 POEM-BOT]\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
