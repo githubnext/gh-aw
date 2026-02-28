@@ -13,6 +13,7 @@ const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 // Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
@@ -29,6 +30,7 @@ async function main(config = {}) {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const includeFooter = parseBoolTemplatable(config.footer, true);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   /**
    * Process a single update-release message
@@ -67,7 +69,7 @@ async function main(config = {}) {
           if (!releaseTag && context.payload.inputs.release_id) {
             const releaseId = context.payload.inputs.release_id;
             core.info(`Fetching release with ID: ${releaseId}`);
-            const { data: release } = await github.rest.repos.getRelease({
+            const { data: release } = await authClient.rest.repos.getRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: parseInt(releaseId, 10),
@@ -84,7 +86,7 @@ async function main(config = {}) {
 
       // Get the release by tag
       core.info(`Fetching release with tag: ${releaseTag}`);
-      const { data: release } = await github.rest.repos.getReleaseByTag({
+      const { data: release } = await authClient.rest.repos.getReleaseByTag({
         owner: context.repo.owner,
         repo: context.repo.repo,
         tag: releaseTag,
@@ -108,7 +110,7 @@ async function main(config = {}) {
       });
 
       // Update the release
-      const { data: updatedRelease } = await github.rest.repos.updateRelease({
+      const { data: updatedRelease } = await authClient.rest.repos.updateRelease({
         owner: context.repo.owner,
         repo: context.repo.repo,
         release_id: release.id,

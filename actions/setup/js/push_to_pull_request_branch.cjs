@@ -10,6 +10,7 @@ const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -36,6 +37,7 @@ async function main(config = {}) {
   // Cross-repo support: resolve target repository from config
   // This allows pushing to PRs in a different repository than the workflow
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Base branch from config (if set) - used only for logging at factory level
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
@@ -225,7 +227,7 @@ async function main(config = {}) {
     // Fetch the specific PR to get its head branch, title, and labels
     let pullRequest;
     try {
-      const response = await github.rest.pulls.get({
+      const response = await authClient.rest.pulls.get({
         owner: repoParts.owner,
         repo: repoParts.repo,
         pull_number: pullNumber,

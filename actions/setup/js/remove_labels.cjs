@@ -12,6 +12,7 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -24,6 +25,7 @@ async function main(config = {}) {
   const blockedPatterns = config.blocked || [];
   const maxCount = config.max || 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -161,7 +163,7 @@ async function main(config = {}) {
     // Remove labels one at a time (GitHub API doesn't have a bulk remove endpoint)
     for (const label of uniqueLabels) {
       try {
-        await github.rest.issues.removeLabel({
+        await authClient.rest.issues.removeLabel({
           owner: repoParts.owner,
           repo: repoParts.repo,
           issue_number: itemNumber,

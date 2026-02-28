@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * Type constant for handler identification
@@ -77,6 +78,7 @@ async function resolveReviewThreadAPI(github, threadId) {
 async function main(config = {}) {
   // Extract configuration
   const maxCount = config.max || 10;
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Determine the triggering PR number from context
   const triggeringPRNumber = getPRNumber(context.payload);
@@ -130,7 +132,7 @@ async function main(config = {}) {
       }
 
       // Look up the thread to validate it belongs to the triggering PR
-      const threadPRNumber = await getThreadPullRequestNumber(github, threadId);
+      const threadPRNumber = await getThreadPullRequestNumber(authClient, threadId);
       if (threadPRNumber === null) {
         core.warning(`Review thread not found or not a PullRequestReviewThread: ${threadId}`);
         return {
@@ -162,7 +164,7 @@ async function main(config = {}) {
         };
       }
 
-      const resolveResult = await resolveReviewThreadAPI(github, threadId);
+      const resolveResult = await resolveReviewThreadAPI(authClient, threadId);
 
       if (resolveResult.isResolved) {
         core.info(`Successfully resolved review thread: ${threadId}`);

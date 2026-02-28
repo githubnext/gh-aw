@@ -9,6 +9,7 @@
 const HANDLER_TYPE = "dispatch_workflow";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -20,6 +21,7 @@ async function main(config = {}) {
   const allowedWorkflows = config.workflows || [];
   const maxCount = config.max || 1;
   const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   core.info(`Dispatch workflow configuration: max=${maxCount}`);
   if (allowedWorkflows.length > 0) {
@@ -45,7 +47,7 @@ async function main(config = {}) {
 
     // Fall back to querying the repository
     try {
-      const { data: repoData } = await github.rest.repos.get({
+      const { data: repoData } = await authClient.rest.repos.get({
         owner: repo.owner,
         repo: repo.repo,
       });
@@ -154,7 +156,7 @@ async function main(config = {}) {
       core.info(`Dispatching workflow: ${workflowFile}`);
 
       // Dispatch the workflow using the resolved file
-      await github.rest.actions.createWorkflowDispatch({
+      await authClient.rest.actions.createWorkflowDispatch({
         owner: repo.owner,
         repo: repo.repo,
         workflow_id: workflowFile,

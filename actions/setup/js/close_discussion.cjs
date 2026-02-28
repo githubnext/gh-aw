@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
@@ -159,6 +160,7 @@ async function main(config = {}) {
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -218,7 +220,7 @@ async function main(config = {}) {
 
     try {
       // Fetch discussion details
-      const discussion = await getDiscussionDetails(github, context.repo.owner, context.repo.repo, discussionNumber);
+      const discussion = await getDiscussionDetails(authClient, context.repo.owner, context.repo.repo, discussionNumber);
 
       // Validate required labels if configured
       if (requiredLabels.length > 0) {
@@ -266,7 +268,7 @@ async function main(config = {}) {
       let commentUrl;
       if (item.body) {
         const sanitizedBody = sanitizeContent(item.body);
-        const comment = await addDiscussionComment(github, discussion.id, sanitizedBody);
+        const comment = await addDiscussionComment(authClient, discussion.id, sanitizedBody);
         core.info(`Added comment to discussion #${discussionNumber}: ${comment.url}`);
         commentUrl = comment.url;
       }
@@ -277,7 +279,7 @@ async function main(config = {}) {
       } else {
         const reason = item.reason || undefined;
         core.info(`Closing discussion #${discussionNumber} with reason: ${reason || "none"}`);
-        const closedDiscussion = await closeDiscussion(github, discussion.id, reason);
+        const closedDiscussion = await closeDiscussion(authClient, discussion.id, reason);
         core.info(`Closed discussion #${discussionNumber}: ${closedDiscussion.url}`);
       }
 

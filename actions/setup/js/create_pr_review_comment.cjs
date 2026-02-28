@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -27,6 +28,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const buffer = config._prReviewBuffer;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   if (!buffer) {
     core.warning("create_pull_request_review_comment: No PR review buffer provided in config");
@@ -203,7 +205,7 @@ async function main(config = {}) {
     // If we don't have the full PR details yet, fetch them
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       try {
-        const { data: fullPR } = await github.rest.pulls.get({
+        const { data: fullPR } = await authClient.rest.pulls.get({
           owner: repoParts.owner,
           repo: repoParts.repo,
           pull_number: pullRequestNumber,

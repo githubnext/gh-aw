@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * Maximum limits for label parameters to prevent resource exhaustion.
@@ -32,6 +33,7 @@ async function main(config = {}) {
   const blockedPatterns = config.blocked || [];
   const maxCount = config.max || 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -161,7 +163,7 @@ async function main(config = {}) {
     }
 
     try {
-      await github.rest.issues.addLabels({
+      await authClient.rest.issues.addLabels({
         owner: repoParts.owner,
         repo: repoParts.repo,
         issue_number: itemNumber,
