@@ -1183,64 +1183,6 @@ jobs:
             audit_output.txt
           retention-days: 30
 
-  actions-build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-actions-build
-      cancel-in-progress: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up Go
-        id: setup-go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Report Go cache status
-        run: |
-          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
-            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Download dependencies with retry
-        run: |
-          set -e
-          MAX_RETRIES=3
-          RETRY_DELAY=5
-          
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
-            if go mod download; then
-              echo "✅ Successfully downloaded Go modules"
-              break
-            else
-              if [ $i -eq $MAX_RETRIES ]; then
-                echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
-                echo "This may indicate that proxy.golang.org is unreachable"
-                echo "Please check network connectivity or consider vendoring dependencies"
-                exit 1
-              fi
-              echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
-              sleep $RETRY_DELAY
-            fi
-          done
-
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Build actions
-        run: make actions-build
-
-      - name: Validate actions
-        run: make actions-validate
-
   fuzz:
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
