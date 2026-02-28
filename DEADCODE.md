@@ -30,7 +30,7 @@ It does NOT report unreachable constants, variables, or types — only functions
 - **Always include `./internal/tools/...` in the deadcode command**
 - **Beware `//go:build js && wasm` files** — `cmd/gh-aw-wasm/` uses functions like `ParseWorkflowString` and `CompileToYAML` that deadcode can't see because the WASM binary can't be compiled without `GOOS=js GOARCH=wasm`. Always check `cmd/gh-aw-wasm/main.go` before deleting functions from `pkg/workflow/`.
 - Run `go build ./...` after every batch
-- Run `go vet ./...` to catch test compilation errors (cheaper than `go test`)
+- Run `go vet ./...` **AND** `go vet -tags=integration ./...` to catch unit AND integration test errors
 - Run `go test -tags=integration ./pkg/affected/...` to spot-check
 - Always check if a "fully dead" file contains live constants/vars before deleting
 - The deadcode list was generated before any deletions; re-run after major batches
