@@ -14,11 +14,7 @@
 // # Key Functions
 //
 // Summary Output:
-//   - formatCompilationSummary() - Format compilation statistics
 //   - formatValidationOutput() - Format validation results as JSON
-//
-// These functions abstract output formatting, allowing the main compile
-// orchestrator to focus on coordination while these handle presentation.
 
 package cli
 
@@ -30,12 +26,6 @@ import (
 )
 
 var compileOutputFormatterLog = logger.New("cli:compile_output_formatter")
-
-// formatCompilationSummary formats compilation statistics for display
-// This is a wrapper around printCompilationSummary for consistency
-func formatCompilationSummary(stats *CompilationStats) {
-	printCompilationSummary(stats)
-}
 
 // formatValidationOutput formats validation results as JSON
 func formatValidationOutput(results []ValidationResult) (string, error) {
@@ -51,16 +41,4 @@ func formatValidationOutput(results []ValidationResult) (string, error) {
 	}
 
 	return string(jsonBytes), nil
-}
-
-// formatActionlintOutput displays the actionlint summary
-// This is a wrapper around displayActionlintSummary for consistency
-func formatActionlintOutput() {
-	displayActionlintSummary()
-}
-
-// formatStatsTable displays the workflow statistics table
-// This is a wrapper around displayStatsTable for consistency
-func formatStatsTable(statsList []*WorkflowStats) {
-	displayStatsTable(statsList)
 }

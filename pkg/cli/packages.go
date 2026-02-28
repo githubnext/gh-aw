@@ -20,10 +20,6 @@ var (
 	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 )
 
-// WorkflowSourceInfo is an alias for FetchedWorkflow for backward compatibility.
-// Deprecated: Use FetchedWorkflow directly instead.
-type WorkflowSourceInfo = FetchedWorkflow
-
 // isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter.
 // It validates that the file has proper YAML frontmatter delimited by "---" and contains the required "on" field.
 //
