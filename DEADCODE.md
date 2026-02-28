@@ -36,6 +36,8 @@ make fmt
 - `compiler.ParseWorkflowString`
 - `compiler.CompileToYAML`
 
+**`pkg/console/console_wasm.go`** — this file provides WASM-specific stub implementations of many `pkg/console` functions (gated with `//go:build js || wasm`). Before deleting any function from `pkg/console/`, `grep` for it in `console_wasm.go`. If the function is called there, either inline the logic in `console_wasm.go` or delete the call. Batch 10 mistake: deleted `renderTreeSimple` from `render.go` but `console_wasm.go`'s `RenderTree` still called it, breaking the WASM build. Fix: replaced the `RenderTree` body in `console_wasm.go` with an inlined closure that no longer calls the deleted helper.
+
 **`compiler_test_helpers.go`** — shows 3 dead functions but serves as shared test infrastructure for ≥15 test files. Do not delete.
 
 **Constant/embed rescue** — Some otherwise-dead files contain live constants or `//go:embed` directives. Extract them before deleting the file.
@@ -163,7 +165,9 @@ For each batch:
 - [ ] Delete the function
 - [ ] Delete test functions that exclusively call the deleted function (not shared helpers)
 - [ ] Check for now-unused imports in edited files
+- [ ] If editing `pkg/console/`, check `pkg/console/console_wasm.go` for calls to the deleted functions
 - [ ] `go build ./...`
+- [ ] `GOARCH=wasm GOOS=js go build ./pkg/console/...` (if `pkg/console/` was touched)
 - [ ] `go vet ./...`
 - [ ] `go vet -tags=integration ./...`
 - [ ] `make fmt`
