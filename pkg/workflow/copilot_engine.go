@@ -44,7 +44,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsWebFetch:         true,  // Copilot CLI has built-in web-fetch support
 			supportsWebSearch:        false, // Copilot CLI does not have built-in web-search support
 			supportsPlugins:          true,  // Copilot supports plugin installation
-			supportsLLMGateway:       true,  // Copilot supports LLM gateway on port 10003
+			llmGatewayPort:           constants.CopilotLLMGatewayPort,
 		},
 	}
 }
@@ -59,11 +59,6 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 // for model selection. Setting COPILOT_MODEL is equivalent to passing --model to the CLI.
 func (e *CopilotEngine) GetModelEnvVarName() string {
 	return constants.CopilotCLIModelEnvVar
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Copilot engine
-func (e *CopilotEngine) SupportsLLMGateway() int {
-	return constants.CopilotLLMGatewayPort
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Copilot engine
