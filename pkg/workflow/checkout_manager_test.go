@@ -224,6 +224,16 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 		combined := strings.Join(lines, "")
 		assert.Contains(t, combined, "submodules: recursive", "should include submodules option")
 	})
+
+	t.Run("additional checkout emits token not github-token", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "./libs", Repository: "owner/libs", GitHubToken: "${{ secrets.MY_TOKEN }}"},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "actions/checkout input must be 'token'")
+		assert.NotContains(t, combined, "github-token:", "must not emit 'github-token' as actions/checkout input")
+	})
 }
 
 // TestParseCheckoutConfigs verifies parsing of raw frontmatter values.
