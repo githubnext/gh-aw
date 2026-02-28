@@ -156,6 +156,32 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.steps.firewall).toBe("squid");
   });
 
+  it("should fail when a numeric context field contains non-numeric data", async () => {
+    const maliciousContext = {
+      ...mockContext,
+      payload: {
+        issue: { number: "42; DROP TABLE users" },
+      },
+    };
+
+    await expect(main(mockCore, maliciousContext)).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalled();
+  });
+
+  it("should pass context validation when numeric fields are valid integers", async () => {
+    const validContext = {
+      ...mockContext,
+      payload: {
+        issue: { number: 42 },
+        pull_request: { number: 100 },
+      },
+    };
+
+    await main(mockCore, validContext);
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ All context variables validated successfully"));
+  });
+
   it("should call generateWorkflowOverview to write step summary", async () => {
     await main(mockCore, mockContext);
 

@@ -4,6 +4,7 @@
 const fs = require("fs");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs");
+const { validateContextVariables } = require("./validate_context_variables.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -17,6 +18,10 @@ const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs")
  * @returns {Promise<void>}
  */
 async function main(core, ctx) {
+  // Validate numeric context variables before processing run info.
+  // This prevents malicious payloads from hiding special text or code in numeric fields.
+  await validateContextVariables(core, ctx);
+
   // Validate required context variables
   const requiredContextFields = ["runId", "runNumber", "sha", "ref", "actor", "eventName", "repo"];
   for (const field of requiredContextFields) {

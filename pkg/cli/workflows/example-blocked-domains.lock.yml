@@ -56,19 +56,33 @@ jobs:
         uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
+      - name: Generate agentic run info
+        id: generate_aw_info
+        env:
+          GH_AW_INFO_ENGINE_ID: "copilot"
+          GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          GH_AW_INFO_VERSION: ""
+          GH_AW_INFO_AGENT_VERSION: "0.0.419"
+          GH_AW_INFO_WORKFLOW_NAME: "Example: Blocked Domains"
+          GH_AW_INFO_EXPERIMENTAL: "false"
+          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
+          GH_AW_INFO_STAGED: "false"
+          GH_AW_INFO_ALLOWED_DOMAINS: '["defaults","github","node"]'
+          GH_AW_INFO_FIREWALL_ENABLED: "true"
+          GH_AW_INFO_AWF_VERSION: "v0.23.0"
+          GH_AW_INFO_AWMG_VERSION: ""
+          GH_AW_INFO_FIREWALL_TYPE: "squid"
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { main } = require('/opt/gh-aw/actions/generate_aw_info.cjs');
+            await main(core, context);
       - name: Validate COPILOT_GITHUB_TOKEN secret
         id: validate-secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Validate context variables
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/validate_context_variables.cjs');
-            await main();
       - name: Checkout .github and .agents folders
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -87,51 +101,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
-      - name: Generate agentic run info
-        id: generate_aw_info
-        env:
-          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const fs = require('fs');
-            
-            const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
-              version: "",
-              agent_version: "0.0.419",
-              workflow_name: "Example: Blocked Domains",
-              experimental: false,
-              supports_tools_allowlist: true,
-              run_id: context.runId,
-              run_number: context.runNumber,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-              repository: context.repo.owner + '/' + context.repo.repo,
-              ref: context.ref,
-              sha: context.sha,
-              actor: context.actor,
-              event_name: context.eventName,
-              staged: false,
-              allowed_domains: ["defaults","github","node"],
-              firewall_enabled: true,
-              awf_version: "v0.23.0",
-              awmg_version: "",
-              steps: {
-                firewall: "squid"
-              },
-              created_at: new Date().toISOString()
-            };
-            
-            // Write to /tmp/gh-aw directory to avoid inclusion in PR
-            const tmpPath = '/tmp/gh-aw/aw_info.json';
-            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json at:', tmpPath);
-            console.log(JSON.stringify(awInfo, null, 2));
-            
-            // Set model as output for reuse in other steps/jobs
-            core.setOutput('model', awInfo.model);
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -365,12 +334,6 @@ jobs:
             }
           }
           GH_AW_MCP_CONFIG_EOF
-      - name: Generate workflow overview
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
-            await generateWorkflowOverview(core);
       - name: Download activation artifact
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
