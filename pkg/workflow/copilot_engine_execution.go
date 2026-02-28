@@ -217,7 +217,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Copilot doesn't require TTY
-			UsesAPIProxy:   true,
 			AllowedDomains: allowedDomains,
 			PathSetup:      "", // No path setup needed on host side
 		})

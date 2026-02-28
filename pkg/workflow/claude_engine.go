@@ -293,7 +293,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
-			UsesAPIProxy:   true,
 			AllowedDomains: allowedDomains,
 			PathSetup:      promptSetup, // Prompt setup runs BEFORE AWF on the host
 		})

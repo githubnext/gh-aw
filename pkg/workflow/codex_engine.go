@@ -227,7 +227,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Codex is not a TUI, outputs to stdout/stderr
-			UsesAPIProxy:   true,
 			AllowedDomains: allowedDomains,
 			PathSetup:      "mkdir -p \"$CODEX_HOME/logs\"", // Create logs directory before AWF
 		})

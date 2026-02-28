@@ -234,7 +234,6 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
-			UsesAPIProxy:   true,
 			AllowedDomains: allowedDomains,
 		})
 	} else {
