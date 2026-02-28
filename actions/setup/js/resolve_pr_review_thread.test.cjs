@@ -37,8 +37,9 @@ global.context = mockContext;
 /**
  * Helper to set up mockGraphql to handle both the lookup query and the resolve mutation.
  * @param {number} lookupPRNumber - PR number returned by the thread lookup query
+ * @param {string} [lookupRepo] - Repository nameWithOwner returned by the lookup query (default: "test-owner/test-repo")
  */
-function mockGraphqlForThread(lookupPRNumber) {
+function mockGraphqlForThread(lookupPRNumber, lookupRepo = "test-owner/test-repo") {
   mockGraphql.mockImplementation(query => {
     if (query.includes("resolveReviewThread")) {
       // Mutation
@@ -54,7 +55,10 @@ function mockGraphqlForThread(lookupPRNumber) {
     // Lookup query
     return Promise.resolve({
       node: {
-        pullRequest: { number: lookupPRNumber },
+        pullRequest: {
+          number: lookupPRNumber,
+          repository: { nameWithOwner: lookupRepo },
+        },
       },
     });
   });
@@ -315,6 +319,243 @@ describe("resolve_pr_review_thread", () => {
     const result = await freshHandler(message, {});
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe("resolve_pr_review_thread - cross-repo support", () => {
+  const originalPayload = mockContext.payload;
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    global.context.payload = originalPayload;
+  });
+
+  it("should allow resolving a thread in target-repo when configured", async () => {
+    mockGraphqlForThread(10, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "other-owner/other-repo",
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOCrossRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.thread_id).toBe("PRRT_kwDOCrossRepo");
+    expect(result.is_resolved).toBe(true);
+  });
+
+  it("should reject a thread whose repo is not in allowed-repos", async () => {
+    mockGraphqlForThread(10, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "allowed-owner/allowed-repo",
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOCrossRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("other-owner/other-repo");
+    expect(result.error).toContain("allowed");
+  });
+
+  it("should allow cross-repo thread in allowed_repos list", async () => {
+    mockGraphqlForThread(10, "extra-owner/extra-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "allowed-owner/allowed-repo",
+      allowed_repos: ["extra-owner/extra-repo"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOCrossRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject thread not on target PR when target is an explicit PR number", async () => {
+    mockGraphqlForThread(99, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "other-owner/other-repo",
+      target: "55",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOCrossRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("PR #99");
+    expect(result.error).toContain("PR #55");
+  });
+
+  it("should allow thread on correct explicit target PR", async () => {
+    mockGraphqlForThread(55, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "other-owner/other-repo",
+      target: "55",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOCrossRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should require triggering PR context when target=triggering with cross-repo config", async () => {
+    global.context.payload = {
+      repository: { html_url: "https://github.com/test-owner/test-repo" },
+    };
+    mockGraphqlForThread(10, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "other-owner/other-repo",
+      target: "triggering",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOCrossRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("pull request context");
+  });
+
+  it("should allow resolving when allowed_repos uses '*' wildcard", async () => {
+    mockGraphqlForThread(10, "any-owner/any-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "default-owner/default-repo",
+      allowed_repos: ["*"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOWildcard",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should allow resolving when allowed_repos uses org/* pattern", async () => {
+    mockGraphqlForThread(10, "other-owner/specific-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "default-owner/default-repo",
+      allowed_repos: ["other-owner/*"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOOrgWildcard",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject resolving when org/* pattern does not match", async () => {
+    mockGraphqlForThread(10, "wrong-owner/specific-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "default-owner/default-repo",
+      allowed_repos: ["other-owner/*"],
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOOrgWildcard",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not in the allowed-repos list");
+  });
+
+  it("should fail closed when threadRepo is null in cross-repo mode", async () => {
+    // Simulate GraphQL returning a thread with no repository info
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({ resolveReviewThread: { thread: { id: "PRRT_x", isResolved: true } } });
+      }
+      return Promise.resolve({
+        node: { pullRequest: { number: 10, repository: null } },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({
+      max: 10,
+      "target-repo": "other-owner/other-repo",
+      target: "*",
+    });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDONoRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Could not determine");
   });
 });
 

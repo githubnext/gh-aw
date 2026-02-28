@@ -13,6 +13,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/nacl/box"
@@ -83,7 +84,7 @@ Examples:
 				secretSetLog.Printf("Using current repository: %s", repoSlug)
 			}
 
-			owner, repo, splitErr := SplitRepoSlug(repoSlug)
+			owner, repo, splitErr := repoutil.SplitRepoSlug(repoSlug)
 			if splitErr != nil {
 				return fmt.Errorf("invalid repository slug %q: %w", repoSlug, splitErr)
 			}

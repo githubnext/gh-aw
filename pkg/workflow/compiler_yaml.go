@@ -150,7 +150,13 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowData) {
 	// Write basic workflow structure
 	fmt.Fprintf(yaml, "name: \"%s\"\n", data.Name)
-	yaml.WriteString(data.On + "\n\n")
+
+	// Inject on.workflow_call.outputs when workflow_call is configured and safe-outputs are present
+	onSection := data.On
+	if data.SafeOutputs != nil {
+		onSection = c.injectWorkflowCallOutputs(onSection, data.SafeOutputs)
+	}
+	yaml.WriteString(onSection + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
 	// The workflow_run safety check is added to individual jobs instead
@@ -495,15 +501,6 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 }
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const fs = require('fs');\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            const awInfo = {\n")
-
 	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
 	engineID := engine.GetID()
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
@@ -511,24 +508,11 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	} else if data.AI != "" {
 		engineID = data.AI
 	}
-	fmt.Fprintf(yaml, "              engine_id: \"%s\",\n", engineID)
 
-	// Engine display name
-	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
-
-	// Model information - resolve from explicit config or environment variable
-	// If model is explicitly configured, use it directly
-	// Otherwise, resolve from environment variable at runtime
-	// Note: aw_info is always generated in the agent job, so use agent-specific env vars
+	// Model - explicit config or runtime env var via vars context
 	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
-	if modelConfigured {
-		// Explicit model - output as static string
-		fmt.Fprintf(yaml, "              model: \"%s\",\n", data.EngineConfig.Model)
-	} else {
-		// Model from environment variable - resolve at runtime
-		// Use agent-specific env var since aw_info is generated in agent job
-		var modelEnvVar string
-
+	var modelEnvVar string
+	if !modelConfigured {
 		switch engineID {
 		case "copilot":
 			modelEnvVar = constants.EnvVarModelAgentCopilot
@@ -539,13 +523,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		case "custom":
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		default:
-			// For unknown engines, use a generic environment variable pattern
-			// This provides a fallback while maintaining consistency
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		}
-
-		// Generate JavaScript to resolve model from environment variable at runtime
-		fmt.Fprintf(yaml, "              model: process.env.%s || \"\",\n", modelEnvVar)
 	}
 
 	// Version information (from engine config, kept for backwards compatibility)
@@ -553,112 +532,80 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
-	fmt.Fprintf(yaml, "              version: \"%s\",\n", version)
 
 	// Agent version - use the actual installation version (includes defaults)
-	// This matches what BuildStandardNpmEngineInstallSteps uses
 	agentVersion := getInstallationVersion(data, engine)
-	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
 
-	// CLI version - only include for released builds
-	// Excludes development builds containing "dev", "dirty", or "test"
-	if IsReleasedVersion(c.version) {
-		fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
-	}
-
-	// Workflow information
-	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
-	fmt.Fprintf(yaml, "              experimental: %t,\n", engine.IsExperimental())
-	fmt.Fprintf(yaml, "              supports_tools_allowlist: %t,\n", engine.SupportsToolsAllowlist())
-
-	// Run metadata
-	yaml.WriteString("              run_id: context.runId,\n")
-	yaml.WriteString("              run_number: context.runNumber,\n")
-	yaml.WriteString("              run_attempt: process.env.GITHUB_RUN_ATTEMPT,\n")
-	yaml.WriteString("              repository: context.repo.owner + '/' + context.repo.repo,\n")
-	yaml.WriteString("              ref: context.ref,\n")
-	yaml.WriteString("              sha: context.sha,\n")
-	yaml.WriteString("              actor: context.actor,\n")
-	yaml.WriteString("              event_name: context.eventName,\n")
-
-	// Add staged value from safe-outputs configuration
+	// Staged value from safe-outputs configuration
 	stagedValue := "false"
 	if data.SafeOutputs != nil && data.SafeOutputs.Staged {
 		stagedValue = "true"
 	}
-	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
 
 	// Network configuration
 	var allowedDomains []string
 	firewallEnabled := false
 	firewallVersion := ""
-
 	if data.NetworkPermissions != nil {
 		allowedDomains = data.NetworkPermissions.Allowed
 		if data.NetworkPermissions.Firewall != nil {
 			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
 			firewallVersion = data.NetworkPermissions.Firewall.Version
-			// Use default firewall version when enabled but not explicitly set
 			if firewallEnabled && firewallVersion == "" {
 				firewallVersion = string(constants.DefaultFirewallVersion)
 			}
 		}
 	}
 
-	// Add allowed domains as JSON array
+	// Allowed domains as JSON array string
+	domainsJSON := "[]"
 	if len(allowedDomains) > 0 {
-		domainsJSON, _ := json.Marshal(allowedDomains)
-		fmt.Fprintf(yaml, "              allowed_domains: %s,\n", string(domainsJSON))
-	} else {
-		yaml.WriteString("              allowed_domains: [],\n")
+		b, _ := json.Marshal(allowedDomains)
+		domainsJSON = string(b)
 	}
-
-	fmt.Fprintf(yaml, "              firewall_enabled: %t,\n", firewallEnabled)
-	fmt.Fprintf(yaml, "              awf_version: \"%s\",\n", firewallVersion)
 
 	// MCP Gateway version
 	mcpGatewayVersion := ""
 	if data.SandboxConfig != nil && data.SandboxConfig.MCP != nil && data.SandboxConfig.MCP.Version != "" {
 		mcpGatewayVersion = data.SandboxConfig.MCP.Version
 	}
-	fmt.Fprintf(yaml, "              awmg_version: \"%s\",\n", mcpGatewayVersion)
 
-	// Add steps object with firewall information
-	yaml.WriteString("              steps: {\n")
-
-	// Determine firewall type
+	// Firewall type
 	firewallType := ""
 	if isFirewallEnabled(data) {
 		firewallType = "squid"
 	}
-	fmt.Fprintf(yaml, "                firewall: \"%s\"\n", firewallType)
 
-	yaml.WriteString("              },\n")
-
-	yaml.WriteString("              created_at: new Date().toISOString()\n")
-
-	yaml.WriteString("            };\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            // Write to /tmp/gh-aw directory to avoid inclusion in PR\n")
-	yaml.WriteString("            const tmpPath = '/tmp/gh-aw/aw_info.json';\n")
-	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
-	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
-	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            // Set model as output for reuse in other steps/jobs\n")
-	yaml.WriteString("            core.setOutput('model', awInfo.model);\n")
-}
-
-// generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
-// This runs after aw_info.json is created and reads from it for consistent data display.
-// Uses HTML details/summary tags for collapsible output.
-func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	yaml.WriteString("      - name: Generate workflow overview\n")
+	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("        id: generate_aw_info\n")
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", engineID)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_NAME: \"%s\"\n", engine.GetDisplayName())
+	if modelConfigured {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", data.EngineConfig.Model)
+	} else {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
+	}
+	fmt.Fprintf(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", version)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_VERSION: \"%s\"\n", agentVersion)
+	// CLI version only for released builds
+	if IsReleasedVersion(c.version) {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_CLI_VERSION: \"%s\"\n", c.version)
+	}
+	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", data.Name)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", engine.IsExperimental())
+	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.SupportsToolsAllowlist())
+	fmt.Fprintf(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", stagedValue)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ALLOWED_DOMAINS: '%s'\n", domainsJSON)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');\n")
-	yaml.WriteString("            await generateWorkflowOverview(core);\n")
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/generate_aw_info.cjs');\n")
+	yaml.WriteString("            await main(core, context);\n")
 }
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {

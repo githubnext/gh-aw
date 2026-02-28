@@ -164,6 +164,14 @@ func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
 	return ParseStringArrayFromConfig(configMap, "allowed-labels", configHelpersLog)
 }
 
+// parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
+// Returns a slice of repository slugs in "owner/repo" format.
+// Returns nil when the key is not present or the value is not a valid array type.
+// Returns an empty slice when the key exists but contains no valid strings.
+func parseAllowedReposFromConfig(configMap map[string]any) []string {
+	return ParseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
+}
+
 // NOTE: parseExpiresFromConfig and parseRelativeTimeSpec have been moved to time_delta.go
 // to consolidate all time parsing logic in a single location. These functions are used
 // for parsing expiration configurations in safe output jobs.

@@ -27,14 +27,9 @@ func NewGeminiEngine() *GeminiEngine {
 			supportsWebFetch:       false,
 			supportsWebSearch:      false,
 			supportsPlugins:        false,
-			supportsLLMGateway:     true, // Gemini supports LLM gateway on port 10003
+			llmGatewayPort:         constants.GeminiLLMGatewayPort,
 		},
 	}
-}
-
-// SupportsLLMGateway returns the LLM gateway port for Gemini engine
-func (e *GeminiEngine) SupportsLLMGateway() int {
-	return constants.GeminiLLMGatewayPort
 }
 
 // GetModelEnvVarName returns the native environment variable name that the Gemini CLI uses
@@ -233,17 +228,12 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
 
-		// Enable API proxy sidecar if this engine supports LLM gateway
-		llmGatewayPort := e.SupportsLLMGateway()
-		usesAPIProxy := llmGatewayPort > 0
-
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "gemini",
 			EngineCommand:  geminiCommandWithPath,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
-			UsesAPIProxy:   usesAPIProxy,
 			AllowedDomains: allowedDomains,
 		})
 	} else {

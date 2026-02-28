@@ -132,13 +132,14 @@ This workflow tests that the step summary includes agentic run information.
 		t.Error("Did not expect '## Agentic Run Information' section in step summary (it should only be in action logs)")
 	}
 
-	// Verify that the aw_info.json file is still created and logged to console
+	// Verify that the aw_info.json file is still referenced in the workflow
 	if !strings.Contains(lockContent, "aw_info.json") {
-		t.Error("Expected 'aw_info.json' to be created")
+		t.Error("Expected 'aw_info.json' to be referenced in the workflow")
 	}
 
-	if !strings.Contains(lockContent, "console.log('Generated aw_info.json at:', tmpPath);") {
-		t.Error("Expected console.log output for aw_info.json")
+	// Verify that the generate_aw_info.cjs helper is invoked from the step
+	if !strings.Contains(lockContent, "require('/opt/gh-aw/actions/generate_aw_info.cjs')") {
+		t.Error("Expected generate_aw_info.cjs require call in 'Generate agentic run info' step")
 	}
 
 	t.Log("Step correctly creates aw_info.json without adding to step summary")
@@ -239,57 +240,47 @@ This workflow tests the workflow overview for Claude engine.
 				t.Error("Expected 'Generate agentic run info' step")
 			}
 
-			// Verify that the "Generate workflow overview" step exists
-			if !strings.Contains(lockContent, "- name: Generate workflow overview") {
-				t.Error("Expected 'Generate workflow overview' step")
+			// Verify workflow overview is merged into the generate_aw_info step (no separate step)
+			if strings.Contains(lockContent, "- name: Generate workflow overview") {
+				t.Error("Expected no separate 'Generate workflow overview' step (should be merged into 'Generate agentic run info')")
 			}
 
-			// Verify "Generate agentic run info" runs BEFORE "Generate workflow overview"
-			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run info")
-			overviewIdx := strings.Index(lockContent, "- name: Generate workflow overview")
-			if awInfoIdx >= overviewIdx {
-				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Generate workflow overview' step")
+			// Verify workflow overview call is present in the generate_aw_info step
+			if !strings.Contains(lockContent, "require('/opt/gh-aw/actions/generate_aw_info.cjs')") {
+				t.Error("Expected generate_aw_info.cjs require call inside 'Generate agentic run info' step")
 			}
 
-			// Verify workflow overview uses require to call the .cjs file
-			if !strings.Contains(lockContent, "const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');") {
-				t.Error("Expected workflow overview step to use require to invoke generate_workflow_overview.cjs")
-			}
-			if !strings.Contains(lockContent, "await generateWorkflowOverview(core);") {
-				t.Error("Expected workflow overview step to call generateWorkflowOverview function")
+			// Verify engine ID is set as an env var in the generate_aw_info step
+			if !strings.Contains(lockContent, "GH_AW_INFO_ENGINE_ID: \""+tt.expectEngineID+"\"") {
+				t.Errorf("Expected GH_AW_INFO_ENGINE_ID: %q in generate_aw_info step", tt.expectEngineID)
 			}
 
-			// Verify engine ID is present in aw_info.json
-			if !strings.Contains(lockContent, "engine_id: \""+tt.expectEngineID+"\"") {
-				t.Errorf("Expected engine_id: %q in aw_info.json", tt.expectEngineID)
+			// Verify engine name is set as an env var in the generate_aw_info step
+			if !strings.Contains(lockContent, "GH_AW_INFO_ENGINE_NAME: \""+tt.expectEngineName+"\"") {
+				t.Errorf("Expected GH_AW_INFO_ENGINE_NAME: %q in generate_aw_info step", tt.expectEngineName)
 			}
 
-			// Verify engine name is present in aw_info.json
-			if !strings.Contains(lockContent, "engine_name: \""+tt.expectEngineName+"\"") {
-				t.Errorf("Expected engine_name: %q in aw_info.json", tt.expectEngineName)
-			}
-
-			// Verify model is present in aw_info.json
+			// Verify model is set as an env var in the generate_aw_info step
 			if tt.expectModel == "" {
-				// For empty model, check for the environment variable expression
-				if !strings.Contains(lockContent, "model: process.env.GH_AW_MODEL_AGENT_COPILOT || \"\"") &&
-					!strings.Contains(lockContent, "model: process.env.GH_AW_MODEL_DETECTION_COPILOT || \"\"") {
-					t.Errorf("Expected model to use environment variable with empty string fallback in aw_info.json")
+				// For empty model, check for the complete vars expression (with fallback)
+				if !strings.Contains(lockContent, "GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}") &&
+					!strings.Contains(lockContent, "GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}") {
+					t.Errorf("Expected GH_AW_INFO_MODEL to use vars expression in generate_aw_info step")
 				}
 			} else {
 				// For non-empty model, check for the literal value
-				if !strings.Contains(lockContent, "model: \""+tt.expectModel+"\"") {
-					t.Errorf("Expected model: %q in aw_info.json", tt.expectModel)
+				if !strings.Contains(lockContent, "GH_AW_INFO_MODEL: \""+tt.expectModel+"\"") {
+					t.Errorf("Expected GH_AW_INFO_MODEL: %q in generate_aw_info step", tt.expectModel)
 				}
 			}
 
-			// Verify firewall status in aw_info.json
+			// Verify firewall status is set as an env var in the generate_aw_info step
 			expectedFirewall := "false"
 			if tt.expectFirewall {
 				expectedFirewall = "true"
 			}
-			if !strings.Contains(lockContent, "firewall_enabled: "+expectedFirewall) {
-				t.Errorf("Expected firewall_enabled: %s in aw_info.json", expectedFirewall)
+			if !strings.Contains(lockContent, "GH_AW_INFO_FIREWALL_ENABLED: \""+expectedFirewall+"\"") {
+				t.Errorf("Expected GH_AW_INFO_FIREWALL_ENABLED: %q in generate_aw_info step", expectedFirewall)
 			}
 
 			// Verify allowed domains if specified (in aw_info.json)
@@ -301,12 +292,13 @@ This workflow tests the workflow overview for Claude engine.
 				}
 			}
 
-			// Verify step runs before "Download prompt artifact" (in the same agent job)
-			// Note: "Create prompt" is in the activation job, so we compare against
-			// "Download prompt artifact" which is in the same agent job
-			promptIdx := strings.Index(lockContent, "- name: Download prompt artifact")
-			if overviewIdx >= promptIdx {
-				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Download prompt artifact' step")
+			// Verify step runs before "Download activation artifact" (activation job appears before agent job in YAML)
+			// Note: "Generate agentic run info" (which includes the overview) is in the activation job,
+			// and "Download activation artifact" is in the agent job, which follows activation in the YAML.
+			awInfoIdx := strings.Index(lockContent, "- name: Generate agentic run info")
+			promptIdx := strings.Index(lockContent, "- name: Download activation artifact")
+			if awInfoIdx >= promptIdx {
+				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Download activation artifact' step")
 			}
 
 			// Note: HTML details/summary format is now in generate_workflow_overview.cjs

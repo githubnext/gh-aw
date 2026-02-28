@@ -27,6 +27,7 @@ const { sortSafeOutputMessages } = require("./safe_output_topological_sort.cjs")
 const { loadCustomSafeOutputJobTypes } = require("./safe_output_helpers.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
+const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 
 /**
  * Handler map configuration for regular handlers
@@ -1149,6 +1150,10 @@ async function main() {
     } else {
       core.setOutput("issues_to_assign_copilot", "");
     }
+
+    // Emit individual named outputs for the first successful result of each safe output type.
+    // These outputs enable workflow_call callers to access specific results.
+    emitSafeOutputActionOutputs(processingResult);
 
     // Ensure the manifest file always exists for artifact upload (even if no items were created).
     // Skip in staged mode — no real items were created so no manifest should be emitted.

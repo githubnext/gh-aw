@@ -232,10 +232,3 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 
 	return deduplicatedStr, filteredRequirements, nil
 }
-
-// ShouldSkipRuntimeSetup checks if we should skip automatic runtime setup
-// Deprecated: Runtime detection now smartly filters out existing runtimes instead of skipping entirely
-// This function now always returns false for backward compatibility
-func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
-	return false
-}

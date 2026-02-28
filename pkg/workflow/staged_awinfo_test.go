@@ -28,9 +28,9 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 
 	result := yaml.String()
 
-	// Check that staged: true is included in the aw_info.json
-	if !strings.Contains(result, "staged: true") {
-		t.Error("Expected 'staged: true' to be included in aw_info.json when staged is true")
+	// Check that GH_AW_INFO_STAGED: "true" is included in the step env when staged is true
+	if !strings.Contains(result, `GH_AW_INFO_STAGED: "true"`) {
+		t.Error("Expected 'GH_AW_INFO_STAGED: \"true\"' to be included in aw_info step env when staged is true")
 	}
 
 	// Test with staged: false
@@ -41,9 +41,9 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 
 	result = yaml.String()
 
-	// Check that staged: false is included in the aw_info.json
-	if !strings.Contains(result, "staged: false") {
-		t.Error("Expected 'staged: false' to be included in aw_info.json when staged is false")
+	// Check that GH_AW_INFO_STAGED: "false" is included in the step env when staged is false
+	if !strings.Contains(result, `GH_AW_INFO_STAGED: "false"`) {
+		t.Error("Expected 'GH_AW_INFO_STAGED: \"false\"' to be included in aw_info step env when staged is false")
 	}
 
 	// Test with no SafeOutputs config
@@ -54,8 +54,8 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 
 	result = yaml.String()
 
-	// Check that staged: false is included in the aw_info.json when SafeOutputs is nil
-	if !strings.Contains(result, "staged: false") {
-		t.Error("Expected 'staged: false' to be included in aw_info.json when SafeOutputs is nil")
+	// Check that GH_AW_INFO_STAGED: "false" is included in the step env when SafeOutputs is nil
+	if !strings.Contains(result, `GH_AW_INFO_STAGED: "false"`) {
+		t.Error("Expected 'GH_AW_INFO_STAGED: \"false\"' to be included in aw_info step env when SafeOutputs is nil")
 	}
 }

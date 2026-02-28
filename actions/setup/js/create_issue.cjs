@@ -32,6 +32,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
@@ -73,10 +74,10 @@ const MAX_ASSIGNEES = 5;
  * @param {string} markerComment - The HTML comment marker to search for
  * @returns {Promise<number|null>} - Parent issue number or null if none found
  */
-async function searchForExistingParent(owner, repo, markerComment) {
+async function searchForExistingParent(githubClient, owner, repo, markerComment) {
   try {
     const searchQuery = `repo:${owner}/${repo} is:issue "${markerComment}" in:body`;
-    const searchResults = await github.rest.search.issuesAndPullRequests({
+    const searchResults = await githubClient.rest.search.issuesAndPullRequests({
       q: searchQuery,
       per_page: MAX_PARENT_ISSUES_TO_CHECK,
       sort: "created",
@@ -119,6 +120,7 @@ async function searchForExistingParent(owner, repo, markerComment) {
 /**
  * Finds an existing parent issue for a group, or creates a new one if needed
  * @param {object} params - Parameters for finding/creating parent issue
+ * @param {object} params.githubClient - Authenticated GitHub client
  * @param {string} params.groupId - The group identifier
  * @param {string} params.owner - Repository owner
  * @param {string} params.repo - Repository name
@@ -129,12 +131,12 @@ async function searchForExistingParent(owner, repo, markerComment) {
  * @param {number} [params.expiresHours=0] - Hours until expiration (0 means no expiration)
  * @returns {Promise<number|null>} - Parent issue number or null if creation failed
  */
-async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, workflowSourceURL, expiresHours = 0 }) {
+async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, titlePrefix, labels, workflowName, workflowSourceURL, expiresHours = 0 }) {
   const markerComment = `<!-- gh-aw-group: ${groupId} -->`;
 
   // Search for existing parent issue with the group marker
   core.info(`Searching for existing parent issue for group: ${groupId}`);
-  const existingParent = await searchForExistingParent(owner, repo, markerComment);
+  const existingParent = await searchForExistingParent(githubClient, owner, repo, markerComment);
   if (existingParent) {
     return existingParent;
   }
@@ -143,7 +145,7 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
   core.info(`Creating new parent issue for group: ${groupId}`);
   try {
     const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours);
-    const { data: parentIssue } = await github.rest.issues.create({
+    const { data: parentIssue } = await githubClient.rest.issues.create({
       owner,
       repo,
       title: template.title,
@@ -213,6 +215,10 @@ async function main(config = {}) {
   const groupEnabled = parseBoolTemplatable(config.group, false);
   const closeOlderIssuesEnabled = parseBoolTemplatable(config.close_older_issues, false);
   const includeFooter = parseBoolTemplatable(config.footer, true);
+
+  // Create an authenticated GitHub client. Uses config["github-token"] when set
+  // (for cross-repository operations), otherwise falls back to the step-level github.
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
@@ -477,7 +483,7 @@ async function main(config = {}) {
     }
 
     try {
-      const { data: issue } = await github.rest.issues.create({
+      const { data: issue } = await authClient.rest.issues.create({
         owner: repoParts.owner,
         repo: repoParts.repo,
         title,
@@ -533,6 +539,7 @@ async function main(config = {}) {
           // Parent issue expires 1 day (24 hours) after sub-issues
           const parentExpiresHours = expiresHours > 0 ? expiresHours + 24 : 0;
           groupParentNumber = await findOrCreateParentIssue({
+            githubClient: authClient,
             groupId,
             owner: repoParts.owner,
             repo: repoParts.repo,
@@ -575,7 +582,7 @@ async function main(config = {}) {
           `;
 
           // Get parent issue node ID
-          const parentResult = await github.graphql(getIssueNodeIdQuery, {
+          const parentResult = await authClient.graphql(getIssueNodeIdQuery, {
             owner: repoParts.owner,
             repo: repoParts.repo,
             issueNumber: effectiveParentIssueNumber,
@@ -585,7 +592,7 @@ async function main(config = {}) {
 
           // Get child issue node ID
           core.info(`Fetching node ID for child issue #${issue.number}...`);
-          const childResult = await github.graphql(getIssueNodeIdQuery, {
+          const childResult = await authClient.graphql(getIssueNodeIdQuery, {
             owner: repoParts.owner,
             repo: repoParts.repo,
             issueNumber: issue.number,
@@ -609,7 +616,7 @@ async function main(config = {}) {
             }
           `;
 
-          await github.graphql(addSubIssueMutation, {
+          await authClient.graphql(addSubIssueMutation, {
             issueId: parentNodeId,
             subIssueId: childNodeId,
           });
@@ -621,7 +628,7 @@ async function main(config = {}) {
           // Fallback: add a comment if sub-issue linking fails
           try {
             core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
-            await github.rest.issues.createComment({
+            await authClient.rest.issues.createComment({
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: effectiveParentIssueNumber,

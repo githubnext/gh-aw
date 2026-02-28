@@ -24,6 +24,7 @@ func buildForbiddenFieldsMap() map[string]bool {
 
 // validateSharedWorkflowFields checks that a shared workflow doesn't contain forbidden fields
 func validateSharedWorkflowFields(frontmatter map[string]any) error {
+	schemaValidationLog.Printf("Checking shared workflow for forbidden fields: %d fields present", len(frontmatter))
 	var forbiddenFound []string
 
 	for key := range frontmatter {
@@ -33,6 +34,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 	}
 
 	if len(forbiddenFound) > 0 {
+		schemaValidationLog.Printf("Found %d forbidden field(s) in shared workflow: %v", len(forbiddenFound), forbiddenFound)
 		if len(forbiddenFound) == 1 {
 			return fmt.Errorf("field '%s' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound[0])
 		}
@@ -55,6 +57,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 
 // ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
 func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
+	schemaValidationLog.Printf("Validating main workflow frontmatter: file=%s, fields=%d", filePath, len(frontmatter))
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
@@ -76,6 +79,7 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 
 // ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
 func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
+	schemaValidationLog.Printf("Validating included file frontmatter: file=%s, fields=%d", filePath, len(frontmatter))
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 

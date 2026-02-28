@@ -6,6 +6,7 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
@@ -85,6 +86,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
   const comment = config.comment || "";
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -185,7 +187,7 @@ async function main(config = {}) {
     let pr;
     try {
       core.info(`Fetching PR details for #${prNumber} in ${owner}/${repo}`);
-      pr = await getPullRequestDetails(github, owner, repo, prNumber);
+      pr = await getPullRequestDetails(authClient, owner, repo, prNumber);
       core.info(`PR #${prNumber} fetched: state=${pr.state}, title="${pr.title}", labels=[${pr.labels.map(l => l.name || l).join(", ")}]`);
     } catch (error) {
       const errorMsg = getErrorMessage(error);
@@ -247,7 +249,7 @@ async function main(config = {}) {
       const triggeringIssueNumber = context.payload?.issue?.number;
       const commentBody = buildCommentBody(commentToPost, triggeringIssueNumber, triggeringPRNumber);
       core.info(`Adding comment to PR #${prNumber}: length=${commentBody.length}`);
-      await addPullRequestComment(github, owner, repo, prNumber, commentBody);
+      await addPullRequestComment(authClient, owner, repo, prNumber, commentBody);
       commentPosted = true;
       core.info(`✓ Comment posted to PR #${prNumber}`);
       core.info(`Comment details: body_length=${commentBody.length}`);
@@ -273,7 +275,7 @@ async function main(config = {}) {
     } else {
       try {
         core.info(`Closing PR #${prNumber}`);
-        closedPR = await closePullRequest(github, owner, repo, prNumber);
+        closedPR = await closePullRequest(authClient, owner, repo, prNumber);
         core.info(`✓ PR #${prNumber} closed successfully: ${closedPR.title}`);
       } catch (error) {
         const errorMsg = getErrorMessage(error);

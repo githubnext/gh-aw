@@ -484,4 +484,110 @@ describe("update_handler_factory.cjs", () => {
       });
     });
   });
+
+  describe("authentication: github-token and cross-repo routing", () => {
+    it("should use the global github client when no github-token in config", async () => {
+      // Capture which github client is passed to executeUpdate
+      let capturedClient = null;
+      const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
+        capturedClient = githubClient;
+        return { html_url: "https://example.com", title: "Updated" };
+      });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      // No github-token in config
+      const handler = await handlerFactory({});
+      await handler({ title: "Test" });
+
+      // The global github client should be used
+      expect(capturedClient).toBe(mockGithub);
+    });
+
+    it("should pass the correct context.repo when no message.repo", async () => {
+      let capturedContext = null;
+      const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
+        capturedContext = context;
+        return { html_url: "https://example.com", title: "Updated" };
+      });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ "target-repo": "owner/myrepo" });
+      // Message without repo field — should use default context.repo
+      await handler({ title: "Test" });
+
+      expect(capturedContext.repo.owner).toBe("testowner");
+      expect(capturedContext.repo.repo).toBe("testrepo");
+    });
+
+    it("should route to message.repo when it matches the configured target-repo", async () => {
+      let capturedContext = null;
+      const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
+        capturedContext = context;
+        return { html_url: "https://example.com", title: "Updated" };
+      });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 99 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ "target-repo": "other-owner/side-repo" });
+      // Message specifies a cross-repo target
+      await handler({ issue_number: 99, repo: "other-owner/side-repo" });
+
+      // effectiveContext.repo should be the target repo
+      expect(capturedContext.repo.owner).toBe("other-owner");
+      expect(capturedContext.repo.repo).toBe("side-repo");
+    });
+
+    it("should reject message.repo when it is not in allowed-repos", async () => {
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com", title: "Updated" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({
+        "target-repo": "allowed-owner/allowed-repo",
+        allowed_repos: ["allowed-owner/allowed-repo"],
+      });
+
+      // This repo is not in allowed-repos
+      const result = await handler({ issue_number: 42, repo: "malicious-owner/other-repo" });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      // executeUpdate should not have been called
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -9,6 +9,7 @@ const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPullRequestNumber } = require("./pr_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -25,6 +26,7 @@ async function main(config = {}) {
   // Extract configuration
   const allowedReviewers = config.allowed || [];
   const maxCount = config.max || 10;
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -106,7 +108,7 @@ async function main(config = {}) {
 
       // Add non-copilot reviewers first
       if (otherReviewers.length > 0) {
-        await github.rest.pulls.requestReviewers({
+        await authClient.rest.pulls.requestReviewers({
           owner: context.repo.owner,
           repo: context.repo.repo,
           pull_number: prNumber,
@@ -118,7 +120,7 @@ async function main(config = {}) {
       // Add copilot reviewer separately if requested
       if (hasCopilot) {
         try {
-          await github.rest.pulls.requestReviewers({
+          await authClient.rest.pulls.requestReviewers({
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: prNumber,

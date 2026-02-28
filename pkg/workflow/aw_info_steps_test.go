@@ -107,21 +107,20 @@ This workflow tests that Claude has firewall enabled by default when network is 
 
 			lockStr := string(lockContent)
 
-			// Verify steps object exists
-			if !strings.Contains(lockStr, "steps: {") {
-				t.Error("Expected 'steps: {' to be present in awInfo")
+			// Verify the generate_aw_info step is present
+			if !strings.Contains(lockStr, "id: generate_aw_info") {
+				t.Error("Expected 'id: generate_aw_info' to be present in generated workflow")
 			}
 
-			// Verify firewall field
-			expectedFirewallLine := `firewall: "` + tt.expectFirewall + `"`
+			// Verify firewall type env var
+			expectedFirewallLine := `GH_AW_INFO_FIREWALL_TYPE: "` + tt.expectFirewall + `"`
 			if !strings.Contains(lockStr, expectedFirewallLine) {
 				t.Errorf("%s\nExpected firewall line: %s\nNot found in generated workflow", tt.description, expectedFirewallLine)
 				// Print relevant section for debugging
-				if strings.Contains(lockStr, "steps: {") {
-					startIdx := strings.Index(lockStr, "steps: {")
-					endIdx := strings.Index(lockStr[startIdx:], "},")
+				if idx := strings.Index(lockStr, "id: generate_aw_info"); idx != -1 {
+					endIdx := strings.Index(lockStr[idx:], "uses:")
 					if endIdx != -1 {
-						t.Logf("Found steps section:\n%s", lockStr[startIdx:startIdx+endIdx+2])
+						t.Logf("Found generate_aw_info step env:\n%s", lockStr[idx:idx+endIdx])
 					}
 				}
 			}

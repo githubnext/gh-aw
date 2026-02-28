@@ -575,7 +575,7 @@ Configure how `actions/checkout` is invoked in the agent job. Override default c
 # Single repository with custom settings
 checkout:
   fetch-depth: 0
-  github-token: ${{ secrets.MY_TOKEN }}
+  token: ${{ secrets.MY_TOKEN }}
 ```
 
 ```yaml wrap

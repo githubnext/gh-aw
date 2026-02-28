@@ -6,6 +6,7 @@ const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * Debug logging helper - logs to stderr when DEBUG env var matches
@@ -163,7 +164,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             } else {
               // No remote refs available - fall through to Strategy 2
               debugLog(`Strategy 1 (full): No remote refs available, falling through to Strategy 2`);
-              throw new Error("No remote refs available for merge-base calculation");
+              throw new Error(`${ERR_SYSTEM}: No remote refs available for merge-base calculation`);
             }
           }
         }

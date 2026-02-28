@@ -22,7 +22,7 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 			Fix        bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
 		}
 
-		schema, err := GenerateOutputSchema[compileArgs]()
+		schema, err := GenerateSchema[compileArgs]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema: %v", err)
 		}
@@ -60,7 +60,7 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 			MaxTokens    int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail"`
 		}
 
-		schema, err := GenerateOutputSchema[logsArgs]()
+		schema, err := GenerateSchema[logsArgs]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema: %v", err)
 		}
@@ -131,7 +131,7 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 			Count int    `json:"count" jsonschema:"Count field"`
 		}
 
-		schema, err := GenerateOutputSchema[testArgs]()
+		schema, err := GenerateSchema[testArgs]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema: %v", err)
 		}

@@ -18,6 +18,7 @@ const HANDLER_TYPE = "create_missing_data_issue";
 const main = buildMissingIssueHandler({
   handlerType: HANDLER_TYPE,
   defaultTitlePrefix: "[missing data]",
+  defaultLabels: ["agentic-workflows"],
   itemsField: "missing_data",
   templatePath: "/opt/gh-aw/prompts/missing_data_issue.md",
   templateListKey: "missing_data_list",

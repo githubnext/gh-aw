@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -302,6 +303,10 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
+  // Create an authenticated GitHub client. Uses config["github-token"] when set
+  // (for cross-repository operations), otherwise falls back to the step-level github.
+  const authClient = await createAuthenticatedGitHubClient(config);
+
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -453,7 +458,7 @@ async function main(config = {}) {
       if (item.item_number !== undefined && item.item_number !== null) {
         // Explicit item_number: fetch the issue/PR to get its author
         try {
-          const { data: issueData } = await github.rest.issues.get({
+          const { data: issueData } = await authClient.rest.issues.get({
             owner: repoParts.owner,
             repo: repoParts.repo,
             issue_number: itemNumber,
@@ -556,7 +561,7 @@ async function main(config = {}) {
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
       if (hideOlderCommentsEnabled && !appendOnlyComments && workflowId) {
-        await hideOlderComments(github, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
+        await hideOlderComments(authClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
       } else if (hideOlderCommentsEnabled && appendOnlyComments) {
         core.info("Skipping hide-older-comments because append-only-comments is enabled");
       }
@@ -574,7 +579,7 @@ async function main(config = {}) {
             }
           }
         `;
-        const queryResult = await github.graphql(discussionQuery, {
+        const queryResult = await authClient.graphql(discussionQuery, {
           owner: repoParts.owner,
           repo: repoParts.repo,
           number: itemNumber,
@@ -585,10 +590,10 @@ async function main(config = {}) {
           throw new Error(`${ERR_NOT_FOUND}: Discussion #${itemNumber} not found in ${itemRepo}`);
         }
 
-        comment = await commentOnDiscussion(github, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
+        comment = await commentOnDiscussion(authClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
       } else {
         // Use REST API for issues/PRs
-        const { data } = await github.rest.issues.createComment({
+        const { data } = await authClient.rest.issues.createComment({
           owner: repoParts.owner,
           repo: repoParts.repo,
           issue_number: itemNumber,
@@ -644,7 +649,7 @@ async function main(config = {}) {
               }
             }
           `;
-          const queryResult = await github.graphql(discussionQuery, {
+          const queryResult = await authClient.graphql(discussionQuery, {
             owner: repoParts.owner,
             repo: repoParts.repo,
             number: itemNumber,
@@ -656,7 +661,7 @@ async function main(config = {}) {
           }
 
           core.info(`Found discussion #${itemNumber}, adding comment...`);
-          const comment = await commentOnDiscussion(github, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
+          const comment = await commentOnDiscussion(authClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
 
           core.info(`Created comment on discussion: ${comment.html_url}`);
 

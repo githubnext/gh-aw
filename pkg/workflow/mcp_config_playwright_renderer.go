@@ -77,6 +77,7 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightConfig *Playwrig
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+	mcpPlaywrightLog.Printf("Rendering Playwright MCP config options: copilot_fields=%t, inline_args=%t", includeCopilotFields, inlineArgs)
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Extract all expressions from playwright arguments and replace them with env var references
@@ -84,6 +85,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 
 	// Replace expressions in custom args
 	if len(customArgs) > 0 {
+		mcpPlaywrightLog.Printf("Applying %d custom Playwright args with %d extracted expressions", len(customArgs), len(expressions))
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
 	}
 

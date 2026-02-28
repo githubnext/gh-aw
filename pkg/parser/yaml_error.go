@@ -43,6 +43,8 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 		return formatted
 	}
 
+	yamlErrorLog.Printf("Adjusting YAML error line numbers with offset: +%d", offset)
+
 	// Pattern to match line numbers in the format:
 	// [line:col] at the start
 	// "   1 | content" in the source context

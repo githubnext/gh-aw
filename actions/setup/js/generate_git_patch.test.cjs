@@ -324,6 +324,44 @@ describe("sanitizeBranchNameForPatch", () => {
   });
 });
 
+describe("generateGitPatch - standardized error codes", () => {
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = {
+      GITHUB_SHA: process.env.GITHUB_SHA,
+      GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
+    };
+  });
+
+  afterEach(() => {
+    Object.keys(originalEnv).forEach(key => {
+      if (originalEnv[key] !== undefined) {
+        process.env[key] = originalEnv[key];
+      } else {
+        delete process.env[key];
+      }
+    });
+  });
+
+  it("should fail gracefully and return a non-empty error string when no commits can be found", async () => {
+    const { generateGitPatch } = await import("./generate_git_patch.cjs");
+
+    process.env.GITHUB_WORKSPACE = "/tmp/nonexistent-repo";
+    process.env.GITHUB_SHA = "abc123";
+
+    const result = await generateGitPatch("feature-branch", "main");
+
+    expect(result.success).toBe(false);
+    expect(result).toHaveProperty("error");
+    // Note: E005 is used as an internal control-flow signal in Strategy 1 (full mode)
+    // and is caught before reaching the final return value. The conformance check
+    // validates the E005 code at source level via check-safe-outputs-conformance.sh.
+    expect(typeof result.error).toBe("string");
+    expect(result.error.length).toBeGreaterThan(0);
+  });
+});
+
 describe("getPatchPath", () => {
   it("should return correct path format", async () => {
     const { getPatchPath } = await import("./generate_git_patch.cjs");

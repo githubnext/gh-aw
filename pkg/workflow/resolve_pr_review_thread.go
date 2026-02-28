@@ -7,10 +7,11 @@ import (
 var resolvePRReviewThreadLog = logger.New("workflow:resolve_pr_review_thread")
 
 // ResolvePullRequestReviewThreadConfig holds configuration for resolving PR review threads.
-// Resolution is scoped to the triggering PR only — the JavaScript handler validates
-// that each thread belongs to the triggering pull request before resolving it.
+// By default, resolution is scoped to the triggering PR only. When target, target-repo,
+// or allowed-repos are specified, cross-repository thread resolution is supported.
 type ResolvePullRequestReviewThreadConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
+	BaseSafeOutputConfig   `yaml:",inline"`
+	SafeOutputTargetConfig `yaml:",inline"`
 }
 
 // parseResolvePullRequestReviewThreadConfig handles resolve-pull-request-review-thread configuration
@@ -25,7 +26,11 @@ func (c *Compiler) parseResolvePullRequestReviewThreadConfig(outputMap map[strin
 			// Parse common base fields with default max of 10
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 10)
 
-			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d", config.Max)
+			// Parse target config (target, target-repo, allowed-repos)
+			targetConfig, _ := ParseTargetConfig(configMap)
+			config.SafeOutputTargetConfig = targetConfig
+
+			resolvePRReviewThreadLog.Printf("Parsed resolve-pull-request-review-thread config: max=%d, target_repo=%s", templatableIntValue(config.Max), config.TargetRepoSlug)
 		} else {
 			// If configData is nil or not a map, still set the default max
 			config.Max = defaultIntStr(10)

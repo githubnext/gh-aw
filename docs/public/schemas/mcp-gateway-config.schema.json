@@ -231,6 +231,16 @@
           "description": "Directory path for storing large payload JSON files for authenticated clients. MUST be an absolute path: Unix paths start with '/', Windows paths start with a drive letter followed by ':\\'. Relative paths, empty strings, and paths that don't follow these conventions are not allowed.",
           "minLength": 1,
           "pattern": "^(/|[A-Za-z]:\\\\)"
+        },
+        "payloadSizeThreshold": {
+          "type": "integer",
+          "description": "Size threshold in bytes for writing payloads to files instead of inlining them in the response. Payloads larger than this threshold are written to files in payloadDir. Defaults to 524288 (512KB) if not specified.",
+          "minimum": 1
+        },
+        "payloadPathPrefix": {
+          "type": "string",
+          "description": "Optional path prefix for payload file paths as seen from within agent containers. Use this when the payload directory is mounted at a different path inside the container than on the host.",
+          "minLength": 1
         }
       },
       "required": ["port", "domain", "apiKey"],

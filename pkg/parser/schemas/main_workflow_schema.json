@@ -2966,6 +2966,30 @@
                   },
                   "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
                 },
+                "repos": {
+                  "description": "Guard policy: repository access configuration. Restricts which repositories the agent can access. Use 'all' to allow all repos or an array of 'owner/repo' strings.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["all"],
+                      "description": "Allow access to all repositories"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Allow access to specific repositories",
+                      "items": {
+                        "type": "string",
+                        "description": "Repository slug in the format 'owner/repo'"
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                },
+                "min-integrity": {
+                  "type": "string",
+                  "description": "Guard policy: minimum required integrity level for repository access. Restricts the agent to users with at least the specified permission level.",
+                  "enum": ["reader", "writer", "maintainer", "admin"]
+                },
                 "app": {
                   "type": "object",
                   "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
@@ -4105,6 +4129,10 @@
                   "type": "boolean",
                   "description": "Controls whether AI-generated footer is added to the issue. When false, the visible footer content is omitted but XML markers (workflow-id, tracker-id, metadata) are still included for searchability. Defaults to true.",
                   "default": true
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false,
@@ -4606,6 +4634,10 @@
                   ],
                   "default": 7,
                   "description": "Time until the discussion expires and should be automatically closed. Supports integer (days), relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year), or false to disable expiration. Minimum duration: 2 hours. When set, a maintenance workflow will be generated. Defaults to 7 days if not specified."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false,
@@ -5032,6 +5064,10 @@
                 "pull-requests": {
                   "type": "boolean",
                   "description": "Controls whether the workflow requests pull-requests:write permission for add-comment and includes pull requests in the event trigger condition. Default: true (includes pull-requests:write). Set to false to disable pull request commenting."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false,
@@ -5427,6 +5463,17 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository code scanning alert creation. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that code scanning alerts can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the alert in. The target repository (current or target-repo) is always implicitly allowed."
                 }
               },
               "additionalProperties": false
@@ -6035,6 +6082,17 @@
                 "title-prefix": {
                   "type": "string",
                   "description": "Required prefix for issue title. Only issues with this title prefix can be updated."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that issues can be updated in. When specified, the agent can use a 'repo' field in the output to specify which repository to update the issue in. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -6173,6 +6231,17 @@
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after pushing changes to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
                 }
               },
               "additionalProperties": false
@@ -6770,6 +6839,24 @@
                   "items": {
                     "$ref": "#/$defs/githubActionsStep"
                   }
+                },
+                "runner": {
+                  "description": "Runner specification for this job (alias for runs-on)",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "agent-output": {
+                  "type": "string",
+                  "description": "Agent output field to use as input for this safe job (alias for output)"
                 }
               },
               "additionalProperties": false
@@ -7894,10 +7981,14 @@
           "type": "boolean",
           "description": "Whether to download Git LFS objects. Defaults to false."
         },
-        "github-token": {
+        "token": {
           "type": "string",
           "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Credentials are always removed after checkout (persist-credentials: false is enforced).",
           "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.GITHUB_TOKEN }}"]
+        },
+        "current": {
+          "type": "boolean",
+          "description": "Marks this checkout as the logical current repository for the workflow. When set to true, the AI agent will treat this repository as its primary working target. Only one checkout may have current set to true. Useful for central-repo workflows targeting a different repository."
         }
       }
     }

@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 
 /**
@@ -87,6 +88,7 @@ async function main(config = {}) {
   const comment = config.comment || "";
   const configStateReason = config.state_reason || "COMPLETED";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -200,7 +202,7 @@ async function main(config = {}) {
     try {
       // Fetch issue details
       core.info(`Fetching issue details for #${issueNumber} in ${repoParts.owner}/${repoParts.repo}`);
-      const issue = await getIssueDetails(github, repoParts.owner, repoParts.repo, issueNumber);
+      const issue = await getIssueDetails(authClient, repoParts.owner, repoParts.repo, issueNumber);
       core.info(`Issue #${issueNumber} fetched: state=${issue.state}, title="${issue.title}", labels=[${issue.labels.map(l => l.name || l).join(", ")}]`);
 
       // Check if already closed - but still add comment
@@ -252,7 +254,7 @@ async function main(config = {}) {
 
       // Add comment with the body from the message
       core.info(`Adding comment to issue #${issueNumber}: length=${commentToPost.length}`);
-      const commentResult = await addIssueComment(github, repoParts.owner, repoParts.repo, issueNumber, commentToPost);
+      const commentResult = await addIssueComment(authClient, repoParts.owner, repoParts.repo, issueNumber, commentToPost);
       core.info(`✓ Comment posted to issue #${issueNumber}: ${commentResult.html_url}`);
       core.info(`Comment details: id=${commentResult.id}, body_length=${commentToPost.length}`);
 
@@ -265,7 +267,7 @@ async function main(config = {}) {
         // Use item-level state_reason if provided, otherwise fall back to config-level default
         const stateReason = item.state_reason || configStateReason;
         core.info(`Closing issue #${issueNumber} in ${itemRepo} with state_reason=${stateReason}`);
-        closedIssue = await closeIssue(github, repoParts.owner, repoParts.repo, issueNumber, stateReason);
+        closedIssue = await closeIssue(authClient, repoParts.owner, repoParts.repo, issueNumber, stateReason);
         core.info(`✓ Issue #${issueNumber} closed successfully: ${closedIssue.html_url}`);
       }
 

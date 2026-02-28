@@ -56,6 +56,9 @@ func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) 
 	// Parse target-repo; wildcard "*" is allowed and means "any repository"
 	config.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
 
+	// Parse allowed-repos
+	config.AllowedRepos = parseAllowedReposFromConfig(configMap)
+
 	return config, false
 }
 

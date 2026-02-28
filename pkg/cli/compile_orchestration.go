@@ -489,7 +489,7 @@ func outputResults(
 		if len(config.MarkdownFiles) > 0 {
 			statsList = collectWorkflowStatisticsWrapper(config.MarkdownFiles)
 		}
-		formatStatsTable(statsList)
+		displayStatsTable(statsList)
 	}
 
 	// Output JSON if requested
@@ -501,12 +501,12 @@ func outputResults(
 		fmt.Println(jsonStr)
 	} else if !config.Stats {
 		// Print summary for text output (skip if stats mode)
-		formatCompilationSummary(stats)
+		printCompilationSummary(stats)
 	}
 
 	// Display actionlint summary if enabled
 	if config.Actionlint && !config.NoEmit && !config.JSONOutput {
-		formatActionlintOutput()
+		displayActionlintSummary()
 	}
 
 	return nil

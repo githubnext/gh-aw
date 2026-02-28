@@ -445,27 +445,12 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		return nil
 	}
 
-	// Get the engine instance to check LLM gateway support
-	agenticEngine, err := c.engineRegistry.GetEngine(engineID)
-	if err != nil {
-		strictModeValidationLog.Printf("Failed to get engine: %v", err)
-		return fmt.Errorf("internal error: failed to get engine '%s': %w", engineID, err)
-	}
-
-	// Check if engine supports LLM gateway
-	llmGatewayPort := agenticEngine.SupportsLLMGateway()
-	strictModeValidationLog.Printf("Engine '%s' LLM gateway port: %d", engineID, llmGatewayPort)
-
 	// Check if sandbox.agent: false is set (explicitly disabled)
 	sandboxAgentDisabled := sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled
 
 	// In strict mode, sandbox.agent: false is not allowed for any engine as it disables the agent sandbox firewall
 	if sandboxAgentDisabled {
 		strictModeValidationLog.Printf("sandbox.agent: false is set, refusing in strict mode")
-		// For engines without LLM gateway support, provide more specific error message
-		if llmGatewayPort < 0 {
-			return fmt.Errorf("strict mode: engine '%s' does not support LLM gateway and requires 'sandbox.agent' to be enabled for security. Remove 'sandbox.agent: false' or set 'strict: false'. See: https://github.github.com/gh-aw/reference/sandbox/", engineID)
-		}
 		return errors.New("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
 	}
 
