@@ -998,12 +998,6 @@ func RenderJSONMCPConfig(
 		if options.GatewayConfig.PayloadDir != "" {
 			fmt.Fprintf(&configBuilder, ",\n              \"payloadDir\": \"%s\"", options.GatewayConfig.PayloadDir)
 		}
-		if options.GatewayConfig.PayloadPathPrefix != "" {
-			fmt.Fprintf(&configBuilder, ",\n              \"payloadPathPrefix\": \"%s\"", options.GatewayConfig.PayloadPathPrefix)
-		}
-		if options.GatewayConfig.PayloadSizeThreshold > 0 {
-			fmt.Fprintf(&configBuilder, ",\n              \"payloadSizeThreshold\": %d", options.GatewayConfig.PayloadSizeThreshold)
-		}
 		configBuilder.WriteString("\n")
 		configBuilder.WriteString("            }\n")
 	} else {

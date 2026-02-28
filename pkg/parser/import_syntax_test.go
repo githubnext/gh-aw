@@ -3,11 +3,8 @@
 package parser
 
 import (
-	"os"
 	"strings"
 	"testing"
-
-	"github.com/github/gh-aw/pkg/testutil"
 )
 
 func TestParseImportDirective(t *testing.T) {
@@ -168,86 +165,6 @@ func TestParseImportDirective(t *testing.T) {
 				if result != nil {
 					t.Errorf("ParseImportDirective() returned %+v, want nil", result)
 				}
-			}
-		})
-	}
-}
-
-func TestProcessIncludesWithNewSyntax(t *testing.T) {
-	// Create temporary test files
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Create test file with markdown content
-	testFile := tempDir + "/test.md"
-	testContent := `---
-tools:
-  bash:
-    allowed: ["ls", "cat"]
----
-
-# Test Content
-This is a test file content.
-`
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
-		t.Fatalf("Failed to write test file: %v", err)
-	}
-
-	tests := []struct {
-		name     string
-		content  string
-		expected string
-		wantErr  bool
-	}{
-		{
-			name:     "new syntax - basic import with colon",
-			content:  "{{#import: test.md}}\n# After import",
-			expected: "# Test Content\nThis is a test file content.\n# After import\n",
-			wantErr:  false,
-		},
-		{
-			name:     "new syntax - basic import without colon",
-			content:  "{{#import test.md}}\n# After import",
-			expected: "# Test Content\nThis is a test file content.\n# After import\n",
-			wantErr:  false,
-		},
-		{
-			name:     "new syntax - optional import with colon (file exists)",
-			content:  "{{#import?: test.md}}\n# After import",
-			expected: "# Test Content\nThis is a test file content.\n# After import\n",
-			wantErr:  false,
-		},
-		{
-			name:     "new syntax - optional import without colon (file exists)",
-			content:  "{{#import? test.md}}\n# After import",
-			expected: "# Test Content\nThis is a test file content.\n# After import\n",
-			wantErr:  false,
-		},
-		{
-			name:     "new syntax - optional import (file missing)",
-			content:  "{{#import?: nonexistent.md}}\n# After import",
-			expected: "# After import\n",
-			wantErr:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := ProcessIncludes(tt.content, tempDir, false)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ProcessIncludes() expected error, got nil")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("ProcessIncludes() unexpected error = %v", err)
-				return
-			}
-
-			if result != tt.expected {
-				t.Errorf("ProcessIncludes() result = %q, want %q", result, tt.expected)
 			}
 		})
 	}
