@@ -154,11 +154,6 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 	}
 }
 
-// HasUserCheckouts returns true if any user-supplied checkouts were registered.
-func (cm *CheckoutManager) HasUserCheckouts() bool {
-	return len(cm.ordered) > 0
-}
-
 // GetDefaultCheckoutOverride returns the resolved checkout for the default workspace
 // (empty path, empty repository). Returns nil if the user did not configure one.
 func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {
