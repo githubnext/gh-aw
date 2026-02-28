@@ -301,9 +301,9 @@ This workflow tests the workflow overview for Claude engine.
 				}
 			}
 
-			// Verify step runs before "Download activation artifact" (in the same agent job)
-			// Note: "Create prompt" and aw_info.json are in the activation job, so we compare against
-			// "Download activation artifact" which is in the same agent job
+			// Verify step runs before "Download activation artifact" (activation job appears before agent job in YAML)
+			// Note: "Generate workflow overview" is now in the activation job, and "Download activation artifact"
+			// is in the agent job, which follows the activation job in the compiled YAML file.
 			promptIdx := strings.Index(lockContent, "- name: Download activation artifact")
 			if overviewIdx >= promptIdx {
 				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Download activation artifact' step")

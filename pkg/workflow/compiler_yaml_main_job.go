@@ -229,10 +229,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
-	// Generate workflow overview to step summary early, before prompts
-	// This reads from aw_info.json for consistent data
-	c.generateWorkflowOverviewStep(yaml, data, engine)
-
 	// Download activation artifact from activation job (contains aw_info.json and prompt.txt)
 	compilerYamlLog.Print("Adding activation artifact download step")
 	yaml.WriteString("      - name: Download activation artifact\n")

@@ -656,7 +656,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 }
 
 // generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
-// This runs after aw_info.json is created and reads from it for consistent data display.
+// This runs in the activation job after aw_info.json is created, and reads from it for consistent data display.
 // Uses HTML details/summary tags for collapsible output.
 func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate workflow overview\n")
