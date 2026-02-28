@@ -79,7 +79,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		StepID:        "create_code_scanning_alert",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        getCreateCodeScanningAlertScript(),
+		Script:        "",
 		Permissions:   NewPermissionsContentsReadSecurityEventsWriteActionsRead(),
 		Outputs:       outputs,
 		Condition:     jobCondition,
