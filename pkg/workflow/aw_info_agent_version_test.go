@@ -88,16 +88,16 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
 			output := yaml.String()
 
-			// Check that agent_version is set correctly
-			expectedLine := `agent_version: "` + tt.expectedAgentVersion + `"`
+			// Check that GH_AW_INFO_AGENT_VERSION is set correctly
+			expectedLine := `GH_AW_INFO_AGENT_VERSION: "` + tt.expectedAgentVersion + `"`
 			if !strings.Contains(output, expectedLine) {
 				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
 					tt.description, expectedLine, output)
 			}
 
-			// Also verify that the version field matches (for non-custom engines with defaults)
+			// Also verify that the GH_AW_INFO_VERSION field matches (for non-custom engines with explicit versions)
 			if tt.explicitVersion != "" {
-				expectedVersionLine := `version: "` + tt.explicitVersion + `"`
+				expectedVersionLine := `GH_AW_INFO_VERSION: "` + tt.explicitVersion + `"`
 				if !strings.Contains(output, expectedVersionLine) {
 					t.Errorf("Expected output to contain version '%s'", expectedVersionLine)
 				}
