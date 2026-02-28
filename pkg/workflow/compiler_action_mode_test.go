@@ -4,11 +4,7 @@ package workflow
 
 import (
 	"os"
-	"strings"
 	"testing"
-
-	"github.com/github/gh-aw/pkg/stringutil"
-	"github.com/stretchr/testify/require"
 )
 
 // TestActionModeDetection tests the DetectActionMode function
