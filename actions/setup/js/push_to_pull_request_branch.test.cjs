@@ -140,7 +140,6 @@ describe("push_to_pull_request_branch.cjs", () => {
               labels: [],
             },
           }),
-          update: vi.fn().mockResolvedValue({ data: { id: 1 } }),
         },
       },
       graphql: vi.fn(),
@@ -726,7 +725,7 @@ index 0000000..abc1234
   // ──────────────────────────────────────────────────────
 
   describe("title prefix and labels validation", () => {
-    it("should auto-add title prefix when PR title is missing it", async () => {
+    it("should reject PR without required title prefix", async () => {
       mockGithub.rest.pulls.get.mockResolvedValue({
         data: {
           head: {
@@ -740,18 +739,13 @@ index 0000000..abc1234
       });
 
       const patchPath = createPatchFile();
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({ title_prefix: "[bot] " });
       const result = await handler({ patch_path: patchPath }, {});
 
-      expect(result.success).toBe(true);
-      expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "[bot] Some PR Title",
-        })
-      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("does not start with required prefix");
     });
 
     it("should accept PR with required title prefix", async () => {
@@ -775,7 +769,7 @@ index 0000000..abc1234
       const result = await handler({ patch_path: patchPath }, {});
 
       expect(result.success).toBe(true);
-      expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix applied: "[bot] "');
+      expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[bot] "');
     });
 
     it("should reject PR without required labels", async () => {

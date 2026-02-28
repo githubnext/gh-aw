@@ -10,7 +10,6 @@ const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -274,21 +273,9 @@ async function main(config = {}) {
     core.info(`PR title: ${prTitle}`);
     core.info(`PR labels: ${prLabels.join(", ")}`);
 
-    // Apply title prefix if not already present - update the PR title instead of rejecting
+    // Validate title prefix if specified
     if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
-      const updatedTitle = applyTitlePrefix(sanitizeTitle(prTitle, titlePrefix), titlePrefix);
-      core.info(`Updating PR title to include required prefix: "${prTitle}" -> "${updatedTitle}"`);
-      try {
-        await github.rest.pulls.update({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          pull_number: pullNumber,
-          title: updatedTitle,
-        });
-        prTitle = updatedTitle;
-      } catch (error) {
-        return { success: false, error: `Failed to update PR title with required prefix: ${getErrorMessage(error)}` };
-      }
+      return { success: false, error: `Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"` };
     }
 
     // Validate labels if specified
@@ -300,7 +287,7 @@ async function main(config = {}) {
     }
 
     if (titlePrefix) {
-      core.info(`✓ Title prefix applied: "${titlePrefix}"`);
+      core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
     }
     if (envLabels.length > 0) {
       core.info(`✓ Labels validation passed: ${envLabels.join(", ")}`);

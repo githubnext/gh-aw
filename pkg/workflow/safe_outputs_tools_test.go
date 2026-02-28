@@ -577,7 +577,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 					TitlePrefix: "[bot] ",
 				},
 			},
-			wantContains: []string{"CONSTRAINTS:", `Title will be prefixed with "[bot] "`},
+			wantContains: []string{"CONSTRAINTS:", `The target pull request title must start with "[bot] "`},
 		},
 		{
 			name:            "unknown tool returns base description",

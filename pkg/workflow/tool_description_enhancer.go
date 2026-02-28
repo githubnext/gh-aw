@@ -257,7 +257,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Maximum %d push(es) can be made.", templatableIntValue(config.Max)))
 			}
 			if config.TitlePrefix != "" {
-				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
+				constraints = append(constraints, fmt.Sprintf("The target pull request title must start with %q.", config.TitlePrefix))
 			}
 		}
 
