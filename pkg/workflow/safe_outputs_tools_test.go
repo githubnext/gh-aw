@@ -569,6 +569,17 @@ func TestEnhanceToolDescription(t *testing.T) {
 			wantNotContains: []string{"CONSTRAINTS:"},
 		},
 		{
+			name:            "push_to_pull_request_branch with title prefix",
+			toolName:        "push_to_pull_request_branch",
+			baseDescription: "Push changes to a pull request branch.",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					TitlePrefix: "[bot] ",
+				},
+			},
+			wantContains: []string{"CONSTRAINTS:", `Title will be prefixed with "[bot] "`},
+		},
+		{
 			name:            "unknown tool returns base description",
 			toolName:        "unknown_tool",
 			baseDescription: "Unknown tool.",

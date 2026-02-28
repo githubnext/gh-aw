@@ -256,6 +256,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d push(es) can be made.", templatableIntValue(config.Max)))
 			}
+			if config.TitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
+			}
 		}
 
 	case "upload_asset":
