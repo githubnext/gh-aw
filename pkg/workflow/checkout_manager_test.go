@@ -103,6 +103,18 @@ func TestCheckoutManagerMerging(t *testing.T) {
 		assert.Len(t, cm.ordered, 1, "same path should be merged")
 		assert.Equal(t, "main", cm.ordered[0].ref, "first-seen ref should win")
 	})
+
+	t.Run("path dot and empty path are normalized to the same root checkout", func(t *testing.T) {
+		depth0 := 0
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: ".", FetchDepth: nil},
+			{Path: "", FetchDepth: &depth0},
+		})
+		assert.Len(t, cm.ordered, 1, "path '.' and '' should merge as the same root checkout")
+		assert.Equal(t, "", cm.ordered[0].key.path, "normalized path should be empty string")
+		require.NotNil(t, cm.ordered[0].fetchDepth, "fetch depth should be set from second config")
+		assert.Equal(t, 0, *cm.ordered[0].fetchDepth, "fetch depth 0 should win")
+	})
 }
 
 // TestGenerateDefaultCheckoutStep verifies the default checkout step output.

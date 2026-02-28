@@ -121,9 +121,14 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		return
 	}
 
+	// Normalize path: "." and "" both refer to the workspace root.
+	normalizedPath := cfg.Path
+	if normalizedPath == "." {
+		normalizedPath = ""
+	}
 	key := checkoutKey{
 		repository: cfg.Repository,
-		path:       cfg.Path,
+		path:       normalizedPath,
 	}
 
 	if idx, exists := cm.index[key]; exists {
