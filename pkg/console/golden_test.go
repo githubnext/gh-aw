@@ -131,118 +131,6 @@ func TestGolden_BoxRendering(t *testing.T) {
 
 // TestGolden_LayoutBoxRendering tests layout box rendering (returns string)
 
-// TestGolden_TreeRendering tests tree rendering with different hierarchies
-func TestGolden_TreeRendering(t *testing.T) {
-	tests := []struct {
-		name string
-		tree TreeNode
-	}{
-		{
-			name: "single_node",
-			tree: TreeNode{
-				Value:    "Root",
-				Children: []TreeNode{},
-			},
-		},
-		{
-			name: "flat_tree",
-			tree: TreeNode{
-				Value: "Root",
-				Children: []TreeNode{
-					{Value: "Child1", Children: []TreeNode{}},
-					{Value: "Child2", Children: []TreeNode{}},
-					{Value: "Child3", Children: []TreeNode{}},
-				},
-			},
-		},
-		{
-			name: "nested_tree",
-			tree: TreeNode{
-				Value: "Workflow",
-				Children: []TreeNode{
-					{
-						Value: "Setup",
-						Children: []TreeNode{
-							{Value: "Install dependencies", Children: []TreeNode{}},
-							{Value: "Configure environment", Children: []TreeNode{}},
-						},
-					},
-					{
-						Value: "Build",
-						Children: []TreeNode{
-							{Value: "Compile source", Children: []TreeNode{}},
-							{Value: "Run tests", Children: []TreeNode{}},
-						},
-					},
-					{Value: "Deploy", Children: []TreeNode{}},
-				},
-			},
-		},
-		{
-			name: "deep_hierarchy",
-			tree: TreeNode{
-				Value: "Level 1",
-				Children: []TreeNode{
-					{
-						Value: "Level 2",
-						Children: []TreeNode{
-							{
-								Value: "Level 3",
-								Children: []TreeNode{
-									{
-										Value: "Level 4",
-										Children: []TreeNode{
-											{Value: "Level 5", Children: []TreeNode{}},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "mcp_server_tree",
-			tree: TreeNode{
-				Value: "MCP Servers",
-				Children: []TreeNode{
-					{
-						Value: "github",
-						Children: []TreeNode{
-							{Value: "list_issues", Children: []TreeNode{}},
-							{Value: "create_issue", Children: []TreeNode{}},
-							{Value: "list_pull_requests", Children: []TreeNode{}},
-							{Value: "create_pull_request", Children: []TreeNode{}},
-						},
-					},
-					{
-						Value: "filesystem",
-						Children: []TreeNode{
-							{Value: "read_file", Children: []TreeNode{}},
-							{Value: "write_file", Children: []TreeNode{}},
-							{Value: "list_directory", Children: []TreeNode{}},
-						},
-					},
-					{
-						Value: "bash",
-						Children: []TreeNode{
-							{Value: "execute", Children: []TreeNode{}},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := RenderTree(tt.tree)
-			golden.RequireEqual(t, []byte(output))
-		})
-	}
-}
-
 // TestGolden_ErrorFormatting tests error formatting with context
 func TestGolden_ErrorFormatting(t *testing.T) {
 	tests := []struct {
@@ -408,11 +296,6 @@ func TestGolden_MessageFormatting(t *testing.T) {
 			name:    "error_message",
 			message: "Failed to compile workflow",
 			format:  FormatErrorMessage,
-		},
-		{
-			name:    "location_message",
-			message: "Downloaded to: /tmp/logs/workflow-123",
-			format:  FormatLocationMessage,
 		},
 		{
 			name:    "command_message",

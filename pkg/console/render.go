@@ -1,7 +1,6 @@
 package console
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -604,32 +603,6 @@ func ToRelativePath(path string) string {
 	return relPath
 }
 
-// RenderTableAsJSON renders a table configuration as JSON
-func RenderTableAsJSON(config TableConfig) (string, error) {
-	if len(config.Headers) == 0 {
-		return "[]", nil
-	}
-
-	var result []map[string]string
-	for _, row := range config.Rows {
-		obj := make(map[string]string)
-		for i, cell := range row {
-			if i < len(config.Headers) {
-				key := strings.ToLower(strings.ReplaceAll(config.Headers[i], " ", "_"))
-				obj[key] = cell
-			}
-		}
-		result = append(result, obj)
-	}
-
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal table to JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
-}
-
 // FormatErrorWithSuggestions formats an error message with actionable suggestions
 func FormatErrorWithSuggestions(message string, suggestions []string) string {
 	var output strings.Builder
@@ -640,38 +613,6 @@ func FormatErrorWithSuggestions(message string, suggestions []string) string {
 		for _, suggestion := range suggestions {
 			output.WriteString("  • " + suggestion + "\n")
 		}
-	}
-
-	return output.String()
-}
-
-// renderTreeSimple renders a simple text-based tree without styling
-func renderTreeSimple(node TreeNode, prefix string, isLast bool) string {
-	var output strings.Builder
-
-	connector := "├── "
-	if isLast {
-		connector = "└── "
-	}
-	if prefix == "" {
-		output.WriteString(node.Value + "\n")
-	} else {
-		output.WriteString(prefix + connector + node.Value + "\n")
-	}
-
-	for i, child := range node.Children {
-		childIsLast := i == len(node.Children)-1
-		var childPrefix string
-		if prefix == "" {
-			childPrefix = ""
-		} else {
-			if isLast {
-				childPrefix = prefix + "    "
-			} else {
-				childPrefix = prefix + "│   "
-			}
-		}
-		output.WriteString(renderTreeSimple(child, childPrefix, childIsLast))
 	}
 
 	return output.String()

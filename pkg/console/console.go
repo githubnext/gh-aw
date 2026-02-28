@@ -10,7 +10,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"github.com/charmbracelet/lipgloss/tree"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/tty"
@@ -200,11 +199,6 @@ func RenderTable(config TableConfig) string {
 	return output.String()
 }
 
-// FormatLocationMessage formats a file/directory location message
-func FormatLocationMessage(message string) string {
-	return applyStyle(styles.Location, "📁 ") + message
-}
-
 // FormatCommandMessage formats a command execution message
 func FormatCommandMessage(command string) string {
 	return applyStyle(styles.Command, "⚡ ") + command
@@ -220,19 +214,9 @@ func FormatPromptMessage(message string) string {
 	return applyStyle(styles.Prompt, "❓ ") + message
 }
 
-// FormatCountMessage formats a count/numeric status message
-func FormatCountMessage(message string) string {
-	return applyStyle(styles.Count, "📊 ") + message
-}
-
 // FormatVerboseMessage formats verbose debugging output
 func FormatVerboseMessage(message string) string {
 	return applyStyle(styles.Verbose, "🔍 ") + message
-}
-
-// FormatListHeader formats a section header for lists
-func FormatListHeader(header string) string {
-	return applyStyle(styles.ListHeader, header)
 }
 
 // FormatListItem formats an item in a list
@@ -321,35 +305,4 @@ func RenderComposedSections(sections []string) {
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
-}
-
-// RenderTree renders a hierarchical tree structure using lipgloss/tree package
-func RenderTree(root TreeNode) string {
-	if !isTTY() {
-		return renderTreeSimple(root, "", true)
-	}
-
-	lipglossTree := buildLipglossTree(root)
-	return lipglossTree.String()
-}
-
-// buildLipglossTree converts our TreeNode structure to lipgloss/tree format
-func buildLipglossTree(node TreeNode) *tree.Tree {
-	t := tree.Root(node.Value).
-		EnumeratorStyle(styles.TreeEnumerator).
-		ItemStyle(styles.TreeNode)
-
-	if len(node.Children) > 0 {
-		children := make([]any, len(node.Children))
-		for i, child := range node.Children {
-			if len(child.Children) > 0 {
-				children[i] = buildLipglossTree(child)
-			} else {
-				children[i] = child.Value
-			}
-		}
-		t.Child(children...)
-	}
-
-	return t
 }

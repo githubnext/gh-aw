@@ -35,22 +35,6 @@ func ClearLine() {
 	}
 }
 
-// MoveCursorUp moves cursor up n lines if stderr is a TTY.
-// Uses ANSI escape code: \033[nA where n is the number of lines.
-func MoveCursorUp(n int) {
-	if tty.IsStderrTerminal() {
-		fmt.Fprintf(os.Stderr, "\033[%dA", n)
-	}
-}
-
-// MoveCursorDown moves cursor down n lines if stderr is a TTY.
-// Uses ANSI escape code: \033[nB where n is the number of lines.
-func MoveCursorDown(n int) {
-	if tty.IsStderrTerminal() {
-		fmt.Fprintf(os.Stderr, "\033[%dB", n)
-	}
-}
-
 // ShowWelcomeBanner clears the screen and displays the welcome banner for interactive commands.
 // Use this at the start of interactive commands (add, trial, init) for a consistent experience.
 func ShowWelcomeBanner(description string) {
