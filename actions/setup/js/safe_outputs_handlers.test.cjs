@@ -315,9 +315,8 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("not found");
-      expect(responseData.details).toContain("owner/non-existent-repo");
-      expect(responseData.details).toContain("actions/checkout");
+      expect(responseData.error).toContain("not in the allowed-repos list");
+      expect(responseData.error).toContain("owner/non-existent-repo");
     });
 
     it("should treat empty repo string as workspace root", async () => {
