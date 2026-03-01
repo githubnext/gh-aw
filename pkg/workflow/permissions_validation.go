@@ -193,18 +193,11 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 			continue
 		}
 
-		// Add read permissions
+		// Add read permissions only (write tools are not considered for permission requirements)
 		for _, scope := range perms.ReadPermissions {
 			// Always require at least read access
 			if existing, found := required[scope]; !found || existing == PermissionNone {
 				required[scope] = PermissionRead
-			}
-		}
-
-		// Add write permissions only if not in read-only mode
-		if !readOnly {
-			for _, scope := range perms.WritePermissions {
-				required[scope] = PermissionWrite
 			}
 		}
 	}
