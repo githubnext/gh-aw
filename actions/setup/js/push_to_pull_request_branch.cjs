@@ -328,6 +328,7 @@ async function main(config = {}) {
     // to branches with exactly one new commit (security: prevents use of CI trigger
     // token on multi-commit branches where workflow files may have been modified).
     let newCommitCount = 0;
+    let remoteHeadBeforePatch = "";
     if (hasChanges) {
       core.info("Applying patch...");
       try {
@@ -356,7 +357,6 @@ async function main(config = {}) {
 
         // Apply patch
         // Capture HEAD before applying patch to compute new-commit count later
-        let remoteHeadBeforePatch = "";
         try {
           const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
           remoteHeadBeforePatch = stdout.trim();
