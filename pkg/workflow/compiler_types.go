@@ -493,6 +493,7 @@ type SafeOutputsConfig struct {
 	MaxBotMentions                  *string                                `yaml:"max-bot-mentions,omitempty"`          // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
 	Steps                           []any                                  `yaml:"steps,omitempty"`                     // User-provided steps injected after setup/checkout and before safe-output code
 	IDToken                         *string                                `yaml:"id-token,omitempty"`                  // Override id-token permission: "write" to force-add, "none" to disable auto-detection
+	ConcurrencyGroup                string                                 `yaml:"concurrency-group,omitempty"`         // Concurrency group for the safe-outputs job (cancel-in-progress is always false)
 	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                   // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
 }
 

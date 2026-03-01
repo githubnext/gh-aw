@@ -161,7 +161,59 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 	}
 }
 
-// TestBuildJobLevelSafeOutputEnvVars tests job-level environment variable generation
+// TestBuildConsolidatedSafeOutputsJobConcurrencyGroup tests that the concurrency-group field
+// is correctly applied to the safe_outputs job
+func TestBuildConsolidatedSafeOutputsJobConcurrencyGroup(t *testing.T) {
+	tests := []struct {
+		name              string
+		concurrencyGroup  string
+		expectConcurrency bool
+	}{
+		{
+			name:              "no concurrency group",
+			concurrencyGroup:  "",
+			expectConcurrency: false,
+		},
+		{
+			name:              "simple concurrency group",
+			concurrencyGroup:  "my-safe-outputs",
+			expectConcurrency: true,
+		},
+		{
+			name:              "concurrency group with expression",
+			concurrencyGroup:  "safe-outputs-${{ github.repository }}",
+			expectConcurrency: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.jobManager = NewJobManager()
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues:     &CreateIssuesConfig{TitlePrefix: "[Test] "},
+					ConcurrencyGroup: tt.concurrencyGroup,
+				},
+			}
+
+			job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
+			require.NoError(t, err, "Should build job without error")
+			require.NotNil(t, job, "Job should not be nil")
+
+			if tt.expectConcurrency {
+				assert.NotEmpty(t, job.Concurrency, "Job should have concurrency set")
+				assert.Contains(t, job.Concurrency, tt.concurrencyGroup, "Concurrency should contain the group value")
+				assert.Contains(t, job.Concurrency, "cancel-in-progress: false", "Concurrency should have cancel-in-progress: false")
+			} else {
+				assert.Empty(t, job.Concurrency, "Job should have no concurrency set")
+			}
+		})
+	}
+}
+
 func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -334,12 +334,20 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Build job-level environment variables that are common to all safe output steps
 	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
 
+	// Build concurrency config for the safe-outputs job if a concurrency-group is configured
+	var concurrency string
+	if data.SafeOutputs.ConcurrencyGroup != "" {
+		concurrency = c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", data.SafeOutputs.ConcurrencyGroup), "    ")
+		consolidatedSafeOutputsJobLog.Printf("Configuring safe_outputs job concurrency group: %s", data.SafeOutputs.ConcurrencyGroup)
+	}
+
 	job := &Job{
 		Name:           "safe_outputs",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions.RenderToYAML(),
 		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
+		Concurrency:    concurrency,
 		Env:            jobEnv,
 		Steps:          steps,
 		Outputs:        outputs,
