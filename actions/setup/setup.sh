@@ -230,6 +230,7 @@ SAFE_OUTPUTS_FILES=(
   "error_helpers.cjs"
   "error_codes.cjs"
   "git_helpers.cjs"
+  "find_repo_checkout.cjs"
   "mcp_enhanced_errors.cjs"
   "comment_limit_helpers.cjs"
   "shim.cjs"
