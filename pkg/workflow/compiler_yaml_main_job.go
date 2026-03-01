@@ -382,7 +382,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called, providing immediate error feedback if no changes are present.
-	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
 	}
 

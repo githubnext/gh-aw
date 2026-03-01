@@ -760,17 +760,17 @@ func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {
 			expectRepo: true,
 		},
 		{
-			name: "create_pull_request without allowed-repos should not have repo parameter",
+			name: "create_pull_request always has repo parameter (defined in base schema)",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			toolName:   "create_pull_request",
-			expectRepo: false,
+			expectRepo: true,
 		},
 		{
-			name: "create_pull_request with allowed-repos should have repo parameter",
+			name: "create_pull_request with allowed-repos has repo parameter with enhanced description",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},

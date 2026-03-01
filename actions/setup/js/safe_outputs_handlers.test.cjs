@@ -301,6 +301,60 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("git commit");
       expect(responseData.details).toContain("create_pull_request");
     });
+
+    it("should return error when repo parameter is not in the allowed-repos list", async () => {
+      const args = {
+        branch: "feature-branch",
+        title: "Test PR",
+        body: "Test description",
+        repo: "owner/non-existent-repo",
+      };
+
+      const result = await handlers.createPullRequestHandler(args);
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("not in the allowed-repos list");
+      expect(responseData.error).toContain("owner/non-existent-repo");
+    });
+
+    it("should treat empty repo string as workspace root", async () => {
+      // Empty string should not trigger multi-repo code path
+      const args = {
+        branch: "feature-branch",
+        title: "Test PR",
+        body: "Test description",
+        repo: "",
+      };
+
+      const result = await handlers.createPullRequestHandler(args);
+
+      // Should proceed to patch generation (which will fail because not in git repo)
+      // but NOT fail with repo not found error
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      // Should be a patch error, not a repo not found error
+      expect(responseData.error).not.toContain("not found in workspace");
+      expect(responseData.error).toContain("Failed to generate patch");
+    });
+
+    it("should treat whitespace-only repo as workspace root", async () => {
+      const args = {
+        branch: "feature-branch",
+        title: "Test PR",
+        body: "Test description",
+        repo: "   ",
+      };
+
+      const result = await handlers.createPullRequestHandler(args);
+
+      // Should proceed to patch generation (which will fail because not in git repo)
+      // but NOT fail with repo not found error
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.error).not.toContain("not found in workspace");
+    });
   });
 
   describe("pushToPullRequestBranchHandler", () => {
