@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ed7874fd2663e00d4fd6afb295903c6e19f62eaabcd9cb7d9ebfca25e38f0f7f"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2756dfa16e5aae6fb4bc2d62922725b39130906d8db05fea13dc60b7b1b11b04"}
 
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":

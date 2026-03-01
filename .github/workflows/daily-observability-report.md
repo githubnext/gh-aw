@@ -10,8 +10,6 @@ permissions:
 engine: codex
 strict: true
 tracker-id: daily-observability-report
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [default, discussions, actions]

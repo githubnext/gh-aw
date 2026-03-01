@@ -23,7 +23,7 @@
 #
 # Example workflow demonstrating proper permission provisioning and security best practices
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"94ffd5b85d76a2be5b3602a2babffa5a24d9e2bf59e74b4a81355902bdf06e01"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"cbc025e1319832edb0b85151db2c36cdde748e467faf1d0d20c646d33e8a0542"}
 
 name: "Example: Properly Provisioned Permissions"
 "on":
@@ -325,6 +325,7 @@ jobs:
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
+                  "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "repos,issues,pull_requests"
                 }
               }

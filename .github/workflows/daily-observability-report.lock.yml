@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"57d943dc614a1300ac3a4e91c1515e029ccdc78e85a29ef78ba43867f1e85500"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1b990129663822b2a2ec35c48272d37d9b5fd2588701da99710163ff9f98f551"}
 
 name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 "on":
