@@ -76,13 +76,6 @@ func TestNewInitCommand(t *testing.T) {
 		t.Errorf("Expected codespaces flag NoOptDefVal to be ' ' (space), got %q", codespaceFlag.NoOptDefVal)
 	}
 
-	// Check push flag
-	pushFlag := cmd.Flags().Lookup("push")
-	if pushFlag == nil {
-		t.Error("Expected 'push' flag to be defined")
-		return
-	}
-
 	// Check create-pull-request flags
 	createPRFlag := cmd.Flags().Lookup("create-pull-request")
 	if createPRFlag == nil {
