@@ -796,13 +796,19 @@ safe-outputs:
 
 Resolves review threads on pull requests. Allows AI agents to mark review conversations as resolved after addressing the feedback. Uses the GitHub GraphQL API with the `resolveReviewThread` mutation.
 
-Resolution is scoped to the triggering PR only — the handler validates that each thread belongs to the triggering pull request before resolving it.
+By default, resolution is scoped to the triggering PR. Use `target`, `target-repo`, and `allowed-repos` for cross-repository thread resolution.
 
 ```yaml wrap
 safe-outputs:
   resolve-pull-request-review-thread:
-    max: 10           # max threads to resolve (default: 10)
+    max: 10                              # max threads to resolve (default: 10)
+    target: "triggering"                 # "triggering" (default), "*", or number
+    target-repo: "owner/repo"            # cross-repository
+    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for documentation on `target-repo`, `allowed-repos`, and cross-repository authentication.
 
 **Agent output format:**
 
@@ -1218,6 +1224,33 @@ Most safe outputs support cross-repository operations:
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) technical details.
 
 ## Global Configuration Options
+
+### Workflow Call Outputs (`workflow_call`)
+
+When a workflow uses `on: workflow_call` (or includes `workflow_call` in its triggers) and configures safe outputs, the compiler automatically injects `on.workflow_call.outputs` exposing the results of each configured safe output type. This makes gh-aw workflows composable building blocks in larger automation pipelines.
+
+The following named outputs are exposed for each configured safe output type:
+
+| Safe Output Type | Output Names |
+|---|---|
+| `create-issue` | `created_issue_number`, `created_issue_url` |
+| `create-pull-request` | `created_pr_number`, `created_pr_url` |
+| `add-comment` | `comment_id`, `comment_url` |
+| `push-to-pull-request-branch` | `push_commit_sha`, `push_commit_url` |
+
+These outputs are automatically available to calling workflows without any additional frontmatter configuration. User-declared `outputs` in the frontmatter are preserved and take precedence over the auto-injected values.
+
+**Example — calling workflow using safe-output results:**
+
+```yaml wrap
+jobs:
+  run-agent:
+    uses: ./.github/workflows/my-agent.lock.yml
+  follow-up:
+    needs: run-agent
+    steps:
+      - run: echo "Created issue ${{ needs.run-agent.outputs.created_issue_number }}"
+```
 
 ### Group Reports (`group-reports:`)
 
