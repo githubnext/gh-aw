@@ -43,8 +43,8 @@ async function main(config = {}) {
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
   const configBaseBranch = config.base_branch || null;
 
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  // Check if we're in staged mode (either globally or per-handler config)
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   core.info(`Target: ${target}`);
   if (configBaseBranch) {

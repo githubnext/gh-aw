@@ -115,6 +115,14 @@ func (b *handlerConfigBuilder) AddDefault(key string, value any) *handlerConfigB
 	return b
 }
 
+// AddIfTrue adds a boolean field only if the value is true
+func (b *handlerConfigBuilder) AddIfTrue(key string, value bool) *handlerConfigBuilder {
+	if value {
+		b.config[key] = true
+	}
+	return b
+}
+
 // Build returns the built configuration map
 func (b *handlerConfigBuilder) Build() map[string]any {
 	return b.config
@@ -495,6 +503,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
@@ -527,6 +536,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
 			Build()
 	},
 	"hide_comment": func(cfg *SafeOutputsConfig) map[string]any {

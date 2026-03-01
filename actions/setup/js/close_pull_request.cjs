@@ -88,8 +88,8 @@ async function main(config = {}) {
   const comment = config.comment || "";
   const authClient = await createAuthenticatedGitHubClient(config);
 
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  // Check if we're in staged mode (either globally or per-handler config)
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || config.staged === true;
 
   core.info(`Close pull request configuration: max=${maxCount}`);
   if (requiredLabels.length > 0) {

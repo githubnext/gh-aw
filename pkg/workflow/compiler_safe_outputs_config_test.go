@@ -183,6 +183,39 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"push_to_pull_request_branch"},
 		},
 		{
+			name: "push to PR branch staged config",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+					Target:      "*",
+					IfNoChanges: "warn",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"push_to_pull_request_branch"},
+		},
+		{
+			name: "close pull request staged config",
+			safeOutputs: &SafeOutputsConfig{
+				ClosePullRequests: &ClosePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max:    strPtr("1"),
+						Staged: true,
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"close_pull_request"},
+		},
+		{
 			name: "multiple safe output types",
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{
@@ -1189,5 +1222,78 @@ func TestHandlerConfigUnassignFromUserWithBlocked(t *testing.T) {
 				assert.Equal(t, "*[bot]", blockedSlice[1], "Second blocked pattern should be *[bot]")
 			}
 		}
+	}
+}
+
+// TestHandlerConfigStagedMode tests that per-handler staged: true is included in handler config JSON
+func TestHandlerConfigStagedMode(t *testing.T) {
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		handlerKey  string
+	}{
+		{
+			name: "push_to_pull_request_branch staged",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Staged: true,
+					},
+					Target:      "*",
+					IfNoChanges: "warn",
+				},
+			},
+			handlerKey: "push_to_pull_request_branch",
+		},
+		{
+			name: "close_pull_request staged",
+			safeOutputs: &SafeOutputsConfig{
+				ClosePullRequests: &ClosePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max:    strPtr("1"),
+						Staged: true,
+					},
+				},
+			},
+			handlerKey: "close_pull_request",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+			require.NotEmpty(t, steps, "Steps should not be empty")
+
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					require.Len(t, parts, 2, "Should have two parts")
+
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+					var config map[string]map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &config)
+					require.NoError(t, err, "Handler config JSON should be valid")
+
+					handlerConfig, ok := config[tt.handlerKey]
+					require.True(t, ok, "Should have %s handler", tt.handlerKey)
+
+					stagedVal, ok := handlerConfig["staged"]
+					require.True(t, ok, "Handler config should include 'staged' field when staged: true is set")
+					assert.Equal(t, true, stagedVal, "staged field should be true")
+				}
+			}
+		})
 	}
 }
