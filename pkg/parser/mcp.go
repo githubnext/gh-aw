@@ -302,6 +302,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1", // Always enforce read-only mode
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
 					Env: make(map[string]string),
@@ -317,13 +318,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				// Set a placeholder that will be validated later during connection
 				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
 			}
-		}
-
-		// Always enforce read-only mode for GitHub MCP server (local/Docker mode)
-		// This must be unconditional to cover shorthand/null tool config forms.
-		if !useRemote {
-			// Inline GITHUB_READ_ONLY=1 in docker args to enforce read-only mode
-			config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
 		}
 
 		// Check for custom GitHub configuration
