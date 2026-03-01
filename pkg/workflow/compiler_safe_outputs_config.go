@@ -115,6 +115,14 @@ func (b *handlerConfigBuilder) AddDefault(key string, value any) *handlerConfigB
 	return b
 }
 
+// AddIfTrue adds a boolean field only if the value is true
+func (b *handlerConfigBuilder) AddIfTrue(key string, value bool) *handlerConfigBuilder {
+	if value {
+		b.config[key] = true
+	}
+	return b
+}
+
 // Build returns the built configuration map
 func (b *handlerConfigBuilder) Build() map[string]any {
 	return b.config
@@ -495,6 +503,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
@@ -527,6 +536,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
 			Build()
 	},
 	"hide_comment": func(cfg *SafeOutputsConfig) map[string]any {
@@ -670,6 +680,27 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfNotEmpty("project", c.Project).
 			Build()
+	},
+	"set_issue_type": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.SetIssueType == nil {
+			return nil
+		}
+		c := cfg.SetIssueType
+		config := newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			Build()
+		// If config is empty, it means set_issue_type was explicitly configured with no options
+		// (null config), which means "allow any type". Return non-nil empty map to
+		// indicate the handler is enabled.
+		if len(config) == 0 {
+			return make(map[string]any)
+		}
+		return config
 	},
 }
 

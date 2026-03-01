@@ -25,7 +25,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9ed74987771c65a2f76b74cc7e1888569537c330c202e24a7527d36f2a179c6f","stop_time":"2026-03-03 16:27:58"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4b04d4420888fefcba8d30800c71be38c78560388ca3fea47576b52946b4afc8","stop_time":"2026-03-03 16:27:58"}
 #
 # Effective stop-time: 2026-03-03 16:27:58
 
@@ -81,7 +81,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: "gpt-5.1-codex-mini"
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.419"
+          GH_AW_INFO_AGENT_VERSION: "0.0.420"
           GH_AW_INFO_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -107,6 +107,7 @@ jobs:
           sparse-checkout: |
             .github
             .agents
+          sparse-checkout-cone-mode: true
           fetch-depth: 1
           persist-credentials: false
       - name: Check workflow file timestamps
@@ -268,7 +269,7 @@ jobs:
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Upload activation artifact
         if: success()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: activation
           path: |
@@ -326,7 +327,7 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         name: Download CI failure logs and artifacts
-        run: "set -e\nLOG_DIR=\"/tmp/ci-doctor/logs\"\nARTIFACT_DIR=\"/tmp/ci-doctor/artifacts\"\nFILTERED_DIR=\"/tmp/ci-doctor/filtered\"\nmkdir -p \"$LOG_DIR\" \"$ARTIFACT_DIR\" \"$FILTERED_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs and artifacts for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failed\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failed\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Download and unpack all artifacts from the failed run\necho \"\"\necho \"=== Downloading artifacts for run $RUN_ID ===\"\ngh run download \"$RUN_ID\" --repo \"$REPO\" --dir \"$ARTIFACT_DIR\" 2>/dev/null \\\n  || echo \"No artifacts available or download failed\"\n\n# Apply heuristics to artifact text files\nfind \"$ARTIFACT_DIR\" -type f \\( \\\n  -name \"*.txt\" -o -name \"*.log\" -o -name \"*.json\" \\\n  -o -name \"*.xml\" -o -name \"*.out\" -o -name \"*.err\" \\\n\\) | while read -r ARTIFACT_FILE; do\n  REL_PATH=\"${ARTIFACT_FILE#$ARTIFACT_DIR/}\"\n  SAFE_NAME=$(echo \"$REL_PATH\" | tr '/' '_')\n  HINTS_FILE=\"$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$ARTIFACT_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Artifact hints: $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") lines from $ARTIFACT_FILE)\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"/tmp/ci-doctor/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Downloaded artifact files ($ARTIFACT_DIR):\"\n  find \"$ARTIFACT_DIR\" -type f | while read -r f; do\n    echo \"  $f\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
+        run: "set -e\nLOG_DIR=\"/tmp/ci-doctor/logs\"\nARTIFACT_DIR=\"/tmp/ci-doctor/artifacts\"\nFILTERED_DIR=\"/tmp/ci-doctor/filtered\"\nmkdir -p \"$LOG_DIR\" \"$ARTIFACT_DIR\" \"$FILTERED_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs and artifacts for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failed\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failed\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Download and unpack all artifacts from the failed run\necho \"\"\necho \"=== Downloading artifacts for run $RUN_ID ===\"\ngh run download \"$RUN_ID\" --repo \"$REPO\" --dir \"$ARTIFACT_DIR\" 2>/dev/null \\\n  || echo \"No artifacts available or download failed\"\n\n# Apply heuristics to artifact text files\nfind \"$ARTIFACT_DIR\" -type f \\( \\\n  -name \"*.txt\" -o -name \"*.log\" -o -name \"*.json\" \\\n  -o -name \"*.xml\" -o -name \"*.out\" -o -name \"*.err\" \\\n\\) | while read -r ARTIFACT_FILE; do\n  REL_PATH=\"${ARTIFACT_FILE#\"$ARTIFACT_DIR\"/}\"\n  SAFE_NAME=$(echo \"$REL_PATH\" | tr '/' '_')\n  HINTS_FILE=\"$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$ARTIFACT_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Artifact hints: $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") lines from $ARTIFACT_FILE)\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"/tmp/ci-doctor/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Downloaded artifact files ($ARTIFACT_DIR):\"\n  find \"$ARTIFACT_DIR\" -type f | while read -r f; do\n    echo \"  $f\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -365,7 +366,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.419
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.420
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -848,7 +849,7 @@ jobs:
           }
           GH_AW_MCP_CONFIG_EOF
       - name: Download activation artifact
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         with:
           name: activation
           path: /tmp/gh-aw
@@ -933,7 +934,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -955,13 +956,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: agent_outputs
           path: |
@@ -1004,7 +1005,7 @@ jobs:
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
       - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
         with:
           name: cache-memory
@@ -1012,7 +1013,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: agent-artifacts
           path: |
@@ -1113,7 +1114,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -1169,7 +1170,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         with:
           name: agent-output
           path: /tmp/gh-aw/safeoutputs/
@@ -1337,7 +1338,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         with:
           name: agent-output
           path: /tmp/gh-aw/safeoutputs/
@@ -1364,7 +1365,7 @@ jobs:
             await main();
       - name: Upload safe output items manifest
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: safe-output-items
           path: /tmp/safe-output-items.jsonl
@@ -1391,7 +1392,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download cache-memory artifact (default)
         id: download_cache_default
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         continue-on-error: true
         with:
           name: cache-memory

@@ -53,8 +53,23 @@ tools:
 ---
 ```
 
+## Safe Outputs Job Concurrency
+
+The `safe_outputs` job runs independently from the agent job and can process outputs concurrently across workflow runs. Use `safe-outputs.concurrency-group` to serialize access when needed:
+
+```yaml wrap
+safe-outputs:
+  concurrency-group: "safe-outputs-${{ github.repository }}"
+  create-issue:
+```
+
+When set, the `safe_outputs` job uses `cancel-in-progress: false` — meaning queued runs wait for the in-progress run to finish rather than being cancelled. This is useful for workflows that create issues or pull requests where duplicate operations would be undesirable.
+
+See [Safe Outputs](/gh-aw/reference/safe-outputs/#safe-outputs-job-concurrency-concurrency-group) for details.
+
 ## Related Documentation
 
 - [AI Engines](/gh-aw/reference/engines/) - Engine configuration and capabilities
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output processing and job configuration

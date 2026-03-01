@@ -23,7 +23,6 @@ type AuditData struct {
 	Metrics                 MetricsData              `json:"metrics"`
 	KeyFindings             []Finding                `json:"key_findings,omitempty"`
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
-	FailureAnalysis         *FailureAnalysis         `json:"failure_analysis,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
@@ -55,14 +54,6 @@ type Recommendation struct {
 	Action   string `json:"action"`            // What to do
 	Reason   string `json:"reason"`            // Why to do it
 	Example  string `json:"example,omitempty"` // Example of how to implement
-}
-
-// FailureAnalysis provides structured analysis for failed workflows
-type FailureAnalysis struct {
-	PrimaryFailure string   `json:"primary_failure"`      // Main reason for failure
-	FailedJobs     []string `json:"failed_jobs"`          // List of failed job names
-	ErrorSummary   string   `json:"error_summary"`        // Summary of errors
-	RootCause      string   `json:"root_cause,omitempty"` // Identified root cause if determinable
 }
 
 // PerformanceMetrics provides aggregated performance statistics
@@ -312,12 +303,6 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
 
-	// Generate failure analysis if workflow failed
-	var failureAnalysis *FailureAnalysis
-	if run.Conclusion == "failure" || run.Conclusion == "timed_out" || run.Conclusion == "cancelled" {
-		failureAnalysis = generateFailureAnalysis(processedRun, errors)
-	}
-
 	// Generate performance metrics
 	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
 
@@ -331,7 +316,6 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		Metrics:                 metricsData,
 		KeyFindings:             findings,
 		Recommendations:         recommendations,
-		FailureAnalysis:         failureAnalysis,
 		PerformanceMetrics:      performanceMetrics,
 		Jobs:                    jobs,
 		DownloadedFiles:         downloadedFiles,

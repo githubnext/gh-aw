@@ -297,7 +297,12 @@ Returns JSON with the following structure:
 				"run_id_or_url": args.RunIDOrURL,
 			}
 
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+err.Error(), errorData)
+			// Use stderr content as the main message when available (provides actionable details)
+			mainMsg := strings.TrimSpace(stderr)
+			if mainMsg == "" {
+				mainMsg = err.Error()
+			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+mainMsg, errorData)
 		}
 
 		return &mcp.CallToolResult{

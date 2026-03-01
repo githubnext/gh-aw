@@ -46,9 +46,9 @@ permissions: {}
 # Test workflow
 Test content`,
 			actionMode:            ActionModeRelease,
-			expectedAgentPerms:    "permissions:\n      contents: read", // Agent job always gets contents: read
+			expectedAgentPerms:    "permissions: {}", // Release mode does NOT add contents: read automatically
 			expectedTopLevelPerms: "permissions: {}",
-			description:           "Release mode with explicit empty permissions should add contents: read to agent job",
+			description:           "Release mode with explicit empty permissions should NOT add contents: read to agent job",
 		},
 		{
 			name: "no permissions specified in dev mode",

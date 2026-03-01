@@ -490,184 +490,6 @@ func TestGenerateRecommendations(t *testing.T) {
 	}
 }
 
-func TestGenerateFailureAnalysis(t *testing.T) {
-	tests := []struct {
-		name          string
-		processedRun  ProcessedRun
-		errors        []ErrorInfo
-		checkAnalysis func(t *testing.T, analysis *FailureAnalysis)
-	}{
-		{
-			name: "basic failure analysis",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "failure", analysis.PrimaryFailure,
-					"Primary failure should match workflow conclusion")
-			},
-		},
-		{
-			name: "failure with failed jobs",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				pr.JobDetails = []JobInfoWithDuration{
-					{JobInfo: JobInfo{Name: "build", Conclusion: "success"}},
-					{JobInfo: JobInfo{Name: "test", Conclusion: "failure"}},
-					{JobInfo: JobInfo{Name: "deploy", Conclusion: "cancelled"}},
-				}
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Len(t, analysis.FailedJobs, 2,
-					"Should have 2 failed jobs (failure and cancelled)")
-			},
-		},
-		{
-			name: "failure with single error",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Build failed"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Build failed", analysis.ErrorSummary,
-					"Error summary should contain single error message")
-			},
-		},
-		{
-			name: "failure with multiple errors",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "First error"},
-				{Type: "error", Message: "Second error"},
-				{Type: "error", Message: "Third error"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Contains(t, analysis.ErrorSummary, "3 errors",
-					"Error summary should indicate multiple errors")
-				assert.Contains(t, analysis.ErrorSummary, "First error",
-					"Error summary should include first error")
-			},
-		},
-		{
-			name: "failure with MCP server failure root cause",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				pr.MCPFailures = []MCPFailureReport{
-					{ServerName: "github-mcp", Status: "failed"},
-				}
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Contains(t, analysis.RootCause, "MCP server failure",
-					"Root cause should identify MCP server failure")
-			},
-		},
-		{
-			name: "failure with timeout error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Connection timeout after 30s"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Operation timeout", analysis.RootCause,
-					"Root cause should identify timeout")
-			},
-		},
-		{
-			name: "failure with permission error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Permission blocked: cannot access file"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Permission denied", analysis.RootCause,
-					"Root cause should identify permission issue")
-			},
-		},
-		{
-			name: "failure with not found error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "File not found: test.txt"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Resource not found", analysis.RootCause,
-					"Root cause should identify missing resource")
-			},
-		},
-		{
-			name: "failure with authentication error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Authentication failed for user"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Authentication failure", analysis.RootCause,
-					"Root cause should identify authentication issue")
-			},
-		},
-		{
-			name: "unknown failure with no errors",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = ""
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "unknown", analysis.PrimaryFailure,
-					"Primary failure should be 'unknown' for empty conclusion")
-				assert.Contains(t, analysis.ErrorSummary, "No specific errors",
-					"Error summary should indicate no errors found")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			analysis := generateFailureAnalysis(tt.processedRun, tt.errors)
-
-			require.NotNil(t, analysis, "Failure analysis should be generated for failed workflow")
-
-			if tt.checkAnalysis != nil {
-				tt.checkAnalysis(t, analysis)
-			}
-		})
-	}
-}
-
 func TestGeneratePerformanceMetrics(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -962,12 +784,6 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	t.Run("Recommendations", func(t *testing.T) {
 		assert.NotEmpty(t, auditData.Recommendations,
 			"Should generate at least one recommendation")
-	})
-
-	// Verify failure analysis is generated
-	t.Run("FailureAnalysis", func(t *testing.T) {
-		assert.NotNil(t, auditData.FailureAnalysis,
-			"Failed workflow should generate failure analysis")
 	})
 
 	// Verify performance metrics are generated
@@ -1438,9 +1254,9 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		// Create agent-stdio.log to indicate agent ran
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("agent output"), 0600))
 		// Create workflow-logs with a step log that has content
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode requirements.txt"), []byte("Error: lockdown failed"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"), []byte("Error: lockdown failed"), 0600))
 
 		errors := extractPreAgentStepErrors(dir)
 		assert.Nil(t, errors, "Should return nil when agent-stdio.log exists")
@@ -1456,19 +1272,19 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 	t.Run("extracts error from last step log file", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
 		// Create multiple step logs - last one should be selected
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "1_Set up job.txt"), []byte("Setup complete"), 0600))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Install binary.txt"), []byte("Install complete"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "4_Check workflow file timestamps.txt"), []byte("Timestamp check complete"), 0600))
 		lockdownErr := "Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n\nPlease configure one of the following as a repository secret:\n  - GH_AW_GITHUB_TOKEN (recommended)"
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode requirements.txt"), []byte(lockdownErr), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"), []byte(lockdownErr), 0600))
 
 		errors := extractPreAgentStepErrors(dir)
 		require.NotNil(t, errors, "Should return errors from step logs")
 		require.Len(t, errors, 1, "Should return exactly one error info")
 		assert.Equal(t, "step_failure", errors[0].Type, "Error type should be step_failure")
-		assert.Equal(t, "agent/Validate lockdown mode requirements", errors[0].File, "File should include job and step name")
+		assert.Equal(t, "activation/Generate agentic run info", errors[0].File, "File should include job and step name")
 		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain lockdown error text")
 		assert.Contains(t, errors[0].Message, "GH_AW_GITHUB_TOKEN", "Message should contain token suggestion")
 	})
@@ -1503,11 +1319,11 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 
 	t.Run("prioritizes ##[error] annotations over last step fallback", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
 		// Step 3 has a ##[error] annotation (the real failure)
 		lockdownLog := "2026-02-23T23:46:10.9523559Z ##[error]Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n2026-02-23T23:46:10.9523560Z Please configure GH_AW_GITHUB_TOKEN"
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Validate lockdown mode.txt"), []byte(lockdownLog), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Generate agentic run info.txt"), []byte(lockdownLog), 0600))
 		// Step 15 is the "Complete job" step with unrelated cleanup content (higher step number)
 		completeJobLog := "2026-02-23T23:46:13.5790741Z Evaluate and set job outputs\n2026-02-23T23:46:13.5790742Z Set output 'checkout_pr_success'\n2026-02-23T23:46:13.5790743Z Set output 'has_patch'"
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "15_Complete job.txt"), []byte(completeJobLog), 0600))
@@ -1515,7 +1331,7 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		errors := extractPreAgentStepErrors(dir)
 		require.NotNil(t, errors, "Should return errors from ##[error] annotations")
 		require.Len(t, errors, 1, "Should return one error for the step with ##[error]")
-		assert.Equal(t, "agent/Validate lockdown mode", errors[0].File, "Should reference the step with ##[error], not Complete job")
+		assert.Equal(t, "activation/Generate agentic run info", errors[0].File, "Should reference the step with ##[error], not Complete job")
 		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain the actual ##[error] annotation content")
 		assert.NotContains(t, errors[0].Message, "Evaluate and set job outputs", "Message should not contain Complete job cleanup content")
 		assert.NotContains(t, errors[0].Message, "2026-02-23T", "Should strip GHA timestamps from ##[error] lines")
@@ -1562,9 +1378,9 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 	t.Run("builds error summary from step errors in buildAuditData", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode.txt"),
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"),
 			[]byte("Lockdown mode is enabled but no token configured"), 0600))
 
 		run := WorkflowRun{
@@ -1578,10 +1394,8 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 
 		data := buildAuditData(processedRun, metrics, nil)
 
-		require.NotNil(t, data.FailureAnalysis, "Should have failure analysis for failed run")
-		assert.NotEqual(t, "No specific errors identified", data.FailureAnalysis.ErrorSummary,
-			"Error summary should be extracted from step logs, not the default message")
-		assert.Contains(t, data.FailureAnalysis.ErrorSummary, "Lockdown mode is enabled",
-			"Error summary should contain the actual error from the step log")
+		require.NotEmpty(t, data.Errors, "Should have errors extracted from step logs for failed run")
+		assert.Contains(t, data.Errors[0].Message, "Lockdown mode is enabled",
+			"Error should contain the actual error from the step log")
 	})
 }

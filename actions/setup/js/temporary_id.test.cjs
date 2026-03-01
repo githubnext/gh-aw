@@ -38,7 +38,7 @@ describe("temporary_id.cjs", () => {
   });
 
   describe("isTemporaryId", () => {
-    it("should return true for valid aw_ prefixed 3-8 char alphanumeric strings", async () => {
+    it("should return true for valid aw_ prefixed 3-12 char alphanumeric strings", async () => {
       const { isTemporaryId } = await import("./temporary_id.cjs");
       expect(isTemporaryId("aw_abc")).toBe(true);
       expect(isTemporaryId("aw_abc1")).toBe(true);
@@ -48,13 +48,15 @@ describe("temporary_id.cjs", () => {
       expect(isTemporaryId("aw_ABCD")).toBe(true);
       expect(isTemporaryId("aw_xyz9")).toBe(true);
       expect(isTemporaryId("aw_xyz")).toBe(true);
+      expect(isTemporaryId("aw_123456789")).toBe(true); // 9 chars - valid with extended limit
+      expect(isTemporaryId("aw_123456789abc")).toBe(true); // 12 chars - at the limit
     });
 
     it("should return false for invalid strings", async () => {
       const { isTemporaryId } = await import("./temporary_id.cjs");
       expect(isTemporaryId("abc123def456")).toBe(false); // Missing aw_ prefix
       expect(isTemporaryId("aw_ab")).toBe(false); // Too short (2 chars)
-      expect(isTemporaryId("aw_123456789")).toBe(false); // Too long (9 chars)
+      expect(isTemporaryId("aw_1234567890abc")).toBe(false); // Too long (13 chars)
       expect(isTemporaryId("aw_test-id")).toBe(false); // Contains hyphen
       expect(isTemporaryId("aw_id_123")).toBe(false); // Contains underscore
       expect(isTemporaryId("")).toBe(false);
@@ -122,6 +124,52 @@ describe("temporary_id.cjs", () => {
       const map = new Map([["aw_abc123", { repo: "owner/repo", number: 100 }]]);
       const text = "Check #aw_ab and #temp:abc123 for details";
       expect(replaceTemporaryIdReferences(text, map, "owner/repo")).toBe("Check #aw_ab and #temp:abc123 for details");
+    });
+
+    it("should warn about malformed temporary ID reference that is too short", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_ab for details";
+      const result = replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(result).toBe("Check #aw_ab for details");
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
+    });
+
+    it("should warn about malformed temporary ID reference that is too long", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_toolongname123 for details";
+      const result = replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(result).toBe("Check #aw_toolongname123 for details");
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_toolongname123"));
+    });
+
+    it("should not warn for valid temporary ID references", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123", { repo: "owner/repo", number: 100 }]]);
+      const text = "Check #aw_abc123 for details";
+      replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should not warn for valid unresolved temporary ID references", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_abc123 for details";
+      replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should warn once per malformed reference when multiple are present", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "See #aw_ab and #aw_toolongname123 here";
+      replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(mockCore.warning).toHaveBeenCalledTimes(2);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_toolongname123"));
     });
   });
 
@@ -275,7 +323,7 @@ describe("temporary_id.cjs", () => {
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("Invalid temporary ID format");
       expect(result.errorMessage).toContain("aw_test-id");
-      expect(result.errorMessage).toContain("3 to 8 alphanumeric characters");
+      expect(result.errorMessage).toContain("3 to 12 alphanumeric characters");
     });
 
     it("should return specific error for malformed temporary ID (too short)", async () => {
@@ -291,11 +339,11 @@ describe("temporary_id.cjs", () => {
     it("should return specific error for malformed temporary ID (too long)", async () => {
       const { resolveIssueNumber } = await import("./temporary_id.cjs");
       const map = new Map();
-      const result = resolveIssueNumber("aw_abc123456789", map);
+      const result = resolveIssueNumber("aw_abc1234567890", map); // 13 chars - too long
       expect(result.resolved).toBe(null);
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("Invalid temporary ID format");
-      expect(result.errorMessage).toContain("aw_abc123456789");
+      expect(result.errorMessage).toContain("aw_abc1234567890");
     });
 
     it("should handle temporary ID with # prefix", async () => {

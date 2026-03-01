@@ -200,6 +200,13 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		}
 	}
 
+	// Validate safe-outputs concurrency group expression
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ConcurrencyGroup != "" {
+		if err := validateConcurrencyGroupExpression(workflowData.SafeOutputs.ConcurrencyGroup); err != nil {
+			return formatCompilerError(markdownPath, "error", "safe-outputs.concurrency-group validation failed: "+err.Error(), err)
+		}
+	}
+
 	// Emit warning for sandbox.agent: false (disables agent sandbox firewall)
 	if isAgentSandboxDisabled(workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. The AI agent will have direct network access without firewall filtering. The MCP gateway remains enabled. Only use this for testing or in controlled environments where you trust the AI agent completely."))

@@ -25,9 +25,15 @@ const crypto = require("crypto");
 
 /**
  * Regex pattern for matching temporary ID references in text
- * Format: #aw_XXX to #aw_XXXXXXXX (aw_ prefix + 3 to 8 alphanumeric characters)
+ * Format: #aw_XXX to #aw_XXXXXXXXXXXX (aw_ prefix + 3 to 12 alphanumeric characters)
  */
-const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9]{3,8})/gi;
+const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9]{3,12})\b/gi;
+
+/**
+ * Regex pattern for detecting candidate #aw_ references (any length, word-boundary delimited)
+ * Used to identify malformed temporary ID references that don't match TEMPORARY_ID_PATTERN
+ */
+const TEMPORARY_ID_CANDIDATE_PATTERN = /#aw_([A-Za-z0-9]+)\b/gi;
 
 /**
  * @typedef {Object} RepoIssuePair
@@ -51,13 +57,13 @@ function generateTemporaryId() {
 }
 
 /**
- * Check if a value is a valid temporary ID (aw_ prefix + 3 to 8 alphanumeric characters)
+ * Check if a value is a valid temporary ID (aw_ prefix + 3 to 12 alphanumeric characters)
  * @param {any} value - The value to check
  * @returns {boolean} True if the value is a valid temporary ID
  */
 function isTemporaryId(value) {
   if (typeof value === "string") {
-    return /^aw_[A-Za-z0-9]{3,8}$/i.test(value);
+    return /^aw_[A-Za-z0-9]{3,12}$/i.test(value);
   }
   return false;
 }
@@ -80,6 +86,16 @@ function normalizeTemporaryId(tempId) {
  * @returns {string} Text with temporary IDs replaced with issue numbers
  */
 function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+  // Detect and warn about malformed #aw_ references that won't be resolved
+  let candidate;
+  TEMPORARY_ID_CANDIDATE_PATTERN.lastIndex = 0;
+  while ((candidate = TEMPORARY_ID_CANDIDATE_PATTERN.exec(text)) !== null) {
+    const tempId = `aw_${candidate[1]}`;
+    if (!isTemporaryId(tempId)) {
+      core.warning(`Malformed temporary ID reference '${candidate[0]}' found in body text. Temporary IDs must be in format '#aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: '#aw_abc' or '#aw_Test123'`);
+    }
+  }
+
   return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
     const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
     if (resolved !== undefined) {
@@ -146,7 +162,7 @@ function getOrGenerateTemporaryId(message, entityType = "item") {
   if (!isTemporaryId(normalized)) {
     return {
       temporaryId: null,
-      error: `Invalid temporary_id format: '${message.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
+      error: `Invalid temporary_id format: '${message.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
     };
   }
 
@@ -282,14 +298,14 @@ function resolveIssueNumber(value, temporaryIdMap) {
     return {
       resolved: null,
       wasTemporaryId: false,
-      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_abc12345'`,
+      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_abc12345'`,
     };
   }
 
   // It's a real issue number - use context repo as default
   const issueNumber = typeof value === "number" ? value : parseInt(valueWithoutHash, 10);
   if (isNaN(issueNumber) || issueNumber <= 0) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_ followed by 3-8 alphanumeric characters) or a numeric issue number.` };
+    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_ followed by 3-12 alphanumeric characters) or a numeric issue number.` };
   }
 
   const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
@@ -527,6 +543,7 @@ function getCreatedTemporaryId(message) {
 
 module.exports = {
   TEMPORARY_ID_PATTERN,
+  TEMPORARY_ID_CANDIDATE_PATTERN,
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,

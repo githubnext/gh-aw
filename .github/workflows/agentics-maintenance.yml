@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload secret validation report
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: secret-validation-report
           path: secret-validation-report.md

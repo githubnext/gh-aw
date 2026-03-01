@@ -60,6 +60,12 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected Playwright MCP configuration to include official Docker image 'mcr.microsoft.com/playwright/mcp'")
 	}
 
+	// Verify the playwright output directory is pre-created so the Docker container
+	// can write screenshots to the mounted volume path without ENOENT errors
+	if !strings.Contains(lockContentStr, "mkdir -p /tmp/gh-aw/mcp-logs/playwright") {
+		t.Error("Expected 'mkdir -p /tmp/gh-aw/mcp-logs/playwright' in Start MCP Gateway step to pre-create screenshot directory")
+	}
+
 	// Verify MCP logs are uploaded via the unified artifact upload
 	if !strings.Contains(lockContentStr, "- name: Upload agent artifacts") {
 		t.Error("Expected 'Upload agent artifacts' step to be in generated workflow")
@@ -175,5 +181,10 @@ This workflow does not use Playwright but should still have MCP logs upload.
 	// Verify the upload step has 'if-no-files-found: ignore' condition
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
 		t.Error("Expected 'if-no-files-found: ignore' in upload step")
+	}
+
+	// Verify the playwright output directory is NOT pre-created when playwright is not used
+	if strings.Contains(lockContentStr, "mkdir -p /tmp/gh-aw/mcp-logs/playwright") {
+		t.Error("Did not expect 'mkdir -p /tmp/gh-aw/mcp-logs/playwright' in workflow without Playwright")
 	}
 }

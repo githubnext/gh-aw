@@ -29,6 +29,23 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
 
+/** @type {string} Label always added to fallback issues so the triage system can find them */
+const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
+
+/**
+ * Merges the required fallback label with any workflow-configured labels,
+ * deduplicating and filtering empty values.
+ * @param {string[]} [labels]
+ * @returns {string[]}
+ */
+function mergeFallbackIssueLabels(labels = []) {
+  const normalizedLabels = labels
+    .filter(label => !!label)
+    .map(label => String(label).trim())
+    .filter(label => label);
+  return [...new Set([MANAGED_FALLBACK_ISSUE_LABEL, ...normalizedLabels])];
+}
+
 /**
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
@@ -207,11 +224,11 @@ async function main(config = {}) {
 
       if (!isTemporaryId(normalized)) {
         core.warning(
-          `Skipping create_pull_request: Invalid temporary_id format: '${pullRequestItem.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`
+          `Skipping create_pull_request: Invalid temporary_id format: '${pullRequestItem.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`
         );
         return {
           success: false,
-          error: `Invalid temporary_id format: '${pullRequestItem.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
+          error: `Invalid temporary_id format: '${pullRequestItem.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
         };
       }
 
@@ -752,7 +769,7 @@ ${patchPreview}`;
             repo: repoParts.repo,
             title: title,
             body: fallbackBody,
-            labels: labels,
+            labels: mergeFallbackIssueLabels(labels),
           });
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
@@ -1014,7 +1031,7 @@ ${patchPreview}`;
           repo: repoParts.repo,
           title: title,
           body: fallbackBody,
-          labels: labels,
+          labels: mergeFallbackIssueLabels(labels),
         });
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);

@@ -188,29 +188,31 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
 
 	if isCommandTrigger || isSlashCommandWorkflow(workflowData.On) {
-		// For command/slash_command workflows: use issue/PR number
-		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number }}")
+		// For command/slash_command workflows: use issue/PR number; fall back to run_id when
+		// neither is available (e.g. manual workflow_dispatch of the outer workflow).
+		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
-		// Mixed workflows with both issue and PR triggers: use issue/PR number
-		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number }}")
+		// Mixed workflows with both issue and PR triggers
+		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
 	} else if isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
-		// Mixed workflows with PR and discussion triggers: use PR/discussion number
-		keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number }}")
+		// Mixed workflows with PR and discussion triggers
+		keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number || github.run_id }}")
 	} else if isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
-		// Mixed workflows with issue and discussion triggers: use issue/discussion number
-		keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number }}")
+		// Mixed workflows with issue and discussion triggers
+		keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number || github.run_id }}")
 	} else if isPullRequestWorkflow(workflowData.On) {
-		// Pure PR workflows: use PR number if available, otherwise fall back to ref for compatibility
-		keys = append(keys, "${{ github.event.pull_request.number || github.ref }}")
+		// PR workflows: use PR number, fall back to ref then run_id
+		keys = append(keys, "${{ github.event.pull_request.number || github.ref || github.run_id }}")
 	} else if isIssueWorkflow(workflowData.On) {
-		// Issue workflows: use issue number
-		keys = append(keys, "${{ github.event.issue.number }}")
+		// Issue workflows: run_id is the fallback when no issue context is available
+		// (e.g. when a mixed-trigger workflow is started via workflow_dispatch).
+		keys = append(keys, "${{ github.event.issue.number || github.run_id }}")
 	} else if isDiscussionWorkflow(workflowData.On) {
-		// Discussion workflows: use discussion number
-		keys = append(keys, "${{ github.event.discussion.number }}")
+		// Discussion workflows: run_id is the fallback when no discussion context is available.
+		keys = append(keys, "${{ github.event.discussion.number || github.run_id }}")
 	} else if isPushWorkflow(workflowData.On) {
 		// Push workflows: use ref to differentiate between branches
-		keys = append(keys, "${{ github.ref }}")
+		keys = append(keys, "${{ github.ref || github.run_id }}")
 	}
 
 	return keys

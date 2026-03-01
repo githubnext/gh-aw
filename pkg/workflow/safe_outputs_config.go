@@ -287,6 +287,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.HideComment = hideCommentConfig
 			}
 
+			// Handle set-issue-type
+			setIssueTypeConfig := c.parseSetIssueTypeConfig(outputMap)
+			if setIssueTypeConfig != nil {
+				config.SetIssueType = setIssueTypeConfig
+			}
+
 			// Handle dispatch-workflow
 			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
 			if dispatchWorkflowConfig != nil {
@@ -481,6 +487,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle concurrency-group configuration
+			if concurrencyGroup, exists := outputMap["concurrency-group"]; exists {
+				if concurrencyGroupStr, ok := concurrencyGroup.(string); ok && concurrencyGroupStr != "" {
+					config.ConcurrencyGroup = concurrencyGroupStr
+					safeOutputsConfigLog.Printf("Configured concurrency-group for safe-outputs job: %s", concurrencyGroupStr)
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
@@ -521,7 +535,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	return config
 }
 
-// parseBaseSafeOutputConfig parses common fields (max, github-token) from a config map.
+// parseBaseSafeOutputConfig parses common fields (max, github-token, staged) from a config map.
 // If defaultMax is provided (> 0), it will be set as the default value for config.Max
 // before parsing the max field from configMap. Supports both integer values and GitHub
 // Actions expression strings (e.g. "${{ inputs.max }}").
@@ -556,6 +570,14 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 		if githubTokenStr, ok := githubToken.(string); ok {
 			safeOutputsConfigLog.Print("Parsed custom github-token from config")
 			config.GitHubToken = githubTokenStr
+		}
+	}
+
+	// Parse staged flag (per-handler staged mode)
+	if staged, exists := configMap["staged"]; exists {
+		if stagedBool, ok := staged.(bool); ok {
+			safeOutputsConfigLog.Printf("Parsed staged flag: %t", stagedBool)
+			config.Staged = stagedBool
 		}
 	}
 }

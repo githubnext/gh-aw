@@ -303,32 +303,6 @@ func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 	// Build audit data
 	auditData := buildAuditData(processedRun, metrics, nil)
 
-	// Test failure analysis
-	t.Run("Failure Analysis", func(t *testing.T) {
-		if auditData.FailureAnalysis == nil {
-			t.Fatal("Expected failure analysis for failed workflow")
-		}
-
-		fa := auditData.FailureAnalysis
-
-		if fa.PrimaryFailure != "failure" {
-			t.Errorf("Expected primary failure 'failure', got '%s'", fa.PrimaryFailure)
-		}
-
-		if len(fa.FailedJobs) == 0 {
-			t.Error("Expected failed jobs to be listed")
-		}
-
-		if fa.RootCause == "" {
-			t.Error("Expected root cause to be identified")
-		}
-
-		// Should identify timeout as root cause
-		if !strings.Contains(fa.RootCause, "timeout") && !strings.Contains(fa.RootCause, "MCP server") {
-			t.Errorf("Expected timeout or MCP failure as root cause, got: %s", fa.RootCause)
-		}
-	})
-
 	// Test key findings for failure
 	t.Run("Failure Findings", func(t *testing.T) {
 		if len(auditData.KeyFindings) == 0 {
@@ -388,15 +362,9 @@ func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 
 		jsonStr := string(jsonBytes)
 
-		// Verify failure analysis is included
-		if !strings.Contains(jsonStr, `"failure_analysis"`) {
-			t.Error("JSON missing failure_analysis for failed workflow")
-		}
-		if !strings.Contains(jsonStr, `"primary_failure"`) {
-			t.Error("JSON missing primary_failure field")
-		}
-		if !strings.Contains(jsonStr, `"root_cause"`) {
-			t.Error("JSON missing root_cause field")
+		// Verify key findings are included
+		if !strings.Contains(jsonStr, `"key_findings"`) {
+			t.Error("JSON missing key_findings for failed workflow")
 		}
 
 		// Print for documentation
