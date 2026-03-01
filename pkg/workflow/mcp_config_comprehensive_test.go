@@ -1095,8 +1095,8 @@ func TestHasMCPConfigComprehensive(t *testing.T) {
 	}
 }
 
-// TestRenderSerenaMCPConfigLocalMode tests Serena in local mode with HTTP transport
-func TestRenderSerenaMCPConfigLocalMode(t *testing.T) {
+// TestRenderSerenaMCPConfigDockerMode tests Serena in docker mode with container transport
+func TestRenderSerenaMCPConfigDockerMode(t *testing.T) {
 	tests := []struct {
 		name                 string
 		serenaTool           any
@@ -1106,49 +1106,6 @@ func TestRenderSerenaMCPConfigLocalMode(t *testing.T) {
 		expectedContent      []string
 		unexpectedContent    []string
 	}{
-		{
-			name: "Serena local mode - Copilot format",
-			serenaTool: map[string]any{
-				"mode": "local",
-				"languages": map[string]any{
-					"go": map[string]any{},
-				},
-			},
-			isLast:               false,
-			includeCopilotFields: true,
-			inlineArgs:           false,
-			expectedContent: []string{
-				`"serena": {`,
-				`"type": "http"`,
-				`"url": "http://localhost:$GH_AW_SERENA_PORT"`,
-			},
-			unexpectedContent: []string{
-				`"container"`,
-				`"entrypoint"`,
-				`"Authorization"`,
-			},
-		},
-		{
-			name: "Serena local mode - Claude format",
-			serenaTool: map[string]any{
-				"mode": "local",
-				"languages": map[string]any{
-					"typescript": map[string]any{},
-				},
-			},
-			isLast:               true,
-			includeCopilotFields: false,
-			inlineArgs:           false,
-			expectedContent: []string{
-				`"serena": {`,
-				`"url": "http://localhost:$GH_AW_SERENA_PORT"`,
-			},
-			unexpectedContent: []string{
-				`"container"`,
-				`"type"`,
-				`"Authorization"`,
-			},
-		},
 		{
 			name: "Serena docker mode - should use container",
 			serenaTool: map[string]any{

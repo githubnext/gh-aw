@@ -123,11 +123,6 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 	}
 
-	// Check if serena is in local mode and add its environment variables
-	if workflowData != nil && isSerenaInLocalMode(workflowData.ParsedTools) {
-		envVars["GH_AW_SERENA_PORT"] = "${{ steps.serena-config.outputs.serena_port }}"
-	}
-
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"

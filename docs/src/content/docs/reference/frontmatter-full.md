@@ -1640,8 +1640,8 @@ tools:
     # (optional)
     version: null
 
-    # Serena execution mode: 'docker' (default, runs in container) or 'local' (runs
-    # locally with uvx and HTTP transport)
+    # Serena execution mode ('docker' is the only supported mode, runs in
+    # container)
     # (optional)
     mode: "docker"
 

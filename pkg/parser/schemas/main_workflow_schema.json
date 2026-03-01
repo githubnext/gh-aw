@@ -3400,8 +3400,8 @@
                 },
                 "mode": {
                   "type": "string",
-                  "description": "Serena execution mode: 'docker' (default, runs in container) or 'local' (runs locally with uvx and HTTP transport)",
-                  "enum": ["docker", "local"],
+                  "description": "Serena execution mode (only 'docker' is supported, runs in container)",
+                  "enum": ["docker"],
                   "default": "docker"
                 },
                 "args": {

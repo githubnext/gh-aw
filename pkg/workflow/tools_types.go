@@ -311,7 +311,6 @@ type PlaywrightToolConfig struct {
 type SerenaToolConfig struct {
 	Version   string                       `yaml:"version,omitempty"`
 	Args      []string                     `yaml:"args,omitempty"`
-	Mode      string                       `yaml:"mode,omitempty"` // "docker" (default) or "local" (uses uvx)
 	Languages map[string]*SerenaLangConfig `yaml:"languages,omitempty"`
 	// ShortSyntax stores the array of language names when using short syntax (e.g., ["go", "typescript"])
 	ShortSyntax []string `yaml:"-"`
