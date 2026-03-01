@@ -1300,7 +1300,7 @@ func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 		Name:        "Test Workflow",
 		AI:          "copilot",
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n  contents: write",
+		Permissions: "permissions:\n  contents: read",
 		RepoMemoryConfig: &RepoMemoryConfig{
 			Memories: []RepoMemoryEntry{
 				{

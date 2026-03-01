@@ -21,10 +21,8 @@ func BenchmarkCompileSimpleWorkflow(b *testing.B) {
 on: issues
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 tools:
   bash: ["echo", "cat"]
 timeout-minutes: 5
@@ -63,8 +61,8 @@ on:
     types: [opened, synchronize, reopened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine:
   id: copilot
   max-turns: 5
@@ -121,10 +119,8 @@ func BenchmarkCompileMCPWorkflow(b *testing.B) {
 on: pull_request
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote
@@ -173,10 +169,8 @@ on:
     types: [opened, synchronize]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote
@@ -224,10 +218,8 @@ func BenchmarkParseWorkflow(b *testing.B) {
 on: issues
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 tools:
   bash: ["echo"]
 ---
@@ -262,10 +254,8 @@ func BenchmarkValidation(b *testing.B) {
 on: pull_request
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote

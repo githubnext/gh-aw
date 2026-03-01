@@ -314,7 +314,7 @@ Base content.`
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
 source: test/repo/workflow.md@v1.0.0
 ---
 
@@ -327,7 +327,7 @@ Base content with local notes.`
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 ---
 
 # Test Workflow

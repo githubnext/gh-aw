@@ -21,11 +21,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:
@@ -91,11 +89,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:
@@ -171,11 +167,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:
@@ -229,11 +223,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:
@@ -279,11 +271,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:
@@ -329,11 +319,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:
@@ -381,11 +369,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   update-issue:

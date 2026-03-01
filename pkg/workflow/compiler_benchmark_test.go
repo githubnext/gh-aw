@@ -24,10 +24,8 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read, add_issue_comment, list_issues]
@@ -68,10 +66,8 @@ on:
     types: [opened, synchronize]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 mcp-servers:
   github:
     mode: remote
@@ -134,10 +130,8 @@ on:
     - cron: "0 9 * * 1"
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 imports:
   - shared/web-tools.md
 timeout-minutes: 20
@@ -174,10 +168,8 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read, add_issue_comment]
@@ -220,8 +212,8 @@ on:
     forks: ["org/*", "trusted/repo"]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
   actions: read
 engine:
   id: copilot
@@ -290,10 +282,8 @@ func BenchmarkGenerateYAML(b *testing.B) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [get_repository, list_commits]
@@ -345,9 +335,9 @@ on:
         default: false
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
-  deployments: write
+  issues: read
+  pull-requests: read
+  deployments: read
 engine:
   id: copilot
   max-turns: 10

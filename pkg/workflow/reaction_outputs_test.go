@@ -27,8 +27,8 @@ on:
   status-comment: true
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 strict: false
 tools:
   github:
@@ -105,8 +105,8 @@ on:
   status-comment: true
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 strict: false
 ---
 

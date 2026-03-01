@@ -21,7 +21,7 @@ on:
     types: [created]
 permissions:
   contents: read
-  discussions: write
+  discussions: read
 engine: claude
 strict: false
 safe-outputs:
@@ -92,7 +92,7 @@ on:
     types: [created]
 permissions:
   contents: read
-  discussions: write
+  discussions: read
 engine: claude
 strict: false
 safe-outputs:
@@ -177,7 +177,7 @@ on:
     types: [created]
 permissions:
   contents: read
-  discussions: write
+  discussions: read
 engine: claude
 strict: false
 safe-outputs:
@@ -233,7 +233,7 @@ on:
     types: [created]
 permissions:
   contents: read
-  discussions: write
+  discussions: read
 engine: claude
 strict: false
 safe-outputs:
@@ -297,7 +297,7 @@ on:
     types: [created]
 permissions:
   contents: read
-  discussions: write
+  discussions: read
 engine: claude
 strict: false
 safe-outputs:

@@ -24,12 +24,10 @@ on: push
 timeout-minutes: 10
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -111,13 +109,11 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 tools:
   github:
     allowed: [create_issue_comment]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectError:      true,
@@ -131,13 +127,11 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 tools:
   github:
     allowed: [create_issue_comment]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -154,13 +148,11 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 tools:
   github:
     allowed: [create_issue_comment]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
    	   
@@ -171,7 +163,7 @@ strict: false
 		},
 		{
 			name:             "frontmatter_with_just_newlines",
-			content:          "---\non:\n  issues:\n    types: [opened]\npermissions:\n  issues: write\ntools:\n  github:\n    allowed: [add_issue_comment]\nengine: claude\n---\n\n\n\n",
+			content:          "---\non:\n  issues:\n    types: [opened]\npermissions:\n  issues: read\ntools:\n  github:\n    allowed: [add_issue_comment]\nengine: claude\n---\n\n\n\n",
 			expectError:      true,
 			expectedErrorMsg: "no markdown content found",
 			description:      "Should error when workflow has only frontmatter followed by just newlines",
@@ -184,14 +176,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [create_issue_comment]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -211,14 +201,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [create_issue_comment]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

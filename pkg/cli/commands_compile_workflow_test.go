@@ -66,12 +66,10 @@ on:
   schedule:
     - cron: "0 9 * * 1"
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Verbose Test Workflow

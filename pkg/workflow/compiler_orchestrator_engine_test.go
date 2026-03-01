@@ -165,8 +165,6 @@ engine: copilot
 on: push
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 ---`,
 			cliStrict:     false,
 			expectStrict:  false,

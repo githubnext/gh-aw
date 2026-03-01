@@ -245,7 +245,7 @@ func TestWritePermissionsCodemod_MapFormat(t *testing.T) {
 	content := `---
 on: workflow_dispatch
 permissions:
-  contents: write
+  contents: read
   issues: read
 ---
 
@@ -274,9 +274,9 @@ func TestWritePermissionsCodemod_MultipleWritePermissions(t *testing.T) {
 	content := `---
 on: workflow_dispatch
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+  contents: read
+  pull-requests: read
+  issues: read
 ---
 
 # Test`
@@ -354,8 +354,8 @@ func TestWritePermissionsCodemod_PreservesIndentation(t *testing.T) {
 	content := `---
 on: workflow_dispatch
 permissions:
-  contents: write
-  issues: write
+  contents: read
+  issues: read
 ---
 
 # Test`
@@ -382,7 +382,7 @@ func TestWritePermissionsCodemod_PreservesComments(t *testing.T) {
 	content := `---
 on: workflow_dispatch
 permissions:
-  contents: write  # Write access for commits
+  contents: read  # Write access for commits
   issues: read  # Read-only for issues
 ---
 

@@ -272,11 +272,9 @@ func TestCompileWorkflowWithExtendedEngine(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -292,7 +290,7 @@ This is a test workflow.`,
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 strict: false
 engine:
@@ -313,7 +311,7 @@ This is a test workflow.`,
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 strict: false
 engine:

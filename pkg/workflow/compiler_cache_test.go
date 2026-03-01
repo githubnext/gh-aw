@@ -337,14 +337,12 @@ on:
   issues:
     types: [opened]
 permissions:
-  contents: write
-  issues: write
+  contents: read
+  issues: read
 tools:
   github:
     toolsets: [repos, issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -420,8 +418,8 @@ This workflow has custom permissions that should override defaults.
 
 	// Verify custom permissions are applied
 	expectedCustomPermissions := map[string]string{
-		"contents": "write",
-		"issues":   "write",
+		"contents": "read",
+		"issues":   "read",
 	}
 
 	for key, expectedValue := range expectedCustomPermissions {
