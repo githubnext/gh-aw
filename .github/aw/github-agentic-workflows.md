@@ -197,6 +197,8 @@ The YAML frontmatter supports these fields:
 - **`inlined-imports:`** - Inline all imports at compile time (boolean, default: `false`)
   - When `true`, all imports (including those without inputs) are inlined in the generated `.lock.yml` instead of using runtime-import macros
   - The frontmatter hash covers the entire markdown body when enabled, so any content change invalidates the hash
+  - **Required for repository rulesets**: Workflows used as required status checks in repository rulesets run without access to repository files at runtime. Set `inlined-imports: true` to bundle all imported content at compile time to avoid "Runtime import file not found" errors
+  - **Constraint**: Cannot be combined with agent file imports (`.github/agents/` files). Remove any custom agent file imports before enabling
 - **`mcp-servers:`** - MCP (Model Context Protocol) server definitions (object)
   - Defines custom MCP servers for additional tools beyond built-in ones
   - See [Custom MCP Tools](#custom-mcp-tools) section for detailed documentation
@@ -890,6 +892,16 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`. When using `safe-outputs.hide-comment`, the main job does **not** need write permissions since comment hiding is handled by a separate job.
+  - `set-issue-type:` - Set the type of an issue (requires organization-defined issue types)
+    ```yaml
+    safe-outputs:
+      set-issue-type:
+        allowed: [Bug, Feature, Enhancement]  # Optional: restrict to specific issue type names
+        target: "triggering"                  # Optional: "triggering" (default), "*", or number
+        max: 1                                # Optional: max operations (default: 1)
+        target-repo: "owner/repo"             # Optional: cross-repository
+    ```
+    Set `allowed` to an empty string `""` to allow clearing the issue type. When `allowed` is omitted, any type name is accepted. When using `safe-outputs.set-issue-type`, the main job does **not** need `issues: write` permission since type updates are handled by a separate job with appropriate permissions.
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
