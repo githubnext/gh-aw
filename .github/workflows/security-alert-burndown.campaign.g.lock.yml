@@ -23,7 +23,7 @@
 #
 # Orchestrator workflow for campaign 'security-alert-burndown'
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6cd777197ff20097174c752a68c0620617aa3b420fcd5f527dbab177c2a681ea"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"44e9ad89fc3f881e52e25ebc92ed461a8df570529c59e8a155cfb0e503531a80"}
 
 name: "Security Alert Burndown"
 "on":
@@ -292,7 +292,7 @@ jobs:
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
           GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,security-review
         id: discovery
-        name: Run campaign discovery precomputation
+        name: Precompute campaign discovery
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
