@@ -49,6 +49,7 @@ describe("check_rate_limit", () => {
     delete process.env.GH_AW_RATE_LIMIT_WINDOW;
     delete process.env.GH_AW_RATE_LIMIT_EVENTS;
     delete process.env.GH_AW_RATE_LIMIT_IGNORED_ROLES;
+    delete process.env.GITHUB_WORKFLOW_REF;
 
     // Reset repos mock
     mockGithub.rest.repos = undefined;
@@ -717,6 +718,54 @@ describe("check_rate_limit", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Ignored roles: admin"));
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("User 'test-user' has ignored role 'admin'; skipping rate limit check"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
+  });
+
+  it("should apply rate limiting to issue_comment events by default", async () => {
+    mockContext.eventName = "issue_comment";
+
+    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
+      data: { workflow_runs: [] },
+    });
+
+    await checkRateLimit.main();
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Rate limiting applies to programmatic events"));
+    expect(mockGithub.rest.actions.listWorkflowRuns).toHaveBeenCalled();
+    expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
+  });
+
+  it("should apply rate limiting to discussion_comment events by default", async () => {
+    mockContext.eventName = "discussion_comment";
+
+    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
+      data: { workflow_runs: [] },
+    });
+
+    await checkRateLimit.main();
+
+    expect(mockGithub.rest.actions.listWorkflowRuns).toHaveBeenCalled();
+    expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
+  });
+
+  it("should skip non-programmatic events like pull_request by default", async () => {
+    mockContext.eventName = "pull_request";
+
+    await checkRateLimit.main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Event 'pull_request' is not a programmatic trigger"));
+    expect(mockGithub.rest.actions.listWorkflowRuns).not.toHaveBeenCalled();
+  });
+
+  it("should log stack trace for errors that have one", async () => {
+    const errorWithStack = new Error("API error with stack");
+    mockGithub.rest.actions.listWorkflowRuns.mockRejectedValue(errorWithStack);
+
+    await checkRateLimit.main();
+
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Rate limit check failed: API error with stack"));
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Stack trace:"));
     expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
   });
 });

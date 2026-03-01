@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Rate limit check for per-user per-workflow triggers
  * Prevents users from triggering workflows too frequently
@@ -66,8 +68,7 @@ async function main() {
     }
   } catch (error) {
     // If we can't check permissions, continue with rate limiting (fail-secure)
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    core.warning(`⚠️ Could not check user permissions: ${errorMsg}`);
+    core.warning(`⚠️ Could not check user permissions: ${getErrorMessage(error)}`);
     core.warning(`   Continuing with rate limit check for user '${actor}'`);
   }
 
@@ -109,6 +110,7 @@ async function main() {
     // Collect recent workflow runs by event type
     // This allows us to aggregate counts and short-circuit when max is exceeded
     let totalRecentRuns = 0;
+    /** @type {Record<string, number>} */
     const runsPerEvent = {};
 
     core.info(`📊 Querying workflow runs for '${workflowId}'...`);
@@ -230,8 +232,7 @@ async function main() {
         });
         core.warning(`✅ Workflow run ${runId} cancelled successfully`);
       } catch (cancelError) {
-        const errorMsg = cancelError instanceof Error ? cancelError.message : String(cancelError);
-        core.error(`❌ Failed to cancel workflow run: ${errorMsg}`);
+        core.error(`❌ Failed to cancel workflow run: ${getErrorMessage(cancelError)}`);
         // Continue anyway - the rate limit output will still be set to false
       }
 
@@ -245,11 +246,9 @@ async function main() {
     core.info(`   Remaining quota: ${maxRuns - totalRecentRuns} runs`);
     core.setOutput("rate_limit_ok", "true");
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : "";
-    core.error(`❌ Rate limit check failed: ${errorMsg}`);
-    if (errorStack) {
-      core.error(`   Stack trace: ${errorStack}`);
+    core.error(`❌ Rate limit check failed: ${getErrorMessage(error)}`);
+    if (error instanceof Error && error.stack) {
+      core.error(`   Stack trace: ${error.stack}`);
     }
 
     // On error, allow the workflow to proceed (fail-open)
