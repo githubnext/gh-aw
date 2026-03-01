@@ -96,7 +96,7 @@ func TestAddRemoteWorkflowFromURL(t *testing.T) {
 	// Using a workflow from the gh-aw repo itself for reliability
 	workflowURL := "https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/github-mcp-tools-report.md"
 
-	cmd := exec.Command(setup.binaryPath, "add", workflowURL, "--non-interactive", "--verbose")
+	cmd := exec.Command(setup.binaryPath, "add", workflowURL, "--verbose")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -229,7 +229,7 @@ func TestAddAllBlogSeriesWorkflows(t *testing.T) {
 			workflowURL := "https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/" + workflowName
 
 			// Add the workflow
-			cmd := exec.Command(setup.binaryPath, "add", workflowURL, "--non-interactive")
+			cmd := exec.Command(setup.binaryPath, "add", workflowURL)
 			cmd.Dir = setup.tempDir
 			output, err := cmd.CombinedOutput()
 			outputStr := string(output)
@@ -308,7 +308,7 @@ Please analyze the repository and provide a summary.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add the local workflow using non-interactive mode
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--verbose")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--verbose")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -385,7 +385,7 @@ Test content.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add with a custom name
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--name", "custom-workflow-name")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--name", "custom-workflow-name")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -433,7 +433,7 @@ Test content.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add to a custom directory
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--dir", "experimental")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--dir", "experimental")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -506,7 +506,7 @@ This is the NEW content that should replace the old.
 	require.NoError(t, err, "should write new workflow file")
 
 	// First try without --force (should fail)
-	cmdNoForce := exec.Command(setup.binaryPath, "add", newWorkflowPath, "--non-interactive")
+	cmdNoForce := exec.Command(setup.binaryPath, "add", newWorkflowPath)
 	cmdNoForce.Dir = setup.tempDir
 	outputNoForce, errNoForce := cmdNoForce.CombinedOutput()
 	outputNoForceStr := string(outputNoForce)
@@ -522,7 +522,7 @@ This is the NEW content that should replace the old.
 	assert.Contains(t, string(content), "OLD content", "original content should remain")
 
 	// Now try with --force (should succeed)
-	cmdForce := exec.Command(setup.binaryPath, "add", newWorkflowPath, "--non-interactive", "--force")
+	cmdForce := exec.Command(setup.binaryPath, "add", newWorkflowPath, "--force")
 	cmdForce.Dir = setup.tempDir
 	outputForce, errForce := cmdForce.CombinedOutput()
 	outputForceStr := string(outputForce)
@@ -565,7 +565,7 @@ Content.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add the workflow
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath)
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -615,7 +615,7 @@ Content.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add the workflow with --no-gitattributes and --verbose to see output
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--no-gitattributes", "--verbose")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--no-gitattributes", "--verbose")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -648,7 +648,7 @@ func TestAddRemoteWorkflowWithVersion(t *testing.T) {
 	// but this workflow is in .github/workflows/, so we need the explicit path
 	workflowSpec := "github/gh-aw/.github/workflows/github-mcp-tools-report.md@v0.45.5"
 
-	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--non-interactive", "--verbose")
+	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -705,7 +705,7 @@ Please analyze the repository.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add the workflow with --engine claude
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--engine", "claude")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--engine", "claude")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -758,7 +758,7 @@ Please analyze the repository.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add the workflow with --engine claude (should replace copilot)
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--engine", "claude")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--engine", "claude")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -812,7 +812,7 @@ Please analyze the repository.
 	require.NoError(t, err, "should write local workflow file")
 
 	// Add the workflow WITHOUT --engine flag
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive")
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath)
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)

@@ -49,10 +49,6 @@ func TestNewAddCommand(t *testing.T) {
 	prFlag := flags.Lookup("pr")
 	assert.NotNil(t, prFlag, "Should have 'pr' flag (alias)")
 
-	// Check push flag
-	pushFlag := flags.Lookup("push")
-	assert.NotNil(t, pushFlag, "Should have 'push' flag")
-
 	// Check force flag
 	forceFlag := flags.Lookup("force")
 	assert.NotNil(t, forceFlag, "Should have 'force' flag")

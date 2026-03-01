@@ -204,8 +204,8 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Do you want to proceed with these changes?").
-				Description("A pull request will be created and merged automatically").
-				Affirmative("Yes, create and merge").
+				Description("A pull request will be created with the workflow files").
+				Affirmative("Yes, create pull request").
 				Negative("No, cancel").
 				Value(&confirmed),
 		),

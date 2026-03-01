@@ -37,7 +37,8 @@ echo "Safe-output-projects support: ${SAFE_OUTPUT_PROJECTS_ENABLED}"
 create_dir "${DESTINATION}"
 echo "Created directory: ${DESTINATION}"
 
-# Create /tmp/gh-aw directory so it exists before any activation scripts run
+# Remove and recreate /tmp/gh-aw directory to ensure a clean state
+rm -rf /tmp/gh-aw
 mkdir -p /tmp/gh-aw
 echo "Created /tmp/gh-aw directory"
 

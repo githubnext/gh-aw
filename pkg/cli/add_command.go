@@ -10,7 +10,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +25,6 @@ type AddOptions struct {
 	Force                  bool
 	AppendText             string
 	CreatePR               bool
-	Push                   bool
 	NoGitattributes        bool
 	FromWildcard           bool
 	WorkflowDir            string
@@ -48,27 +46,19 @@ type AddWorkflowsResult struct {
 // NewAddCommand creates the add command
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "add <workflow>...",
-		Aliases: []string{"add-wizard"},
-		Short:   "Add agentic workflows from repositories to .github/workflows",
+		Use:   "add <workflow>...",
+		Short: "Add agentic workflows from repositories to .github/workflows",
 		Long: `Add one or more workflows from repositories to .github/workflows.
 
-By default, this command runs in interactive mode, which guides you through:
-  - Selecting an AI engine (Copilot, Claude, or Codex)
-  - Configuring API keys and secrets
-  - Creating a pull request with the workflow
-  - Optionally running the workflow
-
-Use --non-interactive to skip the guided setup and add workflows directly.
+This command adds workflows directly without interactive prompts. Use 'add-wizard'
+for a guided setup that configures secrets, creates a pull request, and more.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Interactive setup (recommended)
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --non-interactive  # Skip interactive mode
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Add workflow directly
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --push         # Add and push changes
   ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
@@ -83,12 +73,11 @@ Workflow specifications:
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
-The --create-pull-request flag (or --pr) automatically creates a pull request with the workflow changes.
-The --push flag automatically commits and pushes changes after successful workflow addition.
+The --create-pull-request flag (or --pr) creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
-The --non-interactive flag skips the guided setup and uses traditional behavior.
 
-Note: To create a new workflow from scratch, use the 'new' command instead.`,
+Note: To create a new workflow from scratch, use the 'new' command instead.
+Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
@@ -102,7 +91,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			prFlag := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
-			pushFlag, _ := cmd.Flags().GetBool("push")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -110,33 +98,11 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			nonInteractive, _ := cmd.Flags().GetBool("non-interactive")
 			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
 
-			// Determine if we should use interactive mode
-			// Interactive mode is the default for TTY unless:
-			// - --non-interactive flag is set
-			// - Any of the batch/automation flags are set (--create-pull-request, --force, --name, --append)
-			// - Not a TTY (piped input/output)
-			// - In CI environment
-			useInteractive := !nonInteractive &&
-				!prFlag &&
-				!forceFlag &&
-				nameFlag == "" &&
-				appendText == "" &&
-				tty.IsStdoutTerminal() &&
-				os.Getenv("CI") == "" &&
-				os.Getenv("GO_TEST_MODE") != "true"
-
-			if useInteractive {
-				addLog.Print("Using interactive mode")
-				return RunAddInteractive(cmd.Context(), workflows, verbose, engineOverride, noGitattributes, workflowDir, noStopAfter, stopAfter)
-			}
-
-			// Handle normal (non-interactive) mode
 			opts := AddOptions{
 				Verbose:                verbose,
 				EngineOverride:         engineOverride,
@@ -144,7 +110,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				Force:                  forceFlag,
 				AppendText:             appendText,
 				CreatePR:               prFlag,
-				Push:                   pushFlag,
 				NoGitattributes:        noGitattributes,
 				WorkflowDir:            workflowDir,
 				NoStopAfter:            noStopAfter,
@@ -170,9 +135,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
-	// Add push flag to add command
-	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful workflow addition")
-
 	// Add force flag to add command
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
 
@@ -190,9 +152,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 	// Add stop-after flag to add command
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-
-	// Add non-interactive flag to add command
-	cmd.Flags().Bool("non-interactive", false, "Skip interactive setup and use traditional behavior (for CI/automation)")
 
 	// Add disable-security-scanner flag to add command
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
@@ -313,62 +272,6 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 
 	if !opts.Quiet && len(workflows) > 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
-	}
-
-	// If --push is enabled, commit and push changes
-	if opts.Push {
-		addLog.Print("Push enabled - preparing to commit and push changes")
-		fmt.Fprintln(os.Stderr, "")
-
-		// Check if we're on the default branch
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking current branch..."))
-		if err := checkOnDefaultBranch(opts.Verbose); err != nil {
-			addLog.Printf("Default branch check failed: %v", err)
-			return fmt.Errorf("cannot push: %w", err)
-		}
-
-		// Confirm with user (skip in CI)
-		if err := confirmPushOperation(opts.Verbose); err != nil {
-			addLog.Printf("Push operation not confirmed: %v", err)
-			return fmt.Errorf("push operation cancelled: %w", err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
-
-		// Create commit message
-		var commitMessage string
-		if len(workflows) == 1 {
-			commitMessage = "chore: add workflow " + workflows[0].Spec.WorkflowName
-		} else {
-			commitMessage = fmt.Sprintf("chore: add %d workflows", len(workflows))
-		}
-
-		// Use the helper function to orchestrate the full workflow
-		if err := commitAndPushChanges(commitMessage, opts.Verbose); err != nil {
-			// Check if it's the "no changes" case
-			hasChanges, checkErr := hasChangesToCommit()
-			if checkErr == nil && !hasChanges {
-				addLog.Print("No changes to commit")
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
-			} else {
-				return err
-			}
-		} else {
-			// Print success messages based on whether remote exists
-			fmt.Fprintln(os.Stderr, "")
-			if hasRemote() {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
-			}
-		}
-	}
-
-	// Stage tracked files to git if in a git repository
-	if isGitRepo() && tracker != nil {
-		if err := tracker.StageAllFiles(opts.Verbose); err != nil {
-			return fmt.Errorf("failed to stage workflow files: %w", err)
-		}
 	}
 
 	return nil
