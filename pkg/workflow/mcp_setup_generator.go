@@ -434,11 +434,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Generate Serena MCP server startup steps if in local mode
-	if isSerenaInLocalMode(workflowData.ParsedTools) {
-		generateSerenaLocalModeSteps(yaml)
-	}
-
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Start MCP Gateway\n")

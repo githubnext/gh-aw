@@ -1007,16 +1007,6 @@ Uses imported serena in local mode.
 		t.Error("Expected serena local mode to have port configuration")
 	}
 
-	// Verify serena startup steps are present
-	if !strings.Contains(workflowData, "Start Serena MCP HTTP Server") {
-		t.Error("Expected serena local mode to have startup step")
-	}
-
-	// Verify shell script is called
-	if !strings.Contains(workflowData, "start_serena_server.sh") {
-		t.Error("Expected serena local mode to call start_serena_server.sh")
-	}
-
 	// Verify language runtime setup (Go in this case)
 	if !strings.Contains(workflowData, "Setup Go") {
 		t.Error("Expected serena local mode to setup Go runtime")
