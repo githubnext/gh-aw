@@ -210,22 +210,6 @@ function createReviewBuffer() {
     let event = reviewMetadata ? reviewMetadata.event : "COMMENT";
     let body = reviewMetadata ? reviewMetadata.body : "";
 
-    // Force COMMENT when the reviewer is also the PR author.
-    // GitHub API rejects APPROVE and REQUEST_CHANGES on your own PRs.
-    if (event !== "COMMENT" && pullRequest?.user?.login) {
-      try {
-        const { data: authenticatedUser } = await github.rest.users.getAuthenticated();
-        if (authenticatedUser?.login === pullRequest.user.login) {
-          core.warning(`Cannot submit ${event} review on own PR (author: ${pullRequest.user.login}). Forcing event to COMMENT.`);
-          event = "COMMENT";
-        }
-      } catch (authError) {
-        // If we can't determine the authenticated user, proceed with the original event.
-        // The GitHub API will reject it if it's invalid, and the error will be caught below.
-        core.warning(`Could not determine authenticated user: ${getErrorMessage(authError)}. Proceeding with event=${event}.`);
-      }
-    }
-
     // Determine if we should add footer based on footer mode
     let shouldAddFooter = false;
     if (footerMode === "always") {
@@ -308,26 +292,26 @@ function createReviewBuffer() {
       return { success: true, staged: true };
     }
 
+    /** @type {any} */
+    const requestParams = {
+      owner: repoParts.owner,
+      repo: repoParts.repo,
+      pull_number: pullRequestNumber,
+      commit_id: pullRequest.head.sha,
+      event: event,
+    };
+
+    // Only include comments if there are any
+    if (comments.length > 0) {
+      requestParams.comments = comments;
+    }
+
+    // Only include body if non-empty
+    if (body) {
+      requestParams.body = body;
+    }
+
     try {
-      /** @type {any} */
-      const requestParams = {
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        pull_number: pullRequestNumber,
-        commit_id: pullRequest.head.sha,
-        event: event,
-      };
-
-      // Only include comments if there are any
-      if (comments.length > 0) {
-        requestParams.comments = comments;
-      }
-
-      // Only include body if non-empty
-      if (body) {
-        requestParams.body = body;
-      }
-
       const { data: review } = await github.rest.pulls.createReview(requestParams);
 
       core.info(`Created PR review #${review.id}: ${review.html_url}`);
@@ -342,10 +326,40 @@ function createReviewBuffer() {
         comment_count: comments.length,
       };
     } catch (error) {
-      core.error(`Failed to submit PR review: ${getErrorMessage(error)}`);
+      const errorMessage = getErrorMessage(error);
+
+      // Retry with COMMENT when the API rejects APPROVE/REQUEST_CHANGES on own PR.
+      // This handles all token types (GITHUB_TOKEN lacks read:user scope for proactive checks).
+      // These error message strings are returned verbatim by the GitHub API (Unprocessable Entity).
+      const ownPrMessages = ["Can not request changes on your own pull request", "Can not approve your own pull request"];
+      if (event !== "COMMENT" && ownPrMessages.some(msg => errorMessage.includes(msg))) {
+        core.warning(`Cannot submit ${event} review on own PR. Retrying with event=COMMENT.`);
+        try {
+          requestParams.event = "COMMENT";
+          const { data: review } = await github.rest.pulls.createReview(requestParams);
+          core.info(`Created PR review #${review.id}: ${review.html_url}`);
+          return {
+            success: true,
+            review_id: review.id,
+            review_url: review.html_url,
+            pull_request_number: pullRequestNumber,
+            repo: repo,
+            event: "COMMENT",
+            comment_count: comments.length,
+          };
+        } catch (retryError) {
+          core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
+          return {
+            success: false,
+            error: getErrorMessage(retryError),
+          };
+        }
+      }
+
+      core.error(`Failed to submit PR review: ${errorMessage}`);
       return {
         success: false,
-        error: getErrorMessage(error),
+        error: errorMessage,
       };
     }
   }

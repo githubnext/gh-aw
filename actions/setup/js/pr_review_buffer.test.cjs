@@ -14,9 +14,6 @@ const mockGithub = {
     pulls: {
       createReview: vi.fn(),
     },
-    users: {
-      getAuthenticated: vi.fn(),
-    },
   },
 };
 
@@ -460,7 +457,7 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(callArgs.body).toContain("test-workflow");
     });
 
-    it("should force COMMENT when reviewer is the PR author and event is APPROVE", async () => {
+    it("should retry with COMMENT when APPROVE is rejected on own PR", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("LGTM", "APPROVE");
       buffer.setReviewContext({
@@ -470,10 +467,7 @@ describe("pr_review_buffer (factory pattern)", () => {
         pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
       });
 
-      mockGithub.rest.users.getAuthenticated.mockResolvedValue({
-        data: { login: "bot-user" },
-      });
-      mockGithub.rest.pulls.createReview.mockResolvedValue({
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Can not approve your own pull request")).mockResolvedValueOnce({
         data: {
           id: 700,
           html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-700",
@@ -484,12 +478,13 @@ describe("pr_review_buffer (factory pattern)", () => {
 
       expect(result.success).toBe(true);
       expect(result.event).toBe("COMMENT");
-      const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
-      expect(callArgs.event).toBe("COMMENT");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.event).toBe("COMMENT");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cannot submit APPROVE review on own PR"));
     });
 
-    it("should force COMMENT when reviewer is the PR author and event is REQUEST_CHANGES", async () => {
+    it("should retry with COMMENT when REQUEST_CHANGES is rejected on own PR", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("Fix this", "REQUEST_CHANGES");
       buffer.setReviewContext({
@@ -499,10 +494,7 @@ describe("pr_review_buffer (factory pattern)", () => {
         pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
       });
 
-      mockGithub.rest.users.getAuthenticated.mockResolvedValue({
-        data: { login: "bot-user" },
-      });
-      mockGithub.rest.pulls.createReview.mockResolvedValue({
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Can not request changes on your own pull request")).mockResolvedValueOnce({
         data: {
           id: 701,
           html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-701",
@@ -513,12 +505,13 @@ describe("pr_review_buffer (factory pattern)", () => {
 
       expect(result.success).toBe(true);
       expect(result.event).toBe("COMMENT");
-      const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
-      expect(callArgs.event).toBe("COMMENT");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.event).toBe("COMMENT");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cannot submit REQUEST_CHANGES review on own PR"));
     });
 
-    it("should not force COMMENT when reviewer is different from PR author", async () => {
+    it("should not retry when APPROVE succeeds (reviewer is different from PR author)", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("LGTM", "APPROVE");
       buffer.setReviewContext({
@@ -528,9 +521,6 @@ describe("pr_review_buffer (factory pattern)", () => {
         pullRequest: { head: { sha: "abc123" }, user: { login: "pr-author" } },
       });
 
-      mockGithub.rest.users.getAuthenticated.mockResolvedValue({
-        data: { login: "reviewer-bot" },
-      });
       mockGithub.rest.pulls.createReview.mockResolvedValue({
         data: {
           id: 702,
@@ -542,11 +532,12 @@ describe("pr_review_buffer (factory pattern)", () => {
 
       expect(result.success).toBe(true);
       expect(result.event).toBe("APPROVE");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
       const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
       expect(callArgs.event).toBe("APPROVE");
     });
 
-    it("should skip author check when event is already COMMENT", async () => {
+    it("should not retry with COMMENT when event is already COMMENT and API error occurs", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("Some feedback", "COMMENT");
       buffer.setReviewContext({
@@ -556,68 +547,31 @@ describe("pr_review_buffer (factory pattern)", () => {
         pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
       });
 
-      mockGithub.rest.pulls.createReview.mockResolvedValue({
-        data: {
-          id: 703,
-          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-703",
-        },
-      });
+      mockGithub.rest.pulls.createReview.mockRejectedValue(new Error("Validation Failed"));
 
       const result = await buffer.submitReview();
 
-      expect(result.success).toBe(true);
-      // Should not call getAuthenticated since event is already COMMENT
-      expect(mockGithub.rest.users.getAuthenticated).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
     });
 
-    it("should skip author check when pullRequest has no user info", async () => {
+    it("should return failure when retry also fails", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("LGTM", "APPROVE");
       buffer.setReviewContext({
         repo: "owner/repo",
         repoParts: { owner: "owner", repo: "repo" },
         pullRequestNumber: 42,
-        pullRequest: { head: { sha: "abc123" } }, // No user field
+        pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
       });
 
-      mockGithub.rest.pulls.createReview.mockResolvedValue({
-        data: {
-          id: 705,
-          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-705",
-        },
-      });
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Can not approve your own pull request")).mockRejectedValueOnce(new Error("Some other error"));
 
       const result = await buffer.submitReview();
 
-      expect(result.success).toBe(true);
-      expect(result.event).toBe("APPROVE");
-      // Should not call getAuthenticated since there's no user info to compare against
-      expect(mockGithub.rest.users.getAuthenticated).not.toHaveBeenCalled();
-    });
-
-    it("should proceed with original event when getAuthenticated fails", async () => {
-      buffer.addComment({ path: "test.js", line: 1, body: "comment" });
-      buffer.setReviewMetadata("LGTM", "APPROVE");
-      buffer.setReviewContext({
-        repo: "owner/repo",
-        repoParts: { owner: "owner", repo: "repo" },
-        pullRequestNumber: 42,
-        pullRequest: { head: { sha: "abc123" }, user: { login: "pr-author" } },
-      });
-
-      mockGithub.rest.users.getAuthenticated.mockRejectedValue(new Error("Bad credentials"));
-      mockGithub.rest.pulls.createReview.mockResolvedValue({
-        data: {
-          id: 704,
-          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-704",
-        },
-      });
-
-      const result = await buffer.submitReview();
-
-      expect(result.success).toBe(true);
-      expect(result.event).toBe("APPROVE");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not determine authenticated user"));
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Some other error");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
     it("should handle API errors gracefully", async () => {
