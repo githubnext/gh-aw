@@ -466,6 +466,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+	// Pre-create the playwright output directory on the host so the Docker container
+	// can write screenshots to the mounted volume path without ENOENT errors
+	if slices.Contains(mcpTools, "playwright") {
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/playwright\n")
+	}
 
 	// Export gateway environment variables and build docker command BEFORE rendering MCP config
 	// This allows the config to be piped directly to the gateway script

@@ -1550,6 +1550,7 @@ jobs:
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-logs/playwright
           
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
