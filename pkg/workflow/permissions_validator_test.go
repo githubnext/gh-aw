@@ -65,11 +65,11 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			},
 		},
 		{
-			name:     "Actions toolset (read-only)",
+			name:     "Actions toolset (read-write)",
 			toolsets: []string{"actions"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionActions: PermissionRead,
+				PermissionActions: PermissionWrite,
 			},
 		},
 		{
@@ -202,9 +202,9 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			expectHasIssues:    true,
 		},
 		{
-			name: "Actions toolset with read permission",
+			name: "Actions toolset with write permission",
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionActions: PermissionRead,
+				PermissionActions: PermissionWrite,
 			}),
 			githubToolConfig: &GitHubToolConfig{
 				Toolset: GitHubToolsets{"actions"},
