@@ -104,12 +104,10 @@ func (g *GitHubToolConfig) GetToolsets() string {
 	return expandDefaultToolset(toolsetsStr)
 }
 
-// IsReadOnly implements ValidatableTool for GitHubToolConfig
+// IsReadOnly implements ValidatableTool for GitHubToolConfig.
+// The GitHub MCP server always operates in read-only mode.
 func (g *GitHubToolConfig) IsReadOnly() bool {
-	if g == nil {
-		return true // default to read-only for security
-	}
-	return g.ReadOnly
+	return true
 }
 
 // PermissionsValidationResult contains the result of permissions validation

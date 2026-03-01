@@ -32,10 +32,8 @@ func TestGitHubRemoteModeConfiguration(t *testing.T) {
 			frontmatter: `---
 on: issues
 permissions:
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -52,10 +50,8 @@ tools:
 			frontmatter: `---
 on: issues
 permissions:
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -92,10 +88,8 @@ tools:
 			frontmatter: `---
 on: issues
 permissions:
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -111,10 +105,8 @@ tools:
 			frontmatter: `---
 on: issues
 permissions:
-  issues: write
+  issues: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -150,19 +142,16 @@ tools:
 			frontmatter: `---
 on: issues
 permissions:
-  issues: write
+  issues: read
 engine: codex
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
     mode: remote
-    read-only: false
     toolsets: [issues]
 ---`,
 			expectedType:  "remote",
-			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedURL:   "https://api.githubcopilot.com/mcp-readonly/",
 			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "codex",
 		},
@@ -171,20 +160,17 @@ tools:
 			frontmatter: `---
 on: issues
 permissions:
-  issues: write
+  issues: read
 engine: codex
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
     mode: remote
-    read-only: false
     github-token: "${{ secrets.CUSTOM_PAT }}"
     toolsets: [issues]
 ---`,
 			expectedType:  "remote",
-			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedURL:   "https://api.githubcopilot.com/mcp-readonly/",
 			expectedToken: "${{ secrets.CUSTOM_PAT }}",
 			engineType:    "codex",
 		},

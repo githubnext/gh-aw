@@ -623,8 +623,6 @@ const (
 	SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
-	// DangerousPermissionsWriteFeatureFlag is the feature flag name for allowing write permissions
-	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt
 	DisableXPIAPromptFeatureFlag FeatureFlag = "disable-xpia-prompt"
 	// CopilotRequestsFeatureFlag is the feature flag name for enabling copilot-requests mode.

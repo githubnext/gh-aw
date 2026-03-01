@@ -20,11 +20,9 @@ func TestOutputConfigParsing(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -87,11 +85,9 @@ func TestOutputConfigEmpty(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -128,11 +124,9 @@ func TestOutputConfigNull(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -212,14 +206,12 @@ func TestOutputIssueJobGeneration(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -305,11 +297,9 @@ func TestOutputIssueJobGenerationWithCopilotAssigneeAddsAssignmentStep(t *testin
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:

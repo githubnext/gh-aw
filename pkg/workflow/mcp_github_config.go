@@ -22,7 +22,7 @@
 //   - Remote: Uses hosted GitHub MCP service
 //
 // Security features:
-//   - Read-only mode: Prevents write operations (default: true)
+//   - Read-only mode: Always enforced - write operations via GitHub MCP are not permitted
 //   - GitHub lockdown mode: Restricts access to current repository only
 //   - Automatic lockdown: Enables lockdown for public repositories with GH_AW_GITHUB_TOKEN
 //   - Allowed tools: Restricts available GitHub API operations
@@ -56,7 +56,6 @@
 //	  github:
 //	    mode: remote                    # or "local" for Docker
 //	    github-token: ${{ secrets.PAT }}
-//	    read-only: true
 //	    lockdown: true                  # or omit for automatic detection
 //	    toolsets: [repos, issues, pull_requests]
 //	    allowed: [get_repo, list_issues, get_pull_request]
@@ -114,17 +113,10 @@ func getGitHubToken(githubTool any) string {
 	return ""
 }
 
-// getGitHubReadOnly checks if read-only mode is enabled for GitHub tool
-// Defaults to true for security
-func getGitHubReadOnly(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if readOnlySetting, exists := toolConfig["read-only"]; exists {
-			if boolValue, ok := readOnlySetting.(bool); ok {
-				return boolValue
-			}
-		}
-	}
-	return true // default to read-only for security
+// getGitHubReadOnly returns true always, since the GitHub MCP server is always read-only.
+// Setting read-only: false is not supported and will be flagged as a validation error.
+func getGitHubReadOnly(_ any) bool {
+	return true
 }
 
 // getGitHubLockdown checks if lockdown mode is enabled for GitHub tool

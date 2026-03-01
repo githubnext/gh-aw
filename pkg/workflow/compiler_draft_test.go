@@ -35,12 +35,10 @@ on:
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -58,12 +56,10 @@ on:
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -80,12 +76,10 @@ on:
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -104,12 +98,10 @@ if: github.actor != 'dependabot[bot]'
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -129,12 +121,10 @@ if: github.actor != 'dependabot[bot]'
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -151,12 +141,10 @@ on:
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]

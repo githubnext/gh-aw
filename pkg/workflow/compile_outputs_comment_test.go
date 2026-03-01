@@ -22,11 +22,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -71,11 +69,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -120,11 +116,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -174,11 +168,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -233,14 +225,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [issue_read]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:
@@ -282,8 +272,8 @@ This workflow tests the safe_outputs job generation.
 		t.Error("Expected 10-minute timeout in safe_outputs job")
 	}
 
-	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write\n      pull-requests: write") {
-		t.Error("Expected correct permissions in safe_outputs job")
+	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      discussions: write\n      issues: write\n      pull-requests: write") {
+		t.Error("Expected correct permissions in safe_outputs job (discussions: write is always included for add-comment)")
 	}
 
 	// Verify the job uses github-script
@@ -331,11 +321,9 @@ func TestOutputCommentJobSkippedForNonIssueEvents(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-comment:

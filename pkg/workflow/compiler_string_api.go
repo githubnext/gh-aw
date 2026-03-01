@@ -130,6 +130,11 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate GitHub tool read-only configuration
+	if err := validateGitHubReadOnly(workflowData.ParsedTools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate GitHub guard policy configuration
 	if err := validateGitHubGuardPolicy(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)

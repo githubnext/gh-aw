@@ -20,14 +20,12 @@ func TestStepSummaryIncludesProcessedOutput(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-issue:
@@ -82,11 +80,9 @@ func TestStepSummaryIncludesAgenticRunInfo(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues]
@@ -193,8 +189,6 @@ permissions:
   issues: read
   pull-requests: read
 strict: false
-features:
-  dangerous-permissions-write: true
 engine:
   id: claude
   model: claude-sonnet-4-20250514

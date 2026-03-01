@@ -75,14 +75,12 @@ func TestCreatePullRequestCITriggerToken(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ` + safeOutputsConfig + `
 ---
@@ -174,13 +172,11 @@ on:
     types: [opened]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ` + safeOutputsConfig + `
 ---

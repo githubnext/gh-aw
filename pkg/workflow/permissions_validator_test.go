@@ -162,18 +162,18 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			expectHasIssues:    false,
 		},
 		{
-			name: "Default toolsets with only read permissions (missing write)",
+			name: "Default toolsets with only read permissions (sufficient in read-only mode)",
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionRead,
 				PermissionPullRequests: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  GitHubToolsets{"default"},
-				ReadOnly: false, // Need write permissions
+				Toolset: GitHubToolsets{"default"},
+				// ReadOnly is always true (IsReadOnly() always returns true)
 			},
-			expectMissingCount: 3, // All need write
-			expectHasIssues:    true,
+			expectMissingCount: 0, // Read permissions are sufficient in read-only mode
+			expectHasIssues:    false,
 		},
 		{
 			name: "Read-only mode with read permissions",
@@ -344,30 +344,22 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 		expectMsg        []string
 	}{
 		{
-			name:        "Shorthand read-all with default toolsets",
+			name:        "Shorthand read-all with default toolsets (sufficient in read-only mode)",
 			permissions: NewPermissionsReadAll(),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  GitHubToolsets{"default"},
-				ReadOnly: false,
+				Toolset: GitHubToolsets{"default"},
+				// IsReadOnly() always returns true; read-all satisfies all read requirements
 			},
-			expectMsg: []string{
-				"Missing required permissions for GitHub toolsets:",
-				"contents: write",
-				"issues: write",
-				"pull-requests: write",
-			},
+			expectMsg: []string{},
 		},
 		{
-			name:        "All: read with discussions toolset",
+			name:        "All: read with discussions toolset (sufficient in read-only mode)",
 			permissions: NewPermissionsAllRead(),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  GitHubToolsets{"discussions"},
-				ReadOnly: false,
+				Toolset: GitHubToolsets{"discussions"},
+				// IsReadOnly() always returns true; read permissions are sufficient
 			},
-			expectMsg: []string{
-				"Missing required permissions for GitHub toolsets:",
-				"discussions: write",
-			},
+			expectMsg: []string{},
 		},
 	}
 

@@ -27,11 +27,9 @@ on: push
 timeout-minutes: 10
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues, issue_read]
@@ -76,11 +74,9 @@ on: push
 timeout-minutes: 10
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues]
@@ -127,11 +123,9 @@ on: push
 timeout-minutes: 10
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues]

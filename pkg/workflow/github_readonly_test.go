@@ -18,11 +18,11 @@ func TestGetGitHubReadOnly(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "read-only false",
+			name: "read-only false is ignored (always read-only)",
 			githubTool: map[string]any{
 				"read-only": false,
 			},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:       "no read-only field",
