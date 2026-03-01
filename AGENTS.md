@@ -1084,7 +1084,7 @@ gh aw mcp inspect workflow-name   # Inspect MCP servers
 gh aw mcp inspect --inspector     # Web-based inspector
 ```
 
-**Default MCP Registry**: Uses GitHub's MCP registry at `https://api.mcp.github.com/v0` by default.
+**Default MCP Registry**: Uses GitHub's MCP registry at `https://api.mcp.github.com/v0.1` by default.
 
 ### AI Engine Support
 ```aw
@@ -1093,7 +1093,9 @@ engine: copilot  # Options: copilot, claude, codex, custom
 tools:
   playwright:
     version: "v1.41.0"
-    allowed_domains: ["github.com"]
+network:
+  allowed:
+    - github.com
 ---
 ```
 
