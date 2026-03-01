@@ -348,23 +348,3 @@ func extractEngineIDFromFile(filePath string) string {
 
 	return "copilot" // Default engine
 }
-
-// extractEnginesFromWorkflows extracts unique engines from a list of workflow files
-func extractEnginesFromWorkflows(workflowFiles []string) []string {
-	// Collect unique engines used across workflows
-	engineSet := make(map[string]bool)
-	for _, file := range workflowFiles {
-		engine := extractEngineIDFromFile(file)
-		engineSet[engine] = true
-	}
-
-	workflowsLog.Printf("Found %d unique engines: %v", len(engineSet), engineSet)
-
-	// Convert engine set to slice
-	engines := make([]string, 0, len(engineSet))
-	for engine := range engineSet {
-		engines = append(engines, engine)
-	}
-
-	return engines
-}

@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +16,6 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -104,15 +101,6 @@ Examples:
 	RegisterDirFlagCompletion(cmd, "output")
 
 	return cmd
-}
-
-// extractRunID extracts the run ID from either a numeric string or a GitHub Actions URL
-func extractRunID(input string) (int64, error) {
-	runID, _, _, _, err := parser.ParseRunURL(input)
-	if err != nil {
-		return 0, err
-	}
-	return runID, nil
 }
 
 // isPermissionError checks if an error is related to permissions/authentication
@@ -648,227 +636,4 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 	}
 
 	return run, nil
-}
-
-// generateAuditReport generates a concise markdown report for AI agent consumption
-func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, downloadedFiles []FileInfo) string {
-	run := processedRun.Run
-	var report strings.Builder
-
-	report.WriteString("# Workflow Run Audit Report\n\n")
-
-	// Basic information
-	report.WriteString("## Overview\n\n")
-	fmt.Fprintf(&report, "- **Run ID**: %d\n", run.DatabaseID)
-	fmt.Fprintf(&report, "- **Workflow**: %s\n", run.WorkflowName)
-	fmt.Fprintf(&report, "- **Status**: %s", run.Status)
-	if run.Conclusion != "" && run.Status == "completed" {
-		fmt.Fprintf(&report, " (%s)", run.Conclusion)
-	}
-	report.WriteString("\n")
-	fmt.Fprintf(&report, "- **Created**: %s\n", run.CreatedAt.Format(time.RFC3339))
-	if !run.StartedAt.IsZero() {
-		fmt.Fprintf(&report, "- **Started**: %s\n", run.StartedAt.Format(time.RFC3339))
-	}
-	if !run.UpdatedAt.IsZero() {
-		fmt.Fprintf(&report, "- **Updated**: %s\n", run.UpdatedAt.Format(time.RFC3339))
-	}
-	if run.Duration > 0 {
-		fmt.Fprintf(&report, "- **Duration**: %s\n", timeutil.FormatDuration(run.Duration))
-	}
-	fmt.Fprintf(&report, "- **Event**: %s\n", run.Event)
-	fmt.Fprintf(&report, "- **Branch**: %s\n", run.HeadBranch)
-	fmt.Fprintf(&report, "- **URL**: %s\n", run.URL)
-	report.WriteString("\n")
-
-	// Metrics
-	report.WriteString("## Metrics\n\n")
-	if run.TokenUsage > 0 {
-		fmt.Fprintf(&report, "- **Token Usage**: %s\n", console.FormatNumber(run.TokenUsage))
-	}
-	if run.EstimatedCost > 0 {
-		fmt.Fprintf(&report, "- **Estimated Cost**: $%.3f\n", run.EstimatedCost)
-	}
-	if run.Turns > 0 {
-		fmt.Fprintf(&report, "- **Turns**: %d\n", run.Turns)
-	}
-	fmt.Fprintf(&report, "- **Errors**: %d\n", run.ErrorCount)
-	fmt.Fprintf(&report, "- **Warnings**: %d\n", run.WarningCount)
-	report.WriteString("\n")
-
-	// MCP Tool Usage
-	if len(metrics.ToolCalls) > 0 {
-		report.WriteString("## MCP Tool Usage\n\n")
-
-		// Aggregate tool statistics
-		toolStats := make(map[string]*workflow.ToolCallInfo)
-		for _, toolCall := range metrics.ToolCalls {
-			displayKey := workflow.PrettifyToolName(toolCall.Name)
-			if existing, exists := toolStats[displayKey]; exists {
-				existing.CallCount += toolCall.CallCount
-				if toolCall.MaxInputSize > existing.MaxInputSize {
-					existing.MaxInputSize = toolCall.MaxInputSize
-				}
-				if toolCall.MaxOutputSize > existing.MaxOutputSize {
-					existing.MaxOutputSize = toolCall.MaxOutputSize
-				}
-				if toolCall.MaxDuration > existing.MaxDuration {
-					existing.MaxDuration = toolCall.MaxDuration
-				}
-			} else {
-				toolStats[displayKey] = &workflow.ToolCallInfo{
-					Name:          displayKey,
-					CallCount:     toolCall.CallCount,
-					MaxInputSize:  toolCall.MaxInputSize,
-					MaxOutputSize: toolCall.MaxOutputSize,
-					MaxDuration:   toolCall.MaxDuration,
-				}
-			}
-		}
-
-		// Sort tools by call count
-		toolNames := slices.Collect(maps.Keys(toolStats))
-
-		// Display top tools
-		report.WriteString("| Tool | Calls | Max Input | Max Output | Max Duration |\n")
-		report.WriteString("|------|-------|-----------|------------|-------------|\n")
-		for _, name := range toolNames {
-			tool := toolStats[name]
-			inputStr := "N/A"
-			if tool.MaxInputSize > 0 {
-				inputStr = console.FormatNumber(tool.MaxInputSize)
-			}
-			outputStr := "N/A"
-			if tool.MaxOutputSize > 0 {
-				outputStr = console.FormatNumber(tool.MaxOutputSize)
-			}
-			durationStr := "N/A"
-			if tool.MaxDuration > 0 {
-				durationStr = timeutil.FormatDuration(tool.MaxDuration)
-			}
-			fmt.Fprintf(&report, "| %s | %d | %s | %s | %s |\n",
-				name, tool.CallCount, inputStr, outputStr, durationStr)
-		}
-		report.WriteString("\n")
-	}
-
-	// MCP Failures
-	if len(processedRun.MCPFailures) > 0 {
-		report.WriteString("## MCP Server Failures\n\n")
-		for _, failure := range processedRun.MCPFailures {
-			fmt.Fprintf(&report, "- **%s**: %s\n", failure.ServerName, failure.Status)
-		}
-		report.WriteString("\n")
-	}
-
-	// Firewall Analysis
-	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.TotalRequests > 0 {
-		report.WriteString("## Firewall Analysis\n\n")
-		fw := processedRun.FirewallAnalysis
-		fmt.Fprintf(&report, "- **Total Requests**: %d\n", fw.TotalRequests)
-		fmt.Fprintf(&report, "- **Allowed Requests**: %d\n", fw.AllowedRequests)
-		fmt.Fprintf(&report, "- **Blocked Requests**: %d\n", fw.BlockedRequests)
-		report.WriteString("\n")
-
-		if len(fw.AllowedDomains) > 0 {
-			report.WriteString("### Allowed Domains\n\n")
-			for _, domain := range fw.AllowedDomains {
-				if stats, ok := fw.RequestsByDomain[domain]; ok {
-					fmt.Fprintf(&report, "- %s (%d requests)\n", domain, stats.Allowed)
-				}
-			}
-			report.WriteString("\n")
-		}
-
-		if len(fw.BlockedDomains) > 0 {
-			report.WriteString("### Blocked Domains\n\n")
-			for _, domain := range fw.BlockedDomains {
-				if stats, ok := fw.RequestsByDomain[domain]; ok {
-					fmt.Fprintf(&report, "- %s (%d requests)\n", domain, stats.Blocked)
-				}
-			}
-			report.WriteString("\n")
-		}
-	}
-
-	// Missing Tools
-	if len(processedRun.MissingTools) > 0 {
-		report.WriteString("## Missing Tools\n\n")
-		for _, tool := range processedRun.MissingTools {
-			fmt.Fprintf(&report, "### %s\n\n", tool.Tool)
-			fmt.Fprintf(&report, "- **Reason**: %s\n", tool.Reason)
-			if tool.Alternatives != "" {
-				fmt.Fprintf(&report, "- **Alternatives**: %s\n", tool.Alternatives)
-			}
-			if tool.Timestamp != "" {
-				fmt.Fprintf(&report, "- **Timestamp**: %s\n", tool.Timestamp)
-			}
-			report.WriteString("\n")
-		}
-	}
-
-	// Missing Data
-	if len(processedRun.MissingData) > 0 {
-		report.WriteString("## Missing Data\n\n")
-		for _, data := range processedRun.MissingData {
-			fmt.Fprintf(&report, "### %s\n\n", data.DataType)
-			fmt.Fprintf(&report, "- **Reason**: %s\n", data.Reason)
-			if data.Context != "" {
-				fmt.Fprintf(&report, "- **Context**: %s\n", data.Context)
-			}
-			if data.Alternatives != "" {
-				fmt.Fprintf(&report, "- **Alternatives**: %s\n", data.Alternatives)
-			}
-			if data.Timestamp != "" {
-				fmt.Fprintf(&report, "- **Timestamp**: %s\n", data.Timestamp)
-			}
-			report.WriteString("\n")
-		}
-	}
-
-	// No-Op Messages
-	if len(processedRun.Noops) > 0 {
-		report.WriteString("## No-Op Messages\n\n")
-		for i, noop := range processedRun.Noops {
-			fmt.Fprintf(&report, "### Message %d\n\n", i+1)
-			fmt.Fprintf(&report, "%s\n\n", noop.Message)
-			if noop.Timestamp != "" {
-				fmt.Fprintf(&report, "**Timestamp**: %s\n\n", noop.Timestamp)
-			}
-		}
-	}
-
-	// Error Summary
-	if run.ErrorCount > 0 || run.WarningCount > 0 {
-		report.WriteString("## Issue Summary\n\n")
-		if run.ErrorCount > 0 {
-			fmt.Fprintf(&report, "This run encountered **%d error(s)**. ", run.ErrorCount)
-		}
-		if run.WarningCount > 0 {
-			fmt.Fprintf(&report, "This run had **%d warning(s)**. ", run.WarningCount)
-		}
-		report.WriteString("\n\n")
-	}
-
-	// Downloaded Files Section
-	report.WriteString("## Downloaded Files\n\n")
-	fmt.Fprintf(&report, "Logs and artifacts are available at: `%s`\n\n", run.LogsPath)
-
-	if len(downloadedFiles) > 0 {
-		// Display all downloaded files with size and description
-		for _, file := range downloadedFiles {
-			formattedSize := console.FormatFileSize(file.Size)
-			fmt.Fprintf(&report, "- **%s** (%s)", file.Path, formattedSize)
-			// Add description if available
-			if file.Description != "" {
-				fmt.Fprintf(&report, " - %s", file.Description)
-			}
-			report.WriteString("\n")
-		}
-		report.WriteString("\n")
-	} else {
-		report.WriteString("(No artifact or log files were downloaded for this run)\n\n")
-	}
-
-	return report.String()
 }

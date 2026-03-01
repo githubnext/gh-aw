@@ -25,16 +25,6 @@ type repoSlugCacheState struct {
 // Global cache for current repository info
 var currentRepoSlugCache repoSlugCacheState
 
-// ClearCurrentRepoSlugCache clears the current repository slug cache.
-// This is useful for testing or when repository context might have changed.
-func ClearCurrentRepoSlugCache() {
-	currentRepoSlugCache.mu.Lock()
-	defer currentRepoSlugCache.mu.Unlock()
-	currentRepoSlugCache.result = ""
-	currentRepoSlugCache.err = nil
-	currentRepoSlugCache.done = false
-}
-
 // getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
 // Falls back to git remote parsing if gh CLI is not available
 func getCurrentRepoSlugUncached() (string, error) {

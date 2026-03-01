@@ -20,41 +20,6 @@ var (
 	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 )
 
-// isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter.
-// It validates that the file has proper YAML frontmatter delimited by "---" and contains the required "on" field.
-//
-// Parameters:
-//   - filePath: Absolute or relative path to the markdown file to validate
-//
-// Returns:
-//   - true if the file is a valid workflow (has parseable frontmatter with an "on" field)
-//   - false if the file cannot be read, has invalid YAML, or lacks the required "on" field
-func isValidWorkflowFile(filePath string) bool {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return false
-	}
-
-	// Try to extract frontmatter - a valid workflow should have parseable frontmatter
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return false
-	}
-
-	// A valid workflow must have frontmatter with at least an "on" field
-	// Files without frontmatter or with empty frontmatter are not workflows
-	if len(result.Frontmatter) == 0 {
-		return false
-	}
-
-	// Check for the presence of the "on" field which is required for workflows
-	if _, hasOn := result.Frontmatter["on"]; !hasOn {
-		return false
-	}
-
-	return true
-}
-
 // collectLocalIncludeDependencies collects dependencies for package-based workflows
 func collectLocalIncludeDependencies(content, packagePath string, verbose bool) ([]IncludeDependency, error) {
 	packagesLog.Printf("Collecting include dependencies: packagePath=%s, content_size=%d", packagePath, len(content))

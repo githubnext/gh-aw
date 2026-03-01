@@ -266,12 +266,6 @@ type workflowFixInfo struct {
 	Fixes []string
 }
 
-// processWorkflowFile processes a single workflow file with all codemods
-func processWorkflowFile(filePath string, codemods []Codemod, write bool, verbose bool) (bool, error) {
-	fixed, _, err := processWorkflowFileWithInfo(filePath, codemods, write, verbose)
-	return fixed, err
-}
-
 // processWorkflowFileWithInfo processes a single workflow file and returns detailed fix information
 func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool, verbose bool) (bool, []string, error) {
 	fixLog.Printf("Processing workflow file: %s", filePath)

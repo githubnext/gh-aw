@@ -53,7 +53,7 @@ This is a test workflow.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*timeoutCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*timeoutCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -109,7 +109,7 @@ This is a test workflow.
 	codemods := GetAllCodemods()
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, codemods, false, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, codemods, false, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -164,7 +164,7 @@ This is a test workflow.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*firewallCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*firewallCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -231,7 +231,7 @@ This is a test workflow.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*firewallCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*firewallCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -319,7 +319,7 @@ This workflow tests comment and empty line handling.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*firewallCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*firewallCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -402,7 +402,7 @@ This is a test workflow.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*timeoutCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*timeoutCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -506,7 +506,7 @@ This is a test workflow with slash command.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*commandCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*commandCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -578,7 +578,7 @@ This is a test workflow with safe-inputs mode field.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*modeCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*modeCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -715,7 +715,7 @@ This workflow uses the deprecated grep tool.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*grepCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*grepCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -781,7 +781,7 @@ This workflow doesn't have grep.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*grepCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*grepCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -829,7 +829,7 @@ This workflow has sandbox disabled.
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*sandboxCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*sandboxCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}
@@ -898,7 +898,7 @@ permissions:
 	}
 
 	// Process the file
-	fixed, err := processWorkflowFile(workflowFile, []Codemod{*sandboxCodemod}, true, false)
+	fixed, _, err := processWorkflowFileWithInfo(workflowFile, []Codemod{*sandboxCodemod}, true, false)
 	if err != nil {
 		t.Fatalf("Failed to process workflow file: %v", err)
 	}

@@ -385,67 +385,6 @@ type WorkflowFileStatus struct {
 	HasUnpushedCommits bool // File has unpushed commits affecting it
 }
 
-// ToGitRootRelativePath converts a path to be relative to the git root directory
-// This provides stable paths regardless of the current working directory
-func ToGitRootRelativePath(path string) string {
-	gitLog.Printf("Normalizing path to git root: %s", path)
-
-	// If it's not an absolute path, try to make it absolute first
-	absPath := path
-	if !filepath.IsAbs(path) {
-		wd, err := os.Getwd()
-		if err != nil {
-			gitLog.Printf("Failed to get working directory: %v", err)
-			return path
-		}
-		absPath = filepath.Join(wd, path)
-		gitLog.Printf("Converted to absolute path: %s", absPath)
-	}
-
-	// Validate and clean the absolute path
-	absPath, err := fileutil.ValidateAbsolutePath(absPath)
-	if err != nil {
-		gitLog.Printf("Invalid path: %v", err)
-		return path
-	}
-
-	// Find the git root by looking for .github directory
-	// Walk up the directory tree to find it
-	currentDir := filepath.Dir(absPath)
-	for {
-		githubDir := filepath.Join(currentDir, ".github")
-		if info, err := os.Stat(githubDir); err == nil && info.IsDir() {
-			gitLog.Printf("Found .github directory at: %s", currentDir)
-			// Found the git root, now make path relative to it
-			relPath, err := filepath.Rel(currentDir, absPath)
-			if err != nil {
-				gitLog.Printf("Failed to make path relative to git root: %v", err)
-				return path
-			}
-			gitLog.Printf("Normalized path: %s", relPath)
-			return relPath
-		}
-
-		// Move up one directory
-		parentDir := filepath.Dir(currentDir)
-		if parentDir == currentDir {
-			// Reached the root of the filesystem without finding .github
-			// Fall back to current working directory relative path
-			gitLog.Printf("Could not find .github directory, falling back to current working directory")
-			wd, err := os.Getwd()
-			if err != nil {
-				return path
-			}
-			relPath, err := filepath.Rel(wd, absPath)
-			if err != nil {
-				return path
-			}
-			return relPath
-		}
-		currentDir = parentDir
-	}
-}
-
 // checkWorkflowFileStatus checks if a workflow file has local modifications, staged changes, or unpushed commits
 func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	gitLog.Printf("Checking status for workflow file: %s", workflowPath)

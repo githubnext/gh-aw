@@ -24,14 +24,6 @@ type UpgradeConfig struct {
 	JSON        bool
 }
 
-// RunUpgrade runs the upgrade command with the given configuration
-func RunUpgrade(config UpgradeConfig) error {
-	if config.Audit {
-		return runDependencyAudit(config.Verbose, config.JSON)
-	}
-	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false, config.Push, config.NoActions)
-}
-
 // NewUpgradeCommand creates the upgrade command
 func NewUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{

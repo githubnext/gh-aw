@@ -406,22 +406,4 @@ func TestAuditReportFileListingIntegration(t *testing.T) {
 	if _, ok := parsed["downloaded_files"]; !ok {
 		t.Error("Expected 'downloaded_files' field in JSON output")
 	}
-
-	// Verify markdown report generation
-	report := generateAuditReport(processedRun, metrics, files)
-
-	// Check report contains expected sections and file listings
-	expectedInReport := []string{
-		"## Downloaded Files",
-		"aw_info.json",
-		"Engine configuration",
-		"safe_output.jsonl",
-		"Safe outputs",
-	}
-
-	for _, expected := range expectedInReport {
-		if !strings.Contains(report, expected) {
-			t.Errorf("Expected markdown report to contain: %s", expected)
-		}
-	}
 }

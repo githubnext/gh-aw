@@ -83,10 +83,4 @@ This is a test local workflow.
 	if stringResult != "./workflows/test-local.md" {
 		t.Errorf("Expected String() './workflows/test-local.md', got %q", stringResult)
 	}
-
-	// Test buildSourceString - returns empty for local workflows (no remote source to track)
-	sourceString := buildSourceString(spec)
-	if sourceString != "" {
-		t.Errorf("Expected buildSourceString() to return empty string for local workflow, got %q", sourceString)
-	}
 }
