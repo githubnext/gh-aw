@@ -25,9 +25,9 @@ const crypto = require("crypto");
 
 /**
  * Regex pattern for matching temporary ID references in text
- * Format: #aw_XXX to #aw_XXXXXXXX (aw_ prefix + 3 to 8 alphanumeric characters)
+ * Format: #aw_XXX to #aw_XXXXXXXXXXXX (aw_ prefix + 3 to 12 alphanumeric characters)
  */
-const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9]{3,8})/gi;
+const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9]{3,12})\b/gi;
 
 /**
  * Regex pattern for detecting candidate #aw_ references (any length, word-boundary delimited)
@@ -57,13 +57,13 @@ function generateTemporaryId() {
 }
 
 /**
- * Check if a value is a valid temporary ID (aw_ prefix + 3 to 8 alphanumeric characters)
+ * Check if a value is a valid temporary ID (aw_ prefix + 3 to 12 alphanumeric characters)
  * @param {any} value - The value to check
  * @returns {boolean} True if the value is a valid temporary ID
  */
 function isTemporaryId(value) {
   if (typeof value === "string") {
-    return /^aw_[A-Za-z0-9]{3,8}$/i.test(value);
+    return /^aw_[A-Za-z0-9]{3,12}$/i.test(value);
   }
   return false;
 }
