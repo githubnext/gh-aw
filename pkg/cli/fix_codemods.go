@@ -42,5 +42,6 @@ func GetAllCodemods() []Codemod {
 		getAssignToAgentDefaultAgentCodemod(), // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsCodemod(),         // Migrate tools.playwright.allowed_domains to network.allowed
 		getExpiresIntegerToStringCodemod(),    // Convert expires integer (days) to string with 'd' suffix
+		getSerenaLocalModeCodemod(),           // Replace tools.serena mode: local with mode: docker
 	}
 }
