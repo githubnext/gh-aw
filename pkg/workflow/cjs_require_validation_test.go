@@ -86,11 +86,7 @@ func TestCJSFilesNoActionsRequires(t *testing.T) {
 	var failedFiles []string
 	var violations []string
 
-	// Exception: safe_output_unified_handler_manager.cjs is allowed to require @actions/github
-	// because the package is installed at runtime via setup.sh when safe-output-projects flag is enabled
-	allowedNpmActionsRequires := map[string][]string{
-		"safe_output_unified_handler_manager.cjs": {"@actions/github"},
-	}
+	allowedNpmActionsRequires := map[string][]string{}
 
 	for _, filename := range cjsFiles {
 		filepath := filepath.Join(cjsDir, filename)

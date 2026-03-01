@@ -222,3 +222,12 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 
 	return tools
 }
+
+// usesPatchesAndCheckouts checks if the workflow uses safe outputs that require
+// git patches and checkouts (create-pull-request or push-to-pull-request-branch)
+func usesPatchesAndCheckouts(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
+}

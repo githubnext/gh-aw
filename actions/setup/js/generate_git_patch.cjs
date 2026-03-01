@@ -45,6 +45,33 @@ function getPatchPath(branchName) {
 }
 
 /**
+ * Sanitize a repo slug for use in a filename
+ * @param {string} repoSlug - The repo slug (owner/repo)
+ * @returns {string} The sanitized slug safe for use in a filename
+ */
+function sanitizeRepoSlugForPatch(repoSlug) {
+  if (!repoSlug) return "";
+  return repoSlug
+    .replace(/[/\\:*?"<>|]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Get the patch file path for a given branch name and repo slug
+ * Used for multi-repo scenarios to prevent patch file collisions
+ * @param {string} branchName - The branch name
+ * @param {string} repoSlug - The repository slug (owner/repo)
+ * @returns {string} The full patch file path including repo disambiguation
+ */
+function getPatchPathForRepo(branchName, repoSlug) {
+  const sanitizedBranch = sanitizeBranchNameForPatch(branchName);
+  const sanitizedRepo = sanitizeRepoSlugForPatch(repoSlug);
+  return `/tmp/gh-aw/aw-${sanitizedRepo}-${sanitizedBranch}.patch`;
+}
+
+/**
  * Generates a git patch file for the current changes
  * @param {string} branchName - The branch name to generate patch for
  * @param {string} baseBranch - The base branch to diff against (e.g., "main", "master")
@@ -53,10 +80,18 @@ function getPatchPath(branchName) {
  *   - "full": Include all commits since merge-base with default branch (for create_pull_request)
  *   - "incremental": Only include commits since origin/branchName (for push_to_pull_request_branch)
  *     In incremental mode, origin/branchName is fetched explicitly and merge-base fallback is disabled.
+ * @param {string} [options.cwd] - Working directory for git commands. Defaults to GITHUB_WORKSPACE or process.cwd().
+ *   Use this for multi-repo scenarios where repos are checked out to subdirectories.
+ * @param {string} [options.repoSlug] - Repository slug (owner/repo) to include in patch filename for disambiguation.
+ *   Required for multi-repo scenarios to prevent patch file collisions.
  * @returns {Promise<Object>} Object with patch info or error
  */
 async function generateGitPatch(branchName, baseBranch, options = {}) {
-  const patchPath = getPatchPath(branchName);
+  const mode = options.mode || "full";
+  // Support custom cwd for multi-repo scenarios
+  const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
+  // Include repo slug in patch path for multi-repo disambiguation
+  const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
 
   // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
   if (typeof baseBranch !== "string" || baseBranch.trim() === "") {
@@ -69,8 +104,6 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     };
   }
 
-  const mode = options.mode || "full";
-  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   const defaultBranch = baseBranch;
   const githubSha = process.env.GITHUB_SHA;
 
@@ -365,5 +398,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 module.exports = {
   generateGitPatch,
   getPatchPath,
+  getPatchPathForRepo,
   sanitizeBranchNameForPatch,
+  sanitizeRepoSlugForPatch,
 };

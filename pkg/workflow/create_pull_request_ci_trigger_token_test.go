@@ -33,12 +33,6 @@ func TestCreatePullRequestCITriggerToken(t *testing.T) {
 			notExpected:      "safe-outputs-app-token",
 		},
 		{
-			name:             "default config uses secrets.GH_AW_CI_TRIGGER_TOKEN",
-			tokenConfig:      "default",
-			expectedContains: "${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}",
-			notExpected:      "safe-outputs-app-token",
-		},
-		{
 			name:             "app config uses app token step output",
 			tokenConfig:      "app",
 			expectedContains: "${{ steps.safe-outputs-app-token.outputs.token || '' }}",

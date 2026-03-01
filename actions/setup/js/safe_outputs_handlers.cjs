@@ -13,6 +13,7 @@ const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
@@ -188,6 +189,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Handler for create_pull_request tool
    * Resolves the current branch if branch is not provided or is the base branch
    * Generates git patch for the changes (unless allow-empty is true)
+   * Supports multi-repo scenarios via the optional 'repo' parameter
    */
   const createPullRequestHandler = async args => {
     const entry = { ...args, type: "create_pull_request" };
@@ -219,10 +221,46 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository
     const baseBranch = await getBaseBranch(repoParts);
 
+    // Determine the working directory for git operations
+    // If repo is specified, find where it's checked out
+    let repoCwd = null;
+    let repoSlug = null;
+
+    if (entry.repo && entry.repo.trim()) {
+      // Use the validated/qualified repo slug from repoResult to avoid divergence
+      // between the raw user input and the normalized/qualified repo name
+      repoSlug = repoResult.repo;
+      server.debug(`Multi-repo mode: looking for checkout of ${repoSlug}`);
+
+      const checkoutResult = findRepoCheckout(repoSlug);
+      if (!checkoutResult.success) {
+        server.debug(`Failed to find repo checkout: ${checkoutResult.error}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: checkoutResult.error,
+                details:
+                  `Repository '${repoSlug}' was not found as a git checkout in the workspace. ` +
+                  `For multi-repo workflows, use actions/checkout with a 'path' parameter to checkout ` +
+                  `each repo to a subdirectory (e.g., 'repos/repo-a/').`,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      repoCwd = checkoutResult.path;
+      server.debug(`Found repo checkout at: ${repoCwd}`);
+    }
+
     // If branch is not provided, is empty, or equals the base branch, use the current branch from git
     // This handles cases where the agent incorrectly passes the base branch instead of the working branch
     if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
-      const detectedBranch = getCurrentBranch();
+      const detectedBranch = getCurrentBranch(repoCwd);
 
       if (entry.branch === baseBranch) {
         server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
@@ -254,9 +292,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Generate git patch
-    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
-    const patchResult = await generateGitPatch(entry.branch, baseBranch);
+    // Generate git patch with optional cwd for multi-repo support
+    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+    const patchOptions = {};
+    if (repoCwd) {
+      patchOptions.cwd = repoCwd;
+    }
+    if (repoSlug) {
+      patchOptions.repoSlug = repoSlug;
+    }
+    const patchResult = await generateGitPatch(entry.branch, baseBranch, patchOptions);
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty

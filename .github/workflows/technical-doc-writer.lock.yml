@@ -435,6 +435,10 @@ jobs:
                     },
                     "type": "array"
                   },
+                  "repo": {
+                    "description": "Target repository in 'owner/repo' format. Required when changes are in a subdirectory checkout (e.g., 'repos/repo-a/'). Must be in the allowed-repos list. If omitted, uses the repository at the workspace root.",
+                    "type": "string"
+                  },
                   "title": {
                     "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
                     "type": "string"

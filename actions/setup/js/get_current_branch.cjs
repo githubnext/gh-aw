@@ -6,13 +6,14 @@ const { ERR_CONFIG } = require("./error_codes.cjs");
 
 /**
  * Get the current git branch name
+ * @param {string} [customCwd] - Optional custom working directory for git commands
  * @returns {string} The current branch name
  */
-function getCurrentBranch() {
+function getCurrentBranch(customCwd) {
   // Priority 1: Try git command first to get the actual checked-out branch
   // This is more reliable than environment variables which may not reflect
   // branch changes made during the workflow execution
-  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+  const cwd = customCwd || process.env.GITHUB_WORKSPACE || process.cwd();
   try {
     const branch = execSync("git rev-parse --abbrev-ref HEAD", {
       encoding: "utf8",

@@ -1,42 +1,24 @@
 {
-  "version": "2.0",
-  "description": "GitHub MCP server toolsets and their required permissions (updated to match actual MCP server capabilities)",
+  "version": "2.1",
+  "description": "GitHub MCP server toolsets and their required permissions (updated to match actual MCP server source code in github/github-mcp-server)",
   "toolsets": {
-    "context": {
-      "description": "GitHub Actions context and environment",
-      "read_permissions": [],
-      "write_permissions": [],
-      "tools": ["get_copilot_space", "github_support_docs_search", "list_copilot_spaces"]
-    },
-    "repos": {
-      "description": "Repository operations",
-      "read_permissions": ["contents"],
-      "write_permissions": ["contents"],
-      "tools": ["get_commit", "get_file_contents", "get_latest_release", "get_release_by_tag", "get_repository_tree", "get_tag", "list_branches", "list_commits", "list_releases", "list_tags"]
-    },
-    "issues": {
-      "description": "Issue management",
-      "read_permissions": ["issues"],
-      "write_permissions": ["issues"],
-      "tools": ["issue_read", "list_issue_types", "list_issues", "search_issues"]
-    },
-    "pull_requests": {
-      "description": "Pull request operations",
-      "read_permissions": ["pull-requests"],
-      "write_permissions": ["pull-requests"],
-      "tools": ["list_pull_requests", "pull_request_read", "search_pull_requests"]
-    },
     "actions": {
       "description": "GitHub Actions workflows",
       "read_permissions": ["actions"],
-      "write_permissions": [],
-      "tools": ["actions_get", "actions_list", "get_job_logs"]
+      "write_permissions": ["actions"],
+      "tools": ["actions_get", "actions_list", "actions_run_trigger", "get_job_logs"]
     },
     "code_security": {
       "description": "Code scanning alerts",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
       "tools": ["get_code_scanning_alert", "list_code_scanning_alerts"]
+    },
+    "context": {
+      "description": "GitHub context and environment (current user, teams)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["get_me", "get_team_members", "get_teams"]
     },
     "dependabot": {
       "description": "Dependabot alerts",
@@ -51,28 +33,34 @@
       "tools": ["get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions"]
     },
     "experiments": {
-      "description": "Experimental features",
+      "description": "Experimental features (dynamic toolset management)",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": []
+      "tools": ["enable_toolset", "get_toolset_tools", "list_available_toolsets"]
     },
     "gists": {
       "description": "Gist operations",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_gist", "list_gists"]
+      "tools": ["create_gist", "get_gist", "list_gists", "update_gist"]
+    },
+    "issues": {
+      "description": "Issue management",
+      "read_permissions": ["issues"],
+      "write_permissions": ["issues"],
+      "tools": ["add_issue_comment", "issue_read", "issue_write", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
     },
     "labels": {
       "description": "Label management",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["get_label", "list_label"]
+      "tools": ["get_label", "label_write", "list_label"]
     },
     "notifications": {
       "description": "Notification management",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_notification_details", "list_notifications"]
+      "tools": ["dismiss_notification", "get_notification_details", "list_notifications", "manage_notification_subscription", "manage_repository_notification_subscription", "mark_all_notifications_read"]
     },
     "orgs": {
       "description": "Organization operations",
@@ -84,7 +72,52 @@
       "description": "GitHub Projects (requires PAT - not supported by GITHUB_TOKEN)",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_project", "get_project_field", "get_project_item", "list_project_fields", "list_project_items", "list_projects"]
+      "tools": ["projects_get", "projects_list", "projects_write"]
+    },
+    "pull_requests": {
+      "description": "Pull request operations",
+      "read_permissions": ["pull-requests"],
+      "write_permissions": ["pull-requests"],
+      "tools": [
+        "add_comment_to_pending_review",
+        "add_reply_to_pull_request_comment",
+        "create_pull_request",
+        "list_pull_requests",
+        "merge_pull_request",
+        "pull_request_read",
+        "pull_request_review_write",
+        "search_pull_requests",
+        "update_pull_request",
+        "update_pull_request_branch"
+      ]
+    },
+    "repos": {
+      "description": "Repository operations",
+      "read_permissions": ["contents"],
+      "write_permissions": ["contents"],
+      "tools": [
+        "create_branch",
+        "create_or_update_file",
+        "create_repository",
+        "delete_file",
+        "fork_repository",
+        "get_commit",
+        "get_file_contents",
+        "get_latest_release",
+        "get_release_by_tag",
+        "get_tag",
+        "list_branches",
+        "list_commits",
+        "list_releases",
+        "list_tags",
+        "push_files"
+      ]
+    },
+    "search": {
+      "description": "Advanced search across GitHub",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["search_code", "search_orgs", "search_repositories", "search_users"]
     },
     "secret_protection": {
       "description": "Secret scanning",
@@ -102,19 +135,13 @@
       "description": "Repository stars",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["list_starred_repositories"]
+      "tools": ["list_starred_repositories", "star_repository", "unstar_repository"]
     },
     "users": {
       "description": "User information",
       "read_permissions": [],
       "write_permissions": [],
       "tools": []
-    },
-    "search": {
-      "description": "Advanced search",
-      "read_permissions": [],
-      "write_permissions": [],
-      "tools": ["search_code", "search_issues", "search_orgs", "search_pull_requests", "search_repositories", "search_users"]
     }
   }
 }

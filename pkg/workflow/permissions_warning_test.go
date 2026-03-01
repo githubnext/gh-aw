@@ -219,10 +219,8 @@ tools:
 		"Option 2: Reduce the required toolsets in your workflow:",
 		"issues",
 		"pull_requests",
-		"repos",
-		"contents: write",
-		"issues: write",
-		"pull-requests: write",
+		"issues: read",
+		"pull-requests: read",
 	}
 
 	for _, phrase := range expectedPhrases {
