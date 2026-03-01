@@ -954,21 +954,21 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
 	// Set up permissions for the agent job
-	// Agent job ALWAYS needs contents: read to access .github and .actions folders
+	// In dev/script mode, automatically add contents: read if the actions folder checkout is needed
+	// In release mode, use the permissions as specified by the user (no automatic augmentation)
 	permissions := data.Permissions
-	if permissions == "" {
-		// No permissions specified, just add contents: read
-		perms := NewPermissionsContentsRead()
-		permissions = perms.RenderToYAML()
-	} else {
-		// Parse existing permissions and add contents: read
-		parser := NewPermissionsParser(permissions)
-		perms := parser.ToPermissions()
-
-		// Only add contents: read if not already present
-		if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
-			perms.Set(PermissionContents, PermissionRead)
+	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
+	if needsContentsRead {
+		if permissions == "" {
+			perms := NewPermissionsContentsRead()
 			permissions = perms.RenderToYAML()
+		} else {
+			parser := NewPermissionsParser(permissions)
+			perms := parser.ToPermissions()
+			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
+				perms.Set(PermissionContents, PermissionRead)
+				permissions = perms.RenderToYAML()
+			}
 		}
 	}
 
@@ -1032,6 +1032,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// the activation job ALWAYS gets contents:read added to its permissions (see buildActivationJob
 	// around line 720). The workflow's original permissions may not include contents:read,
 	// but the activation job will always have it for GitHub API access and runtime imports.
+	// The agent job uses only the user-specified permissions (no automatic contents:read augmentation).
 
 	// For activation job, always add sparse checkout of .github and .agents folders
 	// This is needed for runtime imports during prompt generation
