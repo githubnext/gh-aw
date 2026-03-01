@@ -30,6 +30,12 @@ const crypto = require("crypto");
 const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9]{3,8})/gi;
 
 /**
+ * Regex pattern for detecting candidate #aw_ references (any length, word-boundary delimited)
+ * Used to identify malformed temporary ID references that don't match TEMPORARY_ID_PATTERN
+ */
+const TEMPORARY_ID_CANDIDATE_PATTERN = /#aw_([A-Za-z0-9]+)\b/gi;
+
+/**
  * @typedef {Object} RepoIssuePair
  * @property {string} repo - Repository slug in "owner/repo" format
  * @property {number} number - Issue or discussion number
@@ -81,14 +87,12 @@ function normalizeTemporaryId(tempId) {
  */
 function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
   // Detect and warn about malformed #aw_ references that won't be resolved
-  if (typeof core !== "undefined") {
-    const candidatePattern = /#aw_([A-Za-z0-9]+)/gi;
-    let candidate;
-    while ((candidate = candidatePattern.exec(text)) !== null) {
-      const tempId = `aw_${candidate[1]}`;
-      if (!isTemporaryId(tempId)) {
-        core.warning(`Malformed temporary ID reference '${candidate[0]}' found in body text. Temporary IDs must be in format '#aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: '#aw_abc' or '#aw_Test123'`);
-      }
+  let candidate;
+  TEMPORARY_ID_CANDIDATE_PATTERN.lastIndex = 0;
+  while ((candidate = TEMPORARY_ID_CANDIDATE_PATTERN.exec(text)) !== null) {
+    const tempId = `aw_${candidate[1]}`;
+    if (!isTemporaryId(tempId)) {
+      core.warning(`Malformed temporary ID reference '${candidate[0]}' found in body text. Temporary IDs must be in format '#aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: '#aw_abc' or '#aw_Test123'`);
     }
   }
 
@@ -539,6 +543,7 @@ function getCreatedTemporaryId(message) {
 
 module.exports = {
   TEMPORARY_ID_PATTERN,
+  TEMPORARY_ID_CANDIDATE_PATTERN,
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
