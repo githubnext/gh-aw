@@ -306,6 +306,7 @@ func TestArgumentNamingConventions(t *testing.T) {
 		compileCmd,
 		runCmd,
 		cli.NewAddCommand(validateEngine),
+		cli.NewAddWizardCommand(validateEngine),
 		cli.NewUpdateCommand(validateEngine),
 		cli.NewTrialCommand(validateEngine),
 		cli.NewLogsCommand(),
