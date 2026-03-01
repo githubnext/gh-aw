@@ -890,6 +890,30 @@
     }
   },
   {
+    "name": "set_issue_type",
+    "description": "Set the type of a GitHub issue. Pass an empty string \"\" to clear the issue type. Issue types must be configured in the repository or organization settings before they can be assigned.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "issue_type"
+      ],
+      "properties": {
+        "issue_number": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "Issue number to set the type for. If omitted, sets the type on the issue that triggered this workflow."
+        },
+        "issue_type": {
+          "type": "string",
+          "description": "Issue type name to set (e.g., \"Bug\", \"Feature\", \"Task\"). Use an empty string \"\" to clear the current issue type."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_project",
     "description": "Manage GitHub Projects: add issues/pull requests/draft issues, update item fields (status, priority, effort, dates), manage custom fields, and create project views. Use this to organize work by adding items to projects, updating field values, creating custom fields up-front, and setting up project views (table, board, roadmap).\n\nThree modes: (1) Add or update project items with custom field values; (2) Create project fields; (3) Create project views. This is the primary tool for ProjectOps automation - add items to projects, set custom fields for tracking, and organize project boards.",
     "inputSchema": {

@@ -474,6 +474,18 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.HideComment.AllowedReasons,
 			)
 		}
+		if data.SafeOutputs.SetIssueType != nil {
+			additionalFields := make(map[string]any)
+			if len(data.SafeOutputs.SetIssueType.Allowed) > 0 {
+				additionalFields["allowed"] = data.SafeOutputs.SetIssueType.Allowed
+			}
+			safeOutputsConfig["set_issue_type"] = generateTargetConfigWithRepos(
+				data.SafeOutputs.SetIssueType.SafeOutputTargetConfig,
+				data.SafeOutputs.SetIssueType.Max,
+				5, // default max
+				additionalFields,
+			)
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
