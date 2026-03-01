@@ -39,8 +39,8 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			errorContains: "Write permissions are not allowed",
 		},
 		{
-			name:          "write permission with feature flag is still an error",
-			permissions:   "permissions:\n  contents: write",
+			name:        "write permission with feature flag is still an error",
+			permissions: "permissions:\n  contents: write",
 			features: map[string]any{
 				"dangerous-permissions-write": true,
 			},
