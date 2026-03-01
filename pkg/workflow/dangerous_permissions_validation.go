@@ -37,7 +37,7 @@ func validateDangerousPermissions(workflowData *WorkflowData) error {
 	// Check for write permissions
 	writePermissions := findWritePermissions(permissions)
 	if len(writePermissions) > 0 {
-		dangerousPermissionsLog.Printf("Found %d write permissions without feature flag", len(writePermissions))
+		dangerousPermissionsLog.Printf("Found %d write permissions", len(writePermissions))
 		return formatDangerousPermissionsError(writePermissions)
 	}
 

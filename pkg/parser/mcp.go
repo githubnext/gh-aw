@@ -319,14 +319,15 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			}
 		}
 
+		// Always enforce read-only mode for GitHub MCP server (local/Docker mode)
+		// This must be unconditional to cover shorthand/null tool config forms.
+		if !useRemote {
+			// Inline GITHUB_READ_ONLY=1 in docker args to enforce read-only mode
+			config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
+		}
+
 		// Check for custom GitHub configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Always enforce read-only mode for GitHub MCP server (local/Docker mode)
-			if !useRemote {
-				// Inline GITHUB_READ_ONLY=1 in docker args to enforce read-only mode
-				config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
-			}
-
 			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
 				if allowedSlice, ok := allowed.([]any); ok {
 					for _, item := range allowedSlice {

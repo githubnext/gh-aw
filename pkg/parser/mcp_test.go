@@ -73,6 +73,27 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
+			name: "GitHub tool with boolean true (shorthand)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": true,
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
+						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
+					},
+					Env: map[string]string{
+						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+					}}, Name: "github",
+				},
+			},
+		},
+		{
 			name: "GitHub tool without read-only (default behavior)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
