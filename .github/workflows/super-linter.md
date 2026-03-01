@@ -66,14 +66,14 @@ jobs:
       
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7
         with:
           name: super-linter-log
           path: super-linter.log
           retention-days: 7
 steps:
   - name: Download super-linter log
-    uses: actions/download-artifact@v8.0.0
+    uses: actions/download-artifact@v8
     with:
       name: super-linter-log
       path: /tmp/gh-aw/
