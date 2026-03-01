@@ -109,14 +109,14 @@ function getDefaultTargetRepo(config) {
   if (targetRepoSlug) {
     return targetRepoSlug;
   }
+  // Fall back to context repo (only available in github-script or shim-provided context)
+  if (typeof context !== "undefined" && context.repo?.owner && context.repo?.repo) {
+    return `${context.repo.owner}/${context.repo.repo}`;
+  }
   // Fall back to GITHUB_REPOSITORY env var (available in standalone daemon mode)
   const githubRepo = process.env.GITHUB_REPOSITORY;
   if (githubRepo) {
     return githubRepo;
-  }
-  // Fall back to context repo (only available in github-script or shim-provided context)
-  if (typeof context !== "undefined" && context.repo?.owner && context.repo?.repo) {
-    return `${context.repo.owner}/${context.repo.repo}`;
   }
   return "";
 }
