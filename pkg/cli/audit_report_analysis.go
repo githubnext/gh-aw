@@ -242,61 +242,6 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 	return recommendations
 }
 
-// generateFailureAnalysis creates structured analysis for failed workflows
-func generateFailureAnalysis(processedRun ProcessedRun, errors []ErrorInfo) *FailureAnalysis {
-	run := processedRun.Run
-	auditReportLog.Printf("Generating failure analysis: conclusion=%s, error_count=%d", run.Conclusion, len(errors))
-
-	// Determine primary failure reason
-	primaryFailure := run.Conclusion
-	if primaryFailure == "" {
-		primaryFailure = "unknown"
-	}
-
-	// Collect failed job names
-	var failedJobs []string
-	for _, job := range processedRun.JobDetails {
-		if job.Conclusion == "failure" || job.Conclusion == "timed_out" || job.Conclusion == "cancelled" {
-			failedJobs = append(failedJobs, job.Name)
-		}
-	}
-
-	// Generate error summary
-	errorSummary := "No specific errors identified"
-	if len(errors) > 0 {
-		if len(errors) == 1 {
-			errorSummary = errors[0].Message
-		} else {
-			errorSummary = fmt.Sprintf("%d errors: %s (and %d more)", len(errors), errors[0].Message, len(errors)-1)
-		}
-	}
-
-	// Attempt to identify root cause
-	rootCause := ""
-	if len(processedRun.MCPFailures) > 0 {
-		rootCause = "MCP server failure: " + processedRun.MCPFailures[0].ServerName
-	} else if len(errors) > 0 {
-		// Look for common error patterns
-		firstError := errors[0].Message
-		if strings.Contains(strings.ToLower(firstError), "timeout") {
-			rootCause = "Operation timeout"
-		} else if strings.Contains(strings.ToLower(firstError), "permission") {
-			rootCause = "Permission denied"
-		} else if strings.Contains(strings.ToLower(firstError), "not found") {
-			rootCause = "Resource not found"
-		} else if strings.Contains(strings.ToLower(firstError), "authentication") {
-			rootCause = "Authentication failure"
-		}
-	}
-
-	return &FailureAnalysis{
-		PrimaryFailure: primaryFailure,
-		FailedJobs:     failedJobs,
-		ErrorSummary:   errorSummary,
-		RootCause:      rootCause,
-	}
-}
-
 // generatePerformanceMetrics calculates aggregated performance statistics
 func generatePerformanceMetrics(processedRun ProcessedRun, metrics MetricsData, toolUsage []ToolUsageInfo) *PerformanceMetrics {
 	run := processedRun.Run

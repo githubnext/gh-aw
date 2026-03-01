@@ -255,93 +255,6 @@ func TestRecommendationsGeneration(t *testing.T) {
 	}
 }
 
-// TestFailureAnalysisGeneration verifies failure analysis is generated correctly
-func TestFailureAnalysisGeneration(t *testing.T) {
-	tests := []struct {
-		name               string
-		run                WorkflowRun
-		errors             []ErrorInfo
-		jobDetails         []JobInfoWithDuration
-		mcpFailures        []MCPFailureReport
-		expectedRootCause  string
-		expectedFailedJobs int
-	}{
-		{
-			name: "Simple failure with error",
-			run: WorkflowRun{
-				Conclusion: "failure",
-			},
-			errors: []ErrorInfo{
-				{Message: "Connection timeout occurred"},
-			},
-			expectedRootCause: "Operation timeout",
-		},
-		{
-			name: "Permission denied error",
-			run: WorkflowRun{
-				Conclusion: "failure",
-			},
-			errors: []ErrorInfo{
-				{Message: "Permission denied for resource"},
-			},
-			expectedRootCause: "Permission denied",
-		},
-		{
-			name: "MCP server failure",
-			run: WorkflowRun{
-				Conclusion: "failure",
-			},
-			mcpFailures: []MCPFailureReport{
-				{ServerName: "github-mcp", Status: "failed"},
-			},
-			expectedRootCause: "MCP server failure: github-mcp",
-		},
-		{
-			name: "Failed jobs",
-			run: WorkflowRun{
-				Conclusion: "failure",
-			},
-			jobDetails: []JobInfoWithDuration{
-				{JobInfo: JobInfo{Name: "test-job", Conclusion: "failure"}},
-				{JobInfo: JobInfo{Name: "build-job", Conclusion: "success"}},
-			},
-			expectedFailedJobs: 1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			processedRun := ProcessedRun{
-				Run:         tt.run,
-				MCPFailures: tt.mcpFailures,
-				JobDetails:  tt.jobDetails,
-			}
-
-			analysis := generateFailureAnalysis(processedRun, tt.errors)
-
-			if analysis == nil {
-				t.Fatal("Expected failure analysis but got nil")
-			}
-
-			if analysis.PrimaryFailure != tt.run.Conclusion {
-				t.Errorf("Expected primary failure %s, got %s", tt.run.Conclusion, analysis.PrimaryFailure)
-			}
-
-			if tt.expectedRootCause != "" {
-				if analysis.RootCause != tt.expectedRootCause {
-					t.Errorf("Expected root cause '%s', got '%s'", tt.expectedRootCause, analysis.RootCause)
-				}
-			}
-
-			if tt.expectedFailedJobs > 0 {
-				if len(analysis.FailedJobs) != tt.expectedFailedJobs {
-					t.Errorf("Expected %d failed jobs, got %d", tt.expectedFailedJobs, len(analysis.FailedJobs))
-				}
-			}
-		})
-	}
-}
-
 // TestPerformanceMetricsGeneration verifies performance metrics are calculated correctly
 func TestPerformanceMetricsGeneration(t *testing.T) {
 	tests := []struct {
@@ -501,7 +414,6 @@ func TestAuditDataJSONStructure(t *testing.T) {
 	expectedFields := []string{
 		"key_findings",
 		"recommendations",
-		"failure_analysis",
 		"performance_metrics",
 		"overview",
 		"metrics",
@@ -534,11 +446,6 @@ func TestAuditDataJSONStructure(t *testing.T) {
 		t.Error("Recommendations missing action field")
 	}
 
-	// Verify failure analysis structure
-	if !strings.Contains(jsonStr, `"primary_failure"`) {
-		t.Error("Failure analysis missing primary_failure field")
-	}
-
 	// Verify performance metrics structure
 	if !strings.Contains(jsonStr, `"cost_efficiency"`) {
 		t.Error("Performance metrics missing cost_efficiency field")
@@ -556,9 +463,6 @@ func TestAuditDataJSONStructure(t *testing.T) {
 	}
 	if len(parsed.Recommendations) == 0 {
 		t.Error("Expected recommendations but got none")
-	}
-	if parsed.FailureAnalysis == nil {
-		t.Error("Expected failure analysis but got nil")
 	}
 	if parsed.PerformanceMetrics == nil {
 		t.Error("Expected performance metrics but got nil")

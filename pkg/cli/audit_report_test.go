@@ -490,184 +490,6 @@ func TestGenerateRecommendations(t *testing.T) {
 	}
 }
 
-func TestGenerateFailureAnalysis(t *testing.T) {
-	tests := []struct {
-		name          string
-		processedRun  ProcessedRun
-		errors        []ErrorInfo
-		checkAnalysis func(t *testing.T, analysis *FailureAnalysis)
-	}{
-		{
-			name: "basic failure analysis",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "failure", analysis.PrimaryFailure,
-					"Primary failure should match workflow conclusion")
-			},
-		},
-		{
-			name: "failure with failed jobs",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				pr.JobDetails = []JobInfoWithDuration{
-					{JobInfo: JobInfo{Name: "build", Conclusion: "success"}},
-					{JobInfo: JobInfo{Name: "test", Conclusion: "failure"}},
-					{JobInfo: JobInfo{Name: "deploy", Conclusion: "cancelled"}},
-				}
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Len(t, analysis.FailedJobs, 2,
-					"Should have 2 failed jobs (failure and cancelled)")
-			},
-		},
-		{
-			name: "failure with single error",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Build failed"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Build failed", analysis.ErrorSummary,
-					"Error summary should contain single error message")
-			},
-		},
-		{
-			name: "failure with multiple errors",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "First error"},
-				{Type: "error", Message: "Second error"},
-				{Type: "error", Message: "Third error"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Contains(t, analysis.ErrorSummary, "3 errors",
-					"Error summary should indicate multiple errors")
-				assert.Contains(t, analysis.ErrorSummary, "First error",
-					"Error summary should include first error")
-			},
-		},
-		{
-			name: "failure with MCP server failure root cause",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				pr.MCPFailures = []MCPFailureReport{
-					{ServerName: "github-mcp", Status: "failed"},
-				}
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Contains(t, analysis.RootCause, "MCP server failure",
-					"Root cause should identify MCP server failure")
-			},
-		},
-		{
-			name: "failure with timeout error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Connection timeout after 30s"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Operation timeout", analysis.RootCause,
-					"Root cause should identify timeout")
-			},
-		},
-		{
-			name: "failure with permission error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Permission blocked: cannot access file"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Permission denied", analysis.RootCause,
-					"Root cause should identify permission issue")
-			},
-		},
-		{
-			name: "failure with not found error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "File not found: test.txt"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Resource not found", analysis.RootCause,
-					"Root cause should identify missing resource")
-			},
-		},
-		{
-			name: "failure with authentication error pattern",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = "failure"
-				return pr
-			}(),
-			errors: []ErrorInfo{
-				{Type: "error", Message: "Authentication failed for user"},
-			},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "Authentication failure", analysis.RootCause,
-					"Root cause should identify authentication issue")
-			},
-		},
-		{
-			name: "unknown failure with no errors",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Conclusion = ""
-				return pr
-			}(),
-			errors: []ErrorInfo{},
-			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				assert.Equal(t, "unknown", analysis.PrimaryFailure,
-					"Primary failure should be 'unknown' for empty conclusion")
-				assert.Contains(t, analysis.ErrorSummary, "No specific errors",
-					"Error summary should indicate no errors found")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			analysis := generateFailureAnalysis(tt.processedRun, tt.errors)
-
-			require.NotNil(t, analysis, "Failure analysis should be generated for failed workflow")
-
-			if tt.checkAnalysis != nil {
-				tt.checkAnalysis(t, analysis)
-			}
-		})
-	}
-}
-
 func TestGeneratePerformanceMetrics(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -962,12 +784,6 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	t.Run("Recommendations", func(t *testing.T) {
 		assert.NotEmpty(t, auditData.Recommendations,
 			"Should generate at least one recommendation")
-	})
-
-	// Verify failure analysis is generated
-	t.Run("FailureAnalysis", func(t *testing.T) {
-		assert.NotNil(t, auditData.FailureAnalysis,
-			"Failed workflow should generate failure analysis")
 	})
 
 	// Verify performance metrics are generated
@@ -1578,10 +1394,8 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 
 		data := buildAuditData(processedRun, metrics, nil)
 
-		require.NotNil(t, data.FailureAnalysis, "Should have failure analysis for failed run")
-		assert.NotEqual(t, "No specific errors identified", data.FailureAnalysis.ErrorSummary,
-			"Error summary should be extracted from step logs, not the default message")
-		assert.Contains(t, data.FailureAnalysis.ErrorSummary, "Lockdown mode is enabled",
-			"Error summary should contain the actual error from the step log")
+		require.NotEmpty(t, data.Errors, "Should have errors extracted from step logs for failed run")
+		assert.Contains(t, data.Errors[0].Message, "Lockdown mode is enabled",
+			"Error should contain the actual error from the step log")
 	})
 }

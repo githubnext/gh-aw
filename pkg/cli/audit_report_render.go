@@ -46,14 +46,6 @@ func renderConsole(data AuditData, logsPath string) {
 		renderRecommendations(data.Recommendations)
 	}
 
-	// Failure Analysis Section - NEW
-	if data.FailureAnalysis != nil {
-		auditReportLog.Print("Rendering failure analysis")
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Failure Analysis"))
-		fmt.Fprintln(os.Stderr)
-		renderFailureAnalysis(data.FailureAnalysis)
-	}
-
 	// Performance Metrics Section - NEW
 	if data.PerformanceMetrics != nil {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Performance Metrics"))
@@ -550,28 +542,6 @@ func renderRecommendations(recommendations []Recommendation) {
 		if rec.Example != "" {
 			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
 		}
-		fmt.Fprintln(os.Stderr)
-	}
-}
-
-// renderFailureAnalysis renders failure analysis information
-func renderFailureAnalysis(analysis *FailureAnalysis) {
-	fmt.Fprintf(os.Stderr, "  Primary Failure: %s\n", console.FormatErrorMessage(analysis.PrimaryFailure))
-	fmt.Fprintln(os.Stderr)
-
-	if len(analysis.FailedJobs) > 0 {
-		fmt.Fprintf(os.Stderr, "  Failed Jobs:\n")
-		for _, job := range analysis.FailedJobs {
-			fmt.Fprintf(os.Stderr, "    • %s\n", job)
-		}
-		fmt.Fprintln(os.Stderr)
-	}
-
-	fmt.Fprintf(os.Stderr, "  Error Summary: %s\n", analysis.ErrorSummary)
-	fmt.Fprintln(os.Stderr)
-
-	if analysis.RootCause != "" {
-		fmt.Fprintf(os.Stderr, "  Identified Root Cause: %s\n", console.FormatWarningMessage(analysis.RootCause))
 		fmt.Fprintln(os.Stderr)
 	}
 }
