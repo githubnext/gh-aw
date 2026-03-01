@@ -826,6 +826,30 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.event.pull_request.number }}"},
 			description:    "slash_command (input-level YAML) should include issue/PR number in concurrency group",
 		},
+		{
+			name: "Mixed issues and workflow_dispatch should fall back to run_id for dispatch runs",
+			workflowData: &WorkflowData{
+				On: `on:
+  issues:
+    types: [opened, edited]
+  workflow_dispatch:`,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.run_id }}"},
+			description:    "Mixed issues+workflow_dispatch workflows should fall back to run_id when issue number is unavailable",
+		},
+		{
+			name: "Mixed discussion and workflow_dispatch should fall back to run_id for dispatch runs",
+			workflowData: &WorkflowData{
+				On: `on:
+  discussion:
+    types: [created, edited]
+  workflow_dispatch:`,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number || github.run_id }}"},
+			description:    "Mixed discussion+workflow_dispatch workflows should fall back to run_id when discussion number is unavailable",
+		},
 	}
 
 	for _, tt := range tests {

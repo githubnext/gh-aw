@@ -169,6 +169,12 @@ func isWorkflowDispatchOnly(on string) bool {
 	return true
 }
 
+// hasWorkflowDispatchTrigger returns true when workflow_dispatch appears among the
+// triggers in the "on" section (possibly alongside other triggers).
+func hasWorkflowDispatchTrigger(on string) bool {
+	return strings.Contains(on, "workflow_dispatch")
+}
+
 // isPushWorkflow checks if a workflow's "on" section contains push triggers
 func isPushWorkflow(on string) bool {
 	return strings.Contains(on, "push")
@@ -202,11 +208,20 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	} else if isPullRequestWorkflow(workflowData.On) {
 		// Pure PR workflows: use PR number if available, otherwise fall back to ref for compatibility
 		keys = append(keys, "${{ github.event.pull_request.number || github.ref }}")
+	} else if strings.Contains(workflowData.On, "issues") && hasWorkflowDispatchTrigger(workflowData.On) {
+		// Mixed issues+workflow_dispatch: fall back to run_id when dispatch fires (no issue context).
+		// strings.Contains(on, "issues") intentionally does NOT match "issue_comment" because
+		// "issue_comment" does not contain "issues" as a substring; the issue_comment+workflow_dispatch
+		// combination (the rendered form of slash_command) is handled by isIssueWorkflow below.
+		keys = append(keys, "${{ github.event.issue.number || github.run_id }}")
 	} else if isIssueWorkflow(workflowData.On) {
-		// Issue workflows: use issue number
+		// Pure issue workflows: use issue number
 		keys = append(keys, "${{ github.event.issue.number }}")
+	} else if isDiscussionWorkflow(workflowData.On) && hasWorkflowDispatchTrigger(workflowData.On) {
+		// Mixed discussion+workflow_dispatch: fall back to run_id when dispatch fires (no discussion context)
+		keys = append(keys, "${{ github.event.discussion.number || github.run_id }}")
 	} else if isDiscussionWorkflow(workflowData.On) {
-		// Discussion workflows: use discussion number
+		// Pure discussion workflows: use discussion number
 		keys = append(keys, "${{ github.event.discussion.number }}")
 	} else if isPushWorkflow(workflowData.On) {
 		// Push workflows: use ref to differentiate between branches
