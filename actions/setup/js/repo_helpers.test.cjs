@@ -410,6 +410,18 @@ describe("repo_helpers", () => {
       expect(result.error).toContain("GH_AW_TARGET_REPO_SLUG");
       expect(result.error).toContain("GITHUB_REPOSITORY");
     });
+
+    it("should succeed when item.repo is provided even if defaultTargetRepo is empty", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "org/explicit-repo" };
+      const allowedRepos = new Set(["org/explicit-repo"]);
+
+      const result = resolveAndValidateRepo(item, "", allowedRepos, "pull request");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/explicit-repo");
+      expect(result.repoParts).toEqual({ owner: "org", repo: "explicit-repo" });
+    });
   });
 
   describe("resolveTargetRepoConfig", () => {

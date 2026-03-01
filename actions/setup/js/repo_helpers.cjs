@@ -222,19 +222,23 @@ function resolveTargetRepoConfig(config) {
  * @returns {RepoResolutionResult}
  */
 function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operationType) {
-  // Check for empty defaultTargetRepo, which indicates a configuration or environment issue
-  if (!defaultTargetRepo) {
+  // Normalize the default target repo (may be empty if not configured)
+  const trimmedDefaultTargetRepo = defaultTargetRepo ? String(defaultTargetRepo).trim() : "";
+
+  // Determine target repository for this operation, allowing item.repo to override
+  const rawItemRepo = item && item.repo != null ? String(item.repo).trim() : "";
+  const itemRepo = rawItemRepo || trimmedDefaultTargetRepo;
+
+  // If we still don't have a repo after considering overrides, treat as configuration/environment issue
+  if (!itemRepo) {
     return {
       success: false,
       error: `Unable to determine target repository for ${operationType}. Set GH_AW_TARGET_REPO_SLUG, ensure GITHUB_REPOSITORY is available, or configure target-repo in safe-outputs settings.`,
     };
   }
 
-  // Determine target repository for this operation
-  const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
-
   // Validate the repository is allowed
-  const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+  const repoValidation = validateRepo(itemRepo, trimmedDefaultTargetRepo, allowedRepos);
   if (!repoValidation.valid) {
     // When valid is false, error is guaranteed to be non-null
     const errorMessage = repoValidation.error;
