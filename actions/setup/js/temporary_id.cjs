@@ -92,7 +92,7 @@ function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
   while ((candidate = TEMPORARY_ID_CANDIDATE_PATTERN.exec(text)) !== null) {
     const tempId = `aw_${candidate[1]}`;
     if (!isTemporaryId(tempId)) {
-      core.warning(`Malformed temporary ID reference '${candidate[0]}' found in body text. Temporary IDs must be in format '#aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: '#aw_abc' or '#aw_Test123'`);
+      core.warning(`Malformed temporary ID reference '${candidate[0]}' found in body text. Temporary IDs must be in format '#aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: '#aw_abc' or '#aw_Test123'`);
     }
   }
 
@@ -162,7 +162,7 @@ function getOrGenerateTemporaryId(message, entityType = "item") {
   if (!isTemporaryId(normalized)) {
     return {
       temporaryId: null,
-      error: `Invalid temporary_id format: '${message.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
+      error: `Invalid temporary_id format: '${message.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
     };
   }
 
@@ -298,14 +298,14 @@ function resolveIssueNumber(value, temporaryIdMap) {
     return {
       resolved: null,
       wasTemporaryId: false,
-      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_abc12345'`,
+      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_abc12345'`,
     };
   }
 
   // It's a real issue number - use context repo as default
   const issueNumber = typeof value === "number" ? value : parseInt(valueWithoutHash, 10);
   if (isNaN(issueNumber) || issueNumber <= 0) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_ followed by 3-8 alphanumeric characters) or a numeric issue number.` };
+    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_ followed by 3-12 alphanumeric characters) or a numeric issue number.` };
   }
 
   const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";

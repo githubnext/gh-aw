@@ -323,7 +323,7 @@ describe("temporary_id.cjs", () => {
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("Invalid temporary ID format");
       expect(result.errorMessage).toContain("aw_test-id");
-      expect(result.errorMessage).toContain("3 to 8 alphanumeric characters");
+      expect(result.errorMessage).toContain("3 to 12 alphanumeric characters");
     });
 
     it("should return specific error for malformed temporary ID (too short)", async () => {
