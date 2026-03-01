@@ -20,6 +20,7 @@ The following project-specific technical terms should be corrected when encounte
 .github/workflows
 .lock.yml
 .md
+@copilot
 access
 accessible
 action
@@ -154,6 +155,7 @@ choice
 ci-doctor
 ci-failure-doctor
 claude
+CLAUDE_CODE_OAUTH_TOKEN
 cleanup
 close-discussion
 close-issue
@@ -243,6 +245,10 @@ create_project
 create_pull_request
 create_pull_request_review_comment
 create_views
+created_issue_number
+created_issue_url
+created_pr_number
+created_pr_url
 creation
 credentials
 criteria
@@ -427,6 +433,7 @@ gh-aw
 GH_AW_ACTION_MODE
 GH_AW_AGENT_OUTPUT
 GH_AW_AGENT_TOKEN
+GH_AW_CI_TRIGGER_TOKEN
 GH_AW_GITHUB_MCP_SERVER_TOKEN
 GH_AW_GITHUB_TOKEN
 GH_AW_PROJECT_GITHUB_TOKEN
@@ -468,6 +475,7 @@ GITHUB_PERSONAL_ACCESS_TOKEN
 GITHUB_REPOSITORY
 GITHUB_TOKEN
 GITHUB_WORKFLOW
+GITHUB_WORKSPACE
 global
 glossary
 golang
@@ -546,6 +554,14 @@ labels
 language
 language-detection
 latest
+list_code_scanning_alerts
+list_commits
+list_discussions
+list_issues
+list_pull_requests
+list_users
+list_workflow_runs
+list_workflows
 layer
 libraries
 limit
@@ -870,6 +886,7 @@ sidebar
 similar
 size
 skillz
+SLACK_WEBHOOK
 skip
 skip-bots
 skip-if-match
@@ -1012,6 +1029,7 @@ workflow-status
 workflow-trigger
 workflows
 workflows/
+workflow_call
 workflow_dispatch
 workflow_file
 workflow_file_path
