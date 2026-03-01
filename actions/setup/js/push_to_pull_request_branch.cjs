@@ -368,22 +368,6 @@ async function main(config = {}) {
         // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
         await exec.exec(`git am --3way ${patchFilePath}`);
         core.info("Patch applied successfully");
-
-        // Push the applied commits to the branch
-        await exec.exec(`git push origin ${branchName}`);
-        core.info(`Changes committed and pushed to branch: ${branchName}`);
-
-        // Count new commits pushed for the CI trigger decision
-        if (remoteHeadBeforePatch) {
-          try {
-            const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `${remoteHeadBeforePatch}..HEAD`]);
-            newCommitCount = parseInt(countStr.trim(), 10);
-            core.info(`${newCommitCount} new commit(s) pushed to branch`);
-          } catch {
-            // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
-            core.info("Could not count new commits - extra empty commit will be skipped");
-          }
-        }
       } catch (error) {
         core.error(`Failed to apply patch: ${getErrorMessage(error)}`);
 
@@ -415,6 +399,33 @@ async function main(config = {}) {
         }
 
         return { success: false, error: "Failed to apply patch" };
+      }
+
+      // Push the applied commits to the branch (outside patch try/catch so push failures are not misattributed)
+      try {
+        await exec.exec(`git push origin ${branchName}`);
+        core.info(`Changes committed and pushed to branch: ${branchName}`);
+      } catch (pushError) {
+        const pushErrorMessage = getErrorMessage(pushError);
+        core.error(`Failed to push changes: ${pushErrorMessage}`);
+        const nonFastForwardPatterns = ["non-fast-forward", "rejected", "fetch first", "Updates were rejected"];
+        const isNonFastForward = nonFastForwardPatterns.some(pattern => pushErrorMessage.includes(pattern));
+        const userMessage = isNonFastForward
+          ? "Failed to push changes: remote PR branch changed while the workflow was running (non-fast-forward). Re-run the workflow on the latest PR branch state."
+          : `Failed to push changes: ${pushErrorMessage}`;
+        return { success: false, error_type: "push_failed", error: userMessage };
+      }
+
+      // Count new commits pushed for the CI trigger decision
+      if (remoteHeadBeforePatch) {
+        try {
+          const { stdout: countStr } = await exec.getExecOutput("git", ["rev-list", "--count", `${remoteHeadBeforePatch}..HEAD`]);
+          newCommitCount = parseInt(countStr.trim(), 10);
+          core.info(`${newCommitCount} new commit(s) pushed to branch`);
+        } catch {
+          // Non-fatal - newCommitCount stays 0, extra empty commit will be skipped
+          core.info("Could not count new commits - extra empty commit will be skipped");
+        }
       }
     } else {
       core.info("Skipping patch application (empty patch)");
