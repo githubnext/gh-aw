@@ -346,7 +346,7 @@ func TestParseWorkflowFile_StrictMode(t *testing.T) {
 				if *tt.yamlStrict {
 					frontmatter += "\nstrict: true"
 				} else {
-					frontmatter += "\nstrict: false\nfeatures:"
+					frontmatter += "\nstrict: false"
 				}
 			}
 			frontmatter += "\n---"
