@@ -375,7 +375,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Gemini CLI
-        run: npm install -g --silent @google/gemini-cli@0.29.0
+        run: npm install -g --silent @google/gemini-cli@0.31.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
