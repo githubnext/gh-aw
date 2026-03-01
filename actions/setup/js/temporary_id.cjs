@@ -80,6 +80,18 @@ function normalizeTemporaryId(tempId) {
  * @returns {string} Text with temporary IDs replaced with issue numbers
  */
 function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+  // Detect and warn about malformed #aw_ references that won't be resolved
+  if (typeof core !== "undefined") {
+    const candidatePattern = /#aw_([A-Za-z0-9]+)/gi;
+    let candidate;
+    while ((candidate = candidatePattern.exec(text)) !== null) {
+      const tempId = `aw_${candidate[1]}`;
+      if (!isTemporaryId(tempId)) {
+        core.warning(`Malformed temporary ID reference '${candidate[0]}' found in body text. Temporary IDs must be in format '#aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: '#aw_abc' or '#aw_Test123'`);
+      }
+    }
+  }
+
   return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
     const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
     if (resolved !== undefined) {

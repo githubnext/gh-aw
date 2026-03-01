@@ -123,6 +123,52 @@ describe("temporary_id.cjs", () => {
       const text = "Check #aw_ab and #temp:abc123 for details";
       expect(replaceTemporaryIdReferences(text, map, "owner/repo")).toBe("Check #aw_ab and #temp:abc123 for details");
     });
+
+    it("should warn about malformed temporary ID reference that is too short", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_ab for details";
+      const result = replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(result).toBe("Check #aw_ab for details");
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
+    });
+
+    it("should warn about malformed temporary ID reference that is too long", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_toolongname123 for details";
+      const result = replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(result).toBe("Check #aw_toolongname123 for details");
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_toolongname123"));
+    });
+
+    it("should not warn for valid temporary ID references", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123", { repo: "owner/repo", number: 100 }]]);
+      const text = "Check #aw_abc123 for details";
+      replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should not warn for valid unresolved temporary ID references", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_abc123 for details";
+      replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should warn once per malformed reference when multiple are present", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "See #aw_ab and #aw_toolongname123 here";
+      replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(mockCore.warning).toHaveBeenCalledTimes(2);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_toolongname123"));
+    });
   });
 
   describe("replaceTemporaryIdReferencesLegacy", () => {
