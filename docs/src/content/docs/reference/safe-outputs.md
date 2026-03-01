@@ -1348,6 +1348,18 @@ safe-outputs:
 
 Specify custom runner for safe output jobs (default: `ubuntu-slim`): `runs-on: ubuntu-22.04`
 
+### Safe Outputs Job Concurrency (`concurrency-group:`)
+
+Control concurrency for the compiled `safe_outputs` job. When set, the job uses this group with `cancel-in-progress: false` (queuing semantics — in-progress runs are never cancelled).
+
+```yaml wrap
+safe-outputs:
+  concurrency-group: "safe-outputs-${{ github.repository }}"
+  create-issue:
+```
+
+Supports GitHub Actions expressions. Use this to prevent concurrent safe output jobs from racing on shared resources (e.g., creating duplicate issues or conflicting PRs).
+
 ### Custom Messages (`messages:`)
 
 Customize notifications using template variables and Markdown. Import from shared workflows (local overrides imported).
