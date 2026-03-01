@@ -87,17 +87,6 @@ Analyze the output from `/tmp/conformance-results.txt`:
    - REQ-001 through REQ-003: Specification requirements
    - IMP-001 through IMP-003: Implementation requirements
 
-## 📝 Report Formatting Guidelines
-
-**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
-
-The issue title serves as the document title, so all content headers in the issue body should start at h3:
-- Use `###` for main sections (e.g., "### Conformance Check Failure", "### Problem Description")
-- Use `####` for subsections (e.g., "#### Affected Files", "#### Steps")
-- Never use `##` (h2) or `#` (h1) in the issue body
-
-**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
-
 ## Phase 3: Generate Agentic Tasks
 
 For each conformance issue found, create a GitHub issue using the `create_issue` tool with the following structure:

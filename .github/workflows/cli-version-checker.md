@@ -35,70 +35,6 @@ Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Co
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
-## Report Formatting Guidelines
-
-When creating version update issues, follow these markdown formatting standards for improved readability:
-
-### Header Levels
-**Use h3 (###) or lower for all headers in update issue reports to maintain proper document hierarchy.**
-
-The issue title is already h1, so all internal sections should use h3 (###) or h4 (####) to maintain proper hierarchy. This ensures accessibility and proper document structure.
-
-### Progressive Disclosure
-**Wrap detailed changelog sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.**
-
-Changelogs can be very long, especially for major version bumps. The summary and breaking changes should be visible, but full changelogs should be collapsible.
-
-Example:
-```markdown
-<details>
-<summary><b>View Full Changelog</b></summary>
-
-[Complete changelog with all commits, PRs, and detailed changes]
-
-</details>
-```
-
-### Report Structure Pattern
-Use this structure for version update issues:
-
-```markdown
-### Update Summary
-- **Current Version**: v1.2.3
-- **Latest Version**: v1.3.0
-- **Breaking Changes**: Yes/No
-- **Update Priority**: High/Medium/Low
-
-### Breaking Changes
-[Always visible if present - critical for planning updates]
-
-### Key Features
-[Highlight 2-3 most important new features - keep visible]
-
-<details>
-<summary><b>View Full Changelog</b></summary>
-
-[Complete release notes, all changes, commit history]
-
-</details>
-
-<details>
-<summary><b>View Migration Guide</b></summary>
-
-[Step-by-step update instructions, code changes needed]
-
-</details>
-
-### Recommendations
-[Update priority, testing strategy, rollout plan]
-```
-
-**Design Principles**: Version update reports should:
-- **Build trust through clarity**: Breaking changes and update priority immediately visible
-- **Exceed expectations**: Include migration guides, testing recommendations, impact analysis
-- **Create delight**: Use progressive disclosure for lengthy changelogs while keeping summary scannable
-- **Maintain consistency**: Follow the same patterns as other update/monitoring workflows
-
 ## Process
 
 **EFFICIENCY FIRST**: Before starting:
@@ -232,7 +168,7 @@ For each CLI tool update:
 
 ## Issue Format
 
-**Follow the Report Structure Pattern defined in "Report Formatting Guidelines" section above.**
+**Follow the Report Structure Pattern defined in `shared/reporting.md`.**
 
 For each updated CLI, include:
 - **Version**: old → new (list intermediate versions if multiple)

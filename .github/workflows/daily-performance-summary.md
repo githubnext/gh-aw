@@ -384,55 +384,6 @@ Before creating the new discussion, find and close previous daily performance di
 2. Close each found discussion with reason "OUTDATED"
 3. Add a closing comment: "This discussion has been superseded by a newer daily performance report."
 
-## Phase 5.5: Report Formatting Guidelines
-
-**CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
-
-### 1. Header Levels
-**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
-
-The discussion title serves as h1, so all content headers should start at h3:
-- Use `###` for main sections (e.g., "### Performance Overview", "### Key Metrics")
-- Use `####` for subsections (e.g., "#### Pull Requests", "#### Issues")
-- Never use `##` (h2) or `#` (h1) in the report body
-
-### 2. Progressive Disclosure
-**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
-
-Use collapsible sections for:
-- Detailed benchmark results and performance data
-- Full performance metrics tables
-- Verbose statistics and historical comparisons
-- Technical implementation details
-
-Example:
-```markdown
-<details>
-<summary><b>Detailed Benchmark Results</b></summary>
-
-[Long performance data...]
-
-</details>
-```
-
-### 3. Report Structure Pattern
-
-Your report should follow this structure for optimal readability:
-
-1. **Performance Overview** (always visible): Brief executive summary highlighting overall project health, key achievements, and critical issues
-2. **Key Highlights** (always visible): Most important metrics and trends that stakeholders need to see immediately
-3. **Critical Performance Issues** (always visible): Any problems that require immediate attention with severity indicators
-4. **Detailed Benchmark Results** (in `<details>` tags): Comprehensive performance data, metrics tables, and historical comparisons
-5. **Optimization Recommendations** (always visible): Actionable insights and suggested improvements
-
-### Design Principles
-
-Create reports that:
-- **Build trust through clarity**: Most important info (overview, critical issues, recommendations) immediately visible
-- **Exceed expectations**: Add helpful context, trends, comparisons to give stakeholders the full picture
-- **Create delight**: Use progressive disclosure to reduce overwhelm while keeping details accessible
-- **Maintain consistency**: Follow the same patterns as other reporting workflows in this repository
-
 ## Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive performance report.

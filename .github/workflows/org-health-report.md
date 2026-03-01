@@ -340,32 +340,6 @@ Create a comprehensive markdown report with the following sections:
    - Brief analysis of what the metrics mean
    - Suggestions for maintainers on where to focus
 
-## 📝 Report Formatting Guidelines
-
-**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
-
-The discussion title serves as h1, so all content headers should start at h3:
-- Use `###` for main sections (e.g., "### 📊 Volume Metrics", "### Summary")
-- Use `####` for subsections (e.g., "#### Overall Status", "#### Recent Activity")
-- Never use `##` (h2) or `#` (h1) in the report body
-
-**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
-
-Use collapsible sections for:
-- "Top 10 Most Active Authors" table
-- Full data and methodology details
-- Any other verbose tables or data
-
-Example:
-```markdown
-<details>
-<summary><b>Top 10 Most Active Authors</b></summary>
-
-[Author table here...]
-
-</details>
-```
-
 ### Phase 6: Create Discussion Report
 
 Use the `create discussion` safe-output to publish the report:

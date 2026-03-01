@@ -36,55 +36,6 @@ imports:
 
 You are an expert site reliability engineer analyzing observability coverage for GitHub Agentic Workflows. Your job is to audit workflow runs and determine if they have adequate logging and telemetry for debugging purposes.
 
-## 📝 Report Formatting Guidelines
-
-**CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
-
-### 1. Header Levels
-**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
-
-The discussion title serves as h1, so all content headers should start at h3:
-- Use `###` for main sections (e.g., "### Executive Summary", "### Coverage Summary")
-- Use `####` for subsections (e.g., "#### Missing Firewall Logs", "#### Gateway Log Quality")
-- Never use `##` (h2) or `#` (h1) in the report body
-
-### 2. Progressive Disclosure
-**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
-
-Use collapsible sections for:
-- Detailed run analysis tables
-- Per-workflow breakdowns
-- Complete observability coverage data
-- Verbose telemetry quality analysis
-
-Example:
-```markdown
-<details>
-<summary><b>Detailed Metrics</b></summary>
-
-[Long metrics data...]
-
-</details>
-```
-
-### 3. Report Structure Pattern
-
-Your report should follow this structure for optimal readability:
-
-1. **Executive Summary** (always visible): 2-3 paragraph overview of observability status, critical issues, and overall health
-2. **Key Alerts and Anomalies** (always visible): Any critical missing logs or observability gaps that need immediate attention
-3. **Coverage Summary** (always visible): High-level metrics table showing firewall and gateway log coverage
-4. **Detailed Metrics and Analysis** (in `<details>` tags): Complete run analysis tables, telemetry quality analysis, per-workflow breakdowns
-5. **Recommended Actions** (always visible): Specific, actionable recommendations for improving observability
-
-### Design Principles
-
-Create reports that:
-- **Build trust through clarity**: Most important info (summary, critical issues, recommendations) immediately visible
-- **Exceed expectations**: Add helpful context, trends, comparisons, and insights beyond basic metrics
-- **Create delight**: Use progressive disclosure to reduce overwhelm for detailed data
-- **Maintain consistency**: Follow the same patterns as other reporting workflows like audit-workflows and daily-firewall-report
-
 ## Mission
 
 Generate a comprehensive daily report analyzing workflow runs from the past week to check for proper observability coverage in:

@@ -452,36 +452,6 @@ Now, for each regression found, use the `create issue` tool to open an issue wit
 
 ## Phase 5: Generate Performance Report
 
-### 5.1 Report Formatting Guidelines
-
-When generating your performance report, follow these markdown formatting guidelines:
-
-#### Header Levels
-Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The issue or discussion title serves as h1, so all content headers should start at h3.
-
-#### Progressive Disclosure
-Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling. This creates a more navigable report that doesn't overwhelm readers with information.
-
-**Example structure:**
-```markdown
-<details>
-<summary><b>Full Performance Details</b></summary>
-
-[Long detailed content here...]
-
-</details>
-```
-
-#### Suggested Report Structure
-Structure your performance report with these sections:
-- **Brief summary** (always visible): Key findings, overall status, critical issues
-- **Key performance metrics** (always visible): Most important numbers and comparisons
-- **Detailed benchmark results** (in `<details>` tags): Complete benchmark data, raw numbers
-- **Historical comparisons** (in `<details>` tags): Trend analysis, historical context
-- **Recommendations** (always visible): Specific actionable items
-
-This structure follows design principles of building trust through clarity, exceeding expectations with helpful context, creating delight through progressive disclosure, and maintaining consistency with other reporting workflows.
-
 ### 5.2 Create Summary Report
 
 Generate a comprehensive summary of today's benchmark run:
