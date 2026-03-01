@@ -144,6 +144,30 @@ Additionally, safe outputs enforce permission separation - write operations happ
 
 See [Safe Outputs - Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for configuration options.
 
+### How do I prevent workflow output from creating backlinks in referenced issues?
+
+When AI-generated content mentions issue or PR numbers (such as `#123` or `owner/repo#456`), GitHub automatically creates "mentioned in..." timeline entries in those issues. Set `allowed-github-references: []` to escape all such references before the content is posted:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all GitHub references
+  create-issue:
+```
+
+With an empty list, every `#N` and `owner/repo#N` reference in the output is wrapped in backticks, which prevents GitHub from resolving them as cross-references and avoids cluttering other repositories' timelines. This is especially useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows that write content about issues in a main repository from a separate sidecar repository.
+
+To allow references only from the current repository while still escaping all others:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: [repo]
+  add-comment:
+```
+
+When `allowed-github-references` is not configured at all, all references are left unescaped (default behavior).
+
+See [Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for full configuration options.
+
 ### Tell me more about guardrails
 
 Guardrails are foundational to the design. Agentic workflows implement defense-in-depth through compilation-time validation (schema checks, expression safety, action SHA pinning), runtime isolation (sandboxed containers with network controls), permission separation (read-only defaults with [safe outputs](/gh-aw/reference/safe-outputs/) for writes), tool allowlisting, and output sanitization. See the [Security Architecture](/gh-aw/introduction/architecture/).
