@@ -37,6 +37,10 @@ echo "Safe-output-projects support: ${SAFE_OUTPUT_PROJECTS_ENABLED}"
 create_dir "${DESTINATION}"
 echo "Created directory: ${DESTINATION}"
 
+# Create /tmp/gh-aw directory so it exists before any activation scripts run
+mkdir -p /tmp/gh-aw
+echo "Created /tmp/gh-aw directory"
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JS_SOURCE_DIR="${SCRIPT_DIR}/js"
