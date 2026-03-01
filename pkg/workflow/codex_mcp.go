@@ -164,12 +164,13 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 // renderCodexMCPConfigWithContext generates custom MCP server configuration for a single tool in codex workflow config.toml
 // This version includes workflowData to determine if localhost URLs should be rewritten
 func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, workflowData *WorkflowData) error {
-	yaml.WriteString("          \n")
-	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
-
 	// Determine if localhost URLs should be rewritten to host.docker.internal
 	// This is needed when firewall is enabled (agent is not disabled)
 	rewriteLocalhost := shouldRewriteLocalhostToDocker(workflowData)
+	codexMCPLog.Printf("Rendering TOML MCP config for custom tool: %s (rewrite_localhost=%v)", toolName, rewriteLocalhost)
+
+	yaml.WriteString("          \n")
+	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
 
 	// Use the shared MCP config renderer with TOML format
 	renderer := MCPConfigRenderer{
@@ -180,6 +181,7 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
 	if err != nil {
+		codexMCPLog.Printf("Failed to render TOML MCP config for tool %s: %v", toolName, err)
 		return err
 	}
 
@@ -191,6 +193,7 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 func (e *CodexEngine) renderCodexJSONMCPConfigWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
 	// Determine if localhost URLs should be rewritten to host.docker.internal
 	rewriteLocalhost := shouldRewriteLocalhostToDocker(workflowData)
+	codexMCPLog.Printf("Rendering JSON MCP config for gateway tool: %s (isLast=%v, rewrite_localhost=%v)", toolName, isLast, rewriteLocalhost)
 
 	// Use the shared renderer with JSON format for gateway
 	renderer := MCPConfigRenderer{
@@ -203,6 +206,7 @@ func (e *CodexEngine) renderCodexJSONMCPConfigWithContext(yaml *strings.Builder,
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
 	if err != nil {
+		codexMCPLog.Printf("Failed to render JSON MCP config for tool %s: %v", toolName, err)
 		return err
 	}
 
