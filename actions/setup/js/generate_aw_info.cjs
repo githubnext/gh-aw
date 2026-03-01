@@ -5,6 +5,7 @@ const fs = require("fs");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs");
 const { validateContextVariables } = require("./validate_context_variables.cjs");
+const validateLockdownRequirements = require("./validate_lockdown_requirements.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -21,6 +22,10 @@ async function main(core, ctx) {
   // Validate numeric context variables before processing run info.
   // This prevents malicious payloads from hiding special text or code in numeric fields.
   await validateContextVariables(core, ctx);
+
+  // Validate lockdown mode requirements if lockdown is explicitly enabled.
+  // This fails fast if lockdown: true is set but no custom GitHub token is configured.
+  validateLockdownRequirements(core);
 
   // Validate required context variables
   const requiredContextFields = ["runId", "runNumber", "sha", "ref", "actor", "eventName", "repo"];

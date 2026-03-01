@@ -1254,9 +1254,9 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		// Create agent-stdio.log to indicate agent ran
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("agent output"), 0600))
 		// Create workflow-logs with a step log that has content
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode requirements.txt"), []byte("Error: lockdown failed"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"), []byte("Error: lockdown failed"), 0600))
 
 		errors := extractPreAgentStepErrors(dir)
 		assert.Nil(t, errors, "Should return nil when agent-stdio.log exists")
@@ -1272,19 +1272,19 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 	t.Run("extracts error from last step log file", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
 		// Create multiple step logs - last one should be selected
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "1_Set up job.txt"), []byte("Setup complete"), 0600))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Install binary.txt"), []byte("Install complete"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "4_Check workflow file timestamps.txt"), []byte("Timestamp check complete"), 0600))
 		lockdownErr := "Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n\nPlease configure one of the following as a repository secret:\n  - GH_AW_GITHUB_TOKEN (recommended)"
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode requirements.txt"), []byte(lockdownErr), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"), []byte(lockdownErr), 0600))
 
 		errors := extractPreAgentStepErrors(dir)
 		require.NotNil(t, errors, "Should return errors from step logs")
 		require.Len(t, errors, 1, "Should return exactly one error info")
 		assert.Equal(t, "step_failure", errors[0].Type, "Error type should be step_failure")
-		assert.Equal(t, "agent/Validate lockdown mode requirements", errors[0].File, "File should include job and step name")
+		assert.Equal(t, "activation/Generate agentic run info", errors[0].File, "File should include job and step name")
 		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain lockdown error text")
 		assert.Contains(t, errors[0].Message, "GH_AW_GITHUB_TOKEN", "Message should contain token suggestion")
 	})
@@ -1319,11 +1319,11 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 
 	t.Run("prioritizes ##[error] annotations over last step fallback", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
 		// Step 3 has a ##[error] annotation (the real failure)
 		lockdownLog := "2026-02-23T23:46:10.9523559Z ##[error]Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n2026-02-23T23:46:10.9523560Z Please configure GH_AW_GITHUB_TOKEN"
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Validate lockdown mode.txt"), []byte(lockdownLog), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_Generate agentic run info.txt"), []byte(lockdownLog), 0600))
 		// Step 15 is the "Complete job" step with unrelated cleanup content (higher step number)
 		completeJobLog := "2026-02-23T23:46:13.5790741Z Evaluate and set job outputs\n2026-02-23T23:46:13.5790742Z Set output 'checkout_pr_success'\n2026-02-23T23:46:13.5790743Z Set output 'has_patch'"
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "15_Complete job.txt"), []byte(completeJobLog), 0600))
@@ -1331,7 +1331,7 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		errors := extractPreAgentStepErrors(dir)
 		require.NotNil(t, errors, "Should return errors from ##[error] annotations")
 		require.Len(t, errors, 1, "Should return one error for the step with ##[error]")
-		assert.Equal(t, "agent/Validate lockdown mode", errors[0].File, "Should reference the step with ##[error], not Complete job")
+		assert.Equal(t, "activation/Generate agentic run info", errors[0].File, "Should reference the step with ##[error], not Complete job")
 		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain the actual ##[error] annotation content")
 		assert.NotContains(t, errors[0].Message, "Evaluate and set job outputs", "Message should not contain Complete job cleanup content")
 		assert.NotContains(t, errors[0].Message, "2026-02-23T", "Should strip GHA timestamps from ##[error] lines")
@@ -1378,9 +1378,9 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 	t.Run("builds error summary from step errors in buildAuditData", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log
-		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "activation")
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "12_Validate lockdown mode.txt"),
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"),
 			[]byte("Lockdown mode is enabled but no token configured"), 0600))
 
 		run := WorkflowRun{
