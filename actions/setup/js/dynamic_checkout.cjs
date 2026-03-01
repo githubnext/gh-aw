@@ -55,14 +55,16 @@ async function getCurrentCheckoutRepo() {
  */
 async function checkoutRepo(repoSlug, token, options = {}) {
   const baseBranch = options.baseBranch || "main";
-  const [owner, repo] = repoSlug.split("/");
+  const parts = (repoSlug || "").trim().split("/");
 
-  if (!owner || !repo) {
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
     return {
       success: false,
       error: `Invalid repository slug: ${repoSlug}. Expected format: owner/repo`,
     };
   }
+
+  const [owner, repo] = parts;
 
   core.info(`Switching checkout to repository: ${repoSlug}`);
 

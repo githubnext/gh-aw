@@ -227,7 +227,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     let repoSlug = null;
 
     if (entry.repo && entry.repo.trim()) {
-      repoSlug = entry.repo.trim();
+      // Use the validated/qualified repo slug from repoResult to avoid divergence
+      // between the raw user input and the normalized/qualified repo name
+      repoSlug = repoResult.repo;
       server.debug(`Multi-repo mode: looking for checkout of ${repoSlug}`);
 
       const checkoutResult = findRepoCheckout(repoSlug);

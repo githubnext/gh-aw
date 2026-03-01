@@ -302,7 +302,7 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.details).toContain("create_pull_request");
     });
 
-    it("should return error when repo parameter specifies non-existent checkout", async () => {
+    it("should return error when repo parameter is not in the allowed-repos list", async () => {
       const args = {
         branch: "feature-branch",
         title: "Test PR",

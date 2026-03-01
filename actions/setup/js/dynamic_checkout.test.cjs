@@ -127,6 +127,14 @@ describe("checkoutRepo slug validation", () => {
     expect(result.error).toContain("Expected format: owner/repo");
   });
 
+  it("should reject repo slug with extra slashes", async () => {
+    const result = await checkoutRepo("owner/repo/extra", "fake-token");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Invalid repository slug");
+    expect(result.error).toContain("Expected format: owner/repo");
+  });
+
   it("should reject empty owner", async () => {
     const result = await checkoutRepo("/repo", "fake-token");
 
