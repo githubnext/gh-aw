@@ -237,6 +237,11 @@ SAFE_OUTPUTS_FILES=(
   "repo_helpers.cjs"
   "glob_pattern_helpers.cjs"
   "handler_auth.cjs"
+  "missing_messages_helper.cjs"
+  "firewall_blocked_domains.cjs"
+  "missing_info_formatter.cjs"
+  "sanitize_content_core.cjs"
+  "markdown_code_region_balancer.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0
