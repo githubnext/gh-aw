@@ -164,6 +164,7 @@ jobs:
           sparse-checkout: |
             .github
             .agents
+          sparse-checkout-cone-mode: true
           fetch-depth: 1
           persist-credentials: false
       - name: Check workflow file timestamps

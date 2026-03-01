@@ -252,6 +252,7 @@ func (c *Compiler) generateCheckoutGitHubFolder(data *WorkflowData) []string {
 
 	// For all modes (dev, script, release), checkout .github and .agents folders
 	// This works in release mode where actions aren't checked out
+	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	return []string{
 		"      - name: Checkout .github and .agents folders\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
@@ -259,6 +260,7 @@ func (c *Compiler) generateCheckoutGitHubFolder(data *WorkflowData) []string {
 		"          sparse-checkout: |\n",
 		"            .github\n",
 		"            .agents\n",
+		"          sparse-checkout-cone-mode: true\n",
 		"          fetch-depth: 1\n",
 		"          persist-credentials: false\n",
 	}

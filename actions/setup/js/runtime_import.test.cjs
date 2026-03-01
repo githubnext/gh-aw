@@ -359,11 +359,13 @@ describe("runtime_import", () => {
         expect(result).toBe(content);
       }),
         it("should throw error for missing required file", async () => {
-          await expect(processRuntimeImport("missing.md", !1, tempDir)).rejects.toThrow("Runtime import file not found: workflows/missing.md");
+          const expectedPath = path.normalize(path.join(tempDir, ".github", "workflows", "missing.md"));
+          await expect(processRuntimeImport("missing.md", !1, tempDir)).rejects.toThrow("Runtime import file not found: " + expectedPath);
         }),
         it("should return empty string for missing optional file", async () => {
+          const expectedPath = path.normalize(path.join(tempDir, ".github", "workflows", "missing.md"));
           const result = await processRuntimeImport("missing.md", !0, tempDir);
-          (expect(result).toBe(""), expect(core.warning).toHaveBeenCalledWith("Optional runtime import file not found: workflows/missing.md"));
+          (expect(result).toBe(""), expect(core.warning).toHaveBeenCalledWith("Optional runtime import file not found: " + expectedPath));
         }),
         it("should remove front matter and log debug message", async () => {
           const filepath = "with-frontmatter.md";
@@ -441,6 +443,16 @@ describe("runtime_import", () => {
           const content = "Test with .agents prefix";
           fs.writeFileSync(path.join(agentsDir, "test-skill.md"), content);
           const result = await processRuntimeImport(".agents/test-skill.md", !1, tempDir);
+          expect(result).toBe(content);
+        }),
+        it("should support nested .github/workflows/shared/ path (issue: runtime-import fails for .github/workflows/* paths)", async () => {
+          // Regression test: .github/workflows/shared/reporting.md should resolve to
+          // <workspace>/.github/workflows/shared/reporting.md (not <workspace>/workflows/shared/reporting.md)
+          const sharedDir = path.join(workflowsDir, "shared");
+          fs.mkdirSync(sharedDir, { recursive: true });
+          const content = "# Shared Reporting\n\nThis is shared content.";
+          fs.writeFileSync(path.join(sharedDir, "reporting.md"), content);
+          const result = await processRuntimeImport(".github/workflows/shared/reporting.md", !1, tempDir);
           expect(result).toBe(content);
         }),
         it("should reject paths outside .github folder", async () => {
@@ -918,7 +930,8 @@ describe("runtime_import", () => {
 
           const result = await processRuntimeImports("{{#runtime-import main.md}}", tempDir);
           expect(result).toBe("Main\nExists before\n\nExists after");
-          expect(core.warning).toHaveBeenCalledWith("Optional runtime import file not found: workflows/optional-missing.md");
+          const expectedPath = path.normalize(path.join(tempDir, ".github", "workflows", "optional-missing.md"));
+          expect(core.warning).toHaveBeenCalledWith("Optional runtime import file not found: " + expectedPath);
         });
 
         it("should process expressions in recursively imported files", async () => {

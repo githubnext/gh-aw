@@ -1035,6 +1035,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 
 	// For activation job, always add sparse checkout of .github and .agents folders
 	// This is needed for runtime imports during prompt generation
+	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobsLog.Print("Adding .github and .agents sparse checkout in activation job")
 	return []string{
 		"      - name: Checkout .github and .agents folders\n",
@@ -1043,6 +1044,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		"          sparse-checkout: |\n",
 		"            .github\n",
 		"            .agents\n",
+		"          sparse-checkout-cone-mode: true\n",
 		"          fetch-depth: 1\n",
 		"          persist-credentials: false\n",
 	}
