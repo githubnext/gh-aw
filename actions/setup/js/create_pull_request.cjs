@@ -28,6 +28,23 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
 
+/** @type {string} Label always added to fallback issues so the triage system can find them */
+const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
+
+/**
+ * Merges the required fallback label with any workflow-configured labels,
+ * deduplicating and filtering empty values.
+ * @param {string[]} [labels]
+ * @returns {string[]}
+ */
+function mergeFallbackIssueLabels(labels = []) {
+  const normalizedLabels = labels
+    .filter(label => !!label)
+    .map(label => String(label).trim())
+    .filter(label => label);
+  return [...new Set([MANAGED_FALLBACK_ISSUE_LABEL, ...normalizedLabels])];
+}
+
 /**
  * Maximum limits for pull request parameters to prevent resource exhaustion.
  * These limits align with GitHub's API constraints and security best practices.
@@ -723,7 +740,7 @@ ${patchPreview}`;
             repo: repoParts.repo,
             title: title,
             body: fallbackBody,
-            labels: labels,
+            labels: mergeFallbackIssueLabels(labels),
           });
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
@@ -985,7 +1002,7 @@ ${patchPreview}`;
           repo: repoParts.repo,
           title: title,
           body: fallbackBody,
-          labels: labels,
+          labels: mergeFallbackIssueLabels(labels),
         });
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
