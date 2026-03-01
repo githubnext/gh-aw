@@ -190,7 +190,7 @@ Create a detailed markdown report with the following structure:
 - **Toolset Categories**: [NUMBER]
 - **Report Date**: [DATE]
 - **Source**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-- **Instructions File**: [.github/instructions/github-mcp-server.instructions.md](https://github.com/github/gh-aw/blob/main/.github/instructions/github-mcp-server.instructions.md)
+- **Instructions File**: [.github/aw/github-mcp-server.md](https://github.com/github/gh-aw/blob/main/.github/aw/github-mcp-server.md)
 - **Changes Since Last Report**: [If previous data exists, show changes summary]
   - **New Tools**: [NUMBER]
   - **Removed Tools**: [NUMBER]
@@ -348,7 +348,7 @@ tools:
 - **Categorization**: Based on GitHub API domains and functionality
 - **Documentation**: Derived from tool names, descriptions, and usage patterns
 - **JSON Mapping**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-- **Instructions**: [.github/instructions/github-mcp-server.instructions.md](https://github.com/github/gh-aw/blob/main/.github/instructions/github-mcp-server.instructions.md)
+- **Instructions**: [.github/aw/github-mcp-server.md](https://github.com/github/gh-aw/blob/main/.github/aw/github-mcp-server.md)
 - **MCP Server Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 ```
 
@@ -387,7 +387,7 @@ A successful report:
 - ✅ **Creates pull request** with updated JSON mapping if changes were made
 - ✅ Compares with previous run and identifies changes (new/removed/moved tools)
 - ✅ Saves current tools list to cache for next run
-- ✅ **Creates/updates `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation
+- ✅ **Creates/updates `.github/aw/github-mcp-server.md`** with comprehensive documentation
 - ✅ **Identifies and documents recommended default toolsets** with rationale
 - ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.md)
 - ✅ Organizes tools by their appropriate toolset categories
@@ -425,7 +425,7 @@ Your output MUST:
 8. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run
    - Use a structured JSON format with tool names, toolsets, and descriptions
    - Include timestamp and metadata
-9. **Update `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation:
+9. **Update `.github/aw/github-mcp-server.md`** with comprehensive documentation:
    - Document all available tools organized by toolset
    - Include tool descriptions, parameters, and usage examples
    - Provide configuration reference for remote vs local mode
@@ -507,7 +507,7 @@ Begin your tool discovery now. Follow these steps:
    - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
    - Determine if these defaults should be updated based on actual tool availability and usage patterns
    - Document your rationale for the recommended defaults
-10. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
+10. **Create comprehensive documentation file**: Create/update `.github/aw/github-mcp-server.md` with:
    - Overview of GitHub MCP server (remote vs local mode)
    - Complete list of available tools organized by toolset
    - Tool descriptions, parameters, and return values

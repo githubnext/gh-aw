@@ -78,13 +78,40 @@
       "description": "Pull request operations",
       "read_permissions": ["pull-requests"],
       "write_permissions": ["pull-requests"],
-      "tools": ["add_comment_to_pending_review", "add_reply_to_pull_request_comment", "create_pull_request", "list_pull_requests", "merge_pull_request", "pull_request_read", "pull_request_review_write", "search_pull_requests", "update_pull_request", "update_pull_request_branch"]
+      "tools": [
+        "add_comment_to_pending_review",
+        "add_reply_to_pull_request_comment",
+        "create_pull_request",
+        "list_pull_requests",
+        "merge_pull_request",
+        "pull_request_read",
+        "pull_request_review_write",
+        "search_pull_requests",
+        "update_pull_request",
+        "update_pull_request_branch"
+      ]
     },
     "repos": {
       "description": "Repository operations",
       "read_permissions": ["contents"],
       "write_permissions": ["contents"],
-      "tools": ["create_branch", "create_or_update_file", "create_repository", "delete_file", "fork_repository", "get_commit", "get_file_contents", "get_latest_release", "get_release_by_tag", "get_tag", "list_branches", "list_commits", "list_releases", "list_tags", "push_files"]
+      "tools": [
+        "create_branch",
+        "create_or_update_file",
+        "create_repository",
+        "delete_file",
+        "fork_repository",
+        "get_commit",
+        "get_file_contents",
+        "get_latest_release",
+        "get_release_by_tag",
+        "get_tag",
+        "list_branches",
+        "list_commits",
+        "list_releases",
+        "list_tags",
+        "push_files"
+      ]
     },
     "search": {
       "description": "Advanced search across GitHub",

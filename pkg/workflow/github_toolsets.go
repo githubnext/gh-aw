@@ -10,7 +10,7 @@ var toolsetsLog = logger.New("workflow:github_toolsets")
 
 // DefaultGitHubToolsets defines the toolsets that are enabled by default
 // when toolsets are not explicitly specified in the GitHub MCP configuration.
-// These match the documented default toolsets in github-mcp-server.instructions.md
+// These match the documented default toolsets in github-mcp-server.md
 var DefaultGitHubToolsets = []string{"context", "repos", "issues", "pull_requests"}
 
 // ActionFriendlyGitHubToolsets defines the default toolsets that work with GitHub Actions tokens.
