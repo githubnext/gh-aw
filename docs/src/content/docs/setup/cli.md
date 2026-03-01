@@ -9,25 +9,14 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 
 ## Most Common Commands
 
-Most users only need these 6 commands:
-
-- **`gh aw init`** - Set up your repository for agentic workflows  
-  [→ Documentation](#init)
-
-- **`gh aw add (workflow)`** - Add workflows from other repositories  
-  [→ Documentation](#add)
-
-- **`gh aw compile`** - Convert markdown to GitHub Actions YAML after editing  
-  [→ Documentation](#compile)
-
-- **`gh aw list`** - Quick listing of all workflows without status checks  
-  [→ Documentation](#list)
-
-- **`gh aw run (workflow)`** - Execute workflows immediately in GitHub Actions  
-  [→ Documentation](#run)
-
-- **`gh aw status`** - Check current state of all workflows  
-  [→ Documentation](#status)
+| Command | Description |
+|---------|-------------|
+| [`gh aw init`](#init) | Set up your repository for agentic workflows |
+| [`gh aw add`](#add) | Add workflows from other repositories |
+| [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML |
+| [`gh aw list`](#list) | Quick listing of all workflows |
+| [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions |
+| [`gh aw status`](#status) | Check current state of all workflows |
 
 ## Installation
 
@@ -94,20 +83,7 @@ gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with comm
 
 ### The `--push` Flag
 
-Several commands support the `--push` flag to automatically commit and push changes to the remote repository:
-
-1. **Remote check**: Requires a remote repository to be configured
-2. **Branch validation**: Verifies current branch matches repository default branch (or specified with `--ref`)
-3. **User confirmation**: Prompts for confirmation before committing/pushing (skipped in CI)
-4. **Automatic commit**: Creates commit with descriptive message
-5. **Pull and push**: Pulls latest changes with rebase, then pushes to remote
-
-Safety features:
-- Prevents accidental pushes to non-default branches (unless explicitly specified)
-- Requires explicit user confirmation outside CI environments
-- Auto-confirms in CI (detected via `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS` env vars)
-
-Commands with `--push` require a clean working directory (no uncommitted changes) before starting.
+Several commands support `--push` to automatically commit and push changes. It verifies a remote is configured, validates you're on the default branch (override with `--ref`), prompts for confirmation outside CI (auto-confirmed when `CI`, `CONTINUOUS_INTEGRATION`, or `GITHUB_ACTIONS` env vars are set), then pulls with rebase and pushes. Requires a clean working directory.
 
 ## Commands
 
@@ -179,10 +155,6 @@ gh aw secrets bootstrap                                  # Analyze all workflows
 gh aw secrets bootstrap --engine copilot                 # Check only Copilot secrets
 gh aw secrets bootstrap --non-interactive                # Display missing secrets without prompting
 ```
-
-**Workflow-based discovery**: Scans `.github/workflows/*.md` to identify engines in use, collects the union of required secrets across all workflows, and filters out optional secrets. Only shows secrets that are actually needed based on your workflow configuration.
-
-**Interactive prompting**: For each missing required secret, prompts for the value, validates the token, and uploads it to the repository. Use `--non-interactive` to display missing secrets without prompting (display-only mode).
 
 **Options:** `--engine` (copilot, claude, codex), `--non-interactive`, `--owner`, `--repo`
 
@@ -350,9 +322,7 @@ gh aw audit https://github.com/owner/repo/actions/runs/123/job/456#step:7:1 # By
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
-Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level (job logs, specific step, or first failing step).
-
-When a workflow fails before the agent executes (for example, due to lockdown validation failures, missing secrets, or binary install failures), the audit report surfaces the actual error from the workflow step log files. The `failure_analysis.error_summary` field reflects the specific failure message rather than reporting "No specific errors identified". Providing an invalid run ID returns a human-readable error instead of a raw exit code.
+Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (lockdown validation, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 
 #### `health`
 
@@ -545,16 +515,7 @@ Includes all frontmatter fields, imported workflow frontmatter (BFS traversal), 
 
 ## Shell Completions
 
-Enable tab completion for workflow names, engines, and paths.
-
-### Automatic Installation
-
-```bash wrap
-gh aw completion install    # Auto-detects your shell and installs
-gh aw completion uninstall  # Remove completions
-```
-
-Restart your shell or source your configuration file after installation.
+Enable tab completion for workflow names, engines, and paths. After running `gh aw completion install`, restart your shell or source your configuration file.
 
 ### Manual Installation
 
