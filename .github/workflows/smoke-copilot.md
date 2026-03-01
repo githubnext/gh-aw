@@ -70,6 +70,7 @@ safe-outputs:
       allowed-repos: ["github/gh-aw"]
     remove-labels:
       allowed: [smoke]
+    set-issue-type:
     dispatch-workflow:
       workflows:
         - haiku-printer
@@ -137,6 +138,7 @@ features:
 10. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
 11. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
 12. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`.
+13. **Set Issue Type Testing**: Use the `set_issue_type` safe-output tool to set the type of the issue created in step 1 to "Bug". Use the temporary ID from step 1 to reference the issue.
 
 ## Output
 
