@@ -31,22 +31,6 @@ func DisableWorkflowsByNames(workflowNames []string, repoOverride string) error 
 	return toggleWorkflowsByNames(workflowNames, false, repoOverride)
 }
 
-// Deprecated: Use EnableWorkflowsByNames with specific workflow names instead
-// EnableWorkflows enables workflows matching a pattern (legacy function for tests)
-func EnableWorkflows(pattern string) error {
-	// For test compatibility, always return error when pattern-based search is used
-	// Tests expect this to fail when no workflows are found
-	return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
-}
-
-// Deprecated: Use DisableWorkflowsByNames with specific workflow names instead
-// DisableWorkflows disables workflows matching a pattern (legacy function for tests)
-func DisableWorkflows(pattern string) error {
-	// For test compatibility, always return error when pattern-based search is used
-	// Tests expect this to fail when no workflows are found
-	return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
-}
-
 // toggleWorkflowsByNames toggles workflows by specific names, or all if no names provided
 func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride string) error {
 	action := "enable"

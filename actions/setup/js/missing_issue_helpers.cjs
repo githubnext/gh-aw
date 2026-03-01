@@ -25,15 +25,17 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
  * @param {function(string): string[]} options.buildCommentHeader - Returns header lines for the comment body given runUrl
  * @param {function(Object, number): string[]} options.renderCommentItem - Renders a single item for an existing-issue comment
  * @param {function(Object, number): string[]} options.renderIssueItem - Renders a single item for a new-issue body
+ * @param {string[]} [options.defaultLabels] - Labels always applied to created issues (merged with config.labels)
  * @returns {HandlerFactoryFunction}
  */
 function buildMissingIssueHandler(options) {
-  const { handlerType, defaultTitlePrefix, itemsField, templatePath, templateListKey, buildCommentHeader, renderCommentItem, renderIssueItem } = options;
+  const { handlerType, defaultTitlePrefix, itemsField, templatePath, templateListKey, buildCommentHeader, renderCommentItem, renderIssueItem, defaultLabels = [] } = options;
 
   return async function main(config = {}) {
     // Extract configuration
     const titlePrefix = config.title_prefix || defaultTitlePrefix;
-    const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+    const userLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+    const envLabels = [...new Set([...defaultLabels, ...userLabels])];
     const maxCount = config.max || 1; // Default to 1 to create only one issue per workflow run
 
     core.info(`Title prefix: ${titlePrefix}`);

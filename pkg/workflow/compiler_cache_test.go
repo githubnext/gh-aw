@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ tools:
 				"# Cache configuration from frontmatter was processed and added to the main job steps",
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@", // SHA varies
 				"key: node-modules-${{ hashFiles('package-lock.json') }}",
 				"path: node_modules",
 				"restore-keys: node-modules-",
@@ -89,7 +90,7 @@ tools:
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache (node-modules-${{ hashFiles('package-lock.json') }})",
 				"- name: Cache (build-cache-${{ github.sha }})",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@", // SHA varies
 				"key: node-modules-${{ hashFiles('package-lock.json') }}",
 				"key: build-cache-${{ github.sha }}",
 				"path: node_modules",
@@ -131,7 +132,7 @@ tools:
 			expectedInLock: []string{
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache",
-				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+				"uses: actions/cache@", // SHA varies
 				"key: full-cache-${{ github.sha }}",
 				"path: dist",
 				"restore-keys: |",
@@ -180,7 +181,10 @@ tools:
 			// Check that expected strings are present
 			for _, expected := range tt.expectedInLock {
 				if !strings.Contains(lockContent, expected) {
-					t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", expected, lockContent)
+					// Show a snippet of the lock file for context (first 100 lines)
+					lines := strings.Split(lockContent, "\n")
+					snippet := strings.Join(lines[:min(100, len(lines))], "\n")
+					t.Errorf("Expected lock file to contain '%s' but it didn't.\nFirst 100 lines:\n%s\n...(truncated)", expected, snippet)
 				}
 			}
 
@@ -188,7 +192,19 @@ tools:
 			// (frontmatter is embedded as comments, so we need to exclude comment lines)
 			for _, notExpected := range tt.notExpectedInLock {
 				if containsInNonCommentLines(lockContent, notExpected) {
-					t.Errorf("Lock file should NOT contain '%s' in non-comment lines but it did.\nContent:\n%s", notExpected, lockContent)
+					// Find the line containing the unexpected string for context
+					lines := strings.Split(lockContent, "\n")
+					var contextLines []string
+					for i, line := range lines {
+						if strings.Contains(line, strings.TrimSpace(notExpected)) {
+							start := max(0, i-3)
+							end := min(len(lines), i+4)
+							contextLines = append(contextLines, fmt.Sprintf("Lines %d-%d:", start+1, end))
+							contextLines = append(contextLines, lines[start:end]...)
+							break
+						}
+					}
+					t.Errorf("Lock file should NOT contain '%s' in non-comment lines but it did.\nContext:\n%s", notExpected, strings.Join(contextLines, "\n"))
 				}
 			}
 		})
@@ -247,7 +263,10 @@ This workflow should get default permissions applied automatically.
 
 	for _, expectedPerm := range expectedDefaultPermissions {
 		if !strings.Contains(lockContentStr, expectedPerm) {
-			t.Errorf("Expected default permission '%s' not found in generated workflow.\nGenerated content:\n%s", expectedPerm, lockContentStr)
+			// Show first 100 lines for context
+			lines := strings.Split(lockContentStr, "\n")
+			snippet := strings.Join(lines[:min(100, len(lines))], "\n")
+			t.Errorf("Expected default permission '%s' not found in generated workflow.\nFirst 100 lines:\n%s\n...(truncated)", expectedPerm, snippet)
 		}
 	}
 
@@ -430,7 +449,19 @@ This workflow has custom permissions that should override defaults.
 
 	for _, defaultPerm := range defaultOnlyPermissions {
 		if strings.Contains(lockContentStr, defaultPerm) {
-			t.Errorf("Default permission '%s' should not be present when custom permissions are specified.\nGenerated content:\n%s", defaultPerm, lockContentStr)
+			// Find the line containing the unexpected permission for context
+			lines := strings.Split(lockContentStr, "\n")
+			var contextLines []string
+			for i, line := range lines {
+				if strings.Contains(line, defaultPerm) {
+					start := max(0, i-3)
+					end := min(len(lines), i+4)
+					contextLines = append(contextLines, fmt.Sprintf("Lines %d-%d:", start+1, end))
+					contextLines = append(contextLines, lines[start:end]...)
+					break
+				}
+			}
+			t.Errorf("Default permission '%s' should not be present when custom permissions are specified.\nContext:\n%s", defaultPerm, strings.Join(contextLines, "\n"))
 		}
 	}
 }

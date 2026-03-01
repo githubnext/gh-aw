@@ -246,6 +246,8 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `startupTimeout` | integer | No | Server startup timeout in seconds (default: 30) |
 | `toolTimeout` | integer | No | Tool invocation timeout in seconds (default: 60) |
 | `payloadDir` | string | No | Directory path for storing large payload JSON files for authenticated clients |
+| `payloadPathPrefix` | string | No | Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads) |
+| `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -300,6 +302,70 @@ Empty or malformed:
 - The gateway SHOULD validate that the path does not escape intended directory boundaries through symbolic links or other mechanisms
 
 **Compliance Test**: T-CFG-005 - Payload Directory Path Validation
+
+#### 4.1.3.2 Payload Path Prefix for Agent Containers
+
+When the optional `payloadPathPrefix` field is provided in the gateway configuration, it specifies a path prefix used to remap payload file paths returned to clients. This enables agents running in containers to access payload files via mounted volumes.
+
+**How it works**:
+
+1. Gateway saves payload to actual filesystem: `/tmp/jq-payloads/session123/query456/payload.json`
+2. Gateway returns remapped path to client: `/workspace/payloads/session123/query456/payload.json`
+3. Agent container mounts volume: `-v /tmp/jq-payloads:/workspace/payloads`
+4. Agent can now access the file at the returned path ✅
+
+**Configuration Example**:
+
+```toml
+[gateway]
+payload_dir = "/tmp/jq-payloads"
+payload_path_prefix = "/workspace/payloads"
+port = 8080
+domain = "localhost"
+apiKey = "secret"
+```
+
+**Use Cases**:
+- Agents running in containers with different filesystem layouts
+- Docker-in-Docker scenarios where host paths need remapping
+- Environments with controlled volume mounts for security
+
+**Requirements**:
+- If specified, the path prefix SHOULD match a mounted volume in the agent container
+- The gateway MUST use this prefix when returning `payloadPath` to clients
+- The gateway MUST still save files to the actual filesystem path (`payloadDir`)
+
+#### 4.1.3.3 Payload Size Threshold
+
+The `payloadSizeThreshold` field (default: 524288 bytes = 512KB) controls when response payloads are stored to disk versus returned inline.
+
+**Behavior**:
+- Payloads **smaller than or equal** to threshold: Returned inline in the response
+- Payloads **larger than** threshold: Stored to disk, metadata returned with `payloadPath`
+
+**Default Value**: 524288 bytes (512KB)
+
+**Rationale**: The 512KB default accommodates typical MCP tool responses including GitHub API queries (list_commits, list_issues, etc.) without triggering disk storage. This prevents agent looping issues when payloadPath is not accessible in agent containers.
+
+**Configuration Example**:
+
+```toml
+[gateway]
+payload_size_threshold = 1048576  # 1MB - minimize disk storage
+# OR
+payload_size_threshold = 262144   # 256KB - more aggressive disk storage
+```
+
+**Configuration Methods**:
+- CLI flag: `--payload-size-threshold <bytes>`
+- Environment variable: `MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=<bytes>`
+- TOML config file: `payload_size_threshold = <bytes>` in `[gateway]` section
+- Default if not specified: 524288 bytes (512KB)
+
+**Requirements**:
+- Threshold MUST be a positive integer representing bytes
+- Gateway MUST compare actual payload size against threshold before deciding storage method
+- Threshold MAY be adjusted based on deployment needs (memory vs disk I/O trade-offs)
 
 #### 4.1.3a Top-Level Configuration Fields
 

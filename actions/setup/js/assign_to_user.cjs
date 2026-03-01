@@ -11,6 +11,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_to_user";
@@ -27,6 +28,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -131,7 +133,7 @@ async function main(config = {}) {
       // If unassign_first is enabled, get current assignees and remove them first
       if (unassignFirst) {
         core.info(`Fetching current assignees for issue #${issueNumber} to unassign them first`);
-        const issue = await github.rest.issues.get({
+        const issue = await authClient.rest.issues.get({
           owner: repoParts.owner,
           repo: repoParts.repo,
           issue_number: issueNumber,
@@ -140,7 +142,7 @@ async function main(config = {}) {
         const currentAssignees = issue.data.assignees?.map(a => a.login) || [];
         if (currentAssignees.length > 0) {
           core.info(`Unassigning ${currentAssignees.length} current assignee(s): ${JSON.stringify(currentAssignees)}`);
-          await github.rest.issues.removeAssignees({
+          await authClient.rest.issues.removeAssignees({
             owner: repoParts.owner,
             repo: repoParts.repo,
             issue_number: issueNumber,
@@ -153,7 +155,7 @@ async function main(config = {}) {
       }
 
       // Add assignees to the issue
-      await github.rest.issues.addAssignees({
+      await authClient.rest.issues.addAssignees({
         owner: repoParts.owner,
         repo: repoParts.repo,
         issue_number: issueNumber,

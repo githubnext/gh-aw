@@ -8,6 +8,8 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * @typedef {Object} UpdateHandlerConfig
@@ -101,6 +103,14 @@ function createUpdateHandlerFactory(handlerConfig) {
     const updateTarget = config.target || "triggering";
     const maxCount = config.max || 10;
 
+    // Create an authenticated GitHub client. Uses config["github-token"] when set
+    // (for cross-repository operations), otherwise falls back to the step-level github.
+    const authClient = await createAuthenticatedGitHubClient(config);
+
+    // Resolve default target repo and allowed repos for cross-repository routing.
+    // If no target-repo is configured, defaults to the current repository.
+    const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+
     // Check if we're in staged mode
     const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -139,8 +149,24 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       const item = message;
 
+      // Resolve cross-repo target: if message has a "repo" field, validate it against
+      // the allowed repos and use it as the effective context. This enables updating items
+      // in a different repository when github-token is configured with the required permissions.
+      // Using {any} type to allow partial context override (effectiveContext.repo may differ from context.repo).
+      /** @type {any} */
+      let effectiveContext = context;
+      if (item.repo) {
+        const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, itemTypeName);
+        if (!repoResult.success) {
+          core.warning(repoResult.error);
+          return { success: false, error: repoResult.error };
+        }
+        effectiveContext = { ...context, repo: repoResult.repoParts };
+        core.info(`Cross-repo update: targeting ${repoResult.repo}`);
+      }
+
       // Resolve item number (may use custom logic)
-      const itemNumberResult = resolveItemNumber(item, updateTarget, context);
+      const itemNumberResult = resolveItemNumber(item, updateTarget, effectiveContext);
 
       if (!itemNumberResult.success) {
         core.warning(itemNumberResult.error);
@@ -207,9 +233,11 @@ function createUpdateHandlerFactory(handlerConfig) {
         };
       }
 
-      // Execute the update
+      // Execute the update using the authenticated client and effective context.
+      // authClient uses config["github-token"] when set (for cross-repo), otherwise global github.
+      // effectiveContext.repo contains the target repo owner/name for cross-repo routing.
       try {
-        const updatedItem = await executeUpdate(github, context, itemNumber, updateData);
+        const updatedItem = await executeUpdate(authClient, effectiveContext, itemNumber, updateData);
         core.info(`Successfully updated ${itemTypeName} #${itemNumber}: ${updatedItem.html_url || updatedItem.url}`);
 
         // Format and return success result

@@ -1078,15 +1078,16 @@ The YAML frontmatter supports these fields:
               run: echo "Custom threat check"
       ```
 
-- **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, or Python scripts (object)
+- **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, Python, or Go scripts (object)
   - Tools mounted in MCP server with access to specified secrets
-  - Each tool requires `description` and one of: `script` (JavaScript), `run` (shell), or `py` (Python)
+  - Each tool requires `description` and one of: `script` (JavaScript), `run` (shell), `py` (Python), or `go` (Go)
   - Tool configuration properties:
     - `description:` - Tool description (required)
     - `inputs:` - Input parameters with type and description (object)
     - `script:` - JavaScript implementation (CommonJS format)
     - `run:` - Shell script implementation
     - `py:` - Python script implementation
+    - `go:` - Go script implementation (executed via `go run`, receives inputs as JSON via stdin)
     - `env:` - Environment variables for secrets (supports `${{ secrets.* }}`)
     - `timeout:` - Execution timeout in seconds (default: 60)
   - Example:

@@ -4,6 +4,7 @@
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * Main handler factory for link_sub_issue
@@ -18,6 +19,7 @@ async function main(config = {}) {
   const subRequiredLabels = config.sub_required_labels || [];
   const subTitlePrefix = config.sub_title_prefix || "";
   const maxCount = config.max || 5;
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -154,7 +156,7 @@ async function main(config = {}) {
     // Fetch parent issue to validate filters
     let parentIssue;
     try {
-      const parentResponse = await github.rest.issues.get({
+      const parentResponse = await authClient.rest.issues.get({
         owner,
         repo,
         issue_number: parentIssueNumber,
@@ -199,7 +201,7 @@ async function main(config = {}) {
     // Fetch sub-issue to validate filters
     let subIssue;
     try {
-      const subResponse = await github.rest.issues.get({
+      const subResponse = await authClient.rest.issues.get({
         owner,
         repo,
         issue_number: subIssueNumber,
@@ -230,7 +232,7 @@ async function main(config = {}) {
           }
         }
       `;
-      const parentCheckResult = await github.graphql(parentCheckQuery, {
+      const parentCheckResult = await authClient.graphql(parentCheckQuery, {
         owner,
         repo,
         number: subIssueNumber,
@@ -297,7 +299,7 @@ async function main(config = {}) {
       }
 
       // Use GraphQL mutation to add sub-issue
-      await github.graphql(
+      await authClient.graphql(
         `
         mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
           addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {

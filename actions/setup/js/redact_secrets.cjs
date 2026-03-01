@@ -56,7 +56,7 @@ const BUILT_IN_PATTERNS = [
   { name: "GitHub Refresh Token", pattern: /ghr_[0-9a-zA-Z]{36}/g },
 
   // Azure tokens
-  { name: "Azure Storage Account Key", pattern: /[a-zA-Z0-9+/]{88}==/g },
+  { name: "Azure Storage Account Key", pattern: /AccountKey=[a-zA-Z0-9+/]{86}==/g },
   { name: "Azure SAS Token", pattern: /\?sv=[0-9-]{1,20}&s[rts]=[\w\-]{1,20}&sig=[A-Za-z0-9%+/=]{1,200}/g },
 
   // Google/GCP tokens

@@ -74,8 +74,8 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected safe_outputs job in normal mode")
 		}
 
-		// Checkout should not include github-token in normal mode
-		// Check specifically that the checkout step doesn't have a token parameter
+		// Checkout should not include an implicit/default token in normal mode when the workflow doesn't configure one
+		// Check specifically that the generated checkout step doesn't include a token parameter unless explicitly configured in the workflow
 		lines := strings.Split(lockContent, "\n")
 		for i, line := range lines {
 			if strings.Contains(line, "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
@@ -85,7 +85,7 @@ This is a test workflow for trial mode compilation.
 						// Found "with:" section, check for token
 						for k := j + 1; k < len(lines) && k < j+5; k++ {
 							if strings.Contains(lines[k], "token:") {
-								t.Error("Did not expect github-token in checkout step in normal mode")
+								t.Error("Did not expect token in checkout step in normal mode")
 								break
 							}
 							// If we hit another step or section, stop checking
@@ -133,7 +133,7 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected safe_outputs job in trial mode")
 		}
 
-		// Checkout in agent job should include github-token in trial mode
+		// Checkout in agent job should include token in trial mode
 		// Extract the agent job section first
 		agentJobStart := strings.Index(lockContent, "agent:")
 		if agentJobStart == -1 {
@@ -205,7 +205,7 @@ This is a test workflow for trial mode compilation.
 			}
 		}
 		if !foundCheckoutToken {
-			t.Error("Expected github-token in checkout step in trial mode")
+			t.Error("Expected token in checkout step in trial mode")
 		}
 
 		// Should still include the main workflow job
@@ -318,10 +318,10 @@ This is a test workflow for trial mode compilation.
 				t.Error("Expected jobs section to be present in trial mode")
 			}
 
-			// In trial mode, checkout should always include github-token
+			// In trial mode, checkout should always include token (as "token:" input for actions/checkout)
 			if strings.Contains(lockContent, "uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
 				if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-					t.Error("Expected github-token in checkout step in trial mode")
+					t.Error("Expected token in checkout step in trial mode")
 				}
 			}
 		})

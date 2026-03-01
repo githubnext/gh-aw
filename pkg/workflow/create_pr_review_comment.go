@@ -74,7 +74,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		StepID:         "create_pr_review_comment",
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
-		Script:         getCreatePRReviewCommentScript(),
+		ScriptName:     "create_pr_review_comment",
 		Permissions:    NewPermissionsContentsReadPRWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,

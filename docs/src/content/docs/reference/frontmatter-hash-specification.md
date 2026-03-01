@@ -36,7 +36,7 @@ Include the following frontmatter fields in the hash computation:
 - `tracker-id` - Workflow tracker identifier
 
 **Tool and Integration:**
-- `tools` - Tool configurations (Playwright, etc.)
+- `tools` - Tool configurations (GitHub, Playwright, etc.)
 - `mcp-servers` - MCP server configurations
 - `network` - Network access permissions
 - `safe-outputs` - Safe output configurations

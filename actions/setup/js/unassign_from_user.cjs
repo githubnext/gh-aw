@@ -10,6 +10,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "unassign_from_user";
@@ -27,6 +28,7 @@ async function main(config = {}) {
 
   // Resolve target repository configuration
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -127,7 +129,7 @@ async function main(config = {}) {
 
     try {
       // Remove assignees from the issue
-      await github.rest.issues.removeAssignees({
+      await authClient.rest.issues.removeAssignees({
         owner: repoParts.owner,
         repo: repoParts.repo,
         issue_number: issueNumber,

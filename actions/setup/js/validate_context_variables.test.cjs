@@ -317,3 +317,44 @@ describe("main", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ All context variables validated successfully"));
   });
 });
+
+describe("validateContextVariables", () => {
+  let validateContextVariables;
+  let mockCore;
+
+  beforeEach(async () => {
+    vi.resetModules();
+
+    mockCore = {
+      info: vi.fn(),
+      error: vi.fn(),
+      setFailed: vi.fn(),
+    };
+
+    const module = await import("./validate_context_variables.cjs");
+    validateContextVariables = module.validateContextVariables;
+  });
+
+  it("should validate successfully with explicit core and ctx parameters", async () => {
+    const ctx = {
+      payload: { issue: { number: 42 } },
+      run_id: 789,
+      run_number: 10,
+    };
+
+    await validateContextVariables(mockCore, ctx);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ All context variables validated successfully"));
+  });
+
+  it("should fail with explicit core and ctx when numeric field is invalid", async () => {
+    const ctx = {
+      payload: { issue: { number: "malicious; payload" } },
+    };
+
+    await expect(validateContextVariables(mockCore, ctx)).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalled();
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("non-numeric"));
+  });
+});

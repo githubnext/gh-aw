@@ -147,51 +147,6 @@ func TestFormatPromptMessage(t *testing.T) {
 	}
 }
 
-func TestFormatCountMessage(t *testing.T) {
-	tests := []struct {
-		name     string
-		message  string
-		expected string
-	}{
-		{
-			name:     "file count",
-			message:  "Found 15 workflows to compile",
-			expected: "Found 15 workflows to compile",
-		},
-		{
-			name:     "zero count",
-			message:  "Found 0 issues",
-			expected: "Found 0 issues",
-		},
-		{
-			name:     "percentage",
-			message:  "Coverage: 85.5%",
-			expected: "Coverage: 85.5%",
-		},
-		{
-			name:     "empty count message",
-			message:  "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FormatCountMessage(tt.message)
-
-			// Should contain the chart emoji prefix
-			if !strings.Contains(result, "📊") {
-				t.Errorf("FormatCountMessage() should contain 📊 prefix")
-			}
-
-			// Should contain the message text
-			if !strings.Contains(result, tt.expected) {
-				t.Errorf("FormatCountMessage() = %v, should contain %v", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestFormatVerboseMessage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -227,51 +182,6 @@ func TestFormatVerboseMessage(t *testing.T) {
 			// Should contain the message text
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf("FormatVerboseMessage() = %v, should contain %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFormatListHeader(t *testing.T) {
-	tests := []struct {
-		name     string
-		header   string
-		expected string
-	}{
-		{
-			name:     "simple header",
-			header:   "Available Workflows",
-			expected: "Available Workflows",
-		},
-		{
-			name:     "header with underscores",
-			header:   "==================",
-			expected: "==================",
-		},
-		{
-			name:     "empty header",
-			header:   "",
-			expected: "",
-		},
-		{
-			name:     "header with numbers",
-			header:   "Section 1: Configuration",
-			expected: "Section 1: Configuration",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FormatListHeader(tt.header)
-
-			// Should contain the header text
-			if !strings.Contains(result, tt.expected) {
-				t.Errorf("FormatListHeader() = %v, should contain %v", result, tt.expected)
-			}
-
-			// Result should not be empty unless input was empty
-			if tt.header != "" && result == "" {
-				t.Errorf("FormatListHeader() returned empty string for non-empty input")
 			}
 		})
 	}
@@ -432,9 +342,7 @@ func TestFormattingFunctionsWithSpecialCharacters(t *testing.T) {
 		FormatCommandMessage(specialChars)
 		FormatProgressMessage(specialChars)
 		FormatPromptMessage(specialChars)
-		FormatCountMessage(specialChars)
 		FormatVerboseMessage(specialChars)
-		FormatListHeader(specialChars)
 		FormatListItem(specialChars)
 		FormatErrorMessage(specialChars)
 	})

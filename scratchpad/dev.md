@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.2
-**Last Updated**: 2026-02-27
+**Version**: 3.3
+**Last Updated**: 2026-02-28
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2056,6 +2056,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v3.3 (2026-02-28): Maintenance review — analyzed 62 files; 0 tone issues, 0 formatting issues, 0 new spec files found. HEAD commit (980b021, 'Fix: multi-line block scalar descriptions in safe-inputs script generators') brought clean scratchpad files: all `` ```text `` fences are legitimate opening fences for plain text blocks, not non-standard closers. Coverage remains 100% (61 spec files + 1 test artifact).
 - v3.2 (2026-02-27): Fixed 42 non-standard code fence closing markers across 12 spec files (`` ```text `` and `` ```yaml `` incorrectly used as closing fences in actions.md, code-organization.md, github-actions-security-best-practices.md, and 9 others); identified 1 new test artifact file (smoke-test-22422877284.md) as non-spec content
 - v3.1 (2026-02-26): Fixed 173 non-standard code fence closing markers across 20 spec files (`` ```text `` incorrectly closing `` ```go ``, `` ```yaml ``, and other language blocks); files fixed include code-organization.md, validation-architecture.md, actions.md, safe-output-messages.md, github-actions-security-best-practices.md, and 15 others
 - v3.0 (2026-02-25): Added YAML Parser Compatibility section (YAML 1.1 vs 1.2 boolean parsing, `on:` trigger key false positive, YAML 1.2 parser recommendations); added yaml-version-gotchas.md to Related Documentation; fixed 17 non-standard closing code fences in yaml-version-gotchas.md

@@ -172,7 +172,7 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 		StepName:      "Create Project",
 		StepID:        "create_project",
 		ScriptName:    "create_project",
-		Script:        getCreateProjectScript(),
+		Script:        "",
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
 		Token:         effectiveToken,

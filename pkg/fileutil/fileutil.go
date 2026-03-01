@@ -101,22 +101,3 @@ func CopyFile(src, dst string) error {
 	log.Printf("File copied successfully: src=%s, dst=%s", src, dst)
 	return out.Sync()
 }
-
-// CalculateDirectorySize recursively calculates the total size of files in a directory.
-func CalculateDirectorySize(dirPath string) int64 {
-	log.Printf("Calculating directory size: %s", dirPath)
-	var totalSize int64
-
-	_ = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if !info.IsDir() {
-			totalSize += info.Size()
-		}
-		return nil
-	})
-
-	log.Printf("Directory size: path=%s, size=%d bytes", dirPath, totalSize)
-	return totalSize
-}

@@ -47,7 +47,7 @@ describe("searchForExistingParent", () => {
   });
 
   it("should return null when no parent issues found", async () => {
-    const result = await searchForExistingParent("owner", "repo", "<!-- gh-aw-group: test -->");
+    const result = await searchForExistingParent(mockGithub, "owner", "repo", "<!-- gh-aw-group: test -->");
 
     expect(result).toBeNull();
   });
@@ -76,7 +76,7 @@ describe("searchForExistingParent", () => {
       },
     });
 
-    const result = await searchForExistingParent("owner", "repo", "<!-- gh-aw-group: test -->");
+    const result = await searchForExistingParent(mockGithub, "owner", "repo", "<!-- gh-aw-group: test -->");
 
     expect(result).toBe(42);
   });
@@ -95,7 +95,7 @@ describe("searchForExistingParent", () => {
       },
     });
 
-    const result = await searchForExistingParent("owner", "repo", "<!-- gh-aw-group: test -->");
+    const result = await searchForExistingParent(mockGithub, "owner", "repo", "<!-- gh-aw-group: test -->");
 
     expect(result).toBeNull();
   });
@@ -124,7 +124,7 @@ describe("searchForExistingParent", () => {
       },
     });
 
-    const result = await searchForExistingParent("owner", "repo", "<!-- gh-aw-group: test -->");
+    const result = await searchForExistingParent(mockGithub, "owner", "repo", "<!-- gh-aw-group: test -->");
 
     expect(result).toBeNull();
   });
@@ -155,7 +155,7 @@ describe("searchForExistingParent", () => {
       });
     });
 
-    const result = await searchForExistingParent("owner", "repo", "<!-- gh-aw-group: test -->");
+    const result = await searchForExistingParent(mockGithub, "owner", "repo", "<!-- gh-aw-group: test -->");
 
     expect(result).toBe(2); // Should skip closed parent and return first open one
   });

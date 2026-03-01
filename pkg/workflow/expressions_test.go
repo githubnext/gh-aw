@@ -327,39 +327,6 @@ func TestBooleanLiteralNode_Render(t *testing.T) {
 	}
 }
 
-func TestNumberLiteralNode_Render(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    string
-		expected string
-	}{
-		{
-			name:     "integer",
-			value:    "42",
-			expected: "42",
-		},
-		{
-			name:     "decimal",
-			value:    "3.14",
-			expected: "3.14",
-		},
-		{
-			name:     "negative number",
-			value:    "-10",
-			expected: "-10",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := &NumberLiteralNode{Value: tt.value}
-			if result := node.Render(); result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
 func TestComparisonNode_Render(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -379,21 +346,21 @@ func TestComparisonNode_Render(t *testing.T) {
 			name:     "inequality comparison",
 			left:     &PropertyAccessNode{PropertyPath: "github.event.issue.number"},
 			operator: "!=",
-			right:    &NumberLiteralNode{Value: "0"},
+			right:    &ExpressionNode{Expression: "0"},
 			expected: "github.event.issue.number != 0",
 		},
 		{
 			name:     "greater than comparison",
 			left:     &PropertyAccessNode{PropertyPath: "github.event.issue.comments"},
 			operator: ">",
-			right:    &NumberLiteralNode{Value: "5"},
+			right:    &ExpressionNode{Expression: "5"},
 			expected: "github.event.issue.comments > 5",
 		},
 		{
 			name:     "less than or equal comparison",
 			left:     &PropertyAccessNode{PropertyPath: "github.run_number"},
 			operator: "<=",
-			right:    &NumberLiteralNode{Value: "100"},
+			right:    &ExpressionNode{Expression: "100"},
 			expected: "github.run_number <= 100",
 		},
 	}
@@ -406,194 +373,6 @@ func TestComparisonNode_Render(t *testing.T) {
 				Right:    tt.right,
 			}
 			if result := node.Render(); result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestTernaryNode_Render(t *testing.T) {
-	tests := []struct {
-		name       string
-		condition  ConditionNode
-		trueValue  ConditionNode
-		falseValue ConditionNode
-		expected   string
-	}{
-		{
-			name: "simple ternary",
-			condition: &ComparisonNode{
-				Left:     &PropertyAccessNode{PropertyPath: "github.event.action"},
-				Operator: "==",
-				Right:    &StringLiteralNode{Value: "opened"},
-			},
-			trueValue:  &StringLiteralNode{Value: "new"},
-			falseValue: &StringLiteralNode{Value: "existing"},
-			expected:   "github.event.action == 'opened' ? 'new' : 'existing'",
-		},
-		{
-			name:       "ternary with boolean literals",
-			condition:  &PropertyAccessNode{PropertyPath: "github.event.pull_request.draft"},
-			trueValue:  &StringLiteralNode{Value: "draft"},
-			falseValue: &StringLiteralNode{Value: "ready"},
-			expected:   "github.event.pull_request.draft ? 'draft' : 'ready'",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := &TernaryNode{
-				Condition:  tt.condition,
-				TrueValue:  tt.trueValue,
-				FalseValue: tt.falseValue,
-			}
-			if result := node.Render(); result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestContainsNode_Render(t *testing.T) {
-	tests := []struct {
-		name     string
-		array    ConditionNode
-		value    ConditionNode
-		expected string
-	}{
-		{
-			name:     "contains with property and string",
-			array:    &PropertyAccessNode{PropertyPath: "github.event.issue.labels"},
-			value:    &StringLiteralNode{Value: "bug"},
-			expected: "contains(github.event.issue.labels, 'bug')",
-		},
-		{
-			name:     "contains with nested property",
-			array:    &PropertyAccessNode{PropertyPath: "github.event.pull_request.requested_reviewers"},
-			value:    &PropertyAccessNode{PropertyPath: "github.actor"},
-			expected: "contains(github.event.pull_request.requested_reviewers, github.actor)",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := &ContainsNode{
-				Array: tt.array,
-				Value: tt.value,
-			}
-			if result := node.Render(); result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
-// TestGitHubActionsArrayMatching tests the specific array matching technique mentioned in the issue
-func TestGitHubActionsArrayMatching(t *testing.T) {
-	// Test the array matching pattern from GitHub Actions docs
-	// Example: contains(github.event.issue.labels.*.name, 'bug')
-	tests := []struct {
-		name     string
-		pattern  ConditionNode
-		expected string
-	}{
-		{
-			name: "label matching with contains",
-			pattern: &ContainsNode{
-				Array: &PropertyAccessNode{PropertyPath: "github.event.issue.labels.*.name"},
-				Value: &StringLiteralNode{Value: "bug"},
-			},
-			expected: "contains(github.event.issue.labels.*.name, 'bug')",
-		},
-		{
-			name: "multiple label matching with OR",
-			pattern: &OrNode{
-				Left: &ContainsNode{
-					Array: &PropertyAccessNode{PropertyPath: "github.event.issue.labels.*.name"},
-					Value: &StringLiteralNode{Value: "bug"},
-				},
-				Right: &ContainsNode{
-					Array: &PropertyAccessNode{PropertyPath: "github.event.issue.labels.*.name"},
-					Value: &StringLiteralNode{Value: "enhancement"},
-				},
-			},
-			expected: "(contains(github.event.issue.labels.*.name, 'bug')) || (contains(github.event.issue.labels.*.name, 'enhancement'))",
-		},
-		{
-			name: "complex array matching with conditions",
-			pattern: &AndNode{
-				Left: &ContainsNode{
-					Array: &PropertyAccessNode{PropertyPath: "github.event.issue.labels.*.name"},
-					Value: &StringLiteralNode{Value: "priority-high"},
-				},
-				Right: &ComparisonNode{
-					Left:     &PropertyAccessNode{PropertyPath: "github.event.action"},
-					Operator: "==",
-					Right:    &StringLiteralNode{Value: "opened"},
-				},
-			},
-			expected: "(contains(github.event.issue.labels.*.name, 'priority-high')) && (github.event.action == 'opened')",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if result := tt.pattern.Render(); result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
-// TestComplexGitHubActionsExpressions tests complex real-world GitHub Actions expressions
-func TestComplexGitHubActionsExpressions(t *testing.T) {
-	tests := []struct {
-		name       string
-		expression ConditionNode
-		expected   string
-	}{
-		{
-			name: "conditional workflow run based on labels and action",
-			expression: &AndNode{
-				Left: &OrNode{
-					Left: &ComparisonNode{
-						Left:     &PropertyAccessNode{PropertyPath: "github.event.action"},
-						Operator: "==",
-						Right:    &StringLiteralNode{Value: "opened"},
-					},
-					Right: &ComparisonNode{
-						Left:     &PropertyAccessNode{PropertyPath: "github.event.action"},
-						Operator: "==",
-						Right:    &StringLiteralNode{Value: "synchronize"},
-					},
-				},
-				Right: &ContainsNode{
-					Array: &PropertyAccessNode{PropertyPath: "github.event.pull_request.labels.*.name"},
-					Value: &StringLiteralNode{Value: "auto-deploy"},
-				},
-			},
-			expected: "((github.event.action == 'opened') || (github.event.action == 'synchronize')) && (contains(github.event.pull_request.labels.*.name, 'auto-deploy'))",
-		},
-		{
-			name: "ternary expression for environment selection",
-			expression: &TernaryNode{
-				Condition: &FunctionCallNode{
-					FunctionName: "startsWith",
-					Arguments: []ConditionNode{
-						&PropertyAccessNode{PropertyPath: "github.ref"},
-						&StringLiteralNode{Value: "refs/heads/main"},
-					},
-				},
-				TrueValue:  &StringLiteralNode{Value: "production"},
-				FalseValue: &StringLiteralNode{Value: "staging"},
-			},
-			expected: "startsWith(github.ref, 'refs/heads/main') ? 'production' : 'staging'",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if result := tt.expression.Render(); result != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
 			}
 		})
@@ -626,42 +405,12 @@ func TestHelperFunctions(t *testing.T) {
 		}
 	})
 
-	t.Run("BuildNumberLiteral", func(t *testing.T) {
-		node := BuildNumberLiteral("42")
-		expected := "42"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
-
 	t.Run("BuildEquals", func(t *testing.T) {
 		node := BuildEquals(
 			BuildPropertyAccess("github.event.action"),
 			BuildStringLiteral("opened"),
 		)
 		expected := "github.event.action == 'opened'"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
-
-	t.Run("BuildNotEquals", func(t *testing.T) {
-		node := BuildNotEquals(
-			BuildPropertyAccess("github.event.issue.number"),
-			BuildNumberLiteral("0"),
-		)
-		expected := "github.event.issue.number != 0"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
-
-	t.Run("BuildContains", func(t *testing.T) {
-		node := BuildContains(
-			BuildPropertyAccess("github.event.issue.labels.*.name"),
-			BuildStringLiteral("bug"),
-		)
-		expected := "contains(github.event.issue.labels.*.name, 'bug')"
 		if result := node.Render(); result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
 		}
@@ -678,37 +427,10 @@ func TestHelperFunctions(t *testing.T) {
 		}
 	})
 
-	t.Run("BuildTernary", func(t *testing.T) {
-		node := BuildTernary(
-			BuildEquals(BuildPropertyAccess("github.event.action"), BuildStringLiteral("opened")),
-			BuildStringLiteral("new"),
-			BuildStringLiteral("existing"),
-		)
-		expected := "github.event.action == 'opened' ? 'new' : 'existing'"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
 }
 
 // TestConvenienceHelpers tests the convenience helper functions
 func TestConvenienceHelpers(t *testing.T) {
-	t.Run("BuildLabelContains", func(t *testing.T) {
-		node := BuildLabelContains("bug")
-		expected := "contains(github.event.issue.labels.*.name, 'bug')"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
-
-	t.Run("BuildActionEquals", func(t *testing.T) {
-		node := BuildActionEquals("opened")
-		expected := "github.event.action == 'opened'"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
-
 	t.Run("BuildEventTypeEquals", func(t *testing.T) {
 		node := BuildEventTypeEquals("push")
 		expected := "github.event_name == 'push'"
@@ -717,13 +439,6 @@ func TestConvenienceHelpers(t *testing.T) {
 		}
 	})
 
-	t.Run("BuildRefStartsWith", func(t *testing.T) {
-		node := BuildRefStartsWith("refs/heads/main")
-		expected := "startsWith(github.ref, 'refs/heads/main')"
-		if result := node.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-	})
 }
 
 // TestRealWorldExpressionPatterns tests common expression patterns used in GitHub Actions
@@ -742,14 +457,6 @@ func TestRealWorldExpressionPatterns(t *testing.T) {
 			expected: "github.ref == 'refs/heads/main'",
 		},
 		{
-			name: "run on PR with specific label",
-			expression: &AndNode{
-				Left:  BuildEventTypeEquals("pull_request"),
-				Right: BuildLabelContains("deploy"),
-			},
-			expected: "(github.event_name == 'pull_request') && (contains(github.event.issue.labels.*.name, 'deploy'))",
-		},
-		{
 			name: "skip draft PRs",
 			expression: &AndNode{
 				Left: BuildEventTypeEquals("pull_request"),
@@ -758,26 +465,6 @@ func TestRealWorldExpressionPatterns(t *testing.T) {
 				},
 			},
 			expected: "(github.event_name == 'pull_request') && (!(github.event.pull_request.draft))",
-		},
-		{
-			name: "conditional deployment environment",
-			expression: BuildTernary(
-				BuildRefStartsWith("refs/heads/main"),
-				BuildStringLiteral("production"),
-				BuildStringLiteral("staging"),
-			),
-			expected: "startsWith(github.ref, 'refs/heads/main') ? 'production' : 'staging'",
-		},
-		{
-			name: "run on multiple event actions",
-			expression: &DisjunctionNode{
-				Terms: []ConditionNode{
-					BuildActionEquals("opened"),
-					BuildActionEquals("synchronize"),
-					BuildActionEquals("reopened"),
-				},
-			},
-			expected: "github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'",
 		},
 	}
 
@@ -927,22 +614,9 @@ func TestRenderMultilineMethod(t *testing.T) {
 
 // TestHelperFunctionsForMultiline tests the new helper functions
 func TestHelperFunctionsForMultiline(t *testing.T) {
-	t.Run("BuildExpressionWithDescription", func(t *testing.T) {
-		expr := BuildExpressionWithDescription("github.event_name == 'issues'", "Check if this is an issue event")
-
-		expected := "github.event_name == 'issues'"
-		if result := expr.Render(); result != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, result)
-		}
-
-		if expr.Description != "Check if this is an issue event" {
-			t.Errorf("Expected description 'Check if this is an issue event', got '%s'", expr.Description)
-		}
-	})
-
 	t.Run("BuildDisjunction with multiline", func(t *testing.T) {
-		term1 := BuildExpressionWithDescription("github.event_name == 'issues'", "Handle issue events")
-		term2 := BuildExpressionWithDescription("github.event_name == 'pull_request'", "Handle PR events")
+		term1 := &ExpressionNode{Expression: "github.event_name == 'issues'", Description: "Handle issue events"}
+		term2 := &ExpressionNode{Expression: "github.event_name == 'pull_request'", Description: "Handle PR events"}
 
 		disjunction := BuildDisjunction(true, term1, term2)
 
@@ -957,7 +631,7 @@ func TestHelperFunctionsForMultiline(t *testing.T) {
 	})
 
 	t.Run("BuildDisjunction with single term", func(t *testing.T) {
-		term := BuildExpressionWithDescription("github.event_name == 'issues'", "Handle issue events")
+		term := &ExpressionNode{Expression: "github.event_name == 'issues'", Description: "Handle issue events"}
 
 		// Test with multiline=false
 		disjunctionSingle := BuildDisjunction(false, term)

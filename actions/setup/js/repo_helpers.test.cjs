@@ -14,6 +14,7 @@ describe("repo_helpers", () => {
   beforeEach(() => {
     vi.resetModules();
     delete process.env.GH_AW_TARGET_REPO_SLUG;
+    delete process.env.GITHUB_REPOSITORY;
     global.context = mockContext;
   });
 
@@ -96,6 +97,31 @@ describe("repo_helpers", () => {
       const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
       const result = getDefaultTargetRepo();
       expect(result).toBe("test-owner/test-repo");
+    });
+
+    it("should use GITHUB_REPOSITORY env var when context is not defined", async () => {
+      process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+      // @ts-expect-error - Simulating standalone daemon where context is not available
+      delete global.context;
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const result = getDefaultTargetRepo();
+      expect(result).toBe("env-owner/env-repo");
+    });
+
+    it("should prefer GH_AW_TARGET_REPO_SLUG over GITHUB_REPOSITORY", async () => {
+      process.env.GH_AW_TARGET_REPO_SLUG = "slug-org/slug-repo";
+      process.env.GITHUB_REPOSITORY = "env-owner/env-repo";
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const result = getDefaultTargetRepo();
+      expect(result).toBe("slug-org/slug-repo");
+    });
+
+    it("should return empty string when no config, no env vars, and no context", async () => {
+      // @ts-expect-error - Simulating standalone daemon where context is not available
+      delete global.context;
+      const { getDefaultTargetRepo } = await import("./repo_helpers.cjs");
+      const result = getDefaultTargetRepo();
+      expect(result).toBe("");
     });
   });
 
@@ -370,6 +396,31 @@ describe("repo_helpers", () => {
       expect(result.success).toBe(true);
       expect(result.repo).toBe("github/gh-aw");
       expect(result.repoParts).toEqual({ owner: "github", repo: "gh-aw" });
+    });
+
+    it("should fail with descriptive error when defaultTargetRepo is empty", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = {};
+      const allowedRepos = new Set();
+
+      const result = resolveAndValidateRepo(item, "", allowedRepos, "pull request");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Unable to determine target repository for pull request");
+      expect(result.error).toContain("GH_AW_TARGET_REPO_SLUG");
+      expect(result.error).toContain("GITHUB_REPOSITORY");
+    });
+
+    it("should succeed when item.repo is provided even if defaultTargetRepo is empty", async () => {
+      const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");
+      const item = { repo: "org/explicit-repo" };
+      const allowedRepos = new Set(["org/explicit-repo"]);
+
+      const result = resolveAndValidateRepo(item, "", allowedRepos, "pull request");
+
+      expect(result.success).toBe(true);
+      expect(result.repo).toBe("org/explicit-repo");
+      expect(result.repoParts).toEqual({ owner: "org", repo: "explicit-repo" });
     });
   });
 

@@ -74,27 +74,6 @@ func TestPATType_IsValid(t *testing.T) {
 	assert.False(t, PATTypeUnknown.IsValid(), "unknown should not be valid")
 }
 
-func TestIsFineGrainedPAT(t *testing.T) {
-	assert.True(t, IsFineGrainedPAT("github_pat_abc123"), "should identify fine-grained PAT")
-	assert.False(t, IsFineGrainedPAT("ghp_abc123"), "should not identify classic PAT as fine-grained")
-	assert.False(t, IsFineGrainedPAT("gho_abc123"), "should not identify OAuth token as fine-grained")
-	assert.False(t, IsFineGrainedPAT("random"), "should not identify unknown token as fine-grained")
-}
-
-func TestIsClassicPAT(t *testing.T) {
-	assert.True(t, IsClassicPAT("ghp_abc123"), "should identify classic PAT")
-	assert.False(t, IsClassicPAT("github_pat_abc123"), "should not identify fine-grained PAT as classic")
-	assert.False(t, IsClassicPAT("gho_abc123"), "should not identify OAuth token as classic")
-	assert.False(t, IsClassicPAT("random"), "should not identify unknown token as classic")
-}
-
-func TestIsOAuthToken(t *testing.T) {
-	assert.True(t, IsOAuthToken("gho_abc123"), "should identify OAuth token")
-	assert.False(t, IsOAuthToken("github_pat_abc123"), "should not identify fine-grained PAT as OAuth")
-	assert.False(t, IsOAuthToken("ghp_abc123"), "should not identify classic PAT as OAuth")
-	assert.False(t, IsOAuthToken("random"), "should not identify unknown token as OAuth")
-}
-
 func TestValidateCopilotPAT(t *testing.T) {
 	tests := []struct {
 		name        string

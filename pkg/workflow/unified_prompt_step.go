@@ -297,12 +297,27 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 8. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
-		// Extract expressions from GitHub context prompt
+
+		// Build the combined prompt text: base github context + optional checkout list.
+		// The checkout list may contain ${{ github.repository }} which must go through
+		// the expression extractor so the placeholder substitution step can resolve it.
+		combinedPromptText := githubContextPromptText
+		if checkoutsContent := buildCheckoutsPromptContent(data.CheckoutConfigs); checkoutsContent != "" {
+			unifiedPromptLog.Printf("Injecting checkout list into GitHub context (%d checkouts)", len(data.CheckoutConfigs))
+			const closeTag = "</github-context>"
+			if idx := strings.LastIndex(combinedPromptText, closeTag); idx >= 0 {
+				combinedPromptText = combinedPromptText[:idx] + checkoutsContent + combinedPromptText[idx:]
+			} else {
+				combinedPromptText += "\n" + checkoutsContent
+			}
+		}
+
+		// Extract expressions from the combined content (includes any new expressions
+		// introduced by the checkout list, e.g. ${{ github.repository }}).
 		extractor := NewExpressionExtractor()
-		expressionMappings, err := extractor.ExtractExpressions(githubContextPromptText)
+		expressionMappings, err := extractor.ExtractExpressions(combinedPromptText)
 		if err == nil && len(expressionMappings) > 0 {
-			// Replace expressions with environment variable references
-			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(githubContextPromptText)
+			modifiedPromptText := extractor.ReplaceExpressionsWithEnvVars(combinedPromptText)
 
 			// Build environment variables map
 			envVars := make(map[string]string)
@@ -748,43 +763,4 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	})
 
 	return sections
-}
-
-var promptStepHelperLog = logger.New("workflow:prompt_step_helper")
-
-// generateStaticPromptStep is a helper function that generates a workflow step
-// for appending static prompt text to the prompt file. It encapsulates the common
-// pattern used across multiple prompt generators (XPIA, temp folder, playwright, edit tool, etc.)
-// to reduce code duplication and ensure consistency.
-//
-// Parameters:
-//   - yaml: The string builder to write the YAML to
-//   - description: The name of the workflow step (e.g., "Append XPIA security instructions to prompt")
-//   - promptText: The static text content to append to the prompt (used for backward compatibility)
-//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
-//
-// Example usage:
-//
-//	generateStaticPromptStep(yaml,
-//	    "Append XPIA security instructions to prompt",
-//	    xpiaPromptText,
-//	    data.SafetyPrompt)
-//
-// Deprecated: This function is kept for backward compatibility with inline prompts.
-// Use generateStaticPromptStepFromFile for new code.
-func generateStaticPromptStep(yaml *strings.Builder, description string, promptText string, shouldInclude bool) {
-	promptStepHelperLog.Printf("Generating static prompt step: description=%s, shouldInclude=%t", description, shouldInclude)
-	// Skip generation if guard condition is false
-	if !shouldInclude {
-		return
-	}
-
-	// Use the existing appendPromptStep helper with a renderer that writes the prompt text
-	appendPromptStep(yaml,
-		description,
-		func(y *strings.Builder, indent string) {
-			WritePromptTextToYAML(y, promptText, indent)
-		},
-		"", // no condition
-		"          ")
 }

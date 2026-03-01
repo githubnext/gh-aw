@@ -177,5 +177,3 @@ func (s *SpinnerWrapper) UpdateMessage(message string) {
 		}
 	}
 }
-
-func (s *SpinnerWrapper) IsEnabled() bool { return s.enabled }

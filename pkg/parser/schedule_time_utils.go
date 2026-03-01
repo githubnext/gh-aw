@@ -75,6 +75,7 @@ func parseTimeToMinutes(hourStr, minuteStr string) int {
 // parseTime converts a time string to minute and hour, with optional UTC offset
 // Supports formats: HH:MM, midnight, noon, 3pm, 1am, HH:MM utc+N, HH:MM utc+HH:MM, HH:MM utc-N, 3pm utc+9
 func parseTime(timeStr string) (minute string, hour string) {
+	scheduleTimeUtilsLog.Printf("Parsing time string: %q", timeStr)
 	// Check for UTC offset
 	parts := strings.Split(timeStr, " ")
 	var utcOffset int
@@ -241,5 +242,9 @@ func mapWeekday(day string) string {
 		"saturday":  "6",
 		"sat":       "6",
 	}
-	return weekdays[day]
+	result := weekdays[day]
+	if result == "" {
+		scheduleTimeUtilsLog.Printf("Unrecognized weekday name: %q", day)
+	}
+	return result
 }

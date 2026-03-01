@@ -3,7 +3,6 @@
 package stringutil
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -282,110 +281,4 @@ func TestRoundTripConversions(t *testing.T) {
 			t.Errorf("Round trip failed: %q -> %q -> %q", original, mdFile, backToLock)
 		}
 	})
-}
-
-func TestIsAgenticWorkflow(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected bool
-	}{
-		{
-			name:     "regular workflow",
-			path:     "test.md",
-			expected: true,
-		},
-		{
-			name:     "workflow with path",
-			path:     ".github/workflows/weekly-research.md",
-			expected: true,
-		},
-		{
-			name:     "workflow with dots in name",
-			path:     "my.workflow.test.md",
-			expected: true,
-		},
-		{
-			name:     "lock file",
-			path:     "test.lock.yml",
-			expected: false,
-		},
-		{
-			name:     "no extension",
-			path:     "test",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsAgenticWorkflow(tt.path)
-			if result != tt.expected {
-				t.Errorf("IsAgenticWorkflow(%q) = %v, expected %v", tt.path, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestIsLockFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected bool
-	}{
-		{
-			name:     "regular lock file",
-			path:     "test.lock.yml",
-			expected: true,
-		},
-		{
-			name:     "lock file with path",
-			path:     ".github/workflows/test.lock.yml",
-			expected: true,
-		},
-		{
-			name:     "workflow file",
-			path:     "test.md",
-			expected: false,
-		},
-		{
-			name:     "yaml file",
-			path:     "test.yml",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsLockFile(tt.path)
-			if result != tt.expected {
-				t.Errorf("IsLockFile(%q) = %v, expected %v", tt.path, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFileTypeHelpers_Exclusivity(t *testing.T) {
-	// Test that file types are mutually exclusive (except lock files)
-	testPaths := []string{
-		"test.md",
-		"test.lock.yml",
-	}
-
-	for _, path := range testPaths {
-		t.Run(path, func(t *testing.T) {
-			isWorkflow := IsAgenticWorkflow(path)
-			isLock := IsLockFile(path)
-
-			// All .md files should be workflows
-			if strings.HasSuffix(path, ".md") && !isWorkflow {
-				t.Errorf("Path %q should be a workflow but isn't", path)
-			}
-
-			// All .lock.yml files should be lock files
-			if strings.HasSuffix(path, ".lock.yml") && !isLock {
-				t.Errorf("Path %q should be a lock file but isn't", path)
-			}
-		})
-	}
 }

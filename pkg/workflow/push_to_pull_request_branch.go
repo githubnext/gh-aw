@@ -18,6 +18,8 @@ type PushToPullRequestBranchConfig struct {
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 	CommitTitleSuffix              string   `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
+	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
+	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -125,6 +127,12 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 					pushToPullRequestBranchLog.Printf("Extra empty commit token configured")
 				}
 			}
+
+			// Parse target-repo for cross-repository push
+			pushToBranchConfig.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
+
+			// Parse allowed-repos for cross-repository push
+			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig, 0)

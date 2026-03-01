@@ -201,9 +201,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		ensureDefaultMCPGatewayConfig(data)
 	}
 
-	// Generate aw_info.json with agentic run metadata (must run before secret validation and workflow overview)
-	c.generateCreateAwInfo(yaml, data, engine)
-
 	// Add engine-specific installation steps (includes Node.js setup and secret validation for npm-based engines)
 	installSteps := engine.GetInstallationSteps(data)
 	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
@@ -232,22 +229,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
-	// Generate workflow overview to step summary early, before prompts
-	// This reads from aw_info.json for consistent data
-	c.generateWorkflowOverviewStep(yaml, data, engine)
-
-	// Download prompt artifact from activation job
-	compilerYamlLog.Print("Adding prompt artifact download step")
-	yaml.WriteString("      - name: Download prompt artifact\n")
+	// Download activation artifact from activation job (contains aw_info.json and prompt.txt)
+	compilerYamlLog.Print("Adding activation artifact download step")
+	yaml.WriteString("      - name: Download activation artifact\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: prompt\n")
-	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts\n")
+	yaml.WriteString("          name: activation\n")
+	yaml.WriteString("          path: /tmp/gh-aw\n")
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-prompts/prompt.txt")
-	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw_info.json")
 
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 

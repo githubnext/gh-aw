@@ -136,36 +136,3 @@ func TestResolveWorkflowPath(t *testing.T) {
 		})
 	}
 }
-
-func TestNormalizeWorkflowFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "add .md extension",
-			input:    "workflow",
-			expected: "workflow.md",
-		},
-		{
-			name:     "already has .md extension",
-			input:    "workflow.md",
-			expected: "workflow.md",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: ".md",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := NormalizeWorkflowFile(tt.input)
-			if result != tt.expected {
-				t.Errorf("NormalizeWorkflowFile(%s) = %s, expected %s", tt.input, result, tt.expected)
-			}
-		})
-	}
-}

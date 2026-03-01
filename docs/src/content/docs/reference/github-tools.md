@@ -55,6 +55,81 @@ tools:
     mode: local
 ```
 
+## Guard Policies
+
+Restrict which repositories and integrity levels the GitHub MCP server can access during agent execution. Guard policies apply fine-grained access control at the MCP gateway level.
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos: "all"
+    min-integrity: reader
+```
+
+Both `repos` and `min-integrity` are required when either is specified.
+
+### `repos`
+
+Specifies which repositories the agent can access through GitHub tools:
+
+- `"all"` — All repositories accessible by the configured token
+- `"public"` — Public repositories only
+- Array of patterns — Specific repositories and wildcards:
+  - `"owner/repo"` — Exact repository match
+  - `"owner/*"` — All repositories under an owner
+  - `"owner/prefix*"` — Repositories with a name prefix under an owner
+
+Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos:
+      - "myorg/*"
+      - "partner/shared-repo"
+      - "myorg/api-*"
+    min-integrity: writer
+```
+
+### `min-integrity`
+
+Sets the minimum integrity level required for repository access:
+
+| Level | Description |
+|-------|-------------|
+| `none` | No integrity requirements |
+| `reader` | Read-level integrity |
+| `writer` | Write-level integrity |
+| `merged` | Merged-level integrity |
+
+### Examples
+
+**Restrict to public repositories only:**
+
+```yaml wrap
+tools:
+  github:
+    repos: "public"
+    min-integrity: none
+```
+
+**Restrict to repositories in multiple organizations:**
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues]
+    repos:
+      - "frontend-org/*"
+      - "backend-org/*"
+    min-integrity: writer
+```
+
 ## Lockdown Mode for Public Repositories
 
 Lockdown Mode is a security feature that filters public repository content to only show issues, PRs, and comments from users with push access. Automatically enabled for public repositories when using custom tokens. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete documentation.
@@ -126,6 +201,30 @@ Alternatively, you can set the magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` to a
 ```bash wrap
 gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-pat-token>"
 ```
+
+## Cross-Repository Reading
+
+When GitHub Tools need to read information from repositories other than the one where the workflow is running, additional authorization is required. The default `GITHUB_TOKEN` only has access to the current repository.
+
+Configure cross-repository read access using the same authentication methods described above:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+```
+
+This enables operations like:
+- Reading files and searching code in external repositories
+- Querying issues and pull requests from other repos
+- Accessing commits, releases, and workflow runs across repositories
+- Reading organization-level information
+
+> [!NOTE]
+> This authorization is for **reading** from GitHub. For **writing** to other repositories (creating issues, PRs, comments), configure authentication separately through [Safe Outputs](/gh-aw/reference/safe-outputs/) with cross-repository operations.
+
+For complete cross-repository workflow patterns and examples, see [Cross-Repository Operations](/gh-aw/reference/cross-repository/).
 
 ## Related Documentation
 

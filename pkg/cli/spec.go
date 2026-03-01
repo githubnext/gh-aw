@@ -77,29 +77,6 @@ func (w *WorkflowSpec) String() string {
 	return spec
 }
 
-// isRepoOnlySpec checks if a specification is repo-only (owner/repo[@version]) without workflow path
-func isRepoOnlySpec(spec string) bool {
-	// URLs are not repo-only specs
-	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
-		return false
-	}
-
-	// Local paths are not repo-only specs
-	if isLocalWorkflowPath(spec) {
-		return false
-	}
-
-	// Handle version first (anything after @)
-	parts := strings.SplitN(spec, "@", 2)
-	specWithoutVersion := parts[0]
-
-	// Split by slashes
-	slashParts := strings.Split(specWithoutVersion, "/")
-
-	// Exactly 2 parts means repo-only: owner/repo
-	return len(slashParts) == 2
-}
-
 // parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
 // Also supports GitHub URLs like "https://github.com/owner/repo[@version]"
 func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
@@ -378,24 +355,6 @@ func parseSourceSpec(source string) (*SourceSpec, error) {
 
 	specLog.Printf("Parsed source spec: repo=%s, path=%s, ref=%s", spec.Repo, spec.Path, spec.Ref)
 	return spec, nil
-}
-
-// buildSourceString builds the source string in the format owner/repo/path@ref
-func buildSourceString(workflow *WorkflowSpec) string {
-	if workflow.RepoSlug == "" || workflow.WorkflowPath == "" {
-		return ""
-	}
-
-	// For local workflows, remove the "./" prefix from the WorkflowPath
-	workflowPath := strings.TrimPrefix(workflow.WorkflowPath, "./")
-
-	// Format: owner/repo/path@ref (consistent with add command syntax)
-	source := workflow.RepoSlug + "/" + workflowPath
-	if workflow.Version != "" {
-		source += "@" + workflow.Version
-	}
-
-	return source
 }
 
 // buildSourceStringWithCommitSHA builds the source string with the actual commit SHA

@@ -141,18 +141,20 @@ function validateNumericValue(value, varName) {
 }
 
 /**
- * Main validation function
+ * Validates numeric context variables using explicit core and ctx parameters.
+ * @param {typeof import('@actions/core')} coreArg - GitHub Actions core library
+ * @param {object} ctx - GitHub Actions context object
  */
-async function main() {
+async function validateContextVariables(coreArg, ctx) {
   try {
-    core.info("Starting context variable validation...");
+    coreArg.info("Starting context variable validation...");
 
     const failures = [];
     let checkedCount = 0;
 
     // Validate each numeric context variable by reading directly from context
     for (const { path, name } of NUMERIC_CONTEXT_PATHS) {
-      const value = getNestedValue(context, path);
+      const value = getNestedValue(ctx, path);
 
       // Only validate if the value exists
       if (value !== undefined) {
@@ -160,9 +162,9 @@ async function main() {
         const result = validateNumericValue(value, name);
 
         if (result.valid) {
-          core.info(`✓ ${result.message}`);
+          coreArg.info(`✓ ${result.message}`);
         } else {
-          core.error(`✗ ${result.message}`);
+          coreArg.error(`✗ ${result.message}`);
           failures.push({
             name,
             value,
@@ -172,7 +174,7 @@ async function main() {
       }
     }
 
-    core.info(`Validated ${checkedCount} context variables`);
+    coreArg.info(`Validated ${checkedCount} context variables`);
 
     // If there are any failures, fail the workflow
     if (failures.length > 0) {
@@ -186,20 +188,28 @@ async function main() {
         "If you believe this is a false positive, please report it at:\n" +
         "https://github.com/github/gh-aw/issues";
 
-      core.setFailed(errorMessage);
+      coreArg.setFailed(errorMessage);
       throw new Error(errorMessage);
     }
 
-    core.info("✅ All context variables validated successfully");
+    coreArg.info("✅ All context variables validated successfully");
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    core.setFailed(`${ERR_VALIDATION}: Context variable validation failed: ${errorMessage}`);
+    coreArg.setFailed(`${ERR_VALIDATION}: Context variable validation failed: ${errorMessage}`);
     throw error;
   }
 }
 
+/**
+ * Main validation function (uses globals for backward compatibility)
+ */
+async function main() {
+  await validateContextVariables(core, context);
+}
+
 module.exports = {
   main,
+  validateContextVariables,
   validateNumericValue,
   getNestedValue,
   NUMERIC_CONTEXT_PATHS,

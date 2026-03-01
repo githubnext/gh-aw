@@ -13,18 +13,6 @@ import (
 
 var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 
-// isAuthenticationError checks if an error message indicates an authentication issue
-func isAuthenticationError(output string) bool {
-	lowerOutput := strings.ToLower(output)
-	return strings.Contains(lowerOutput, "authentication required") ||
-		strings.Contains(lowerOutput, "gh_token") ||
-		strings.Contains(lowerOutput, "github_token") ||
-		strings.Contains(output, "set the GH_TOKEN environment variable") ||
-		strings.Contains(lowerOutput, "permission") ||
-		strings.Contains(lowerOutput, "not authenticated") ||
-		strings.Contains(lowerOutput, "invalid token")
-}
-
 // ensureLatestExtensionVersion checks if the current release matches the latest release
 // and issues a warning if an update is needed. This function fails silently if the
 // release URL is not available or blocked.

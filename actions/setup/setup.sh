@@ -231,6 +231,7 @@ SAFE_OUTPUTS_FILES=(
   "shim.cjs"
   "repo_helpers.cjs"
   "glob_pattern_helpers.cjs"
+  "handler_auth.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

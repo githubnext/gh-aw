@@ -43,6 +43,8 @@ describe("unassign_from_user (Handler Factory Architecture)", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
 
     const { main } = require("./unassign_from_user.cjs");
     handler = await main({

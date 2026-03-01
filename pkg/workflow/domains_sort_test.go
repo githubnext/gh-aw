@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestGetAllowedDomainsSorted tests that domains are returned in sorted order
@@ -245,7 +247,7 @@ func TestGetCopilotAllowedDomainsSorted(t *testing.T) {
 		permissions := &NetworkPermissions{
 			Allowed: []string{"zebra.com", "alpha.com", "python"},
 		}
-		domainsStr := GetCopilotAllowedDomains(permissions)
+		domainsStr := GetAllowedDomainsForEngine(constants.CopilotEngine, permissions, nil, nil)
 
 		// Split the CSV and verify sorted
 		domains := strings.Split(domainsStr, ",")
@@ -260,7 +262,7 @@ func TestGetCopilotAllowedDomainsSorted(t *testing.T) {
 		permissions := &NetworkPermissions{
 			Allowed: []string{"example.com", "example.com", "test.org"},
 		}
-		domainsStr := GetCopilotAllowedDomains(permissions)
+		domainsStr := GetAllowedDomainsForEngine(constants.CopilotEngine, permissions, nil, nil)
 
 		// Split the CSV and verify no duplicates
 		domains := strings.Split(domainsStr, ",")

@@ -159,49 +159,6 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 	return sb.String()
 }
 
-// GetSummary returns a summary of the tool graph
-func (g *ToolGraph) GetSummary() string {
-	if len(g.Tools) == 0 {
-		return "No tool sequences found in the logs."
-	}
-
-	var sb strings.Builder
-	sb.WriteString("🔄 Tool Sequence Graph Summary\n")
-	fmt.Fprintf(&sb, "   • %d unique tools\n", len(g.Tools))
-	fmt.Fprintf(&sb, "   • %d tool transitions\n", len(g.Transitions))
-	fmt.Fprintf(&sb, "   • %d sequences analyzed\n", len(g.sequences))
-
-	// Find most common transitions
-	if len(g.Transitions) > 0 {
-		var topTransitions []ToolTransition
-		for key, count := range g.Transitions {
-			parts := strings.Split(key, "->")
-			if len(parts) == 2 {
-				topTransitions = append(topTransitions, ToolTransition{
-					From:  parts[0],
-					To:    parts[1],
-					Count: count,
-				})
-			}
-		}
-
-		sort.Slice(topTransitions, func(i, j int) bool {
-			return topTransitions[i].Count > topTransitions[j].Count
-		})
-
-		sb.WriteString("\nMost common tool transitions:\n")
-		for i, transition := range topTransitions {
-			if i >= 5 { // Show top 5
-				break
-			}
-			fmt.Fprintf(&sb, "   %d. %s → %s (%dx)\n",
-				i+1, transition.From, transition.To, transition.Count)
-		}
-	}
-
-	return sb.String()
-}
-
 // generateToolGraph analyzes processed runs and generates a tool sequence graph
 func generateToolGraph(processedRuns []ProcessedRun, verbose bool) {
 	if len(processedRuns) == 0 {

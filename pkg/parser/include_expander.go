@@ -10,10 +10,6 @@ import (
 
 // ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
-func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) {
-	expandedContent, _, err := ExpandIncludesWithManifest(content, baseDir, extractTools)
-	return expandedContent, err
-}
 
 // ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
 func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
@@ -120,18 +116,8 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 }
 
 // ProcessIncludesForEngines processes import directives to extract engine configurations
-func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
-	return processIncludesForField(content, baseDir, func(c string) (string, error) {
-		return extractFrontmatterField(c, "engine", "")
-	}, "")
-}
 
 // ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
-func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, error) {
-	return processIncludesForField(content, baseDir, func(c string) (string, error) {
-		return extractFrontmatterField(c, "safe-outputs", "{}")
-	}, "{}")
-}
 
 // processIncludesForField processes import directives to extract a specific frontmatter field
 func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {

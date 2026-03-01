@@ -87,6 +87,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
 			}
+			if config.RequiredTitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("Only discussions with title prefix %q can be closed.", config.RequiredTitlePrefix))
+			}
 		}
 
 	case "close_issue":
@@ -96,6 +99,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+			if config.RequiredTitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("Only issues with title prefix %q can be closed.", config.RequiredTitlePrefix))
 			}
 		}
 
@@ -230,6 +236,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
 			}
+			if config.TitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("The target issue title must start with %q.", config.TitlePrefix))
+			}
 			if config.Title != nil && *config.Title {
 				constraints = append(constraints, "Title updates are allowed.")
 			}
@@ -255,6 +264,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 		if config := safeOutputs.PushToPullRequestBranch; config != nil {
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d push(es) can be made.", templatableIntValue(config.Max)))
+			}
+			if config.TitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("The target pull request title must start with %q.", config.TitlePrefix))
 			}
 		}
 
@@ -290,6 +302,12 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 		if config := safeOutputs.LinkSubIssue; config != nil {
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d sub-issue link(s) can be created.", templatableIntValue(config.Max)))
+			}
+			if config.ParentTitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("The parent issue title must start with %q.", config.ParentTitlePrefix))
+			}
+			if config.SubTitlePrefix != "" {
+				constraints = append(constraints, fmt.Sprintf("The sub-issue title must start with %q.", config.SubTitlePrefix))
 			}
 		}
 

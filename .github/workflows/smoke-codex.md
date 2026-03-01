@@ -63,7 +63,8 @@ safe-outputs:
       run-failure: "🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation..."
 timeout-minutes: 15
 checkout:
-  fetch-depth: 2
+  - fetch-depth: 2
+    current: true
 ---
 
 # Smoke Test: Codex Engine Validation

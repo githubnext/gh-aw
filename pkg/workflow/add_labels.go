@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"errors"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -37,34 +35,4 @@ func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConf
 	addLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
 
 	return &config
-}
-
-// buildAddLabelsJob creates the add_labels job
-func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	addLabelsLog.Printf("Building add_labels job for workflow: %s, main_job: %s", data.Name, mainJobName)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.AddLabels == nil {
-		return nil, errors.New("safe-outputs configuration is required")
-	}
-
-	cfg := data.SafeOutputs.AddLabels
-
-	// Build list job config
-	listJobConfig := ListJobConfig{
-		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
-		Allowed:                cfg.Allowed,
-		Blocked:                cfg.Blocked,
-	}
-
-	// Use shared builder for list-based safe-output jobs
-	return c.BuildListSafeOutputJob(data, mainJobName, listJobConfig, cfg.BaseSafeOutputConfig, ListJobBuilderConfig{
-		JobName:     "add_labels",
-		StepName:    "Add Labels",
-		StepID:      "add_labels",
-		EnvPrefix:   "GH_AW_LABELS",
-		OutputName:  "labels_added",
-		Script:      getAddLabelsScript(),
-		Permissions: NewPermissionsContentsReadIssuesWritePRWrite(),
-		DefaultMax:  3,
-	})
 }

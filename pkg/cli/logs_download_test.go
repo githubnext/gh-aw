@@ -473,6 +473,68 @@ func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
 	}
 }
 
+// TestFlattenActivationArtifact verifies that the activation artifact directory is correctly flattened
+// so the audit command can find aw_info.json and prompt.txt in their expected locations.
+// The activation artifact contains aw_info.json and aw-prompts/prompt.txt, and after flattening:
+// - aw_info.json lands at the root output directory (required by audit for engine detection)
+// - aw-prompts/prompt.txt lands at aw-prompts/prompt.txt under root (used by agent and audit)
+func TestFlattenActivationArtifact(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-flatten-activation-*")
+
+	// Simulate the directory structure created by `gh run download` for the activation artifact
+	activationDir := filepath.Join(tmpDir, "activation")
+	awPromptsDir := filepath.Join(activationDir, "aw-prompts")
+	if err := os.MkdirAll(awPromptsDir, 0755); err != nil {
+		t.Fatalf("Failed to create aw-prompts dir: %v", err)
+	}
+
+	awInfoContent := `{"engine_id": "claude", "model": "claude-opus-4-5"}`
+	if err := os.WriteFile(filepath.Join(activationDir, "aw_info.json"), []byte(awInfoContent), 0644); err != nil {
+		t.Fatalf("Failed to create aw_info.json: %v", err)
+	}
+	promptContent := "You are a helpful assistant.\n\nPlease help with this task."
+	if err := os.WriteFile(filepath.Join(awPromptsDir, "prompt.txt"), []byte(promptContent), 0644); err != nil {
+		t.Fatalf("Failed to create prompt.txt: %v", err)
+	}
+
+	if err := flattenActivationArtifact(tmpDir, false); err != nil {
+		t.Fatalf("flattenActivationArtifact failed: %v", err)
+	}
+
+	// aw_info.json should be at the root for the audit command
+	awInfoPath := filepath.Join(tmpDir, "aw_info.json")
+	if !fileutil.FileExists(awInfoPath) {
+		t.Error("aw_info.json should be at the root output directory for audit engine detection")
+	} else {
+		content, err := os.ReadFile(awInfoPath)
+		if err != nil {
+			t.Fatalf("Failed to read aw_info.json: %v", err)
+		}
+		if string(content) != awInfoContent {
+			t.Errorf("aw_info.json content mismatch: got %q, want %q", string(content), awInfoContent)
+		}
+	}
+
+	// prompt.txt should be at aw-prompts/prompt.txt for the agent and audit command
+	promptPath := filepath.Join(tmpDir, "aw-prompts", "prompt.txt")
+	if !fileutil.FileExists(promptPath) {
+		t.Error("prompt.txt should be at aw-prompts/prompt.txt in the root output directory")
+	} else {
+		content, err := os.ReadFile(promptPath)
+		if err != nil {
+			t.Fatalf("Failed to read prompt.txt: %v", err)
+		}
+		if string(content) != promptContent {
+			t.Errorf("prompt.txt content mismatch: got %q, want %q", string(content), promptContent)
+		}
+	}
+
+	// The activation/ directory should have been removed
+	if fileutil.DirExists(filepath.Join(tmpDir, "activation")) {
+		t.Error("activation/ directory should have been removed after flattening")
+	}
+}
+
 // TestCountParameterBehavior verifies that the count parameter limits matching results
 // not the number of runs fetched when date filters are specified
 func TestCountParameterBehavior(t *testing.T) {

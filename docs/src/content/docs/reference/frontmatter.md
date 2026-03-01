@@ -575,7 +575,7 @@ Configure how `actions/checkout` is invoked in the agent job. Override default c
 # Single repository with custom settings
 checkout:
   fetch-depth: 0
-  github-token: ${{ secrets.MY_TOKEN }}
+  token: ${{ secrets.MY_TOKEN }}
 ```
 
 ```yaml wrap
@@ -588,7 +588,7 @@ checkout:
     ref: main
 ```
 
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/#repository-checkout-checkout) for complete documentation on checkout configuration options, merging behavior, and cross-repo examples.
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options, merging behavior, and cross-repo examples.
 
 ## Custom Steps (`steps:`)
 

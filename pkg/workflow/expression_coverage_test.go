@@ -6,69 +6,6 @@ import (
 	"testing"
 )
 
-// TestParenthesesNodeRender tests the ParenthesesNode Render method
-func TestParenthesesNodeRender(t *testing.T) {
-	tests := []struct {
-		name     string
-		child    ConditionNode
-		expected string
-	}{
-		{
-			name:     "simple expression",
-			child:    &ExpressionNode{Expression: "github.event_name == 'issues'"},
-			expected: "(github.event_name == 'issues')",
-		},
-		{
-			name: "nested expression",
-			child: &AndNode{
-				Left:  &ExpressionNode{Expression: "condition1"},
-				Right: &ExpressionNode{Expression: "condition2"},
-			},
-			expected: "((condition1) && (condition2))",
-		},
-		{
-			name: "function call",
-			child: &FunctionCallNode{
-				FunctionName: "contains",
-				Arguments: []ConditionNode{
-					BuildPropertyAccess("github.event.labels"),
-					BuildStringLiteral("bug"),
-				},
-			},
-			expected: "(contains(github.event.labels, 'bug'))",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := &ParenthesesNode{Child: tt.child}
-			result := node.Render()
-			if result != tt.expected {
-				t.Errorf("ParenthesesNode.Render() = %v, expected %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestAddDetectionSuccessCheckEmptyCondition tests AddDetectionSuccessCheck with empty condition
-func TestAddDetectionSuccessCheckEmptyCondition(t *testing.T) {
-	result := AddDetectionSuccessCheck("")
-	expected := "needs.agent.outputs.detection_success == 'true'"
-	if result != expected {
-		t.Errorf("AddDetectionSuccessCheck(\"\") = %v, expected %v", result, expected)
-	}
-}
-
-// TestAddDetectionSuccessCheckWithExistingCondition tests AddDetectionSuccessCheck with existing condition
-func TestAddDetectionSuccessCheckWithExistingCondition(t *testing.T) {
-	existingCondition := "github.event.action == 'opened'"
-	result := AddDetectionSuccessCheck(existingCondition)
-	expected := "(github.event.action == 'opened') && (needs.agent.outputs.detection_success == 'true')"
-	if result != expected {
-		t.Errorf("AddDetectionSuccessCheck() = %v, expected %v", result, expected)
-	}
-}
-
 // TestBuildFromAllowedForksEmptyList tests BuildFromAllowedForks with empty list
 func TestBuildFromAllowedForksEmptyList(t *testing.T) {
 	result := BuildFromAllowedForks([]string{})
@@ -193,22 +130,6 @@ func TestVisitExpressionTreeWithDifferentNodeTypes(t *testing.T) {
 			node:          BuildFunctionCall("contains", BuildPropertyAccess("array"), BuildStringLiteral("value")),
 			expectedCount: 0,
 			description:   "FunctionCallNode should not be visited (not ExpressionNode)",
-		},
-		{
-			name: "TernaryNode",
-			node: BuildTernary(
-				&ExpressionNode{Expression: "condition"},
-				&ExpressionNode{Expression: "true_value"},
-				&ExpressionNode{Expression: "false_value"},
-			),
-			expectedCount: 0,
-			description:   "TernaryNode should not recurse (not in visitor)",
-		},
-		{
-			name:          "ContainsNode",
-			node:          BuildContains(BuildPropertyAccess("array"), BuildStringLiteral("value")),
-			expectedCount: 0,
-			description:   "ContainsNode should not be visited (not ExpressionNode)",
 		},
 		{
 			name: "DisjunctionNode with multiple terms",

@@ -43,39 +43,6 @@ func TestGetCurrentRepoSlug(t *testing.T) {
 	t.Logf("GetCurrentRepoSlug returned consistent results (result: %s, error: %v)", result1, err1)
 }
 
-// TestClearCurrentRepoSlugCache tests that clearing the cache allows a fresh call
-func TestClearCurrentRepoSlugCache(t *testing.T) {
-
-	// Clear the cache
-	ClearCurrentRepoSlugCache()
-
-	// First call
-	result1, err1 := GetCurrentRepoSlug()
-	if err1 != nil {
-		t.Logf("First call error (expected if not in a git repo): %v", err1)
-	}
-
-	// Clear the cache again
-	ClearCurrentRepoSlugCache()
-
-	// Second call after clearing cache
-	result2, err2 := GetCurrentRepoSlug()
-	if err2 != nil {
-		t.Logf("Second call error (expected if not in a git repo): %v", err2)
-	}
-
-	// Results should still be the same (we're in the same repo)
-	if result1 != result2 {
-		t.Errorf("GetCurrentRepoSlug returned different results after cache clear: %s vs %s", result1, result2)
-	}
-
-	if (err1 == nil) != (err2 == nil) {
-		t.Errorf("GetCurrentRepoSlug returned different error states after cache clear")
-	}
-
-	t.Logf("Cache clear test passed (result: %s, error: %v)", result1, err1)
-}
-
 // TestGetCurrentRepoSlugFormat tests the format validation
 func TestGetCurrentRepoSlugFormat(t *testing.T) {
 	// This test will only pass if we're in a GitHub repository

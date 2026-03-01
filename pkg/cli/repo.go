@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -25,16 +24,6 @@ type repoSlugCacheState struct {
 
 // Global cache for current repository info
 var currentRepoSlugCache repoSlugCacheState
-
-// ClearCurrentRepoSlugCache clears the current repository slug cache.
-// This is useful for testing or when repository context might have changed.
-func ClearCurrentRepoSlugCache() {
-	currentRepoSlugCache.mu.Lock()
-	defer currentRepoSlugCache.mu.Unlock()
-	currentRepoSlugCache.result = ""
-	currentRepoSlugCache.err = nil
-	currentRepoSlugCache.done = false
-}
 
 // getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
 // Falls back to git remote parsing if gh CLI is not available
@@ -117,11 +106,4 @@ func GetCurrentRepoSlug() (string, error) {
 
 	repoLog.Printf("Using cached repository slug: %s", result)
 	return result, nil
-}
-
-// SplitRepoSlug wraps repoutil.SplitRepoSlug for backward compatibility.
-// It splits a repository slug (owner/repo) into owner and repo parts.
-// New code should use repoutil.SplitRepoSlug directly.
-func SplitRepoSlug(slug string) (owner, repo string, err error) {
-	return repoutil.SplitRepoSlug(slug)
 }

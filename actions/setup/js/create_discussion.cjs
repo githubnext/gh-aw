@@ -12,6 +12,7 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
@@ -34,7 +35,7 @@ const MAX_LABELS = 10;
  * @param {string} repo - Repository name
  * @returns {Promise<{repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}|null>}
  */
-async function fetchRepoDiscussionInfo(owner, repo) {
+async function fetchRepoDiscussionInfo(githubClient, owner, repo) {
   const repositoryQuery = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -50,7 +51,7 @@ async function fetchRepoDiscussionInfo(owner, repo) {
       }
     }
   `;
-  const queryResult = await github.graphql(repositoryQuery, {
+  const queryResult = await githubClient.graphql(repositoryQuery, {
     owner: owner,
     repo: repo,
   });
@@ -129,7 +130,7 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
  * @param {string[]} labelNames - Array of label names to fetch IDs for
  * @returns {Promise<Array<{name: string, id: string}>>} Array of label objects with name and ID
  */
-async function fetchLabelIds(owner, repo, labelNames) {
+async function fetchLabelIds(githubClient, owner, repo, labelNames) {
   if (!labelNames || labelNames.length === 0) {
     return [];
   }
@@ -149,7 +150,7 @@ async function fetchLabelIds(owner, repo, labelNames) {
       }
     `;
 
-    const queryResult = await github.graphql(labelsQuery, {
+    const queryResult = await githubClient.graphql(labelsQuery, {
       owner: owner,
       repo: repo,
     });
@@ -189,7 +190,7 @@ async function fetchLabelIds(owner, repo, labelNames) {
  * @param {string[]} labelIds - Array of label node IDs to add
  * @returns {Promise<boolean>} True if labels were applied successfully
  */
-async function applyLabelsToDiscussion(discussionId, labelIds) {
+async function applyLabelsToDiscussion(githubClient, discussionId, labelIds) {
   if (!labelIds || labelIds.length === 0) {
     return true; // Nothing to do
   }
@@ -215,7 +216,7 @@ async function applyLabelsToDiscussion(discussionId, labelIds) {
       }
     `;
 
-    const mutationResult = await github.graphql(addLabelsMutation, {
+    const mutationResult = await githubClient.graphql(addLabelsMutation, {
       labelableId: discussionId,
       labelIds: labelIds,
     });
@@ -310,6 +311,10 @@ async function main(config = {}) {
   const closeOlderDiscussions = parseBoolTemplatable(config.close_older_discussions, false);
   const includeFooter = parseBoolTemplatable(config.footer, true);
 
+  // Create an authenticated GitHub client. Uses config["github-token"] when set
+  // (for cross-repository operations), otherwise falls back to the step-level github.
+  const authClient = await createAuthenticatedGitHubClient(config);
+
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -397,7 +402,7 @@ async function main(config = {}) {
     let repoInfo = repoInfoCache.get(qualifiedItemRepo);
     if (!repoInfo) {
       try {
-        const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
+        const fetchedInfo = await fetchRepoDiscussionInfo(authClient, repoParts.owner, repoParts.repo);
         if (!fetchedInfo) {
           const error = `Failed to fetch repository information for '${qualifiedItemRepo}'`;
           core.warning(error);
@@ -564,7 +569,7 @@ async function main(config = {}) {
         }
       `;
 
-      const mutationResult = await github.graphql(createDiscussionMutation, {
+      const mutationResult = await authClient.graphql(createDiscussionMutation, {
         repositoryId: repoInfo.repositoryId,
         categoryId: categoryId,
         title: title,
@@ -586,10 +591,10 @@ async function main(config = {}) {
       // Apply labels if configured
       if (discussionLabels.length > 0) {
         core.info(`Applying ${discussionLabels.length} labels to discussion: ${discussionLabels.join(", ")}`);
-        const labelIdsData = await fetchLabelIds(repoParts.owner, repoParts.repo, discussionLabels);
+        const labelIdsData = await fetchLabelIds(authClient, repoParts.owner, repoParts.repo, discussionLabels);
         if (labelIdsData.length > 0) {
           const labelIds = labelIdsData.map(l => l.id);
-          const labelsApplied = await applyLabelsToDiscussion(discussion.id, labelIds);
+          const labelsApplied = await applyLabelsToDiscussion(authClient, discussion.id, labelIds);
           if (labelsApplied) {
             core.info(`✓ Applied labels: ${labelIdsData.map(l => l.name).join(", ")}`);
           }

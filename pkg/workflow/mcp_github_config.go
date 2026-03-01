@@ -241,6 +241,29 @@ func getGitHubAllowedTools(githubTool any) []string {
 	return nil
 }
 
+// getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
+// It reads the flat repos/min-integrity fields and wraps them for MCP gateway rendering.
+// Returns nil if no guard policies are configured.
+func getGitHubGuardPolicies(githubTool any) map[string]any {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		repos, hasRepos := toolConfig["repos"]
+		integrity, hasIntegrity := toolConfig["min-integrity"]
+		if hasRepos || hasIntegrity {
+			policy := map[string]any{}
+			if hasRepos {
+				policy["repos"] = repos
+			}
+			if hasIntegrity {
+				policy["min-integrity"] = integrity
+			}
+			return map[string]any{
+				"allow-only": policy,
+			}
+		}
+	}
+	return nil
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties

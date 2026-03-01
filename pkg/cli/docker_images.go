@@ -3,8 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -226,58 +224,4 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 	}
 
 	return nil
-}
-
-// isDockerAvailable checks if Docker is available on the system
-func isDockerAvailable() bool {
-	cmd := exec.Command("docker", "version")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run() == nil
-}
-
-// ResetDockerPullState resets the internal pull state (for testing)
-func ResetDockerPullState() {
-	pullState.mu.Lock()
-	defer pullState.mu.Unlock()
-	pullState.downloading = make(map[string]bool)
-	pullState.mockAvailable = make(map[string]bool)
-	pullState.mockAvailableInUse = false
-}
-
-// ValidateMCPServerDockerAvailability validates that Docker is available for MCP server operations
-// that require static analysis tools
-func ValidateMCPServerDockerAvailability() error {
-	if !isDockerAvailable() {
-		return errors.New("docker is not available - required for zizmor, poutine, and actionlint static analysis tools")
-	}
-	return nil
-}
-
-// SetDockerImageDownloading sets the downloading state for an image (for testing)
-func SetDockerImageDownloading(image string, downloading bool) {
-	pullState.mu.Lock()
-	defer pullState.mu.Unlock()
-	if downloading {
-		pullState.downloading[image] = true
-	} else {
-		delete(pullState.downloading, image)
-	}
-}
-
-// SetMockImageAvailable sets the mock availability for an image (for testing)
-func SetMockImageAvailable(image string, available bool) {
-	pullState.mu.Lock()
-	defer pullState.mu.Unlock()
-	pullState.mockAvailableInUse = true
-	pullState.mockAvailable[image] = available
-}
-
-// PrintDockerPullStatus prints the current pull status to stderr (for debugging)
-func PrintDockerPullStatus() {
-	pullState.mu.RLock()
-	defer pullState.mu.RUnlock()
-	if len(pullState.downloading) > 0 {
-		fmt.Fprintf(os.Stderr, "Currently downloading images: %v\n", pullState.downloading)
-	}
 }

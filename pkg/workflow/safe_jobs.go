@@ -68,9 +68,11 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 			}
 		}
 
-		// Parse runs-on
+		// Parse runs-on (also accept "runner" as alias)
 		if runsOn, exists := jobConfig["runs-on"]; exists {
 			safeJob.RunsOn = runsOn
+		} else if runner, exists := jobConfig["runner"]; exists {
+			safeJob.RunsOn = runner
 		}
 
 		// Parse if condition
@@ -131,10 +133,14 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 			}
 		}
 
-		// Parse output
+		// Parse output (also accept "agent-output" as alias)
 		if output, exists := jobConfig["output"]; exists {
 			if outputStr, ok := output.(string); ok {
 				safeJob.Output = outputStr
+			}
+		} else if agentOutput, exists := jobConfig["agent-output"]; exists {
+			if agentOutputStr, ok := agentOutput.(string); ok {
+				safeJob.Output = agentOutputStr
 			}
 		}
 

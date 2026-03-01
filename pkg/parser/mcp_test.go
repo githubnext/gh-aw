@@ -13,63 +13,6 @@ import (
 )
 
 // TestEnsureLocalhostDomains tests the helper function that ensures localhost domains are always included
-func TestEnsureLocalhostDomains(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []string
-		expected []string
-	}{
-		{
-			name:     "Empty input should add all localhost domains with ports",
-			input:    []string{},
-			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"},
-		},
-		{
-			name:     "Custom domains without localhost should add localhost domains with ports",
-			input:    []string{"github.com", "*.github.com"},
-			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "github.com", "*.github.com"},
-		},
-		{
-			name:     "Input with localhost but no 127.0.0.1 should add missing domains",
-			input:    []string{"localhost", "example.com"},
-			expected: []string{"localhost:*", "127.0.0.1", "127.0.0.1:*", "localhost", "example.com"},
-		},
-		{
-			name:     "Input with 127.0.0.1 but no localhost should add missing domains",
-			input:    []string{"127.0.0.1", "example.com"},
-			expected: []string{"localhost", "localhost:*", "127.0.0.1:*", "127.0.0.1", "example.com"},
-		},
-		{
-			name:     "Input with both localhost domains should add port variants",
-			input:    []string{"localhost", "127.0.0.1", "example.com"},
-			expected: []string{"localhost:*", "127.0.0.1:*", "localhost", "127.0.0.1", "example.com"},
-		},
-		{
-			name:     "Input with both in different order should add port variants",
-			input:    []string{"example.com", "127.0.0.1", "localhost"},
-			expected: []string{"localhost:*", "127.0.0.1:*", "example.com", "127.0.0.1", "localhost"},
-		},
-		{
-			name:     "Input with all localhost variants should remain unchanged",
-			input:    []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "example.com"},
-			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "example.com"},
-		},
-		{
-			name:     "Input with some localhost variants should add missing ones",
-			input:    []string{"localhost:*", "127.0.0.1", "example.com"},
-			expected: []string{"localhost", "127.0.0.1:*", "localhost:*", "127.0.0.1", "example.com"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := EnsureLocalhostDomains(tt.input)
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("EnsureLocalhostDomains(%v) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
 
 func TestExtractMCPConfigurations(t *testing.T) {
 	tests := []struct {

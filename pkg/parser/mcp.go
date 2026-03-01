@@ -30,55 +30,6 @@ func IsMCPType(typeStr string) bool {
 	}
 }
 
-// EnsureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
-// in the allowed domains list for Playwright, even when custom domains are specified
-// Includes port variations to allow all ports on localhost and 127.0.0.1
-func EnsureLocalhostDomains(domains []string) []string {
-	hasLocalhost := false
-	hasLocalhostPorts := false
-	hasLoopback := false
-	hasLoopbackPorts := false
-
-	for _, domain := range domains {
-		switch domain {
-		case "localhost":
-			hasLocalhost = true
-		case "localhost:*":
-			hasLocalhostPorts = true
-		case "127.0.0.1":
-			hasLoopback = true
-		case "127.0.0.1:*":
-			hasLoopbackPorts = true
-		}
-	}
-
-	// CWE-190: Allocation Size Overflow Prevention
-	// Instead of pre-calculating capacity (len(domains)+4), which could overflow
-	// if domains is extremely large, we let Go's append handle capacity growth
-	// automatically. This is safe and efficient for domain arrays which are
-	// typically small in practice.
-	var result []string
-
-	// Always add localhost domains first (with and without port specifications)
-	if !hasLocalhost {
-		result = append(result, "localhost")
-	}
-	if !hasLocalhostPorts {
-		result = append(result, "localhost:*")
-	}
-	if !hasLoopback {
-		result = append(result, "127.0.0.1")
-	}
-	if !hasLoopbackPorts {
-		result = append(result, "127.0.0.1:*")
-	}
-
-	// Add the rest of the domains
-	result = append(result, domains...)
-
-	return result
-}
-
 // MCPServerConfig represents a parsed MCP server configuration.
 // It embeds BaseMCPServerConfig for common fields and adds parser-specific fields.
 type MCPServerConfig struct {

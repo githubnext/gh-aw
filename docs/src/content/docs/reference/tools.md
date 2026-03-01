@@ -1,6 +1,6 @@
 ---
 title: Tools
-description: Configure GitHub API tools, browser automation, and AI capabilities available to your agentic workflows, including GitHub tools, Playwright, and custom MCP servers.
+description: Configure GitHub API tools, browser automation, and AI capabilities available to your agentic workflows, including GitHub tools and custom MCP servers.
 sidebar:
   order: 700
 ---
@@ -15,7 +15,9 @@ tools:
 
 Some tools are available by default. All tools declared in imported components are merged into the final workflow.
 
-## Edit Tool (`edit:`)
+## Built-in Tools
+
+### Edit Tool (`edit:`)
 
 Allows file editing in the GitHub Actions workspace.
 
@@ -24,7 +26,19 @@ tools:
   edit:
 ```
 
-## Bash Tool (`bash:`)
+### GitHub Tools (`github:`)
+
+Configure GitHub API operations including toolsets, remote/local modes, and authentication.
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [repos, issues]
+```
+
+See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
+
+### Bash Tool (`bash:`)
 
 Enables shell command execution in the workspace. Defaults to safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`).
 
@@ -38,7 +52,7 @@ tools:
 
 Use wildcards like `git:*` for command families or `:*` for unrestricted access.
 
-## Web Tools
+### Web Tools
 
 Enable web content fetching and search capabilities:
 
@@ -50,40 +64,17 @@ tools:
 
 **Note:** Some engines require third-party Model Context Protocol (MCP) servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
 
-## GitHub Tools (`github:`)
-
-Configure GitHub API operations including toolsets, remote/local modes, and authentication.
-
-See **[GitHub Tools Reference](/gh-aw/reference/github-tools/)** for complete configuration options.
-
-## Playwright Tool (`playwright:`)
+### Playwright Tool (`playwright:`)
 
 Configure Playwright for browser automation and testing:
 
 ```yaml wrap
 tools:
   playwright:
-    version: "1.56.1"  # Optional: defaults to 1.56.1, use "latest" for newest
+    version: "1.56.1"  # Optional: specify version
 ```
 
-**Domain Access**: Controlled by the top-level [`network:`](/gh-aw/reference/network/) field. Uses ecosystem bundles (`defaults`, `github`, `node`, `python`, etc.). Defaults to `["localhost", "127.0.0.1"]`. Domains auto-include subdomains.
-
-**GitHub Actions Compatibility**: Playwright runs in a Docker container with security flags required for Chromium to function on GitHub Actions runners (`--security-opt seccomp=unconfined` and `--ipc=host`). These flags are automatically configured by gh-aw version 0.41.0 and later.
-
-## Built-in MCP Tools
-
-### Agentic Workflows (`agentic-workflows:`)
-
-Provides workflow introspection, log analysis, and debugging tools. Requires `actions: read` permission:
-
-```yaml wrap
-permissions:
-  actions: read
-tools:
-  agentic-workflows:
-```
-
-See [MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
+See **[Playwright Reference](/gh-aw/reference/playwright/)** for complete configuration options, network access, browser support, and example workflows.
 
 ### Cache Memory (`cache-memory:`)
 
@@ -94,6 +85,8 @@ tools:
   cache-memory:
 ```
 
+See **[Cache Memory Reference](/gh-aw/reference/cache-memory/)** for complete configuration options and usage examples.
+
 ### Repo Memory (`repo-memory:`)
 
 Repository-specific memory storage for maintaining context across executions.
@@ -102,6 +95,21 @@ Repository-specific memory storage for maintaining context across executions.
 tools:
   repo-memory:
 ```
+
+See **[Repo Memory Reference](/gh-aw/reference/repo-memory/)** for complete configuration options and usage examples.
+
+### Introspection on Agentic Workflows (`agentic-workflows:`)
+
+Provides workflow introspection, log analysis, and debugging tools. Requires `actions: read` permission:
+
+```yaml wrap
+permissions:
+  actions: read
+tools:
+  agentic-workflows:
+```
+
+See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
 
 ## Custom MCP Servers (`mcp-servers:`)
 
@@ -161,6 +169,9 @@ The `registry` field is informational and does not affect server execution. It c
 ## Related Documentation
 
 - [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations, toolsets, and modes
+- [Playwright](/gh-aw/reference/playwright/) - Browser automation and testing configuration
+- [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
+- [Repo Memory](/gh-aw/reference/repo-memory/) - Repository-specific memory storage
 - [Safe Inputs](/gh-aw/reference/safe-inputs/) - Define custom inline tools with JavaScript or shell scripts
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
 - [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines

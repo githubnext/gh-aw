@@ -152,6 +152,11 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 		result["mounts"] = config.Mounts
 	}
 
+	// Add guard policies if set
+	if len(config.GuardPolicies) > 0 {
+		result["guard-policies"] = config.GuardPolicies
+	}
+
 	// Add custom fields (these override standard fields if there are conflicts)
 	maps.Copy(result, config.CustomFields)
 
@@ -257,6 +262,24 @@ func (g GitHubToolsets) ToStringSlice() []string {
 	return result
 }
 
+// GitHubIntegrityLevel represents the minimum integrity level required for repository access
+type GitHubIntegrityLevel string
+
+const (
+	// GitHubIntegrityNone allows access with no integrity requirements
+	GitHubIntegrityNone GitHubIntegrityLevel = "none"
+	// GitHubIntegrityReader requires read-level integrity
+	GitHubIntegrityReader GitHubIntegrityLevel = "reader"
+	// GitHubIntegrityWriter requires write-level integrity
+	GitHubIntegrityWriter GitHubIntegrityLevel = "writer"
+	// GitHubIntegrityMerged requires merged-level integrity
+	GitHubIntegrityMerged GitHubIntegrityLevel = "merged"
+)
+
+// GitHubReposScope represents the repository scope for guard policy enforcement
+// Can be one of: "all", "public", or an array of repository patterns
+type GitHubReposScope any // string or []any (YAML-parsed arrays are []any)
+
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
@@ -269,6 +292,13 @@ type GitHubToolConfig struct {
 	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
 	Lockdown    bool               `yaml:"lockdown,omitempty"`
 	App         *GitHubAppConfig   `yaml:"app,omitempty"` // GitHub App configuration for token minting
+
+	// Guard policy fields (flat syntax under github:)
+	// Repos defines the access scope for policy enforcement.
+	// Supports: "all", "public", or an array of patterns ["owner/repo", "owner/*"] (lowercase)
+	Repos GitHubReposScope `yaml:"repos,omitempty"`
+	// MinIntegrity defines the minimum integrity level required: "none", "reader", "writer", "merged"
+	MinIntegrity GitHubIntegrityLevel `yaml:"min-integrity,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
@@ -339,6 +369,12 @@ type MCPServerConfig struct {
 	Mode     string   `yaml:"mode,omitempty"`     // MCP server mode (stdio, http, remote, local)
 	Toolsets []string `yaml:"toolsets,omitempty"` // Toolsets to enable
 
+	// Guard policies for access control at the MCP gateway level
+	// This is a general field that can hold server-specific policy configurations
+	// For GitHub: policies are represented via GitHubAllowOnlyPolicy on GitHubToolConfig
+	// For Jira/WorkIQ: define similar server-specific policy types
+	GuardPolicies map[string]any `yaml:"guard-policies,omitempty"`
+
 	// For truly dynamic configuration (server-specific fields not covered above)
 	CustomFields map[string]any `yaml:",inline"`
 }
@@ -348,17 +384,19 @@ type MCPServerConfig struct {
 // Per MCP Gateway Specification v1.0.0: All stdio-based MCP servers MUST be containerized.
 // Direct command execution is not supported.
 type MCPGatewayRuntimeConfig struct {
-	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway (required)
-	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container
-	Entrypoint     string            `yaml:"entrypoint,omitempty"`     // Optional entrypoint override for the container
-	Args           []string          `yaml:"args,omitempty"`           // Arguments for docker run
-	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
-	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway
-	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
-	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
-	Domain         string            `yaml:"domain,omitempty"`         // Domain for gateway URL (localhost or host.docker.internal)
-	Mounts         []string          `yaml:"mounts,omitempty"`         // Volume mounts for the gateway container (format: "source:dest:mode")
-	PayloadDir     string            `yaml:"payload-dir,omitempty"`    // Directory path for storing large payload JSON files (must be absolute path)
+	Container            string            `yaml:"container,omitempty"`              // Container image for the gateway (required)
+	Version              string            `yaml:"version,omitempty"`                // Optional version/tag for the container
+	Entrypoint           string            `yaml:"entrypoint,omitempty"`             // Optional entrypoint override for the container
+	Args                 []string          `yaml:"args,omitempty"`                   // Arguments for docker run
+	EntrypointArgs       []string          `yaml:"entrypointArgs,omitempty"`         // Arguments passed to container entrypoint
+	Env                  map[string]string `yaml:"env,omitempty"`                    // Environment variables for the gateway
+	Port                 int               `yaml:"port,omitempty"`                   // Port for the gateway HTTP server (default: 8080)
+	APIKey               string            `yaml:"api-key,omitempty"`                // API key for gateway authentication
+	Domain               string            `yaml:"domain,omitempty"`                 // Domain for gateway URL (localhost or host.docker.internal)
+	Mounts               []string          `yaml:"mounts,omitempty"`                 // Volume mounts for the gateway container (format: "source:dest:mode")
+	PayloadDir           string            `yaml:"payload-dir,omitempty"`            // Directory path for storing large payload JSON files (must be absolute path)
+	PayloadPathPrefix    string            `yaml:"payload-path-prefix,omitempty"`    // Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads)
+	PayloadSizeThreshold int               `yaml:"payload-size-threshold,omitempty"` // Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB)
 }
 
 // HasTool checks if a tool is present in the configuration

@@ -327,49 +327,6 @@ func TestCodexDefaultDomains(t *testing.T) {
 	}
 }
 
-func TestGetCodexAllowedDomains(t *testing.T) {
-	t.Run("nil network permissions returns only defaults", func(t *testing.T) {
-		result := GetCodexAllowedDomains(nil)
-		// Should contain default Codex domains, sorted
-		if result != "172.30.0.1,api.openai.com,host.docker.internal,openai.com" {
-			t.Errorf("Expected '172.30.0.1,api.openai.com,host.docker.internal,openai.com', got %q", result)
-		}
-	})
-
-	t.Run("with network permissions merges domains", func(t *testing.T) {
-		network := &NetworkPermissions{
-			Allowed: []string{"example.com"},
-		}
-		result := GetCodexAllowedDomains(network)
-		// Should contain both default Codex domains and user-specified domain
-		if result != "172.30.0.1,api.openai.com,example.com,host.docker.internal,openai.com" {
-			t.Errorf("Expected '172.30.0.1,api.openai.com,example.com,host.docker.internal,openai.com', got %q", result)
-		}
-	})
-
-	t.Run("deduplicates domains", func(t *testing.T) {
-		network := &NetworkPermissions{
-			Allowed: []string{"api.openai.com", "example.com"},
-		}
-		result := GetCodexAllowedDomains(network)
-		// api.openai.com should not appear twice
-		if result != "172.30.0.1,api.openai.com,example.com,host.docker.internal,openai.com" {
-			t.Errorf("Expected '172.30.0.1,api.openai.com,example.com,host.docker.internal,openai.com', got %q", result)
-		}
-	})
-
-	t.Run("empty allowed list returns only defaults", func(t *testing.T) {
-		network := &NetworkPermissions{
-			Allowed: []string{},
-		}
-		result := GetCodexAllowedDomains(network)
-		// Empty allowed list should still return Codex defaults
-		if result != "172.30.0.1,api.openai.com,host.docker.internal,openai.com" {
-			t.Errorf("Expected '172.30.0.1,api.openai.com,host.docker.internal,openai.com', got %q", result)
-		}
-	})
-}
-
 func TestClaudeDefaultDomains(t *testing.T) {
 	// Verify that critical Claude domains are present
 	criticalDomains := []string{
@@ -398,45 +355,6 @@ func TestClaudeDefaultDomains(t *testing.T) {
 	if len(ClaudeDefaultDomains) < len(criticalDomains) {
 		t.Errorf("ClaudeDefaultDomains has %d domains, expected at least %d", len(ClaudeDefaultDomains), len(criticalDomains))
 	}
-}
-
-func TestGetClaudeAllowedDomains(t *testing.T) {
-	t.Run("returns Claude defaults when no network permissions", func(t *testing.T) {
-		result := GetClaudeAllowedDomains(nil)
-		// Should contain Claude default domains
-		if !strings.Contains(result, "api.anthropic.com") {
-			t.Error("Expected api.anthropic.com in result")
-		}
-		if !strings.Contains(result, "anthropic.com") {
-			t.Error("Expected anthropic.com in result")
-		}
-	})
-
-	t.Run("merges network permissions with Claude defaults", func(t *testing.T) {
-		network := &NetworkPermissions{
-			Allowed: []string{"custom.example.com"},
-		}
-		result := GetClaudeAllowedDomains(network)
-		// Should contain both Claude defaults and custom domain
-		if !strings.Contains(result, "api.anthropic.com") {
-			t.Error("Expected api.anthropic.com in result")
-		}
-		if !strings.Contains(result, "custom.example.com") {
-			t.Error("Expected custom.example.com in result")
-		}
-	})
-
-	t.Run("domains are sorted", func(t *testing.T) {
-		result := GetClaudeAllowedDomains(nil)
-		// Should be comma-separated and sorted
-		domains := strings.Split(result, ",")
-		for i := 1; i < len(domains); i++ {
-			if domains[i-1] > domains[i] {
-				t.Errorf("Domains not sorted: %s > %s", domains[i-1], domains[i])
-				break
-			}
-		}
-	})
 }
 
 // TestGetAllowedDomains_ModeDefaultsWithAllowedList verifies that when there's an Allowed list

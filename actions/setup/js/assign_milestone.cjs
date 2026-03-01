@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_milestone";
@@ -20,6 +21,7 @@ async function main(config = {}) {
   // Extract configuration
   const allowedMilestones = config.allowed || [];
   const maxCount = config.max || 10;
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -77,7 +79,7 @@ async function main(config = {}) {
     // Fetch milestones if needed and not already cached
     if (allowedMilestones.length > 0 && allMilestones === null) {
       try {
-        const milestonesResponse = await github.rest.issues.listMilestones({
+        const milestonesResponse = await authClient.rest.issues.listMilestones({
           owner: context.repo.owner,
           repo: context.repo.repo,
           state: "all",
@@ -133,7 +135,7 @@ async function main(config = {}) {
         };
       }
 
-      await github.rest.issues.update({
+      await authClient.rest.issues.update({
         owner: context.repo.owner,
         repo: context.repo.repo,
         issue_number: issueNumber,

@@ -10,80 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
-
-func TestCalculateDirectorySize(t *testing.T) {
-	tests := []struct {
-		name     string
-		setup    func(t *testing.T) string
-		expected int64
-	}{
-		{
-			name: "empty directory",
-			setup: func(t *testing.T) string {
-				dir := testutil.TempDir(t, "test-*")
-				return dir
-			},
-			expected: 0,
-		},
-		{
-			name: "single file",
-			setup: func(t *testing.T) string {
-				dir := testutil.TempDir(t, "test-*")
-				err := os.WriteFile(filepath.Join(dir, "test.txt"), []byte("hello"), 0644)
-				if err != nil {
-					t.Fatal(err)
-				}
-				return dir
-			},
-			expected: 5,
-		},
-		{
-			name: "multiple files in nested directories",
-			setup: func(t *testing.T) string {
-				dir := testutil.TempDir(t, "test-*")
-				// File 1: 10 bytes
-				err := os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("0123456789"), 0644)
-				if err != nil {
-					t.Fatal(err)
-				}
-				// Create subdirectory
-				subdir := filepath.Join(dir, "subdir")
-				err = os.Mkdir(subdir, 0755)
-				if err != nil {
-					t.Fatal(err)
-				}
-				// File 2: 5 bytes
-				err = os.WriteFile(filepath.Join(subdir, "file2.txt"), []byte("hello"), 0644)
-				if err != nil {
-					t.Fatal(err)
-				}
-				return dir
-			},
-			expected: 15,
-		},
-		{
-			name: "nonexistent directory",
-			setup: func(t *testing.T) string {
-				return "/nonexistent/path/that/does/not/exist"
-			},
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := tt.setup(t)
-			got := fileutil.CalculateDirectorySize(dir)
-			if got != tt.expected {
-				t.Errorf("fileutil.CalculateDirectorySize() = %d, want %d", got, tt.expected)
-			}
-		})
-	}
-}
 
 func TestParseDurationString(t *testing.T) {
 	tests := []struct {
@@ -476,23 +405,5 @@ func TestAuditReportFileListingIntegration(t *testing.T) {
 
 	if _, ok := parsed["downloaded_files"]; !ok {
 		t.Error("Expected 'downloaded_files' field in JSON output")
-	}
-
-	// Verify markdown report generation
-	report := generateAuditReport(processedRun, metrics, files)
-
-	// Check report contains expected sections and file listings
-	expectedInReport := []string{
-		"## Downloaded Files",
-		"aw_info.json",
-		"Engine configuration",
-		"safe_output.jsonl",
-		"Safe outputs",
-	}
-
-	for _, expected := range expectedInReport {
-		if !strings.Contains(report, expected) {
-			t.Errorf("Expected markdown report to contain: %s", expected)
-		}
 	}
 }

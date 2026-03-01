@@ -105,11 +105,6 @@ func BuildBooleanLiteral(value bool) *BooleanLiteralNode {
 	return &BooleanLiteralNode{Value: value}
 }
 
-// BuildNumberLiteral creates a number literal node
-func BuildNumberLiteral(value string) *NumberLiteralNode {
-	return &NumberLiteralNode{Value: value}
-}
-
 // BuildNullLiteral creates a null literal node
 func BuildNullLiteral() *ExpressionNode {
 	return &ExpressionNode{Expression: "null"}
@@ -130,35 +125,9 @@ func BuildNotEquals(left ConditionNode, right ConditionNode) *ComparisonNode {
 	return BuildComparison(left, "!=", right)
 }
 
-// BuildContains creates a contains() function call node
-func BuildContains(array ConditionNode, value ConditionNode) *ContainsNode {
-	return &ContainsNode{Array: array, Value: value}
-}
-
 // BuildFunctionCall creates a function call node
 func BuildFunctionCall(functionName string, args ...ConditionNode) *FunctionCallNode {
 	return &FunctionCallNode{FunctionName: functionName, Arguments: args}
-}
-
-// BuildTernary creates a ternary conditional expression
-func BuildTernary(condition ConditionNode, trueValue ConditionNode, falseValue ConditionNode) *TernaryNode {
-	return &TernaryNode{Condition: condition, TrueValue: trueValue, FalseValue: falseValue}
-}
-
-// BuildLabelContains creates a condition to check if an issue/PR contains a specific label
-func BuildLabelContains(labelName string) *ContainsNode {
-	return BuildContains(
-		BuildPropertyAccess("github.event.issue.labels.*.name"),
-		BuildStringLiteral(labelName),
-	)
-}
-
-// BuildActionEquals creates a condition to check if the event action equals a specific value
-func BuildActionEquals(action string) *ComparisonNode {
-	return BuildEquals(
-		BuildPropertyAccess("github.event.action"),
-		BuildStringLiteral(action),
-	)
 }
 
 // BuildNotFromFork creates a condition to check that a pull request is not from a forked repository
@@ -257,22 +226,6 @@ func BuildEventTypeEquals(eventType string) *ComparisonNode {
 	)
 }
 
-// BuildRefStartsWith creates a condition to check if github.ref starts with a prefix
-func BuildRefStartsWith(prefix string) *FunctionCallNode {
-	return BuildFunctionCall("startsWith",
-		BuildPropertyAccess("github.ref"),
-		BuildStringLiteral(prefix),
-	)
-}
-
-// BuildExpressionWithDescription creates an expression node with an optional description
-func BuildExpressionWithDescription(expression, description string) *ExpressionNode {
-	return &ExpressionNode{
-		Expression:  expression,
-		Description: description,
-	}
-}
-
 // BuildDisjunction creates a disjunction node (OR operation) from the given terms
 // Handles arrays of size 0, 1, or more correctly
 // The multiline parameter controls whether to render each term on a separate line
@@ -280,38 +233,6 @@ func BuildDisjunction(multiline bool, terms ...ConditionNode) *DisjunctionNode {
 	return &DisjunctionNode{
 		Terms:     terms,
 		Multiline: multiline,
-	}
-}
-
-// BuildPRCommentCondition creates a condition to check if the event is a comment on a pull request
-// This checks for:
-// - issue_comment on a PR (github.event.issue.pull_request != null)
-// - pull_request_review_comment
-// - pull_request_review
-func BuildPRCommentCondition() ConditionNode {
-	// issue_comment event on a PR
-	issueCommentOnPR := BuildAnd(
-		BuildEventTypeEquals("issue_comment"),
-		BuildComparison(
-			BuildPropertyAccess("github.event.issue.pull_request"),
-			"!=",
-			&ExpressionNode{Expression: "null"},
-		),
-	)
-
-	// pull_request_review_comment event
-	prReviewComment := BuildEventTypeEquals("pull_request_review_comment")
-
-	// pull_request_review event
-	prReview := BuildEventTypeEquals("pull_request_review")
-
-	// Combine all conditions with OR
-	return &DisjunctionNode{
-		Terms: []ConditionNode{
-			issueCommentOnPR,
-			prReviewComment,
-			prReview,
-		},
 	}
 }
 
@@ -325,24 +246,4 @@ func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent 
 	for line := range lines {
 		yaml.WriteString(indent + line + "\n")
 	}
-}
-
-// AddDetectionSuccessCheck adds a check for detection success to an existing condition.
-// Detection runs inline in the agent job and outputs detection_success.
-// This ensures safe output jobs only run when threat detection passes.
-func AddDetectionSuccessCheck(existingCondition string) string {
-	// Build the detection success check referencing the agent job's detection_success output
-	detectionSuccess := BuildComparison(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.detection_success", constants.AgentJobName)),
-		"==",
-		BuildStringLiteral("true"),
-	)
-
-	// If there's an existing condition, AND it with the detection check
-	if existingCondition != "" {
-		return fmt.Sprintf("(%s) && (%s)", existingCondition, detectionSuccess.Render())
-	}
-
-	// If no existing condition, just return the detection check
-	return detectionSuccess.Render()
 }

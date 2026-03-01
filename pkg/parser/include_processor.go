@@ -17,11 +17,6 @@ var includeLog = logger.New("parser:include_processor")
 
 // ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
 // This matches the bash process_includes function behavior
-func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
-	includeLog.Printf("Processing includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
-	visited := make(map[string]bool)
-	return processIncludesWithVisited(content, baseDir, extractTools, visited)
-}
 
 // processIncludesWithVisited processes import directives with cycle detection
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {

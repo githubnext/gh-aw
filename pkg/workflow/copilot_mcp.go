@@ -88,6 +88,7 @@ func (e *CopilotEngine) renderCopilotMCPConfigWithContext(yaml *strings.Builder,
 	// Determine if localhost URLs should be rewritten to host.docker.internal
 	// This is needed when firewall is enabled (agent is not disabled)
 	rewriteLocalhost := shouldRewriteLocalhostToDocker(workflowData)
+	copilotMCPLog.Printf("Localhost URL rewriting for tool %s: enabled=%t", toolName, rewriteLocalhost)
 
 	// Use the shared renderer with copilot-specific requirements
 	renderer := MCPConfigRenderer{

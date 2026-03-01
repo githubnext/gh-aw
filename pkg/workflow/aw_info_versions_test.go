@@ -140,7 +140,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
 			output := yaml.String()
 
-			expectedLine := `cli_version: "` + tt.cliVersion + `"`
+			expectedLine := `GH_AW_INFO_CLI_VERSION: "` + tt.cliVersion + `"`
 			containsVersion := strings.Contains(output, expectedLine)
 
 			if tt.shouldInclude {
@@ -150,8 +150,8 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 				}
 			} else {
 				// For dev builds, cli_version should not appear at all
-				if strings.Contains(output, "cli_version:") {
-					t.Errorf("%s: Expected output to NOT contain 'cli_version:' field, got:\n%s",
+				if strings.Contains(output, "GH_AW_INFO_CLI_VERSION:") {
+					t.Errorf("%s: Expected output to NOT contain 'GH_AW_INFO_CLI_VERSION:' field, got:\n%s",
 						tt.description, output)
 				}
 			}
@@ -216,7 +216,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
 			output := yaml.String()
 
-			expectedLine := `awf_version: "` + tt.expectedAwfVersion + `"`
+			expectedLine := `GH_AW_INFO_AWF_VERSION: "` + tt.expectedAwfVersion + `"`
 			if !strings.Contains(output, expectedLine) {
 				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
 					tt.description, expectedLine, output)
@@ -256,13 +256,13 @@ func TestBothVersionsInAwInfo(t *testing.T) {
 	output := yaml.String()
 
 	// Check for cli_version
-	expectedCLILine := `cli_version: "2.0.0-beta.5"`
+	expectedCLILine := `GH_AW_INFO_CLI_VERSION: "2.0.0-beta.5"`
 	if !strings.Contains(output, expectedCLILine) {
 		t.Errorf("Expected output to contain cli_version '%s', got:\n%s", expectedCLILine, output)
 	}
 
 	// Check for awf_version
-	expectedAwfLine := `awf_version: "v0.5.0"`
+	expectedAwfLine := `GH_AW_INFO_AWF_VERSION: "v0.5.0"`
 	if !strings.Contains(output, expectedAwfLine) {
 		t.Errorf("Expected output to contain awf_version '%s', got:\n%s", expectedAwfLine, output)
 	}
@@ -320,7 +320,7 @@ func TestAwmgVersionInAwInfo(t *testing.T) {
 			compiler.generateCreateAwInfo(&yaml, workflowData, engine)
 			output := yaml.String()
 
-			expectedLine := `awmg_version: "` + tt.expectedAwmgVersion + `"`
+			expectedLine := `GH_AW_INFO_AWMG_VERSION: "` + tt.expectedAwmgVersion + `"`
 			if !strings.Contains(output, expectedLine) {
 				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
 					tt.description, expectedLine, output)
@@ -365,19 +365,19 @@ func TestAllVersionsInAwInfo(t *testing.T) {
 	output := yaml.String()
 
 	// Check for cli_version
-	expectedCLILine := `cli_version: "2.0.0-beta.5"`
+	expectedCLILine := `GH_AW_INFO_CLI_VERSION: "2.0.0-beta.5"`
 	if !strings.Contains(output, expectedCLILine) {
 		t.Errorf("Expected output to contain cli_version '%s', got:\n%s", expectedCLILine, output)
 	}
 
 	// Check for awf_version
-	expectedAwfLine := `awf_version: "v0.5.0"`
+	expectedAwfLine := `GH_AW_INFO_AWF_VERSION: "v0.5.0"`
 	if !strings.Contains(output, expectedAwfLine) {
 		t.Errorf("Expected output to contain awf_version '%s', got:\n%s", expectedAwfLine, output)
 	}
 
 	// Check for awmg_version
-	expectedAwmgLine := `awmg_version: "v0.0.12"`
+	expectedAwmgLine := `GH_AW_INFO_AWMG_VERSION: "v0.0.12"`
 	if !strings.Contains(output, expectedAwmgLine) {
 		t.Errorf("Expected output to contain awmg_version '%s', got:\n%s", expectedAwmgLine, output)
 	}

@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -142,23 +141,4 @@ func getLogsDataSchema() LogsDataSchema {
 			},
 		},
 	}
-}
-
-// formatGuardrailMessage creates a user-friendly text message from the guardrail response
-func formatGuardrailMessage(guardrail MCPLogsGuardrailResponse) string {
-	var builder strings.Builder
-
-	builder.WriteString(guardrail.Message)
-	builder.WriteString("\n\n")
-
-	builder.WriteString("📋 Output Schema:\n")
-	fmt.Fprintf(&builder, "  Type: %s\n", guardrail.Schema.Type)
-	fmt.Fprintf(&builder, "  Description: %s\n\n", guardrail.Schema.Description)
-
-	builder.WriteString("Available fields:\n")
-	for field, schema := range guardrail.Schema.Fields {
-		fmt.Fprintf(&builder, "  - %s (%s): %s\n", field, schema.Type, schema.Description)
-	}
-
-	return builder.String()
 }

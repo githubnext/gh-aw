@@ -43,12 +43,6 @@ func TestToolGraph(t *testing.T) {
 	if !strings.Contains(mermaid, "stateDiagram-v2") {
 		t.Error("Expected Mermaid graph to use stateDiagram-v2 syntax")
 	}
-
-	// Test summary generation
-	summary := graph.GetSummary()
-	if summary == "" {
-		t.Error("Expected non-empty summary")
-	}
 }
 
 func TestToolGraphMultipleSequences(t *testing.T) {

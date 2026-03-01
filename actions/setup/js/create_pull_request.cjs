@@ -20,6 +20,7 @@ const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -103,6 +104,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const authClient = await createAuthenticatedGitHubClient(config);
 
   // Base branch from config (if set) - validated at factory level if explicit
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
@@ -745,7 +747,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
         try {
-          const { data: issue } = await github.rest.issues.create({
+          const { data: issue } = await authClient.rest.issues.create({
             owner: repoParts.owner,
             repo: repoParts.repo,
             title: title,
@@ -756,7 +758,7 @@ ${patchPreview}`;
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
 
           // Update the activation comment with issue link (if a comment was created)
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+          await updateActivationComment(authClient, context, core, issue.html_url, issue.number, "issue");
 
           // Write summary to GitHub Actions summary
           await core.summary
@@ -865,7 +867,7 @@ ${patchPreview}`;
 
     // Try to create the pull request, with fallback to issue creation
     try {
-      const { data: pullRequest } = await github.rest.pulls.create({
+      const { data: pullRequest } = await authClient.rest.pulls.create({
         owner: repoParts.owner,
         repo: repoParts.repo,
         title: title,
@@ -879,7 +881,7 @@ ${patchPreview}`;
 
       // Add labels if specified
       if (labels.length > 0) {
-        await github.rest.issues.addLabels({
+        await authClient.rest.issues.addLabels({
           owner: repoParts.owner,
           repo: repoParts.repo,
           issue_number: pullRequest.number,
@@ -891,7 +893,7 @@ ${patchPreview}`;
       // Enable auto-merge if configured
       if (autoMerge) {
         try {
-          await github.graphql(
+          await authClient.graphql(
             `mutation($prId: ID!) {
               enablePullRequestAutoMerge(input: {pullRequestId: $prId}) {
                 pullRequest {
@@ -910,7 +912,7 @@ ${patchPreview}`;
       }
 
       // Update the activation comment with PR link (if a comment was created)
-      await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+      await updateActivationComment(authClient, context, core, pullRequest.html_url, pullRequest.number);
 
       // Write summary to GitHub Actions summary
       await core.summary
@@ -1007,7 +1009,7 @@ gh pr create --title "${title}" --base ${baseBranch} --head ${branchName} --repo
 ${patchPreview}`;
 
       try {
-        const { data: issue } = await github.rest.issues.create({
+        const { data: issue } = await authClient.rest.issues.create({
           owner: repoParts.owner,
           repo: repoParts.repo,
           title: title,
@@ -1018,7 +1020,7 @@ ${patchPreview}`;
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
 
         // Update the activation comment with issue link (if a comment was created)
-        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+        await updateActivationComment(authClient, context, core, issue.html_url, issue.number, "issue");
 
         // Return success with fallback flag
         return {

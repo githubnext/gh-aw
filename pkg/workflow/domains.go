@@ -454,18 +454,6 @@ func extractPlaywrightDomains(tools map[string]any) []string {
 	return []string{}
 }
 
-// mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
-	return mergeDomainsWithNetworkAndTools(defaultDomains, network, nil)
-}
-
-// mergeDomainsWithNetworkAndTools combines default domains with NetworkPermissions allowed domains and HTTP MCP server domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func mergeDomainsWithNetworkAndTools(defaultDomains []string, network *NetworkPermissions, tools map[string]any) string {
-	return mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains, network, tools, nil)
-}
-
 // mergeDomainsWithNetworkToolsAndRuntimes combines default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
@@ -538,66 +526,16 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 	return mergeDomainsWithNetworkToolsAndRuntimes(engineDefaultDomains[engine], network, tools, runtimes)
 }
 
-// GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCopilotAllowedDomains(network *NetworkPermissions) string {
-	return mergeDomainsWithNetwork(CopilotDefaultDomains, network)
-}
-
-// GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-// Deprecated: hasSafeInputs is no longer used; call GetCopilotAllowedDomains instead
-func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
-	return GetCopilotAllowedDomains(network)
-}
-
-// GetCopilotAllowedDomainsWithTools merges Copilot default domains with NetworkPermissions allowed domains and HTTP MCP server domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCopilotAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
-	return mergeDomainsWithNetworkAndTools(CopilotDefaultDomains, network, tools)
-}
-
 // GetCopilotAllowedDomainsWithToolsAndRuntimes merges Copilot default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return GetAllowedDomainsForEngine(constants.CopilotEngine, network, tools, runtimes)
 }
 
-// GetCodexAllowedDomains merges Codex default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCodexAllowedDomains(network *NetworkPermissions) string {
-	return mergeDomainsWithNetwork(CodexDefaultDomains, network)
-}
-
-// GetCodexAllowedDomainsWithTools merges Codex default domains with NetworkPermissions allowed domains and HTTP MCP server domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCodexAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
-	return mergeDomainsWithNetworkAndTools(CodexDefaultDomains, network, tools)
-}
-
 // GetCodexAllowedDomainsWithToolsAndRuntimes merges Codex default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCodexAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return GetAllowedDomainsForEngine(constants.CodexEngine, network, tools, runtimes)
-}
-
-// GetClaudeAllowedDomains merges Claude default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetClaudeAllowedDomains(network *NetworkPermissions) string {
-	return mergeDomainsWithNetwork(ClaudeDefaultDomains, network)
-}
-
-// GetClaudeAllowedDomainsWithSafeInputs merges Claude default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-// Deprecated: hasSafeInputs is no longer used; call GetClaudeAllowedDomains instead
-func GetClaudeAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
-	return GetClaudeAllowedDomains(network)
-}
-
-// GetClaudeAllowedDomainsWithTools merges Claude default domains with NetworkPermissions allowed domains and HTTP MCP server domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetClaudeAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
-	return mergeDomainsWithNetworkAndTools(ClaudeDefaultDomains, network, tools)
 }
 
 // GetClaudeAllowedDomainsWithToolsAndRuntimes merges Claude default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains

@@ -24,6 +24,7 @@ func buildForbiddenFieldsMap() map[string]bool {
 
 // validateSharedWorkflowFields checks that a shared workflow doesn't contain forbidden fields
 func validateSharedWorkflowFields(frontmatter map[string]any) error {
+	schemaValidationLog.Printf("Checking shared workflow for forbidden fields: %d fields present", len(frontmatter))
 	var forbiddenFound []string
 
 	for key := range frontmatter {
@@ -33,6 +34,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 	}
 
 	if len(forbiddenFound) > 0 {
+		schemaValidationLog.Printf("Found %d forbidden field(s) in shared workflow: %v", len(forbiddenFound), forbiddenFound)
 		if len(forbiddenFound) == 1 {
 			return fmt.Errorf("field '%s' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound[0])
 		}
@@ -52,31 +54,10 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 //   - Invalid additional properties (e.g., unknown fields)
 //
 // See pkg/parser/schema_passthrough_validation_test.go for comprehensive test coverage.
-func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
-	schemaValidationLog.Print("Validating main workflow frontmatter with schema")
-
-	// Filter out ignored fields before validation
-	filtered := filterIgnoredFields(frontmatter)
-
-	// First run custom validation for command trigger conflicts (provides better error messages)
-	if err := validateCommandTriggerConflicts(filtered); err != nil {
-		schemaValidationLog.Printf("Command trigger validation failed: %v", err)
-		return err
-	}
-
-	// Then run the standard schema validation
-	// This validates all fields including pass-through fields (concurrency, container, etc.)
-	if err := validateWithSchema(filtered, mainWorkflowSchema, "main workflow file"); err != nil {
-		schemaValidationLog.Printf("Schema validation failed for main workflow: %v", err)
-		return err
-	}
-
-	// Finally run other custom validation rules
-	return validateEngineSpecificRules(filtered)
-}
 
 // ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
 func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
+	schemaValidationLog.Printf("Validating main workflow frontmatter: file=%s, fields=%d", filePath, len(frontmatter))
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
@@ -95,37 +76,10 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 }
 
 // ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
-func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error {
-	schemaValidationLog.Print("Validating included file frontmatter with schema")
-
-	// Filter out ignored fields before validation
-	filtered := filterIgnoredFields(frontmatter)
-
-	// First check for forbidden fields in shared workflows
-	if err := validateSharedWorkflowFields(filtered); err != nil {
-		schemaValidationLog.Printf("Shared workflow field validation failed: %v", err)
-		return err
-	}
-
-	// To validate shared workflows against the main schema, we temporarily add an 'on' field
-	// This allows us to use the full schema validation while still enforcing the forbidden field check above
-	tempFrontmatter := make(map[string]any)
-	maps.Copy(tempFrontmatter, filtered)
-	// Add a temporary 'on' field to satisfy the schema's required field
-	tempFrontmatter["on"] = "push"
-
-	// Validate with the main schema (which will catch unknown fields)
-	if err := validateWithSchema(tempFrontmatter, mainWorkflowSchema, "included file"); err != nil {
-		schemaValidationLog.Printf("Schema validation failed for included file: %v", err)
-		return err
-	}
-
-	// Run custom validation for engine-specific rules
-	return validateEngineSpecificRules(filtered)
-}
 
 // ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
 func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
+	schemaValidationLog.Printf("Validating included file frontmatter: file=%s, fields=%d", filePath, len(frontmatter))
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
@@ -150,7 +104,3 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 }
 
 // ValidateMCPConfigWithSchema validates MCP configuration using JSON schema
-func ValidateMCPConfigWithSchema(mcpConfig map[string]any, toolName string) error {
-	schemaValidationLog.Printf("Validating MCP configuration for tool: %s", toolName)
-	return validateWithSchema(mcpConfig, mcpConfigSchema, fmt.Sprintf("MCP configuration for tool '%s'", toolName))
-}

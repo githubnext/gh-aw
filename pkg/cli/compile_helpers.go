@@ -181,65 +181,6 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	return stats, nil
 }
 
-// compileModifiedFiles compiles a list of modified markdown files
-func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose bool) {
-	if len(files) == 0 {
-		return
-	}
-
-	// Clear screen before emitting new output in watch mode
-	console.ClearScreen()
-
-	fmt.Fprintln(os.Stderr, "Watching for file changes")
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling %d modified file(s)...", len(files))))
-	}
-
-	// Reset warning count before compilation
-	compiler.ResetWarningCount()
-
-	// Track compilation statistics
-	stats := &CompilationStats{}
-
-	for _, file := range files {
-		compileSingleFile(compiler, file, stats, verbose, true)
-	}
-
-	// Get warning count from compiler
-	stats.Warnings = compiler.GetWarningCount()
-
-	// Save the action cache after compilations
-	actionCache := compiler.GetSharedActionCache()
-	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
-	successCount := stats.Total - stats.Errors
-
-	if actionCache != nil {
-		if err := actionCache.Save(); err != nil {
-			compileHelpersLog.Printf("Failed to save action cache: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
-			}
-		} else {
-			compileHelpersLog.Print("Action cache saved successfully")
-		}
-	}
-
-	// Ensure .gitattributes marks .lock.yml files as generated
-	// Only update if we successfully compiled workflows or have action cache entries
-	if successCount > 0 || hasActionCacheEntries {
-		if err := ensureGitAttributes(); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
-			}
-		}
-	} else {
-		compileHelpersLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
-	}
-
-	// Print summary instead of just "Recompiled"
-	printCompilationSummary(stats)
-}
-
 // compileModifiedFilesWithDependencies compiles modified files and their dependencies using the dependency graph
 func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph *DependencyGraph, files []string, verbose bool) {
 	if len(files) == 0 {

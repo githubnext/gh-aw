@@ -29,6 +29,14 @@ const mockContext = {
 
 global.core = mockCore;
 global.context = mockContext;
+global.github = {
+  rest: {
+    pulls: {
+      get: vi.fn().mockResolvedValue({ data: {} }),
+    },
+  },
+  graphql: vi.fn().mockResolvedValue({}),
+};
 
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 
@@ -52,6 +60,16 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
           head: { sha: "test-sha" },
         },
       },
+    };
+
+    // Reset github to default mock for each test (some tests delete global.github)
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: {} }),
+        },
+      },
+      graphql: vi.fn().mockResolvedValue({}),
     };
 
     // Create a fresh buffer for each test (factory pattern, no global state)

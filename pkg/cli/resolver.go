@@ -61,11 +61,3 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 		suggestions,
 	))
 }
-
-// NormalizeWorkflowFile normalizes a workflow file name by adding .md extension if missing
-func NormalizeWorkflowFile(workflowFile string) string {
-	if !strings.HasSuffix(workflowFile, ".md") {
-		return workflowFile + ".md"
-	}
-	return workflowFile
-}
