@@ -199,10 +199,10 @@ func TestApplyActionPinToStep(t *testing.T) {
 			name: "step with pinned action (checkout)",
 			stepMap: map[string]any{
 				"name": "Checkout code",
-				"uses": "actions/checkout@v5",
+				"uses": "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -238,10 +238,10 @@ func TestApplyActionPinToStep(t *testing.T) {
 			name: "step with already pinned SHA",
 			stepMap: map[string]any{
 				"name": "Checkout",
-				"uses": "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
+				"uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2",
 		},
 	}
 
@@ -297,9 +297,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (33 as of February 2026)
-	if len(pins) != 33 {
-		t.Errorf("getActionPins() returned %d pins, expected 33", len(pins))
+	// Verify we got all the pins (30 as of March 2026)
+	if len(pins) != 30 {
+		t.Errorf("getActionPins() returned %d pins, expected 30", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -392,10 +392,10 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			name: "step with pinned action (checkout)",
 			step: &WorkflowStep{
 				Name: "Checkout code",
-				Uses: "actions/checkout@v5",
+				Uses: "actions/checkout@v6",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -438,7 +438,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			step: &WorkflowStep{
 				Name: "Complex step",
 				ID:   "test-id",
-				Uses: "actions/checkout@v5",
+				Uses: "actions/checkout@v6",
 				With: map[string]any{
 					"fetch-depth": "0",
 				},
@@ -447,7 +447,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
 		},
 	}
 
@@ -975,13 +975,13 @@ func TestActionPinsCaching(t *testing.T) {
 	}
 }
 
-// TestGetActionPinWithData_V5ExactMatch verifies that v5.0.0 resolves to its exact SHA
-func TestGetActionPinWithData_V5ExactMatch(t *testing.T) {
+// TestGetActionPinWithData_V7ExactMatch verifies that v7 resolves to its exact SHA
+func TestGetActionPinWithData_V7ExactMatch(t *testing.T) {
 	data := &WorkflowData{
 		StrictMode: false,
 	}
 
-	result, err := GetActionPinWithData("actions/upload-artifact", "v5.0.0", data)
+	result, err := GetActionPinWithData("actions/upload-artifact", "v7", data)
 
 	if err != nil {
 		t.Fatalf("GetActionPinWithData returned error: %v", err)
@@ -993,13 +993,13 @@ func TestGetActionPinWithData_V5ExactMatch(t *testing.T) {
 
 	t.Logf("Result: %s", result)
 
-	// Should match v5.0.0 exactly, not fall back to v6.0.0
-	if !strings.Contains(result, "# v5.0.0") {
-		t.Errorf("Expected v5.0.0 in result, got: %s", result)
+	// Should match v7 exactly
+	if !strings.Contains(result, "# v7") {
+		t.Errorf("Expected v7 in result, got: %s", result)
 	}
 
-	// Check the SHA matches v5.0.0
-	expectedSHA := "330a01c490aca151604b8cf639adc76d48f6c5d4"
+	// Check the SHA matches v7
+	expectedSHA := "bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
 	if !strings.Contains(result, expectedSHA) {
 		t.Errorf("Expected SHA %s in result, got: %s", expectedSHA, result)
 	}
@@ -1368,10 +1368,10 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 			name: "valid step with action - should pin",
 			stepMap: map[string]any{
 				"name": "Checkout",
-				"uses": "actions/checkout@v5",
+				"uses": "actions/checkout@v6",
 			},
 			wantErr:      false,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6",
 		},
 		{
 			name: "valid step with run - should not pin",

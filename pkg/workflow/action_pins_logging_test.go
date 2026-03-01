@@ -34,11 +34,11 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			expectMismatch:     true,
 		},
 		{
-			name:               "setup-dotnet v4 resolves to v4.3.1 pin but comment shows v4",
+			name:               "setup-dotnet v5 resolves to v5.1.0 pin but comment shows v5",
 			repo:               "actions/setup-dotnet",
-			requestedVer:       "v4",
-			expectedCommentVer: "v4", // Comment shows requested version
-			fallbackPinVer:     "v4.3.1",
+			requestedVer:       "v5",
+			expectedCommentVer: "v5", // Comment shows requested version
+			fallbackPinVer:     "v5.1.0",
 			expectMismatch:     true,
 		},
 		{
@@ -50,11 +50,11 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			expectMismatch:     false, // No mismatch since exact match found
 		},
 		{
-			name:               "checkout v5.0.1 exact match",
+			name:               "checkout v6.0.2 exact match",
 			repo:               "actions/checkout",
-			requestedVer:       "v5.0.1",
-			expectedCommentVer: "v5.0.1",
-			fallbackPinVer:     "v5.0.1",
+			requestedVer:       "v6.0.2",
+			expectedCommentVer: "v6.0.2",
+			fallbackPinVer:     "v6.0.2",
 			expectMismatch:     false,
 		},
 	}
@@ -136,9 +136,9 @@ func TestActionPinResolutionWithStrictMode(t *testing.T) {
 			expectSuccess: false,
 		},
 		{
-			name:          "checkout v5.0.1 succeeds in strict mode",
+			name:          "checkout v6.0.2 succeeds in strict mode",
 			repo:          "actions/checkout",
-			requestedVer:  "v5.0.1",
+			requestedVer:  "v6.0.2",
 			expectWarning: false,
 			expectSuccess: true,
 		},
