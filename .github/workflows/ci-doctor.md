@@ -112,7 +112,7 @@ steps:
         -name "*.txt" -o -name "*.log" -o -name "*.json" \
         -o -name "*.xml" -o -name "*.out" -o -name "*.err" \
       \) | while read -r ARTIFACT_FILE; do
-        REL_PATH="${ARTIFACT_FILE#$ARTIFACT_DIR/}"
+        REL_PATH="${ARTIFACT_FILE#"$ARTIFACT_DIR"/}"
         SAFE_NAME=$(echo "$REL_PATH" | tr '/' '_')
         HINTS_FILE="$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt"
         grep -n -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \
