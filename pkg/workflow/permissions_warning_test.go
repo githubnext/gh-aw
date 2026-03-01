@@ -33,7 +33,6 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues]
-    read-only: false
 ---
 
 # Test Workflow
@@ -52,7 +51,6 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues]
-    read-only: false
 ---
 
 # Test Workflow
@@ -67,11 +65,9 @@ tools:
 			content: `---
 on: push
 permissions:
-  contents: write
-  issues: write
+  contents: read
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [repos, issues]
@@ -181,7 +177,6 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues, pull_requests]
-    read-only: false
 ---
 
 # Test Workflow
