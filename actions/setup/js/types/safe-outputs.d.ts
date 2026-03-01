@@ -272,6 +272,17 @@ interface AssignMilestoneItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for setting the type of a GitHub issue
+ */
+interface SetIssueTypeItem extends BaseSafeOutputItem {
+  type: "set_issue_type";
+  /** Issue type name to set (e.g., "Bug", "Feature"). Use empty string "" to clear the type. */
+  issue_type: string;
+  /** Issue number (optional - uses triggering issue if not provided) */
+  issue_number?: number | string;
+}
+
+/**
  * JSONL item for assigning a GitHub Copilot coding agent to an issue or project item
  */
 interface AssignToAgentItem extends BaseSafeOutputItem {
@@ -400,6 +411,7 @@ type SafeOutputItem =
   | MissingToolItem
   | UploadAssetItem
   | AssignMilestoneItem
+  | SetIssueTypeItem
   | AssignToAgentItem
   | UpdateReleaseItem
   | NoOpItem
@@ -441,6 +453,7 @@ export {
   MissingToolItem,
   UploadAssetItem,
   AssignMilestoneItem,
+  SetIssueTypeItem,
   AssignToAgentItem,
   UpdateReleaseItem,
   NoOpItem,

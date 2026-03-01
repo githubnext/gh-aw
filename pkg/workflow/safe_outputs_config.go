@@ -287,6 +287,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.HideComment = hideCommentConfig
 			}
 
+			// Handle set-issue-type
+			setIssueTypeConfig := c.parseSetIssueTypeConfig(outputMap)
+			if setIssueTypeConfig != nil {
+				config.SetIssueType = setIssueTypeConfig
+			}
+
 			// Handle dispatch-workflow
 			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
 			if dispatchWorkflowConfig != nil {

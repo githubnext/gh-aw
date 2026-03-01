@@ -215,6 +215,14 @@ interface AssignMilestoneConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for setting the type of an issue
+ */
+interface SetIssueTypeConfig extends SafeOutputConfig {
+  allowed?: string[];
+  target?: string;
+}
+
+/**
  * Configuration for assigning agents to issues
  */
 interface AssignToAgentConfig extends SafeOutputConfig {
@@ -319,6 +327,7 @@ type SpecificSafeOutputConfig =
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | AssignMilestoneConfig
+  | SetIssueTypeConfig
   | AssignToAgentConfig
   | UpdateReleaseConfig
   | NoOpConfig
@@ -354,6 +363,7 @@ export {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   AssignMilestoneConfig,
+  SetIssueTypeConfig,
   AssignToAgentConfig,
   UpdateReleaseConfig,
   NoOpConfig,
