@@ -75,7 +75,7 @@ steps:
         if gh pr view "$pr_number" \
           --repo "${{ github.repository }}" \
           --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
-          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err; then
+          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>"/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err"; then
           echo "Downloaded PR #$pr_number"
         else
           echo "Warning: Failed to download PR #$pr_number (skipping)"
