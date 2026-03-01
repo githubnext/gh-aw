@@ -101,6 +101,11 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_github_event_name",
+			content:     "Event: ${{ github.event_name }}",
+			expectError: false,
+		},
+		{
 			name:        "multiple_allowed_expressions",
 			content:     "Workflow: ${{ github.workflow }}, Repository: ${{ github.repository }}, Output: ${{ steps.sanitized.outputs.text }}",
 			expectError: false,

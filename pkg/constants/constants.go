@@ -549,6 +549,7 @@ var AllowedExpressions = []string{
 	"github.event.pull_request.head.sha",
 	"github.event.pull_request.base.sha",
 	"github.actor",
+	"github.event_name",
 	"github.job",
 	"github.owner",
 	"github.repository",
