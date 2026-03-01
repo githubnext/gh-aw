@@ -138,11 +138,11 @@ features:
 10. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
 11. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
 12. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`.
-13. **Set Issue Type Testing**: Use the `set_issue_type` safe-output tool to set the type of the issue created in step 1 to "Bug". Use the temporary ID from step 1 to reference the issue.
 
 ## Output
 
 1. **Create an issue** with a summary of the smoke test run:
+   - Use a temporary ID (e.g. `aw_smoke1`) for the issue so you can reference it later
    - Title: "Smoke Test: Copilot - ${{ github.run_id }}"
    - Body should include:
      - Test results (✅ or ❌ for each test)
@@ -151,15 +151,17 @@ features:
      - Timestamp
      - Pull request author and assignees
 
-2. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
+2. **Set Issue Type**: Use the `set_issue_type` safe-output tool with `issue_number: "aw_smoke1"` (the temporary ID from step 1) and `issue_type: "Bug"` to set the type of the just-created smoke test issue.
+
+3. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
    - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-3. Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 8) - be playful and entertaining in your comment
+4. Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 8) - be playful and entertaining in your comment
 
-4. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
+5. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
 
 If all tests pass and this workflow was triggered by a pull_request event:
 - Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request (omit the `item_number` parameter to auto-target the triggering PR)

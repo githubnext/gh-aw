@@ -6,8 +6,10 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_type";
@@ -93,6 +95,7 @@ async function main(config = {}) {
   // Extract configuration
   const allowedTypes = config.allowed || [];
   const maxCount = config.max || 5;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const authClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
@@ -101,6 +104,10 @@ async function main(config = {}) {
   core.info(`Set issue type configuration: max=${maxCount}`);
   if (allowedTypes.length > 0) {
     core.info(`Allowed issue types: ${allowedTypes.join(", ")}`);
+  }
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
 
   // Track how many items we've processed for max limit
@@ -126,13 +133,55 @@ async function main(config = {}) {
 
     const item = message;
 
-    // Determine target issue number
-    const issueNumber = item.issue_number !== undefined ? parseInt(String(item.issue_number), 10) : (context.payload?.issue?.number ?? null);
+    // Build temporary ID map from resolved IDs
+    const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
-    if (!issueNumber || isNaN(issueNumber) || issueNumber <= 0) {
-      const error = item.issue_number !== undefined ? `Invalid issue_number: ${item.issue_number}` : "No issue number available";
-      core.warning(error);
-      return { success: false, error };
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");
+    if (!repoResult.success) {
+      core.warning(`Skipping set_issue_type: ${repoResult.error}`);
+      return {
+        success: false,
+        error: repoResult.error,
+      };
+    }
+    const { repo: itemRepo, repoParts } = repoResult;
+    core.info(`Target repository: ${itemRepo}`);
+
+    // Determine target issue number, with temporary ID support
+    let issueNumber;
+    if (item.issue_number !== undefined && item.issue_number !== null) {
+      const resolvedTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, repoParts.owner, repoParts.repo);
+
+      if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+        core.info(`Deferring set_issue_type: unresolved temporary ID (${item.issue_number})`);
+        return {
+          success: false,
+          deferred: true,
+          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${item.issue_number}`,
+        };
+      }
+
+      if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
+        core.warning(`Invalid issue_number: ${item.issue_number}`);
+        return {
+          success: false,
+          error: `Invalid issue_number: ${item.issue_number}`,
+        };
+      }
+
+      issueNumber = resolvedTarget.resolved.number;
+      core.info(`Resolved issue number: #${issueNumber}`);
+    } else {
+      const contextIssueNumber = context.payload?.issue?.number;
+      if (!contextIssueNumber) {
+        core.warning("No issue_number provided and not in issue context");
+        return {
+          success: false,
+          error: "No issue number available",
+        };
+      }
+      issueNumber = contextIssueNumber;
     }
 
     const issueTypeName = item.issue_type ?? "";
@@ -152,7 +201,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      const description = isClear ? `Would clear issue type on issue #${issueNumber}` : `Would set issue type to ${JSON.stringify(issueTypeName)} on issue #${issueNumber}`;
+      const description = isClear ? `Would clear issue type on issue #${issueNumber} in ${itemRepo}` : `Would set issue type to ${JSON.stringify(issueTypeName)} on issue #${issueNumber} in ${itemRepo}`;
       logStagedPreviewInfo(description);
       return {
         success: true,
@@ -160,13 +209,13 @@ async function main(config = {}) {
         previewInfo: {
           issue_number: issueNumber,
           issue_type: issueTypeName,
+          repo: itemRepo,
         },
       };
     }
 
     try {
-      const owner = context.repo.owner;
-      const repo = context.repo.repo;
+      const { owner, repo } = repoParts;
 
       // Get the issue's node ID for GraphQL
       const issueNodeId = await getIssueNodeId(authClient, owner, repo, issueNumber);
@@ -203,6 +252,7 @@ async function main(config = {}) {
         success: true,
         issue_number: issueNumber,
         issue_type: issueTypeName,
+        repo: itemRepo,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);

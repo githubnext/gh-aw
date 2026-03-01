@@ -6334,9 +6334,20 @@
                     }
                   ]
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for issue type: 'triggering' (default), '*' (any issue), or explicit issue number"
+                },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository issue type setting."
+                  "description": "Target repository in format 'owner/repo' for cross-repository issue type setting. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' where issue types can be set. When specified, the agent can use a 'repo' field in the output to specify which repository to target. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",

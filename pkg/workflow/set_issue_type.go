@@ -25,10 +25,8 @@ func (c *Compiler) parseSetIssueTypeConfig(outputMap map[string]any) *SetIssueTy
 	// Unmarshal into typed config struct
 	var config SetIssueTypeConfig
 	if err := unmarshalConfig(outputMap, "set-issue-type", &config, setIssueTypeLog); err != nil {
-		setIssueTypeLog.Printf("Failed to unmarshal config: %v", err)
-		// Handle null case: create empty config (allows any type)
-		setIssueTypeLog.Print("Using empty configuration (allows any issue type)")
-		return &SetIssueTypeConfig{}
+		setIssueTypeLog.Printf("Failed to unmarshal set-issue-type config, disabling handler: %v", err)
+		return nil
 	}
 
 	setIssueTypeLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
