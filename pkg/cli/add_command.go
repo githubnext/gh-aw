@@ -25,7 +25,6 @@ type AddOptions struct {
 	Force                  bool
 	AppendText             string
 	CreatePR               bool
-	Push                   bool
 	NoGitattributes        bool
 	FromWildcard           bool
 	WorkflowDir            string
@@ -273,55 +272,6 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 
 	if !opts.Quiet && len(workflows) > 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
-	}
-
-	// If --push is enabled, commit and push changes
-	if opts.Push {
-		addLog.Print("Push enabled - preparing to commit and push changes")
-		fmt.Fprintln(os.Stderr, "")
-
-		// Check if we're on the default branch
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking current branch..."))
-		if err := checkOnDefaultBranch(opts.Verbose); err != nil {
-			addLog.Printf("Default branch check failed: %v", err)
-			return fmt.Errorf("cannot push: %w", err)
-		}
-
-		// Confirm with user (skip in CI)
-		if err := confirmPushOperation(opts.Verbose); err != nil {
-			addLog.Printf("Push operation not confirmed: %v", err)
-			return fmt.Errorf("push operation cancelled: %w", err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
-
-		// Create commit message
-		var commitMessage string
-		if len(workflows) == 1 {
-			commitMessage = "chore: add workflow " + workflows[0].Spec.WorkflowName
-		} else {
-			commitMessage = fmt.Sprintf("chore: add %d workflows", len(workflows))
-		}
-
-		// Use the helper function to orchestrate the full workflow
-		if err := commitAndPushChanges(commitMessage, opts.Verbose); err != nil {
-			// Check if it's the "no changes" case
-			hasChanges, checkErr := hasChangesToCommit()
-			if checkErr == nil && !hasChanges {
-				addLog.Print("No changes to commit")
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
-			} else {
-				return err
-			}
-		} else {
-			// Print success messages based on whether remote exists
-			fmt.Fprintln(os.Stderr, "")
-			if hasRemote() {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
-			}
-		}
 	}
 
 	return nil

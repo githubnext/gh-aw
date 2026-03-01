@@ -666,39 +666,6 @@ func checkOnDefaultBranch(verbose bool) error {
 	return nil
 }
 
-// confirmCreatePROperation prompts the user to confirm pull request creation.
-// Returns an error if not in an interactive terminal or if the user declines.
-func confirmCreatePROperation(verbose bool) error {
-	gitLog.Print("Prompting user for pull request creation confirmation")
-	fmt.Fprintln(os.Stderr, "")
-
-	var confirmed bool
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Do you want to create a pull request with the workflow changes?").
-				Description("This will create a new branch and open a pull request").
-				Value(&confirmed),
-		),
-	).WithAccessible(console.IsAccessibleMode())
-
-	if err := form.Run(); err != nil {
-		gitLog.Printf("Confirmation prompt failed: %v", err)
-		return fmt.Errorf("confirmation prompt failed: %w", err)
-	}
-
-	if !confirmed {
-		gitLog.Print("User declined pull request creation")
-		return errors.New("pull request creation cancelled by user")
-	}
-
-	gitLog.Print("User confirmed pull request creation")
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Pull request creation confirmed"))
-	}
-	return nil
-}
-
 // confirmPushOperation prompts the user to confirm push operation (skips in CI)
 func confirmPushOperation(verbose bool) error {
 	gitLog.Print("Checking if user confirmation is needed for push operation")
