@@ -143,6 +143,11 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	}
 
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
+	if absDir, err := filepath.Abs(runOutputDir); err == nil {
+		runOutputDir = absDir
+	} else {
+		auditLog.Printf("Failed to resolve absolute path for output directory %q: %v", runOutputDir, err)
+	}
 	auditLog.Printf("Using output directory: %s", runOutputDir)
 
 	// If job ID is provided, handle job-specific audit

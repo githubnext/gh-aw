@@ -208,15 +208,8 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		URL:          run.URL,
 	}
 
-	// Convert LogsPath to relative path from workspace root
 	if run.LogsPath != "" {
-		logsPathDisplay := run.LogsPath
-		if cwd, err := os.Getwd(); err == nil {
-			if relPath, err := filepath.Rel(cwd, run.LogsPath); err == nil {
-				logsPathDisplay = relPath
-			}
-		}
-		overview.LogsPath = logsPathDisplay
+		overview.LogsPath = run.LogsPath
 	}
 
 	if run.Duration > 0 {
