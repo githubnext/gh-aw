@@ -6,29 +6,26 @@ import (
 
 var consolidatedSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_consolidated")
 
-// hasCustomTokenSafeOutputs checks if any safe outputs use a custom github-token.
-// When a per-handler github-token is configured, handler_auth.cjs needs to create a
-// new Octokit instance via getOctokit() from @actions/github, which requires the
-// package to be installed at runtime.
+// hasCustomTokenSafeOutputs checks if any safe outputs require the @actions/github
+// package to be installed at runtime. This is needed when:
+//   - Any safe output has a per-handler github-token (handler_auth.cjs uses getOctokit())
+//   - Project-related safe outputs are configured (they always create their own Octokit instances)
 func (c *Compiler) hasCustomTokenSafeOutputs(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
 
-	// Check top-level safe-outputs github-token
-	if safeOutputs.GitHubToken != "" {
+	// Project-related safe outputs always need @actions/github — they create
+	// their own Octokit clients internally regardless of whether a custom token
+	// is configured. Preserve the original project-existence check.
+	if safeOutputs.UpdateProjects != nil ||
+		safeOutputs.CreateProjects != nil ||
+		safeOutputs.CreateProjectStatusUpdates != nil {
 		return true
 	}
 
-	// Check project-specific tokens (these have their own GitHubToken field
-	// separate from BaseSafeOutputConfig)
-	if safeOutputs.UpdateProjects != nil && safeOutputs.UpdateProjects.GitHubToken != "" {
-		return true
-	}
-	if safeOutputs.CreateProjects != nil && safeOutputs.CreateProjects.GitHubToken != "" {
-		return true
-	}
-	if safeOutputs.CreateProjectStatusUpdates != nil && safeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
+	// Check top-level safe-outputs github-token
+	if safeOutputs.GitHubToken != "" {
 		return true
 	}
 
