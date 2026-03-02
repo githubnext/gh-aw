@@ -775,7 +775,10 @@ ${patchPreview}`;
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
 
           // Update the activation comment with issue link (if a comment was created)
-          await updateActivationComment(github, githubClient, context, core, issue.html_url, issue.number, "issue");
+          //
+          // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
+          // in the same repo as the activation, so the global client has the correct context for updating the comment.
+          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
           // Write summary to GitHub Actions summary
           await core.summary
@@ -929,7 +932,10 @@ ${patchPreview}`;
       }
 
       // Update the activation comment with PR link (if a comment was created)
-      await updateActivationComment(github, githubClient, context, core, pullRequest.html_url, pullRequest.number);
+      //
+      // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
+      // in the same repo as the activation, so the global client has the correct context for updating the comment.
+      await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
 
       // Write summary to GitHub Actions summary
       await core.summary
