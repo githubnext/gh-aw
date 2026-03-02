@@ -49,10 +49,47 @@ checkout:
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
+| `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
 | `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
 | `lfs` | boolean | Download Git LFS objects. |
 | `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
+
+### Fetching Additional Refs
+
+By default, `actions/checkout` performs a shallow clone (`fetch-depth: 1`) of a single ref. For workflows that need to work with other branches — for example, a scheduled workflow that must push changes to open pull-request branches — use the `fetch:` option to retrieve additional refs after the checkout step.
+
+A dedicated git fetch step is emitted after the `actions/checkout` step. Authentication re-uses the checkout token (or falls back to `github.token`) via a transient `http.extraheader` credential — no credentials are persisted to disk, consistent with the enforced `persist-credentials: false` policy.
+
+| Value | Description |
+|-------|-------------|
+| `"*"` | All remote branches. |
+| `"pulls/open/*"` | All open pull-request head refs (GH-AW shorthand). |
+| `"main"` | A specific branch name. |
+| `"feature/*"` | A glob pattern matching branch names. |
+
+```yaml wrap
+checkout:
+  - repository: githubnext/gh-aw-side-repo
+    token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    fetch: ["pulls/open/*"]      # fetch all open PR refs after checkout
+```
+
+```yaml wrap
+checkout:
+  - repository: org/target-repo
+    token: ${{ secrets.CROSS_REPO_PAT }}
+    fetch: ["main", "feature/*"] # fetch specific branches
+```
+
+```yaml wrap
+checkout:
+  - fetch: ["*"]                 # fetch all branches (default checkout)
+```
+
+:::note
+If a branch you need is not available after checkout and is not covered by a `fetch:` pattern, the agent cannot access its Git history. For private repositories, it will be unable to fetch the branch without proper authentication. If the branch is required and unavailable, configure the appropriate pattern in `fetch:` (e.g., `fetch: ["pulls/open/*"]` for PR branches) and redeploy the workflow.
+:::
 
 ### Checkout Merging
 
@@ -61,6 +98,7 @@ Multiple `checkout:` configurations can target the same path and repository. Thi
 When multiple `checkout:` entries target the same repository and path, their configurations are merged with the following rules:
 
 - **Fetch depth**: Deepest value wins (`0` = full history always takes precedence)
+- **Fetch refs**: Merged (union of all patterns; duplicates are removed)
 - **Sparse patterns**: Merged (union of all patterns)
 - **LFS**: OR-ed (if any config enables `lfs`, the merged configuration enables it)
 - **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
@@ -266,6 +304,39 @@ Compare code structure between main-repo and secondary-repo.
 ```
 
 This approach provides full control over checkout timing and configuration.
+
+### Example: Scheduled Push to Pull-Request Branch
+
+A scheduled workflow that automatically pushes changes to open pull-request branches in another repository needs to fetch those branches after checkout. Without `fetch:`, only the default branch (usually `main`) is available.
+
+```aw wrap
+---
+on:
+  schedule:
+    - cron: "0 * * * *"
+
+checkout:
+  - repository: org/target-repo
+    token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    fetch: ["pulls/open/*"]   # fetch all open PR branches after checkout
+    current: true
+
+permissions:
+  contents: read
+
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+  push-to-pull-request-branch:
+    target-repo: "org/target-repo"
+---
+
+# Auto-Update PR Branches
+
+Check open pull requests in org/target-repo and apply any pending automated
+updates to each PR branch.
+```
+
+`fetch: ["pulls/open/*"]` causes a `git fetch` step to run after `actions/checkout`, downloading all open PR head refs into the workspace. The agent can then inspect and modify those branches directly.
 
 ## Related Documentation
 
