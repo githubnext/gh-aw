@@ -3,7 +3,7 @@
 
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
+const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
@@ -94,7 +94,7 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
   let closedCount = 0;
   let markerMismatchCount = 0;
 
-  const exactMarker = callerWorkflowId ? `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->` : `<!-- gh-aw-workflow-id: ${workflowId} -->`;
+  const exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
 
   const filtered = result.search.nodes
     .filter(
@@ -231,7 +231,7 @@ async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId
       entityTypePlural: "discussions",
       // Use a closure so callerWorkflowId is forwarded to searchOlderDiscussions without going
       // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
-      searchOlderEntities: (gh, o, r, wid, ...args) => searchOlderDiscussions(gh, o, r, wid, ...args, callerWorkflowId),
+      searchOlderEntities: (gh, o, r, wid, categoryId, excludeNumber) => searchOlderDiscussions(gh, o, r, wid, categoryId, excludeNumber, callerWorkflowId),
       getCloseMessage: params =>
         getCloseOlderDiscussionMessage({
           newDiscussionUrl: params.newEntityUrl,

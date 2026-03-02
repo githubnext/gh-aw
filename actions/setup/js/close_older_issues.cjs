@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
+const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
@@ -73,7 +73,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
   let excludedCount = 0;
   let markerMismatchCount = 0;
 
-  const exactMarker = callerWorkflowId ? `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->` : `<!-- gh-aw-workflow-id: ${workflowId} -->`;
+  const exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
 
   const filtered = result.data.items
     .filter(item => {
@@ -213,7 +213,7 @@ async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workf
     entityTypePlural: "issues",
     // Use a closure so callerWorkflowId is forwarded to searchOlderIssues without going
     // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
-    searchOlderEntities: (gh, o, r, wid, ...args) => searchOlderIssues(gh, o, r, wid, ...args, callerWorkflowId),
+    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId),
     getCloseMessage: params =>
       getCloseOlderIssueMessage({
         newIssueUrl: params.newEntityUrl,
