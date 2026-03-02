@@ -483,7 +483,7 @@ func generateFetchStepLines(entry *resolvedCheckout) string {
 	// Determine authentication token
 	token := entry.token
 	if token == "" {
-		token = "${{ github.token }}"
+		token = getEffectiveGitHubToken("")
 	}
 
 	// Build refspecs
