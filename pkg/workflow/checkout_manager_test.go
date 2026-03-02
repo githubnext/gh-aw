@@ -30,13 +30,13 @@ func TestNewCheckoutManager(t *testing.T) {
 		assert.Equal(t, 0, *override.fetchDepth, "fetch depth should be 0")
 	})
 
-	t.Run("custom token on default checkout", func(t *testing.T) {
+	t.Run("custom github-token on default checkout", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_TOKEN }}"},
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		override := cm.GetDefaultCheckoutOverride()
 		require.NotNil(t, override, "should have default override")
-		assert.Equal(t, "${{ secrets.MY_TOKEN }}", override.token, "token should be set")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", override.token, "github-token should be set")
 	})
 }
 
@@ -130,13 +130,13 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		assert.Contains(t, combined, "actions/checkout@v4", "should use pinned checkout action")
 	})
 
-	t.Run("user token is included in default checkout", func(t *testing.T) {
+	t.Run("user github-token is included in default checkout", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_TOKEN }}"},
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "should include custom token")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "should include custom token in actions/checkout 'token' input")
 		assert.Contains(t, combined, "persist-credentials: false", "must always have persist-credentials: false even with custom token")
 	})
 
@@ -161,7 +161,7 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 
 	t.Run("trial mode overrides user config", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_TOKEN }}"},
+			{GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(true, "owner/trial-repo", getPin)
 		combined := strings.Join(lines, "")
@@ -225,13 +225,13 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 		assert.Contains(t, combined, "submodules: recursive", "should include submodules option")
 	})
 
-	t.Run("additional checkout emits token not github-token", func(t *testing.T) {
+	t.Run("additional checkout emits actions/checkout token input from github-token config", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Path: "./libs", Repository: "owner/libs", Token: "${{ secrets.MY_TOKEN }}"},
+			{Path: "./libs", Repository: "owner/libs", GitHubToken: "${{ secrets.MY_TOKEN }}"},
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "actions/checkout input must be 'token'")
+		assert.Contains(t, combined, "token: ${{ secrets.MY_TOKEN }}", "actions/checkout input must be 'token' even when frontmatter uses 'github-token'")
 		assert.NotContains(t, combined, "github-token:", "must not emit 'github-token' as actions/checkout input")
 	})
 }
@@ -244,17 +244,105 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		assert.Nil(t, configs, "nil input should return nil configs")
 	})
 
-	t.Run("single object", func(t *testing.T) {
+	t.Run("single object with github-token", func(t *testing.T) {
 		raw := map[string]any{
-			"fetch-depth": float64(0),
-			"token":       "${{ secrets.MY_TOKEN }}",
+			"fetch-depth":  float64(0),
+			"github-token": "${{ secrets.MY_TOKEN }}",
 		}
 		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "single object should parse without error")
 		require.Len(t, configs, 1, "should produce one config")
-		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].Token, "token should be set")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "github-token should be set")
 		require.NotNil(t, configs[0].FetchDepth, "fetch-depth should be set")
 		assert.Equal(t, 0, *configs[0].FetchDepth, "fetch-depth should be 0")
+	})
+
+	t.Run("backward compat: token key still works", func(t *testing.T) {
+		raw := map[string]any{
+			"token": "${{ secrets.MY_TOKEN }}",
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "legacy token key should parse without error")
+		require.Len(t, configs, 1, "should produce one config")
+		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "legacy token should populate GitHubToken")
+	})
+
+	t.Run("app config is parsed", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"app": map[string]any{
+				"app-id":      "${{ vars.APP_ID }}",
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "app config should parse without error")
+		require.Len(t, configs, 1)
+		require.NotNil(t, configs[0].App, "app config should be set")
+		assert.Equal(t, "${{ vars.APP_ID }}", configs[0].App.AppID, "app-id should be set")
+		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", configs[0].App.PrivateKey, "private-key should be set")
+	})
+
+	t.Run("app config with owner and repositories", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"app": map[string]any{
+				"app-id":       "${{ vars.APP_ID }}",
+				"private-key":  "${{ secrets.APP_PRIVATE_KEY }}",
+				"owner":        "my-org",
+				"repositories": []any{"repo-a", "repo-b"},
+			},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "app config with owner should parse without error")
+		require.Len(t, configs, 1)
+		require.NotNil(t, configs[0].App)
+		assert.Equal(t, "my-org", configs[0].App.Owner)
+		assert.Equal(t, []string{"repo-a", "repo-b"}, configs[0].App.Repositories)
+	})
+
+	t.Run("github-token and app are mutually exclusive", func(t *testing.T) {
+		raw := map[string]any{
+			"github-token": "${{ secrets.MY_TOKEN }}",
+			"app": map[string]any{
+				"app-id":      "${{ vars.APP_ID }}",
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "github-token and app together should return error")
+		assert.Contains(t, err.Error(), "mutually exclusive", "error should mention mutual exclusivity")
+	})
+
+	t.Run("app config missing app-id returns error", func(t *testing.T) {
+		raw := map[string]any{
+			"app": map[string]any{
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "app without app-id should return error")
+		assert.Contains(t, err.Error(), "app-id and private-key")
+	})
+
+	t.Run("app config missing private-key returns error", func(t *testing.T) {
+		raw := map[string]any{
+			"app": map[string]any{
+				"app-id": "${{ vars.APP_ID }}",
+			},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "app without private-key should return error")
+		assert.Contains(t, err.Error(), "app-id and private-key")
+	})
+
+	t.Run("app must be an object", func(t *testing.T) {
+		raw := map[string]any{
+			"app": "not-an-object",
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		require.Error(t, err, "non-object app should return error")
+		assert.Contains(t, err.Error(), "checkout.app must be an object")
 	})
 
 	t.Run("array of objects", func(t *testing.T) {
@@ -673,7 +761,7 @@ func TestMergeFetchRefs(t *testing.T) {
 func TestGenerateFetchStep(t *testing.T) {
 	t.Run("no fetch refs returns empty string", func(t *testing.T) {
 		entry := &resolvedCheckout{}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Empty(t, got, "empty fetchRefs should produce no step")
 	})
 
@@ -681,19 +769,20 @@ func TestGenerateFetchStep(t *testing.T) {
 		entry := &resolvedCheckout{
 			fetchRefs: []string{"*"},
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Contains(t, got, "Fetch additional refs", "should include step name")
 		assert.Contains(t, got, "+refs/heads/*:refs/remotes/origin/*", "should include correct refspec")
 		assert.Contains(t, got, "GH_AW_FETCH_TOKEN", "should set fetch token env var")
 		assert.Contains(t, got, "http.extraheader=Authorization:", "should configure credentials via http.extraheader")
-		assert.Contains(t, got, "${{ github.token }}", "should fall back to github.token when no checkout token set")
+		// When no custom token set, falls back to the effective GitHub token chain
+		assert.Contains(t, got, "GH_AW_GITHUB_TOKEN", "should fall back to GH_AW token chain when no checkout token set")
 	})
 
 	t.Run("fetch refs/pulls/open/* uses PR refspec", func(t *testing.T) {
 		entry := &resolvedCheckout{
 			fetchRefs: []string{"refs/pulls/open/*"},
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Contains(t, got, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
 	})
 
@@ -702,7 +791,7 @@ func TestGenerateFetchStep(t *testing.T) {
 			fetchRefs: []string{"main"},
 			token:     "${{ secrets.MY_PAT }}",
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Contains(t, got, "${{ secrets.MY_PAT }}", "should use custom token from checkout config")
 		assert.NotContains(t, got, "github.token", "should not fall back to github.token when custom token set")
 	})
@@ -712,7 +801,7 @@ func TestGenerateFetchStep(t *testing.T) {
 			key:       checkoutKey{repository: "owner/side-repo"},
 			fetchRefs: []string{"main"},
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Contains(t, got, "Fetch additional refs for owner/side-repo", "should include repo in step name")
 	})
 
@@ -721,7 +810,7 @@ func TestGenerateFetchStep(t *testing.T) {
 			key:       checkoutKey{path: "libs/other"},
 			fetchRefs: []string{"main"},
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Contains(t, got, `-C "${{ github.workspace }}/libs/other"`, "should use -C flag for non-root path")
 	})
 
@@ -729,7 +818,7 @@ func TestGenerateFetchStep(t *testing.T) {
 		entry := &resolvedCheckout{
 			fetchRefs: []string{"main"},
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.NotContains(t, got, "-C ", "root checkout should not use -C flag")
 	})
 
@@ -737,7 +826,7 @@ func TestGenerateFetchStep(t *testing.T) {
 		entry := &resolvedCheckout{
 			fetchRefs: []string{"*", "refs/pulls/open/*"},
 		}
-		got := generateFetchStepLines(entry)
+		got := generateFetchStepLines(entry, 0)
 		assert.Contains(t, got, "+refs/heads/*:refs/remotes/origin/*", "should include branches refspec")
 		assert.Contains(t, got, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
 	})
@@ -811,14 +900,75 @@ func TestGenerateDefaultCheckoutStepWithFetch(t *testing.T) {
 		assert.NotContains(t, combined, "Fetch additional refs", "should not include fetch step without config")
 	})
 
-	t.Run("fetch with custom token uses that token", func(t *testing.T) {
+	t.Run("fetch with custom github-token uses that token", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_PAT }}", Fetch: []string{"refs/pulls/open/*"}},
+			{GitHubToken: "${{ secrets.MY_PAT }}", Fetch: []string{"refs/pulls/open/*"}},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
 		// Token should appear both in the checkout step and the fetch env var
 		assert.Contains(t, combined, "${{ secrets.MY_PAT }}", "custom token should be in output")
 		assert.Contains(t, combined, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "PR refspec should be present")
+	})
+}
+
+func TestHasAppAuth(t *testing.T) {
+	t.Run("returns false when no app configured", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubToken: "${{ secrets.MY_PAT }}"},
+		})
+		assert.False(t, cm.HasAppAuth(), "should be false when no app is configured")
+	})
+
+	t.Run("returns false for nil configs", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		assert.False(t, cm.HasAppAuth(), "should be false for nil configs")
+	})
+
+	t.Run("returns true when default checkout has app", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{App: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
+		})
+		assert.True(t, cm.HasAppAuth(), "should be true when default checkout has app")
+	})
+
+	t.Run("returns true when additional checkout has app", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubToken: "${{ secrets.MY_PAT }}"},
+			{Repository: "other/repo", Path: "deps", App: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
+		})
+		assert.True(t, cm.HasAppAuth(), "should be true when any checkout has app")
+	})
+}
+
+func TestDefaultCheckoutWithAppAuth(t *testing.T) {
+	getPin := func(ref string) string { return ref }
+
+	t.Run("checkout step uses app token reference", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{App: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
+		})
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "steps.checkout-app-token-0.outputs.token", "checkout should reference app token step")
+	})
+}
+
+func TestAdditionalCheckoutWithAppAuth(t *testing.T) {
+	getPin := func(ref string) string { return ref }
+
+	t.Run("additional checkout uses app token reference", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{GitHubToken: "${{ secrets.MY_PAT }}"}, // default checkout
+			{
+				Repository: "other/repo",
+				Path:       "deps",
+				App:        &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"},
+			},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "steps.checkout-app-token-1.outputs.token", "additional checkout should reference app token at index 1")
+		assert.Contains(t, combined, "other/repo", "should reference the additional repo")
 	})
 }

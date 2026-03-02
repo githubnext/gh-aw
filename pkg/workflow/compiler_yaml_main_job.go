@@ -18,6 +18,23 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
+	// Generate GitHub App token minting steps for checkouts with app auth
+	// These must be emitted BEFORE the checkout steps that reference them
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token minting steps")
+		var permissions *Permissions
+		if data.Permissions != "" {
+			parser := NewPermissionsParser(data.Permissions)
+			permissions = parser.ToPermissions()
+		} else {
+			permissions = NewPermissions()
+		}
+		appTokenSteps := checkoutMgr.GenerateCheckoutAppTokenSteps(c, permissions)
+		for _, step := range appTokenSteps {
+			yaml.WriteString(step)
+		}
+	}
+
 	// Add checkout step first if needed
 	if needsCheckout {
 		// Emit the default workspace checkout, applying any user-supplied overrides

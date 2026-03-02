@@ -8051,8 +8051,42 @@
         },
         "token": {
           "type": "string",
-          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Credentials are always removed after checkout (persist-credentials: false is enforced).",
+          "description": "Deprecated: Use github-token instead. GitHub token for authentication. Credentials are always removed after checkout (persist-credentials: false is enforced).",
           "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.GITHUB_TOKEN }}"]
+        },
+        "github-token": {
+          "type": "string",
+          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Mutually exclusive with app. Credentials are always removed after checkout (persist-credentials: false is enforced).",
+          "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.CROSS_REPO_PAT }}"]
+        },
+        "app": {
+          "type": "object",
+          "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token.",
+          "required": ["app-id", "private-key"],
+          "properties": {
+            "app-id": {
+              "type": "string",
+              "description": "GitHub App ID. Use ${{ vars.APP_ID }} to reference a variable.",
+              "examples": ["${{ vars.APP_ID }}"]
+            },
+            "private-key": {
+              "type": "string",
+              "description": "GitHub App private key. Use ${{ secrets.APP_PRIVATE_KEY }} to reference a secret.",
+              "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
+            },
+            "owner": {
+              "type": "string",
+              "description": "Owner of the GitHub App installation. Defaults to the current repository owner.",
+              "examples": ["my-org"]
+            },
+            "repositories": {
+              "type": "array",
+              "description": "Repositories to grant the token access to. Defaults to the current repository. Use [\"*\"] for org-wide access.",
+              "items": { "type": "string" },
+              "examples": [["repo-a", "repo-b"], ["*"]]
+            }
+          },
+          "additionalProperties": false
         },
         "current": {
           "type": "boolean",
