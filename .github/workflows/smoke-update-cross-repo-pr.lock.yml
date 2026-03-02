@@ -23,7 +23,7 @@
 #
 # Smoke test validating cross-repo pull request updates in githubnext/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"438abe1f0a3ed76cc38ee956222384df6b97697c998dca9d056a52a72cd00ad6"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9761f55db94af1bec7c0b35d4c28497d0951643a4a82c3f7d800a0db9982ede5"}
 
 name: "Smoke Update Cross-Repo PR"
 "on":
@@ -193,8 +193,8 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           - **checkouts**: The following repositories have been checked out and are available in the workspace:
-            - `$GITHUB_WORKSPACE` → `githubnext/gh-aw-side-repo` (cwd) [shallow clone, fetch-depth=1 (default)]
-            - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
+            - `$GITHUB_WORKSPACE` → `githubnext/gh-aw-side-repo` (cwd) [full history, all branches available as remote-tracking refs] [additional refs fetched: main, refs/pulls/open/*]
+            - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
           GH_AW_PROMPT_EOF
@@ -326,6 +326,12 @@ jobs:
           persist-credentials: false
           repository: githubnext/gh-aw-side-repo
           token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+          fetch-depth: 0
+      - name: Fetch additional refs for githubnext/gh-aw-side-repo
+        env:
+          GH_AW_FETCH_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+        run: |
+          git -c "http.extraheader=Authorization: token ${GH_AW_FETCH_TOKEN}" fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Cache memory file share configuration from frontmatter processed below
