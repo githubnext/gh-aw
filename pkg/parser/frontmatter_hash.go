@@ -38,43 +38,6 @@ type FileReader func(filePath string) ([]byte, error)
 // DefaultFileReader reads files from disk using os.ReadFile
 var DefaultFileReader FileReader = os.ReadFile
 
-// ComputeFrontmatterHash computes a deterministic SHA-256 hash of frontmatter
-// including contributions from all imported workflows.
-//
-// The hash is computed over a canonical JSON representation that includes:
-// - Main workflow frontmatter
-// - All imported workflow frontmatter (in BFS processing order)
-// - Normalized and sorted for deterministic output
-//
-// This function follows the Frontmatter Hash Specification (v1.0).
-func ComputeFrontmatterHash(frontmatter map[string]any, baseDir string, cache *ImportCache) (string, error) {
-	frontmatterHashLog.Print("Computing frontmatter hash")
-
-	// Process imports to get merged frontmatter
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, cache)
-	if err != nil {
-		return "", fmt.Errorf("failed to process imports: %w", err)
-	}
-
-	// Build the canonical frontmatter map
-	canonical := buildCanonicalFrontmatter(frontmatter, result)
-
-	// Serialize to canonical JSON
-	canonicalJSON, err := marshalCanonicalJSON(canonical)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal canonical JSON: %w", err)
-	}
-
-	frontmatterHashLog.Printf("Canonical JSON length: %d bytes", len(canonicalJSON))
-
-	// Compute SHA-256 hash
-	hash := sha256.Sum256([]byte(canonicalJSON))
-	hashHex := hex.EncodeToString(hash[:])
-
-	frontmatterHashLog.Printf("Computed hash: %s", hashHex)
-	return hashHex, nil
-}
-
 // buildCanonicalFrontmatter builds a canonical representation of frontmatter
 // including all fields that should be included in the hash computation.
 func buildCanonicalFrontmatter(frontmatter map[string]any, result *ImportsResult) map[string]any {
@@ -340,44 +303,6 @@ func computeFrontmatterHashFromContent(content string, parsedFrontmatter map[str
 
 	// Compute hash using text-based approach with custom file reader
 	return computeFrontmatterHashTextBasedWithReader(frontmatterText, fullBody, baseDir, cache, relevantExpressions, fileReader)
-}
-
-// ComputeFrontmatterHashWithExpressions computes the hash including template expressions
-func ComputeFrontmatterHashWithExpressions(frontmatter map[string]any, baseDir string, cache *ImportCache, expressions []string) (string, error) {
-	frontmatterHashLog.Print("Computing frontmatter hash with template expressions")
-
-	// Process imports to get merged frontmatter
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, cache)
-	if err != nil {
-		return "", fmt.Errorf("failed to process imports: %w", err)
-	}
-
-	// Build the canonical frontmatter map
-	canonical := buildCanonicalFrontmatter(frontmatter, result)
-
-	// Add template expressions if present
-	if len(expressions) > 0 {
-		// Sort expressions for deterministic output
-		sortedExpressions := make([]string, len(expressions))
-		copy(sortedExpressions, expressions)
-		sort.Strings(sortedExpressions)
-		canonical["template-expressions"] = sortedExpressions
-	}
-
-	// Serialize to canonical JSON
-	canonicalJSON, err := marshalCanonicalJSON(canonical)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal canonical JSON: %w", err)
-	}
-
-	frontmatterHashLog.Printf("Canonical JSON length: %d bytes", len(canonicalJSON))
-
-	// Compute SHA-256 hash
-	hash := sha256.Sum256([]byte(canonicalJSON))
-	hashHex := hex.EncodeToString(hash[:])
-
-	frontmatterHashLog.Printf("Computed hash: %s", hashHex)
-	return hashHex, nil
 }
 
 // extractRelevantTemplateExpressions extracts template expressions from markdown

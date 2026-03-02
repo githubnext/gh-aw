@@ -3,7 +3,6 @@
 package parser
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -98,95 +97,6 @@ This is a test workflow with empty frontmatter.`,
 			// Check markdown
 			if result.Markdown != tt.wantMarkdown {
 				t.Errorf("ExtractFrontmatterFromContent() markdown = %v, want %v", result.Markdown, tt.wantMarkdown)
-			}
-		})
-	}
-}
-
-func TestExtractYamlChunk(t *testing.T) {
-	tests := []struct {
-		name     string
-		yaml     string
-		key      string
-		expected string
-	}{
-		{
-			name: "simple key-value",
-			yaml: `title: Test Workflow
-on: push
-permissions: read`,
-			key:      "on",
-			expected: "on: push",
-		},
-		{
-			name: "nested structure",
-			yaml: `title: Test Workflow
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened]
-permissions: read`,
-			key: "on",
-			expected: `on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened]`,
-		},
-		{
-			name: "deeply nested structure",
-			yaml: `tools:
-  bash:
-    allowed:
-      - "ls"
-      - "cat"
-  github:
-    allowed:
-      - "create_issue"`,
-			key: "tools",
-			expected: `tools:
-  bash:
-    allowed:
-      - "ls"
-      - "cat"
-  github:
-    allowed:
-      - "create_issue"`,
-		},
-		{
-			name: "key not found",
-			yaml: `title: Test Workflow
-on: push`,
-			key:      "nonexistent",
-			expected: "",
-		},
-		{
-			name:     "empty yaml",
-			yaml:     "",
-			key:      "test",
-			expected: "",
-		},
-		{
-			name:     "empty key",
-			yaml:     "title: Test",
-			key:      "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := ExtractYamlChunk(tt.yaml, tt.key)
-			if err != nil {
-				t.Errorf("ExtractYamlChunk() error = %v", err)
-				return
-			}
-
-			if result != tt.expected {
-				t.Errorf("ExtractYamlChunk() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -327,54 +237,6 @@ func TestGenerateDefaultWorkflowName(t *testing.T) {
 			result := generateDefaultWorkflowName(tt.filePath)
 			if result != tt.expected {
 				t.Errorf("generateDefaultWorkflowName() = %q, want %q", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestExtractFrontmatterString(t *testing.T) {
-	tests := []struct {
-		name     string
-		content  string
-		expected string
-		wantErr  bool
-	}{
-		{
-			name: "valid frontmatter",
-			content: `---
-title: Test Workflow
-on: push
----
-
-# Content`,
-			expected: "on: push\ntitle: Test Workflow",
-		},
-		{
-			name:     "no frontmatter",
-			content:  "# Just markdown",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := ExtractFrontmatterString(tt.content)
-
-			if tt.wantErr && err == nil {
-				t.Errorf("ExtractFrontmatterString() expected error, got nil")
-				return
-			}
-
-			if !tt.wantErr && err != nil {
-				t.Errorf("ExtractFrontmatterString() error = %v", err)
-				return
-			}
-
-			// For YAML, order may vary, so check both possible orders
-			if !strings.Contains(result, "title: Test Workflow") && tt.expected != "" {
-				if result != tt.expected {
-					t.Errorf("ExtractFrontmatterString() = %q, want %q", result, tt.expected)
-				}
 			}
 		})
 	}

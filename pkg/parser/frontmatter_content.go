@@ -136,35 +136,6 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 	return extractedContent, nil
 }
 
-// ExtractFrontmatterString extracts only the YAML frontmatter as a string
-// This matches the bash extract_frontmatter function
-func ExtractFrontmatterString(content string) (string, error) {
-	log.Printf("Extracting frontmatter string from content: size=%d bytes", len(content))
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "", err
-	}
-
-	// Convert frontmatter map back to YAML string
-	if len(result.Frontmatter) == 0 {
-		log.Print("No frontmatter fields found, returning empty string")
-		return "", nil
-	}
-
-	yamlBytes, err := yaml.Marshal(result.Frontmatter)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
-	}
-
-	// Post-process YAML to ensure cron expressions are quoted
-	// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5"
-	// which causes validation errors since they start with numbers but contain spaces
-	yamlString := string(yamlBytes)
-	yamlString = QuoteCronExpressions(yamlString)
-
-	return strings.TrimSpace(yamlString), nil
-}
-
 // ExtractMarkdownContent extracts only the markdown content (excluding frontmatter)
 // This matches the bash extract_markdown function
 func ExtractMarkdownContent(content string) (string, error) {
@@ -174,76 +145,6 @@ func ExtractMarkdownContent(content string) (string, error) {
 	}
 
 	return result.Markdown, nil
-}
-
-// ExtractYamlChunk extracts a specific YAML section with proper indentation handling
-// This matches the bash extract_yaml_chunk function exactly
-func ExtractYamlChunk(yamlContent, key string) (string, error) {
-	log.Printf("Extracting YAML chunk: key=%s, content_size=%d bytes", key, len(yamlContent))
-
-	if yamlContent == "" || key == "" {
-		return "", nil
-	}
-
-	scanner := bufio.NewScanner(strings.NewReader(yamlContent))
-	var result bytes.Buffer
-	inSection := false
-	var keyLevel int
-	// Match both quoted and unquoted keys
-	keyPattern := regexp.MustCompile(`^(\s*)(?:"` + regexp.QuoteMeta(key) + `"|` + regexp.QuoteMeta(key) + `):\s*(.*)$`)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Skip empty lines when not in section
-		if !inSection && strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Check if this line starts our target key
-		if matches := keyPattern.FindStringSubmatch(line); matches != nil {
-			inSection = true
-			keyLevel = len(matches[1]) // Indentation level
-			result.WriteString(line + "\n")
-
-			// If it's a single-line value, we're done
-			if strings.TrimSpace(matches[2]) != "" {
-				break
-			}
-			continue
-		}
-
-		// If we're in the section, check indentation
-		if inSection {
-			// Skip empty lines
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-
-			// Count leading spaces
-			spaces := 0
-			for _, char := range line {
-				if char == ' ' {
-					spaces++
-				} else {
-					break
-				}
-			}
-
-			// If indentation is less than or equal to key level, we've left the section
-			if spaces <= keyLevel {
-				break
-			}
-
-			result.WriteString(line + "\n")
-		}
-	}
-
-	if !inSection {
-		return "", nil
-	}
-
-	return strings.TrimRight(result.String(), "\n"), nil
 }
 
 // ExtractWorkflowNameFromMarkdown extracts workflow name from first H1 header
