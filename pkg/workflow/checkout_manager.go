@@ -503,7 +503,8 @@ func generateFetchStepLines(entry *resolvedCheckout) string {
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
 	sb.WriteString("        run: |\n")
-	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: token ${GH_AW_FETCH_TOKEN}" fetch origin %s`+"\n",
+	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64)\n")
+	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: Basic ${header}" fetch origin %s`+"\n",
 		gitPrefix, strings.Join(refspecs, " "))
 	return sb.String()
 }
