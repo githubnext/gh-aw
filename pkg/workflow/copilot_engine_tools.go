@@ -159,6 +159,13 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			continue
 		}
 
+		// Serena uses a language-based config (not standard MCP type/url/command fields),
+		// so hasMCPConfig returns false. Handle it explicitly.
+		if toolName == "serena" {
+			args = append(args, "--allow-tool", toolName)
+			continue
+		}
+
 		// Check if this is an MCP server configuration
 		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
 			if hasMcp, _ := hasMCPConfig(toolConfigMap); hasMcp {
