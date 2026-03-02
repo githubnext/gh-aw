@@ -58,12 +58,13 @@ type PRCommitStatus struct {
 
 // ChecksResult is the normalized output for the checks command.
 type ChecksResult struct {
-	State      CheckState       `json:"state"`
-	PRNumber   string           `json:"pr_number"`
-	HeadSHA    string           `json:"head_sha"`
-	CheckRuns  []PRCheckRun     `json:"check_runs"`
-	Statuses   []PRCommitStatus `json:"statuses"`
-	TotalCount int              `json:"total_count"`
+	State         CheckState       `json:"state"`
+	RequiredState CheckState       `json:"required_state"`
+	PRNumber      string           `json:"pr_number"`
+	HeadSHA       string           `json:"head_sha"`
+	CheckRuns     []PRCheckRun     `json:"check_runs"`
+	Statuses      []PRCommitStatus `json:"statuses"`
+	TotalCount    int              `json:"total_count"`
 }
 
 // NewChecksCommand creates the checks command.
@@ -81,6 +82,14 @@ Maps PR check rollups to one of the following normalized states:
   policy_blocked - policy or account gates are blocking the PR
 
 ` + "Raw check run and commit status signals are included in JSON output." + `
+
+JSON output includes two state fields:
+  state          - aggregate state across all check runs and commit statuses
+  required_state - state derived from check runs only, ignoring optional
+                   third-party commit statuses (e.g. Vercel, Netlify deployments)
+
+Use required_state as the authoritative CI verdict in repos that have optional
+deployment integrations posting commit statuses alongside required CI checks.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` checks 42                    # Classify checks for PR #42
@@ -152,14 +161,16 @@ func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, err
 	}
 
 	state := classifyCheckState(checkRuns, statuses)
+	requiredState := classifyCheckState(checkRuns, nil)
 
 	return &ChecksResult{
-		State:      state,
-		PRNumber:   prNumber,
-		HeadSHA:    headSHA,
-		CheckRuns:  checkRuns,
-		Statuses:   statuses,
-		TotalCount: len(checkRuns) + len(statuses),
+		State:         state,
+		RequiredState: requiredState,
+		PRNumber:      prNumber,
+		HeadSHA:       headSHA,
+		CheckRuns:     checkRuns,
+		Statuses:      statuses,
+		TotalCount:    len(checkRuns) + len(statuses),
 	}, nil
 }
 

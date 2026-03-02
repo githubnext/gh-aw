@@ -234,9 +234,10 @@ func TestChecksCommand_RejectsMultipleArgs(t *testing.T) {
 
 func TestChecksResultJSONShape(t *testing.T) {
 	result := &ChecksResult{
-		State:    CheckStateFailed,
-		PRNumber: "42",
-		HeadSHA:  "abc123",
+		State:         CheckStateFailed,
+		RequiredState: CheckStateSuccess,
+		PRNumber:      "42",
+		HeadSHA:       "abc123",
 		CheckRuns: []PRCheckRun{
 			{Name: "build", Status: "completed", Conclusion: "failure", HTMLURL: "https://example.com"},
 		},
@@ -245,6 +246,7 @@ func TestChecksResultJSONShape(t *testing.T) {
 	}
 
 	require.Equal(t, CheckStateFailed, result.State, "state should be failed")
+	require.Equal(t, CheckStateSuccess, result.RequiredState, "required_state should be success")
 	require.Equal(t, "42", result.PRNumber, "PR number should be preserved")
 	require.Equal(t, "abc123", result.HeadSHA, "head SHA should be preserved")
 	require.Len(t, result.CheckRuns, 1, "should have one check run")
@@ -252,8 +254,79 @@ func TestChecksResultJSONShape(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// classifyGHAPIError – error classification tests
+// required_state — commit status failures do not affect check-runs-only state
 // ---------------------------------------------------------------------------
+
+// TestRequiredStateIgnoresCommitStatusFailures validates the core fix: a failing
+// third-party commit status (e.g. Vercel, Netlify) must not pollute the
+// required_state field, which is computed from check runs only. Check runs are
+// typically posted by GitHub Actions; commit statuses are posted by third-party
+// integrations and are often optional deployment previews.
+func TestRequiredStateIgnoresCommitStatusFailures(t *testing.T) {
+	// All check runs (GitHub Actions) pass; Vercel posts a failure commit status.
+	runs := []PRCheckRun{
+		{Name: "build", Status: "completed", Conclusion: "success"},
+		{Name: "test", Status: "completed", Conclusion: "success"},
+	}
+	statuses := []PRCommitStatus{
+		{Context: "vercel", State: "failure"},
+	}
+
+	// Aggregate state includes the commit status failure.
+	aggregate := classifyCheckState(runs, statuses)
+	assert.Equal(t, CheckStateFailed, aggregate, "aggregate state should be failed when commit status fails")
+
+	// required_state (check runs only) must not be affected.
+	required := classifyCheckState(runs, nil)
+	assert.Equal(t, CheckStateSuccess, required, "required_state should be success when check runs all pass")
+}
+
+func TestRequiredStateNetlifyDeployFailure(t *testing.T) {
+	runs := []PRCheckRun{
+		{Name: "ci", Status: "completed", Conclusion: "success"},
+	}
+	statuses := []PRCommitStatus{
+		{Context: "netlify/my-site/deploy-preview", State: "failure"},
+	}
+
+	aggregate := classifyCheckState(runs, statuses)
+	assert.Equal(t, CheckStateFailed, aggregate, "aggregate state should be failed for Netlify failure")
+
+	required := classifyCheckState(runs, nil)
+	assert.Equal(t, CheckStateSuccess, required, "required_state should be success when only Netlify fails")
+}
+
+func TestRequiredStateCheckRunFailureStillFails(t *testing.T) {
+	// A real check run failure must still propagate to required_state.
+	runs := []PRCheckRun{
+		{Name: "build", Status: "completed", Conclusion: "success"},
+		{Name: "tests", Status: "completed", Conclusion: "failure"},
+	}
+	statuses := []PRCommitStatus{
+		{Context: "vercel", State: "success"},
+	}
+
+	aggregate := classifyCheckState(runs, statuses)
+	assert.Equal(t, CheckStateFailed, aggregate, "aggregate state should be failed when check run fails")
+
+	required := classifyCheckState(runs, nil)
+	assert.Equal(t, CheckStateFailed, required, "required_state should be failed when a check run fails")
+}
+
+func TestRequiredStateNoCheckRunsOnlyCommitStatus(t *testing.T) {
+	// When there are no check runs but a commit status passes, required_state returns
+	// no_checks while aggregate state is success — this documents the intentional
+	// difference between the two fields.
+	statuses := []PRCommitStatus{
+		{Context: "ci/circleci", State: "success"},
+	}
+
+	aggregate := classifyCheckState(nil, statuses)
+	assert.Equal(t, CheckStateSuccess, aggregate, "aggregate state should be success")
+
+	required := classifyCheckState(nil, nil)
+	assert.Equal(t, CheckStateNoChecks, required, "required_state should be no_checks when there are no check runs")
+}
 
 func TestClassifyGHAPIError_NotFound(t *testing.T) {
 	err := classifyGHAPIError(1, "HTTP 404: Not Found", "42", "")
