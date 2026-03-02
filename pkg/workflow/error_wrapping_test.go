@@ -13,8 +13,6 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 // internalHTTPError is a custom error type used in tests to demonstrate
@@ -101,8 +99,7 @@ on:
 				return err
 			},
 			internalErrors: []any{
-				&parser.ImportError{}, // Import errors are internal implementation details
-				&os.PathError{},       // Underlying file errors should be wrapped
+				&os.PathError{}, // Underlying file errors should be wrapped
 			},
 		},
 	}
@@ -132,10 +129,7 @@ on:
 					var target *os.LinkError
 					assert.NotErrorAs(t, err, &target,
 						"internal error type %T should not leak to user", e)
-				case *parser.ImportError:
-					var target *parser.ImportError
-					assert.NotErrorAs(t, err, &target,
-						"internal error type %T should not leak to user", e)
+
 				default:
 					t.Fatalf("Unknown error type in test: %T", e)
 				}

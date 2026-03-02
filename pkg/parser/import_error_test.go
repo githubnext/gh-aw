@@ -10,46 +10,6 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-func TestImportError(t *testing.T) {
-	tests := []struct {
-		name       string
-		err        *parser.ImportError
-		wantString string
-	}{
-		{
-			name: "basic import error",
-			err: &parser.ImportError{
-				ImportPath: "nonexistent.md",
-				FilePath:   "workflow.md",
-				Line:       3,
-				Column:     3,
-				Cause:      errors.New("file not found: /path/to/nonexistent.md"),
-			},
-			wantString: "failed to resolve import 'nonexistent.md': file not found: /path/to/nonexistent.md",
-		},
-		{
-			name: "remote import error",
-			err: &parser.ImportError{
-				ImportPath: "owner/repo/file.md@main",
-				FilePath:   "workflow.md",
-				Line:       5,
-				Column:     5,
-				Cause:      errors.New("failed to download include from owner/repo/file.md@main"),
-			},
-			wantString: "failed to resolve import 'owner/repo/file.md@main': failed to download include from owner/repo/file.md@main",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.err.Error()
-			if got != tt.wantString {
-				t.Errorf("ImportError.Error() = %q, want %q", got, tt.wantString)
-			}
-		})
-	}
-}
-
 func TestFormatImportError(t *testing.T) {
 	tests := []struct {
 		name        string

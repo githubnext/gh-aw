@@ -26,16 +26,6 @@ type ImportCycleError struct {
 	WorkflowFile string   // The main workflow file being compiled
 }
 
-// Error returns the error message
-func (e *ImportError) Error() string {
-	return fmt.Sprintf("failed to resolve import '%s': %v", e.ImportPath, e.Cause)
-}
-
-// Unwrap returns the underlying error
-func (e *ImportError) Unwrap() error {
-	return e.Cause
-}
-
 // Error returns the error message for ImportCycleError
 func (e *ImportCycleError) Error() string {
 	if len(e.Chain) == 0 {

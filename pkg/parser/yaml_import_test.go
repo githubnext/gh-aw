@@ -232,7 +232,7 @@ This imports a YAML workflow.`
 	result, err := ExtractFrontmatterFromContent(mdWorkflow)
 	require.NoError(t, err, "Should extract frontmatter")
 
-	importsResult, err := ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, tmpDir, nil)
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
 	require.NoError(t, err, "Should process imports")
 
 	// Verify jobs were imported
@@ -272,7 +272,7 @@ imports:
 	result, err := ExtractFrontmatterFromContent(mdWorkflow)
 	require.NoError(t, err, "Should extract frontmatter")
 
-	_, err = ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, tmpDir, nil)
+	_, err = ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
 	require.Error(t, err, "Should reject .lock.yml import")
 	assert.Contains(t, err.Error(), "cannot import .lock.yml files", "Error should mention .lock.yml rejection")
 	assert.Contains(t, err.Error(), "Import the source .md file instead", "Error should suggest importing .md file")

@@ -69,28 +69,6 @@ type ImportSpec struct {
 	Inputs map[string]any // Optional input values to pass to the imported workflow (values are string, number, or boolean)
 }
 
-// ProcessImportsFromFrontmatter processes imports field from frontmatter
-// Returns merged tools and engines from imported files
-//
-// Type Pattern Note: frontmatter uses map[string]any because it represents parsed YAML with
-// dynamic structure that varies by workflow. This is the appropriate pattern for parsing
-// user-provided configuration files. See scratchpad/go-type-patterns.md for guidance.
-func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
-	log.Printf("Processing imports from frontmatter: baseDir=%s", baseDir)
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, nil)
-	if err != nil {
-		return "", nil, err
-	}
-	return result.MergedTools, result.MergedEngines, nil
-}
-
-// ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
-// Returns result containing merged tools, engines, markdown content, and list of imported files
-// Uses BFS traversal with queues for deterministic ordering and cycle detection
-func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string, cache *ImportCache) (*ImportsResult, error) {
-	return processImportsFromFrontmatterWithManifestAndSource(frontmatter, baseDir, cache, "", "")
-}
-
 // ProcessImportsFromFrontmatterWithSource processes imports field from frontmatter with source tracking
 // This version includes the workflow file path and YAML content for better error reporting
 func ProcessImportsFromFrontmatterWithSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
