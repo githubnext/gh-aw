@@ -1,17 +1,17 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-02-23
+> Last updated: 2026-03-02
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a comprehensive reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 158
-- **Unique GitHub Actions**: 26
-- **Artifact patterns**: 19
-- **Job name patterns**: 22
+- **Lock files analyzed**: 165
+- **Unique GitHub Actions**: 22
+- **Artifact patterns**: 20
+- **Job name patterns**: 21
 - **File path references**: 36
 
 ## GitHub Actions
@@ -20,26 +20,26 @@ Common GitHub Actions used across compiled workflows:
 
 | Action | Version (SHA) | Description | Context |
 |--------|---------------|-------------|---------|
-| `actions/checkout` | `11bd719...`, `93cb6ef...`, `de0fac2...` | Checks out repository code | Used in almost all workflows for accessing repo content |
-| `actions/upload-artifact` | `b7c566a...` | Uploads build artifacts | Used for agent outputs, patches, prompts, logs, and safe-output data |
-| `actions/download-artifact` | `018cc2c...` | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
+| `actions/checkout` | `de0fac2...` | Checks out repository code | Used in almost all workflows for accessing repo content |
+| `actions/upload-artifact` | `bbbca2d...` | Uploads build artifacts | Used for agent outputs, patches, prompts, logs, and safe-output data |
+| `actions/download-artifact` | `70fc10c...` | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
 | `actions/setup-node` | `6044e13...` | Sets up Node.js environment | Used in workflows requiring npm/node |
-| `actions/setup-python` | `a26af69...` | Sets up Python environment | Used for Python-based workflows and scripts |
-| `actions/setup-go` | `40f1582...`, `4dc6199...`, `7a3fe6c...` | Sets up Go environment | Used for Go-based builds and tests |
-| `actions/setup-java` | `c1e3236...` | Sets up Java environment | Used for Java-based workflows |
-| `actions/setup-dotnet` | `67a3573...` | Sets up .NET environment | Used for .NET-based workflows |
-| `actions/github-script` | `ed59741...`, `f28e40c...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
-| `actions/cache` | `0057852...` | Caches dependencies | Used for caching npm, pip, go modules |
-| `actions/cache/restore` | `0057852...` | Restores cached dependencies | Explicit cache restore action |
-| `actions/cache/save` | `0057852...` | Saves dependencies to cache | Explicit cache save action |
+| `actions/setup-python` | `a309ff8...` | Sets up Python environment | Used for Python-based workflows and scripts |
+| `actions/setup-go` | `4b73464...` | Sets up Go environment | Used for Go-based builds and tests |
+| `actions/setup-java` | `be666c2...` | Sets up Java environment | Used for Java-based workflows |
+| `actions/setup-dotnet` | `baa11fb...` | Sets up .NET environment | Used for .NET-based workflows |
+| `actions/github-script` | `ed59741...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
+| `actions/cache` | `cdf6c1f...` | Caches dependencies | Used for caching npm, pip, go modules |
+| `actions/cache/restore` | `cdf6c1f...` | Restores cached dependencies | Explicit cache restore action |
+| `actions/cache/save` | `cdf6c1f...` | Saves dependencies to cache | Explicit cache save action |
 | `docker/setup-buildx-action` | `8d2750c...` | Sets up Docker Buildx | Used for multi-platform Docker builds |
 | `docker/build-push-action` | `10e90e3...` | Builds and pushes Docker images | Used in release workflows |
 | `docker/login-action` | `c94ce9f...` | Logs in to Docker registry | Used before pushing Docker images |
 | `docker/metadata-action` | `c299e40...` | Extracts Docker metadata | Used for tagging Docker images |
-| `astral-sh/setup-uv` | `d4b2f3b...` | Sets up uv package manager | Used for Python package management |
-| `anchore/sbom-action` | `28d7154...` | Generates SBOM | Used for security and compliance |
+| `astral-sh/setup-uv` | `5a095e7...`, `eac588ad...` | Sets up uv package manager | Used for Python package management |
+| `anchore/sbom-action` | `17ae174...` | Generates SBOM | Used for security and compliance |
 | `super-linter/super-linter` | `61abc07...` | Runs super-linter | Used for code quality checks |
-| `github/stale-repos` | `a21e55...` | Manages stale repositories | Used for repository maintenance |
+| `github/stale-repos` | `86c425f...` | Manages stale repositories | Used for repository maintenance |
 | `./actions/setup` | N/A (local) | Custom setup action | Copies JavaScript and shell scripts to `/tmp/gh-aw/actions` |
 | `github/gh-aw/actions/setup` | `a70c5ea...` | Remote setup action | Same as local `./actions/setup` but referenced remotely |
 
@@ -49,6 +49,7 @@ Artifacts uploaded/downloaded between workflow jobs:
 
 | Name | Upload Context | Download Context | Description |
 |------|----------------|------------------|-------------|
+| `activation` | Activation job | Activation job, conclusion job | Activation job outputs (sanitized text, metadata) |
 | `agent-output` | Agent job | Safe-output jobs, detection job, conclusion job | AI agent execution output (JSON format) |
 | `agent-artifacts` | Agent job | Detection job, conclusion job | Additional artifacts from agent execution |
 | `agent_outputs` | Agent job | Safe-output jobs | Alternative name for agent outputs |
@@ -90,8 +91,6 @@ Standard job names across compiled workflows:
 | `upload_assets` | Asset upload | Safe-output jobs | Uploads generated assets to GitHub releases or storage |
 | `post_to_slack_channel` | Slack notification | Safe-output jobs | Posts workflow results to Slack channel |
 | `send_slack_message` | Slack message | Safe-output jobs | Sends individual Slack messages |
-| `add_comment` | Comment addition | Safe-output jobs | Adds comments to issues/PRs |
-| `create_pull_request` | PR creation | Safe-output jobs | Creates pull requests from agent changes |
 | `notion_add_comment` | Notion comment | Safe-output jobs | Adds comments to Notion pages |
 | `search_issues` | Issue search | Various | Searches GitHub issues based on criteria |
 | `post-issue` | Issue posting | Various | Posts new GitHub issues |
@@ -197,13 +196,13 @@ const AgenticWorkflowsMCPServerID = "agenticworkflows"
 ````
 ### Default Versions
 ````go
-const DefaultCopilotVersion Version = "0.0.414"
-const DefaultClaudeCodeVersion Version = "2.1.50"
-const DefaultCodexVersion Version = "0.104.0"
-const DefaultGeminiVersion Version = "0.29.0"
+const DefaultCopilotVersion Version = "0.0.420"
+const DefaultClaudeCodeVersion Version = "2.1.63"
+const DefaultCodexVersion Version = "0.106.0"
+const DefaultGeminiVersion Version = "0.31.0"
 const DefaultGitHubMCPServerVersion Version = "v0.31.0"
-const DefaultFirewallVersion Version = "v0.20.2"
-const DefaultMCPGatewayVersion Version = "v0.1.5"
+const DefaultFirewallVersion Version = "v0.23.0"
+const DefaultMCPGatewayVersion Version = "v0.1.6"
 const DefaultPlaywrightMCPVersion Version = "0.0.68"
 const DefaultMCPSDKVersion Version = "1.24.0"
 const DefaultBunVersion Version = "1.1"
@@ -359,8 +358,8 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-02-23
-**Lock files analyzed**: 158
+**Last extraction run**: 2026-03-02
+**Lock files analyzed**: 165
 **Patterns documented**: 200+
 
 ---
