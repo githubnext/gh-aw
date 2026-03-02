@@ -62,13 +62,13 @@ features:
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible.**
 
-The workspace is checked out from `githubnext/gh-aw-side-repo`. You will update PR #1 in that repo by appending the next sequential line from Homer's Odyssey to the README.
+The workspace is checked out from `githubnext/gh-aw-side-repo`. You will update PR #1 in that repo by appending the next sequential line from Homer's Odyssey to the README. Determine the next line by inspecting the Odyssey lines already in the README and choosing the line that immediately follows them, avoiding duplicates.
 
 ## Test Steps
 
 Mark this step ✅ if the checkout succeeds, ❌ otherwise.
 
-Yes the 'push_to_pull_request_branch' to update the PR https://github.com/githubnext/gh-aw-side-repo/pull/1 by appending the opening line of Homer's odyssey to the README.
+Yes use 'push_to_pull_request_branch' to update the PR https://github.com/githubnext/gh-aw-side-repo/pull/1 by appending the next sequential line of Homer's Odyssey to the README (not always the opening line).
 
 ## Output
 
