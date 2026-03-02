@@ -73,28 +73,6 @@ func shellDoubleQuoteArg(value string) string {
 	return "\"" + escaped + "\""
 }
 
-// shellEscapeCommandString escapes a complete command string (which may already contain
-// quoted arguments) for passing as a single argument to another command.
-// It wraps the command in double quotes and escapes any double quotes, dollar signs,
-// backticks, and backslashes within the command.
-// This is useful when passing a command to wrapper programs like awf that expect
-// the command as a single quoted argument.
-func shellEscapeCommandString(cmd string) string {
-	shellLog.Printf("Escaping command string (length: %d)", len(cmd))
-	// Escape backslashes first (must be done before other escapes)
-	escaped := strings.ReplaceAll(cmd, "\\", "\\\\")
-	// Escape double quotes
-	escaped = strings.ReplaceAll(escaped, "\"", "\\\"")
-	// Escape dollar signs (to prevent variable expansion)
-	escaped = strings.ReplaceAll(escaped, "$", "\\$")
-	// Escape backticks (to prevent command substitution)
-	escaped = strings.ReplaceAll(escaped, "`", "\\`")
-
-	shellLog.Print("Command string escaped successfully")
-	// Wrap in double quotes
-	return "\"" + escaped + "\""
-}
-
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command
 // that allows ${GITHUB_WORKSPACE} and $GITHUB_WORKSPACE to be expanded at runtime
 func buildDockerCommandWithExpandableVars(cmd string) string {

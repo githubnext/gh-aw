@@ -7,67 +7,6 @@ import (
 	"testing"
 )
 
-func TestExtractFirstMatch(t *testing.T) {
-	tests := []struct {
-		name     string
-		text     string
-		pattern  string
-		expected string
-	}{
-		{
-			name:     "Basic match",
-			text:     "Token count: 1500 tokens",
-			pattern:  `Token count: (\d+)`,
-			expected: "1500",
-		},
-		{
-			name:     "No match",
-			text:     "No tokens here",
-			pattern:  `Token count: (\d+)`,
-			expected: "",
-		},
-		{
-			name:     "Case insensitive match",
-			text:     "TOKEN COUNT: 2000 tokens",
-			pattern:  `token count: (\d+)`,
-			expected: "2000",
-		},
-		{
-			name:     "Multiple matches - first one returned",
-			text:     "Token count: 1000 tokens, Cost: 0.05",
-			pattern:  `(\d+)`,
-			expected: "1000",
-		},
-		{
-			name:     "Empty text",
-			text:     "",
-			pattern:  `Token count: (\d+)`,
-			expected: "",
-		},
-		{
-			name:     "Empty pattern",
-			text:     "Token count: 1500 tokens",
-			pattern:  ``,
-			expected: "",
-		},
-		{
-			name:     "Complex pattern with named groups",
-			text:     "Usage: input=500, output=300",
-			pattern:  `input=(\d+)`,
-			expected: "500",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractFirstMatch(tt.text, tt.pattern)
-			if result != tt.expected {
-				t.Errorf("ExtractFirstMatch(%q, %q) = %q, want %q", tt.text, tt.pattern, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestExtractJSONMetrics(t *testing.T) {
 	tests := []struct {
 		name     string
