@@ -24,12 +24,11 @@ func (c *Compiler) hasCustomTokenSafeOutputs(safeOutputs *SafeOutputsConfig) boo
 		return true
 	}
 
-	// Check top-level safe-outputs github-token
-	if safeOutputs.GitHubToken != "" {
-		return true
-	}
-
-	// Check BaseSafeOutputConfig.GitHubToken on all safe output types
+	// Check BaseSafeOutputConfig.GitHubToken on all safe output types.
+	// Note: the top-level safeOutputs.GitHubToken is intentionally NOT checked
+	// here — that token is used as the step-level github-script token and does
+	// not require @actions/github/getOctokit(). Only per-handler tokens trigger
+	// the npm install.
 	for _, base := range c.collectBaseSafeOutputConfigs(safeOutputs) {
 		if base != nil && base.GitHubToken != "" {
 			return true
