@@ -5,9 +5,14 @@ describe("extra_empty_commit.cjs", () => {
   let mockExec;
   let pushExtraEmptyCommit;
   let originalEnv;
+  let originalGithubRepo;
 
   beforeEach(() => {
     originalEnv = process.env.GH_AW_CI_TRIGGER_TOKEN;
+    originalGithubRepo = process.env.GITHUB_REPOSITORY;
+    // Set GITHUB_REPOSITORY to match the default test owner/repo so the
+    // cross-repo guard doesn't interfere with unrelated tests.
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
 
     mockCore = {
       info: vi.fn(),
@@ -33,6 +38,11 @@ describe("extra_empty_commit.cjs", () => {
       process.env.GH_AW_CI_TRIGGER_TOKEN = originalEnv;
     } else {
       delete process.env.GH_AW_CI_TRIGGER_TOKEN;
+    }
+    if (originalGithubRepo !== undefined) {
+      process.env.GITHUB_REPOSITORY = originalGithubRepo;
+    } else {
+      delete process.env.GITHUB_REPOSITORY;
     }
     delete global.core;
     delete global.exec;
