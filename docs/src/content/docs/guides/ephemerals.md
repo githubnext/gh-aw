@@ -9,13 +9,7 @@ GitHub Agentic Workflows includes several features designed to automatically exp
 
 ## Why Use Ephemerals?
 
-**Cost Control**: Scheduled workflows can accumulate costs over time. Setting expiration dates ensures they stop automatically after a deadline.
-
-**Reduce Clutter**: AI-generated issues and discussions can accumulate quickly. Auto-expiration removes obsolete content, keeping your repository focused on active work.
-
-**Status Updates**: When workflows post status updates repeatedly, hiding older comments prevents timeline clutter while preserving the latest information.
-
-**Clean Automation**: Prevent automated content from overwhelming your main repository by using separate repositories and controlling cross-references.
+Ephemerals control costs by stopping scheduled workflows at deadlines, reduce clutter by auto-expiring issues and discussions, keep status timelines clean by hiding older comments, and isolate automation via the SideRepoOps pattern.
 
 ## Expiration Features
 
@@ -34,17 +28,7 @@ on: weekly on monday
 
 The minimum granularity is hours - minute-only units (e.g., `+30m`) are not allowed. Recompiling the workflow resets the stop time.
 
-**Key behaviors**:
-- The workflow is disabled at the specified deadline, preventing new runs
-- Existing runs continue to completion
-- The stop time is preserved during recompilation unless `--refresh-stop-time` flag is used
-- Use `gh aw compile --refresh-stop-time` to regenerate the stop time based on current time
-
-**Use cases**:
-- Trial workflows that should run for a limited period
-- Experimental features with automatic sunset dates
-- Orchestrated initiatives with defined end dates
-- Cost-controlled scheduled workflows
+At the deadline, new runs are prevented while existing runs complete. The stop time persists through recompilation; use `gh aw compile --refresh-stop-time` to reset it. Common uses: trial periods, experimental features, orchestrated initiatives, and cost-controlled schedules.
 
 See [Triggers Reference](/gh-aw/reference/triggers/#stop-after-configuration-stop-after) for complete documentation.
 
@@ -113,21 +97,7 @@ safe-outputs:
     close-older-issues: true  # Close previous reports
 ```
 
-**How it works**:
-- When a new issue is created successfully, the system searches for older issues
-- Matches are identified by the workflow-id marker embedded in the issue body
-- Up to 10 older issues are closed as "not planned"
-- Each closed issue receives a comment linking to the new issue
-- Only runs if the new issue creation succeeds
-
-**Requirements**:
-- GH_AW_WORKFLOW_ID environment variable must be set
-- Requires appropriate permissions on the target repository
-
-**Use cases**:
-- Weekly status reports where only the latest matters
-- Recurring analysis workflows that supersede previous results
-- Scheduled summaries that replace older versions
+When a new issue is created, up to 10 older issues with the same workflow-id marker are closed as "not planned" with a comment linking to the new issue. Requires `GH_AW_WORKFLOW_ID` to be set and appropriate repository permissions. Ideal for weekly reports and recurring analyses where only the latest result matters.
 
 ## Noise Reduction Features
 
@@ -142,27 +112,7 @@ safe-outputs:
     allowed-reasons: [outdated]  # Optional: restrict hiding reasons
 ```
 
-**How it works**:
-- Before posting a new comment, searches for previous comments from the same workflow
-- Identifies comments by `GITHUB_WORKFLOW` name
-- Hides (minimizes) matching comments in the GitHub UI
-- Posts the new comment
-- Only hides comments; does not delete them
-
-**Allowed reasons**:
-- `spam` - Mark as spam
-- `abuse` - Mark as abusive
-- `off_topic` - Mark as off-topic
-- `outdated` - Mark as outdated (default)
-- `resolved` - Mark as resolved
-
-Configure `allowed-reasons` to restrict which reasons can be used. If omitted, only `outdated` is allowed by default.
-
-**Use cases**:
-- Workflows posting status updates repeatedly
-- Build status notifications where only latest result matters
-- Health check workflows reporting periodic results
-- Progress tracking workflows with frequent updates
+Before posting, the system finds and minimizes previous comments from the same workflow (identified by `GITHUB_WORKFLOW`). Comments are hidden, not deleted. Use `allowed-reasons` to restrict which minimization reason is applied: `spam`, `abuse`, `off_topic`, `outdated` (default), or `resolved`. Useful for status updates, build notifications, and health checks where only the latest result matters.
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-older-comments) for complete documentation.
 
@@ -207,14 +157,7 @@ safe-outputs:
 | **Auto-close** | Supported with maintenance workflow | Supported with maintenance workflow |
 | **Timeline noise** | Can clutter project tracking | Separate from development work |
 
-**Use cases for ephemeral discussions**:
-
-- Weekly status reports
-- Periodic analysis results
-- Temporary announcements
-- Q&A that expires
-- Time-bound experiments
-- Community updates
+Ephemeral discussions work well for weekly reports, periodic analyses, temporary announcements, time-bound Q&A, and community updates.
 
 **Combining features**:
 
@@ -226,12 +169,7 @@ safe-outputs:
     close-older-discussions: true  # Replace previous reports
 ```
 
-This configuration ensures:
-
-1. Only the latest weekly status discussion is open
-2. Previous reports are closed when new ones are created
-3. All discussions auto-close after 14 days
-4. The "Status Updates" category stays clean and focused
+This keeps the "Status Updates" category clean: previous reports are closed on creation and all discussions auto-close after 14 days.
 
 ## Related Documentation
 
