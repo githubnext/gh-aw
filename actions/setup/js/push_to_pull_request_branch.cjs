@@ -461,6 +461,9 @@ async function main(config = {}) {
 
     // Update the activation comment with commit link (if a comment was created and changes were pushed)
     // Pass pullNumber so a new comment is created on the PR when no activation comment exists (e.g., schedule triggers)
+    //
+    // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
+    // in the same repo as the activation, so the global client has the correct context for updating the comment.
     if (hasChanges) {
       await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, { targetIssueNumber: pullNumber });
     }
