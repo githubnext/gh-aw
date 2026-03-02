@@ -38,15 +38,7 @@ func NewFixCommand() *cobra.Command {
 This command applies a registry of codemods that automatically update deprecated fields
 and migrate to new syntax. Codemods preserve formatting and comments as much as possible.
 
-Available codemods:
-  • timeout-minutes-migration: Replaces 'timeout_minutes' with 'timeout-minutes'
-  • network-firewall-migration: Removes deprecated 'network.firewall' field
-  • sandbox-false-to-agent-false: Converts 'sandbox: false' to 'sandbox.agent: false'
-  • safe-inputs-mode-removal: Removes deprecated 'safe-inputs.mode' field
-  • schedule-at-to-around-migration: Converts 'daily at TIME' to 'daily around TIME'
-  • delete-schema-file: Deletes deprecated .github/aw/schemas/agentic-workflow.json
-  • delete-old-agents: Deletes old workflow-specific .agent.md files from .github/agents/
-  • delete-old-templates: Removes old template files from pkg/cli/templates/
+Use --list-codemods to see all available codemods and their descriptions.
 
 If no workflows are specified, all Markdown files in .github/workflows will be processed.
 

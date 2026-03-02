@@ -68,9 +68,9 @@ Authentication Requirements:
   See https://github.github.com/gh-aw/reference/auth/.
 
 Project Setup:
-	Use --with-project-setup to automatically create:
-	- Standard views (Progress Board, Task Tracker, Roadmap)
-	- Custom fields (Tracker Id, Worker Workflow, Target Repo, Priority, Size, dates)
+  Use --with-project-setup to automatically create:
+  - Standard views (Progress Board, Task Tracker, Roadmap)
+  - Custom fields (Tracker Id, Worker Workflow, Target Repo, Priority, Size, dates)
   - Enhanced Status field with "Review Required" option
 
 Examples:

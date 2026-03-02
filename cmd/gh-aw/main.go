@@ -199,7 +199,7 @@ var disableCmd = &cobra.Command{
 	Use:   "disable [workflow]...",
 	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
-
+Any in-progress runs will be cancelled before disabling.
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
@@ -355,7 +355,7 @@ Examples:
   gh aw run daily-perf-improver
   gh aw run daily-perf-improver.md   # Alternative format
   gh aw run daily-perf-improver --ref main  # Run on specific branch
-  gh aw run daily-perf-improver --repeat 3  # Run 3 times total
+  gh aw run daily-perf-improver --repeat 3  # Run 4 times total (1 initial + 3 repeats)
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
   gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
@@ -656,7 +656,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	disableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 
 	// Add flags to run command
-	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
+	runCmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	runCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
