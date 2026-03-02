@@ -837,58 +837,6 @@ func TestIsValidGitHubIdentifier(t *testing.T) {
 	}
 }
 
-func TestGitHubURLComponents_GetRepoSlug(t *testing.T) {
-	c := &GitHubURLComponents{
-		Owner: "owner",
-		Repo:  "repo",
-	}
-
-	got := c.GetRepoSlug()
-	want := "owner/repo"
-
-	if got != want {
-		t.Errorf("GetRepoSlug() = %v, want %v", got, want)
-	}
-}
-
-func TestGitHubURLComponents_GetWorkflowName(t *testing.T) {
-	tests := []struct {
-		name string
-		path string
-		want string
-	}{
-		{
-			name: "Markdown file",
-			path: "workflows/my-workflow.md",
-			want: "my-workflow",
-		},
-		{
-			name: "Nested path",
-			path: ".github/workflows/release.md",
-			want: "release",
-		},
-		{
-			name: "Empty path",
-			path: "",
-			want: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &GitHubURLComponents{
-				Path: tt.path,
-			}
-
-			got := c.GetWorkflowName()
-
-			if got != tt.want {
-				t.Errorf("GetWorkflowName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 // TestParseGitHubURL_AdditionalEdgeCases tests additional edge cases for comprehensive coverage
 func TestParseGitHubURL_AdditionalEdgeCases(t *testing.T) {
 	tests := []struct {

@@ -377,8 +377,3 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	}
 	return fmt.Sprintf("at '%s' (line %d, column %d): %s", path, line, column, message)
 }
-
-// GetMainWorkflowSchema returns the embedded main workflow schema JSON
-func GetMainWorkflowSchema() string {
-	return mainWorkflowSchema
-}
