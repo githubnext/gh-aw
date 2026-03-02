@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.3
-**Last Updated**: 2026-02-28
+**Version**: 3.4
+**Last Updated**: 2026-03-01
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -104,6 +104,34 @@ graph LR
 4. MCP server validates and writes NDJSON
 5. Safe output jobs read NDJSON and execute operations
 6. Results posted to GitHub resources
+
+### Package Structure
+
+The codebase uses a layered package structure with three tiers: entry points, core packages, and utilities.
+
+**Entry Points**: `cmd/gh-aw` (main CLI binary) and `cmd/gh-aw-wasm` (WebAssembly target)
+
+**Core Packages**:
+
+| Package | Description |
+|---------|-------------|
+| `pkg/cli` | CLI command implementations and subcommands |
+| `pkg/workflow` | Workflow compilation engine and orchestration |
+| `pkg/parser` | Markdown frontmatter and YAML parsing |
+| `pkg/console` | Terminal UI and styled output rendering |
+
+**Shared Definitions**:
+
+| Package | Description |
+|---------|-------------|
+| `pkg/constants` | Application-wide constants (versions, flags, URLs, engine names) |
+| `pkg/types` | Shared type definitions across packages |
+
+**Utility Packages**: `pkg/fileutil`, `pkg/gitutil`, `pkg/logger`, `pkg/stringutil`, `pkg/sliceutil`, `pkg/repoutil`, `pkg/tty`, `pkg/envutil`, `pkg/timeutil`, `pkg/mathutil`, `pkg/testutil`, `pkg/styles`
+
+All core packages depend on `pkg/constants` and `pkg/types` for shared definitions.
+
+See `scratchpad/architecture.md` for the full package dependency diagram.
 
 ---
 
@@ -1667,6 +1695,40 @@ function validateCreateIssue(params: any): ValidationResult {
 }
 ```
 
+### GitHub MCP Guard Policies
+
+Guard policies enable fine-grained access control at the MCP gateway level, restricting which repositories and integrity levels AI agents can access through the GitHub MCP server.
+
+**Frontmatter Syntax**:
+```yaml
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos: "all"            # "all", "public", or array of patterns
+    min-integrity: reader   # none | reader | writer | merged
+```
+
+Both `repos` and `min-integrity` are required when either is specified under `github:`.
+
+**Repository Pattern Options**:
+- `"all"` — All repositories accessible by the token
+- `"public"` — Public repositories only
+- Array of patterns: `"owner/repo"`, `"owner/*"`, `"owner/prefix*"`
+
+Pattern validation rules:
+- Patterns must be lowercase
+- Wildcards are only permitted at the end of the repo name segment
+- Empty arrays are not allowed
+
+**Integrity Levels**: `none` | `reader` | `writer` | `merged` (case-sensitive)
+
+**Validation Location**: `pkg/workflow/tools_validation.go` — `validateGitHubGuardPolicy()` runs during workflow compilation via `compiler_orchestrator_workflow.go` and `compiler_string_api.go`.
+
+**Extensibility**: The `MCPServerConfig` struct holds a `GuardPolicies map[string]any` field for future MCP servers (e.g., Jira, WorkIQ) that need server-specific policy schemas.
+
+See `scratchpad/guard-policies-specification.md` for the full specification including type hierarchy and error message reference.
+
 ### MCP Server Configuration
 
 **Server Registration**:
@@ -2045,6 +2107,8 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [HTML Entity Mention Bypass Fix](./html-entity-mention-bypass-fix.md) - Security fix: entity-encoded @mention bypass
 - [Template Syntax Sanitization](./template-syntax-sanitization.md) - T24: template delimiter neutralization
 - [YAML Version Gotchas](./yaml-version-gotchas.md) - YAML 1.1 vs 1.2 parser compatibility: `on:` key behavior, false positive prevention
+- [Architecture Diagram](./architecture.md) - Package structure and dependency diagram for the `gh-aw` codebase
+- [Guard Policies Specification](./guard-policies-specification.md) - GitHub MCP guard policies: `repos` scope and `min-integrity` access control
 
 ### External References
 
@@ -2056,6 +2120,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v3.4 (2026-03-01): Added Package Structure section to Core Architecture (from `architecture.md`, updated 2026-03-01); added GitHub MCP Guard Policies section to MCP Integration (from `guard-policies-specification.md`); added 2 new Related Documentation links. Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.3 (2026-02-28): Maintenance review — analyzed 62 files; 0 tone issues, 0 formatting issues, 0 new spec files found. HEAD commit (980b021, 'Fix: multi-line block scalar descriptions in safe-inputs script generators') brought clean scratchpad files: all `` ```text `` fences are legitimate opening fences for plain text blocks, not non-standard closers. Coverage remains 100% (61 spec files + 1 test artifact).
 - v3.2 (2026-02-27): Fixed 42 non-standard code fence closing markers across 12 spec files (`` ```text `` and `` ```yaml `` incorrectly used as closing fences in actions.md, code-organization.md, github-actions-security-best-practices.md, and 9 others); identified 1 new test artifact file (smoke-test-22422877284.md) as non-spec content
 - v3.1 (2026-02-26): Fixed 173 non-standard code fence closing markers across 20 spec files (`` ```text `` incorrectly closing `` ```go ``, `` ```yaml ``, and other language blocks); files fixed include code-organization.md, validation-architecture.md, actions.md, safe-output-messages.md, github-actions-security-best-practices.md, and 15 others
