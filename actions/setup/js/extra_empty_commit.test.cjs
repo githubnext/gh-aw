@@ -394,6 +394,111 @@ describe("extra_empty_commit.cjs", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // Cross-repo guard
+  // ──────────────────────────────────────────────────────
+
+  describe("cross-repo guard", () => {
+    let originalGithubRepo;
+
+    beforeEach(() => {
+      originalGithubRepo = process.env.GITHUB_REPOSITORY;
+      process.env.GH_AW_CI_TRIGGER_TOKEN = "ghp_test_token_123";
+      // No empty commits in log (so cycle prevention doesn't interfere)
+      mockGitLogOutput("COMMIT:abc123\nfile.txt\n");
+    });
+
+    afterEach(() => {
+      if (originalGithubRepo !== undefined) {
+        process.env.GITHUB_REPOSITORY = originalGithubRepo;
+      } else {
+        delete process.env.GITHUB_REPOSITORY;
+      }
+    });
+
+    it("should skip when target repo differs from GITHUB_REPOSITORY", async () => {
+      process.env.GITHUB_REPOSITORY = "my-org/my-repo";
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "other-org",
+        repoName: "other-repo",
+      });
+
+      expect(result).toEqual({ success: true, skipped: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("cross-repo target"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("other-org/other-repo"));
+      // Should NOT have committed or pushed
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeUndefined();
+    });
+
+    it("should skip when only owner differs (cross-org)", async () => {
+      process.env.GITHUB_REPOSITORY = "my-org/shared-repo";
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "other-org",
+        repoName: "shared-repo",
+      });
+
+      expect(result).toEqual({ success: true, skipped: true });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("cross-repo target"));
+    });
+
+    it("should proceed when target repo matches GITHUB_REPOSITORY", async () => {
+      process.env.GITHUB_REPOSITORY = "my-org/my-repo";
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "my-org",
+        repoName: "my-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      // Should have committed and pushed
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+    });
+
+    it("should compare repos case-insensitively", async () => {
+      process.env.GITHUB_REPOSITORY = "My-Org/My-Repo";
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "my-org",
+        repoName: "my-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      // Should have committed and pushed (same repo, different case)
+      const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
+      expect(commitCall).toBeDefined();
+    });
+
+    it("should proceed when GITHUB_REPOSITORY is not set", async () => {
+      delete process.env.GITHUB_REPOSITORY;
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // Error handling
   // ──────────────────────────────────────────────────────
 
@@ -458,5 +563,59 @@ describe("extra_empty_commit.cjs", () => {
       const ciTriggerRemoveCall = remoteRemoveCalls.find(args => args[2] === "ci-trigger");
       expect(ciTriggerRemoveCall).toBeDefined();
     });
+  });
+});
+
+describe("isCrossRepoTarget", () => {
+  let originalGithubRepo;
+  let isCrossRepoTarget;
+
+  beforeEach(() => {
+    originalGithubRepo = process.env.GITHUB_REPOSITORY;
+    // Provide minimal globals so the module loads
+    global.core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+    global.exec = { exec: vi.fn().mockResolvedValue(0) };
+    delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+    ({ isCrossRepoTarget } = require("./extra_empty_commit.cjs"));
+  });
+
+  afterEach(() => {
+    if (originalGithubRepo !== undefined) {
+      process.env.GITHUB_REPOSITORY = originalGithubRepo;
+    } else {
+      delete process.env.GITHUB_REPOSITORY;
+    }
+    delete global.core;
+    delete global.exec;
+  });
+
+  it("returns true when target repo differs from GITHUB_REPOSITORY", () => {
+    process.env.GITHUB_REPOSITORY = "my-org/my-repo";
+    expect(isCrossRepoTarget("other-org", "other-repo")).toBe(true);
+  });
+
+  it("returns true when only owner differs", () => {
+    process.env.GITHUB_REPOSITORY = "my-org/shared-repo";
+    expect(isCrossRepoTarget("other-org", "shared-repo")).toBe(true);
+  });
+
+  it("returns false when target repo matches GITHUB_REPOSITORY", () => {
+    process.env.GITHUB_REPOSITORY = "my-org/my-repo";
+    expect(isCrossRepoTarget("my-org", "my-repo")).toBe(false);
+  });
+
+  it("compares case-insensitively", () => {
+    process.env.GITHUB_REPOSITORY = "My-Org/My-Repo";
+    expect(isCrossRepoTarget("my-org", "my-repo")).toBe(false);
+  });
+
+  it("returns false when GITHUB_REPOSITORY is not set", () => {
+    delete process.env.GITHUB_REPOSITORY;
+    expect(isCrossRepoTarget("any-org", "any-repo")).toBe(false);
+  });
+
+  it("returns false when GITHUB_REPOSITORY is empty string", () => {
+    process.env.GITHUB_REPOSITORY = "";
+    expect(isCrossRepoTarget("any-org", "any-repo")).toBe(false);
   });
 });

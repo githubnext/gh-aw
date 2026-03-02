@@ -18,6 +18,23 @@
  */
 
 /**
+ * Check whether a target repository is a cross-repo target (different from the
+ * workflow's own repository). Comparison is case-insensitive.
+ *
+ * @param {string} repoOwner - Repository owner
+ * @param {string} repoName - Repository name
+ * @returns {boolean} true when the target repo differs from GITHUB_REPOSITORY
+ */
+function isCrossRepoTarget(repoOwner, repoName) {
+  const githubRepository = process.env.GITHUB_REPOSITORY || "";
+  if (!githubRepository) {
+    return false;
+  }
+  const targetRepo = `${repoOwner}/${repoName}`;
+  return targetRepo.toLowerCase() !== githubRepository.toLowerCase();
+}
+
+/**
  * Push an empty commit to a branch using a dedicated token.
  * This commit is pushed with different authentication so that push/PR events
  * are triggered for CI checks to run.
@@ -37,6 +54,13 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
 
   if (!token || !token.trim()) {
     core.info("No extra empty commit token configured - skipping");
+    return { success: true, skipped: true };
+  }
+
+  // Cross-repo guard: never push an extra empty commit to a different repository.
+  // A token is needed to create the PR and that will trigger events anyway.
+  if (isCrossRepoTarget(repoOwner, repoName)) {
+    core.info(`Skipping extra empty commit: cross-repo target ${repoOwner}/${repoName} differs from workflow repo ${process.env.GITHUB_REPOSITORY}`);
     return { success: true, skipped: true };
   }
 
@@ -129,4 +153,4 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
   }
 }
 
-module.exports = { pushExtraEmptyCommit };
+module.exports = { pushExtraEmptyCommit, isCrossRepoTarget };
