@@ -8072,8 +8072,8 @@
               }
             }
           ],
-          "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
-          "examples": [["*"], ["pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
+          "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"refs/pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
+          "examples": [["*"], ["refs/pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
         }
       }
     }

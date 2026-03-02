@@ -67,13 +67,13 @@ type CheckoutConfig struct {
 	//
 	// Supported values:
 	//   - "*"            – fetch all remote branches
-	//   - "pulls/open/*" – GH-AW shorthand for all open pull-request refs
+	//   - "refs/pulls/open/*" – GH-AW shorthand for all open pull-request refs
 	//   - branch name    – e.g. "main" or "feature/my-branch"
 	//   - glob pattern   – e.g. "feature/*"
 	//
 	// Example:
 	//   fetch: ["*"]
-	//   fetch: ["pulls/open/*"]
+	//   fetch: ["refs/pulls/open/*"]
 	//   fetch: ["main", "feature/my-branch"]
 	Fetch []string `json:"fetch,omitempty"`
 }
@@ -444,7 +444,7 @@ func mergeFetchRefs(existing []string, newRefs []string) []string {
 //
 // Special values:
 //   - "*"            → "+refs/heads/*:refs/remotes/origin/*"
-//   - "pulls/open/*" → "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
+//   - "refs/pulls/open/*" → "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
 //
 // All other values are treated as branch names or glob patterns and mapped to
 // the canonical remote-tracking refspec form.
@@ -452,7 +452,7 @@ func fetchRefToRefspec(pattern string) string {
 	switch pattern {
 	case "*":
 		return "+refs/heads/*:refs/remotes/origin/*"
-	case "pulls/open/*":
+	case "refs/pulls/open/*":
 		return "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
 	default:
 		// Treat as branch name or glob: map to remote tracking ref
@@ -781,7 +781,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 	sb.WriteString("  - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, " +
 		"it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. " +
 		"If the branch is required and not available, exit with an error and ask the user to add it to the " +
-		"`fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"pulls/open/*\"]` for all open PR refs, " +
+		"`fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"refs/pulls/open/*\"]` for all open PR refs, " +
 		"or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n")
 
 	return sb.String()

@@ -556,10 +556,10 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 
 	t.Run("fetch refs are listed in prompt", func(t *testing.T) {
 		content := buildCheckoutsPromptContent([]*CheckoutConfig{
-			{Repository: "owner/repo", Fetch: []string{"pulls/open/*", "main"}},
+			{Repository: "owner/repo", Fetch: []string{"refs/pulls/open/*", "main"}},
 		})
 		assert.Contains(t, content, "additional refs fetched", "should mention additional refs")
-		assert.Contains(t, content, "pulls/open/*", "should list the pulls/open/* pattern")
+		assert.Contains(t, content, "refs/pulls/open/*", "should list the refs/pulls/open/* pattern")
 		assert.Contains(t, content, "main", "should list the main branch")
 	})
 
@@ -576,12 +576,12 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 func TestParseFetchField(t *testing.T) {
 	t.Run("fetch as array of strings", func(t *testing.T) {
 		raw := map[string]any{
-			"fetch": []any{"*", "pulls/open/*"},
+			"fetch": []any{"*", "refs/pulls/open/*"},
 		}
 		configs, err := ParseCheckoutConfigs(raw)
 		require.NoError(t, err, "should parse without error")
 		require.Len(t, configs, 1)
-		assert.Equal(t, []string{"*", "pulls/open/*"}, configs[0].Fetch, "fetch should be set")
+		assert.Equal(t, []string{"*", "refs/pulls/open/*"}, configs[0].Fetch, "fetch should be set")
 	})
 
 	t.Run("fetch as single string", func(t *testing.T) {
@@ -638,7 +638,7 @@ func TestFetchRefToRefspec(t *testing.T) {
 		expected string
 	}{
 		{"*", "+refs/heads/*:refs/remotes/origin/*"},
-		{"pulls/open/*", "+refs/pull/*/head:refs/remotes/origin/pull/*/head"},
+		{"refs/pulls/open/*", "+refs/pull/*/head:refs/remotes/origin/pull/*/head"},
 		{"main", "+refs/heads/main:refs/remotes/origin/main"},
 		{"feature/my-branch", "+refs/heads/feature/my-branch:refs/remotes/origin/feature/my-branch"},
 		{"feature/*", "+refs/heads/feature/*:refs/remotes/origin/feature/*"},
@@ -654,8 +654,8 @@ func TestFetchRefToRefspec(t *testing.T) {
 // TestMergeFetchRefs verifies that fetch ref lists are properly unioned.
 func TestMergeFetchRefs(t *testing.T) {
 	t.Run("union of two disjoint sets", func(t *testing.T) {
-		result := mergeFetchRefs([]string{"*"}, []string{"pulls/open/*"})
-		assert.Equal(t, []string{"*", "pulls/open/*"}, result)
+		result := mergeFetchRefs([]string{"*"}, []string{"refs/pulls/open/*"})
+		assert.Equal(t, []string{"*", "refs/pulls/open/*"}, result)
 	})
 
 	t.Run("removes duplicate refs", func(t *testing.T) {
@@ -689,9 +689,9 @@ func TestGenerateFetchStep(t *testing.T) {
 		assert.Contains(t, got, "${{ github.token }}", "should fall back to github.token when no checkout token set")
 	})
 
-	t.Run("fetch pulls/open/* uses PR refspec", func(t *testing.T) {
+	t.Run("fetch refs/pulls/open/* uses PR refspec", func(t *testing.T) {
 		entry := &resolvedCheckout{
-			fetchRefs: []string{"pulls/open/*"},
+			fetchRefs: []string{"refs/pulls/open/*"},
 		}
 		got := generateFetchStepLines(entry)
 		assert.Contains(t, got, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
@@ -735,7 +735,7 @@ func TestGenerateFetchStep(t *testing.T) {
 
 	t.Run("multiple refspecs in single command", func(t *testing.T) {
 		entry := &resolvedCheckout{
-			fetchRefs: []string{"*", "pulls/open/*"},
+			fetchRefs: []string{"*", "refs/pulls/open/*"},
 		}
 		got := generateFetchStepLines(entry)
 		assert.Contains(t, got, "+refs/heads/*:refs/remotes/origin/*", "should include branches refspec")
@@ -756,9 +756,9 @@ func TestCheckoutManagerFetchMerging(t *testing.T) {
 
 	t.Run("fetch refs preserved when no merge", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Repository: "owner/repo", Path: "./r", Fetch: []string{"*", "pulls/open/*"}},
+			{Repository: "owner/repo", Path: "./r", Fetch: []string{"*", "refs/pulls/open/*"}},
 		})
-		assert.Equal(t, []string{"*", "pulls/open/*"}, cm.ordered[0].fetchRefs)
+		assert.Equal(t, []string{"*", "refs/pulls/open/*"}, cm.ordered[0].fetchRefs)
 	})
 }
 
@@ -769,7 +769,7 @@ func TestGenerateAdditionalCheckoutStepsWithFetch(t *testing.T) {
 
 	t.Run("fetch step appended after checkout step", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Repository: "owner/side-repo", Path: "./side", Fetch: []string{"pulls/open/*"}},
+			{Repository: "owner/side-repo", Path: "./side", Fetch: []string{"refs/pulls/open/*"}},
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
@@ -813,7 +813,7 @@ func TestGenerateDefaultCheckoutStepWithFetch(t *testing.T) {
 
 	t.Run("fetch with custom token uses that token", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Token: "${{ secrets.MY_PAT }}", Fetch: []string{"pulls/open/*"}},
+			{Token: "${{ secrets.MY_PAT }}", Fetch: []string{"refs/pulls/open/*"}},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")

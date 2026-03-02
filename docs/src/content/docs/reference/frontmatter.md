@@ -587,7 +587,7 @@ checkout:
     path: ./libs/other
     ref: main
     token: ${{ secrets.CROSS_REPO_PAT }}
-    fetch: ["pulls/open/*"]
+    fetch: ["refs/pulls/open/*"]
 ```
 
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options (including `fetch:`), merging behavior, and cross-repo examples.

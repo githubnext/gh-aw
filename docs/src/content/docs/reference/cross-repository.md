@@ -64,15 +64,22 @@ A dedicated git fetch step is emitted after the `actions/checkout` step. Authent
 | Value | Description |
 |-------|-------------|
 | `"*"` | All remote branches. |
-| `"pulls/open/*"` | All open pull-request head refs (GH-AW shorthand). |
+| `"refs/pulls/open/*"` | All open pull-request head refs (GH-AW shorthand). |
 | `"main"` | A specific branch name. |
 | `"feature/*"` | A glob pattern matching branch names. |
 
 ```yaml wrap
 checkout:
+  - fetch: ["*"]                 # fetch all branches (default checkout)
+    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
+```
+
+```yaml wrap
+checkout:
   - repository: githubnext/gh-aw-side-repo
     token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-    fetch: ["pulls/open/*"]      # fetch all open PR refs after checkout
+    fetch: ["refs/pulls/open/*"]      # fetch all open PR refs after checkout
+    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
 ```
 
 ```yaml wrap
@@ -80,15 +87,11 @@ checkout:
   - repository: org/target-repo
     token: ${{ secrets.CROSS_REPO_PAT }}
     fetch: ["main", "feature/*"] # fetch specific branches
-```
-
-```yaml wrap
-checkout:
-  - fetch: ["*"]                 # fetch all branches (default checkout)
+    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
 ```
 
 :::note
-If a branch you need is not available after checkout and is not covered by a `fetch:` pattern, the agent cannot access its Git history. For private repositories, it will be unable to fetch the branch without proper authentication. If the branch is required and unavailable, configure the appropriate pattern in `fetch:` (e.g., `fetch: ["pulls/open/*"]` for PR branches) and redeploy the workflow.
+If a branch you need is not available after checkout and is not covered by a `fetch:` pattern, and you're in a private or internal repo, then the agent cannot access its Git history except inefficiently, file by file, via the GitHub MCP. For private repositories, it will be unable to fetch or explore additional branches. If the branch is required and unavailable, configure the appropriate pattern in `fetch:` (e.g., `fetch: ["*"]` for all branches, or `fetch: ["refs/pulls/open/*"]` for PR branches) and recompile the workflow.
 :::
 
 ### Checkout Merging
@@ -318,7 +321,7 @@ on:
 checkout:
   - repository: org/target-repo
     token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
-    fetch: ["pulls/open/*"]   # fetch all open PR branches after checkout
+    fetch: ["refs/pulls/open/*"]   # fetch all open PR branches after checkout
     current: true
 
 permissions:
@@ -336,7 +339,7 @@ Check open pull requests in org/target-repo and apply any pending automated
 updates to each PR branch.
 ```
 
-`fetch: ["pulls/open/*"]` causes a `git fetch` step to run after `actions/checkout`, downloading all open PR head refs into the workspace. The agent can then inspect and modify those branches directly.
+`fetch: ["refs/pulls/open/*"]` causes a `git fetch` step to run after `actions/checkout`, downloading all open PR head refs into the workspace. The agent can then inspect and modify those branches directly.
 
 ## Related Documentation
 
