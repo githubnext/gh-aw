@@ -9,11 +9,11 @@ Configure GitHub API operations available to your workflow through the Model Con
 
 ```yaml wrap
 tools:
-  github:                                      # Default read-only access
+  github:                                      # Default read-only access (always enforced)
   github:
     toolsets: [repos, issues, pull_requests]   # Recommended: toolset groups
     mode: remote                               # "local" (Docker) or "remote" (hosted)
-    read-only: true                            # Read-only operations
+    read-only: true                            # Always true; false is not permitted
     github-token: "${{ secrets.CUSTOM_PAT }}"  # Custom token
 ```
 

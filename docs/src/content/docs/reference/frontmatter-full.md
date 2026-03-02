@@ -1422,7 +1422,7 @@ tools:
     args: []
       # Array of strings
 
-    # Enable read-only mode to restrict GitHub MCP server to read-only operations only
+    # GitHub MCP server read-only mode (always enforced; false is not permitted)
     # (optional)
     read-only: true
 

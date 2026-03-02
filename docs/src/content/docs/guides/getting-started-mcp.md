@@ -134,14 +134,16 @@ Local mode runs the MCP server in a Docker container, useful for pinning specifi
 
 ### Read-Only Mode
 
-Restrict operations to read-only for security-sensitive workflows:
+The GitHub MCP server always operates in read-only mode. `read-only: true` is the default and the only allowed value — setting `read-only: false` causes a compilation error.
 
 ```yaml wrap
 tools:
   github:
-    read-only: true
+    read-only: true   # Always enforced; setting false is not permitted
     toolsets: [repos, issues]
 ```
+
+Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which execute in a separate, permission-controlled job after the agent completes.
 
 ## MCP Registry
 

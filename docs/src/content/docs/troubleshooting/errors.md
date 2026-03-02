@@ -154,6 +154,24 @@ Authenticate with GitHub CLI (`gh auth login`) or ensure `GITHUB_TOKEN` is avail
 
 Use a string value: `manual-approval: "Approve deployment to production"`.
 
+### Invalid Frontmatter Key `triggers:`
+
+`invalid frontmatter key 'triggers:' — use 'on:' to define workflow triggers`
+
+Agentic workflow files use `on:` (not `triggers:`) to define workflow trigger events, matching standard GitHub Actions syntax. Replace `triggers:` with `on:`:
+
+```aw wrap
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+---
+```
+
+See [Triggers](/gh-aw/reference/triggers/) for the full list of supported trigger events.
+
 ### Invalid On Section Format
 
 `invalid on: section format`
@@ -302,6 +320,21 @@ tools:
     toolsets: [issues]
     allowed: [create_issue]  # Only create_issue from issues toolset
 ```
+
+### GitHub MCP Server Read-Only Enforcement
+
+`GitHub MCP server read-only mode cannot be disabled`
+
+The GitHub MCP server always operates in read-only mode. Setting `read-only: false` is not permitted and causes a compilation error:
+
+```yaml wrap
+# Not allowed — causes a compilation error
+tools:
+  github:
+    read-only: false
+```
+
+Remove `read-only: false` or change it to `read-only: true` (the default). Write operations should use [safe outputs](/gh-aw/reference/safe-outputs/) instead of granting the agent direct write access.
 
 ## Troubleshooting Tips
 
