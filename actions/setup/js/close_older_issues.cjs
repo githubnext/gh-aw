@@ -22,9 +22,13 @@ const API_DELAY_MS = 500;
  * @param {string} repo - Repository name
  * @param {string} workflowId - Workflow ID to match in the marker
  * @param {number} excludeNumber - Issue number to exclude (the newly created one)
+ * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering.
+ *   When set, filters by the `gh-aw-workflow-call-id` marker so callers sharing the same
+ *   reusable workflow do not close each other's issues. Falls back to `gh-aw-workflow-id`
+ *   when not provided (backward compat for issues created before this fix).
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>}>>} Matching issues
  */
-async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber) {
+async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId) {
   core.info(`Starting search for older issues in ${owner}/${repo}`);
   core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude issue number: ${excludeNumber}`);
@@ -59,15 +63,17 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
   // Filter results:
   // 1. Must not be the excluded issue (newly created one)
   // 2. Must not be a pull request
-  // 3. Body must contain the exact workflow-id marker (GitHub search tokenizes on
-  //    delimiters so "foo" matches "foo-bar"; exact match prevents cross-workflow closes)
+  // 3. Body must contain the exact marker for this workflow.
+  //    When callerWorkflowId is set, match `gh-aw-workflow-call-id` so that callers
+  //    sharing the same reusable workflow do not close each other's issues.
+  //    Fall back to `gh-aw-workflow-id` for backward compat with older issues.
   core.info("Filtering search results...");
   let filteredCount = 0;
   let pullRequestCount = 0;
   let excludedCount = 0;
   let markerMismatchCount = 0;
 
-  const exactMarker = `<!-- gh-aw-workflow-id: ${workflowId} -->`;
+  const exactMarker = callerWorkflowId ? `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->` : `<!-- gh-aw-workflow-id: ${workflowId} -->`;
 
   const filtered = result.data.items
     .filter(item => {
@@ -198,13 +204,16 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @param {{number: number, html_url: string}} newIssue - The newly created issue
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
+ * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
-async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl) {
+async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId) {
   const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
     entityType: "issue",
     entityTypePlural: "issues",
-    searchOlderEntities: searchOlderIssues,
+    // Use a closure so callerWorkflowId is forwarded to searchOlderIssues without going
+    // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
+    searchOlderEntities: (gh, o, r, wid, ...args) => searchOlderIssues(gh, o, r, wid, ...args, callerWorkflowId),
     getCloseMessage: params =>
       getCloseOlderIssueMessage({
         newIssueUrl: params.newEntityUrl,

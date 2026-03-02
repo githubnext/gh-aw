@@ -28,7 +28,7 @@ function resetIssuesToAssignCopilot() {
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
-const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -433,10 +433,9 @@ async function main(config = {}) {
     const workflowId = process.env.GH_AW_WORKFLOW_ID ?? "";
     // GH_AW_CALLER_WORKFLOW_ID is set at runtime to `github.repository/github.workflow`.
     // When multiple workflows call the same reusable workflow via workflow_call they all
-    // share the same GH_AW_WORKFLOW_ID, so we use the caller identity as the marker to
-    // prevent close-older-issues from crossing workflow boundaries.
+    // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
+    // with the caller's identity so close-older-issues can distinguish callers precisely.
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
-    const effectiveWorkflowId = callerWorkflowId || workflowId;
     const { runId } = context;
     const githubServer = process.env.GITHUB_SERVER_URL ?? "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -456,8 +455,13 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     // Always add XML markers even when footer is disabled
-    if (effectiveWorkflowId) {
-      bodyLines.push(``, generateWorkflowIdMarker(effectiveWorkflowId));
+    if (workflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    }
+    // Add workflow-call-id marker when available to allow close-older-issues to
+    // distinguish callers that share the same reusable workflow (and GH_AW_WORKFLOW_ID)
+    if (callerWorkflowId) {
+      bodyLines.push(generateWorkflowCallIdMarker(callerWorkflowId));
     }
 
     bodyLines.push("");
@@ -515,10 +519,10 @@ async function main(config = {}) {
 
       // Close older issues if enabled
       if (closeOlderIssuesEnabled) {
-        if (effectiveWorkflowId) {
-          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${effectiveWorkflowId}`);
+        if (workflowId) {
+          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
           try {
-            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, effectiveWorkflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl, callerWorkflowId);
             if (closedIssues.length > 0) {
               core.info(`Closed ${closedIssues.length} older issue(s)`);
             }
@@ -530,8 +534,6 @@ async function main(config = {}) {
           core.warning("Close older issues enabled but GH_AW_WORKFLOW_ID environment variable not set - skipping");
         }
       }
-
-      // Handle grouping - find or create parent issue and link sub-issue
       if (groupEnabled && !effectiveParentIssueNumber) {
         // Use workflow name as the group ID
         const groupId = workflowName;

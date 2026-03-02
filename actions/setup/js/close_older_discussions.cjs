@@ -25,9 +25,13 @@ const GRAPHQL_DELAY_MS = 500;
  * @param {string} workflowId - Workflow ID to match in the marker
  * @param {string|undefined} categoryId - Optional category ID to filter by
  * @param {number} excludeNumber - Discussion number to exclude (the newly created one)
+ * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering.
+ *   When set, filters by the `gh-aw-workflow-call-id` marker so callers sharing the same
+ *   reusable workflow do not close each other's discussions. Falls back to `gh-aw-workflow-id`
+ *   when not provided (backward compat for discussions created before this fix).
  * @returns {Promise<Array<{id: string, number: number, title: string, url: string}>>} Matching discussions
  */
-async function searchOlderDiscussions(github, owner, repo, workflowId, categoryId, excludeNumber) {
+async function searchOlderDiscussions(github, owner, repo, workflowId, categoryId, excludeNumber, callerWorkflowId) {
   core.info(`Starting search for older discussions in ${owner}/${repo}`);
   core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude discussion number: ${excludeNumber}`);
@@ -80,15 +84,17 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
   // 1. Must not be the excluded discussion (newly created one)
   // 2. Must not be already closed
   // 3. If categoryId is specified, must match
-  // 4. Body must contain the exact workflow-id marker (GitHub search tokenizes on
-  //    delimiters so "foo" matches "foo-bar"; exact match prevents cross-workflow closes)
+  // 4. Body must contain the exact marker for this workflow.
+  //    When callerWorkflowId is set, match `gh-aw-workflow-call-id` so that callers
+  //    sharing the same reusable workflow do not close each other's discussions.
+  //    Fall back to `gh-aw-workflow-id` for backward compat with older discussions.
   core.info("Filtering search results...");
   let filteredCount = 0;
   let excludedCount = 0;
   let closedCount = 0;
   let markerMismatchCount = 0;
 
-  const exactMarker = `<!-- gh-aw-workflow-id: ${workflowId} -->`;
+  const exactMarker = callerWorkflowId ? `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->` : `<!-- gh-aw-workflow-id: ${workflowId} -->`;
 
   const filtered = result.search.nodes
     .filter(
@@ -208,9 +214,10 @@ async function closeDiscussionAsOutdated(github, owner, repo, discussionId) {
  * @param {{number: number, url: string}} newDiscussion - The newly created discussion
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
+ * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering
  * @returns {Promise<Array<{number: number, url: string}>>} List of closed discussions
  */
-async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion, workflowName, runUrl) {
+async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion, workflowName, runUrl, callerWorkflowId) {
   const result = await closeOlderEntities(
     github,
     owner,
@@ -222,7 +229,9 @@ async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId
     {
       entityType: "discussion",
       entityTypePlural: "discussions",
-      searchOlderEntities: searchOlderDiscussions,
+      // Use a closure so callerWorkflowId is forwarded to searchOlderDiscussions without going
+      // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
+      searchOlderEntities: (gh, o, r, wid, ...args) => searchOlderDiscussions(gh, o, r, wid, ...args, callerWorkflowId),
       getCloseMessage: params =>
         getCloseOlderDiscussionMessage({
           newDiscussionUrl: params.newEntityUrl,

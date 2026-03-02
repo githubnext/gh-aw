@@ -174,6 +174,42 @@ describe("close_older_issues", () => {
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(123);
     });
+
+    it("should filter by gh-aw-workflow-call-id when callerWorkflowId is provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Same caller - should be included",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+            },
+            {
+              number: 124,
+              title: "Different caller - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              // Different caller shares the same reusable workflow-id but has a different call-id
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerB -->",
+            },
+            {
+              number: 125,
+              title: "Old issue without call-id - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/125",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "my-reusable-workflow", 999, "owner/repo/CallerA");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+    });
   });
 
   describe("addIssueComment", () => {

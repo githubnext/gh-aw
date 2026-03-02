@@ -16,7 +16,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
-const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -511,10 +511,9 @@ async function main(config = {}) {
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     // GH_AW_CALLER_WORKFLOW_ID is set at runtime to `github.repository/github.workflow`.
     // When multiple workflows call the same reusable workflow via workflow_call they all
-    // share the same GH_AW_WORKFLOW_ID, so we use the caller identity as the marker to
-    // prevent close-older-discussions from crossing workflow boundaries.
+    // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
+    // with the caller's identity so close-older-discussions can distinguish callers precisely.
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
-    const effectiveWorkflowId = callerWorkflowId || workflowId;
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -532,8 +531,13 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     // Always add XML markers even when footer is disabled
-    if (effectiveWorkflowId) {
-      bodyLines.push(``, generateWorkflowIdMarker(effectiveWorkflowId));
+    if (workflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    }
+    // Add workflow-call-id marker when available to allow close-older-discussions to
+    // distinguish callers that share the same reusable workflow (and GH_AW_WORKFLOW_ID)
+    if (callerWorkflowId) {
+      bodyLines.push(generateWorkflowCallIdMarker(callerWorkflowId));
     }
 
     bodyLines.push("");

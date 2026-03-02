@@ -109,9 +109,24 @@ function generateExpiredEntityFooter(workflowName, runUrl, workflowId) {
   return footer;
 }
 
+/**
+ * Generates a standalone workflow-call-id XML comment marker for close-older-issues
+ * disambiguation. This marker contains the calling workflow's runtime identity
+ * (`github.repository/github.workflow`) and is used to distinguish multiple
+ * callers that share the same reusable workflow (and therefore the same
+ * `gh-aw-workflow-id`).
+ *
+ * @param {string} callerWorkflowId - Calling workflow identifier (e.g. "owner/repo/WorkflowName")
+ * @returns {string} Standalone workflow-call-id XML comment marker
+ */
+function generateWorkflowCallIdMarker(callerWorkflowId) {
+  return `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->`;
+}
+
 module.exports = {
   generateXMLMarker,
   generateWorkflowIdMarker,
+  generateWorkflowCallIdMarker,
   getWorkflowIdMarkerContent,
   generateExpiredEntityFooter,
 };

@@ -277,6 +277,49 @@ describe("close_older_discussions.cjs", () => {
       expect(result).toHaveLength(1);
       expect(result[0].number).toBe(5);
     });
+
+    it("should filter by gh-aw-workflow-call-id when callerWorkflowId is provided", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_same_caller",
+              number: 5,
+              title: "Same caller - should be included",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_diff_caller",
+              number: 6,
+              title: "Different caller - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerB -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_old",
+              number: 7,
+              title: "Old discussion without call-id - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/7",
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "my-reusable-workflow", "DIC_test123", 99, "owner/repo/CallerA");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+    });
   });
 
   describe("closeOlderDiscussions", () => {
