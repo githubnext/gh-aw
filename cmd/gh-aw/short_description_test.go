@@ -35,6 +35,7 @@ func TestShortDescriptionConsistency(t *testing.T) {
 		cli.NewLogsCommand(),
 		cli.NewTrialCommand(validateEngine),
 		cli.NewAddCommand(validateEngine),
+		cli.NewAddWizardCommand(validateEngine),
 		cli.NewUpdateCommand(validateEngine),
 		cli.NewAuditCommand(),
 		mcpCmd,

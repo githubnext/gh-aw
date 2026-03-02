@@ -83,7 +83,9 @@ gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with comm
 
 ### The `--push` Flag
 
-Several commands support `--push` to automatically commit and push changes. It verifies a remote is configured, validates you're on the default branch (override with `--ref`), prompts for confirmation outside CI (auto-confirmed when `CI`, `CONTINUOUS_INTEGRATION`, or `GITHUB_ACTIONS` env vars are set), then pulls with rebase and pushes. Requires a clean working directory.
+The `run` command supports `--push` to automatically commit and push changes before dispatching the workflow. It stages all changes, commits, and pushes to the remote. Requires a clean working directory.
+
+For `init`, `update`, and `upgrade`, use `--create-pull-request` to create a pull request with the changes instead.
 
 ## Commands
 
@@ -101,10 +103,10 @@ gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --codespaces                 # Configure devcontainer for current repo
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --completions                # Install shell completions
-gh aw init --push                       # Initialize and automatically commit/push changes
+gh aw init --create-pull-request        # Initialize and open a pull request
 ```
 
-**Options:** `--no-mcp`, `--codespaces`, `--completions`, `--push` (see [--push flag](#the---push-flag))
+**Options:** `--no-mcp`, `--codespaces`, `--completions`, `--create-pull-request`
 
 #### `add`
 
@@ -391,9 +393,10 @@ gh aw update ci-doctor                    # Update specific workflow (3-way merg
 gh aw update ci-doctor --no-merge         # Override local changes with upstream
 gh aw update ci-doctor --major --force    # Allow major version updates
 gh aw update --disable-release-bump       # Update workflows; only force-update core actions/*
+gh aw update --create-pull-request        # Update and open a pull request
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`
 
 #### `upgrade`
 
@@ -402,13 +405,12 @@ Upgrade repository with latest agent files and apply codemods to all workflows.
 ```bash wrap
 gh aw upgrade                              # Upgrade repository agent files and all workflows
 gh aw upgrade --no-fix                     # Update agent files only (skip codemods)
-gh aw upgrade --push                       # Upgrade and automatically commit/push
-gh aw upgrade --push --no-fix              # Update agent files and push
+gh aw upgrade --create-pull-request        # Upgrade and open a pull request
 gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir`, `--no-fix`, `--no-actions`, `--push` (see [--push flag](#the---push-flag)), `--audit`, `--json`
+**Options:** `--dir`, `--no-fix`, `--no-actions`, `--create-pull-request`, `--audit`, `--json`
 
 ### Advanced
 

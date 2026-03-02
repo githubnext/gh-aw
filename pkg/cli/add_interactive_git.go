@@ -32,7 +32,6 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 		Force:                  false,
 		AppendText:             "",
 		CreatePR:               true,
-		Push:                   false,
 		NoGitattributes:        c.NoGitattributes,
 		WorkflowDir:            c.WorkflowDir,
 		NoStopAfter:            c.NoStopAfter,
@@ -45,44 +44,91 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 	}
 	c.addResult = result
 
-	// Step 8b: Auto-merge the PR
+	// Step 8b: Optionally merge the PR – loop until merged, confirmed-merged, or user exits
 	if result.PRNumber == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
 		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
 	} else {
-		if err := c.mergePullRequest(result.PRNumber); err != nil {
-			// Check if already merged
-			if strings.Contains(err.Error(), "already merged") || strings.Contains(err.Error(), "MERGED") {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", err)))
-				fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+result.PRURL))
+		fmt.Fprintln(os.Stderr, "")
 
-				// Ask user whether to continue or stop
-				continueAfterMerge := true
-				mergeForm := huh.NewForm(
-					huh.NewGroup(
-						huh.NewConfirm().
-							Title("Would you like to continue?").
-							Description("Select 'Yes' once you have merged the PR, or 'No' to stop here").
-							Affirmative("Yes, continue (PR is merged)").
-							Negative("No, stop for now").
-							Value(&continueAfterMerge),
-					),
-				).WithAccessible(console.IsAccessibleMode())
+		// mergeAction values used in the select loop
+		type mergeAction string
+		const (
+			mergeActionAttempt   mergeAction = "attempt"
+			mergeActionReview    mergeAction = "review"
+			mergeActionConfirmed mergeAction = "confirmed"
+			mergeActionExit      mergeAction = "exit"
+		)
 
-				if mergeFormErr := mergeForm.Run(); mergeFormErr != nil {
-					return fmt.Errorf("failed to get user input: %w", mergeFormErr)
-				}
+		mergeDone := false     // true when the PR is merged (or confirmed merged)
+		mergeFailed := false   // true after an unsuccessful merge attempt
+		userReviewing := false // true after the user chose "I'll review myself"
 
-				if !continueAfterMerge {
-					fmt.Fprintln(os.Stderr, "")
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Stopped. You can continue later by merging the PR and running the workflow manually."))
-					return errors.New("user chose to stop after merge failure")
-				}
+		for !mergeDone {
+			// Build option list based on current state
+			var options []huh.Option[mergeAction]
+
+			if !mergeFailed {
+				options = append(options, huh.NewOption("Attempt to merge", mergeActionAttempt))
 			}
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+
+			if userReviewing {
+				options = append(options, huh.NewOption("PR has been manually merged", mergeActionConfirmed))
+			} else {
+				options = append(options, huh.NewOption("I'll review/merge myself", mergeActionReview))
+			}
+
+			if userReviewing {
+				options = append(options, huh.NewOption("Exit, I'm done here", mergeActionExit))
+			} else {
+				options = append(options, huh.NewOption("Exit", mergeActionExit))
+			}
+
+			var chosen mergeAction
+			selectForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewSelect[mergeAction]().
+						Title("What would you like to do with pull request " + result.PRURL + "?").
+						Options(options...).
+						Value(&chosen),
+				),
+			).WithAccessible(console.IsAccessibleMode())
+
+			if selectErr := selectForm.Run(); selectErr != nil {
+				return fmt.Errorf("failed to get user input: %w", selectErr)
+			}
+
+			switch chosen {
+			case mergeActionAttempt:
+				if mergeErr := c.mergePullRequest(result.PRNumber); mergeErr != nil {
+					if strings.Contains(mergeErr.Error(), "already merged") || strings.Contains(mergeErr.Error(), "MERGED") {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+						mergeDone = true
+					} else {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", mergeErr)))
+						fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+						mergeFailed = true
+					}
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+					mergeDone = true
+				}
+
+			case mergeActionReview:
+				userReviewing = true
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+result.PRURL))
+				fmt.Fprintln(os.Stderr, "")
+
+			case mergeActionConfirmed:
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
+				mergeDone = true
+
+			case mergeActionExit:
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Exiting. You can merge the pull request later: "+result.PRURL))
+				return errors.New("user exited before PR was merged")
+			}
 		}
 	}
 

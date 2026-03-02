@@ -144,6 +144,30 @@ Additionally, safe outputs enforce permission separation - write operations happ
 
 See [Safe Outputs - Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for configuration options.
 
+### How do I prevent workflow output from creating backlinks in referenced issues?
+
+When AI-generated content mentions issue or PR numbers (such as `#123` or `owner/repo#456`), GitHub automatically creates "mentioned in..." timeline entries in those issues. Set `allowed-github-references: []` to escape all such references before the content is posted:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: []  # Escape all GitHub references
+  create-issue:
+```
+
+With an empty list, every `#N` and `owner/repo#N` reference in the output is wrapped in backticks, which prevents GitHub from resolving them as cross-references and avoids cluttering other repositories' timelines. This is especially useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows that write content about issues in a main repository from a separate sidecar repository.
+
+To allow references only from the current repository while still escaping all others:
+
+```yaml wrap
+safe-outputs:
+  allowed-github-references: [repo]
+  add-comment:
+```
+
+When `allowed-github-references` is not configured at all, all references are left unescaped (default behavior).
+
+See [Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for full configuration options.
+
 ### Tell me more about guardrails
 
 Guardrails are foundational to the design. Agentic workflows implement defense-in-depth through compilation-time validation (schema checks, expression safety, action SHA pinning), runtime isolation (sandboxed containers with network controls), permission separation (read-only defaults with [safe outputs](/gh-aw/reference/safe-outputs/) for writes), tool allowlisting, and output sanitization. See the [Security Architecture](/gh-aw/introduction/architecture/).
@@ -286,6 +310,47 @@ safe-outputs:
 Even with `footer: false`, the hidden `<!-- gh-aw-workflow-id: ... -->` XML marker is still included in the content for searchability - you can search GitHub for `"gh-aw-workflow-id: my-workflow" in:body` to find all items created by a workflow.
 
 See [Footer Control](/gh-aw/reference/footers/) for complete documentation including per-handler overrides and PR review footer options.
+
+### My workflow fails with "Runtime import file not found" when used in a repository ruleset
+
+When a workflow is configured as a **required status check** in a [repository ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), it runs in a restricted context that does not have access to other files in the repository. Shared files imported with the `imports:` field are loaded at runtime from the repository checkout, but this checkout is not available in the ruleset context.
+
+This produces an error such as:
+
+```
+ERR_SYSTEM: Runtime import file not found: workflows/shared/file.md
+```
+
+The fix is to enable `inlined-imports: true` in your workflow frontmatter. This causes the compiler to bundle all imported content directly into the compiled `.lock.yml` at compile time, so no file system access is needed at runtime:
+
+```aw wrap
+---
+on: pull_request
+engine: copilot
+inlined-imports: true
+imports:
+  - shared/common-tools.md
+  - shared/security-setup.md
+---
+
+# My Workflow
+
+Workflow instructions here.
+```
+
+After adding `inlined-imports: true`, recompile the workflow:
+
+```bash
+gh aw compile my-workflow
+```
+
+> [!NOTE]
+> With `inlined-imports: true`, any change to an imported file requires recompiling the workflow to take effect. The compiled `.lock.yml` must be committed and pushed for the updated content to run.
+
+> [!NOTE]
+> `inlined-imports: true` cannot be combined with agent file imports (`.github/agents/` files). If your workflow imports a custom agent file, remove it before enabling inlined imports.
+
+See [Imports](/gh-aw/reference/imports/) for full documentation on the `imports:` field.
 
 ## Workflow Design
 

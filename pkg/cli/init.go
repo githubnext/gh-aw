@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 
@@ -21,7 +20,6 @@ type InitOptions struct {
 	CodespaceRepos   []string
 	CodespaceEnabled bool
 	Completions      bool
-	Push             bool
 	CreatePR         bool
 	RootCmd          CommandProvider
 }
@@ -36,26 +34,10 @@ func InitRepository(opts InitOptions) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting up repository..."))
 	fmt.Fprintln(os.Stderr, "")
 
-	// If --push or --create-pull-request is enabled, ensure git status is clean before starting
-	if opts.Push || opts.CreatePR {
-		if opts.CreatePR {
-			initLog.Print("Checking for clean working directory (--create-pull-request enabled)")
-		} else {
-			initLog.Print("Checking for clean working directory (--push enabled)")
-		}
-		if err := checkCleanWorkingDirectory(opts.Verbose); err != nil {
-			initLog.Printf("Git status check failed: %v", err)
-			if opts.CreatePR {
-				return fmt.Errorf("--create-pull-request requires a clean working directory: %w", err)
-			}
-			return fmt.Errorf("--push requires a clean working directory: %w", err)
-		}
-	}
-
-	// If creating a PR, check GitHub CLI is available
+	// If --create-pull-request is enabled, run pre-flight checks before doing any work
 	if opts.CreatePR {
-		if !isGHCLIAvailable() {
-			return errors.New("GitHub CLI (gh) is required for PR creation but not available")
+		if err := PreflightCheckForCreatePR(opts.Verbose); err != nil {
+			return err
 		}
 	}
 
@@ -174,90 +156,12 @@ func InitRepository(opts InitOptions) error {
 		initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
 		fmt.Fprintln(os.Stderr, "")
 
-		// Get current branch for restoration later
-		currentBranch, err := getCurrentBranch()
-		if err != nil {
-			return fmt.Errorf("failed to get current branch: %w", err)
-		}
-
-		// Create temporary branch
-		branchName := fmt.Sprintf("init-agentic-workflows-%d", rand.Intn(9000)+1000)
-		if err := createAndSwitchBranch(branchName, opts.Verbose); err != nil {
-			return fmt.Errorf("failed to create branch %s: %w", branchName, err)
-		}
-
-		// Commit changes
-		commitMessage := "chore: initialize agentic workflows"
-		if err := commitChanges(commitMessage, opts.Verbose); err != nil {
-			// Switch back to original branch before returning error
-			_ = switchBranch(currentBranch, opts.Verbose)
-			return fmt.Errorf("failed to commit changes: %w", err)
-		}
-
-		// Push branch
-		if err := pushBranch(branchName, opts.Verbose); err != nil {
-			// Switch back to original branch before returning error
-			_ = switchBranch(currentBranch, opts.Verbose)
-			return fmt.Errorf("failed to push branch %s: %w", branchName, err)
-		}
-
-		// Create PR
-		prTitle := "Initialize agentic workflows"
 		prBody := "This PR initializes the repository for agentic workflows by:\n" +
 			"- Configuring .gitattributes\n" +
 			"- Creating GitHub Copilot custom instructions\n" +
 			"- Setting up workflow prompts and agents"
-		if _, _, err := createPR(branchName, prTitle, prBody, opts.Verbose); err != nil {
-			// Switch back to original branch before returning error
-			_ = switchBranch(currentBranch, opts.Verbose)
-			return fmt.Errorf("failed to create PR: %w", err)
-		}
-
-		// Switch back to original branch
-		if err := switchBranch(currentBranch, opts.Verbose); err != nil {
-			return fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created PR for initialization"))
-	} else if opts.Push {
-		// If --push is enabled, commit and push changes
-		initLog.Print("Push enabled - preparing to commit and push changes")
-		fmt.Fprintln(os.Stderr, "")
-
-		// Check if we're on the default branch
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking current branch..."))
-		if err := checkOnDefaultBranch(opts.Verbose); err != nil {
-			initLog.Printf("Default branch check failed: %v", err)
-			return fmt.Errorf("cannot push: %w", err)
-		}
-
-		// Confirm with user (skip in CI)
-		if err := confirmPushOperation(opts.Verbose); err != nil {
-			initLog.Printf("Push operation not confirmed: %v", err)
-			return fmt.Errorf("push operation cancelled: %w", err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
-
-		// Use the helper function to orchestrate the full workflow
-		commitMessage := "chore: initialize agentic workflows"
-		if err := commitAndPushChanges(commitMessage, opts.Verbose); err != nil {
-			// Check if it's the "no changes" case
-			hasChanges, checkErr := hasChangesToCommit()
-			if checkErr == nil && !hasChanges {
-				initLog.Print("No changes to commit")
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
-			} else {
-				return err
-			}
-		} else {
-			// Print success messages based on whether remote exists
-			fmt.Fprintln(os.Stderr, "")
-			if hasRemote() {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
-			}
+		if _, err := CreatePRWithChanges("init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose); err != nil {
+			return err
 		}
 	}
 

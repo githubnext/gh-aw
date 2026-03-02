@@ -44,7 +44,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` update repo-assist --major # Allow major version updates
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
   ` + string(constants.CLIExtensionPrefix) + ` update --disable-release-bump  # Update without force-bumping all action versions
-  ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory`,
+  ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
@@ -55,12 +56,31 @@ Examples:
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			noMergeFlag, _ := cmd.Flags().GetBool("no-merge")
 			disableReleaseBump, _ := cmd.Flags().GetBool("disable-release-bump")
+			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+			prFlagAlias, _ := cmd.Flags().GetBool("pr")
+			createPR := createPRFlag || prFlagAlias
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
 
-			return RunUpdateWorkflows(args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump)
+			if createPR {
+				if err := PreflightCheckForCreatePR(verbose); err != nil {
+					return err
+				}
+			}
+
+			if err := RunUpdateWorkflows(args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump); err != nil {
+				return err
+			}
+
+			if createPR {
+				prBody := "This PR updates agentic workflows from their source repositories."
+				_, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+					"Update workflows from source", prBody, verbose)
+				return err
+			}
+			return nil
 		},
 	}
 
@@ -72,6 +92,9 @@ Examples:
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("no-merge", false, "Override local changes with upstream version instead of merging")
 	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
+	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
