@@ -1102,6 +1102,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔧 *Tool validation by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools...\",\"runSuccess\":\"✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready.\",\"runFailure\":\"❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-test-tools"

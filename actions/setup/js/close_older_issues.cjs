@@ -59,10 +59,15 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
   // Filter results:
   // 1. Must not be the excluded issue (newly created one)
   // 2. Must not be a pull request
+  // 3. Body must contain the exact workflow-id marker (GitHub search tokenizes on
+  //    delimiters so "foo" matches "foo-bar"; exact match prevents cross-workflow closes)
   core.info("Filtering search results...");
   let filteredCount = 0;
   let pullRequestCount = 0;
   let excludedCount = 0;
+  let markerMismatchCount = 0;
+
+  const exactMarker = `<!-- gh-aw-workflow-id: ${workflowId} -->`;
 
   const filtered = result.data.items
     .filter(item => {
@@ -76,6 +81,15 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
       if (item.number === excludeNumber) {
         excludedCount++;
         core.info(`  Excluding issue #${item.number} (the newly created issue)`);
+        return false;
+      }
+
+      // Exact-match the marker in the issue body to prevent GitHub search
+      // substring tokenization from matching related workflow IDs
+      // (e.g. "foo" would otherwise match issues from "foo-bar")
+      if (!item.body?.includes(exactMarker)) {
+        markerMismatchCount++;
+        core.info(`  Excluding issue #${item.number} (body does not contain exact marker)`);
         return false;
       }
 
@@ -94,6 +108,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
   core.info(`  - Matched issues: ${filteredCount}`);
   core.info(`  - Excluded pull requests: ${pullRequestCount}`);
   core.info(`  - Excluded new issue: ${excludedCount}`);
+  core.info(`  - Excluded marker mismatch: ${markerMismatchCount}`);
 
   return filtered;
 }

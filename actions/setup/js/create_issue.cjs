@@ -431,6 +431,12 @@ async function main(config = {}) {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
     const workflowId = process.env.GH_AW_WORKFLOW_ID ?? "";
+    // GH_AW_CALLER_WORKFLOW_ID is set at runtime to `github.repository/github.workflow`.
+    // When multiple workflows call the same reusable workflow via workflow_call they all
+    // share the same GH_AW_WORKFLOW_ID, so we use the caller identity as the marker to
+    // prevent close-older-issues from crossing workflow boundaries.
+    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
+    const effectiveWorkflowId = callerWorkflowId || workflowId;
     const { runId } = context;
     const githubServer = process.env.GITHUB_SERVER_URL ?? "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -450,8 +456,8 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     // Always add XML markers even when footer is disabled
-    if (workflowId) {
-      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    if (effectiveWorkflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(effectiveWorkflowId));
     }
 
     bodyLines.push("");
@@ -509,10 +515,10 @@ async function main(config = {}) {
 
       // Close older issues if enabled
       if (closeOlderIssuesEnabled) {
-        if (workflowId) {
-          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
+        if (effectiveWorkflowId) {
+          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${effectiveWorkflowId}`);
           try {
-            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, effectiveWorkflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
             if (closedIssues.length > 0) {
               core.info(`Closed ${closedIssues.length} older issue(s)`);
             }

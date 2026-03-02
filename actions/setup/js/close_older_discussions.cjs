@@ -57,6 +57,7 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
             number
             title
             url
+            body
             category {
               id
             }
@@ -79,10 +80,15 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
   // 1. Must not be the excluded discussion (newly created one)
   // 2. Must not be already closed
   // 3. If categoryId is specified, must match
+  // 4. Body must contain the exact workflow-id marker (GitHub search tokenizes on
+  //    delimiters so "foo" matches "foo-bar"; exact match prevents cross-workflow closes)
   core.info("Filtering search results...");
   let filteredCount = 0;
   let excludedCount = 0;
   let closedCount = 0;
+  let markerMismatchCount = 0;
+
+  const exactMarker = `<!-- gh-aw-workflow-id: ${workflowId} -->`;
 
   const filtered = result.search.nodes
     .filter(
@@ -109,6 +115,15 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
           return false;
         }
 
+        // Exact-match the marker in the discussion body to prevent GitHub search
+        // substring tokenization from matching related workflow IDs
+        // (e.g. "foo" would otherwise match discussions from "foo-bar")
+        if (!d.body?.includes(exactMarker)) {
+          markerMismatchCount++;
+          core.info(`  Excluding discussion #${d.number} (body does not contain exact marker)`);
+          return false;
+        }
+
         filteredCount++;
         core.info(`  ✓ Discussion #${d.number} matches criteria: ${d.title}`);
         return true;
@@ -127,6 +142,7 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
   core.info(`  - Matched discussions: ${filteredCount}`);
   core.info(`  - Excluded new discussion: ${excludedCount}`);
   core.info(`  - Excluded closed discussions: ${closedCount}`);
+  core.info(`  - Excluded marker mismatch: ${markerMismatchCount}`);
 
   return filtered;
 }

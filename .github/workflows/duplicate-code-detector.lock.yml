@@ -1060,6 +1060,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "codex"
       GH_AW_WORKFLOW_ID: "duplicate-code-detector"
       GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"

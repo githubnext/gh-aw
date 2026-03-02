@@ -509,6 +509,12 @@ async function main(config = {}) {
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+    // GH_AW_CALLER_WORKFLOW_ID is set at runtime to `github.repository/github.workflow`.
+    // When multiple workflows call the same reusable workflow via workflow_call they all
+    // share the same GH_AW_WORKFLOW_ID, so we use the caller identity as the marker to
+    // prevent close-older-discussions from crossing workflow boundaries.
+    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+    const effectiveWorkflowId = callerWorkflowId || workflowId;
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -526,8 +532,8 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     // Always add XML markers even when footer is disabled
-    if (workflowId) {
-      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    if (effectiveWorkflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(effectiveWorkflowId));
     }
 
     bodyLines.push("");

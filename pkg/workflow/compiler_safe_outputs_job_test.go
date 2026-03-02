@@ -232,8 +232,9 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			},
 			workflowID: "test-workflow",
 			expectedVars: map[string]string{
-				"GH_AW_WORKFLOW_ID":   `"test-workflow"`,
-				"GH_AW_WORKFLOW_NAME": `"Test Workflow"`,
+				"GH_AW_WORKFLOW_ID":        `"test-workflow"`,
+				"GH_AW_WORKFLOW_NAME":      `"Test Workflow"`,
+				"GH_AW_CALLER_WORKFLOW_ID": `"${{ github.repository }}/${{ github.workflow }}"`,
 			},
 			checkContains: true,
 		},

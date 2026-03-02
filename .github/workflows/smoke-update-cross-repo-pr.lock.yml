@@ -1243,6 +1243,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-update-cross-repo-pr"
