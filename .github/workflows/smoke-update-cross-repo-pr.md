@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["smoke-update-cross-repo-pr"]
   status-comment: true
 
 permissions:
@@ -47,6 +47,7 @@ safe-outputs:
     title-prefix: "[smoke] "
     labels: [smoke-test]
     if-no-changes: "error"
+    target: "1" # PR #1
   messages:
     footer: "> 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*"
     run-started: "📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1..."
@@ -68,8 +69,6 @@ The workspace is checked out from `githubnext/gh-aw-side-repo`. You will update 
 
 Mark this step ✅ if the checkout succeeds, ❌ otherwise.
 
-Yes use 'push_to_pull_request_branch' to update the PR https://github.com/githubnext/gh-aw-side-repo/pull/1 by appending the next sequential line of Homer's Odyssey to the README (not always the opening line).
-
 ## Output
 
 1. **Create an issue** in `${{ github.repository }}` with:
@@ -85,3 +84,13 @@ Yes use 'push_to_pull_request_branch' to update the PR https://github.com/github
 2. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
    - PR titles only (no descriptions)
    - Overall status: IN PROGRESS
+
+3. Use 'push_to_pull_request_branch' to update the PR https://github.com/githubnext/gh-aw-side-repo/pull/1 by appending the next sequential line of Homer's Odyssey to the README (not always the opening line).
+
+4. **Add a comment to the issue** from step 1 `githubnext/gh-aw-side-repo` reporting whether the PR update succeeded or failed, and if it succeeded, include the line that was added to the PR.
+
+5. **Only if the PR update succeeded**: Add a comment to the triggering pull request in `${{ github.repository }}` (omit the `item_number` parameter to auto-target the triggering PR) with:
+   - "Smoke Test: Copilot - Cross-repo update PR ${{ github.run_id }}"
+   - The line that was added to the cross-repo PR
+   - Overall status: SUCCESS
+   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

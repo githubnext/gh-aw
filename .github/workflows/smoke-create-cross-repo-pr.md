@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["smoke-create-cross-repo-pr"]
   status-comment: true
 
 permissions:
@@ -67,7 +67,7 @@ The workspace is checked out from `githubnext/gh-aw-side-repo` (a private side r
 
 ## Test Requirements
 
-### 1. Create a Smoke Test File
+### 1. Create a Smoke Test File on a new branch
 
 Create the file `smoke-tests/smoke-${{ github.run_id }}.txt` with the following content (create the directory if it doesn't exist using bash: `mkdir -p smoke-tests`):
 
@@ -79,12 +79,6 @@ Status: cross-repo PR creation smoke test
 
 1.  Tell me, O Muse, of that ingenious hero who travelled far and wide
 ```
-
-### 2. Create the Cross-Repo Pull Request
-
-Use the `create_pull_request` safe-output tool to create a PR in `githubnext/gh-aw-side-repo` with:
-- **Title**: "Smoke test: cross-repo PR creation (${{ github.run_id }})"
-- **Body**: "Automated smoke test PR created by `${{ github.repository }}` run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). This PR may be safely closed."
 
 ## Output
 
@@ -101,3 +95,15 @@ Use the `create_pull_request` safe-output tool to create a PR in `githubnext/gh-
 2. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
    - PR titles only (no descriptions)
    - Overall status: IN PROGRESS
+
+3. Use the `create_pull_request` safe-output tool to create a PR in `githubnext/gh-aw-side-repo` with the added file plus:
+- **Title**: "Smoke test: cross-repo PR creation (${{ github.run_id }})"
+- **Body**: "Automated smoke test PR created by `${{ github.repository }}` run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). This PR may be safely closed."
+
+4. **Add a comment to the issue** from step 1 `githubnext/gh-aw-side-repo` reporting whether the PR update succeeded or failed, and if it succeeded, include the line that was added to the PR.
+
+5. **Only if the PR update succeeded**: Add a comment to the triggering pull request in `${{ github.repository }}` (omit the `item_number` parameter to auto-target the triggering PR) with:
+   - "Smoke Test: Copilot - Cross-repo create PR ${{ github.run_id }}"
+   - The line that was added to the cross-repo PR
+   - Overall status: SUCCESS
+   - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

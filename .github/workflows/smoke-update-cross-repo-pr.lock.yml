@@ -23,13 +23,13 @@
 #
 # Smoke test validating cross-repo pull request updates in githubnext/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bbc134d3ee609b56d69d7237e7fe0f3bd77f478db818298220a34c4a8ea9c69a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"438abe1f0a3ed76cc38ee956222384df6b97697c998dca9d056a52a72cd00ad6"}
 
 name: "Smoke Update Cross-Repo PR"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
+    # - smoke-update-cross-repo-pr # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
@@ -49,7 +49,7 @@ jobs:
     needs: pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke-update-cross-repo-pr'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -386,7 +386,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"create_issue":{"expires":2,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":0}}
+          {"add_comment":{"max":2},"create_issue":{"expires":2,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":0,"target":"1"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -1199,7 +1199,7 @@ jobs:
   pre_activation:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke-update-cross-repo-pr')))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1318,7 +1318,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"push_to_pull_request_branch\":{\"github-token\":\"${{ secrets.GH_AW_SIDE_REPO_PAT }}\",\"if_no_changes\":\"error\",\"labels\":[\"smoke-test\"],\"max_patch_size\":1024,\"target-repo\":\"githubnext/gh-aw-side-repo\",\"title_prefix\":\"[smoke] \"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"push_to_pull_request_branch\":{\"github-token\":\"${{ secrets.GH_AW_SIDE_REPO_PAT }}\",\"if_no_changes\":\"error\",\"labels\":[\"smoke-test\"],\"max_patch_size\":1024,\"target\":\"1\",\"target-repo\":\"githubnext/gh-aw-side-repo\",\"title_prefix\":\"[smoke] \"}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
