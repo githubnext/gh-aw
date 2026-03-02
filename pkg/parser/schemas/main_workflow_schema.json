@@ -8057,6 +8057,23 @@
         "current": {
           "type": "boolean",
           "description": "Marks this checkout as the logical current repository for the workflow. When set to true, the AI agent will treat this repository as its primary working target. Only one checkout may have current set to true. Useful for central-repo workflows targeting a different repository."
+        },
+        "fetch": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "A single additional ref pattern to fetch after checkout."
+            },
+            {
+              "type": "array",
+              "description": "Additional Git refs to fetch after checkout. A git fetch step is emitted after the actions/checkout step.",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
+          "examples": [["*"], ["pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
         }
       }
     }

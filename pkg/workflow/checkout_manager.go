@@ -61,6 +61,21 @@ type CheckoutConfig struct {
 	// Only one checkout may have Current set to true.
 	// This is useful for workflows that run from a central repo targeting a different repo.
 	Current bool `json:"current,omitempty"`
+
+	// Fetch specifies additional Git refs to fetch after checkout.
+	// A git fetch step is emitted after the actions/checkout step.
+	//
+	// Supported values:
+	//   - "*"            – fetch all remote branches
+	//   - "pulls/open/*" – GH-AW shorthand for all open pull-request refs
+	//   - branch name    – e.g. "main" or "feature/my-branch"
+	//   - glob pattern   – e.g. "feature/*"
+	//
+	// Example:
+	//   fetch: ["*"]
+	//   fetch: ["pulls/open/*"]
+	//   fetch: ["main", "feature/my-branch"]
+	Fetch []string `json:"fetch,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
@@ -80,7 +95,8 @@ type resolvedCheckout struct {
 	sparsePatterns []string // merged sparse-checkout patterns
 	submodules     string
 	lfs            bool
-	current        bool // true if this checkout is the logical current repository
+	current        bool     // true if this checkout is the logical current repository
+	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
 }
 
 // CheckoutManager collects checkout requests and merges them to minimize
@@ -150,6 +166,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.Submodules != "" && entry.submodules == "" {
 			entry.submodules = cfg.Submodules
 		}
+		if len(cfg.Fetch) > 0 {
+			entry.fetchRefs = mergeFetchRefs(entry.fetchRefs, cfg.Fetch)
+		}
 		checkoutManagerLog.Printf("Merged checkout for path=%q repository=%q", key.path, key.repository)
 	} else {
 		entry := &resolvedCheckout{
@@ -163,6 +182,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
+		}
+		if len(cfg.Fetch) > 0 {
+			entry.fetchRefs = mergeFetchRefs(nil, cfg.Fetch)
 		}
 		cm.index[key] = len(cm.ordered)
 		cm.ordered = append(cm.ordered, entry)
@@ -273,7 +295,18 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		}
 	}
 
-	return []string{sb.String()}
+	steps := []string{sb.String()}
+
+	// Emit a git fetch step if the user requested additional refs.
+	// In trial mode the fetch step is still emitted so the behaviour
+	// mirrors production as closely as possible.
+	if override != nil && len(override.fetchRefs) > 0 {
+		if fetchStep := generateFetchStepLines(override); fetchStep != "" {
+			steps = append(steps, fetchStep)
+		}
+	}
+
+	return steps
 }
 
 // generateCheckoutStepLines generates YAML step lines for a single non-default checkout.
@@ -315,7 +348,11 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 		sb.WriteString("          lfs: true\n")
 	}
 
-	return []string{sb.String()}
+	steps := []string{sb.String()}
+	if fetchStep := generateFetchStepLines(entry); fetchStep != "" {
+		steps = append(steps, fetchStep)
+	}
+	return steps
 }
 
 // checkoutStepName returns a human-readable description for a checkout step.
@@ -380,6 +417,95 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 	}
 
 	return result
+}
+
+// mergeFetchRefs unions two sets of fetch ref patterns preserving insertion order.
+func mergeFetchRefs(existing []string, newRefs []string) []string {
+	seen := make(map[string]bool, len(existing))
+	result := make([]string, 0, len(existing)+len(newRefs))
+	for _, r := range existing {
+		r = strings.TrimSpace(r)
+		if r != "" && !seen[r] {
+			seen[r] = true
+			result = append(result, r)
+		}
+	}
+	for _, r := range newRefs {
+		r = strings.TrimSpace(r)
+		if r != "" && !seen[r] {
+			seen[r] = true
+			result = append(result, r)
+		}
+	}
+	return result
+}
+
+// fetchRefToRefspec converts a user-facing fetch pattern to a git refspec.
+//
+// Special values:
+//   - "*"            → "+refs/heads/*:refs/remotes/origin/*"
+//   - "pulls/open/*" → "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
+//
+// All other values are treated as branch names or glob patterns and mapped to
+// the canonical remote-tracking refspec form.
+func fetchRefToRefspec(pattern string) string {
+	switch pattern {
+	case "*":
+		return "+refs/heads/*:refs/remotes/origin/*"
+	case "pulls/open/*":
+		return "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
+	default:
+		// Treat as branch name or glob: map to remote tracking ref
+		return fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", pattern, pattern)
+	}
+}
+
+// generateFetchStepLines generates a "Fetch additional refs" YAML step for the given checkout
+// entry when it has fetch refs configured. Returns an empty string when there are no fetch refs.
+//
+// Authentication: the token is passed as the GH_AW_FETCH_TOKEN environment variable and
+// injected via git's http.extraheader config option at the command level (-c flag), which
+// avoids writing credentials to disk and is consistent with the persist-credentials: false
+// policy. Note that http.extraheader values are visible in the git process's environment
+// (like all GitHub Actions environment variables containing secrets); GitHub Actions
+// automatically masks secret values in logs.
+func generateFetchStepLines(entry *resolvedCheckout) string {
+	if len(entry.fetchRefs) == 0 {
+		return ""
+	}
+
+	// Build step name
+	name := "Fetch additional refs"
+	if entry.key.repository != "" {
+		name = "Fetch additional refs for " + entry.key.repository
+	}
+
+	// Determine authentication token
+	token := entry.token
+	if token == "" {
+		token = "${{ github.token }}"
+	}
+
+	// Build refspecs
+	refspecs := make([]string, 0, len(entry.fetchRefs))
+	for _, ref := range entry.fetchRefs {
+		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
+	}
+
+	// Build the git command, navigating to the checkout directory when needed
+	gitPrefix := "git"
+	if entry.key.path != "" {
+		gitPrefix = fmt.Sprintf(`git -C "${{ github.workspace }}/%s"`, entry.key.path)
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: %s\n", name)
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
+	sb.WriteString("        run: |\n")
+	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: token ${GH_AW_FETCH_TOKEN}" fetch origin %s`+"\n",
+		gitPrefix, strings.Join(refspecs, " "))
+	return sb.String()
 }
 
 // ParseCheckoutConfigs converts a raw frontmatter value (single map or array of maps)
@@ -544,6 +670,32 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.Current = b
 	}
 
+	if v, ok := m["fetch"]; ok {
+		switch fv := v.(type) {
+		case string:
+			// Single string shorthand: treat as a one-element list
+			if strings.TrimSpace(fv) == "" {
+				return nil, errors.New("checkout.fetch string value must not be empty")
+			}
+			cfg.Fetch = []string{fv}
+		case []any:
+			refs := make([]string, 0, len(fv))
+			for i, item := range fv {
+				s, ok := item.(string)
+				if !ok {
+					return nil, fmt.Errorf("checkout.fetch[%d] must be a string, got %T", i, item)
+				}
+				if strings.TrimSpace(s) == "" {
+					return nil, fmt.Errorf("checkout.fetch[%d] must not be empty", i)
+				}
+				refs = append(refs, s)
+			}
+			cfg.Fetch = refs
+		default:
+			return nil, errors.New("checkout.fetch must be a string or an array of strings")
+		}
+	}
+
 	return cfg, nil
 }
 
@@ -607,8 +759,30 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		if cfg.Current {
 			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
 		}
+
+		// Annotate fetch-depth so the agent knows how much history is available
+		if cfg.FetchDepth != nil && *cfg.FetchDepth == 0 {
+			line += " [full history, all branches available as remote-tracking refs]"
+		} else if cfg.FetchDepth != nil {
+			line += fmt.Sprintf(" [shallow clone, fetch-depth=%d]", *cfg.FetchDepth)
+		} else {
+			line += " [shallow clone, fetch-depth=1 (default)]"
+		}
+
+		// Annotate additionally fetched refs
+		if len(cfg.Fetch) > 0 {
+			line += fmt.Sprintf(" [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
+		}
+
 		sb.WriteString(line + "\n")
 	}
+
+	// General guidance about unavailable branches
+	sb.WriteString("  - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, " +
+		"it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. " +
+		"If the branch is required and not available, exit with an error and ask the user to add it to the " +
+		"`fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"pulls/open/*\"]` for all open PR refs, " +
+		"or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n")
 
 	return sb.String()
 }

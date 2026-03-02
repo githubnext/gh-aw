@@ -530,4 +530,295 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		assert.Contains(t, content, "owner/libs", "should include libs repo")
 		assert.Contains(t, content, "**current**", "current checkout should be marked")
 	})
+
+	t.Run("default fetch-depth annotation shows shallow clone", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo"},
+		})
+		assert.Contains(t, content, "shallow clone, fetch-depth=1 (default)", "should show default shallow clone annotation")
+	})
+
+	t.Run("fetch-depth 0 annotation shows full history", func(t *testing.T) {
+		depth := 0
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo", FetchDepth: &depth},
+		})
+		assert.Contains(t, content, "full history", "should show full history annotation")
+	})
+
+	t.Run("non-zero fetch-depth annotation shows value", func(t *testing.T) {
+		depth := 50
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo", FetchDepth: &depth},
+		})
+		assert.Contains(t, content, "fetch-depth=50", "should show configured fetch-depth")
+	})
+
+	t.Run("fetch refs are listed in prompt", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo", Fetch: []string{"pulls/open/*", "main"}},
+		})
+		assert.Contains(t, content, "additional refs fetched", "should mention additional refs")
+		assert.Contains(t, content, "pulls/open/*", "should list the pulls/open/* pattern")
+		assert.Contains(t, content, "main", "should list the main branch")
+	})
+
+	t.Run("unavailable branch note is always present", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo"},
+		})
+		assert.Contains(t, content, "has NOT been checked out", "should mention branches that are not checked out")
+		assert.Contains(t, content, "fetch:", "should mention the fetch option for resolution")
+	})
+}
+
+// TestParseFetchField verifies parsing of the fetch field in checkout configuration.
+func TestParseFetchField(t *testing.T) {
+	t.Run("fetch as array of strings", func(t *testing.T) {
+		raw := map[string]any{
+			"fetch": []any{"*", "pulls/open/*"},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "should parse without error")
+		require.Len(t, configs, 1)
+		assert.Equal(t, []string{"*", "pulls/open/*"}, configs[0].Fetch, "fetch should be set")
+	})
+
+	t.Run("fetch as single string", func(t *testing.T) {
+		raw := map[string]any{
+			"fetch": "*",
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "single string fetch should parse without error")
+		require.Len(t, configs, 1)
+		assert.Equal(t, []string{"*"}, configs[0].Fetch, "single string should become a one-element slice")
+	})
+
+	t.Run("fetch with specific branch names", func(t *testing.T) {
+		raw := map[string]any{
+			"fetch": []any{"main", "feature/my-branch"},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err)
+		require.Len(t, configs, 1)
+		assert.Equal(t, []string{"main", "feature/my-branch"}, configs[0].Fetch)
+	})
+
+	t.Run("invalid fetch type returns error", func(t *testing.T) {
+		raw := map[string]any{
+			"fetch": 42,
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		assert.Error(t, err, "integer fetch should return error")
+	})
+
+	t.Run("fetch array with non-string element returns error", func(t *testing.T) {
+		raw := map[string]any{
+			"fetch": []any{"main", 123},
+		}
+		_, err := ParseCheckoutConfigs(raw)
+		assert.Error(t, err, "array with non-string entry should return error")
+	})
+
+	t.Run("fetch absent means no fetch refs", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/repo",
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err)
+		require.Len(t, configs, 1)
+		assert.Empty(t, configs[0].Fetch, "absent fetch should produce empty slice")
+	})
+}
+
+// TestFetchRefToRefspec verifies the refspec expansion logic.
+func TestFetchRefToRefspec(t *testing.T) {
+	tests := []struct {
+		pattern  string
+		expected string
+	}{
+		{"*", "+refs/heads/*:refs/remotes/origin/*"},
+		{"pulls/open/*", "+refs/pull/*/head:refs/remotes/origin/pull/*/head"},
+		{"main", "+refs/heads/main:refs/remotes/origin/main"},
+		{"feature/my-branch", "+refs/heads/feature/my-branch:refs/remotes/origin/feature/my-branch"},
+		{"feature/*", "+refs/heads/feature/*:refs/remotes/origin/feature/*"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			got := fetchRefToRefspec(tt.pattern)
+			assert.Equal(t, tt.expected, got, "refspec should match expected value")
+		})
+	}
+}
+
+// TestMergeFetchRefs verifies that fetch ref lists are properly unioned.
+func TestMergeFetchRefs(t *testing.T) {
+	t.Run("union of two disjoint sets", func(t *testing.T) {
+		result := mergeFetchRefs([]string{"*"}, []string{"pulls/open/*"})
+		assert.Equal(t, []string{"*", "pulls/open/*"}, result)
+	})
+
+	t.Run("removes duplicate refs", func(t *testing.T) {
+		result := mergeFetchRefs([]string{"main"}, []string{"main", "develop"})
+		assert.Equal(t, []string{"main", "develop"}, result)
+	})
+
+	t.Run("nil existing returns new refs", func(t *testing.T) {
+		result := mergeFetchRefs(nil, []string{"*"})
+		assert.Equal(t, []string{"*"}, result)
+	})
+}
+
+// TestGenerateFetchStep verifies that the git fetch YAML step is generated correctly.
+func TestGenerateFetchStep(t *testing.T) {
+	t.Run("no fetch refs returns empty string", func(t *testing.T) {
+		entry := &resolvedCheckout{}
+		got := generateFetchStepLines(entry)
+		assert.Empty(t, got, "empty fetchRefs should produce no step")
+	})
+
+	t.Run("fetch all branches uses star refspec", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			fetchRefs: []string{"*"},
+		}
+		got := generateFetchStepLines(entry)
+		assert.Contains(t, got, "Fetch additional refs", "should include step name")
+		assert.Contains(t, got, "+refs/heads/*:refs/remotes/origin/*", "should include correct refspec")
+		assert.Contains(t, got, "GH_AW_FETCH_TOKEN", "should set fetch token env var")
+		assert.Contains(t, got, "http.extraheader=Authorization:", "should configure credentials via http.extraheader")
+		assert.Contains(t, got, "${{ github.token }}", "should fall back to github.token when no checkout token set")
+	})
+
+	t.Run("fetch pulls/open/* uses PR refspec", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			fetchRefs: []string{"pulls/open/*"},
+		}
+		got := generateFetchStepLines(entry)
+		assert.Contains(t, got, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
+	})
+
+	t.Run("custom token is used in fetch step", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			fetchRefs: []string{"main"},
+			token:     "${{ secrets.MY_PAT }}",
+		}
+		got := generateFetchStepLines(entry)
+		assert.Contains(t, got, "${{ secrets.MY_PAT }}", "should use custom token from checkout config")
+		assert.NotContains(t, got, "github.token", "should not fall back to github.token when custom token set")
+	})
+
+	t.Run("repository name used in step name", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			key:       checkoutKey{repository: "owner/side-repo"},
+			fetchRefs: []string{"main"},
+		}
+		got := generateFetchStepLines(entry)
+		assert.Contains(t, got, "Fetch additional refs for owner/side-repo", "should include repo in step name")
+	})
+
+	t.Run("non-root path uses -C flag", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			key:       checkoutKey{path: "libs/other"},
+			fetchRefs: []string{"main"},
+		}
+		got := generateFetchStepLines(entry)
+		assert.Contains(t, got, `-C "${{ github.workspace }}/libs/other"`, "should use -C flag for non-root path")
+	})
+
+	t.Run("root path does not add -C flag", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			fetchRefs: []string{"main"},
+		}
+		got := generateFetchStepLines(entry)
+		assert.NotContains(t, got, "-C ", "root checkout should not use -C flag")
+	})
+
+	t.Run("multiple refspecs in single command", func(t *testing.T) {
+		entry := &resolvedCheckout{
+			fetchRefs: []string{"*", "pulls/open/*"},
+		}
+		got := generateFetchStepLines(entry)
+		assert.Contains(t, got, "+refs/heads/*:refs/remotes/origin/*", "should include branches refspec")
+		assert.Contains(t, got, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
+	})
+}
+
+// TestCheckoutManagerFetchMerging verifies that fetch refs are merged correctly.
+func TestCheckoutManagerFetchMerging(t *testing.T) {
+	t.Run("fetch refs are merged for same checkout", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./r", Fetch: []string{"main"}},
+			{Repository: "owner/repo", Path: "./r", Fetch: []string{"develop"}},
+		})
+		require.Len(t, cm.ordered, 1, "same (repo, path) should merge")
+		assert.Equal(t, []string{"main", "develop"}, cm.ordered[0].fetchRefs, "fetch refs should be unioned")
+	})
+
+	t.Run("fetch refs preserved when no merge", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "./r", Fetch: []string{"*", "pulls/open/*"}},
+		})
+		assert.Equal(t, []string{"*", "pulls/open/*"}, cm.ordered[0].fetchRefs)
+	})
+}
+
+// TestGenerateAdditionalCheckoutStepsWithFetch verifies that fetch steps are
+// appended after additional checkout steps when fetch refs are configured.
+func TestGenerateAdditionalCheckoutStepsWithFetch(t *testing.T) {
+	getPin := func(action string) string { return action + "@v4" }
+
+	t.Run("fetch step appended after checkout step", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/side-repo", Path: "./side", Fetch: []string{"pulls/open/*"}},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "repository: owner/side-repo", "should include checkout step")
+		assert.Contains(t, combined, "Fetch additional refs for owner/side-repo", "should include fetch step")
+		assert.Contains(t, combined, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
+	})
+
+	t.Run("no fetch step when fetch not configured", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/side-repo", Path: "./side"},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.NotContains(t, combined, "Fetch additional refs", "should not include fetch step without fetch config")
+	})
+}
+
+// TestGenerateDefaultCheckoutStepWithFetch verifies that fetch steps are appended
+// after the default checkout step when fetch refs are configured.
+func TestGenerateDefaultCheckoutStepWithFetch(t *testing.T) {
+	getPin := func(action string) string { return action + "@v4" }
+
+	t.Run("fetch step appended after default checkout", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Fetch: []string{"*"}},
+		})
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "Checkout repository", "should include default checkout step")
+		assert.Contains(t, combined, "Fetch additional refs", "should include fetch step")
+		assert.Contains(t, combined, "+refs/heads/*:refs/remotes/origin/*", "should include all-branches refspec")
+	})
+
+	t.Run("no fetch step when fetch not configured on default checkout", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.NotContains(t, combined, "Fetch additional refs", "should not include fetch step without config")
+	})
+
+	t.Run("fetch with custom token uses that token", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Token: "${{ secrets.MY_PAT }}", Fetch: []string{"pulls/open/*"}},
+		})
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		// Token should appear both in the checkout step and the fetch env var
+		assert.Contains(t, combined, "${{ secrets.MY_PAT }}", "custom token should be in output")
+		assert.Contains(t, combined, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "PR refspec should be present")
+	})
 }
