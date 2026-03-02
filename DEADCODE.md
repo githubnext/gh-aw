@@ -44,14 +44,15 @@ make fmt
 
 ---
 
-## Batch plan (107 dead functions as of 2026-03-02)
+## Batch plan (85 dead functions as of 2026-03-02, after phases 5–8)
 
-Batches 1–4 have been completed. The original batches 5–16 are superseded by this plan;
-many of those functions were removed during prior work, and the remainder (plus newly
-discovered dead code) are redistributed below into 30 focused phases.
+Phases 5–8 are complete. The original phases 9–34 are superseded by this revised plan,
+which groups work by domain, includes LOC estimates, and skips functions too small to
+be worth the disruption.
 
 Each phase: delete the dead functions, delete tests that exclusively test them,
-run verification, commit, open PR.
+run verification, commit, open PR. Branches are stacked: dc-9 based on dc-8, dc-10
+based on dc-9, etc.
 
 **WASM false positives (do not delete):**
 - `Compiler.CompileToYAML` (`compiler_string_api.go:15`) — used by `cmd/gh-aw-wasm`
@@ -59,6 +60,19 @@ run verification, commit, open PR.
 
 **Shared test infrastructure (do not delete):**
 - `containsInNonCommentLines`, `indexInNonCommentLines`, `extractJobSection` (`compiler_test_helpers.go`) — used by ≥15 test files
+
+**Compiler option test infrastructure (do not delete):**
+- `WithCustomOutput`, `WithVersion`, `WithSkipValidation`, `WithNoEmit`, `WithStrictMode`, `WithForceRefreshActionPins`, `WithWorkflowIdentifier` (`compiler_types.go`) — used at 50+ call sites in test files; removing would require massive test refactoring for minimal gain
+- `NewCompilerWithVersion` (`compiler_types.go:160`) — primary test entry point for compiler construction
+- `Compiler.GetSharedActionResolverForTest` (`compiler_types.go:305`) — test helper
+
+**Not worth deleting (< 10 lines, isolated):**
+`envVarPrefix` (2), `GenerateSafeInputGoToolScriptForInspector` (2), `MapToolConfig.GetAny` (3),
+`HasErrors` (5), `extractMapFromFrontmatter` (5), `GetDefaultMaxForType` (5),
+`GetValidationConfigForType` (6), `getPlaywrightMCPPackageVersion` (6), `RunGit` (6),
+`ExecGHWithOutput` (7), `convertGoPatternToJavaScript` (7), `ValidateExpressionSafetyPublic` (7),
+`IsSafeInputsHTTPMode` (7), `HasSafeJobsEnabled` (7), `renderSafeOutputsMCPConfig` (8),
+`renderPlaywrightMCPConfig` (8), `SecurityFinding.String` (8), `GetAllEngines` (11)
 
 ---
 
@@ -112,312 +126,138 @@ Note: If `ImportError` struct has no remaining methods, consider deleting the ty
 
 Tests to check: `import_error_test.go`, `import_processor_test.go`.
 
-### Phase 9 — compiler option functions part 1 (5 functions)
-File: `pkg/workflow/compiler_types.go`
+### Phase 9 — Output job builders (~480 LOC, 6 functions)
+Files: `pkg/workflow/add_comment.go`, `create_code_scanning_alert.go`, `create_discussion.go`, `create_pr_review_comment.go`, `create_agent_session.go`, `missing_issue_reporting.go`
 
-| Function | Line |
-|----------|------|
-| `WithCustomOutput` | 26 |
-| `WithVersion` | 31 |
-| `WithSkipValidation` | 36 |
-| `WithNoEmit` | 41 |
-| `WithStrictMode` | 46 |
+Dead `buildCreateOutput*Job` methods — the primary job-assembly step for each safe-output type
+is not reachable from any live code path.
 
-Tests to check: `compiler_types_test.go`, `compiler_test.go` — remove tests for these `With*` option constructors.
+| Function | File | LOC |
+|----------|------|-----|
+| `Compiler.buildCreateOutputAddCommentJob` | `add_comment.go` | 116 |
+| `Compiler.buildCreateOutputDiscussionJob` | `create_discussion.go` | 78 |
+| `Compiler.buildCreateOutputCodeScanningAlertJob` | `create_code_scanning_alert.go` | 73 |
+| `Compiler.buildCreateOutputPullRequestReviewCommentJob` | `create_pr_review_comment.go` | 63 |
+| `Compiler.buildIssueReportingJob` | `missing_issue_reporting.go` | 61 |
+| `Compiler.buildCreateOutputAgentSessionJob` | `create_agent_session.go` | 53 |
 
-### Phase 10 — compiler option functions part 2 (5 functions)
-File: `pkg/workflow/compiler_types.go`
+Note: The `parse*Config` helpers in the same files are **live** (called from `safe_outputs_config.go`). Only delete the `buildCreateOutput*` methods.
 
-| Function | Line |
-|----------|------|
-| `WithForceRefreshActionPins` | 56 |
-| `WithWorkflowIdentifier` | 61 |
-| `NewCompilerWithVersion` | 160 |
-| `Compiler.GetSharedActionResolverForTest` | 305 |
-| `Compiler.GetArtifactManager` | 333 |
+Tests to check: no dedicated test files were found for these builders specifically.
 
-Note: `GetSharedActionResolverForTest` may be used only in tests — delete it AND any test callers.
-After this phase, clean up the `CompilerOption` type if no live `With*` functions remain.
+### Phase 10 — Safe output compilation helpers (~250 LOC, 6 functions)
+Files: `pkg/workflow/compiler_safe_outputs.go`, `compiler_safe_outputs_specialized.go`, `unified_prompt_step.go`, `missing_data.go`, `missing_tool.go`
 
-### Phase 11 — agentic engine (3 functions)
+| Function | File | LOC |
+|----------|------|-----|
+| `Compiler.generateUnifiedPromptStep` | `unified_prompt_step.go` | 118 |
+| `Compiler.buildCreateProjectStepConfig` | `compiler_safe_outputs_specialized.go` | 41 |
+| `Compiler.generateJobName` | `compiler_safe_outputs.go` | 34 |
+| `Compiler.mergeSafeJobsFromIncludes` | `compiler_safe_outputs.go` | 24 |
+| `Compiler.buildCreateOutputMissingDataJob` | `missing_data.go` | 17 |
+| `Compiler.buildCreateOutputMissingToolJob` | `missing_tool.go` | 17 |
+
+Note: `unified_prompt_step.go` may be entirely removable if `generateUnifiedPromptStep` is its only function.
+
+### Phase 11 — Large compiler infrastructure helpers (~195 LOC, 3 functions)
+Files: `pkg/workflow/compiler_yaml_helpers.go`, `repo_memory.go`, `jobs.go`
+
+| Function | File | LOC |
+|----------|------|-----|
+| `generateRepoMemoryPushSteps` | `repo_memory.go` | 87 |
+| `Compiler.generateCheckoutGitHubFolder` | `compiler_yaml_helpers.go` | 55 |
+| `JobManager.GetTopologicalOrder` | `jobs.go` | 52 |
+
+Tests to check: `repo_memory_test.go`, `compiler_yaml_helpers_test.go`, `jobs_test.go`.
+
+### Phase 12 — Engine helpers (~57 LOC, 2 functions)
 File: `pkg/workflow/agentic_engine.go`
 
-| Function | Line |
-|----------|------|
-| `BaseEngine.convertStepToYAML` | 333 |
-| `GenerateSecretValidationStep` | 430 |
-| `EngineRegistry.GetAllEngines` | 502 |
+| Function | LOC |
+|----------|-----|
+| `GenerateSecretValidationStep` | 31 |
+| `BaseEngine.convertStepToYAML` | 15 |
+
+Note: `EngineRegistry.GetAllEngines` (11 LOC) is also dead but below the threshold — skip.
 
 Tests to check: `agentic_engine_test.go`.
 
-### Phase 12 — error handling utilities (5 functions)
-Files: `pkg/workflow/error_aggregation.go` (3), `pkg/workflow/error_helpers.go` (2)
+### Phase 13 — Error handling cluster (~85 LOC, 4 functions)
+Files: `pkg/workflow/error_aggregation.go`, `error_helpers.go`
 
-| Function | File | Line |
-|----------|------|------|
-| `ErrorCollector.HasErrors` | `error_aggregation.go` | 92 |
-| `FormatAggregatedError` | `error_aggregation.go` | 144 |
-| `SplitJoinedErrors` | `error_aggregation.go` | 174 |
-| `EnhanceError` | `error_helpers.go` | 165 |
-| `WrapErrorWithContext` | `error_helpers.go` | 187 |
+| Function | File | LOC |
+|----------|------|-----|
+| `FormatAggregatedError` | `error_aggregation.go` | 30 |
+| `EnhanceError` | `error_helpers.go` | 22 |
+| `SplitJoinedErrors` | `error_aggregation.go` | 21 |
+| `WrapErrorWithContext` | `error_helpers.go` | 12 |
+
+Note: `ErrorCollector.HasErrors` (5 LOC) is also dead but below the threshold — skip.
 
 Tests to check: `error_aggregation_test.go`, `error_helpers_test.go`.
 
-### Phase 13 — safe outputs env vars (4 functions)
-File: `pkg/workflow/safe_outputs_env.go`
-
-| Function | Line |
-|----------|------|
-| `applySafeOutputEnvToSlice` | 47 |
-| `buildTitlePrefixEnvVar` | 311 |
-| `buildLabelsEnvVar` | 321 |
-| `buildCategoryEnvVar` | 332 |
-
-Tests to check: `safe_outputs_env_test.go`, `safe_output_helpers_test.go`.
-
-### Phase 14 — safe outputs config helpers (3 functions)
-File: `pkg/workflow/safe_outputs_config_helpers.go`
-
-| Function | Line |
-|----------|------|
-| `getEnabledSafeOutputToolNamesReflection` | 85 |
-| `Compiler.formatDetectionRunsOn` | 127 |
-| `GetEnabledSafeOutputToolNames` | 216 |
-
-Tests to check: `safe_outputs_config_helpers_test.go`, `threat_detection_test.go`.
-
-### Phase 15 — Playwright MCP config (3 functions)
-File: `pkg/workflow/mcp_playwright_config.go`
-
-| Function | Line |
-|----------|------|
-| `getPlaywrightDockerImageVersion` | 15 |
-| `getPlaywrightMCPPackageVersion` | 26 |
-| `generatePlaywrightDockerArgs` | 32 |
-
-Tests to check: `mcp_playwright_config_test.go`.
-
-### Phase 16 — MCP config builtins (3 functions)
-File: `pkg/workflow/mcp_config_builtin.go`
-
-| Function | Line |
-|----------|------|
-| `renderSafeOutputsMCPConfig` | 113 |
-| `renderSafeOutputsMCPConfigTOML` | 295 |
-| `renderAgenticWorkflowsMCPConfigTOML` | 308 |
-
-Tests to check: `mcp_config_builtin_test.go`, `mcp_config_refactor_test.go`, `mcp_config_shared_test.go`.
-
-### Phase 17 — MCP config miscellaneous (4 functions)
-Files: `pkg/workflow/mcp_config_custom.go` (1), `mcp_config_playwright_renderer.go` (1), `mcp_config_types.go` (1), `mcp_config_validation.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `renderCustomMCPConfigWrapper` | `mcp_config_custom.go` | 21 |
-| `renderPlaywrightMCPConfig` | `mcp_config_playwright_renderer.go` | 71 |
-| `MapToolConfig.GetAny` | `mcp_config_types.go` | 99 |
-| `getTypeString` | `mcp_config_validation.go` | 176 |
-
-Tests to check: `mcp_config_custom_test.go`, `mcp_config_playwright_renderer_test.go`, `mcp_config_types_test.go`, `mcp_config_validation_test.go`.
-
-### Phase 18 — safe inputs system (4 functions)
-Files: `pkg/workflow/safe_inputs_generator.go` (1), `safe_inputs_parser.go` (2), `safe_inputs_renderer.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `GenerateSafeInputGoToolScriptForInspector` | `safe_inputs_generator.go` | 391 |
-| `IsSafeInputsHTTPMode` | `safe_inputs_parser.go` | 64 |
-| `ParseSafeInputs` | `safe_inputs_parser.go` | 210 |
-| `getSafeInputsEnvVars` | `safe_inputs_renderer.go` | 14 |
-
-Tests to check: `safe_inputs_generator_test.go`, `safe_inputs_parser_test.go`, `safe_inputs_renderer_test.go`.
-
-### Phase 19 — safe outputs validation & safe jobs (3 functions)
-Files: `pkg/workflow/safe_output_validation_config.go` (2), `safe_jobs.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `GetValidationConfigForType` | `safe_output_validation_config.go` | 409 |
-| `GetDefaultMaxForType` | `safe_output_validation_config.go` | 415 |
-| `HasSafeJobsEnabled` | `safe_jobs.go` | 34 |
-
-Tests to check: `safe_output_validation_config_test.go`, `safe_jobs_test.go`.
-
-### Phase 20 — safe output job builders: comments & discussions (4 functions)
-Files: `pkg/workflow/add_comment.go` (1), `create_code_scanning_alert.go` (1), `create_discussion.go` (1), `create_pr_review_comment.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `Compiler.buildCreateOutputAddCommentJob` | `add_comment.go` | 34 |
-| `Compiler.buildCreateOutputCodeScanningAlertJob` | `create_code_scanning_alert.go` | 21 |
-| `Compiler.buildCreateOutputDiscussionJob` | `create_discussion.go` | 132 |
-| `Compiler.buildCreateOutputPullRequestReviewCommentJob` | `create_pr_review_comment.go` | 24 |
-
-Note: If these are the only functions in their files, consider deleting the entire file.
-
-Tests to check: `add_comment_test.go`, `create_code_scanning_alert_test.go`, `create_discussion_test.go`, `create_pr_review_comment_test.go`.
-
-### Phase 21 — safe output job builders: sessions & missing data (3 functions)
-Files: `pkg/workflow/create_agent_session.go` (1), `missing_data.go` (1), `missing_tool.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `Compiler.buildCreateOutputAgentSessionJob` | `create_agent_session.go` | 88 |
-| `Compiler.buildCreateOutputMissingDataJob` | `missing_data.go` | 12 |
-| `Compiler.buildCreateOutputMissingToolJob` | `missing_tool.go` | 12 |
-
-Note: If the file contains only the dead function, delete the entire file.
-
-Tests to check: `create_agent_session_test.go`, `missing_data_test.go`, `missing_tool_test.go`.
-
-### Phase 22 — safe output compilation (3 functions)
-Files: `pkg/workflow/compiler_safe_outputs.go` (2), `compiler_safe_outputs_specialized.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `Compiler.generateJobName` | `compiler_safe_outputs.go` | 185 |
-| `Compiler.mergeSafeJobsFromIncludes` | `compiler_safe_outputs.go` | 219 |
-| `Compiler.buildCreateProjectStepConfig` | `compiler_safe_outputs_specialized.go` | 139 |
-
-Tests to check: `compiler_safe_outputs_test.go`, `compiler_safe_outputs_specialized_test.go`.
-
-### Phase 23 — issue reporting (2 functions)
-File: `pkg/workflow/missing_issue_reporting.go`
-
-| Function | Line |
-|----------|------|
-| `Compiler.buildIssueReportingJob` | 48 |
-| `envVarPrefix` | 175 |
-
-Note: If these are the only non-trivial functions in the file, consider deleting it entirely.
-
-Tests to check: `missing_issue_reporting_test.go`.
-
-### Phase 24 — checkout manager (2 functions)
-File: `pkg/workflow/checkout_manager.go`
-
-| Function | Line |
-|----------|------|
-| `CheckoutManager.GetCurrentRepository` | 186 |
-| `getCurrentCheckoutRepository` | 553 |
-
-Tests to check: `checkout_manager_test.go`.
-
-### Phase 25 — expression processing (3 functions)
-Files: `pkg/workflow/expression_extraction.go` (1), `expression_parser.go` (1), `expression_validation.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `ExpressionExtractor.GetMappings` | `expression_extraction.go` | 239 |
-| `NormalizeExpressionForComparison` | `expression_parser.go` | 463 |
-| `ValidateExpressionSafetyPublic` | `expression_validation.go` | 359 |
-
-Tests to check: `expression_extraction_test.go`, `expression_parser_test.go`, `expression_validation_test.go`.
-
-### Phase 26 — frontmatter extraction (3 functions)
-Files: `pkg/workflow/frontmatter_extraction_metadata.go` (1), `frontmatter_extraction_yaml.go` (1), `frontmatter_types.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `extractMapFromFrontmatter` | `frontmatter_extraction_metadata.go` | 246 |
-| `Compiler.extractYAMLValue` | `frontmatter_extraction_yaml.go` | 18 |
-| `unmarshalFromMap` | `frontmatter_types.go` | 196 |
-
-Tests to check: `frontmatter_extraction_metadata_test.go`, `frontmatter_extraction_yaml_test.go`, `frontmatter_types_test.go`.
-
-### Phase 27 — git, GitHub CLI & shell helpers (4 functions)
-Files: `pkg/workflow/git_helpers.go` (2), `github_cli.go` (1), `shell.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `GetCurrentGitTag` | `git_helpers.go` | 69 |
-| `RunGit` | `git_helpers.go` | 119 |
-| `ExecGHWithOutput` | `github_cli.go` | 84 |
-| `shellEscapeCommandString` | `shell.go` | 82 |
-
-Tests to check: `git_helpers_test.go`, `github_cli_test.go`, `shell_test.go`.
-
-### Phase 28 — config & concurrency validation (4 functions)
-Files: `pkg/workflow/config_helpers.go` (2), `concurrency_validation.go` (1), `permissions_validation.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `parseParticipantsFromConfig` | `config_helpers.go` | 131 |
-| `ParseIntFromConfig` | `config_helpers.go` | 218 |
-| `extractGroupExpression` | `concurrency_validation.go` | 289 |
-| `GetToolsetsData` | `permissions_validation.go` | 77 |
-
-Tests to check: `config_helpers_test.go`, `concurrency_validation_test.go`, `permissions_validation_test.go`.
-
-### Phase 29 — security & error types (4 functions)
-Files: `pkg/workflow/markdown_security_scanner.go` (1), `secrets_validation.go` (1), `tools_validation.go` (1), `shared_workflow_error.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `SecurityFinding.String` | `markdown_security_scanner.go` | 64 |
-| `validateSecretReferences` | `secrets_validation.go` | 31 |
-| `isGitToolAllowed` | `tools_validation.go` | 31 |
-| `NewSharedWorkflowError` | `shared_workflow_error.go` | 21 |
-
-Note: If `SharedWorkflowError` has no remaining constructor, consider deleting the type entirely.
-
-Tests to check: `markdown_security_scanner_test.go`, `secrets_validation_test.go`, `tools_validation_test.go`, `shared_workflow_error_test.go`.
-
-### Phase 30 — step & job types (3 functions)
-Files: `pkg/workflow/step_types.go` (2), `jobs.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `WorkflowStep.IsRunStep` | `step_types.go` | 36 |
-| `WorkflowStep.ToYAML` | `step_types.go` | 171 |
-| `JobManager.GetTopologicalOrder` | `jobs.go` | 412 |
-
-Tests to check: `step_types_test.go`, `jobs_test.go`.
-
-### Phase 31 — utilities cleanup (4 functions)
-Files: `pkg/sliceutil/sliceutil.go` (1), `pkg/workflow/semver.go` (1), `repository_features_validation.go` (1), `compiler_yaml_ai_execution.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `FilterMap` | `pkg/sliceutil/sliceutil.go` | 49 |
-| `extractMajorVersion` | `semver.go` | 41 |
-| `ClearRepositoryFeaturesCache` | `repository_features_validation.go` | 83 |
-| `Compiler.convertGoPatternToJavaScript` | `compiler_yaml_ai_execution.go` | 116 |
-
-Tests to check: `sliceutil_test.go`, `semver_test.go`, `repository_features_validation_test.go`, `compiler_yaml_ai_execution_test.go`.
-
-### Phase 32 — compiler helpers (3 functions)
-Files: `pkg/workflow/compiler_yaml_helpers.go` (1), `unified_prompt_step.go` (1), `repo_memory.go` (1)
-
-| Function | File | Line |
-|----------|------|------|
-| `Compiler.generateCheckoutGitHubFolder` | `compiler_yaml_helpers.go` | 221 |
-| `Compiler.generateUnifiedPromptStep` | `unified_prompt_step.go` | 30 |
-| `generateRepoMemoryPushSteps` | `repo_memory.go` | 520 |
-
-Note: If `unified_prompt_step.go` contains only the dead function, delete the entire file.
-
-Tests to check: `compiler_yaml_helpers_test.go`, `unified_prompt_step_test.go`, `repo_memory_test.go`.
-
-### Phase 33 — metrics extraction (2 functions)
-File: `pkg/workflow/metrics.go`
-
-| Function | Line |
-|----------|------|
-| `ExtractFirstMatch` | 39 |
-| `ExtractMCPServer` | 274 |
-
-Tests to check: `metrics_test.go`.
-
-### Phase 34 — WASM string API audit (0 deletions)
-File: `pkg/workflow/compiler_string_api.go`
-
-Functions: `Compiler.CompileToYAML` (line 15), `Compiler.ParseWorkflowString` (line 52)
-
-**Action:** Do not delete. Verify that `cmd/gh-aw-wasm/main.go` still calls these functions.
-If WASM binary is ever removed, both functions become deletable.
-
-Run: `grep -rn "CompileToYAML\|ParseWorkflowString" cmd/gh-aw-wasm/`
+### Phase 14 — Safe outputs env & config helpers (~129 LOC, 7 functions)
+Files: `pkg/workflow/safe_outputs_env.go`, `safe_outputs_config_helpers.go`
+
+| Function | File | LOC |
+|----------|------|-----|
+| `getEnabledSafeOutputToolNamesReflection` | `safe_outputs_config_helpers.go` | 31 |
+| `Compiler.formatDetectionRunsOn` | `safe_outputs_config_helpers.go` | 30 |
+| `applySafeOutputEnvToSlice` | `safe_outputs_env.go` | 25 |
+| `GetEnabledSafeOutputToolNames` | `safe_outputs_config_helpers.go` | 12 |
+| `buildLabelsEnvVar` | `safe_outputs_env.go` | 11 |
+| `buildTitlePrefixEnvVar` | `safe_outputs_env.go` | 10 |
+| `buildCategoryEnvVar` | `safe_outputs_env.go` | 10 |
+
+Tests to check: `safe_outputs_env_test.go`, `safe_outputs_config_helpers_test.go`.
+
+### Phase 15 — MCP config rendering (~106 LOC, 4 functions)
+Files: `pkg/workflow/mcp_config_builtin.go`, `mcp_config_custom.go`, `mcp_config_validation.go`, `mcp_playwright_config.go`
+
+| Function | File | LOC |
+|----------|------|-----|
+| `renderAgenticWorkflowsMCPConfigTOML` | `mcp_config_builtin.go` | 67 |
+| `renderCustomMCPConfigWrapper` | `mcp_config_custom.go` | 26 |
+| `getTypeString` | `mcp_config_validation.go` | 25 |
+| `renderSafeOutputsMCPConfigTOML` | `mcp_config_builtin.go` | 13 |
+| `generatePlaywrightDockerArgs` | `mcp_playwright_config.go` | 12 |
+
+Note: `renderSafeOutputsMCPConfig` (8 LOC), `renderPlaywrightMCPConfig` (8 LOC), `getPlaywrightDockerImageVersion` (11 LOC) are also dead — include them in this phase for completeness.
+
+Tests to check: `mcp_config_builtin_test.go`, `mcp_config_custom_test.go`, `mcp_playwright_config_test.go`.
+
+### Phase 16 — Validation & git helpers (~140 LOC, 4 functions)
+Files: `pkg/workflow/tools_validation.go`, `concurrency_validation.go`, `config_helpers.go`, `git_helpers.go`, `permissions_validation.go`
+
+| Function | File | LOC |
+|----------|------|-----|
+| `isGitToolAllowed` | `tools_validation.go` | 45 |
+| `extractGroupExpression` | `concurrency_validation.go` | 39 |
+| `parseParticipantsFromConfig` | `config_helpers.go` | 32 |
+| `GetCurrentGitTag` | `git_helpers.go` | 24 |
+| `GetToolsetsData` | `permissions_validation.go` | 19 |
+
+Tests to check: `tools_validation_test.go`, `concurrency_validation_test.go`, `config_helpers_test.go`, `git_helpers_test.go`.
+
+### Phase 17 — Diverse medium functions (~210 LOC, 10 functions)
+Various files that each have one dead function of moderate size (12–26 LOC).
+
+| Function | File | LOC |
+|----------|------|-----|
+| `getSafeInputsEnvVars` | `safe_inputs_renderer.go` | 26 |
+| `ExtractMCPServer` | `metrics.go` | 24 |
+| `ClearRepositoryFeaturesCache` | `repository_features_validation.go` | 25 |
+| `unmarshalFromMap` | `frontmatter_types.go` | 23 |
+| `Compiler.extractYAMLValue` | `frontmatter_extraction_yaml.go` | 22 |
+| `GetMappings` | `expression_extraction.go` | 20 |
+| `ParseSafeInputs` | `safe_inputs_parser.go` | 20 |
+| `validateSecretReferences` | `secrets_validation.go` | 18 |
+| `WorkflowStep.ToYAML` | `step_types.go` | 14 |
+| `FilterMap` | `pkg/sliceutil/sliceutil.go` | 13 |
+
+Note: `CheckoutManager.GetCurrentRepository` (12 LOC), `getCurrentCheckoutRepository` (19 LOC), `ParseIntFromConfig` (19 LOC), `NormalizeExpressionForComparison` (12 LOC), and `mergeSafeJobsFromIncludes` may also be included if still dead after prior phases.
+
+Tests to check: per-file test files as named.
 
 ---
 
@@ -425,18 +265,17 @@ Run: `grep -rn "CompileToYAML\|ParseWorkflowString" cmd/gh-aw-wasm/`
 
 | Metric | Value |
 |--------|-------|
-| Total dead functions reported | 107 |
+| Dead functions after phases 5–8 | 85 |
 | WASM false positives (skip) | 2 |
 | Shared test infrastructure (skip) | 3 |
-| Functions to delete | **102** |
-| Phases with deletions | 29 |
-| Audit-only phases | 1 |
-| Average functions per phase | 3.4 |
+| Compiler option test infrastructure (skip) | 9 |
+| Functions < 10 LOC (skip) | ~18 |
+| **Functions to delete across phases 9–17** | **~53** |
+| Phases remaining | 9 |
+| Estimated LOC to remove | ~1,650 |
 
-**Estimated effort per phase:** 15–30 minutes (delete, test, verify, commit).
-**Estimated total effort:** ~10–15 hours across all 30 phases.
-
-**Recommended execution order:** Phases are designed to be executed top-to-bottom. Phases within the same domain (e.g., MCP phases 15–17, safe output phases 13–14, 19–22) can be combined into larger PRs if velocity is high.
+**Estimated effort per phase:** 20–45 minutes (larger phases have many test updates).
+**Recommended execution order:** Phases 9–17 top-to-bottom; phases are stacked (dc-N based on dc-(N-1)).
 
 ---
 
