@@ -43,7 +43,7 @@ function isCrossRepoTarget(repoOwner, repoName) {
  * @param {string} options.branchName - The branch to push the empty commit to
  * @param {string} options.repoOwner - Repository owner
  * @param {string} options.repoName - Repository name
- * @param {string} [options.commitMessage] - Custom commit message (default: "ci: trigger CI checks")
+ * @param {string} [options.commitMessage] - Custom commit message (default: "ci: trigger checks")
  * @param {number} [options.newCommitCount] - Number of new commits being pushed. Only pushes the
  *   empty commit when exactly 1 new commit was pushed, preventing accidental workflow-file
  *   modifications on multi-commit branches and reducing loop risk.
@@ -123,7 +123,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
 
     // Create and push an empty commit
-    const message = commitMessage || "ci: trigger CI checks";
+    const message = commitMessage || "ci: trigger checks";
     await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
     await exec.exec("git", ["push", "ci-trigger", branchName]);
 
