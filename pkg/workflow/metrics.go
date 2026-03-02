@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,18 +30,6 @@ type LogMetrics struct {
 	ToolCalls     []ToolCallInfo // Tool call statistics
 	ToolSequences [][]string     // Sequences of tool calls preserving order
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
-}
-
-// ExtractFirstMatch extracts the first regex match from a string
-// Note: This function compiles the regex on each call. For frequently-used patterns,
-// consider pre-compiling at package level or caching the compiled regex.
-func ExtractFirstMatch(text, pattern string) string {
-	re := regexp.MustCompile(`(?i)` + pattern)
-	matches := re.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-	return ""
 }
 
 // ExtractJSONMetrics extracts metrics from streaming JSON log lines

@@ -35,40 +35,6 @@ func compareVersions(v1, v2 string) int {
 	return result
 }
 
-// extractMajorVersion extracts the major version number from a version string
-// Examples: "v5.0.0" -> 5, "v6" -> 6, "5.1.0" -> 5
-// Uses golang.org/x/mod/semver.Major for proper semantic version parsing
-func extractMajorVersion(version string) int {
-	// Ensure version has 'v' prefix for semver package
-	if !strings.HasPrefix(version, "v") {
-		version = "v" + version
-	}
-
-	// Get major version string (e.g., "v5")
-	majorStr := semver.Major(version)
-	if majorStr == "" {
-		return 0
-	}
-
-	// Parse the integer from the major version string
-	// Major returns "v5", we need to extract 5
-	var major int
-	// Strip 'v' prefix and parse the number
-	numStr := strings.TrimPrefix(majorStr, "v")
-	if numStr != "" {
-		// Parse the number
-		for _, ch := range numStr {
-			if ch >= '0' && ch <= '9' {
-				major = major*10 + int(ch-'0')
-			} else {
-				break
-			}
-		}
-	}
-
-	return major
-}
-
 // isSemverCompatible checks if pinVersion is semver-compatible with requestedVersion
 // Semver compatibility means the major version must match
 // Examples:
