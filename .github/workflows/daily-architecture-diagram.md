@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 engine: copilot
 
@@ -23,6 +24,10 @@ safe-outputs:
     close-older-issues: true
     expires: 7
     max: 1
+  create-pull-request:
+    expires: 7
+    title-prefix: "[architecture] "
+    labels: [architecture, diagram, documentation]
   noop:
 
 imports:
@@ -176,3 +181,30 @@ A compact table of all packages with their layer and one-line description:
 | cli | Core | Command implementations |
 | workflow | Core | Workflow compilation engine |
 | ... | ... | ... |
+
+## Scratchpad File
+
+After creating the issue, update `scratchpad/architecture.md` with the latest diagram via `create_pull_request`.
+
+The file should contain:
+
+````markdown
+# Architecture Diagram
+
+> Last updated: <YYYY-MM-DD> · Source: [Issue #<number>](<issue_url>)
+
+## Overview
+
+This diagram shows the package structure and dependencies of the `gh-aw` codebase.
+
+```
+<ASCII diagram>
+```
+
+## Package Reference
+
+<package table>
+````
+
+- When the diagram **changes**: update `scratchpad/architecture.md` via `create_pull_request` with a PR titled `[architecture] Update architecture diagram - <date>`.
+- When the diagram is **unchanged** (noop path): skip the scratchpad update entirely.
