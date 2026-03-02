@@ -573,7 +573,7 @@ Should run when issues are opened or edited
 Based on the parsed requirements, determine:
 
 1. **Workflow ID**: Convert the workflow name to kebab-case (e.g., "Issue Classifier" → "issue-classifier")
-2. **Triggers**: Infer appropriate triggers from the description:
+2. **Triggers**: Infer appropriate triggers from the description. **Always use `on:` as the YAML key** — never use `triggers:` (that is not a valid frontmatter key and will cause a compile error):
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
    - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
