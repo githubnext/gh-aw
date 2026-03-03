@@ -21,6 +21,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Maximum limits for discussion parameters to prevent resource exhaustion.
@@ -514,9 +515,7 @@ async function main(config = {}) {
     // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
     // with the caller's identity so close-older-discussions can distinguish callers precisely.
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
-    const runId = context.runId;
-    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    const runUrl = buildWorkflowRunUrl(context, context.repo);
 
     // Generate footer with expiration using helper
     // When footer is disabled, only add XML markers (no visible footer content)

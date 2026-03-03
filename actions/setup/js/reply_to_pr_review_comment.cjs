@@ -13,6 +13,7 @@ const { getPRNumber } = require("./update_context_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Type constant for handler identification
@@ -44,9 +45,7 @@ async function main(config = {}) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload?.repository?.html_url ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   core.info(`Reply to PR review comment configuration: max=${maxCount}, target=${replyTarget}, footer=${includeFooter}, triggeringPR=${triggeringPRNumber || "none"}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);

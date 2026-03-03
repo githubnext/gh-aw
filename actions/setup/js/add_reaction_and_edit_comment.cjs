@@ -6,6 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -22,13 +23,11 @@ const EVENT_TYPE_DESCRIPTIONS = {
 async function main() {
   const reaction = process.env.GH_AW_REACTION || "eyes";
   const command = process.env.GH_AW_COMMAND; // Only present for command workflows
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   core.info(`Reaction type: ${reaction}`);
   core.info(`Command name: ${command || "none"}`);
-  core.info(`Run ID: ${runId}`);
+  core.info(`Run ID: ${context.runId}`);
   core.info(`Run URL: ${runUrl}`);
 
   // Validate reaction type

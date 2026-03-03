@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker } = require("./messages_footer.cjs");
 const fs = require("fs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Check if workflows need recompilation and create an issue if needed.
@@ -86,8 +87,7 @@ async function main() {
       core.info("Skipping issue creation (avoiding duplicate)");
 
       // Add a comment to the existing issue with the new workflow run info
-      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
+      const runUrl = buildWorkflowRunUrl(context, context.repo);
 
       // Get workflow metadata for footer
       const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
@@ -124,8 +124,7 @@ async function main() {
   // No existing issue found, create a new one
   core.info("No existing issue found, creating a new issue with agentic instructions");
 
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${context.runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${context.runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   // Read the issue template from the prompts directory
   // Allow override via environment variable for testing

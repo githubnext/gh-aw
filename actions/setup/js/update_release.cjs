@@ -14,6 +14,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 // Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
@@ -95,7 +96,7 @@ async function main(config = {}) {
       core.info(`Found release: ${release.name || release.tag_name} (ID: ${release.id})`);
 
       // Get workflow run URL for AI attribution
-      const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+      const runUrl = buildWorkflowRunUrl(context, context.repo);
       const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
 
       // Use shared helper to update body based on operation

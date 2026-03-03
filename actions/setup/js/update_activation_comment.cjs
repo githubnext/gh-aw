@@ -8,17 +8,7 @@ const { getPullRequestCreatedMessage, getIssueCreatedMessage, getCommitPushedMes
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateXMLMarker } = require("./generate_footer.cjs");
 const { getFooterMessage } = require("./messages_footer.cjs");
-
-/**
- * Build the workflow run URL from context and environment.
- * @param {any} context - GitHub Actions context
- * @returns {string} The workflow run URL
- */
-function getRunUrl(context) {
-  const runId = context.runId || process.env.GITHUB_RUN_ID || "";
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  return context.payload?.repository?.html_url ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-}
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Update the activation comment with a link to the created pull request or issue
@@ -32,7 +22,7 @@ function getRunUrl(context) {
 async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const runUrl = getRunUrl(context);
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
   const body = itemType === "issue" ? getIssueCreatedMessage({ itemNumber, itemUrl }) : getPullRequestCreatedMessage({ itemNumber, itemUrl });
   const footerMessage = getFooterMessage({ workflowName, runUrl });
   const linkMessage = `\n\n${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
@@ -52,7 +42,7 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const runUrl = getRunUrl(context);
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
   const footerMessage = getFooterMessage({ workflowName, runUrl });
   const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
