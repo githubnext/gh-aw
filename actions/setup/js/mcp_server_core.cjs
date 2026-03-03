@@ -651,11 +651,15 @@ async function handleRequest(server, request, defaultHandler) {
   } catch (error) {
     /** @type {any} */
     const err = error;
+    // Use the error code only if it's a valid JSON-RPC error code (must be a negative integer).
+    // Subprocess exit codes (positive integers like 1, 2, etc.) must not be used as JSON-RPC
+    // error codes, as that would produce non-conformant responses (e.g. "code=1").
+    const code = typeof err.code === "number" && err.code < 0 ? err.code : -32603;
     return {
       jsonrpc: "2.0",
       id,
       error: {
-        code: err.code || -32603,
+        code,
         message: err.message || "Internal error",
       },
     };
