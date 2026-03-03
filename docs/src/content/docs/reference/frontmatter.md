@@ -571,58 +571,6 @@ if: github.event_name == 'push'
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.
 
-```yaml wrap
-# Single repository with custom settings
-checkout:
-  fetch-depth: 0
-  github-token: ${{ secrets.MY_TOKEN }}
-```
-
-```yaml wrap
-# Using GitHub App authentication for checkout
-checkout:
-  fetch-depth: 0
-  app:
-    app-id: ${{ vars.APP_ID }}
-    private-key: ${{ secrets.APP_PRIVATE_KEY }}
-```
-
-```yaml wrap
-# Multiple repositories, fetching all open PR refs for cross-repo work
-checkout:
-  - path: .
-    fetch-depth: 0
-  - repository: owner/other-repo
-    path: ./libs/other
-    ref: main
-    github-token: ${{ secrets.CROSS_REPO_PAT }}
-    fetch: ["refs/pulls/open/*"]
-```
-
-### Authentication Options
-
-Each checkout entry supports two mutually exclusive authentication methods:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `github-token` | string | A GitHub token (PAT, `secrets.*`, etc.) passed to `actions/checkout` |
-| `app` | object | GitHub App credentials for minting an installation token |
-
-The `app` object supports:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `app-id` | string | Yes | GitHub App ID (e.g., `${{ vars.APP_ID }}`) |
-| `private-key` | string | Yes | GitHub App private key (e.g., `${{ secrets.APP_PRIVATE_KEY }}`) |
-| `owner` | string | No | GitHub organization or user that owns the app installation |
-| `repositories` | list | No | Restrict token scope to specific repositories |
-
-You cannot set both `github-token` and `app` on the same checkout entry.
-
-:::note
-The legacy `token` key is still accepted for backward compatibility but `github-token` is preferred.
-:::
-
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options (including `fetch:`), merging behavior, and cross-repo examples.
 
 ## Custom Steps (`steps:`)
