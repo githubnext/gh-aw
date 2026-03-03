@@ -15,7 +15,6 @@ const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
-const { parseCallerWorkflowId } = require("./generate_footer.cjs");
 
 /**
  * Execute the pull request update API call
@@ -49,7 +48,7 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     // context may be effectiveContext with repo overridden to a cross-repo target.
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    const callerWorkflowId = parseCallerWorkflowId(process.env.GH_AW_CALLER_WORKFLOW_ID || "");
+    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
     const workflowRepo = _workflowRepo || context.repo;
     const runUrl = buildWorkflowRunUrl(context, workflowRepo);
 

@@ -16,7 +16,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
-const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, parseCallerWorkflowId } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -511,11 +511,11 @@ async function main(config = {}) {
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    // GH_AW_CALLER_WORKFLOW_ID contains the raw `github.workflow_ref` at runtime.
+    // GH_AW_CALLER_WORKFLOW_ID is set at compile time to `github.repository/<workflow-id>`.
     // When multiple workflows call the same reusable workflow via workflow_call they all
     // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
     // with the caller's identity so close-older-discussions can distinguish callers precisely.
-    const callerWorkflowId = parseCallerWorkflowId(process.env.GH_AW_CALLER_WORKFLOW_ID || "");
+    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
     const runUrl = buildWorkflowRunUrl(context, context.repo);
 
     // Generate footer with expiration using helper

@@ -365,14 +365,13 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// This is used for branch naming in create_pull_request and other operations
 	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)
 
-	// Set GH_AW_CALLER_WORKFLOW_ID to the runtime caller workflow ref.
+	// Set GH_AW_CALLER_WORKFLOW_ID to uniquely identify the calling workflow at runtime.
 	// When a reusable workflow is called via workflow_call, multiple callers share the
-	// same GH_AW_WORKFLOW_ID (derived from the reusable file). This separate runtime
-	// value uniquely identifies each caller by its workflow file (filename without extension)
-	// and is used as the issue/discussion marker for close-older-issues, preventing
-	// cross-caller false closes. The raw workflow_ref is parsed in JS to extract
-	// "owner/repo/workflow-id" (filename without extension).
-	envVars["GH_AW_CALLER_WORKFLOW_ID"] = `"${{ github.workflow_ref }}"`
+	// same GH_AW_WORKFLOW_ID (derived from the reusable file). This separate value
+	// combines the runtime repository (to identify the caller repo) with the compile-time
+	// workflow ID (filename without extension), producing a stable "owner/repo/workflow-id"
+	// form used for close-older-issues disambiguation.
+	envVars["GH_AW_CALLER_WORKFLOW_ID"] = fmt.Sprintf(`"${{ github.repository }}/%s"`, workflowID)
 
 	// Add workflow metadata that's common to all steps
 	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)

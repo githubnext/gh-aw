@@ -18,7 +18,6 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
-const { parseCallerWorkflowId } = require("./generate_footer.cjs");
 
 /**
  * Maximum limits for issue update parameters to prevent resource exhaustion.
@@ -82,7 +81,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
       // context may be effectiveContext with repo overridden to a cross-repo target.
       const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
       const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-      const callerWorkflowId = parseCallerWorkflowId(process.env.GH_AW_CALLER_WORKFLOW_ID || "");
+      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
       const workflowRepo = _workflowRepo || context.repo;
       const runUrl = buildWorkflowRunUrl(context, workflowRepo);
 
