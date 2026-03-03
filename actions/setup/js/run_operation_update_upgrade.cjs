@@ -136,7 +136,14 @@ async function main() {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
-  const remoteUrl = `https://x-access-token:${token}@github.com/${owner}/${repo}.git`;
+  const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  let githubHost;
+  try {
+    githubHost = new URL(githubServerUrl).hostname || "github.com";
+  } catch {
+    githubHost = "github.com";
+  }
+  const remoteUrl = `https://x-access-token:${token}@${githubHost}/${owner}/${repo}.git`;
 
   try {
     await exec.exec("git", ["remote", "remove", "aw-push"]);
