@@ -145,6 +145,8 @@ on:
           - ''
           - 'disable all agentic workflows'
           - 'enable all agentic workflows'
+          - 'update'
+          - 'upgrade'
 
 permissions: {}
 
@@ -222,10 +224,10 @@ jobs:
             await main();
 `)
 
-	// Add run_operation job (always included; skipped via 'if' when not triggered by workflow_dispatch with operation)
+	// Add run_operation job for disable/enable (skipped via 'if' for other operations)
 	yaml.WriteString(`
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.operation == 'disable all agentic workflows' || github.event.inputs.operation == 'enable all agentic workflows') && !github.event.repository.fork }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -311,6 +313,88 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh aw enable
+`)
+	}
+
+	// Add run_update_upgrade_operation job for update/upgrade operations (both dev and release modes)
+	yaml.WriteString(`
+  run_update_upgrade_operation:
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.operation == 'update' || github.event.inputs.operation == 'upgrade') && !github.event.repository.fork }}
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: /opt/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+`)
+
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Setup Go
+        uses: ` + GetActionPin("actions/setup-go") + `
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Run update/upgrade operation
+        uses: ` + GetActionPin("actions/github-script") + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_OPERATION: ${{ github.event.inputs.operation }}
+          GH_AW_CMD_PREFIX: ./gh-aw
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/run_operation_update_upgrade.cjs');
+            await main();
+`)
+	} else {
+		extensionRef := version
+		if actionTag != "" {
+			extensionRef = actionTag
+		}
+		yaml.WriteString(`      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh extension install github/gh-aw@` + extensionRef + `
+
+      - name: Run update/upgrade operation
+        uses: ` + GetActionPin("actions/github-script") + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_OPERATION: ${{ github.event.inputs.operation }}
+          GH_AW_CMD_PREFIX: gh aw
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/run_operation_update_upgrade.cjs');
+            await main();
 `)
 	}
 
