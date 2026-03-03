@@ -25,7 +25,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4b04d4420888fefcba8d30800c71be38c78560388ca3fea47576b52946b4afc8","stop_time":"2026-03-03 16:27:58"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fcaeacfaaa62a6775511b360ff105863e4d913c99f71eab55489bcd96db114f0","stop_time":"2026-03-03 16:27:58"}
 #
 # Effective stop-time: 2026-03-03 16:27:58
 
@@ -1223,7 +1223,7 @@ jobs:
           GH_AW_WORKFLOW_ID: "ci-doctor"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "20"
         with:
@@ -1311,7 +1311,7 @@ jobs:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5.1-codex-mini"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}...\",\"runSuccess\":\"🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊\",\"runFailure\":\"🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance...\"}"
       GH_AW_WORKFLOW_ID: "ci-doctor"
       GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
       GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"

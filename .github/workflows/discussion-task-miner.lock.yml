@@ -28,7 +28,7 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ffd2aae4d5f4bf6b20fb1abcc45e1319b957bc3e4bc2d3c5208ace42fdf132a3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"369306db8e069e8fb4ba4a3dbc0d85f4455b1aa0b39e52107b7822a8ef096aba"}
 
 name: "Discussion Task Miner - Code Quality Improvement Agent"
 "on":
@@ -1083,7 +1083,7 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "discussion-task-miner"
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
           GH_AW_GROUP_REPORTS: "false"
@@ -1194,7 +1194,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
       GH_AW_TRACKER_ID: "discussion-task-miner"
       GH_AW_WORKFLOW_ID: "discussion-task-miner"
       GH_AW_WORKFLOW_NAME: "Discussion Task Miner - Code Quality Improvement Agent"

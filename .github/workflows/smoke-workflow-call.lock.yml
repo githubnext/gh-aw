@@ -23,7 +23,7 @@
 #
 # Reusable workflow to validate checkout from fork works correctly in workflow_call context
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bcccb0acca0e383402dda3483b94a812222ea4790115148dfa062f5fbe6d4877"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e4682ae552e6f61a928617dd63c45800073bec5a985c27eb1f470bf4ef3a19f0"}
 
 name: "Smoke Workflow Call"
 "on":
@@ -978,7 +978,7 @@ jobs:
           GH_AW_WORKFLOW_ID: "smoke-workflow-call"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔁 *workflow_call smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🔁 [{workflow_name}]({run_url}) is validating workflow_call checkout...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔁 *workflow_call smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🔁 [{workflow_name}]({run_url}) is validating workflow_call checkout...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1050,7 +1050,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔁 *workflow_call smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🔁 [{workflow_name}]({run_url}) is validating workflow_call checkout...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔁 *workflow_call smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🔁 [{workflow_name}]({run_url}) is validating workflow_call checkout...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs.\"}"
       GH_AW_WORKFLOW_ID: "smoke-workflow-call"
       GH_AW_WORKFLOW_NAME: "Smoke Workflow Call"
     outputs:

@@ -23,7 +23,7 @@
 #
 # Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"89b6c4fe1498ad945536eaa86140de2974414d1c9942926af9b2833c11eef069"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d5881d67be07fecc7e9406368eba2019fc2dc659a2db705ea58278f705731b16"}
 
 name: "Security Review Agent 🔒"
 "on":
@@ -1165,7 +1165,7 @@ jobs:
           GH_AW_WORKFLOW_ID: "security-review"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "15"
         with:
@@ -1266,7 +1266,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔒 *Security review by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications...\",\"runSuccess\":\"🔒 [{workflow_name}]({run_url}) completed the security review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during security review.\"}"
       GH_AW_WORKFLOW_ID: "security-review"
       GH_AW_WORKFLOW_NAME: "Security Review Agent 🔒"
     outputs:

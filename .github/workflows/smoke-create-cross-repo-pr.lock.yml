@@ -23,7 +23,7 @@
 #
 # Smoke test validating cross-repo pull request creation in githubnext/gh-aw-side-repo
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1bc008c7f23299326c6e307d71222d35fb56e68b9e649be54c73c94bbf660810"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7df6ac5fd0e9496ec5425a827a1abda3ebb1f52b59b4d1edc78b2358cdf1a856"}
 
 name: "Smoke Create Cross-Repo PR"
 "on":
@@ -128,7 +128,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1156,7 +1156,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1208,7 +1208,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1266,7 +1266,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-create-cross-repo-pr"
       GH_AW_WORKFLOW_NAME: "Smoke Create Cross-Repo PR"
     outputs:

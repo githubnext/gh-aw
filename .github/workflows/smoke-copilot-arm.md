@@ -102,7 +102,7 @@ safe-outputs:
               fi
     messages:
       append-only-comments: true
-      footer: "> 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*"
+      footer: "> 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*{history_link}"
       run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."

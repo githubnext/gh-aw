@@ -28,7 +28,7 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"49d8e5f50c2936a0f74096cc7d7e82e33842a8fca47bdd1a6309d315b3919acb"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e01a758d3c758d82eabd4d9eb701b44134df6d64acef6cfda2bfc18ba603d73d"}
 
 name: "Delight"
 "on":
@@ -1109,7 +1109,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_CREATE_DISCUSSION_ERRORS: ${{ needs.safe_outputs.outputs.create_discussion_errors }}
           GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
           GH_AW_GROUP_REPORTS: "false"
@@ -1219,7 +1219,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
       GH_AW_TRACKER_ID: "delight-daily"
       GH_AW_WORKFLOW_ID: "delight"
       GH_AW_WORKFLOW_NAME: "Delight"

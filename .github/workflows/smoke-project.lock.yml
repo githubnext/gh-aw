@@ -23,7 +23,7 @@
 #
 # Smoke Project - Test project operations
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7aaaa336ef87b5c90766d153038baa65964cfff9142c5a8f3a470be962e8709f"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"62a1e7c54409a4610460677bbb71df79e88b6581934b10f182758930d66df8db"}
 
 name: "Smoke Project"
 "on":
@@ -135,7 +135,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Project"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1491,7 +1491,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "15"
         with:
@@ -1543,7 +1543,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Project"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1617,7 +1617,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing project operations...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-project"
       GH_AW_WORKFLOW_NAME: "Smoke Project"
     outputs:

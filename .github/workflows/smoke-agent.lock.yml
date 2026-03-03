@@ -23,7 +23,7 @@
 #
 # Smoke test that validates assign-to-agent with the agentic-workflows custom agent
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d2c4f0aa45ed728102302a9075bba4f4ec4d4c1a928971b40950889ba0ec15fb"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"53b841f3533e56fd2307fdc9ead2cc276bcb4fa7ff3e547aec2f1c2244f47833"}
 
 name: "Smoke Agent"
 "on":
@@ -133,7 +133,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Agent"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1039,7 +1039,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}
           GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1077,7 +1077,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1133,7 +1133,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "codex"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-agent"
       GH_AW_WORKFLOW_NAME: "Smoke Agent"
     outputs:

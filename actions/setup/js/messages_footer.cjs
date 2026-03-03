@@ -20,6 +20,7 @@ const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall
  * @property {string} [workflowSourceUrl] - GitHub URL for the workflow source
  * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
+ * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [🕐 history](url)"), or "" if unavailable
  */
 
 /**
@@ -30,8 +31,11 @@ const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall
 function getFooterMessage(ctx) {
   const messages = getMessages();
 
-  // Create context with both camelCase and snake_case keys
-  const templateContext = toSnakeCase(ctx);
+  // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
+  const historyLink = ctx.historyUrl ? ` · [🕐 history](${ctx.historyUrl})` : "";
+
+  // Create context with both camelCase and snake_case keys, including computed history_link
+  const templateContext = toSnakeCase({ ...ctx, historyLink });
 
   // Use custom footer template if configured (no automatic suffix appended)
   if (messages?.footer) {
@@ -43,7 +47,7 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
-  // Append history link with clock symbol when available
+  // Append history link when available
   if (ctx.historyUrl) {
     defaultFooter += " · [history]({history_url})";
   }

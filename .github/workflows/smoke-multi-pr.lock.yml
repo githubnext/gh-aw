@@ -23,7 +23,7 @@
 #
 # Test creating multiple pull requests in a single workflow run
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0e6bb70daded757d833bccb6e8ddcc898890e9e7f282c228a1fddc93d7028a07"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f118d2ac9ab4ae2772a4462cb10352fba8e98d3ec1d7a4f26bd1ae2e26ad594f"}
 
 name: "Smoke Multi PR"
 "on":
@@ -137,7 +137,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Multi PR"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1098,7 +1098,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1150,7 +1150,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Multi PR"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1224,7 +1224,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Multi PR smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing multiple PR creation...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created multiple PRs.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs.\"}"
       GH_AW_WORKFLOW_ID: "smoke-multi-pr"
       GH_AW_WORKFLOW_NAME: "Smoke Multi PR"
     outputs:

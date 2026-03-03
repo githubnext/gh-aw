@@ -23,7 +23,7 @@
 #
 # Smoke test validating cross-repo pull request updates in githubnext/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"eabd7104577d8493003ffe2675348d488509f2aa274a9af821d7f87a95f1130e"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0dbcea46ce3435c40cb5ca9fcbd9feb04e8720f1b0b3b89993c94ae5d7bf3cd0"}
 
 name: "Smoke Update Cross-Repo PR"
 "on":
@@ -128,7 +128,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Update Cross-Repo PR"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1158,7 +1158,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1196,7 +1196,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Update Cross-Repo PR"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1254,7 +1254,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-update-cross-repo-pr"
       GH_AW_WORKFLOW_NAME: "Smoke Update Cross-Repo PR"
     outputs:

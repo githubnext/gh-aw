@@ -23,7 +23,7 @@
 #
 # Test temporary ID functionality for issue chaining and cross-references
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"17699cbdd3a52636d274f4f6a24975a9d66eb82fa1eb90ff2b6f0de4581bfa2d"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f821cce0a855c7806ea2b3d6f2e9bfa9817e799afdb0e9376d227b7793517bb2"}
 
 name: "Smoke Temporary ID"
 "on":
@@ -135,7 +135,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Temporary ID"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1108,7 +1108,7 @@ jobs:
           GH_AW_WORKFLOW_ID: "smoke-temporary-id"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1146,7 +1146,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Temporary ID"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.agent.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1218,7 +1218,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧪 *Temporary ID smoke test by [{workflow_name}]({run_url})*{history_link}\",\"appendOnlyComments\":true,\"runStarted\":\"🧪 [{workflow_name}]({run_url}) is now testing temporary ID functionality...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details.\"}"
       GH_AW_WORKFLOW_ID: "smoke-temporary-id"
       GH_AW_WORKFLOW_NAME: "Smoke Temporary ID"
     outputs:

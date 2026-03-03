@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5c67f34342f7e950c8bde628676a1bc97f4471bdaf5fccfcc5c187af8484d16c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"79e0293df146b166f4756691d48758815d02702f4f41f9b2bf9c41229f56ccf7"}
 
 name: "Archie"
 "on":
@@ -1017,7 +1017,7 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "archie"
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1122,7 +1122,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
       GH_AW_WORKFLOW_ID: "archie"
       GH_AW_WORKFLOW_NAME: "Archie"
     outputs:

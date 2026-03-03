@@ -26,7 +26,7 @@ safe-outputs:
   submit-pull-request-review:
     max: 1
   messages:
-    footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*"
+    footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications..."
     run-success: "🔒 [{workflow_name}]({run_url}) completed the security review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during security review."
