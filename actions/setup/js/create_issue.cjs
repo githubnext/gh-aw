@@ -28,7 +28,7 @@ function resetIssuesToAssignCopilot() {
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
-const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, parseCallerWorkflowId } = require("./generate_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
@@ -433,11 +433,11 @@ async function main(config = {}) {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
     const workflowId = process.env.GH_AW_WORKFLOW_ID ?? "";
-    // GH_AW_CALLER_WORKFLOW_ID is set at runtime to `github.repository/github.workflow`.
+    // GH_AW_CALLER_WORKFLOW_ID contains the raw `github.workflow_ref` at runtime.
     // When multiple workflows call the same reusable workflow via workflow_call they all
     // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
     // with the caller's identity so close-older-issues can distinguish callers precisely.
-    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
+    const callerWorkflowId = parseCallerWorkflowId(process.env.GH_AW_CALLER_WORKFLOW_ID ?? "");
     const runUrl = buildWorkflowRunUrl(context, context.repo);
 
     // Add tracker-id comment if present

@@ -36,6 +36,7 @@ describe("generate_footer.cjs", () => {
   let generateWorkflowIdMarker;
   let generateWorkflowCallIdMarker;
   let getWorkflowIdMarkerContent;
+  let parseCallerWorkflowId;
 
   beforeEach(async () => {
     // Reset mocks
@@ -54,6 +55,7 @@ describe("generate_footer.cjs", () => {
     generateWorkflowIdMarker = module.generateWorkflowIdMarker;
     generateWorkflowCallIdMarker = module.generateWorkflowCallIdMarker;
     getWorkflowIdMarkerContent = module.getWorkflowIdMarkerContent;
+    parseCallerWorkflowId = module.parseCallerWorkflowId;
   });
 
   describe("generateXMLMarker", () => {
@@ -283,6 +285,42 @@ describe("generate_footer.cjs", () => {
       const result = getWorkflowIdMarkerContent("");
 
       expect(result).toBe("gh-aw-workflow-id: ");
+    });
+  });
+
+  describe("parseCallerWorkflowId", () => {
+    it("should extract owner/repo/workflow-id from a .lock.yml workflow_ref", () => {
+      const result = parseCallerWorkflowId("owner/repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
+      expect(result).toBe("owner/repo/my-workflow");
+    });
+
+    it("should extract owner/repo/workflow-id from a plain .yml workflow_ref", () => {
+      const result = parseCallerWorkflowId("owner/repo/.github/workflows/my-workflow.yml@refs/heads/main");
+      expect(result).toBe("owner/repo/my-workflow");
+    });
+
+    it("should use the owner/repo from the workflow_ref", () => {
+      const result = parseCallerWorkflowId("github/gh-aw/.github/workflows/smoke-test.lock.yml@refs/tags/v1.2.3");
+      expect(result).toBe("github/gh-aw/smoke-test");
+    });
+
+    it("should handle workflow_ref with SHA ref", () => {
+      const result = parseCallerWorkflowId("org/repo/.github/workflows/deploy.lock.yml@abc123def456");
+      expect(result).toBe("org/repo/deploy");
+    });
+
+    it("should return empty string unchanged when input is empty", () => {
+      expect(parseCallerWorkflowId("")).toBe("");
+    });
+
+    it("should return raw input as fallback when format is not recognised", () => {
+      const raw = "owner/repo/WorkflowName";
+      expect(parseCallerWorkflowId(raw)).toBe(raw);
+    });
+
+    it("should return raw input when no .github/workflows/ path is present", () => {
+      const raw = "not-a-workflow-ref";
+      expect(parseCallerWorkflowId(raw)).toBe(raw);
     });
   });
 

@@ -23,6 +23,7 @@ const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { parseCallerWorkflowId } = require("./generate_footer.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -336,7 +337,7 @@ async function main(config = {}) {
 
   // Get workflow ID for hiding older comments
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-  const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+  const callerWorkflowId = parseCallerWorkflowId(process.env.GH_AW_CALLER_WORKFLOW_ID || "");
 
   /**
    * Message handler function

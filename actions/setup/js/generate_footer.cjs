@@ -112,15 +112,39 @@ function generateExpiredEntityFooter(workflowName, runUrl, workflowId) {
 /**
  * Generates a standalone workflow-call-id XML comment marker for close-older-issues
  * disambiguation. This marker contains the calling workflow's runtime identity
- * (`github.repository/github.workflow`) and is used to distinguish multiple
- * callers that share the same reusable workflow (and therefore the same
- * `gh-aw-workflow-id`).
+ * (parsed from `github.workflow_ref` as "owner/repo/workflow-id") and is used to
+ * distinguish multiple callers that share the same reusable workflow (and therefore
+ * the same `gh-aw-workflow-id`).
  *
- * @param {string} callerWorkflowId - Calling workflow identifier (e.g. "owner/repo/WorkflowName")
+ * @param {string} callerWorkflowId - Calling workflow identifier (e.g. "owner/repo/workflow-id")
  * @returns {string} Standalone workflow-call-id XML comment marker
  */
 function generateWorkflowCallIdMarker(callerWorkflowId) {
   return `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->`;
+}
+
+/**
+ * Parse the caller workflow ID from a raw `github.workflow_ref` string.
+ *
+ * GitHub Actions sets `github.workflow_ref` to the full workflow file reference,
+ * e.g. "owner/repo/.github/workflows/my-workflow.lock.yml@refs/heads/main".
+ * This function extracts the stable "owner/repo/workflow-id" form (filename
+ * without any extension) for use in markers and history search queries.
+ *
+ * @param {string} workflowRef - Raw workflow_ref string from GH_AW_CALLER_WORKFLOW_ID
+ * @returns {string} Parsed caller workflow ID (e.g. "owner/repo/my-workflow"), or the
+ *   raw input if the format is not recognised
+ */
+function parseCallerWorkflowId(workflowRef) {
+  if (!workflowRef) return workflowRef;
+  // Format: "owner/repo/.github/workflows/filename.lock.yml@refs/heads/main"
+  // Match owner/repo and the filename stem (everything before the first ".")
+  const match = workflowRef.match(/^([^/]+\/[^/]+)\/.github\/workflows\/([^@.]+)/);
+  if (match) {
+    return `${match[1]}/${match[2]}`;
+  }
+  // Fallback: return as-is (e.g. already in "owner/repo/id" form)
+  return workflowRef;
 }
 
 module.exports = {
@@ -129,4 +153,5 @@ module.exports = {
   generateWorkflowCallIdMarker,
   getWorkflowIdMarkerContent,
   generateExpiredEntityFooter,
+  parseCallerWorkflowId,
 };
