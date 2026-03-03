@@ -19,26 +19,6 @@ type IssueReportingConfig struct {
 type MissingDataConfig = IssueReportingConfig
 type MissingToolConfig = IssueReportingConfig
 
-// issueReportingJobParams carries the varying values that distinguish the missing-data and
-// missing-tool jobs. All logic that differs between the two is expressed through these fields.
-type issueReportingJobParams struct {
-	// kind is the snake_case identifier, e.g. "missing_data" or "missing_tool".
-	// It is used for job/step IDs, the safe-output type condition, and to derive the script path.
-	kind string
-	// envPrefix is the upper-case env-var prefix, e.g. "GH_AW_MISSING_DATA".
-	envPrefix string
-	// defaultTitle is the default issue title prefix, e.g. "[missing data]".
-	defaultTitle string
-	// outputKey is the primary output key in the job outputs map, e.g. "data_reported" or "tools_reported".
-	outputKey string
-	// stepName is the human-readable step name, e.g. "Record Missing Data".
-	stepName string
-	// config holds the resolved configuration values.
-	config *IssueReportingConfig
-	// log is the caller's package-scoped logger.
-	log *logger.Logger
-}
-
 func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, log *logger.Logger) *IssueReportingConfig {
 	configData, exists := outputMap[yamlKey]
 	if !exists {
