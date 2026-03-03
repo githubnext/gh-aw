@@ -203,13 +203,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Resolve and validate the target repository from the entry
     const repoResult = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "pull request");
     if (!repoResult.success) {
+      let error = repoResult.error;
+      const owningRepo = process.env.GITHUB_REPOSITORY;
+      if (entry.repo === owningRepo && defaultTargetRepo && defaultTargetRepo !== owningRepo) {
+        error += ` Hint: This workflow runs in '${owningRepo}' but is configured to target '${defaultTargetRepo}'. Omit the 'repo' parameter to use the configured target, or pass repo: '${defaultTargetRepo}'.`;
+      }
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify({
               result: "error",
-              error: repoResult.error,
+              error,
             }),
           },
         ],

@@ -231,12 +231,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
-				data.SafeOutputs.CreatePullRequests.Max,
+				data.SafeOutputs.CreatePullRequests,
 				1, // default max
-				data.SafeOutputs.CreatePullRequests.AllowedLabels,
-				data.SafeOutputs.CreatePullRequests.AllowEmpty,
-				data.SafeOutputs.CreatePullRequests.AutoMerge,
-				data.SafeOutputs.CreatePullRequests.Expires,
 			)
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {

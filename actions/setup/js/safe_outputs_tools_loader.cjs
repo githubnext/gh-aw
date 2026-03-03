@@ -95,7 +95,19 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
   tools.forEach(tool => {
     // Check if this is a regular tool matching a config key
     if (Object.keys(config).find(configKey => normalizeTool(configKey) === tool.name)) {
-      registerTool(server, tool);
+      let toolToRegister = tool;
+      // Enrich create_pull_request tool description when target-repo is configured
+      if (tool.name === "create_pull_request" && config.create_pull_request) {
+        const targetRepo = config.create_pull_request["target-repo"];
+        if (targetRepo) {
+          toolToRegister = JSON.parse(JSON.stringify(tool));
+          toolToRegister.description += ` Note: This workflow is configured to create pull requests in '${targetRepo}'. You do not need to specify the repo parameter.`;
+          if (toolToRegister.inputSchema && toolToRegister.inputSchema.properties && toolToRegister.inputSchema.properties.repo) {
+            toolToRegister.inputSchema.properties.repo.description += ` Configured default: '${targetRepo}'.`;
+          }
+        }
+      }
+      registerTool(server, toolToRegister);
       return;
     }
 
