@@ -229,6 +229,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: write
+      contents: read
     steps:
 `)
 
