@@ -60,14 +60,9 @@ The content is reasonable and won't generate overly long environment variables.
 	})
 
 	t.Run("workflow with oversized markdown content should fail validation", func(t *testing.T) {
-		t.Skip("FIXME: Markdown content is not embedded in generated YAML, so this validation doesn't apply. " +
-			"The validateExpressionSizes() function checks individual YAML lines, but markdown content " +
-			"from .md files is not stored in the .lock.yml as environment variables or expressions. " +
-			"This test needs to be redesigned or removed.")
-
-		// Create a workflow with markdown content that will exceed the 21KB limit
-		// The content will be written to the workflow YAML as a single line in a heredoc
-		// We need 25KB+ of content to trigger the validation
+		// Large single-line content is embedded in the YAML when inlined-imports: true is set.
+		// The validateExpressionSizes() function checks individual YAML lines, so a single line
+		// exceeding MaxExpressionSize (21KB) triggers the validation error.
 		largeContent := strings.Repeat("x", 25000)
 		testContent := fmt.Sprintf(`---
 on: push
@@ -77,12 +72,10 @@ permissions:
   pull-requests: read
   issues: read
 strict: false
+inlined-imports: true
 tools:
   github:
     allowed: [list_issues]
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[test] "
 ---
 
 # Large Content Test Workflow
@@ -96,7 +89,6 @@ safe-outputs:
 		}
 
 		compiler := NewCompiler()
-		compiler.SetSkipValidation(false) // Enable validation to test expression size limits
 		err := compiler.CompileWorkflow(testFile)
 
 		// This should fail with an expression size validation error
@@ -110,13 +102,10 @@ safe-outputs:
 	})
 
 	t.Run("expression size validation runs by default without explicit enablement", func(t *testing.T) {
-		t.Skip("FIXME: Markdown content is not embedded in generated YAML, so this validation doesn't apply. " +
-			"The validateExpressionSizes() function checks individual YAML lines, but markdown content " +
-			"from .md files is not stored in the .lock.yml as environment variables or expressions. " +
-			"This test needs to be redesigned or removed.")
-
-		// Expression size validation should always run, even when skipValidation is true (default)
-		// This is because GitHub Actions enforces a hard 21KB limit that cannot be bypassed
+		// Expression size validation always runs, even when skipValidation is true (the default).
+		// This is because GitHub Actions enforces a hard 21KB limit that cannot be bypassed.
+		// Using inlined-imports: true forces the markdown body to be embedded in the YAML so
+		// that a long single-line content exceeds MaxExpressionSize and triggers the check.
 		largeContent := strings.Repeat("y", 25000)
 		testContent := fmt.Sprintf(`---
 on: push
@@ -126,12 +115,10 @@ permissions:
   pull-requests: read
   issues: read
 strict: false
+inlined-imports: true
 tools:
   github:
     allowed: [list_issues]
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[test] "
 ---
 
 # Large Content Test Workflow (Default Validation)
