@@ -2271,3 +2271,84 @@ Test content`
 		t.Error("Expected simple_job in compiled output")
 	}
 }
+
+// TestBuildCustomJobsRunsOnForms tests that runs-on string, array, and object forms
+// are all correctly handled in buildCustomJobs.
+func TestBuildCustomJobsRunsOnForms(t *testing.T) {
+	tests := []struct {
+		name             string
+		runsOn           any
+		expectedRunsOn   string
+		expectedContains []string
+		shouldErr        bool
+	}{
+		{
+			name:           "string form",
+			runsOn:         "ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-latest",
+		},
+		{
+			name:             "array form",
+			runsOn:           []any{"self-hosted", "linux", "large"},
+			expectedContains: []string{"runs-on:", "- self-hosted", "- linux", "- large"},
+		},
+		{
+			name:             "object form",
+			runsOn:           map[string]any{"group": "my-runners"},
+			expectedContains: []string{"runs-on:", "group: my-runners"},
+		},
+		{
+			name:      "unmarshalable value returns error",
+			runsOn:    make(chan int), // channels cannot be marshaled to YAML
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.jobManager = NewJobManager()
+
+			data := &WorkflowData{
+				Name:   "Test Workflow",
+				AI:     "copilot",
+				RunsOn: "runs-on: ubuntu-latest",
+				Jobs: map[string]any{
+					"my_job": map[string]any{
+						"runs-on": tt.runsOn,
+						"steps":   []any{map[string]any{"run": "echo hi"}},
+					},
+				},
+			}
+
+			err := compiler.buildCustomJobs(data, false)
+			if tt.shouldErr {
+				if err == nil {
+					t.Error("Expected error but got none")
+				} else if !strings.Contains(err.Error(), "my_job") {
+					t.Errorf("Expected error to mention job name 'my_job', got: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("buildCustomJobs() returned unexpected error: %v", err)
+			}
+
+			job, exists := compiler.jobManager.GetJob("my_job")
+			if !exists {
+				t.Fatal("Expected my_job to be added")
+			}
+
+			if tt.expectedRunsOn != "" {
+				if job.RunsOn != tt.expectedRunsOn {
+					t.Errorf("RunsOn = %q, want %q", job.RunsOn, tt.expectedRunsOn)
+				}
+			}
+			for _, want := range tt.expectedContains {
+				if !strings.Contains(job.RunsOn, want) {
+					t.Errorf("RunsOn %q does not contain %q", job.RunsOn, want)
+				}
+			}
+		})
+	}
+}
