@@ -175,7 +175,7 @@ After merging this PR, **recompile the lock files** using one of these methods:
 
   // Create the PR using gh CLI
   core.info(`Creating PR: "${prTitle}"`);
-  const { stdout: prOutput } = await exec.getExecOutput("gh", ["pr", "create", "--title", prTitle, "--body", prBody, "--head", branchName], {
+  const { stdout: prOutput } = await exec.getExecOutput("gh", ["pr", "create", "--title", prTitle, "--body", prBody, "--head", branchName, "--label", "agentic-workflows"], {
     env: { ...process.env, GH_TOKEN: token },
   });
 

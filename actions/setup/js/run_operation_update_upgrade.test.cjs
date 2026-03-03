@@ -226,7 +226,7 @@ describe("run_operation_update_upgrade", () => {
       // Verify commit was made
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: update agentic workflows"]);
       // Verify PR title
-      expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Updates available"]), expect.anything());
+      expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Updates available", "--label", "agentic-workflows"]), expect.anything());
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created PR"));
     });
 
@@ -264,7 +264,7 @@ describe("run_operation_update_upgrade", () => {
       // Verify correct commit message
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);
       // Verify PR title is "[aw] Upgrade available"
-      expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Upgrade available"]), expect.anything());
+      expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Upgrade available", "--label", "agentic-workflows"]), expect.anything());
     });
 
     it("uses ./gh-aw as binary in dev mode", async () => {
