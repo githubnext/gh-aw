@@ -289,7 +289,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 	// Add strategy section
 	if job.Strategy != "" {
-		fmt.Fprintf(&yaml, "    %s\n", job.Strategy)
+		fmt.Fprintf(&yaml, "    %s\n", strings.TrimRight(job.Strategy, "\n"))
 	}
 
 	// Add environment section
