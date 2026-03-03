@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// NormalizeGitHubHostURL ensures the host URL has https:// scheme and no trailing slashes.
-// It is safe to call with URLs that already have the https:// scheme.
+// NormalizeGitHubHostURL ensures the host URL has a scheme (defaulting to https://) and no trailing slashes.
+// It is safe to call with URLs that already have an http:// or https:// scheme.
 func NormalizeGitHubHostURL(rawHostURL string) string {
 	// Remove all trailing slashes
 	normalized := strings.TrimRight(rawHostURL, "/")

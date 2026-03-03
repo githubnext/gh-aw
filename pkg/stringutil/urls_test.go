@@ -133,3 +133,54 @@ func BenchmarkExtractDomainFromURL(b *testing.B) {
 		})
 	}
 }
+
+func TestNormalizeGitHubHostURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "adds https scheme to plain hostname",
+			input:    "myorg.ghe.com",
+			expected: "https://myorg.ghe.com",
+		},
+		{
+			name:     "preserves existing https scheme",
+			input:    "https://github.com",
+			expected: "https://github.com",
+		},
+		{
+			name:     "preserves existing http scheme",
+			input:    "http://github.example.com",
+			expected: "http://github.example.com",
+		},
+		{
+			name:     "removes single trailing slash",
+			input:    "https://github.com/",
+			expected: "https://github.com",
+		},
+		{
+			name:     "removes multiple trailing slashes",
+			input:    "https://github.com///",
+			expected: "https://github.com",
+		},
+		{
+			name:     "adds https and removes trailing slash from plain hostname",
+			input:    "myorg.ghe.com/",
+			expected: "https://myorg.ghe.com",
+		},
+		{
+			name:     "public GitHub URL unchanged",
+			input:    "https://github.com",
+			expected: "https://github.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeGitHubHostURL(tt.input)
+			assert.Equal(t, tt.expected, result, "Normalized URL should match expected")
+		})
+	}
+}
