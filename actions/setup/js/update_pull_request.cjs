@@ -29,7 +29,7 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   const includeFooter = updateData._includeFooter !== false; // Default to true
 
   // Remove internal fields
-  const { _operation, _rawBody, _includeFooter, ...apiData } = updateData;
+  const { _operation, _rawBody, _includeFooter, _workflowRepo, ...apiData } = updateData;
 
   // If we have a body, process it with the appropriate operation
   if (rawBody !== undefined) {
@@ -41,10 +41,13 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     });
     const currentBody = currentPR.body || "";
 
-    // Get workflow run URL for AI attribution
+    // Get workflow run URL for AI attribution.
+    // Use the original workflow repo (_workflowRepo) rather than context.repo, because
+    // context may be effectiveContext with repo overridden to a cross-repo target.
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+    const workflowRepo = _workflowRepo || context.repo;
+    const runUrl = `${context.serverUrl}/${workflowRepo.owner}/${workflowRepo.repo}/actions/runs/${context.runId}`;
 
     // Use helper to update body (handles all operations including replace)
     apiData.body = updateBody({

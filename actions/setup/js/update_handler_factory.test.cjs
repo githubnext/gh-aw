@@ -589,5 +589,51 @@ describe("update_handler_factory.cjs", () => {
       // executeUpdate should not have been called
       expect(mockExecuteUpdate).not.toHaveBeenCalled();
     });
+
+    it("should inject _workflowRepo into updateData before calling executeUpdate", async () => {
+      let capturedUpdateData = null;
+      const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
+        capturedUpdateData = data;
+        return { html_url: "https://example.com", title: "Updated" };
+      });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ "target-repo": "other-owner/side-repo", allowed_repos: ["other-owner/side-repo"] });
+      await handler({ issue_number: 42, repo: "other-owner/side-repo" });
+
+      // _workflowRepo must reference the original context.repo (the current workflow)
+      expect(capturedUpdateData._workflowRepo).toBeDefined();
+      expect(capturedUpdateData._workflowRepo.owner).toBe(mockContext.repo.owner);
+      expect(capturedUpdateData._workflowRepo.repo).toBe(mockContext.repo.repo);
+    });
+
+    it("should include body in log fields when _rawBody is present", async () => {
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com", title: "Updated" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { _rawBody: "new body content" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({});
+      await handler({ body: "new body content" });
+
+      // The log should mention "body" even though _rawBody starts with underscore
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('"body"'));
+    });
   });
 });

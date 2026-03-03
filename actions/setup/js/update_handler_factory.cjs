@@ -202,6 +202,11 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       const updateData = updateDataResult.data;
 
+      // Store the original workflow repo in updateData so that executeUpdate functions
+      // can build correct attribution URLs. effectiveContext.repo may be overridden to
+      // the cross-repo target, but the run URL must always reference the current workflow.
+      updateData._workflowRepo = context.repo;
+
       // Validate that we have something to update
       // Note: Fields starting with "_" are internal (e.g., _rawBody, _operation)
       // and will be processed by executeUpdate. We should NOT skip if _rawBody exists.
@@ -217,11 +222,13 @@ function createUpdateHandlerFactory(handlerConfig) {
         };
       }
 
-      core.info(`Updating ${itemTypeName} #${itemNumber} with: ${JSON.stringify(updateFields)}`);
+      // Include "body" in logged fields when a body update is queued (stored as internal _rawBody)
+      const logFields = hasRawBody ? [...updateFields, "body"] : updateFields;
+      core.info(`Updating ${itemTypeName} #${itemNumber} in ${effectiveContext.repo.owner}/${effectiveContext.repo.repo} with: ${JSON.stringify(logFields)}`);
 
       // If in staged mode, preview the update without applying it
       if (isStaged) {
-        logStagedPreviewInfo(`Would update ${itemTypeName} #${itemNumber} with fields: ${JSON.stringify(updateFields)}`);
+        logStagedPreviewInfo(`Would update ${itemTypeName} #${itemNumber} with fields: ${JSON.stringify(logFields)}`);
         return {
           success: true,
           staged: true,
