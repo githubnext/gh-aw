@@ -454,6 +454,21 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
 }
 
 /**
+ * Build a context string when the Copilot CLI failed due to the token lacking inference access.
+ * @param {boolean} hasInferenceAccessError - Whether an inference access error was detected
+ * @returns {string} Formatted context string, or empty string if no error
+ */
+function buildInferenceAccessErrorContext(hasInferenceAccessError) {
+  if (!hasInferenceAccessError) {
+    return "";
+  }
+
+  const templatePath = "/opt/gh-aw/prompts/inference_access_error.md";
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + template;
+}
+
+/**
  * Handle agent job failure by creating or updating a failure tracking issue
  * This script is called from the conclusion job when the agent job has failed
  * or when the agent succeeded but produced no safe outputs
@@ -476,6 +491,7 @@ async function main() {
     const codePushFailureCount = process.env.GH_AW_CODE_PUSH_FAILURE_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
+    const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -499,6 +515,7 @@ async function main() {
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
+    core.info(`Inference access error: ${inferenceAccessError}`);
 
     // Check if the agent timed out
     const isTimedOut = agentConclusion === "timed_out";
@@ -664,6 +681,9 @@ async function main() {
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
+        // Build inference access error context
+        const inferenceAccessErrorContext = buildInferenceAccessErrorContext(inferenceAccessError);
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -684,6 +704,7 @@ async function main() {
           missing_safe_outputs_context: missingSafeOutputsContext,
           timeout_context: timeoutContext,
           fork_context: forkContext,
+          inference_access_error_context: inferenceAccessErrorContext,
         };
 
         // Render the comment template
@@ -780,6 +801,9 @@ async function main() {
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
+        // Build inference access error context
+        const inferenceAccessErrorContext = buildInferenceAccessErrorContext(inferenceAccessError);
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -801,6 +825,7 @@ async function main() {
           missing_safe_outputs_context: missingSafeOutputsContext,
           timeout_context: timeoutContext,
           fork_context: forkContext,
+          inference_access_error_context: inferenceAccessErrorContext,
         };
 
         // Render the issue template

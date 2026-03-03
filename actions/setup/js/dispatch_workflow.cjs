@@ -155,16 +155,49 @@ async function main(config = {}) {
       const workflowFile = `${workflowName}${extension}`;
       core.info(`Dispatching workflow: ${workflowFile}`);
 
-      // Dispatch the workflow using the resolved file
-      await githubClient.rest.actions.createWorkflowDispatch({
-        owner: repo.owner,
-        repo: repo.repo,
-        workflow_id: workflowFile,
-        ref: ref,
-        inputs: inputs,
-      });
+      // Dispatch the workflow using the resolved file.
+      // Request return_run_details for newer GitHub API support; fall back without it
+      // for older GitHub Enterprise Server deployments that don't support the parameter.
+      /** @type {{ data: { workflow_run_id?: number } }} */
+      let response;
+      try {
+        response = await githubClient.rest.actions.createWorkflowDispatch({
+          owner: repo.owner,
+          repo: repo.repo,
+          workflow_id: workflowFile,
+          ref: ref,
+          inputs: inputs,
+          return_run_details: true,
+        });
+      } catch (dispatchError) {
+        /** @type {any} */
+        const err = dispatchError;
+        const status = err && typeof err === "object" ? err.status : undefined;
+        const message = err && typeof err === "object" && err.response && err.response.data && typeof err.response.data.message === "string" ? err.response.data.message : String(dispatchError);
 
-      core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
+        const isValidationStatus = status === 400 || status === 422;
+        const mentionsReturnRunDetails = typeof message === "string" && message.toLowerCase().includes("return_run_details");
+
+        if (isValidationStatus && mentionsReturnRunDetails) {
+          core.info("Workflow dispatch failed due to unsupported 'return_run_details' parameter; retrying without it for GitHub Enterprise compatibility.");
+          response = await githubClient.rest.actions.createWorkflowDispatch({
+            owner: repo.owner,
+            repo: repo.repo,
+            workflow_id: workflowFile,
+            ref: ref,
+            inputs: inputs,
+          });
+        } else {
+          throw err;
+        }
+      }
+
+      const runId = response && response.data ? response.data.workflow_run_id : undefined;
+      if (runId) {
+        core.info(`✓ Successfully dispatched workflow: ${workflowFile} (run ID: ${runId})`);
+      } else {
+        core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
+      }
 
       // Record the time of this dispatch for rate limiting
       lastDispatchTime = Date.now();
@@ -173,6 +206,7 @@ async function main(config = {}) {
         success: true,
         workflow_name: workflowName,
         inputs: inputs,
+        run_id: runId,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);

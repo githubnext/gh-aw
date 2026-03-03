@@ -387,6 +387,21 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	return steps
 }
 
+// generateInferenceAccessErrorDetectionStep generates a step that detects if the Copilot CLI
+// failed due to a token with invalid access to inference (policy access denied error).
+// The step always runs and checks the agent stdio log for known error patterns.
+func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
+	var step []string
+
+	step = append(step, "      - name: Detect inference access error")
+	step = append(step, "        id: detect-inference-error")
+	step = append(step, "        if: always()")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        run: bash /opt/gh-aw/actions/detect_inference_access_error.sh")
+
+	return GitHubActionStep(step)
+}
+
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string

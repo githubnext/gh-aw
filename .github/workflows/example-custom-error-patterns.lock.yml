@@ -249,6 +249,7 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: examplecustomerrorpatterns
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
     steps:
       - name: Checkout actions folder
@@ -385,6 +386,11 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
+      - name: Detect inference access error
+        id: detect-inference-error
+        if: always()
+        continue-on-error: true
+        run: bash /opt/gh-aw/actions/detect_inference_access_error.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

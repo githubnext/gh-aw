@@ -250,3 +250,79 @@ func TestRunWorkflowOnGitHub_FlagCombinations(t *testing.T) {
 // focus on input validation and early error conditions that can be tested
 // without those dependencies. Full end-to-end tests should be in integration
 // test files (run_command_test.go with //go:build integration tag).
+
+// TestParseRunInfoFromOutput tests extracting run info from gh workflow run output
+func TestParseRunInfoFromOutput(t *testing.T) {
+	tests := []struct {
+		name        string
+		output      string
+		expectNil   bool
+		expectedID  int64
+		expectedURL string
+	}{
+		{
+			name: "gh v2.87+ output with run URL",
+			output: "Created workflow_dispatch event for test.lock.yml at refs/heads/main\n" +
+				"To see the workflow run, visit:\n" +
+				"  https://github.com/owner/repo/actions/runs/12345678\n" +
+				"Use `gh run view 12345678` to see the run logs",
+			expectNil:   false,
+			expectedID:  12345678,
+			expectedURL: "https://github.com/owner/repo/actions/runs/12345678",
+		},
+		{
+			name:      "old gh output without run URL",
+			output:    "Created workflow_dispatch event for test.lock.yml at refs/heads/main",
+			expectNil: true,
+		},
+		{
+			name:      "empty output",
+			output:    "",
+			expectNil: true,
+		},
+		{
+			name:        "URL with org and repo containing hyphens",
+			output:      "https://github.com/my-org/my-repo/actions/runs/9876543210",
+			expectNil:   false,
+			expectedID:  9876543210,
+			expectedURL: "https://github.com/my-org/my-repo/actions/runs/9876543210",
+		},
+		{
+			name:        "GitHub Enterprise Server URL",
+			output:      "https://github.mycompany.com/owner/repo/actions/runs/55554444",
+			expectNil:   false,
+			expectedID:  55554444,
+			expectedURL: "https://github.mycompany.com/owner/repo/actions/runs/55554444",
+		},
+		{
+			name: "GHES URL in multi-line output",
+			output: "Created workflow_dispatch event for test.lock.yml at refs/heads/main\n" +
+				"To see the workflow run, visit:\n" +
+				"  https://ghe.example.com/myorg/myrepo/actions/runs/99887766\n",
+			expectNil:   false,
+			expectedID:  99887766,
+			expectedURL: "https://ghe.example.com/myorg/myrepo/actions/runs/99887766",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRunInfoFromOutput(tt.output)
+			if tt.expectNil {
+				if result != nil {
+					t.Errorf("Expected nil result but got: %+v", result)
+				}
+				return
+			}
+			if result == nil {
+				t.Fatalf("Expected non-nil result but got nil")
+			}
+			if result.DatabaseID != tt.expectedID {
+				t.Errorf("Expected DatabaseID %d, got %d", tt.expectedID, result.DatabaseID)
+			}
+			if result.URL != tt.expectedURL {
+				t.Errorf("Expected URL %q, got %q", tt.expectedURL, result.URL)
+			}
+		})
+	}
+}
