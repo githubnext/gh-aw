@@ -735,14 +735,7 @@ jobs:
         id: detect-inference-error
         if: always()
         continue-on-error: true
-        run: |
-          LOG_FILE="/tmp/gh-aw/agent-stdio.log"
-          if [ -f "$LOG_FILE" ] && grep -qE "Access denied by policy settings|invalid access to inference" "$LOG_FILE"; then
-            echo "Detected inference access error in agent log"
-            echo "inference_access_error=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "inference_access_error=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash /opt/gh-aw/actions/detect_inference_access_error.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
