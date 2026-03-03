@@ -13,7 +13,7 @@ import (
 // hasDeprecatedAppFieldInContent returns true if any line in the content has 'app:' as its YAML key
 // (i.e., trimmed content starts with "app:" – matches the field name, not app-id: or github-app:)
 func hasDeprecatedAppFieldInContent(content string) bool {
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "app:" || strings.HasPrefix(trimmed, "app: ") || strings.HasPrefix(trimmed, "app:\t") {
 			return true

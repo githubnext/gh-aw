@@ -726,11 +726,11 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["github-app"]; ok {
 		appMap, ok := v.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("checkout.github-app must be an object")
+			return nil, errors.New("checkout.github-app must be an object")
 		}
 		cfg.GitHubApp = parseAppConfig(appMap)
 		if cfg.GitHubApp.AppID == "" || cfg.GitHubApp.PrivateKey == "" {
-			return nil, fmt.Errorf("checkout.github-app requires both app-id and private-key")
+			return nil, errors.New("checkout.github-app requires both app-id and private-key")
 		}
 	}
 
