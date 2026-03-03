@@ -152,7 +152,7 @@ permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       discussions: write
@@ -313,7 +313,7 @@ jobs:
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -359,7 +359,7 @@ jobs:
             await main();
 
   zizmor-scan:
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     needs: compile-workflows
     permissions:
@@ -383,7 +383,7 @@ jobs:
           echo "✓ Zizmor security scan completed"
 
   secret-validation:
-    if: ${{ !github.event.repository.fork }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
     runs-on: ubuntu-slim
     permissions:
       contents: read
