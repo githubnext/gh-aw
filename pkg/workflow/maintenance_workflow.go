@@ -224,102 +224,10 @@ jobs:
             await main();
 `)
 
-	// Add run_operation job for disable/enable (skipped via 'if' for other operations)
+	// Add unified run_operation job for all dispatch operations
 	yaml.WriteString(`
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.operation == 'disable all agentic workflows' || github.event.inputs.operation == 'enable all agentic workflows') && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
-    permissions:
-      actions: write
-      contents: read
-    steps:
-`)
-
-	if actionMode == ActionModeDev {
-		yaml.WriteString(`      - name: Checkout repository
-        uses: ` + GetActionPin("actions/checkout") + `
-        with:
-          persist-credentials: false
-
-`)
-	} else {
-		yaml.WriteString(`      - name: Checkout workflows
-        uses: ` + GetActionPin("actions/checkout") + `
-        with:
-          sparse-checkout: |
-            .github/workflows
-          persist-credentials: false
-
-`)
-	}
-
-	yaml.WriteString(`      - name: Setup Scripts
-        uses: ` + setupActionRef + `
-        with:
-          destination: /opt/gh-aw/actions
-
-      - name: Check admin/maintainer permissions
-        uses: ` + GetActionPin("actions/github-script") + `
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_team_member.cjs');
-            await main();
-
-`)
-
-	if actionMode == ActionModeDev {
-		yaml.WriteString(`      - name: Setup Go
-        uses: ` + GetActionPin("actions/setup-go") + `
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Build gh-aw
-        run: make build
-
-      - name: Disable all agentic workflows
-        if: ${{ github.event.inputs.operation == 'disable all agentic workflows' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gh-aw disable
-
-      - name: Enable all agentic workflows
-        if: ${{ github.event.inputs.operation == 'enable all agentic workflows' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gh-aw enable
-`)
-	} else {
-		extensionRef := version
-		if actionTag != "" {
-			extensionRef = actionTag
-		}
-		yaml.WriteString(`      - name: Install gh-aw extension
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh extension install github/gh-aw@` + extensionRef + `
-
-      - name: Disable all agentic workflows
-        if: ${{ github.event.inputs.operation == 'disable all agentic workflows' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh aw disable
-
-      - name: Enable all agentic workflows
-        if: ${{ github.event.inputs.operation == 'enable all agentic workflows' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh aw enable
-`)
-	}
-
-	// Add run_update_upgrade_operation job for update/upgrade operations (both dev and release modes)
-	yaml.WriteString(`
-  run_update_upgrade_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.operation == 'update' || github.event.inputs.operation == 'upgrade') && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && !github.event.repository.fork }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -358,7 +266,7 @@ jobs:
       - name: Build gh-aw
         run: make build
 
-      - name: Run update/upgrade operation
+      - name: Run operation
         uses: ` + GetActionPin("actions/github-script") + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -382,7 +290,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh extension install github/gh-aw@` + extensionRef + `
 
-      - name: Run update/upgrade operation
+      - name: Run operation
         uses: ` + GetActionPin("actions/github-script") + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -29,31 +29,51 @@ function formatTimestamp(date) {
 }
 
 /**
- * Run 'gh aw update' or 'gh aw upgrade', then create a pull request with the
- * resulting non-workflow-YAML changes if any exist.
+ * Run 'gh aw update', 'gh aw upgrade', 'gh aw disable', or 'gh aw enable',
+ * creating a pull request when needed for update/upgrade operations.
  *
- * .github/workflows/*.yml files (including compiled .lock.yml files) are
- * excluded from the PR because the github-actions bot cannot modify workflow
- * files directly. The PR body instructs reviewers to recompile lock files
+ * For update/upgrade: .github/workflows/*.yml files (including compiled .lock.yml
+ * files) are excluded from the PR because the github-actions bot cannot modify
+ * workflow files directly. The PR body instructs reviewers to recompile lock files
  * after merging.
+ *
+ * For disable/enable: simply runs the command; no PR is created.
  *
  * Required environment variables:
  *   GH_TOKEN           - GitHub token for gh CLI auth and git push
- *   GH_AW_OPERATION    - 'update' or 'upgrade'
+ *   GH_AW_OPERATION    - 'update', 'upgrade', 'disable all agentic workflows',
+ *                        or 'enable all agentic workflows'
  *   GH_AW_CMD_PREFIX   - Command prefix: './gh-aw' (dev) or 'gh aw' (release)
  *
  * @returns {Promise<void>}
  */
 async function main() {
   const operation = process.env.GH_AW_OPERATION;
+  if (!operation) {
+    core.info("Skipping: no operation specified");
+    return;
+  }
+
+  const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
+  const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
+
+  // Handle enable/disable operations: run the command and finish (no PR needed)
+  if (operation === "disable all agentic workflows" || operation === "enable all agentic workflows") {
+    const subCmd = operation === "disable all agentic workflows" ? "disable" : "enable";
+    const fullCmd = [bin, ...prefixArgs, subCmd].join(" ");
+    core.info(`Running: ${fullCmd}`);
+    await exec.exec(bin, [...prefixArgs, subCmd]);
+    core.info(`✓ All agentic workflows have been ${subCmd}d`);
+    return;
+  }
+
+  // For update/upgrade, validate operation and proceed with PR creation if files changed
   if (operation !== "update" && operation !== "upgrade") {
-    core.info(`Skipping: operation '${operation}' is not 'update' or 'upgrade'`);
+    core.info(`Skipping: unknown operation '${operation}'`);
     return;
   }
 
   const isUpgrade = operation === "upgrade";
-  const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
-  const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
 
   // Run gh aw update or gh aw upgrade
   const fullCmd = [bin, ...prefixArgs, operation].join(" ");

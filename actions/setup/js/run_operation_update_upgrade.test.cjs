@@ -127,12 +127,61 @@ describe("run_operation_update_upgrade", () => {
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
-    it("skips when operation is 'disable all agentic workflows'", async () => {
-      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+    it("skips when operation is unknown", async () => {
+      process.env.GH_AW_OPERATION = "unknown-operation";
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping"));
       expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("main - disable/enable operations", () => {
+    it("runs gh aw disable and finishes without PR", async () => {
+      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await main();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "disable"]);
+      expect(mockExec.exec).toHaveBeenCalledTimes(1);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("disabled"));
+      expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+    });
+
+    it("runs gh aw enable and finishes without PR", async () => {
+      process.env.GH_AW_OPERATION = "enable all agentic workflows";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await main();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "enable"]);
+      expect(mockExec.exec).toHaveBeenCalledTimes(1);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("enabled"));
+      expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+    });
+
+    it("runs ./gh-aw disable in dev mode", async () => {
+      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+      process.env.GH_AW_CMD_PREFIX = "./gh-aw";
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await main();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("./gh-aw", ["disable"]);
+      expect(mockExec.exec).toHaveBeenCalledTimes(1);
+    });
+
+    it("propagates error when disable command fails", async () => {
+      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+
+      mockExec.exec = vi.fn().mockRejectedValue(new Error("Command failed"));
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await expect(main()).rejects.toThrow("Command failed");
     });
   });
 
