@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -111,6 +112,10 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 	// Default to "workflow" scope if not specified
 	if entry.Scope == "" {
 		entry.Scope = "workflow"
+	}
+	// Validate scope value
+	if !slices.Contains([]string{"workflow", "repo"}, entry.Scope) {
+		return entry, fmt.Errorf("invalid cache-memory scope %q: must be one of [workflow, repo]", entry.Scope)
 	}
 
 	// Parse allowed-extensions field
