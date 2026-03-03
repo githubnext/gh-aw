@@ -8,11 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var gitLog = logger.New("cli:git")
@@ -489,123 +487,5 @@ func stageAllChanges(verbose bool) error {
 		return fmt.Errorf("failed to stage changes: %w", err)
 	}
 	gitLog.Print("Successfully staged all changes")
-	return nil
-}
-
-// getDefaultBranch gets the default branch name for the repository
-func getDefaultBranch() (string, error) {
-	gitLog.Print("Getting default branch name")
-
-	// Get repository slug (owner/repo)
-	repoSlug := getRepositorySlugFromRemote()
-	if repoSlug == "" {
-		gitLog.Print("No remote repository configured, cannot determine default branch")
-		return "", errors.New("no remote repository configured")
-	}
-
-	// Parse owner and repo from slug
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 {
-		gitLog.Printf("Invalid repository slug format: %s", repoSlug)
-		return "", fmt.Errorf("invalid repository slug format: %s", repoSlug)
-	}
-
-	owner, repo := parts[0], parts[1]
-
-	// Use ExecGH helper which handles token configuration (GH_TOKEN/GITHUB_TOKEN)
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s", owner, repo), "--jq", ".default_branch")
-	output, err := cmd.Output()
-	if err != nil {
-		gitLog.Printf("Failed to get default branch: %v", err)
-		return "", fmt.Errorf("failed to get default branch: %w", err)
-	}
-
-	defaultBranch := strings.TrimSpace(string(output))
-	if defaultBranch == "" {
-		gitLog.Print("Empty default branch returned")
-		return "", errors.New("could not determine default branch")
-	}
-
-	gitLog.Printf("Default branch: %s", defaultBranch)
-	return defaultBranch, nil
-}
-
-// checkOnDefaultBranch checks if the current branch is the default branch
-// Returns an error if no remote is configured or if not on the default branch
-func checkOnDefaultBranch(verbose bool) error {
-	gitLog.Print("Checking if on default branch")
-
-	// Get current branch
-	currentBranch, err := getCurrentBranch()
-	if err != nil {
-		return fmt.Errorf("failed to get current branch: %w", err)
-	}
-
-	// Get default branch
-	defaultBranch, err := getDefaultBranch()
-	if err != nil {
-		// If no remote is configured, fail the push operation
-		if strings.Contains(err.Error(), "no remote repository configured") {
-			gitLog.Print("No remote configured, cannot push")
-			return errors.New("--push requires a remote repository to be configured")
-		}
-		return fmt.Errorf("failed to get default branch: %w", err)
-	}
-
-	// Compare branches
-	if currentBranch != defaultBranch {
-		gitLog.Printf("Not on default branch: current=%s, default=%s", currentBranch, defaultBranch)
-		return fmt.Errorf("not on default branch: current branch is '%s', default branch is '%s'", currentBranch, defaultBranch)
-	}
-
-	gitLog.Printf("On default branch: %s", currentBranch)
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ On default branch: "+currentBranch))
-	}
-	return nil
-}
-
-// confirmPushOperation prompts the user to confirm push operation (skips in CI)
-func confirmPushOperation(verbose bool) error {
-	gitLog.Print("Checking if user confirmation is needed for push operation")
-
-	// Skip confirmation in CI environments
-	if IsRunningInCI() {
-		gitLog.Print("Running in CI, skipping user confirmation")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in CI - skipping confirmation prompt"))
-		}
-		return nil
-	}
-
-	// Prompt user for confirmation
-	gitLog.Print("Prompting user for push confirmation")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("This will commit and push changes to the remote repository."))
-
-	var confirmed bool
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Do you want to proceed with commit and push?").
-				Description("This will stage all changes, commit them, and push to the remote repository").
-				Value(&confirmed),
-		),
-	).WithAccessible(console.IsAccessibleMode())
-
-	if err := form.Run(); err != nil {
-		gitLog.Printf("Confirmation prompt failed: %v", err)
-		return fmt.Errorf("confirmation prompt failed: %w", err)
-	}
-
-	if !confirmed {
-		gitLog.Print("User declined push operation")
-		return errors.New("push operation cancelled by user")
-	}
-
-	gitLog.Print("User confirmed push operation")
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Push operation confirmed"))
-	}
 	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -303,35 +302,6 @@ func parseRawGitHubContentURL(parsedURL *url.URL) (*GitHubURLComponents, error) 
 	}, nil
 }
 
-// ParseRunURL is a convenience function that parses a run ID or URL and extracts run information.
-// It accepts:
-//   - Numeric run ID: "1234567890"
-//   - GitHub Actions run URL: "https://github.com/owner/repo/actions/runs/12345678"
-//   - Short run URL: "https://github.com/owner/repo/runs/12345678"
-//   - Job URL: "https://github.com/owner/repo/actions/runs/12345678/job/98765432"
-//   - Job URL with step: "https://github.com/owner/repo/actions/runs/12345678/job/98765432#step:7:1"
-//   - Enterprise URLs: "https://github.example.com/owner/repo/actions/runs/12345678"
-//
-// For deep URLs with job/step information, use ParseRunURLExtended to get all details.
-func ParseRunURL(input string) (runID int64, owner, repo, hostname string, err error) {
-	// First try to parse as a direct numeric ID
-	if runID, err := strconv.ParseInt(input, 10, 64); err == nil {
-		return runID, "", "", "", nil
-	}
-
-	// Try to parse as a GitHub URL
-	components, err := ParseGitHubURL(input)
-	if err != nil {
-		return 0, "", "", "", fmt.Errorf("invalid run ID or URL '%s': must be a numeric run ID or a GitHub URL containing '/actions/runs/{run-id}' or '/runs/{run-id}'", input)
-	}
-
-	if components.Type != URLTypeRun {
-		return 0, "", "", "", errors.New("URL is not a GitHub Actions run URL")
-	}
-
-	return components.Number, components.Owner, components.Repo, components.Host, nil
-}
-
 // ParseRunURLExtended is similar to ParseRunURL but returns additional information
 // including job ID and step details from deep URLs.
 func ParseRunURLExtended(input string) (*GitHubURLComponents, error) {
@@ -416,17 +386,4 @@ func IsValidGitHubIdentifier(s string) bool {
 		}
 	}
 	return true
-}
-
-// GetRepoSlug returns the repository slug in "owner/repo" format
-func (c *GitHubURLComponents) GetRepoSlug() string {
-	return fmt.Sprintf("%s/%s", c.Owner, c.Repo)
-}
-
-// GetWorkflowName returns the workflow name from a file path (without .md extension)
-func (c *GitHubURLComponents) GetWorkflowName() string {
-	if c.Path == "" {
-		return ""
-	}
-	return strings.TrimSuffix(filepath.Base(c.Path), ".md")
 }

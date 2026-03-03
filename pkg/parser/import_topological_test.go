@@ -315,7 +315,7 @@ tools:
 			}
 
 			// Process imports
-			result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+			result, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, "", "")
 			require.NoError(t, err, "ProcessImportsFromFrontmatterWithManifest should not fail")
 
 			// Verify the order
@@ -368,7 +368,7 @@ Tool configuration here.`,
 		"imports": []string{"a.md"},
 	}
 
-	result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+	result, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, "", "")
 	require.NoError(t, err)
 
 	// b.md should come before a.md (even with section reference)
@@ -408,7 +408,7 @@ tools:
 		"imports": []string{"z-root.md", "a-root.md", "m-root.md"},
 	}
 
-	result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+	result, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, "", "")
 	require.NoError(t, err)
 
 	// All are roots, should be sorted alphabetically
@@ -446,7 +446,7 @@ tools:
 		"imports": []string{"z-parent.md"},
 	}
 
-	result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+	result, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, "", "")
 	require.NoError(t, err, "ProcessImportsFromFrontmatterWithManifest should not fail")
 	assert.Len(t, result.ImportedFiles, 2)
 
@@ -490,7 +490,7 @@ tools:
 
 	var baseline []string
 	for i := range 5 {
-		result, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+		result, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, "", "")
 		require.NoError(t, err)
 		if i == 0 {
 			baseline = append([]string(nil), result.ImportedFiles...)

@@ -465,6 +465,16 @@ func TestIsWorkflowSpec(t *testing.T) {
 	}
 }
 
+// processImportsFromFrontmatter is a test helper that wraps ProcessImportsFromFrontmatterWithSource
+// returning only the merged tools and engines (mirrors the removed production helper).
+func processImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (string, []string, error) {
+	result, err := ProcessImportsFromFrontmatterWithSource(frontmatter, baseDir, nil, "", "")
+	if err != nil {
+		return "", nil, err
+	}
+	return result.MergedTools, result.MergedEngines, nil
+}
+
 func TestProcessImportsFromFrontmatter(t *testing.T) {
 	// Create temp directory for test files
 	tempDir := testutil.TempDir(t, "test-*")
@@ -534,7 +544,7 @@ This is an included file.`
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tools, engines, err := ProcessImportsFromFrontmatter(tt.frontmatter, tempDir)
+			tools, engines, err := processImportsFromFrontmatter(tt.frontmatter, tempDir)
 
 			if tt.wantErr {
 				if err == nil {

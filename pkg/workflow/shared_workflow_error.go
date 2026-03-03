@@ -17,14 +17,6 @@ type SharedWorkflowError struct {
 	Path string // File path of the shared workflow
 }
 
-// NewSharedWorkflowError creates a new shared workflow error
-func NewSharedWorkflowError(path string) *SharedWorkflowError {
-	sharedWorkflowLog.Printf("Creating shared workflow info for: %s", path)
-	return &SharedWorkflowError{
-		Path: path,
-	}
-}
-
 // Error implements the error interface
 // Returns a formatted info message explaining that this is a shared workflow
 func (e *SharedWorkflowError) Error() string {

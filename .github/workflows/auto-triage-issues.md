@@ -166,7 +166,9 @@ For the triggering issue (on issue events), you can omit `item_number`:
 
 ## Scheduled Run Report
 
-When running on schedule, create a discussion report following the formatting guidelines above:
+When running on schedule, create a discussion report following these formatting guidelines:
+
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
 
 ```markdown
 ### 🏷️ Auto-Triage Report Summary

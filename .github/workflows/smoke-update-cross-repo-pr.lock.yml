@@ -23,7 +23,11 @@
 #
 # Smoke test validating cross-repo pull request updates in githubnext/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 #
+<<<<<<< HEAD
 # gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"eabd7104577d8493003ffe2675348d488509f2aa274a9af821d7f87a95f1130e"}
+=======
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9761f55db94af1bec7c0b35d4c28497d0951643a4a82c3f7d800a0db9982ede5"}
+>>>>>>> 1ec664b80586ce642ac0dfade816f5a27f91615e
 
 name: "Smoke Update Cross-Repo PR"
 "on":
@@ -1251,6 +1255,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📜 *Cross-repo PR update smoke test by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 [{workflow_name}]({run_url}) is adding the next Odyssey line to githubnext/gh-aw-side-repo PR #1...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully updated the cross-repo PR with a new Odyssey line!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to update the cross-repo PR: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-update-cross-repo-pr"

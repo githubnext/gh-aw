@@ -46,6 +46,7 @@ jobs:
           echo "Module cache location: $(go env GOMODCACHE)"
           
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -271,6 +272,7 @@ jobs:
           echo "Module cache location: $(go env GOMODCACHE)"
           
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3

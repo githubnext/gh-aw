@@ -32,11 +32,6 @@ func (s *WorkflowStep) IsUsesStep() bool {
 	return s.Uses != ""
 }
 
-// IsRunStep returns true if this step runs a command (has a "run" field)
-func (s *WorkflowStep) IsRunStep() bool {
-	return s.Run != ""
-}
-
 // ToMap converts a WorkflowStep to a map[string]any for YAML generation
 // This is used when generating the final workflow YAML output
 func (s *WorkflowStep) ToMap() map[string]any {

@@ -148,8 +148,10 @@ If no improvements are found or changes are too risky:
 
 ## Pull Request Structure (if created)
 
+**Report Formatting**: Use h3 (###) or lower for all headers in your PR description to maintain proper document hierarchy. The PR title serves as h1, so start section headers at h3.
+
 ```markdown
-## CI Optimization Proposal
+### CI Optimization Proposal
 
 ### Summary
 [Brief overview of proposed changes and expected benefits]

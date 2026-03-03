@@ -94,7 +94,7 @@ Repository mode examples:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
 Repeat and cleanup examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 3 times total
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 4 times total (1 initial + 3 repeats)
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --delete-host-repo-after  # Delete repo after completion
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo my-trial       # Custom host repo
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --dry-run                 # Show what would be done without changes
@@ -187,7 +187,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("dry-run", false, "Show what would be done without making any changes")
 	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (default: 30)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
-	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
+	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
 	addEngineFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")

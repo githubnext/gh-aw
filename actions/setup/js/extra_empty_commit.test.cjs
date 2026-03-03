@@ -163,7 +163,7 @@ describe("extra_empty_commit.cjs", () => {
 
       const commitCall = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "commit");
       expect(commitCall).toBeDefined();
-      expect(commitCall[1]).toEqual(["commit", "--allow-empty", "-m", "ci: trigger CI checks"]);
+      expect(commitCall[1]).toEqual(["commit", "--allow-empty", "-m", "ci: trigger checks"]);
     });
 
     it("should use custom commit message when provided", async () => {

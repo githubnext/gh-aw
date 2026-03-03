@@ -40,37 +40,6 @@ func TestWorkflowStep_IsUsesStep(t *testing.T) {
 	}
 }
 
-func TestWorkflowStep_IsRunStep(t *testing.T) {
-	tests := []struct {
-		name string
-		step *WorkflowStep
-		want bool
-	}{
-		{
-			name: "step with run field",
-			step: &WorkflowStep{Run: "echo hello"},
-			want: true,
-		},
-		{
-			name: "step with uses field only",
-			step: &WorkflowStep{Uses: "actions/checkout@v4"},
-			want: false,
-		},
-		{
-			name: "empty step",
-			step: &WorkflowStep{},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.step.IsRunStep()
-			assert.Equal(t, tt.want, got, "IsRunStep should return correct value for %s", tt.name)
-		})
-	}
-}
-
 func TestWorkflowStep_ToMap(t *testing.T) {
 	tests := []struct {
 		name string

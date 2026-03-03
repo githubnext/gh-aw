@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
+const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
@@ -22,9 +22,13 @@ const API_DELAY_MS = 500;
  * @param {string} repo - Repository name
  * @param {string} workflowId - Workflow ID to match in the marker
  * @param {number} excludeNumber - Issue number to exclude (the newly created one)
+ * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering.
+ *   When set, filters by the `gh-aw-workflow-call-id` marker so callers sharing the same
+ *   reusable workflow do not close each other's issues. Falls back to `gh-aw-workflow-id`
+ *   when not provided (backward compat for issues created before this fix).
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>}>>} Matching issues
  */
-async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber) {
+async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId) {
   core.info(`Starting search for older issues in ${owner}/${repo}`);
   core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude issue number: ${excludeNumber}`);
@@ -59,10 +63,17 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
   // Filter results:
   // 1. Must not be the excluded issue (newly created one)
   // 2. Must not be a pull request
+  // 3. Body must contain the exact marker for this workflow.
+  //    When callerWorkflowId is set, match `gh-aw-workflow-call-id` so that callers
+  //    sharing the same reusable workflow do not close each other's issues.
+  //    Fall back to `gh-aw-workflow-id` for backward compat with older issues.
   core.info("Filtering search results...");
   let filteredCount = 0;
   let pullRequestCount = 0;
   let excludedCount = 0;
+  let markerMismatchCount = 0;
+
+  const exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
 
   const filtered = result.data.items
     .filter(item => {
@@ -76,6 +87,15 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
       if (item.number === excludeNumber) {
         excludedCount++;
         core.info(`  Excluding issue #${item.number} (the newly created issue)`);
+        return false;
+      }
+
+      // Exact-match the marker in the issue body to prevent GitHub search
+      // substring tokenization from matching related workflow IDs
+      // (e.g. "foo" would otherwise match issues from "foo-bar")
+      if (!item.body?.includes(exactMarker)) {
+        markerMismatchCount++;
+        core.info(`  Excluding issue #${item.number} (body does not contain exact marker)`);
         return false;
       }
 
@@ -94,6 +114,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
   core.info(`  - Matched issues: ${filteredCount}`);
   core.info(`  - Excluded pull requests: ${pullRequestCount}`);
   core.info(`  - Excluded new issue: ${excludedCount}`);
+  core.info(`  - Excluded marker mismatch: ${markerMismatchCount}`);
 
   return filtered;
 }
@@ -183,13 +204,16 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @param {{number: number, html_url: string}} newIssue - The newly created issue
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
+ * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
-async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl) {
+async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId) {
   const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
     entityType: "issue",
     entityTypePlural: "issues",
-    searchOlderEntities: searchOlderIssues,
+    // Use a closure so callerWorkflowId is forwarded to searchOlderIssues without going
+    // through the closeOlderEntities extraArgs mechanism (which appends excludeNumber last)
+    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId),
     getCloseMessage: params =>
       getCloseOlderIssueMessage({
         newIssueUrl: params.newEntityUrl,

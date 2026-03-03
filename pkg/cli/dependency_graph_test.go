@@ -884,7 +884,7 @@ tools:
 			// Run the import processor on the same top-level import list and collect
 			// the topologically sorted ImportedFiles (relative paths).
 			fm := map[string]any{"imports": tt.topImports}
-			result, err := parser.ProcessImportsFromFrontmatterWithManifest(fm, workflowsDir, nil)
+			result, err := parser.ProcessImportsFromFrontmatterWithSource(fm, workflowsDir, nil, "", "")
 			if err != nil {
 				t.Fatalf("ProcessImportsFromFrontmatterWithManifest() error = %v", err)
 			}

@@ -182,7 +182,6 @@ The YAML frontmatter supports these fields:
   - Known feature flags:
     - `copilot-requests: true` - Use GitHub Actions token for Copilot authentication instead of `COPILOT_GITHUB_TOKEN` secret; injects `copilot-requests: write` permission and sets `S2STOKENS=true` (Copilot engine only)
     - `mcp-gateway: true` - Enable MCP Gateway for routing MCP server calls through a unified HTTP gateway (experimental)
-    - `dangerous-permissions-write: true` - Allow explicitly granting write permissions in strict mode (use with caution)
     - `disable-xpia-prompt: true` - Disable the built-in cross-prompt injection attack (XPIA) system prompt
   - Example:
     ```yaml
@@ -375,7 +374,7 @@ The YAML frontmatter supports these fields:
     - `mode:` - "local" (Docker, default) or "remote" (hosted)
     - `version:` - MCP server version (local mode only)
     - `args:` - Additional command-line arguments (local mode only)
-    - `read-only:` - Restrict to read-only operations (boolean)
+    - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
     - `github-token:` - Custom GitHub token
     - `lockdown:` - Enable lockdown mode to limit content surfaced from public repositories to items authored by users with push access (boolean, default: false)
     - `app:` - GitHub App configuration for token minting; when set, mints an installation access token at workflow start that overrides `github-token`
@@ -1058,6 +1057,13 @@ The YAML frontmatter supports these fields:
     - Patches exceeding this size are rejected to prevent accidental large changes
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
     - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
+  - `id-token:` - Override the id-token permission for the safe-outputs job (string: `"write"` or `"none"`)
+    - `"write"`: force-enable `id-token: write` permission (required for OIDC authentication with cloud providers)
+    - `"none"`: suppress automatic detection and prevent adding `id-token: write` even when vault/OIDC actions are detected in steps
+    - Default: auto-detects known OIDC/vault actions (e.g., `aws-actions/configure-aws-credentials`, `azure/login`, `hashicorp/vault-action`) and adds `id-token: write` automatically
+  - `concurrency-group:` - Concurrency group for the safe-outputs job (string)
+    - When set, the safe-outputs job uses this concurrency group with `cancel-in-progress: false`
+    - Supports GitHub Actions expressions, e.g., `"safe-outputs-${{ github.repository }}"`
   - `app:` - GitHub App credentials for minting installation access tokens (object)
     - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
     - Fields:
@@ -1415,26 +1421,50 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.event.head_commit.id }}`** - ID of the head commit
 - **`${{ github.event.installation.id }}`** - ID of the GitHub App installation
 - **`${{ github.event.issue.number }}`** - Issue number
+- **`${{ github.event.issue.state }}`** - State of the issue (open/closed)
+- **`${{ github.event.issue.title }}`** - Title of the issue
 - **`${{ github.event.label.id }}`** - ID of the label
 - **`${{ github.event.milestone.id }}`** - ID of the milestone
+- **`${{ github.event.milestone.number }}`** - Number of the milestone
 - **`${{ github.event.organization.id }}`** - ID of the organization
 - **`${{ github.event.page.id }}`** - ID of the GitHub Pages page
 - **`${{ github.event.project.id }}`** - ID of the project
 - **`${{ github.event.project_card.id }}`** - ID of the project card
 - **`${{ github.event.project_column.id }}`** - ID of the project column
 - **`${{ github.event.pull_request.number }}`** - Pull request number
+- **`${{ github.event.pull_request.state }}`** - State of the pull request (open/closed)
+- **`${{ github.event.pull_request.title }}`** - Title of the pull request
+- **`${{ github.event.pull_request.head.sha }}`** - SHA of the PR head commit
+- **`${{ github.event.pull_request.base.sha }}`** - SHA of the PR base commit
+- **`${{ github.event.discussion.number }}`** - Discussion number
+- **`${{ github.event.discussion.title }}`** - Title of the discussion
+- **`${{ github.event.discussion.category.name }}`** - Category name of the discussion
 - **`${{ github.event.release.assets[0].id }}`** - ID of the first release asset
 - **`${{ github.event.release.id }}`** - ID of the release
+- **`${{ github.event.release.name }}`** - Name of the release
 - **`${{ github.event.release.tag_name }}`** - Tag name of the release
 - **`${{ github.event.repository.id }}`** - ID of the repository
+- **`${{ github.event.repository.default_branch }}`** - Default branch of the repository
 - **`${{ github.event.review.id }}`** - ID of the review
 - **`${{ github.event.review_comment.id }}`** - ID of the review comment
 - **`${{ github.event.sender.id }}`** - ID of the user who triggered the event
+- **`${{ github.event.deployment.environment }}`** - Deployment environment name
+- **`${{ github.event.workflow_job.id }}`** - ID of the workflow job
+- **`${{ github.event.workflow_job.run_id }}`** - Run ID of the workflow job
 - **`${{ github.event.workflow_run.id }}`** - ID of the workflow run
+- **`${{ github.event.workflow_run.number }}`** - Number of the workflow run
+- **`${{ github.event.workflow_run.conclusion }}`** - Conclusion of the workflow run
+- **`${{ github.event.workflow_run.status }}`** - Status of the workflow run
+- **`${{ github.event.workflow_run.event }}`** - Event that triggered the workflow run
+- **`${{ github.event.workflow_run.html_url }}`** - HTML URL of the workflow run
+- **`${{ github.event.workflow_run.head_sha }}`** - Head SHA of the workflow run
+- **`${{ github.event.workflow_run.run_number }}`** - Run number of the workflow run
 - **`${{ github.actor }}`** - Username of the person who initiated the workflow
+- **`${{ github.event_name }}`** - Name of the event that triggered the workflow
 - **`${{ github.job }}`** - Job ID of the current workflow run
 - **`${{ github.owner }}`** - Owner of the repository
 - **`${{ github.repository }}`** - Repository name in "owner/name" format
+- **`${{ github.repository_owner }}`** - Owner of the repository (organization or user)
 - **`${{ github.run_id }}`** - Unique ID of the workflow run
 - **`${{ github.run_number }}`** - Number of the workflow run
 - **`${{ github.server_url }}`** - Base URL of the server, e.g. https://github.com

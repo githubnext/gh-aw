@@ -34,6 +34,7 @@ global.context = mockContext;
 describe("generate_footer.cjs", () => {
   let generateXMLMarker;
   let generateWorkflowIdMarker;
+  let generateWorkflowCallIdMarker;
   let getWorkflowIdMarkerContent;
 
   beforeEach(async () => {
@@ -51,6 +52,7 @@ describe("generate_footer.cjs", () => {
     const module = await import("./generate_footer.cjs");
     generateXMLMarker = module.generateXMLMarker;
     generateWorkflowIdMarker = module.generateWorkflowIdMarker;
+    generateWorkflowCallIdMarker = module.generateWorkflowCallIdMarker;
     getWorkflowIdMarkerContent = module.getWorkflowIdMarkerContent;
   });
 
@@ -197,6 +199,44 @@ describe("generate_footer.cjs", () => {
       // Should match the format: <!-- gh-aw-workflow-id: {id} -->
       expect(result).toMatch(/^<!-- gh-aw-workflow-id: .+ -->$/);
       expect(result).toContain(workflowId);
+    });
+  });
+
+  describe("generateWorkflowCallIdMarker", () => {
+    it("should generate workflow-call-id XML comment marker", () => {
+      const result = generateWorkflowCallIdMarker("owner/repo/CallerWorkflow");
+
+      expect(result).toBe("<!-- gh-aw-workflow-call-id: owner/repo/CallerWorkflow -->");
+    });
+
+    it("should handle caller IDs with slashes (repo/workflow format)", () => {
+      const result = generateWorkflowCallIdMarker("elastic/ai-github-actions/Explore: Live Elasticsearch");
+
+      expect(result).toBe("<!-- gh-aw-workflow-call-id: elastic/ai-github-actions/Explore: Live Elasticsearch -->");
+    });
+
+    it("should handle empty caller ID", () => {
+      const result = generateWorkflowCallIdMarker("");
+
+      expect(result).toBe("<!-- gh-aw-workflow-call-id:  -->");
+    });
+
+    it("should produce a different marker than generateWorkflowIdMarker", () => {
+      const id = "test-workflow";
+      const callIdMarker = generateWorkflowCallIdMarker(id);
+      const workflowIdMarker = generateWorkflowIdMarker(id);
+
+      expect(callIdMarker).not.toBe(workflowIdMarker);
+      expect(callIdMarker).toContain("gh-aw-workflow-call-id:");
+      expect(workflowIdMarker).toContain("gh-aw-workflow-id:");
+    });
+
+    it("should follow XML comment format", () => {
+      const callerId = "owner/repo/MyWorkflow";
+      const result = generateWorkflowCallIdMarker(callerId);
+
+      expect(result).toMatch(/^<!-- gh-aw-workflow-call-id: .+ -->$/);
+      expect(result).toContain(callerId);
     });
   });
 

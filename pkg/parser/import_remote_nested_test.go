@@ -160,7 +160,7 @@ func TestLocalImportResolutionBaseline(t *testing.T) {
 		"imports": []any{"shared/local-tools.md"},
 	}
 	cache := NewImportCache(tmpDir)
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, workflowsDir, cache)
+	result, err := ProcessImportsFromFrontmatterWithSource(frontmatter, workflowsDir, cache, "", "")
 	require.NoError(t, err, "Local import resolution should succeed")
 	assert.NotNil(t, result, "Result should not be nil")
 }

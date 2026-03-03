@@ -31,29 +31,6 @@ func TestCompareVersions(t *testing.T) {
 	}
 }
 
-func TestExtractMajorVersion(t *testing.T) {
-	tests := []struct {
-		version  string
-		expected int
-	}{
-		{"v5.0.0", 5},
-		{"v6", 6},
-		{"5.1.0", 5},
-		{"v4.6.2", 4},
-		{"v10.2.3", 10},
-		{"", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.version, func(t *testing.T) {
-			result := extractMajorVersion(tt.version)
-			if result != tt.expected {
-				t.Errorf("extractMajorVersion(%q) = %d, want %d", tt.version, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestIsSemverCompatible(t *testing.T) {
 	tests := []struct {
 		pinVersion       string

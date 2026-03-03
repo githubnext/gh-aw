@@ -136,7 +136,7 @@ func writeFiles(t *testing.T, dir string, files map[string]string) {
 func runImportProcessor(t *testing.T, dir string, topImports []string) []string {
 	t.Helper()
 	fm := map[string]any{"imports": topImports}
-	result, err := parser.ProcessImportsFromFrontmatterWithManifest(fm, dir, nil)
+	result, err := parser.ProcessImportsFromFrontmatterWithSource(fm, dir, nil, "", "")
 	require.NoError(t, err, "ProcessImportsFromFrontmatterWithManifest must not fail")
 	return result.ImportedFiles
 }
