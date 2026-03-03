@@ -183,7 +183,7 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update", "--no-compile"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
     });
 
     it("finishes without PR when only workflow yml files changed", async () => {
@@ -253,8 +253,8 @@ describe("run_operation_update_upgrade", () => {
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
 
-      // Verify gh aw update --no-compile was run
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update", "--no-compile"]);
+      // Verify gh aw update was run
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
       // Verify branch was created
       expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["checkout", "-b", expect.stringContaining("aw/update-")]));
       // Verify file was staged
@@ -330,8 +330,8 @@ describe("run_operation_update_upgrade", () => {
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
 
-      // Verify gh aw upgrade --no-compile --no-fix was run
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade", "--no-compile", "--no-fix"]);
+      // Verify gh aw upgrade was run
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
       // Verify correct commit message
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);
       // Verify PR title is "[aw] Upgrade available"
@@ -355,8 +355,8 @@ describe("run_operation_update_upgrade", () => {
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
 
-      // Verify binary is ./gh-aw (no prefix args) with --no-compile
-      expect(mockExec.exec).toHaveBeenCalledWith("./gh-aw", ["update", "--no-compile"]);
+      // Verify binary is ./gh-aw (no prefix args)
+      expect(mockExec.exec).toHaveBeenCalledWith("./gh-aw", ["update"]);
     });
   });
 

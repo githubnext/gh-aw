@@ -63,17 +63,14 @@ async function main() {
 
   const isUpgrade = operation === "upgrade";
 
-  // Build command flags:
-  //   --no-compile  – do not touch lock files (always)
-  //   --no-fix      – skip codemods that would modify .md files inside
-  //                   .github/workflows/ (upgrade only).  The GitHub Actions
-  //                   actor is not permitted to commit changes to workflow files.
-  const cmdFlags = isUpgrade ? ["--no-compile", "--no-fix"] : ["--no-compile"];
-
-  // Run gh aw update or gh aw upgrade with the appropriate flags
-  const fullCmd = [bin, ...prefixArgs, operation, ...cmdFlags].join(" ");
+  // Run gh aw update or gh aw upgrade without extra flags so all files are
+  // updated (codemods, action pins, lock files, etc.).  Changed files under
+  // .github/workflows/ are detected afterwards but excluded from staging so
+  // the GitHub Actions actor – which is not permitted to commit workflow
+  // files – does not attempt to include them in the pull request.
+  const fullCmd = [bin, ...prefixArgs, operation].join(" ");
   core.info(`Running: ${fullCmd}`);
-  const exitCode = await exec.exec(bin, [...prefixArgs, operation, ...cmdFlags]);
+  const exitCode = await exec.exec(bin, [...prefixArgs, operation]);
   if (exitCode !== 0) {
     throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
   }
@@ -190,10 +187,9 @@ async function main() {
   const prTitle = isUpgrade ? "[aw] Upgrade available" : "[aw] Updates available";
   const fileList = stagedFiles.map(f => `- \`${f}\``).join("\n");
   const operationLabel = isUpgrade ? "Upgrade" : "Update";
-  const flagsStr = cmdFlags.join(" ");
   const prBody = `## Agentic Workflows ${operationLabel}
 
-The \`gh aw ${operation} ${flagsStr}\` command was run automatically and produced the following changes:
+The \`gh aw ${operation}\` command was run automatically and produced the following changes:
 
 ${fileList}
 
