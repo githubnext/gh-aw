@@ -1113,6 +1113,7 @@ jobs:
           GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📄 *Summary compiled by [{workflow_name}]({run_url})*\",\"runStarted\":\"📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}...\",\"runSuccess\":\"📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨\",\"runFailure\":\"📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized...\"}"
           GH_AW_GROUP_REPORTS: "false"
+          GH_AW_TIMEOUT_MINUTES: "15"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

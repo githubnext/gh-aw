@@ -188,6 +188,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"false\"\n")
 	}
 
+	// Pass timeout minutes value so the failure handler can provide an actionable hint when timed out
+	timeoutValue := strings.TrimPrefix(data.TimeoutMinutes, "timeout-minutes: ")
+	if timeoutValue != "" {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
+	}
+
 	// Build the agent failure handling step
 	agentFailureSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Handle Agent Failure",
