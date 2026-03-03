@@ -230,9 +230,14 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 
 		// Parse app configuration for GitHub App token minting
-		// Support both "github-app" (preferred) and "app" (deprecated)
-		if app, ok := configMap["github-app"].(map[string]any); ok {
-			config.App = parseAppConfig(app)
+		// Support both "github-app" (preferred) and "app" (deprecated).
+		// "github-app" takes precedence whenever the key is present, regardless of its type.
+		if rawApp, exists := configMap["github-app"]; exists {
+			if appMap, ok := rawApp.(map[string]any); ok {
+				config.App = parseAppConfig(appMap)
+			} else {
+				toolsParserLog.Printf("Ignoring deprecated app configuration because github-app key is present with invalid type %T", rawApp)
+			}
 		} else if app, ok := configMap["app"].(map[string]any); ok {
 			config.App = parseAppConfig(app)
 		}

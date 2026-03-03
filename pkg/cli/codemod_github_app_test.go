@@ -245,6 +245,38 @@ tools:
 		assert.Equal(t, content, result, "Content should remain unchanged")
 	})
 
+	t.Run("renames app to github-app inside checkout array item", func(t *testing.T) {
+		content := `---
+engine: copilot
+checkout:
+  - repo: org/other-repo
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"checkout": []any{
+				map[string]any{
+					"repo": "org/other-repo",
+					"app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		}
+
+		result, modified, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Should not error when applying codemod")
+		assert.True(t, modified, "Should modify content")
+		assert.Contains(t, result, "github-app:", "Should contain github-app field")
+		assert.False(t, hasDeprecatedAppFieldInContent(result), "Should not contain old app field")
+	})
+
 	t.Run("preserves comments and formatting", func(t *testing.T) {
 		content := `---
 engine: copilot

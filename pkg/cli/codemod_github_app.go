@@ -139,23 +139,23 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 			continue
 		}
 
-		// Rename 'app:' to 'github-app:' when inside a target block at the direct child level
+		// Rename 'app:' to 'github-app:' when inside a target block
 		if strings.HasPrefix(trimmed, "app:") {
 			lineIndent := getIndentation(line)
 			shouldRename := false
 
-			// Direct child of tools.github (inside github: block)
-			if inToolsGithub && isDirectChild(lineIndent, toolsGithubIndent) {
+			// Child of tools.github (inside github: block)
+			if inToolsGithub && isDescendant(lineIndent, toolsGithubIndent) {
 				shouldRename = true
 			}
 
-			// Direct child of safe-outputs
-			if inSafeOutputs && isDirectChild(lineIndent, safeOutputsIndent) {
+			// Child of safe-outputs
+			if inSafeOutputs && isDescendant(lineIndent, safeOutputsIndent) {
 				shouldRename = true
 			}
 
-			// Direct child of checkout (or a list item inside checkout)
-			if inCheckout && isDirectChild(lineIndent, checkoutIndent) {
+			// Child of checkout (or a list item inside checkout)
+			if inCheckout && isDescendant(lineIndent, checkoutIndent) {
 				shouldRename = true
 			}
 
@@ -176,8 +176,9 @@ func renameAppToGitHubApp(lines []string) ([]string, bool) {
 	return result, modified
 }
 
-// isDirectChild returns true if childIndent is exactly one indentation level deeper than parentIndent.
-// It handles both spaces and tabs but assumes consistent indentation within a file.
-func isDirectChild(childIndent, parentIndent string) bool {
+// isDescendant returns true if childIndent is deeper (more indented) than parentIndent.
+// It is used as a "belongs to this block" check — any line more indented than the parent
+// is treated as being within the parent's scope.
+func isDescendant(childIndent, parentIndent string) bool {
 	return len(childIndent) > len(parentIndent)
 }
