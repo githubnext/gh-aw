@@ -249,6 +249,20 @@ describe("repo_helpers", () => {
       expect(result.qualifiedRepo).toBe("org/some-repo");
     });
 
+    it('should reject invalid slug when defaultRepo is "*" (no slash)', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const result = validateRepo("repo-only", "*", new Set());
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("not a valid 'owner/repo' slug");
+    });
+
+    it('should reject invalid slug when defaultRepo is "*" (too many slashes)', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const result = validateRepo("owner/repo/extra", "*", new Set());
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("not a valid 'owner/repo' slug");
+    });
+
     it('should allow org-scoped wildcard "github/*"', async () => {
       const { validateRepo } = await import("./repo_helpers.cjs");
       const allowedRepos = new Set(["github/*"]);
