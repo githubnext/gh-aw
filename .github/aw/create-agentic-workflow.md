@@ -231,6 +231,21 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 
    - You do not have to use any MCPs. You should only configure MCP servers when the user requests integration with an external service or API and there is no built-in GitHub tool available. Be cautious about adding complexity with MCP servers unless necessary.
 
+   - ⚠️ **GitHub API Access — All Engines**: Agentic workflow engines (including `copilot`, `claude`, `codex`, and custom engines) **cannot access `api.github.com` directly**. For any GitHub API operations (reading issues, searching PRs, listing commits, checking runs, etc.), you **must** configure the GitHub MCP server via `tools: github:`. Adding `api.github.com` to `network: allowed:` will **NOT** work and will cause silent failures.
+     - ✅ **CORRECT** — GitHub MCP server:
+       ```yaml
+       tools:
+         github:
+           mode: remote
+           toolsets: [default]
+       ```
+     - ❌ **WRONG** — Direct API access (will silently fail):
+       ```yaml
+       network:
+         allowed:
+           - api.github.com   # Does not grant API access to the engine
+       ```
+
    - The Serena MCP server should only be used when the user specifically requests semantic code parsing and analysis or repository introspection beyond what built-in GitHub tools provide or a regular coding agent will perform. Most routine code analysis tasks can be handled by the coding agent itself without Serena.
 
    - Detect which tools are needed based on the task. Examples:
@@ -583,7 +598,7 @@ Based on the parsed requirements, determine:
    - **Note**: `workflow_dispatch:` is automatically added ONLY for fuzzy schedules (`daily`, `weekly`, etc.). For other triggers, add it explicitly if manual execution is desired.
 3. **Tools**: Determine required tools:
    - **`bash` and `edit` are enabled by default** - No need to add (sandboxed by AWF)
-   - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed)
+   - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed); ⚠️ engines cannot access `api.github.com` directly — GitHub MCP is required for all GitHub API operations
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
    - **Network ecosystem inference**: For workflows that build/test/install packages, always include the language ecosystem in `network: allowed:`. Never use `network: defaults` alone — it only covers basic infrastructure, not package registries. Detect from repository files:
