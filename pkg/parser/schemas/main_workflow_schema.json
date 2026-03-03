@@ -1776,25 +1776,8 @@
             "description": "Job timeout in minutes"
           },
           "strategy": {
-            "type": "object",
-            "description": "Matrix strategy for the job. Defines multiple job configurations using matrix variables.",
-            "properties": {
-              "matrix": {
-                "type": "object",
-                "description": "Matrix variables for creating job variants. Each key defines a dimension of the matrix, with values as arrays (e.g., {os: [ubuntu-latest, windows-latest]}). Use 'include' to add extra configurations and 'exclude' to remove specific combinations.",
-                "additionalProperties": true
-              },
-              "fail-fast": {
-                "type": "boolean",
-                "description": "If true, GitHub cancels all in-progress jobs if any matrix job fails. Defaults to true."
-              },
-              "max-parallel": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Maximum number of jobs to run simultaneously when using a matrix strategy."
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/$defs/job_strategy",
+            "description": "Matrix strategy for the job. Defines multiple job configurations using matrix variables."
           },
           "continue-on-error": {
             "type": "boolean",
@@ -7591,6 +7574,27 @@
           "description": "GitHub Actions expression that resolves to an integer at runtime"
         }
       ]
+    },
+    "job_strategy": {
+      "type": "object",
+      "description": "Matrix strategy for the job. Defines multiple job configurations using matrix variables.",
+      "properties": {
+        "matrix": {
+          "type": "object",
+          "description": "Matrix variables for creating job variants. Each key defines a dimension of the matrix, with values as arrays (e.g., {os: [ubuntu-latest, windows-latest]}). Use 'include' to add extra configurations and 'exclude' to remove specific combinations.",
+          "additionalProperties": true
+        },
+        "fail-fast": {
+          "type": "boolean",
+          "description": "If true, GitHub cancels all in-progress jobs if any matrix job fails. Defaults to true."
+        },
+        "max-parallel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of jobs to run simultaneously when using a matrix strategy."
+        }
+      },
+      "additionalProperties": false
     },
     "engine_config": {
       "examples": [
