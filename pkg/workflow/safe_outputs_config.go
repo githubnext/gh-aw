@@ -504,9 +504,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle app configuration for GitHub App token minting
-			if app, exists := outputMap["app"]; exists {
+			if app, exists := outputMap["github-app"]; exists {
 				if appMap, ok := app.(map[string]any); ok {
-					config.App = parseAppConfig(appMap)
+					config.GitHubApp = parseAppConfig(appMap)
 				}
 			}
 		}

@@ -11,16 +11,6 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
-func TestParseAgentLog(t *testing.T) {
-	t.Skip("Test skipped - agent log parser scripts now use require() pattern and are loaded at runtime from external files")
-}
-
-// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
-func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
-	t.Skip("Test skipped - agent log parser scripts now use require() pattern and are loaded at runtime from external files")
-}
-
 func TestParseAgentLogNoAgentOutput(t *testing.T) {
 	// Create a temporary directory without agent logs
 	tempDir := testutil.TempDir(t, "test-*")

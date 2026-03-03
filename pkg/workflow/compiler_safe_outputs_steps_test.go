@@ -187,7 +187,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 		{
 			name: "with GitHub App token",
 			safeOutputs: &SafeOutputsConfig{
-				App: &GitHubAppConfig{
+				GitHubApp: &GitHubAppConfig{
 					AppID:      "12345",
 					PrivateKey: "test-key",
 				},

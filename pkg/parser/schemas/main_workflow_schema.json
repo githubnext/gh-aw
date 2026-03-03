@@ -2990,7 +2990,7 @@
                   "description": "Guard policy: minimum required integrity level for repository access. Restricts the agent to users with at least the specified permission level.",
                   "enum": ["reader", "writer", "maintainer", "admin"]
                 },
-                "app": {
+                "github-app": {
                   "type": "object",
                   "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
                   "properties": {
@@ -6689,7 +6689,7 @@
           "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}",
           "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
         },
-        "app": {
+        "github-app": {
           "type": "object",
           "description": "GitHub App credentials for minting installation access tokens. When configured, a token will be generated using the app credentials and used for all safe output operations.",
           "properties": {
@@ -8056,10 +8056,10 @@
         },
         "github-token": {
           "type": "string",
-          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Mutually exclusive with app. Credentials are always removed after checkout (persist-credentials: false is enforced).",
+          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Mutually exclusive with github-app (and deprecated app). Credentials are always removed after checkout (persist-credentials: false is enforced).",
           "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.CROSS_REPO_PAT }}"]
         },
-        "app": {
+        "github-app": {
           "type": "object",
           "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token.",
           "required": ["app-id", "private-key"],

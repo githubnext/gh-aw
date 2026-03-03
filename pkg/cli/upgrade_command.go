@@ -18,6 +18,7 @@ type UpgradeConfig struct {
 	Verbose     bool
 	WorkflowDir string
 	NoFix       bool
+	NoCompile   bool
 	CreatePR    bool
 	NoActions   bool
 	Audit       bool
@@ -59,6 +60,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile      # Skip recompiling workflows (do not modify lock files)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --create-pull-request  # Upgrade and open a pull request
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
@@ -72,6 +74,7 @@ Examples:
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			noActions, _ := cmd.Flags().GetBool("no-actions")
+			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 
@@ -86,7 +89,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(verbose, dir, noFix, false, noActions); err != nil {
+			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions); err != nil {
 				return err
 			}
 
@@ -104,6 +107,7 @@ Examples:
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-fix", false, "Skip applying codemods, action updates, and compiling workflows (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
+	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
@@ -210,8 +214,8 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		}
 	}
 
-	// Step 4: Compile all workflows (unless --no-fix is specified)
-	if !noFix {
+	// Step 4: Compile all workflows (unless --no-fix or --no-compile is specified)
+	if !noFix && !noCompile {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
 		upgradeLog.Print("Compiling all workflows")
 
@@ -243,9 +247,16 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 			}
 		}
 	} else {
-		upgradeLog.Print("Skipping compilation (--no-fix specified)")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-fix specified)"))
+		if noFix {
+			upgradeLog.Print("Skipping compilation (--no-fix specified)")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-fix specified)"))
+			}
+		} else if noCompile {
+			upgradeLog.Print("Skipping compilation (--no-compile specified)")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-compile specified)"))
+			}
 		}
 	}
 

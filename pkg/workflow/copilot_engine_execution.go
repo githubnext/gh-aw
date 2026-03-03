@@ -273,7 +273,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	if hasGitHubTool(workflowData.ParsedTools) {
 		// If GitHub App is configured, use the app token (overrides custom and default tokens)
-		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.App != nil {
+		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
 			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
 		} else {
 			customGitHubToken := getGitHubToken(workflowData.Tools["github"])

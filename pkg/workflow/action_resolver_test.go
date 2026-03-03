@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -39,9 +40,9 @@ func TestExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractBaseRepo(tt.repo)
+			result := gitutil.ExtractBaseRepo(tt.repo)
 			if result != tt.expected {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", tt.repo, result, tt.expected)
+				t.Errorf("gitutil.ExtractBaseRepo(%q) = %q, want %q", tt.repo, result, tt.expected)
 			}
 		})
 	}

@@ -267,26 +267,26 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		assert.Equal(t, "${{ secrets.MY_TOKEN }}", configs[0].GitHubToken, "legacy token should populate GitHubToken")
 	})
 
-	t.Run("app config is parsed", func(t *testing.T) {
+	t.Run("github-app config is parsed", func(t *testing.T) {
 		raw := map[string]any{
 			"repository": "owner/target-repo",
-			"app": map[string]any{
+			"github-app": map[string]any{
 				"app-id":      "${{ vars.APP_ID }}",
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
 		configs, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err, "app config should parse without error")
+		require.NoError(t, err, "github-app config should parse without error")
 		require.Len(t, configs, 1)
-		require.NotNil(t, configs[0].App, "app config should be set")
-		assert.Equal(t, "${{ vars.APP_ID }}", configs[0].App.AppID, "app-id should be set")
-		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", configs[0].App.PrivateKey, "private-key should be set")
+		require.NotNil(t, configs[0].GitHubApp, "github-app config should be set")
+		assert.Equal(t, "${{ vars.APP_ID }}", configs[0].GitHubApp.AppID, "app-id should be set")
+		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", configs[0].GitHubApp.PrivateKey, "private-key should be set")
 	})
 
-	t.Run("app config with owner and repositories", func(t *testing.T) {
+	t.Run("github-app config with owner and repositories", func(t *testing.T) {
 		raw := map[string]any{
 			"repository": "owner/target-repo",
-			"app": map[string]any{
+			"github-app": map[string]any{
 				"app-id":       "${{ vars.APP_ID }}",
 				"private-key":  "${{ secrets.APP_PRIVATE_KEY }}",
 				"owner":        "my-org",
@@ -294,55 +294,55 @@ func TestParseCheckoutConfigs(t *testing.T) {
 			},
 		}
 		configs, err := ParseCheckoutConfigs(raw)
-		require.NoError(t, err, "app config with owner should parse without error")
+		require.NoError(t, err, "github-app config with owner should parse without error")
 		require.Len(t, configs, 1)
-		require.NotNil(t, configs[0].App)
-		assert.Equal(t, "my-org", configs[0].App.Owner)
-		assert.Equal(t, []string{"repo-a", "repo-b"}, configs[0].App.Repositories)
+		require.NotNil(t, configs[0].GitHubApp)
+		assert.Equal(t, "my-org", configs[0].GitHubApp.Owner)
+		assert.Equal(t, []string{"repo-a", "repo-b"}, configs[0].GitHubApp.Repositories)
 	})
 
-	t.Run("github-token and app are mutually exclusive", func(t *testing.T) {
+	t.Run("github-token and github-app are mutually exclusive", func(t *testing.T) {
 		raw := map[string]any{
 			"github-token": "${{ secrets.MY_TOKEN }}",
-			"app": map[string]any{
+			"github-app": map[string]any{
 				"app-id":      "${{ vars.APP_ID }}",
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
 		_, err := ParseCheckoutConfigs(raw)
-		require.Error(t, err, "github-token and app together should return error")
+		require.Error(t, err, "github-token and github-app together should return error")
 		assert.Contains(t, err.Error(), "mutually exclusive", "error should mention mutual exclusivity")
 	})
 
-	t.Run("app config missing app-id returns error", func(t *testing.T) {
+	t.Run("github-app config missing app-id returns error", func(t *testing.T) {
 		raw := map[string]any{
-			"app": map[string]any{
+			"github-app": map[string]any{
 				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
 		_, err := ParseCheckoutConfigs(raw)
-		require.Error(t, err, "app without app-id should return error")
+		require.Error(t, err, "github-app without app-id should return error")
 		assert.Contains(t, err.Error(), "app-id and private-key")
 	})
 
-	t.Run("app config missing private-key returns error", func(t *testing.T) {
+	t.Run("github-app config missing private-key returns error", func(t *testing.T) {
 		raw := map[string]any{
-			"app": map[string]any{
+			"github-app": map[string]any{
 				"app-id": "${{ vars.APP_ID }}",
 			},
 		}
 		_, err := ParseCheckoutConfigs(raw)
-		require.Error(t, err, "app without private-key should return error")
+		require.Error(t, err, "github-app without private-key should return error")
 		assert.Contains(t, err.Error(), "app-id and private-key")
 	})
 
-	t.Run("app must be an object", func(t *testing.T) {
+	t.Run("github-app must be an object", func(t *testing.T) {
 		raw := map[string]any{
-			"app": "not-an-object",
+			"github-app": "not-an-object",
 		}
 		_, err := ParseCheckoutConfigs(raw)
-		require.Error(t, err, "non-object app should return error")
-		assert.Contains(t, err.Error(), "checkout.app must be an object")
+		require.Error(t, err, "non-object github-app should return error")
+		assert.Contains(t, err.Error(), "checkout.github-app must be an object")
 	})
 
 	t.Run("array of objects", func(t *testing.T) {
@@ -927,7 +927,7 @@ func TestHasAppAuth(t *testing.T) {
 
 	t.Run("returns true when default checkout has app", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{App: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
+			{GitHubApp: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
 		})
 		assert.True(t, cm.HasAppAuth(), "should be true when default checkout has app")
 	})
@@ -935,7 +935,7 @@ func TestHasAppAuth(t *testing.T) {
 	t.Run("returns true when additional checkout has app", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{GitHubToken: "${{ secrets.MY_PAT }}"},
-			{Repository: "other/repo", Path: "deps", App: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
+			{Repository: "other/repo", Path: "deps", GitHubApp: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
 		})
 		assert.True(t, cm.HasAppAuth(), "should be true when any checkout has app")
 	})
@@ -946,7 +946,7 @@ func TestDefaultCheckoutWithAppAuth(t *testing.T) {
 
 	t.Run("checkout step uses app token reference", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
-			{App: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
+			{GitHubApp: &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"}},
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
@@ -963,7 +963,7 @@ func TestAdditionalCheckoutWithAppAuth(t *testing.T) {
 			{
 				Repository: "other/repo",
 				Path:       "deps",
-				App:        &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"},
+				GitHubApp:  &GitHubAppConfig{AppID: "${{ vars.APP_ID }}", PrivateKey: "${{ secrets.KEY }}"},
 			},
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)

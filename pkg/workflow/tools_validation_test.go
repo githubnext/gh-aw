@@ -294,10 +294,10 @@ func TestValidateGitHubToolConfig(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "github tool with app only is valid",
+			name: "github tool with github-app only is valid",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"app": map[string]any{
+					"github-app": map[string]any{
 						"app-id":      "123456",
 						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 					},
@@ -315,10 +315,10 @@ func TestValidateGitHubToolConfig(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "github tool with both app and github-token is invalid",
+			name: "github tool with both github-app and github-token is invalid",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"app": map[string]any{
+					"github-app": map[string]any{
 						"app-id":      "123456",
 						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
 					},
@@ -326,7 +326,7 @@ func TestValidateGitHubToolConfig(t *testing.T) {
 				},
 			},
 			shouldError: true,
-			errorMsg:    "'tools.github.app' and 'tools.github.github-token' cannot both be set",
+			errorMsg:    "'tools.github.github-app' and 'tools.github.github-token' cannot both be set",
 		},
 		{
 			name: "github tool with neither app nor github-token is valid",

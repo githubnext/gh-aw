@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var githubLog = logger.New("cli:github")
@@ -25,26 +26,13 @@ func getGitHubHost() string {
 	for _, envVar := range envVars {
 		if value := os.Getenv(envVar); value != "" {
 			githubLog.Printf("Resolved GitHub host from %s: %s", envVar, value)
-			return normalizeGitHubHostURL(value)
+			return stringutil.NormalizeGitHubHostURL(value)
 		}
 	}
 
 	defaultHost := string(constants.PublicGitHubHost)
 	githubLog.Printf("No GitHub host environment variable set, using default: %s", defaultHost)
 	return defaultHost
-}
-
-// normalizeGitHubHostURL ensures the host URL has https:// scheme and no trailing slashes
-func normalizeGitHubHostURL(rawHostURL string) string {
-	// Remove all trailing slashes
-	normalized := strings.TrimRight(rawHostURL, "/")
-
-	// Add https:// scheme if no scheme is present
-	if !strings.HasPrefix(normalized, "https://") && !strings.HasPrefix(normalized, "http://") {
-		normalized = "https://" + normalized
-	}
-
-	return normalized
 }
 
 // getGitHubHostForRepo returns the GitHub host URL for a specific repository.

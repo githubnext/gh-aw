@@ -43,6 +43,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -436,9 +437,7 @@ async function main(config = {}) {
     // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
     // with the caller's identity so close-older-issues can distinguish callers precisely.
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
-    const { runId } = context;
-    const githubServer = process.env.GITHUB_SERVER_URL ?? "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    const runUrl = buildWorkflowRunUrl(context, context.repo);
 
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");

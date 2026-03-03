@@ -24,7 +24,7 @@ func TestSafeOutputsAppImport(t *testing.T) {
 	// Create a shared workflow with app configuration
 	sharedWorkflow := `---
 safe-outputs:
-  app:
+  github-app:
     app-id: ${{ vars.SHARED_APP_ID }}
     private-key: ${{ secrets.SHARED_APP_SECRET }}
     repositories:
@@ -71,12 +71,12 @@ This workflow uses the imported app configuration.
 	workflowData, err := compiler.ParseWorkflowFile("main.md")
 	require.NoError(t, err, "Failed to parse workflow")
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
-	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be imported")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "App configuration should be imported")
 
 	// Verify app configuration was imported correctly
-	assert.Equal(t, "${{ vars.SHARED_APP_ID }}", workflowData.SafeOutputs.App.AppID)
-	assert.Equal(t, "${{ secrets.SHARED_APP_SECRET }}", workflowData.SafeOutputs.App.PrivateKey)
-	assert.Equal(t, []string{"repo1"}, workflowData.SafeOutputs.App.Repositories)
+	assert.Equal(t, "${{ vars.SHARED_APP_ID }}", workflowData.SafeOutputs.GitHubApp.AppID)
+	assert.Equal(t, "${{ secrets.SHARED_APP_SECRET }}", workflowData.SafeOutputs.GitHubApp.PrivateKey)
+	assert.Equal(t, []string{"repo1"}, workflowData.SafeOutputs.GitHubApp.Repositories)
 }
 
 // TestSafeOutputsAppImportOverride tests that local app configuration overrides imported one
@@ -92,7 +92,7 @@ func TestSafeOutputsAppImportOverride(t *testing.T) {
 	// Create a shared workflow with app configuration
 	sharedWorkflow := `---
 safe-outputs:
-  app:
+  github-app:
     app-id: ${{ vars.SHARED_APP_ID }}
     private-key: ${{ secrets.SHARED_APP_SECRET }}
 ---
@@ -113,7 +113,7 @@ imports:
   - ./shared-app.md
 safe-outputs:
   create-issue:
-  app:
+  github-app:
     app-id: ${{ vars.LOCAL_APP_ID }}
     private-key: ${{ secrets.LOCAL_APP_SECRET }}
     repositories:
@@ -140,10 +140,10 @@ This workflow overrides the imported app configuration.
 	workflowData, err := compiler.ParseWorkflowFile("main.md")
 	require.NoError(t, err, "Failed to parse workflow")
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
-	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be present")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "App configuration should be present")
 
 	// Verify local app configuration takes precedence
-	assert.Equal(t, "${{ vars.LOCAL_APP_ID }}", workflowData.SafeOutputs.App.AppID)
-	assert.Equal(t, "${{ secrets.LOCAL_APP_SECRET }}", workflowData.SafeOutputs.App.PrivateKey)
-	assert.Equal(t, []string{"repo2"}, workflowData.SafeOutputs.App.Repositories)
+	assert.Equal(t, "${{ vars.LOCAL_APP_ID }}", workflowData.SafeOutputs.GitHubApp.AppID)
+	assert.Equal(t, "${{ secrets.LOCAL_APP_SECRET }}", workflowData.SafeOutputs.GitHubApp.PrivateKey)
+	assert.Equal(t, []string{"repo2"}, workflowData.SafeOutputs.GitHubApp.Repositories)
 }

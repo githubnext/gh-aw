@@ -14,8 +14,8 @@ import (
 )
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v", workflowsDir, workflowNames, noMerge)
+func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v", workflowsDir, workflowNames, noMerge, noCompile)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -47,7 +47,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 	// Update each workflow
 	for _, wf := range workflows {
 		updateLog.Printf("Updating workflow: %s (source: %s)", wf.Name, wf.SourceSpec)
-		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge); err != nil {
+		if err := updateWorkflow(wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile); err != nil {
 			updateLog.Printf("Failed to update workflow %s: %v", wf.Name, err)
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
@@ -319,7 +319,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool) error {
+func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool) error {
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
@@ -544,11 +544,15 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	updateLog.Printf("Successfully updated workflow %s from %s to %s", wf.Name, currentRef, latestRef)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, shortRef(currentRef), shortRef(latestRef))))
 
-	// Compile the updated workflow with refreshStopTime enabled
-	updateLog.Printf("Compiling updated workflow: %s", wf.Name)
-	if err := compileWorkflowWithRefresh(wf.Path, verbose, false, engineOverride, true); err != nil {
-		updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
-		return fmt.Errorf("failed to compile updated workflow: %w", err)
+	// Compile the updated workflow with refreshStopTime enabled (unless --no-compile is set)
+	if !noCompile {
+		updateLog.Printf("Compiling updated workflow: %s", wf.Name)
+		if err := compileWorkflowWithRefresh(wf.Path, verbose, false, engineOverride, true); err != nil {
+			updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
+			return fmt.Errorf("failed to compile updated workflow: %w", err)
+		}
+	} else {
+		updateLog.Printf("Skipping compilation of workflow %s (--no-compile specified)", wf.Name)
 	}
 
 	return nil

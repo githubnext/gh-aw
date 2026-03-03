@@ -8,6 +8,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -342,9 +343,7 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 }

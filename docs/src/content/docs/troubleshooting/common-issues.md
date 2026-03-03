@@ -414,6 +414,26 @@ See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for details.
 
 ## Workflow Failures and Debugging
 
+### Workflow Job Timed Out
+
+When a workflow job exceeds its configured time limit, GitHub Actions marks the run as `timed_out`. The failure tracking issue or comment posted by gh-aw will include a message indicating the timeout and a suggestion:
+
+```yaml wrap
+---
+timeout-minutes: 30  # Increase from the previous value
+---
+```
+
+If no `timeout-minutes` value is set in your workflow frontmatter, the default is 20 minutes. To increase the limit:
+
+```yaml wrap
+---
+timeout-minutes: 60
+---
+```
+
+Recompile with `gh aw compile` after updating. If the workflow is consistently timing out, consider reducing the scope of the task or breaking it into smaller, focused workflows.
+
 ### Why Did My Workflow Fail?
 
 Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits. Use `gh aw audit <run-id>` to investigate.

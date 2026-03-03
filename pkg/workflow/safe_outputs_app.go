@@ -78,9 +78,9 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig, includedConfigs []string) (*GitHubAppConfig, error) {
 	safeOutputsAppLog.Printf("Merging app configuration: included_configs=%d", len(includedConfigs))
 	// If top-level workflow already has app configured, use it (no merge needed)
-	if topSafeOutputs != nil && topSafeOutputs.App != nil {
+	if topSafeOutputs != nil && topSafeOutputs.GitHubApp != nil {
 		safeOutputsAppLog.Print("Using top-level app configuration")
-		return topSafeOutputs.App, nil
+		return topSafeOutputs.GitHubApp, nil
 	}
 
 	// Otherwise, find the first app configuration in included configs
@@ -95,8 +95,8 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 			continue // Skip invalid JSON
 		}
 
-		// Extract app from the safe-outputs.app field
-		if appData, exists := safeOutputsConfig["app"]; exists {
+		// Extract app from the safe-outputs.github-app field
+		if appData, exists := safeOutputsConfig["github-app"]; exists {
 			if appMap, ok := appData.(map[string]any); ok {
 				appConfig := parseAppConfig(appMap)
 

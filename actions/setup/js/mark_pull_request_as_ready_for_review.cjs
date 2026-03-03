@@ -11,6 +11,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "mark_pull_request_as_ready_for_review";
@@ -182,7 +183,7 @@ async function main(config = {}) {
 
       // Add comment with reason
       const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
-      const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+      const runUrl = buildWorkflowRunUrl(context, context.repo);
       const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
       const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
 

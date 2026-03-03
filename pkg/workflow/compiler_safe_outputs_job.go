@@ -243,8 +243,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add GitHub App token minting step at the beginning if app is configured
-	if data.SafeOutputs.App != nil {
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
+	if data.SafeOutputs.GitHubApp != nil {
+		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
 		insertIndex := 0
 
@@ -284,7 +284,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add GitHub App token invalidation step at the end if app is configured
-	if data.SafeOutputs.App != nil {
+	if data.SafeOutputs.GitHubApp != nil {
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 

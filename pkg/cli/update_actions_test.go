@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 func TestActionKeyVersionConsistency(t *testing.T) {
@@ -146,9 +148,9 @@ func TestExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractBaseRepo(tt.actionPath)
+			got := gitutil.ExtractBaseRepo(tt.actionPath)
 			if got != tt.want {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", tt.actionPath, got, tt.want)
+				t.Errorf("gitutil.ExtractBaseRepo(%q) = %q, want %q", tt.actionPath, got, tt.want)
 			}
 		})
 	}

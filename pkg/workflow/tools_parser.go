@@ -230,8 +230,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 
 		// Parse app configuration for GitHub App token minting
-		if app, ok := configMap["app"].(map[string]any); ok {
-			config.App = parseAppConfig(app)
+		if rawApp, exists := configMap["github-app"]; exists {
+			if appMap, ok := rawApp.(map[string]any); ok {
+				config.GitHubApp = parseAppConfig(appMap)
+			}
 		}
 
 		// Parse guard policy fields (flat syntax: repos and min-integrity directly under github:)

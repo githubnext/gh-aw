@@ -1947,7 +1947,7 @@ The optional `discussions` boolean field controls whether `discussions:write` pe
 
 ```yaml
 safe-outputs:
-  app:
+  github-app:
     app-id: ${{ secrets.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: 'myorg'
@@ -2912,7 +2912,7 @@ The optional `discussions` boolean field controls whether `discussions:write` pe
 
 ```yaml
 safe-outputs:
-  app:
+  github-app:
     app-id: ${{ secrets.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: 'myorg'

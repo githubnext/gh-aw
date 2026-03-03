@@ -166,7 +166,7 @@ tools:
   github:
     mode: remote
     toolsets: [repos, issues, pull_requests]
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       owner: "my-org"                    # Optional: defaults to current repo owner
@@ -186,7 +186,7 @@ You can also use GitHub App tokens for safe outputs operations:
 
 ```yaml wrap
 safe-outputs:
-  app:
+  github-app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: "my-org"                    # optional: installation owner
@@ -194,7 +194,7 @@ safe-outputs:
   create-issue:
 ```
 
-When you configure `app:` for safe outputs, tokens are minted with permissions specific to the safe output operations being performed, rather than the broader job-level permissions. This provides enhanced security by ensuring that tokens have the minimum necessary permissions for their specific use case.
+When you configure `github-app:` for safe outputs, tokens are minted with permissions specific to the safe output operations being performed, rather than the broader job-level permissions. This provides enhanced security by ensuring that tokens have the minimum necessary permissions for their specific use case.
 
 For both tool authentication and safe outputs, you can scope the GitHub App token to specific repositories for enhanced security. This limits the token's access to only the repositories it needs to interact with.
 
