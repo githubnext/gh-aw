@@ -387,6 +387,28 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	return steps
 }
 
+// generateInferenceAccessErrorDetectionStep generates a step that detects if the Copilot CLI
+// failed due to a token with invalid access to inference (policy access denied error).
+// The step always runs and checks the agent stdio log for known error patterns.
+func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
+	var step []string
+
+	step = append(step, "      - name: Detect inference access error")
+	step = append(step, "        id: detect-inference-error")
+	step = append(step, "        if: always()")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        run: |")
+	step = append(step, "          LOG_FILE=\"/tmp/gh-aw/agent-stdio.log\"")
+	step = append(step, "          if [ -f \"$LOG_FILE\" ] && grep -qE \"Access denied by policy settings|invalid access to inference\" \"$LOG_FILE\"; then")
+	step = append(step, "            echo \"Detected inference access error in agent log\"")
+	step = append(step, "            echo \"inference_access_error=true\" >> \"$GITHUB_OUTPUT\"")
+	step = append(step, "          else")
+	step = append(step, "            echo \"inference_access_error=false\" >> \"$GITHUB_OUTPUT\"")
+	step = append(step, "          fi")
+
+	return GitHubActionStep(step)
+}
+
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string

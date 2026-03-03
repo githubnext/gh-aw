@@ -234,6 +234,7 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: firewall
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
     steps:
       - name: Checkout actions folder
@@ -370,6 +371,18 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
+      - name: Detect inference access error
+        id: detect-inference-error
+        if: always()
+        continue-on-error: true
+        run: |
+          LOG_FILE="/tmp/gh-aw/agent-stdio.log"
+          if [ -f "$LOG_FILE" ] && grep -qE "Access denied by policy settings|invalid access to inference" "$LOG_FILE"; then
+            echo "Detected inference access error in agent log"
+            echo "inference_access_error=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "inference_access_error=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

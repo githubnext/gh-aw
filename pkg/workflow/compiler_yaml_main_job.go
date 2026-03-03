@@ -269,6 +269,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
+	// Add inference access error detection step for Copilot engine
+	// This step detects when the Copilot CLI fails due to the token lacking inference access
+	// It must run in the main job (not threat detection job) to avoid step ID conflicts
+	if _, ok := engine.(*CopilotEngine); ok {
+		detectionStep := generateInferenceAccessErrorDetectionStep()
+		for _, line := range detectionStep {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
 	// Mark that we've completed agent execution - step order validation starts from here
 	compilerYamlLog.Print("Marking agent execution as complete for step order tracking")
 	c.stepOrderTracker.MarkAgentExecutionComplete()
