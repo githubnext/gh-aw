@@ -1,6 +1,6 @@
 // @ts-check
 
-const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
+const { getWorkflowMetadata, buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 describe("getWorkflowMetadata", () => {
   let originalEnv;
@@ -93,5 +93,36 @@ describe("getWorkflowMetadata", () => {
 
     expect(metadata.runId).toBe(0);
     expect(metadata.runUrl).toBe("https://github.com/test-owner/test-repo/actions/runs/0");
+  });
+});
+
+describe("buildWorkflowRunUrl", () => {
+  it("should build run URL from context.serverUrl and explicit workflowRepo", () => {
+    const ctx = { serverUrl: "https://github.com", runId: 42000 };
+    const url = buildWorkflowRunUrl(ctx, { owner: "wf-owner", repo: "wf-repo" });
+    expect(url).toBe("https://github.com/wf-owner/wf-repo/actions/runs/42000");
+  });
+
+  it("should fall back to GITHUB_SERVER_URL when context.serverUrl is absent", () => {
+    const originalEnv = process.env.GITHUB_SERVER_URL;
+    process.env.GITHUB_SERVER_URL = "https://ghes.example.com";
+    const ctx = { runId: 99 };
+    const url = buildWorkflowRunUrl(ctx, { owner: "ent-owner", repo: "ent-repo" });
+    expect(url).toBe("https://ghes.example.com/ent-owner/ent-repo/actions/runs/99");
+    if (originalEnv === undefined) {
+      delete process.env.GITHUB_SERVER_URL;
+    } else {
+      process.env.GITHUB_SERVER_URL = originalEnv;
+    }
+  });
+
+  it("should use the workflowRepo, not a cross-repo target", () => {
+    // Simulates the cross-repo case: context.repo is the target but workflowRepo is the workflow owner
+    const ctx = { serverUrl: "https://github.com", runId: 7777, repo: { owner: "cross-owner", repo: "cross-repo" } };
+    const workflowRepo = { owner: "wf-owner", repo: "wf-repo" };
+    const url = buildWorkflowRunUrl(ctx, workflowRepo);
+    expect(url).toBe("https://github.com/wf-owner/wf-repo/actions/runs/7777");
+    expect(url).not.toContain("cross-owner");
+    expect(url).not.toContain("cross-repo");
   });
 });

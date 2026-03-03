@@ -13,6 +13,7 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Execute the pull request update API call
@@ -47,7 +48,7 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const workflowRepo = _workflowRepo || context.repo;
-    const runUrl = `${context.serverUrl}/${workflowRepo.owner}/${workflowRepo.repo}/actions/runs/${context.runId}`;
+    const runUrl = buildWorkflowRunUrl(context, workflowRepo);
 
     // Use helper to update body (handles all operations including replace)
     apiData.body = updateBody({
