@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
+
 /**
  * @fileoverview Extra Empty Commit Helper
  *
@@ -49,12 +51,24 @@ function isCrossRepoTarget(repoOwner, repoName) {
  *   modifications on multi-commit branches and reducing loop risk.
  * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
  */
-async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount }) {
+async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput }) {
   const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
 
   if (!token || !token.trim()) {
     core.info("No extra empty commit token configured - skipping");
     return { success: true, skipped: true };
+  }
+
+  // Validate target repository against allowlist before any git operations
+  const allowedRepos = parseAllowedRepos(allowedReposInput);
+  if (allowedRepos.size > 0) {
+    const targetRepo = `${repoOwner}/${repoName}`;
+    const defaultRepo = getDefaultTargetRepo();
+    const validation = validateTargetRepo(targetRepo, defaultRepo, allowedRepos);
+    if (!validation.valid) {
+      core.warning(`ERR_VALIDATION: ${validation.error}`);
+      return { success: false, error: validation.error };
+    }
   }
 
   // Cross-repo guard: never push an extra empty commit to a different repository.

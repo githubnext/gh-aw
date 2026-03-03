@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execGitSync } = require("./git_helpers.cjs");
+const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 
 /**
  * Debug logging helper - logs to stderr when DEBUG env var matches
@@ -129,9 +130,11 @@ function getRemoteOriginUrl(repoPath) {
  *
  * @param {string} repoSlug - The repository slug to find (owner/repo format)
  * @param {string} [workspaceRoot] - The workspace root to search from
+ * @param {Object} [options] - Additional options
+ * @param {string[]|string} [options.allowedRepos] - Allowed repository patterns for validation
  * @returns {Object} Result with success status and path or error
  */
-function findRepoCheckout(repoSlug, workspaceRoot) {
+function findRepoCheckout(repoSlug, workspaceRoot, options = {}) {
   const ws = workspaceRoot || process.env.GITHUB_WORKSPACE || process.cwd();
   const targetSlug = normalizeRepoSlug(repoSlug);
 
@@ -142,6 +145,16 @@ function findRepoCheckout(repoSlug, workspaceRoot) {
       success: false,
       error: "Invalid repo slug provided",
     };
+  }
+
+  // Validate target repo against configured allowlist before searching
+  const allowedRepos = parseAllowedRepos(options.allowedRepos);
+  if (allowedRepos.size > 0) {
+    const defaultRepo = getDefaultTargetRepo();
+    const validation = validateTargetRepo(targetSlug, defaultRepo, allowedRepos);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
   }
 
   // Find all git directories in the workspace
