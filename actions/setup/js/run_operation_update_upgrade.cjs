@@ -63,10 +63,17 @@ async function main() {
 
   const isUpgrade = operation === "upgrade";
 
-  // Run gh aw update or gh aw upgrade (--no-compile: do not touch lock files)
-  const fullCmd = [bin, ...prefixArgs, operation, "--no-compile"].join(" ");
+  // Build command flags:
+  //   --no-compile  – do not touch lock files (always)
+  //   --no-fix      – skip codemods that would modify .md files inside
+  //                   .github/workflows/ (upgrade only).  The GitHub Actions
+  //                   actor is not permitted to commit changes to workflow files.
+  const cmdFlags = isUpgrade ? ["--no-compile", "--no-fix"] : ["--no-compile"];
+
+  // Run gh aw update or gh aw upgrade with the appropriate flags
+  const fullCmd = [bin, ...prefixArgs, operation, ...cmdFlags].join(" ");
   core.info(`Running: ${fullCmd}`);
-  const exitCode = await exec.exec(bin, [...prefixArgs, operation, "--no-compile"]);
+  const exitCode = await exec.exec(bin, [...prefixArgs, operation, ...cmdFlags]);
   if (exitCode !== 0) {
     throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
   }
@@ -93,11 +100,12 @@ async function main() {
     return;
   }
 
-  // Exclude .github/workflows/*.yml files: they cannot be modified by the
-  // GitHub Actions bot and including them would cause the PR checks to fail.
+  // Exclude ALL .github/workflows/ files: the GitHub Actions actor is not
+  // permitted to commit any changes to workflow files (neither compiled .yml
+  // files nor source .md files).  Including them would cause PR checks to fail.
   const filesToStage = changedFiles.filter(file => {
     const lower = file.toLowerCase();
-    return !(lower.startsWith(".github/workflows/") && (lower.endsWith(".yml") || lower.endsWith(".yaml")));
+    return !lower.startsWith(".github/workflows/");
   });
 
   if (filesToStage.length === 0) {
@@ -182,9 +190,10 @@ async function main() {
   const prTitle = isUpgrade ? "[aw] Upgrade available" : "[aw] Updates available";
   const fileList = stagedFiles.map(f => `- \`${f}\``).join("\n");
   const operationLabel = isUpgrade ? "Upgrade" : "Update";
+  const flagsStr = cmdFlags.join(" ");
   const prBody = `## Agentic Workflows ${operationLabel}
 
-The \`gh aw ${operation} --no-compile\` command was run automatically and produced the following changes:
+The \`gh aw ${operation} ${flagsStr}\` command was run automatically and produced the following changes:
 
 ${fileList}
 
