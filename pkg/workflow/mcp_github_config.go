@@ -84,8 +84,7 @@ func hasGitHubTool(parsedTools *Tools) bool {
 func hasGitHubApp(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		_, hasGitHubApp := toolConfig["github-app"]
-		_, hasApp := toolConfig["app"]
-		return hasGitHubApp || hasApp
+		return hasGitHubApp
 	}
 	return false
 }

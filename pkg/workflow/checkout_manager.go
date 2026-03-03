@@ -723,29 +723,20 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	}
 
 	// Parse app configuration for GitHub App-based authentication
-	// Support both "github-app" (preferred) and "app" (deprecated)
-	appKey := ""
-	if _, ok := m["github-app"]; ok {
-		appKey = "github-app"
-	} else if _, ok := m["app"]; ok {
-		appKey = "app"
-	}
-	if appKey != "" {
-		if v, ok := m[appKey]; ok {
-			appMap, ok := v.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("checkout.%s must be an object", appKey)
-			}
-			cfg.App = parseAppConfig(appMap)
-			if cfg.App.AppID == "" || cfg.App.PrivateKey == "" {
-				return nil, fmt.Errorf("checkout.%s requires both app-id and private-key", appKey)
-			}
+	if v, ok := m["github-app"]; ok {
+		appMap, ok := v.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("checkout.github-app must be an object")
+		}
+		cfg.App = parseAppConfig(appMap)
+		if cfg.App.AppID == "" || cfg.App.PrivateKey == "" {
+			return nil, fmt.Errorf("checkout.github-app requires both app-id and private-key")
 		}
 	}
 
-	// Validate mutual exclusivity of github-token and app
+	// Validate mutual exclusivity of github-token and github-app
 	if cfg.GitHubToken != "" && cfg.App != nil {
-		return nil, errors.New("checkout: github-token and app are mutually exclusive; use one or the other")
+		return nil, errors.New("checkout: github-token and github-app are mutually exclusive; use one or the other")
 	}
 
 	if v, ok := m["fetch-depth"]; ok {

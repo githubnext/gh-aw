@@ -96,7 +96,7 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 
 	if tools.GitHub.App != nil && tools.GitHub.GitHubToken != "" {
 		toolsValidationLog.Printf("Invalid GitHub tool configuration in workflow: %s", workflowName)
-		return errors.New("invalid GitHub tool configuration: 'tools.github.app' and 'tools.github.github-token' cannot both be set. Use one authentication method: either 'app' (GitHub App) or 'github-token' (personal access token)")
+		return errors.New("invalid GitHub tool configuration: 'tools.github.github-app' and 'tools.github.github-token' cannot both be set. Use one authentication method: either 'github-app' (GitHub App) or 'github-token' (personal access token)")
 	}
 
 	return nil

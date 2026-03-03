@@ -95,8 +95,8 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 			continue // Skip invalid JSON
 		}
 
-		// Extract app from the safe-outputs.app field
-		if appData, exists := safeOutputsConfig["app"]; exists {
+		// Extract app from the safe-outputs.github-app field
+		if appData, exists := safeOutputsConfig["github-app"]; exists {
 			if appMap, ok := appData.(map[string]any); ok {
 				appConfig := parseAppConfig(appMap)
 
