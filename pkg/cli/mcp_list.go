@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/spf13/cobra"
 )
 
@@ -144,10 +145,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	var totalMCPCount int
 
 	for _, result := range results {
-		serverNames := make([]string, len(result.MCPConfigs))
-		for i, config := range result.MCPConfigs {
-			serverNames[i] = config.Name
-		}
+		serverNames := sliceutil.Map(result.MCPConfigs, func(config parser.MCPServerConfig) string { return config.Name })
 
 		workflowData = append(workflowData, struct {
 			name        string

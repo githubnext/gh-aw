@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -175,10 +176,7 @@ func selectWorkflow(workflows []WorkflowOption) (*WorkflowOption, error) {
 	}
 
 	// Build select options
-	options := make([]huh.Option[string], len(workflows))
-	for i, wf := range workflows {
-		options[i] = huh.NewOption(wf.Name, wf.Name)
-	}
+	options := sliceutil.Map(workflows, func(wf WorkflowOption) huh.Option[string] { return huh.NewOption(wf.Name, wf.Name) })
 
 	var selected string
 	form := huh.NewForm(

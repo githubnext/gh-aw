@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/spf13/cobra"
 )
 
@@ -70,10 +71,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		// Show available servers
 		if len(mcpConfigs) > 0 {
 			fmt.Fprintf(os.Stderr, "Available MCP servers: ")
-			serverNames := make([]string, len(mcpConfigs))
-			for i, config := range mcpConfigs {
-				serverNames[i] = config.Name
-			}
+			serverNames := sliceutil.Map(mcpConfigs, func(config parser.MCPServerConfig) string { return config.Name })
 			fmt.Fprintf(os.Stderr, "%s\n", strings.Join(serverNames, ", "))
 		}
 		return nil

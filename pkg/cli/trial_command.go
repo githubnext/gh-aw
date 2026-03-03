@@ -18,6 +18,7 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -222,10 +223,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 	if len(parsedSpecs) == 1 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)))
 	} else {
-		workflowNames := make([]string, len(parsedSpecs))
-		for i, spec := range parsedSpecs {
-			workflowNames[i] = spec.WorkflowName
-		}
+		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		joinedNames := strings.Join(workflowNames, ", ")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s)", len(parsedSpecs), joinedNames)))
 	}
@@ -537,10 +535,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 
 		// Step 6: Save combined results for multi-workflow trials
 		if len(parsedSpecs) > 1 {
-			workflowNames := make([]string, len(parsedSpecs))
-			for i, spec := range parsedSpecs {
-				workflowNames[i] = spec.WorkflowName
-			}
+			workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 			workflowNamesStr := strings.Join(workflowNames, "-")
 			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
 			combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
@@ -556,10 +551,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		}
 
 		// Step 6.5: Copy trial results to host repository and commit them
-		workflowNames := make([]string, len(parsedSpecs))
-		for i, spec := range parsedSpecs {
-			workflowNames[i] = spec.WorkflowName
-		}
+		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		if err := copyTrialResultsToHostRepo(tempDir, dateTimeID, workflowNames, targetRepoForFilename, opts.Verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
 		}
@@ -724,10 +716,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		if len(parsedSpecs) == 1 {
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except %s\n"), stepNum, parsedSpecs[0].WorkflowName)
 		} else {
-			workflowNames := make([]string, len(parsedSpecs))
-			for i, spec := range parsedSpecs {
-				workflowNames[i] = spec.WorkflowName
-			}
+			workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Disable all workflows in cloned repository except: %s\n"), stepNum, strings.Join(workflowNames, ", "))
 		}
 		stepNum++
@@ -737,10 +726,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	if len(parsedSpecs) == 1 {
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile %s\n"), stepNum, parsedSpecs[0].WorkflowName)
 	} else {
-		workflowNames := make([]string, len(parsedSpecs))
-		for i, spec := range parsedSpecs {
-			workflowNames[i] = spec.WorkflowName
-		}
+		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Install and compile: %s\n"), stepNum, strings.Join(workflowNames, ", "))
 	}
 	stepNum++
@@ -768,10 +754,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Execute %s\n"), stepNum, workflowName)
 		}
 	} else {
-		workflowNames := make([]string, len(parsedSpecs))
-		for i, spec := range parsedSpecs {
-			workflowNames[i] = spec.WorkflowName
-		}
+		workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 		workflowList := strings.Join(workflowNames, ", ")
 
 		if repeatCount > 0 && autoMergePRs {
