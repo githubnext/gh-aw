@@ -720,6 +720,7 @@ async function main(config = {}) {
         core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
         const runUrl = buildWorkflowRunUrl(context, context.repo);
+        const runId = context.runId;
 
         // Read patch content for preview
         let patchPreview = "";
