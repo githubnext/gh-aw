@@ -49,6 +49,7 @@ function isCrossRepoTarget(repoOwner, repoName) {
  * @param {number} [options.newCommitCount] - Number of new commits being pushed. Only pushes the
  *   empty commit when exactly 1 new commit was pushed, preventing accidental workflow-file
  *   modifications on multi-commit branches and reducing loop risk.
+ * @param {string[]|string} [options.allowedRepos] - Allowed repository patterns for allowlist validation
  * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
  */
 async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput }) {
@@ -67,7 +68,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     const validation = validateTargetRepo(targetRepo, defaultRepo, allowedRepos);
     if (!validation.valid) {
       core.warning(`ERR_VALIDATION: ${validation.error}`);
-      return { success: false, error: validation.error };
+      return { success: false, error: validation.error ?? "" };
     }
   }
 

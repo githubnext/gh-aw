@@ -54,6 +54,7 @@ async function getCurrentCheckoutRepo() {
  * @param {string} token - GitHub token for authentication
  * @param {Object} options - Additional options
  * @param {string} [options.baseBranch] - Base branch to checkout (defaults to 'main')
+ * @param {string[]|string} [options.allowedRepos] - Allowed repository patterns for allowlist validation
  * @returns {Promise<Object>} Result with success status
  */
 async function checkoutRepo(repoSlug, token, options = {}) {
