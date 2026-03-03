@@ -234,6 +234,21 @@ describe("repo_helpers", () => {
       expect(result.error).toBe(null);
     });
 
+    it('should allow any repo when defaultRepo is "*" (wildcard target-repo config)', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const result = validateRepo("org/any-repo", "*", new Set());
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+    });
+
+    it('should allow any repo when defaultRepo is "*" regardless of allowed list', async () => {
+      const { validateRepo } = await import("./repo_helpers.cjs");
+      const result = validateRepo("org/some-repo", "*", new Set(["org/other-repo"]));
+      expect(result.valid).toBe(true);
+      expect(result.error).toBe(null);
+      expect(result.qualifiedRepo).toBe("org/some-repo");
+    });
+
     it('should allow org-scoped wildcard "github/*"', async () => {
       const { validateRepo } = await import("./repo_helpers.cjs");
       const allowedRepos = new Set(["github/*"]);

@@ -149,19 +149,23 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       const item = message;
 
-      // Resolve cross-repo target: if message has a "repo" field, validate it against
-      // the allowed repos and use it as the effective context. This enables updating items
-      // in a different repository when github-token is configured with the required permissions.
+      // Resolve cross-repo target: always validate the target repository against the
+      // allowed repos and use it as the effective context. When item.repo is set it
+      // overrides the default; otherwise defaultTargetRepo is used. This mirrors the
+      // add_comment routing behaviour and ensures target-repo config is honoured even
+      // when the agent does not explicitly provide a repo field.
       // Using {any} type to allow partial context override (effectiveContext.repo may differ from context.repo).
+      const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, itemTypeName);
+      if (!repoResult.success) {
+        core.warning(repoResult.error);
+        return { success: false, error: repoResult.error };
+      }
       /** @type {any} */
-      let effectiveContext = context;
-      if (item.repo) {
-        const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, itemTypeName);
-        if (!repoResult.success) {
-          core.warning(repoResult.error);
-          return { success: false, error: repoResult.error };
-        }
-        effectiveContext = { ...context, repo: repoResult.repoParts };
+      const effectiveContext = { ...context, repo: repoResult.repoParts };
+      // Log cross-repo routing when the agent explicitly set a repo field,
+      // or when the resolved repo differs from the current workflow's repository.
+      const workflowRepo = `${context.repo.owner}/${context.repo.repo}`;
+      if (item.repo || repoResult.repo !== workflowRepo) {
         core.info(`Cross-repo update: targeting ${repoResult.repo}`);
       }
 

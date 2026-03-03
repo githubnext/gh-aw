@@ -168,8 +168,40 @@ func TestAddRepoParameterIfNeededWildcardTargetRepo(t *testing.T) {
 	assert.Contains(t, repoProp["description"].(string), "Any repository can be targeted", "description should indicate any repo allowed")
 }
 
-// TestGenerateFilteredToolsJSONUpdateIssueWithWildcardTargetRepo tests that update_issue tool
-// is generated in tools.json when target-repo is "*" (wildcard).
+// TestAddRepoParameterIfNeededSpecificTargetRepoNoAllowedRepos tests that repo param is NOT added
+// for update_issue when target-repo is a specific repo but allowed-repos is empty.
+// The handler automatically routes to the configured target-repo, so the agent doesn't need to
+// specify repo in the tool schema.
+func TestAddRepoParameterIfNeededSpecificTargetRepoNoAllowedRepos(t *testing.T) {
+	tool := map[string]any{
+		"name": "update_issue",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"title": map[string]any{"type": "string"},
+			},
+		},
+	}
+
+	safeOutputs := &SafeOutputsConfig{
+		UpdateIssues: &UpdateIssuesConfig{
+			UpdateEntityConfig: UpdateEntityConfig{
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+		},
+	}
+
+	addRepoParameterIfNeeded(tool, "update_issue", safeOutputs)
+
+	inputSchema := tool["inputSchema"].(map[string]any)
+	properties := inputSchema["properties"].(map[string]any)
+
+	_, hasRepo := properties["repo"]
+	assert.False(t, hasRepo, "repo parameter should NOT be added when target-repo is specific and no allowed-repos")
+}
+
 func TestGenerateFilteredToolsJSONUpdateIssueWithWildcardTargetRepo(t *testing.T) {
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{

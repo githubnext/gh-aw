@@ -169,6 +169,11 @@ function validateRepo(repo, defaultRepo, allowedRepos) {
     }
   }
 
+  // Wildcard default repo allows any target repo
+  if (defaultRepo === "*") {
+    return { valid: true, error: null, qualifiedRepo };
+  }
+
   // Default repo is always allowed
   if (qualifiedRepo === defaultRepo) {
     return { valid: true, error: null, qualifiedRepo };

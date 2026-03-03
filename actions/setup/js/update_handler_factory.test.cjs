@@ -512,7 +512,7 @@ describe("update_handler_factory.cjs", () => {
       expect(capturedClient).toBe(mockGithub);
     });
 
-    it("should pass the correct context.repo when no message.repo", async () => {
+    it("should route to target-repo when no message.repo is set", async () => {
       let capturedContext = null;
       const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
         capturedContext = context;
@@ -530,11 +530,11 @@ describe("update_handler_factory.cjs", () => {
       });
 
       const handler = await handlerFactory({ "target-repo": "owner/myrepo" });
-      // Message without repo field — should use default context.repo
+      // Message without repo field — should route to the configured target-repo
       await handler({ title: "Test" });
 
-      expect(capturedContext.repo.owner).toBe("testowner");
-      expect(capturedContext.repo.repo).toBe("testrepo");
+      expect(capturedContext.repo.owner).toBe("owner");
+      expect(capturedContext.repo.repo).toBe("myrepo");
     });
 
     it("should route to message.repo when it matches the configured target-repo", async () => {
@@ -614,6 +614,53 @@ describe("update_handler_factory.cjs", () => {
       expect(capturedUpdateData._workflowRepo).toBeDefined();
       expect(capturedUpdateData._workflowRepo.owner).toBe(mockContext.repo.owner);
       expect(capturedUpdateData._workflowRepo.repo).toBe(mockContext.repo.repo);
+    });
+
+    it("should route to message.repo when target-repo is wildcard", async () => {
+      let capturedContext = null;
+      const mockExecuteUpdate = vi.fn().mockImplementation(async (githubClient, context, num, data) => {
+        capturedContext = context;
+        return { html_url: "https://example.com", title: "Updated" };
+      });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ "target-repo": "*" });
+      // Message specifies a cross-repo target; wildcard allows any repo
+      await handler({ issue_number: 42, repo: "org/other-repo" });
+
+      expect(capturedContext.repo.owner).toBe("org");
+      expect(capturedContext.repo.repo).toBe("other-repo");
+    });
+
+    it("should fail when target-repo is wildcard and message has no repo", async () => {
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com", title: "Updated" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: vi.fn().mockReturnValue({ success: true, number: 42 }),
+        buildUpdateData: vi.fn().mockReturnValue({ success: true, data: { title: "Test" } }),
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: vi.fn().mockReturnValue({ success: true }),
+      });
+
+      const handler = await handlerFactory({ "target-repo": "*" });
+      // No repo field — must fail because "*" is not a valid repo slug
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid repository format");
+      expect(mockExecuteUpdate).not.toHaveBeenCalled();
     });
 
     it("should include body in log fields when _rawBody is present", async () => {
