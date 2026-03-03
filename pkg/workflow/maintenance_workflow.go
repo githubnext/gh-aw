@@ -235,7 +235,7 @@ jobs:
 
 	if actionMode == ActionModeDev {
 		yaml.WriteString(`      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ` + GetActionPin("actions/checkout") + `
         with:
           persist-credentials: false
 
@@ -270,7 +270,7 @@ jobs:
 
 	if actionMode == ActionModeDev {
 		yaml.WriteString(`      - name: Setup Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: ` + GetActionPin("actions/setup-go") + `
         with:
           go-version-file: go.mod
           cache: true
