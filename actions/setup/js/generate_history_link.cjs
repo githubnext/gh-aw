@@ -71,10 +71,8 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
     typeParam = "pullrequests";
   } else if (itemType === "discussion") {
     typeParam = "discussions";
-  } else if (itemType === "comment") {
-    // Search issues and PRs that have matching comments
-    typeParam = "issues";
   }
+  // For "comment" itemType, no type filter is applied so all item types are searched
 
   const url = new URL(`${server}/search`);
   url.searchParams.set("q", queryParts.join(" "));
