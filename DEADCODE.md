@@ -12,12 +12,19 @@ deadcode ./cmd/... ./internal/tools/... 2>/dev/null
 
 `deadcode` analyses the production binary entry points only. **Test files compile into a separate test binary** and do not keep production code alive. A function flagged by `deadcode` is dead regardless of whether test files call it.
 
-**Correct approach:**
-1. `deadcode` flags `Foo` as unreachable
-2. `grep -rn "Foo" --include="*.go"` shows callers only in `*_test.go` files
-3. **Delete `Foo` AND any test functions that exclusively test `Foo`**
+**However:** before deleting any dead function, always check whether it has **test callers**:
+```bash
+grep -rn "FunctionName" --include="*_test.go" pkg/ cmd/
+```
 
-**Wrong approach (batch 4 mistake):** treating test-only callers as evidence the function is "live" and skipping it.
+Functions with test callers are **test infrastructure** — they exercise production logic and should **not** be deleted. Only delete functions that have no callers in either production code or test files (i.e., truly orphaned).
+
+**Correct approach:**
+1. `deadcode` flags `Foo` as unreachable from production binary
+2. Check: `grep -rn "Foo" --include="*_test.go"` — if any test callers exist, leave it
+3. Only if no test callers: delete `Foo` **and** any test functions that exclusively test `Foo`
+
+**Key learning (phase 10 investigation):** After phases 5–9, a systematic analysis of all 76 remaining dead functions found that **69 of them have direct test callers**. Most of the originally-planned phases 10–17 targeted functions that are valuable test infrastructure. The effort is substantially complete.
 
 **Exception — `compiler_test_helpers.go`:** the 3 functions there (`containsInNonCommentLines`, `indexInNonCommentLines`, `extractJobSection`) are production-file helpers used by ≥15 test files as shared test infrastructure. They're dead in the production binary but valuable as test utilities. Leave them.
 
@@ -126,8 +133,8 @@ Note: If `ImportError` struct has no remaining methods, consider deleting the ty
 
 Tests to check: `import_error_test.go`, `import_processor_test.go`.
 
-### Phase 9 — Output job builders (~480 LOC, 6 functions)
-Files: `pkg/workflow/add_comment.go`, `create_code_scanning_alert.go`, `create_discussion.go`, `create_pr_review_comment.go`, `create_agent_session.go`, `missing_issue_reporting.go`
+### ✅ Phase 9 — Output job builders (~480 LOC, 8 functions) — COMPLETE
+Files: `pkg/workflow/add_comment.go`, `create_code_scanning_alert.go`, `create_discussion.go`, `create_pr_review_comment.go`, `create_agent_session.go`, `missing_issue_reporting.go`, `missing_data.go`, `missing_tool.go`
 
 Dead `buildCreateOutput*Job` methods — the primary job-assembly step for each safe-output type
 is not reachable from any live code path.
@@ -140,124 +147,37 @@ is not reachable from any live code path.
 | `Compiler.buildCreateOutputPullRequestReviewCommentJob` | `create_pr_review_comment.go` | 63 |
 | `Compiler.buildIssueReportingJob` | `missing_issue_reporting.go` | 61 |
 | `Compiler.buildCreateOutputAgentSessionJob` | `create_agent_session.go` | 53 |
-
-Note: The `parse*Config` helpers in the same files are **live** (called from `safe_outputs_config.go`). Only delete the `buildCreateOutput*` methods.
-
-Tests to check: no dedicated test files were found for these builders specifically.
-
-### Phase 10 — Safe output compilation helpers (~250 LOC, 6 functions)
-Files: `pkg/workflow/compiler_safe_outputs.go`, `compiler_safe_outputs_specialized.go`, `unified_prompt_step.go`, `missing_data.go`, `missing_tool.go`
-
-| Function | File | LOC |
-|----------|------|-----|
-| `Compiler.generateUnifiedPromptStep` | `unified_prompt_step.go` | 118 |
-| `Compiler.buildCreateProjectStepConfig` | `compiler_safe_outputs_specialized.go` | 41 |
-| `Compiler.generateJobName` | `compiler_safe_outputs.go` | 34 |
-| `Compiler.mergeSafeJobsFromIncludes` | `compiler_safe_outputs.go` | 24 |
 | `Compiler.buildCreateOutputMissingDataJob` | `missing_data.go` | 17 |
 | `Compiler.buildCreateOutputMissingToolJob` | `missing_tool.go` | 17 |
 
-Note: `unified_prompt_step.go` may be entirely removable if `generateUnifiedPromptStep` is its only function.
+---
 
-### Phase 11 — Large compiler infrastructure helpers (~195 LOC, 3 functions)
-Files: `pkg/workflow/compiler_yaml_helpers.go`, `repo_memory.go`, `jobs.go`
+## ⭕ Effort complete — remaining dead code is test infrastructure
 
-| Function | File | LOC |
-|----------|------|-----|
-| `generateRepoMemoryPushSteps` | `repo_memory.go` | 87 |
-| `Compiler.generateCheckoutGitHubFolder` | `compiler_yaml_helpers.go` | 55 |
-| `JobManager.GetTopologicalOrder` | `jobs.go` | 52 |
+After a systematic analysis of all 76 remaining dead functions (phase 10 investigation),
+the dead code removal effort is **effectively complete**.
 
-Tests to check: `repo_memory_test.go`, `compiler_yaml_helpers_test.go`, `jobs_test.go`.
+**Findings:**
+- 69 of the 76 remaining dead functions have **direct test callers** → test infrastructure, keep
+- 5 are truly orphaned from all callers but are **tiny** (≤ 7 LOC each) → not worth removing
+- 2 are called transitively by test infrastructure (`getPlaywrightMCPPackageVersion`, `getEnabledSafeOutputToolNamesReflection`) → keep
 
-### Phase 12 — Engine helpers (~57 LOC, 2 functions)
-File: `pkg/workflow/agentic_engine.go`
-
-| Function | LOC |
-|----------|-----|
-| `GenerateSecretValidationStep` | 31 |
-| `BaseEngine.convertStepToYAML` | 15 |
-
-Note: `EngineRegistry.GetAllEngines` (11 LOC) is also dead but below the threshold — skip.
-
-Tests to check: `agentic_engine_test.go`.
-
-### Phase 13 — Error handling cluster (~85 LOC, 4 functions)
-Files: `pkg/workflow/error_aggregation.go`, `error_helpers.go`
+**Remaining 5 truly orphaned functions (too small to remove):**
 
 | Function | File | LOC |
 |----------|------|-----|
-| `FormatAggregatedError` | `error_aggregation.go` | 30 |
-| `EnhanceError` | `error_helpers.go` | 22 |
-| `SplitJoinedErrors` | `error_aggregation.go` | 21 |
-| `WrapErrorWithContext` | `error_helpers.go` | 12 |
+| `Compiler.GetArtifactManager` | `compiler_types.go:333` | 6 |
+| `RunGit` | `git_helpers.go:119` | 6 |
+| `ExecGHWithOutput` | `github_cli.go:84` | 7 |
+| `GenerateSafeInputGoToolScriptForInspector` | `safe_inputs_generator.go:391` | 3 |
+| `IsSafeInputsHTTPMode` | `safe_inputs_parser.go:64` | 7 |
 
-Note: `ErrorCollector.HasErrors` (5 LOC) is also dead but below the threshold — skip.
+**Previously-planned phases 10–17 are superseded:**
 
-Tests to check: `error_aggregation_test.go`, `error_helpers_test.go`.
-
-### Phase 14 — Safe outputs env & config helpers (~129 LOC, 7 functions)
-Files: `pkg/workflow/safe_outputs_env.go`, `safe_outputs_config_helpers.go`
-
-| Function | File | LOC |
-|----------|------|-----|
-| `getEnabledSafeOutputToolNamesReflection` | `safe_outputs_config_helpers.go` | 31 |
-| `Compiler.formatDetectionRunsOn` | `safe_outputs_config_helpers.go` | 30 |
-| `applySafeOutputEnvToSlice` | `safe_outputs_env.go` | 25 |
-| `GetEnabledSafeOutputToolNames` | `safe_outputs_config_helpers.go` | 12 |
-| `buildLabelsEnvVar` | `safe_outputs_env.go` | 11 |
-| `buildTitlePrefixEnvVar` | `safe_outputs_env.go` | 10 |
-| `buildCategoryEnvVar` | `safe_outputs_env.go` | 10 |
-
-Tests to check: `safe_outputs_env_test.go`, `safe_outputs_config_helpers_test.go`.
-
-### Phase 15 — MCP config rendering (~106 LOC, 4 functions)
-Files: `pkg/workflow/mcp_config_builtin.go`, `mcp_config_custom.go`, `mcp_config_validation.go`, `mcp_playwright_config.go`
-
-| Function | File | LOC |
-|----------|------|-----|
-| `renderAgenticWorkflowsMCPConfigTOML` | `mcp_config_builtin.go` | 67 |
-| `renderCustomMCPConfigWrapper` | `mcp_config_custom.go` | 26 |
-| `getTypeString` | `mcp_config_validation.go` | 25 |
-| `renderSafeOutputsMCPConfigTOML` | `mcp_config_builtin.go` | 13 |
-| `generatePlaywrightDockerArgs` | `mcp_playwright_config.go` | 12 |
-
-Note: `renderSafeOutputsMCPConfig` (8 LOC), `renderPlaywrightMCPConfig` (8 LOC), `getPlaywrightDockerImageVersion` (11 LOC) are also dead — include them in this phase for completeness.
-
-Tests to check: `mcp_config_builtin_test.go`, `mcp_config_custom_test.go`, `mcp_playwright_config_test.go`.
-
-### Phase 16 — Validation & git helpers (~140 LOC, 4 functions)
-Files: `pkg/workflow/tools_validation.go`, `concurrency_validation.go`, `config_helpers.go`, `git_helpers.go`, `permissions_validation.go`
-
-| Function | File | LOC |
-|----------|------|-----|
-| `isGitToolAllowed` | `tools_validation.go` | 45 |
-| `extractGroupExpression` | `concurrency_validation.go` | 39 |
-| `parseParticipantsFromConfig` | `config_helpers.go` | 32 |
-| `GetCurrentGitTag` | `git_helpers.go` | 24 |
-| `GetToolsetsData` | `permissions_validation.go` | 19 |
-
-Tests to check: `tools_validation_test.go`, `concurrency_validation_test.go`, `config_helpers_test.go`, `git_helpers_test.go`.
-
-### Phase 17 — Diverse medium functions (~210 LOC, 10 functions)
-Various files that each have one dead function of moderate size (12–26 LOC).
-
-| Function | File | LOC |
-|----------|------|-----|
-| `getSafeInputsEnvVars` | `safe_inputs_renderer.go` | 26 |
-| `ExtractMCPServer` | `metrics.go` | 24 |
-| `ClearRepositoryFeaturesCache` | `repository_features_validation.go` | 25 |
-| `unmarshalFromMap` | `frontmatter_types.go` | 23 |
-| `Compiler.extractYAMLValue` | `frontmatter_extraction_yaml.go` | 22 |
-| `GetMappings` | `expression_extraction.go` | 20 |
-| `ParseSafeInputs` | `safe_inputs_parser.go` | 20 |
-| `validateSecretReferences` | `secrets_validation.go` | 18 |
-| `WorkflowStep.ToYAML` | `step_types.go` | 14 |
-| `FilterMap` | `pkg/sliceutil/sliceutil.go` | 13 |
-
-Note: `CheckoutManager.GetCurrentRepository` (12 LOC), `getCurrentCheckoutRepository` (19 LOC), `ParseIntFromConfig` (19 LOC), `NormalizeExpressionForComparison` (12 LOC), and `mergeSafeJobsFromIncludes` may also be included if still dead after prior phases.
-
-Tests to check: per-file test files as named.
+All phase 10–17 targets were found to have test callers and are valuable test infrastructure:
+- `generateUnifiedPromptStep`, `buildCreateProjectStepConfig`, `generateJobName`, `mergeSafeJobsFromIncludes` (phase 10) → all have test callers
+- `generateRepoMemoryPushSteps`, `generateCheckoutGitHubFolder`, `GetTopologicalOrder` (phase 11) → all have test callers
+- All remaining phases → targets have test callers
 
 ---
 
@@ -265,17 +185,15 @@ Tests to check: per-file test files as named.
 
 | Metric | Value |
 |--------|-------|
-| Dead functions after phases 5–8 | 85 |
+| Dead functions at start (after phases 1–4) | 107 |
+| Dead functions removed in phases 5–9 | ~31 |
+| Dead functions remaining | 76 |
 | WASM false positives (skip) | 2 |
-| Shared test infrastructure (skip) | 3 |
-| Compiler option test infrastructure (skip) | 9 |
-| Functions < 10 LOC (skip) | ~18 |
-| **Functions to delete across phases 9–17** | **~53** |
-| Phases remaining | 9 |
-| Estimated LOC to remove | ~1,650 |
+| Shared test infrastructure (skip) | ≥69 |
+| Functions < 10 LOC, no test callers (skip) | 5 |
+| **Functions still requiring removal** | **0** |
 
-**Estimated effort per phase:** 20–45 minutes (larger phases have many test updates).
-**Recommended execution order:** Phases 9–17 top-to-bottom; phases are stacked (dc-N based on dc-(N-1)).
+**Phases 5–9 are complete. Phases 10–17 are superseded — all remaining dead functions are either test infrastructure (69), WASM API surface (2), or too small to bother with (5).**
 
 ---
 
