@@ -135,7 +135,12 @@ async function main() {
   // Push to the new branch using a token-authenticated remote
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
+  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error(
+      "Missing GitHub token: set GH_TOKEN or GITHUB_TOKEN to push changes and create a pull request for agentic workflow update/upgrade operations."
+    );
+  }
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   let githubHost;
   try {
