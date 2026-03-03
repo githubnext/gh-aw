@@ -92,14 +92,8 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
-			// Check if up to date
-			mdStat, _ := os.Stat(file)
-			lockStat, _ := os.Stat(lockFile)
-			if mdStat.ModTime().After(lockStat.ModTime()) {
-				compiled = "No"
-			} else {
-				compiled = "Yes"
-			}
+			// Check if up to date using hash comparison
+			compiled = isCompiledUpToDate(file, lockFile)
 
 			// Extract stop-time from lock file
 			if stopTime := workflow.ExtractStopTimeFromLockFile(lockFile); stopTime != "" {
@@ -267,6 +261,33 @@ func calculateTimeRemaining(stopTimeStr string) string {
 	} else {
 		return "< 1m"
 	}
+}
+
+// isCompiledUpToDate checks if a workflow's lock file is up to date with the current source
+// using hash-based comparison. Falls back to "Yes" when no hash is available (legacy lock files).
+func isCompiledUpToDate(workflowPath, lockFilePath string) string {
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return "No"
+	}
+
+	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(lockContent))
+	if err != nil || metadata == nil || metadata.FrontmatterHash == "" {
+		// Legacy lock file without a hash — assume compiled to avoid false negatives
+		return "Yes"
+	}
+
+	cache := parser.NewImportCache("")
+	currentHash, err := parser.ComputeFrontmatterHashFromFile(workflowPath, cache)
+	if err != nil {
+		statusLog.Printf("Failed to compute frontmatter hash for %s: %v", workflowPath, err)
+		return "Yes"
+	}
+
+	if currentHash == metadata.FrontmatterHash {
+		return "Yes"
+	}
+	return "No"
 }
 
 // fetchLatestRunsByRef fetches the latest workflow run for each workflow from a specific ref (branch or tag)

@@ -91,6 +91,25 @@ func ExtractSecretsFromMap(values map[string]string) map[string]string {
 	return allSecrets
 }
 
+// ExtractEnvExpressionsFromMap extracts all env variable expressions from a map of string values
+// Returns a map of environment variable names to their full env expressions (including fallbacks)
+// Example:
+//
+//	Input: {"SENTRY_HOST": "${{ env.SENTRY_HOST || 'https://sentry.io' }}", "DD_SITE": "${{ env.DD_SITE }}"}
+//	Output: {"SENTRY_HOST": "${{ env.SENTRY_HOST || 'https://sentry.io' }}", "DD_SITE": "${{ env.DD_SITE }}"}
+func ExtractEnvExpressionsFromMap(values map[string]string) map[string]string {
+	secretLog.Printf("Extracting env expressions from map with %d entries", len(values))
+	allEnvVars := make(map[string]string)
+
+	for _, value := range values {
+		envVars := ExtractEnvExpressionsFromValue(value)
+		maps.Copy(allEnvVars, envVars)
+	}
+
+	secretLog.Printf("Extracted total of %d unique env expressions from map", len(allEnvVars))
+	return allEnvVars
+}
+
 // ReplaceSecretsWithEnvVars replaces secret expressions in a value with environment variable references
 // Example: "${{ secrets.DD_API_KEY }}" -> "\${DD_API_KEY}"
 // The backslash is used to escape the ${} for proper JSON rendering in Copilot configs

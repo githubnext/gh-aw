@@ -365,3 +365,91 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 	assert.Equal(t, "stale", blockedSlice[2], "Third blocked pattern should match")
 	assert.Equal(t, "triage-needed", blockedSlice[3], "Fourth blocked pattern should match")
 }
+
+// TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo tests that target-repo
+// and related cross-repo fields are included in config.json for create_pull_request.
+func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {
+	falseVal := false
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				TargetRepoSlug:       "caido/proxy-frontend",
+				AllowedRepos:         []string{"caido/other-repo"},
+				BaseBranch:           "dev",
+				Draft:                strPtr("true"),
+				Reviewers:            []string{"corb3nik"},
+				TitlePrefix:          "[refactor] ",
+				FallbackAsIssue:      &falseVal,
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+
+	assert.Equal(t, "caido/proxy-frontend", prConfig["target-repo"], "target-repo should be set")
+
+	allowedRepos, ok := prConfig["allowed_repos"].([]any)
+	require.True(t, ok, "allowed_repos should be an array")
+	assert.Len(t, allowedRepos, 1, "Should have 1 allowed repo")
+	assert.Equal(t, "caido/other-repo", allowedRepos[0], "allowed_repos should match")
+
+	assert.Equal(t, "dev", prConfig["base_branch"], "base_branch should be set")
+	assert.Equal(t, true, prConfig["draft"], "draft should be true")
+
+	reviewers, ok := prConfig["reviewers"].([]any)
+	require.True(t, ok, "reviewers should be an array")
+	assert.Len(t, reviewers, 1, "Should have 1 reviewer")
+	assert.Equal(t, "corb3nik", reviewers[0], "reviewer should match")
+
+	assert.Equal(t, "[refactor] ", prConfig["title_prefix"], "title_prefix should be set")
+	assert.Equal(t, false, prConfig["fallback_as_issue"], "fallback_as_issue should be false")
+}
+
+// TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat tests that config without
+// target-repo still works correctly (backward compatibility).
+func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
+				AllowedLabels:        []string{"bug"},
+				AllowEmpty:           strPtr("true"),
+				AutoMerge:            strPtr("true"),
+				Expires:              24,
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+
+	assert.InDelta(t, float64(2), prConfig["max"], 0.0001, "max should be 2")
+	assert.Equal(t, true, prConfig["allow_empty"], "allow_empty should be true")
+	assert.Equal(t, true, prConfig["auto_merge"], "auto_merge should be true")
+	assert.InDelta(t, float64(24), prConfig["expires"], 0.0001, "expires should be 24")
+
+	allowedLabels, ok := prConfig["allowed_labels"].([]any)
+	require.True(t, ok, "allowed_labels should be an array")
+	assert.Len(t, allowedLabels, 1, "Should have 1 allowed label")
+	assert.Equal(t, "bug", allowedLabels[0], "allowed_labels should match")
+
+	// target-repo and allowed_repos should not be present when not configured
+	_, hasTargetRepo := prConfig["target-repo"]
+	assert.False(t, hasTargetRepo, "target-repo should not be present when not configured")
+	_, hasAllowedRepos := prConfig["allowed_repos"]
+	assert.False(t, hasAllowedRepos, "allowed_repos should not be present when not configured")
+}

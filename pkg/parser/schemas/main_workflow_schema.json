@@ -8051,12 +8051,63 @@
         },
         "token": {
           "type": "string",
-          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Credentials are always removed after checkout (persist-credentials: false is enforced).",
+          "description": "Deprecated: Use github-token instead. GitHub token for authentication. Credentials are always removed after checkout (persist-credentials: false is enforced).",
           "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.GITHUB_TOKEN }}"]
+        },
+        "github-token": {
+          "type": "string",
+          "description": "GitHub token for authentication. Use ${{ secrets.MY_TOKEN }} to reference a secret. Mutually exclusive with app. Credentials are always removed after checkout (persist-credentials: false is enforced).",
+          "examples": ["${{ secrets.MY_PAT }}", "${{ secrets.CROSS_REPO_PAT }}"]
+        },
+        "app": {
+          "type": "object",
+          "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token.",
+          "required": ["app-id", "private-key"],
+          "properties": {
+            "app-id": {
+              "type": "string",
+              "description": "GitHub App ID. Use ${{ vars.APP_ID }} to reference a variable.",
+              "examples": ["${{ vars.APP_ID }}"]
+            },
+            "private-key": {
+              "type": "string",
+              "description": "GitHub App private key. Use ${{ secrets.APP_PRIVATE_KEY }} to reference a secret.",
+              "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
+            },
+            "owner": {
+              "type": "string",
+              "description": "Owner of the GitHub App installation. Defaults to the current repository owner.",
+              "examples": ["my-org"]
+            },
+            "repositories": {
+              "type": "array",
+              "description": "Repositories to grant the token access to. Defaults to the current repository. Use [\"*\"] for org-wide access.",
+              "items": { "type": "string" },
+              "examples": [["repo-a", "repo-b"], ["*"]]
+            }
+          },
+          "additionalProperties": false
         },
         "current": {
           "type": "boolean",
           "description": "Marks this checkout as the logical current repository for the workflow. When set to true, the AI agent will treat this repository as its primary working target. Only one checkout may have current set to true. Useful for central-repo workflows targeting a different repository."
+        },
+        "fetch": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "A single additional ref pattern to fetch after checkout."
+            },
+            {
+              "type": "array",
+              "description": "Additional Git refs to fetch after checkout. A git fetch step is emitted after the actions/checkout step.",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"refs/pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
+          "examples": [["*"], ["refs/pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
         }
       }
     }

@@ -52,12 +52,6 @@ func marshalJSONWithoutHTMLEscape(v any) (string, error) {
 	return strings.TrimSuffix(result, "\n"), nil
 }
 
-// marshalCanonicalJSON marshals a map to canonical JSON with sorted keys
-func marshalCanonicalJSON(data map[string]any) (string, error) {
-	// Use a custom encoder to ensure sorted keys
-	return marshalSorted(data), nil
-}
-
 // marshalSorted recursively marshals data with sorted keys
 func marshalSorted(data any) string {
 	switch v := data.(type) {
@@ -351,11 +345,9 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 	}
 
 	// Sort imports for deterministic processing
-	sortedImports := make([]string, len(imports))
-	copy(sortedImports, imports)
-	sort.Strings(sortedImports)
+	sort.Strings(imports)
 
-	for _, importPath := range sortedImports {
+	for _, importPath := range imports {
 		// Resolve import path relative to base directory
 		fullPath := filepath.Join(baseDir, importPath)
 
@@ -420,10 +412,8 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 
 	// Add sorted imported files list
 	if len(importedFiles) > 0 {
-		sortedImports := make([]string, len(importedFiles))
-		copy(sortedImports, importedFiles)
-		sort.Strings(sortedImports)
-		canonical["imports"] = sortedImports
+		sort.Strings(importedFiles)
+		canonical["imports"] = importedFiles
 	}
 
 	// Add sorted imported frontmatter texts (concatenated with delimiter)
@@ -446,10 +436,7 @@ func computeFrontmatterHashTextBasedWithReader(frontmatterText, markdown, baseDi
 	}
 
 	// Serialize to canonical JSON
-	canonicalJSON, err := marshalCanonicalJSON(canonical)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal canonical JSON: %w", err)
-	}
+	canonicalJSON := marshalSorted(canonical)
 
 	frontmatterHashLog.Printf("Canonical JSON length: %d bytes", len(canonicalJSON))
 

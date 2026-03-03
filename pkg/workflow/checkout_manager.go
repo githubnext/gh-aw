@@ -17,7 +17,7 @@ var checkoutManagerLog = logger.New("workflow:checkout_manager")
 //
 //	checkout:
 //	  fetch-depth: 0
-//	  token: ${{ secrets.MY_TOKEN }}
+//	  github-token: ${{ secrets.MY_TOKEN }}
 //
 // Or multiple checkouts:
 //
@@ -26,6 +26,16 @@ var checkoutManagerLog = logger.New("workflow:checkout_manager")
 //	  - repository: owner/other-repo
 //	    path: ./libs/other
 //	    ref: main
+//	    github-token: ${{ secrets.CROSS_REPO_PAT }}
+//
+// GitHub App authentication is also supported:
+//
+//	checkout:
+//	  - repository: owner/other-repo
+//	    path: ./libs/other
+//	    app:
+//	      app-id: ${{ vars.APP_ID }}
+//	      private-key: ${{ secrets.APP_PRIVATE_KEY }}
 type CheckoutConfig struct {
 	// Repository to checkout in owner/repo format. Defaults to the current repository.
 	Repository string `json:"repository,omitempty"`
@@ -36,10 +46,18 @@ type CheckoutConfig struct {
 	// Path within GITHUB_WORKSPACE to place the checkout. Defaults to the workspace root.
 	Path string `json:"path,omitempty"`
 
-	// Token overrides the default GITHUB_TOKEN for authentication.
+	// GitHubToken overrides the default GITHUB_TOKEN for authentication.
 	// Use ${{ secrets.MY_TOKEN }} to reference a repository secret.
-	// Matches the "token" input of actions/checkout.
-	Token string `json:"token,omitempty"`
+	// Maps to the "token" input of actions/checkout.
+	// Mutually exclusive with App.
+	GitHubToken string `json:"github-token,omitempty"`
+
+	// App configures GitHub App-based authentication for this checkout.
+	// When set, a token minting step is generated before checkout using
+	// actions/create-github-app-token, and the minted token is passed
+	// to actions/checkout as the "token" input.
+	// Mutually exclusive with GitHubToken.
+	App *GitHubAppConfig `json:"app,omitempty"`
 
 	// FetchDepth controls the number of commits to fetch.
 	// 0 fetches all history (full clone). 1 is a shallow clone (default).
@@ -61,6 +79,21 @@ type CheckoutConfig struct {
 	// Only one checkout may have Current set to true.
 	// This is useful for workflows that run from a central repo targeting a different repo.
 	Current bool `json:"current,omitempty"`
+
+	// Fetch specifies additional Git refs to fetch after checkout.
+	// A git fetch step is emitted after the actions/checkout step.
+	//
+	// Supported values:
+	//   - "*"            – fetch all remote branches
+	//   - "refs/pulls/open/*" – GH-AW shorthand for all open pull-request refs
+	//   - branch name    – e.g. "main" or "feature/my-branch"
+	//   - glob pattern   – e.g. "feature/*"
+	//
+	// Example:
+	//   fetch: ["*"]
+	//   fetch: ["refs/pulls/open/*"]
+	//   fetch: ["main", "feature/my-branch"]
+	Fetch []string `json:"fetch,omitempty"`
 }
 
 // checkoutKey uniquely identifies a checkout target used for grouping/deduplication.
@@ -74,13 +107,15 @@ type checkoutKey struct {
 // resolvedCheckout is an internal merged checkout entry used by CheckoutManager.
 type resolvedCheckout struct {
 	key            checkoutKey
-	ref            string   // last non-empty ref wins
-	token          string   // last non-empty token wins
-	fetchDepth     *int     // nil means use default (1)
-	sparsePatterns []string // merged sparse-checkout patterns
+	ref            string           // last non-empty ref wins
+	token          string           // last non-empty github-token wins
+	app            *GitHubAppConfig // GitHub App config (first non-nil wins)
+	fetchDepth     *int             // nil means use default (1)
+	sparsePatterns []string         // merged sparse-checkout patterns
 	submodules     string
 	lfs            bool
-	current        bool // true if this checkout is the logical current repository
+	current        bool     // true if this checkout is the logical current repository
+	fetchRefs      []string // merged fetch ref patterns (see CheckoutConfig.Fetch)
 }
 
 // CheckoutManager collects checkout requests and merges them to minimize
@@ -135,8 +170,11 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.Ref != "" && entry.ref == "" {
 			entry.ref = cfg.Ref // first-seen ref wins
 		}
-		if cfg.Token != "" && entry.token == "" {
-			entry.token = cfg.Token // first-seen token wins
+		if cfg.GitHubToken != "" && entry.token == "" {
+			entry.token = cfg.GitHubToken // first-seen github-token wins
+		}
+		if cfg.App != nil && entry.app == nil {
+			entry.app = cfg.App // first-seen app wins
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
@@ -150,12 +188,16 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		if cfg.Submodules != "" && entry.submodules == "" {
 			entry.submodules = cfg.Submodules
 		}
+		if len(cfg.Fetch) > 0 {
+			entry.fetchRefs = mergeFetchRefs(entry.fetchRefs, cfg.Fetch)
+		}
 		checkoutManagerLog.Printf("Merged checkout for path=%q repository=%q", key.path, key.repository)
 	} else {
 		entry := &resolvedCheckout{
 			key:        key,
 			ref:        cfg.Ref,
-			token:      cfg.Token,
+			token:      cfg.GitHubToken,
+			app:        cfg.App,
 			fetchDepth: cfg.FetchDepth,
 			submodules: cfg.Submodules,
 			lfs:        cfg.LFS,
@@ -163,6 +205,9 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(nil, cfg.SparseCheckout)
+		}
+		if len(cfg.Fetch) > 0 {
+			entry.fetchRefs = mergeFetchRefs(nil, cfg.Fetch)
 		}
 		cm.index[key] = len(cm.ordered)
 		cm.ordered = append(cm.ordered, entry)
@@ -192,18 +237,73 @@ func (cm *CheckoutManager) GetCurrentRepository() string {
 	return ""
 }
 
+// HasAppAuth returns true if any checkout entry uses GitHub App authentication.
+func (cm *CheckoutManager) HasAppAuth() bool {
+	for _, entry := range cm.ordered {
+		if entry.app != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// GenerateCheckoutAppTokenSteps generates GitHub App token minting steps for all
+// checkout entries that use app authentication. Each app-authenticated checkout
+// gets its own minting step with a unique step ID, so the minted token can be
+// referenced in the corresponding checkout step.
+//
+// The step ID for each checkout is "checkout-app-token-{index}" where index is
+// the position in the ordered checkout list.
+func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permissions *Permissions) []string {
+	var steps []string
+	for i, entry := range cm.ordered {
+		if entry.app == nil {
+			continue
+		}
+		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", i, entry.key.repository)
+		appSteps := c.buildGitHubAppTokenMintStep(entry.app, permissions)
+		stepID := fmt.Sprintf("checkout-app-token-%d", i)
+		for _, step := range appSteps {
+			modified := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: "+stepID)
+			steps = append(steps, modified)
+		}
+	}
+	return steps
+}
+
+// GenerateCheckoutAppTokenInvalidationSteps generates token invalidation steps
+// for all checkout entries that use app authentication.
+func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler) []string {
+	var steps []string
+	for i, entry := range cm.ordered {
+		if entry.app == nil {
+			continue
+		}
+		checkoutManagerLog.Printf("Generating app token invalidation step for checkout index=%d", i)
+		rawSteps := c.buildGitHubAppTokenInvalidationStep()
+		stepID := fmt.Sprintf("checkout-app-token-%d", i)
+		for _, step := range rawSteps {
+			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps."+stepID+".outputs.token")
+			// Update step name to indicate it's for checkout
+			modified = strings.ReplaceAll(modified, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
+			steps = append(steps, modified)
+		}
+	}
+	return steps
+}
+
 // GenerateAdditionalCheckoutSteps generates YAML step lines for all non-default
 // (additional) checkouts — those that target a specific path other than the root.
 // The caller is responsible for emitting the default workspace checkout separately.
 func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating additional checkout steps from %d configured entries", len(cm.ordered))
 	var lines []string
-	for _, entry := range cm.ordered {
+	for i, entry := range cm.ordered {
 		// Skip the default checkout (handled separately)
 		if entry.key.path == "" && entry.key.repository == "" {
 			continue
 		}
-		lines = append(lines, generateCheckoutStepLines(entry, getActionPin)...)
+		lines = append(lines, generateCheckoutStepLines(entry, i, getActionPin)...)
 	}
 	checkoutManagerLog.Printf("Generated %d additional checkout step(s)", len(lines))
 	return lines
@@ -253,8 +353,15 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if override.ref != "" {
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
-		if override.token != "" {
-			fmt.Fprintf(&sb, "          token: %s\n", override.token)
+		// Determine effective token: app-minted token takes precedence
+		effectiveOverrideToken := override.token
+		if override.app != nil {
+			// The default checkout is always at index 0 in the ordered list
+			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+			effectiveOverrideToken = "${{ steps.checkout-app-token-0.outputs.token }}"
+		}
+		if effectiveOverrideToken != "" {
+			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
 		}
 		if override.fetchDepth != nil {
 			fmt.Fprintf(&sb, "          fetch-depth: %d\n", *override.fetchDepth)
@@ -273,11 +380,29 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		}
 	}
 
-	return []string{sb.String()}
+	steps := []string{sb.String()}
+
+	// Emit a git fetch step if the user requested additional refs.
+	// In trial mode the fetch step is still emitted so the behaviour
+	// mirrors production as closely as possible.
+	if override != nil && len(override.fetchRefs) > 0 {
+		// Default checkout is at index 0 in the ordered list
+		defaultIdx := 0
+		if idx, ok := cm.index[checkoutKey{}]; ok {
+			defaultIdx = idx
+		}
+		if fetchStep := generateFetchStepLines(override, defaultIdx); fetchStep != "" {
+			steps = append(steps, fetchStep)
+		}
+	}
+
+	return steps
 }
 
 // generateCheckoutStepLines generates YAML step lines for a single non-default checkout.
-func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string) string) []string {
+// The index parameter identifies the checkout's position in the ordered list, used to
+// reference the correct app token minting step when app authentication is configured.
+func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin func(string) string) []string {
 	name := "Checkout " + checkoutStepName(entry.key)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "      - name: %s\n", name)
@@ -296,8 +421,14 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 	if entry.key.path != "" {
 		fmt.Fprintf(&sb, "          path: %s\n", entry.key.path)
 	}
-	if entry.token != "" {
-		fmt.Fprintf(&sb, "          token: %s\n", entry.token)
+	// Determine effective token: app-minted token takes precedence
+	effectiveToken := entry.token
+	if entry.app != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		effectiveToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+	}
+	if effectiveToken != "" {
+		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
 	}
 	if entry.fetchDepth != nil {
 		fmt.Fprintf(&sb, "          fetch-depth: %d\n", *entry.fetchDepth)
@@ -315,7 +446,11 @@ func generateCheckoutStepLines(entry *resolvedCheckout, getActionPin func(string
 		sb.WriteString("          lfs: true\n")
 	}
 
-	return []string{sb.String()}
+	steps := []string{sb.String()}
+	if fetchStep := generateFetchStepLines(entry, index); fetchStep != "" {
+		steps = append(steps, fetchStep)
+	}
+	return steps
 }
 
 // checkoutStepName returns a human-readable description for a checkout step.
@@ -380,6 +515,102 @@ func mergeSparsePatterns(existing []string, newPatterns string) []string {
 	}
 
 	return result
+}
+
+// mergeFetchRefs unions two sets of fetch ref patterns preserving insertion order.
+func mergeFetchRefs(existing []string, newRefs []string) []string {
+	seen := make(map[string]bool, len(existing))
+	result := make([]string, 0, len(existing)+len(newRefs))
+	for _, r := range existing {
+		r = strings.TrimSpace(r)
+		if r != "" && !seen[r] {
+			seen[r] = true
+			result = append(result, r)
+		}
+	}
+	for _, r := range newRefs {
+		r = strings.TrimSpace(r)
+		if r != "" && !seen[r] {
+			seen[r] = true
+			result = append(result, r)
+		}
+	}
+	return result
+}
+
+// fetchRefToRefspec converts a user-facing fetch pattern to a git refspec.
+//
+// Special values:
+//   - "*"            → "+refs/heads/*:refs/remotes/origin/*"
+//   - "refs/pulls/open/*" → "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
+//
+// All other values are treated as branch names or glob patterns and mapped to
+// the canonical remote-tracking refspec form.
+func fetchRefToRefspec(pattern string) string {
+	switch pattern {
+	case "*":
+		return "+refs/heads/*:refs/remotes/origin/*"
+	case "refs/pulls/open/*":
+		return "+refs/pull/*/head:refs/remotes/origin/pull/*/head"
+	default:
+		// Treat as branch name or glob: map to remote tracking ref
+		return fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", pattern, pattern)
+	}
+}
+
+// generateFetchStepLines generates a "Fetch additional refs" YAML step for the given checkout
+// entry when it has fetch refs configured. Returns an empty string when there are no fetch refs.
+// The index parameter identifies the checkout's position in the ordered list, used to
+// reference the correct app token minting step when app authentication is configured.
+//
+// Authentication: the token is passed as the GH_AW_FETCH_TOKEN environment variable and
+// injected via git's http.extraheader config option at the command level (-c flag), which
+// avoids writing credentials to disk and is consistent with the persist-credentials: false
+// policy. Note that http.extraheader values are visible in the git process's environment
+// (like all GitHub Actions environment variables containing secrets); GitHub Actions
+// automatically masks secret values in logs.
+func generateFetchStepLines(entry *resolvedCheckout, index int) string {
+	if len(entry.fetchRefs) == 0 {
+		return ""
+	}
+
+	// Build step name
+	name := "Fetch additional refs"
+	if entry.key.repository != "" {
+		name = "Fetch additional refs for " + entry.key.repository
+	}
+
+	// Determine authentication token
+	token := entry.token
+	if entry.app != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+	}
+	if token == "" {
+		token = getEffectiveGitHubToken("")
+	}
+
+	// Build refspecs
+	refspecs := make([]string, 0, len(entry.fetchRefs))
+	for _, ref := range entry.fetchRefs {
+		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
+	}
+
+	// Build the git command, navigating to the checkout directory when needed
+	gitPrefix := "git"
+	if entry.key.path != "" {
+		gitPrefix = fmt.Sprintf(`git -C "${{ github.workspace }}/%s"`, entry.key.path)
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: %s\n", name)
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64)\n")
+	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: Basic ${header}" fetch origin %s`+"\n",
+		gitPrefix, strings.Join(refspecs, " "))
+	return sb.String()
 }
 
 // ParseCheckoutConfigs converts a raw frontmatter value (single map or array of maps)
@@ -475,12 +706,37 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		cfg.Path = s
 	}
 
-	if v, ok := m["token"]; ok {
+	// Support both "github-token" (preferred) and "token" (backward compat)
+	if v, ok := m["github-token"]; ok {
+		s, ok := v.(string)
+		if !ok {
+			return nil, errors.New("checkout.github-token must be a string")
+		}
+		cfg.GitHubToken = s
+	} else if v, ok := m["token"]; ok {
+		// Backward compatibility: "token" is accepted but "github-token" is preferred
 		s, ok := v.(string)
 		if !ok {
 			return nil, errors.New("checkout.token must be a string")
 		}
-		cfg.Token = s
+		cfg.GitHubToken = s
+	}
+
+	// Parse app configuration for GitHub App-based authentication
+	if v, ok := m["app"]; ok {
+		appMap, ok := v.(map[string]any)
+		if !ok {
+			return nil, errors.New("checkout.app must be an object")
+		}
+		cfg.App = parseAppConfig(appMap)
+		if cfg.App.AppID == "" || cfg.App.PrivateKey == "" {
+			return nil, errors.New("checkout.app requires both app-id and private-key")
+		}
+	}
+
+	// Validate mutual exclusivity of github-token and app
+	if cfg.GitHubToken != "" && cfg.App != nil {
+		return nil, errors.New("checkout: github-token and app are mutually exclusive; use one or the other")
 	}
 
 	if v, ok := m["fetch-depth"]; ok {
@@ -542,6 +798,32 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 			return nil, errors.New("checkout.current must be a boolean")
 		}
 		cfg.Current = b
+	}
+
+	if v, ok := m["fetch"]; ok {
+		switch fv := v.(type) {
+		case string:
+			// Single string shorthand: treat as a one-element list
+			if strings.TrimSpace(fv) == "" {
+				return nil, errors.New("checkout.fetch string value must not be empty")
+			}
+			cfg.Fetch = []string{fv}
+		case []any:
+			refs := make([]string, 0, len(fv))
+			for i, item := range fv {
+				s, ok := item.(string)
+				if !ok {
+					return nil, fmt.Errorf("checkout.fetch[%d] must be a string, got %T", i, item)
+				}
+				if strings.TrimSpace(s) == "" {
+					return nil, fmt.Errorf("checkout.fetch[%d] must not be empty", i)
+				}
+				refs = append(refs, s)
+			}
+			cfg.Fetch = refs
+		default:
+			return nil, errors.New("checkout.fetch must be a string or an array of strings")
+		}
 	}
 
 	return cfg, nil
@@ -607,8 +889,30 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		if cfg.Current {
 			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
 		}
+
+		// Annotate fetch-depth so the agent knows how much history is available
+		if cfg.FetchDepth != nil && *cfg.FetchDepth == 0 {
+			line += " [full history, all branches available as remote-tracking refs]"
+		} else if cfg.FetchDepth != nil {
+			line += fmt.Sprintf(" [shallow clone, fetch-depth=%d]", *cfg.FetchDepth)
+		} else {
+			line += " [shallow clone, fetch-depth=1 (default)]"
+		}
+
+		// Annotate additionally fetched refs
+		if len(cfg.Fetch) > 0 {
+			line += fmt.Sprintf(" [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
+		}
+
 		sb.WriteString(line + "\n")
 	}
+
+	// General guidance about unavailable branches
+	sb.WriteString("  - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, " +
+		"it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. " +
+		"If the branch is required and not available, exit with an error and ask the user to add it to the " +
+		"`fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"refs/pulls/open/*\"]` for all open PR refs, " +
+		"or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n")
 
 	return sb.String()
 }

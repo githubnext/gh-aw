@@ -18,6 +18,23 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
+	// Generate GitHub App token minting steps for checkouts with app auth
+	// These must be emitted BEFORE the checkout steps that reference them
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token minting steps")
+		var permissions *Permissions
+		if data.Permissions != "" {
+			parser := NewPermissionsParser(data.Permissions)
+			permissions = parser.ToPermissions()
+		} else {
+			permissions = NewPermissions()
+		}
+		appTokenSteps := checkoutMgr.GenerateCheckoutAppTokenSteps(c, permissions)
+		for _, step := range appTokenSteps {
+			yaml.WriteString(step)
+		}
+	}
+
 	// Add checkout step first if needed
 	if needsCheckout {
 		// Emit the default workspace checkout, applying any user-supplied overrides
@@ -403,6 +420,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
+
+	// Add checkout app token invalidation steps if configured (runs always, even on failure)
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token invalidation steps")
+		invalidationSteps := checkoutMgr.GenerateCheckoutAppTokenInvalidationSteps(c)
+		for _, step := range invalidationSteps {
+			yaml.WriteString(step)
+		}
+	}
 
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
