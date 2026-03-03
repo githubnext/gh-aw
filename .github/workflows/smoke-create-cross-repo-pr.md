@@ -21,7 +21,7 @@ network:
 
 checkout:
   - repository: githubnext/gh-aw-side-repo
-    token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
 
 tools:
   edit:

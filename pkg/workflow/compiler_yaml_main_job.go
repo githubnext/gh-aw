@@ -421,6 +421,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
 
+	// Add checkout app token invalidation steps if configured (runs always, even on failure)
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token invalidation steps")
+		invalidationSteps := checkoutMgr.GenerateCheckoutAppTokenInvalidationSteps(c)
+		for _, step := range invalidationSteps {
+			yaml.WriteString(step)
+		}
+	}
+
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
 		// This is a compiler bug if validation fails

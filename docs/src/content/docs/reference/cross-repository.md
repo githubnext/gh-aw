@@ -25,8 +25,18 @@ If only a the current repository, you can use `checkout:` to override default ch
 
 ```yaml wrap
 checkout:
-  fetch-depth: 0                        # Full git history
-  token: ${{ secrets.MY_TOKEN }}        # Custom authentication
+  fetch-depth: 0                              # Full git history
+  github-token: ${{ secrets.MY_TOKEN }}        # Custom authentication
+```
+
+Or use GitHub App authentication:
+
+```yaml wrap
+checkout:
+  fetch-depth: 0
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
 You can also use `checkout:` to check out additional repositories alongside the main repository:
@@ -37,7 +47,7 @@ checkout:
   - repository: owner/other-repo
     path: ./libs/other
     ref: main
-    token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
 ### Checkout Configuration Options
@@ -47,7 +57,8 @@ checkout:
 | `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
-| `token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
+| `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
+| `app` | object | GitHub App credentials (`app-id`, `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
 | `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
@@ -77,7 +88,7 @@ checkout:
 ```yaml wrap
 checkout:
   - repository: githubnext/gh-aw-side-repo
-    token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
     fetch: ["refs/pulls/open/*"]      # fetch all open PR refs after checkout
     fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
 ```
@@ -85,7 +96,7 @@ checkout:
 ```yaml wrap
 checkout:
   - repository: org/target-repo
-    token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
     fetch: ["main", "feature/*"] # fetch specific branches
     fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
 ```
@@ -105,7 +116,7 @@ When multiple `checkout:` entries target the same repository and path, their con
 - **Sparse patterns**: Merged (union of all patterns)
 - **LFS**: OR-ed (if any config enables `lfs`, the merged configuration enables it)
 - **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
-- **Ref/Token**: First-seen wins
+- **Ref/Token/App**: First-seen wins
 
 ### Marking a Primary Repository (`current: true`)
 
@@ -115,7 +126,7 @@ When a workflow running from a central repository targets a different repository
 checkout:
   - repository: org/target-repo
     path: ./target
-    token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
     current: true                                    # agent's primary target
 ```
 
@@ -191,7 +202,7 @@ checkout:
   - repository: org/shared-libs
     path: ./libs/shared
     ref: main
-    token: ${{ secrets.LIBS_PAT }}
+    github-token: ${{ secrets.LIBS_PAT }}
   - repository: org/config-repo
     path: ./config
     sparse-checkout: |
@@ -320,7 +331,7 @@ on:
 
 checkout:
   - repository: org/target-repo
-    token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
     fetch: ["refs/pulls/open/*"]   # fetch all open PR branches after checkout
     current: true
 

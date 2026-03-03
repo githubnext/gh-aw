@@ -23,7 +23,7 @@
 #
 # Smoke test validating cross-repo pull request creation in githubnext/gh-aw-side-repo
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"05429fba5f7ff13d6298fe3f1eb6c0edad7be6379e2073086781c4a68c634b94"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1bc008c7f23299326c6e307d71222d35fb56e68b9e649be54c73c94bbf660810"}
 
 name: "Smoke Create Cross-Repo PR"
 "on":
