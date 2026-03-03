@@ -143,8 +143,8 @@ on:
         default: ''
         options:
           - ''
-          - 'disable all agentic workflows'
-          - 'enable all agentic workflows'
+          - 'disable'
+          - 'enable'
           - 'update'
           - 'upgrade'
 

@@ -138,7 +138,7 @@ describe("run_operation_update_upgrade", () => {
 
   describe("main - disable/enable operations", () => {
     it("runs gh aw disable and finishes without PR", async () => {
-      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+      process.env.GH_AW_OPERATION = "disable";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
@@ -151,7 +151,7 @@ describe("run_operation_update_upgrade", () => {
     });
 
     it("runs gh aw enable and finishes without PR", async () => {
-      process.env.GH_AW_OPERATION = "enable all agentic workflows";
+      process.env.GH_AW_OPERATION = "enable";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
@@ -164,7 +164,7 @@ describe("run_operation_update_upgrade", () => {
     });
 
     it("runs ./gh-aw disable in dev mode", async () => {
-      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+      process.env.GH_AW_OPERATION = "disable";
       process.env.GH_AW_CMD_PREFIX = "./gh-aw";
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
@@ -175,13 +175,23 @@ describe("run_operation_update_upgrade", () => {
     });
 
     it("propagates error when disable command fails", async () => {
-      process.env.GH_AW_OPERATION = "disable all agentic workflows";
+      process.env.GH_AW_OPERATION = "disable";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
 
       mockExec.exec = vi.fn().mockRejectedValue(new Error("Command failed"));
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await expect(main()).rejects.toThrow("Command failed");
+    });
+
+    it("throws when disable exits with non-zero code", async () => {
+      process.env.GH_AW_OPERATION = "disable";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+
+      mockExec.exec = vi.fn().mockResolvedValue(1);
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await expect(main()).rejects.toThrow("exit code 1");
     });
   });
 
@@ -330,6 +340,17 @@ describe("run_operation_update_upgrade", () => {
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await expect(main()).rejects.toThrow("Command failed");
+    });
+
+    it("throws when update exits with non-zero code", async () => {
+      process.env.GH_AW_OPERATION = "update";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+      process.env.GH_TOKEN = "test-token";
+
+      mockExec.exec = vi.fn().mockResolvedValue(1);
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await expect(main()).rejects.toThrow("exit code 1");
     });
 
     it("warns and continues when staging a file fails", async () => {

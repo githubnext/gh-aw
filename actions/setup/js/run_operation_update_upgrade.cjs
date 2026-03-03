@@ -41,8 +41,7 @@ function formatTimestamp(date) {
  *
  * Required environment variables:
  *   GH_TOKEN           - GitHub token for gh CLI auth and git push
- *   GH_AW_OPERATION    - 'update', 'upgrade', 'disable all agentic workflows',
- *                        or 'enable all agentic workflows'
+ *   GH_AW_OPERATION    - 'update', 'upgrade', 'disable', or 'enable'
  *   GH_AW_CMD_PREFIX   - Command prefix: './gh-aw' (dev) or 'gh aw' (release)
  *
  * @returns {Promise<void>}
@@ -58,12 +57,14 @@ async function main() {
   const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
 
   // Handle enable/disable operations: run the command and finish (no PR needed)
-  if (operation === "disable all agentic workflows" || operation === "enable all agentic workflows") {
-    const subCmd = operation === "disable all agentic workflows" ? "disable" : "enable";
-    const fullCmd = [bin, ...prefixArgs, subCmd].join(" ");
+  if (operation === "disable" || operation === "enable") {
+    const fullCmd = [bin, ...prefixArgs, operation].join(" ");
     core.info(`Running: ${fullCmd}`);
-    await exec.exec(bin, [...prefixArgs, subCmd]);
-    core.info(`✓ All agentic workflows have been ${subCmd}d`);
+    const exitCode = await exec.exec(bin, [...prefixArgs, operation]);
+    if (exitCode !== 0) {
+      throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
+    }
+    core.info(`✓ All agentic workflows have been ${operation}d`);
     return;
   }
 
@@ -78,7 +79,10 @@ async function main() {
   // Run gh aw update or gh aw upgrade
   const fullCmd = [bin, ...prefixArgs, operation].join(" ");
   core.info(`Running: ${fullCmd}`);
-  await exec.exec(bin, [...prefixArgs, operation]);
+  const exitCode = await exec.exec(bin, [...prefixArgs, operation]);
+  if (exitCode !== 0) {
+    throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
+  }
 
   // Check for changed files
   const { stdout: statusOutput } = await exec.getExecOutput("git", ["status", "--porcelain"]);
