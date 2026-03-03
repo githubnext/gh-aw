@@ -47,10 +47,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Add GitHub App token minting step if app is configured
-	if data.SafeOutputs.App != nil {
+	if data.SafeOutputs.GitHubApp != nil {
 		// Compute permissions based on configured safe outputs (principle of least privilege)
 		permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions)...)
 	}
 
 	// Add artifact download steps once (shared by noop and conclusion steps)
@@ -316,7 +316,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// See buildUnlockJob() in compiler_unlock_job.go
 
 	// Add GitHub App token invalidation step if app is configured
-	if data.SafeOutputs.App != nil {
+	if data.SafeOutputs.GitHubApp != nil {
 		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}

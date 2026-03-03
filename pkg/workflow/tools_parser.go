@@ -232,7 +232,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		// Parse app configuration for GitHub App token minting
 		if rawApp, exists := configMap["github-app"]; exists {
 			if appMap, ok := rawApp.(map[string]any); ok {
-				config.App = parseAppConfig(appMap)
+				config.GitHubApp = parseAppConfig(appMap)
 			}
 		}
 

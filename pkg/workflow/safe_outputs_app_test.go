@@ -20,7 +20,7 @@ func TestSafeOutputsAppConfiguration(t *testing.T) {
 on: issues
 safe-outputs:
   create-issue:
-  app:
+  github-app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     repositories:
@@ -42,12 +42,12 @@ Test workflow with app configuration.
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse markdown content")
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
-	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be parsed")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "App configuration should be parsed")
 
 	// Verify app configuration
-	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.App.AppID)
-	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.App.PrivateKey)
-	assert.Equal(t, []string{"repo1", "repo2"}, workflowData.SafeOutputs.App.Repositories)
+	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.GitHubApp.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.GitHubApp.PrivateKey)
+	assert.Equal(t, []string{"repo1", "repo2"}, workflowData.SafeOutputs.GitHubApp.Repositories)
 }
 
 // TestSafeOutputsAppConfigurationMinimal tests minimal app configuration without repositories
@@ -58,7 +58,7 @@ func TestSafeOutputsAppConfigurationMinimal(t *testing.T) {
 on: issues
 safe-outputs:
   create-issue:
-  app:
+  github-app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
@@ -77,12 +77,12 @@ Test workflow with minimal app configuration.
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse markdown content")
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
-	require.NotNil(t, workflowData.SafeOutputs.App, "App configuration should be parsed")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "App configuration should be parsed")
 
 	// Verify app configuration
-	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.App.AppID)
-	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.App.PrivateKey)
-	assert.Empty(t, workflowData.SafeOutputs.App.Repositories)
+	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.SafeOutputs.GitHubApp.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.SafeOutputs.GitHubApp.PrivateKey)
+	assert.Empty(t, workflowData.SafeOutputs.GitHubApp.Repositories)
 }
 
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
@@ -120,7 +120,7 @@ on: issues
 safe-outputs:
   create-discussion:
     category: "general"
-  app:
+  github-app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---

@@ -350,11 +350,11 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 // The step mints an installation access token with permissions matching the agent job permissions
 func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
-	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.App == nil {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
 		return
 	}
 
-	app := data.ParsedTools.GitHub.App
+	app := data.ParsedTools.GitHub.GitHubApp
 	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: app-id=%s", app.AppID)
 
 	// Get permissions from the agent job - parse from YAML string
@@ -382,7 +382,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 // This step always runs (even on failure) to ensure tokens are properly cleaned up
 func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
-	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.App == nil {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
 		return
 	}
 
