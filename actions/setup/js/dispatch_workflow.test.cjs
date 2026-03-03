@@ -482,4 +482,67 @@ describe("dispatch_workflow handler factory", () => {
     expect(result.success).toBe(true);
     expect(result.run_id).toBeUndefined();
   });
+
+  it("should retry without return_run_details when API rejects with 422 mentioning it, and still succeed", async () => {
+    const error = new Error("Unprocessable Entity");
+    // @ts-ignore
+    error.status = 422;
+    // @ts-ignore
+    error.response = { data: { message: "Unknown field 'return_run_details'" } };
+
+    github.rest.actions.createWorkflowDispatch.mockRejectedValueOnce(error).mockResolvedValueOnce({ data: {} });
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.run_id).toBeUndefined();
+
+    // First call should include return_run_details: true
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenNthCalledWith(1, {
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/heads/main",
+      inputs: {},
+      return_run_details: true,
+    });
+
+    // Second call should retry without return_run_details
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenNthCalledWith(2, {
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/heads/main",
+      inputs: {},
+    });
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(2);
+  });
+
+  it("should not retry when API rejects with 422 for an unrelated reason", async () => {
+    const error = new Error("Unprocessable Entity");
+    // @ts-ignore
+    error.status = 422;
+    // @ts-ignore
+    error.response = { data: { message: "Workflow does not exist" } };
+
+    github.rest.actions.createWorkflowDispatch.mockRejectedValueOnce(error);
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(false);
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledTimes(1);
+  });
 });
