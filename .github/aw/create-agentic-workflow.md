@@ -483,7 +483,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 4. **Generate Workflows**
    - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
-   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`**.
+   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`** (see [filename safety note](#cache-memory-filename-safety) below).
    - ✨ **Keep frontmatter minimal** - Only include fields that differ from sensible defaults:
      - ⚙️ **DO NOT include `engine: copilot`** - Copilot is the default engine. Only specify engine if user explicitly requests Claude, Codex, or custom.
      - ⏱️ **DO NOT include `timeout-minutes:`** unless user needs a specific timeout - the default is sensible.
@@ -521,6 +521,13 @@ When creating workflows that involve coding agents operating in large repositori
   tools:
     cache-memory: true
   ```
+
+  > ⚠️ **Filename safety**: Cache-memory files are uploaded as GitHub Actions artifacts.
+  > Artifact filenames **must not contain colons** (NTFS limitation).
+  > ✅ Use: `investigation-2026-02-12-11-20-45.json`
+  > ❌ Avoid: `investigation-2026-02-12T11:20:45Z.json`
+  > When instructing the agent to write timestamped files, explicitly say:
+  > "Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS[-sss]` (no colons, no `T`, no `Z`)."
 
   **In the workflow instructions**:
   1. **List all items** to process (e.g., find all packages/modules/directories)
