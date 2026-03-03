@@ -34,7 +34,7 @@ describe("create_pull_request - fallback-as-issue configuration", () => {
       const errorTypes = {
         push_failed: "Used when git push operation fails and fallback-as-issue is false",
         pr_creation_failed: "Used when PR creation fails (except permission errors) and fallback-as-issue is false",
-        permission_denied: "Used when GitHub Actions lacks permission to create/approve PRs (handled before fallback logic)",
+        permission_denied: "Used when GitHub Actions lacks permission to create/approve PRs AND fallback issue creation also fails",
       };
 
       // Verify the error types are documented
@@ -45,7 +45,8 @@ describe("create_pull_request - fallback-as-issue configuration", () => {
       // These error types should be returned in the corresponding code paths:
       // - push failure with fallback disabled: error_type: "push_failed"
       // - PR creation failure with fallback disabled: error_type: "pr_creation_failed"
-      // - Permission error (always): error_type: "permission_denied"
+      // - Permission error with successful fallback issue: success=true, fallback_used=true
+      // - Permission error when fallback issue also fails: error_type: "permission_denied"
     });
   });
 });
