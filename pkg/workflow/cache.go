@@ -15,6 +15,9 @@ import (
 
 var cacheLog = logger.New("workflow:cache")
 
+// validCacheMemoryScopes defines the allowed values for cache-memory scope
+var validCacheMemoryScopes = []string{"workflow", "repo"}
+
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
 	Caches []CacheMemoryEntry `yaml:"caches,omitempty"` // cache configurations
@@ -114,8 +117,8 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 		entry.Scope = "workflow"
 	}
 	// Validate scope value
-	if !slices.Contains([]string{"workflow", "repo"}, entry.Scope) {
-		return entry, fmt.Errorf("invalid cache-memory scope %q: must be one of [workflow, repo]", entry.Scope)
+	if !slices.Contains(validCacheMemoryScopes, entry.Scope) {
+		return entry, fmt.Errorf("invalid cache-memory scope %q: must be one of %v", entry.Scope, validCacheMemoryScopes)
 	}
 
 	// Parse allowed-extensions field

@@ -31,19 +31,19 @@ func TestCacheMemoryScopeValidationObject(t *testing.T) {
 			name:      "invalid organization scope",
 			scope:     "organization",
 			wantError: true,
-			errorText: `invalid cache-memory scope "organization": must be one of [workflow, repo]`,
+			errorText: `invalid cache-memory scope "organization": must be one of [workflow repo]`,
 		},
 		{
 			name:      "invalid global scope",
 			scope:     "global",
 			wantError: true,
-			errorText: `invalid cache-memory scope "global": must be one of [workflow, repo]`,
+			errorText: `invalid cache-memory scope "global": must be one of [workflow repo]`,
 		},
 		{
 			name:      "invalid whitespace scope",
 			scope:     "   ",
 			wantError: true,
-			errorText: `invalid cache-memory scope "   ": must be one of [workflow, repo]`,
+			errorText: `invalid cache-memory scope "   ": must be one of [workflow repo]`,
 		},
 	}
 
@@ -93,7 +93,7 @@ func TestCacheMemoryScopeValidationArray(t *testing.T) {
 			name:      "invalid scope in array",
 			scope:     "global",
 			wantError: true,
-			errorText: `invalid cache-memory scope "global": must be one of [workflow, repo]`,
+			errorText: `invalid cache-memory scope "global": must be one of [workflow repo]`,
 		},
 	}
 
