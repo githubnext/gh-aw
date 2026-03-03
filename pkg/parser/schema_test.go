@@ -174,7 +174,7 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 		"staged",
 		"env",
 		"github-token",
-		"app",
+		"github-app",
 		"max-patch-size",
 		"jobs",
 		"runs-on",

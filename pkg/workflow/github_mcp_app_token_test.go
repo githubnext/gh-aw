@@ -146,7 +146,7 @@ Test that setting both app and github-token is an error.
 	// Compile the workflow - should fail because both app and github-token are set
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Expected error when both app and github-token are set")
-	assert.Contains(t, err.Error(), "'tools.github.app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
+	assert.Contains(t, err.Error(), "'tools.github.github-app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
 }
 
 // TestGitHubMCPAppTokenWithRemoteMode tests that app token works with remote mode
