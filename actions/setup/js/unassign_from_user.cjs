@@ -28,7 +28,7 @@ async function main(config = {}) {
 
   // Resolve target repository configuration
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -129,7 +129,7 @@ async function main(config = {}) {
 
     try {
       // Remove assignees from the issue
-      await authClient.rest.issues.removeAssignees({
+      await githubClient.rest.issues.removeAssignees({
         owner: repoParts.owner,
         repo: repoParts.repo,
         issue_number: issueNumber,

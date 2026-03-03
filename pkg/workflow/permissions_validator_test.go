@@ -25,7 +25,7 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			toolsets: []string{"repos"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
+				PermissionContents: PermissionRead,
 			},
 		},
 		{
@@ -41,7 +41,7 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			toolsets: []string{"issues"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionIssues: PermissionWrite,
+				PermissionIssues: PermissionRead,
 			},
 		},
 		{
@@ -49,9 +49,9 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			toolsets: []string{"repos", "issues", "pull_requests"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionWrite,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionRead,
+				PermissionPullRequests: PermissionRead,
 			},
 		},
 		{
@@ -59,13 +59,13 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			toolsets: DefaultGitHubToolsets,
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionWrite,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionRead,
+				PermissionPullRequests: PermissionRead,
 			},
 		},
 		{
-			name:     "Actions toolset (read-only)",
+			name:     "Actions toolset",
 			toolsets: []string{"actions"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
@@ -77,7 +77,7 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			toolsets: []string{"code_security"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionSecurityEvents: PermissionWrite,
+				PermissionSecurityEvents: PermissionRead,
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			toolsets: []string{"discussions"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionDiscussions: PermissionWrite,
+				PermissionDiscussions: PermissionRead,
 			},
 		},
 		{
@@ -150,9 +150,9 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 		{
 			name: "Default toolsets with all required permissions",
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionWrite,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionRead,
+				PermissionPullRequests: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
 				Toolset:  GitHubToolsets{"default"},
@@ -162,17 +162,15 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			expectHasIssues:    false,
 		},
 		{
-			name: "Default toolsets with only read permissions (missing write)",
+			name: "Default toolsets with no permissions (missing read)",
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
-				PermissionIssues:       PermissionRead,
-				PermissionPullRequests: PermissionRead,
+				PermissionContents: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
 				Toolset:  GitHubToolsets{"default"},
-				ReadOnly: false, // Need write permissions
+				ReadOnly: false, // Only read permissions required
 			},
-			expectMissingCount: 3, // All need write
+			expectMissingCount: 2, // Missing issues: read, pull-requests: read
 			expectHasIssues:    true,
 		},
 		{
@@ -192,13 +190,13 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 		{
 			name: "Specific toolsets with partial permissions",
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
+				PermissionContents: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
 				Toolset:  GitHubToolsets{"repos", "issues"},
 				ReadOnly: false,
 			},
-			expectMissingCount: 1, // Missing issues: write
+			expectMissingCount: 1, // Missing issues: read
 			expectHasIssues:    true,
 		},
 		{
@@ -344,30 +342,22 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 		expectMsg        []string
 	}{
 		{
-			name:        "Shorthand read-all with default toolsets",
+			name:        "Shorthand read-all with default toolsets (sufficient in read-only mode)",
 			permissions: NewPermissionsReadAll(),
 			githubToolConfig: &GitHubToolConfig{
 				Toolset:  GitHubToolsets{"default"},
 				ReadOnly: false,
 			},
-			expectMsg: []string{
-				"Missing required permissions for GitHub toolsets:",
-				"contents: write",
-				"issues: write",
-				"pull-requests: write",
-			},
+			expectMsg: []string{}, // read-all satisfies the read-only permission requirements
 		},
 		{
-			name:        "All: read with discussions toolset",
+			name:        "All: read with discussions toolset (sufficient in read-only mode)",
 			permissions: NewPermissionsAllRead(),
 			githubToolConfig: &GitHubToolConfig{
 				Toolset:  GitHubToolsets{"discussions"},
 				ReadOnly: false,
 			},
-			expectMsg: []string{
-				"Missing required permissions for GitHub toolsets:",
-				"discussions: write",
-			},
+			expectMsg: []string{}, // all:read satisfies discussions read requirement
 		},
 	}
 

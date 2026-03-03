@@ -97,7 +97,7 @@ async function main(config = {}) {
   // the raw config keys to distinguish user-configured from default.
   const hasExplicitTargetConfig = !!(config["target-repo"] || config.allowed_repos?.length > 0);
 
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Determine the triggering PR number from context
   const triggeringPRNumber = getPRNumber(context.payload);
@@ -146,7 +146,7 @@ async function main(config = {}) {
       }
 
       // Look up the thread's PR number and repository
-      const threadInfo = await getThreadPullRequestInfo(authClient, threadId);
+      const threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
       if (threadInfo === null) {
         core.warning(`Review thread not found or not a PullRequestReviewThread: ${threadId}`);
         return {
@@ -247,7 +247,7 @@ async function main(config = {}) {
         };
       }
 
-      const resolveResult = await resolveReviewThreadAPI(authClient, threadId);
+      const resolveResult = await resolveReviewThreadAPI(githubClient, threadId);
 
       if (resolveResult.isResolved) {
         core.info(`Successfully resolved review thread: ${threadId}`);

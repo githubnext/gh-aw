@@ -99,59 +99,6 @@ func TestParseAgentTaskConfig(t *testing.T) {
 	}
 }
 
-func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
-	compiler := NewCompiler()
-	workflowData := &WorkflowData{
-		Name: "Test Workflow",
-		SafeOutputs: &SafeOutputsConfig{
-			CreateAgentSessions: &CreateAgentSessionConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: strPtr("1"),
-				},
-				Base:           "main",
-				TargetRepoSlug: "owner/repo",
-			},
-		},
-	}
-
-	job, err := compiler.buildCreateOutputAgentSessionJob(workflowData, "main_job")
-	if err != nil {
-		t.Fatalf("buildCreateOutputAgentSessionJob() error = %v", err)
-	}
-
-	if job == nil {
-		t.Fatal("buildCreateOutputAgentSessionJob() returned nil job")
-	}
-
-	if job.Name != "create_agent_session" {
-		t.Errorf("buildCreateOutputAgentSessionJob().Name = %v, want 'create_agent_session'", job.Name)
-	}
-
-	if job.TimeoutMinutes != 10 {
-		t.Errorf("buildCreateOutputAgentSessionJob().TimeoutMinutes = %v, want 10", job.TimeoutMinutes)
-	}
-
-	if len(job.Outputs) != 2 {
-		t.Errorf("buildCreateOutputAgentSessionJob().Outputs length = %v, want 2", len(job.Outputs))
-	}
-
-	if _, ok := job.Outputs["session_number"]; !ok {
-		t.Error("buildCreateOutputAgentSessionJob().Outputs missing 'session_number'")
-	}
-
-	if _, ok := job.Outputs["session_url"]; !ok {
-		t.Error("buildCreateOutputAgentSessionJob().Outputs missing 'session_url'")
-	}
-
-	if len(job.Steps) == 0 {
-		t.Error("buildCreateOutputAgentSessionJob().Steps is empty")
-	}
-
-	if len(job.Needs) != 1 || job.Needs[0] != "main_job" {
-		t.Errorf("buildCreateOutputAgentSessionJob().Needs = %v, want ['main_job']", job.Needs)
-	}
-}
-
 func TestExtractSafeOutputsConfigWithAgentTask(t *testing.T) {
 	compiler := NewCompiler()
 	frontmatter := map[string]any{

@@ -20,7 +20,7 @@ safe-outputs:
   submit-pull-request-review:
     max: 1
   messages:
-    footer: "> 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*"
+    footer: "> 😤 *Reluctantly reviewed by [{workflow_name}]({run_url})*{history_link}"
     run-started: "😤 *sigh* [{workflow_name}]({run_url}) is begrudgingly looking at this {event_type}... This better be worth my time."
     run-success: "😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄"
     run-failure: "😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse..."

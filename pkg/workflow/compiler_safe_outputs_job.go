@@ -44,9 +44,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
-		// Enable safe-output-projects flag if project-related safe outputs are configured
-		enableProjectSupport := c.hasProjectRelatedSafeOutputs(data.SafeOutputs)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableProjectSupport)...)
+		// Enable custom-tokens flag if any safe output uses a per-handler github-token
+		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens)...)
 	}
 
 	// Add artifact download steps after setup
@@ -55,7 +55,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
 	// Both of these safe outputs require the patch file to apply changes
 	// Download from unified agent-artifacts artifact
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 			ArtifactName: "agent-artifacts",
@@ -64,12 +64,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			StepName:     "Download patch artifact",
 		})
 		steps = append(steps, patchDownloadSteps...)
-	}
 
-	// Add shared checkout and git config steps for PR operations
-	// Both create-pull-request and push-to-pull-request-branch need these steps,
-	// so we add them once with a combined condition to avoid duplication
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		// Add checkout and git config steps for PR operations
 		consolidatedSafeOutputsJobLog.Print("Adding shared checkout step for PR operations")
 		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
 		steps = append(steps, checkoutSteps...)
@@ -134,6 +130,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.ClosePullRequests != nil ||
 		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		data.SafeOutputs.HideComment != nil ||
+		data.SafeOutputs.SetIssueType != nil ||
 		data.SafeOutputs.DispatchWorkflow != nil ||
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
@@ -246,8 +243,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add GitHub App token minting step at the beginning if app is configured
-	if data.SafeOutputs.App != nil {
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
+	if data.SafeOutputs.GitHubApp != nil {
+		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
 		insertIndex := 0
 
@@ -265,7 +262,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Add patch download steps if present
 		// Download from unified agent-artifacts artifact
-		if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		if usesPatchesAndCheckouts(data.SafeOutputs) {
 			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 				ArtifactName: "agent-artifacts",
 				DownloadPath: "/tmp/gh-aw/",
@@ -287,7 +284,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add GitHub App token invalidation step at the end if app is configured
-	if data.SafeOutputs.App != nil {
+	if data.SafeOutputs.GitHubApp != nil {
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
@@ -318,7 +315,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Build dependencies — detection is now inline in the agent job, no separate dependency needed
 	needs := []string{mainJobName}
 	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil || data.LockForAgent {
+	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent {
 		needs = append(needs, string(constants.ActivationJobName))
 	}
 	// Add unlock job dependency if lock-for-agent is enabled
@@ -367,6 +364,14 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
 	// This is used for branch naming in create_pull_request and other operations
 	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)
+
+	// Set GH_AW_CALLER_WORKFLOW_ID to uniquely identify the calling workflow at runtime.
+	// When a reusable workflow is called via workflow_call, multiple callers share the
+	// same GH_AW_WORKFLOW_ID (derived from the reusable file). This separate value
+	// combines the runtime repository (to identify the caller repo) with the compile-time
+	// workflow ID (filename without extension), producing a stable "owner/repo/workflow-id"
+	// form used for close-older-issues disambiguation.
+	envVars["GH_AW_CALLER_WORKFLOW_ID"] = fmt.Sprintf(`"${{ github.repository }}/%s"`, workflowID)
 
 	// Add workflow metadata that's common to all steps
 	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)

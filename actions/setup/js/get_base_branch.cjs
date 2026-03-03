@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
+
 /**
  * Get the base branch name, resolving dynamically based on event context.
  *
@@ -40,6 +42,21 @@ async function getBaseBranch(targetRepo = null) {
       if (typeof github !== "undefined") {
         const repoOwner = targetRepo?.owner ?? context.repo.owner;
         const repoName = targetRepo?.repo ?? context.repo.repo;
+
+        // Validate target repo against allowlist before any API calls
+        const targetRepoSlug = `${repoOwner}/${repoName}`;
+        const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
+        if (allowedRepos.size > 0) {
+          const defaultRepo = getDefaultTargetRepo();
+          const validation = validateTargetRepo(targetRepoSlug, defaultRepo, allowedRepos);
+          if (!validation.valid) {
+            if (typeof core !== "undefined") {
+              core.warning(`ERR_VALIDATION: ${validation.error}`);
+            }
+            return process.env.DEFAULT_BRANCH || "main";
+          }
+        }
+
         const { data: pr } = await github.rest.pulls.get({
           owner: repoOwner,
           repo: repoName,

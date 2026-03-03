@@ -85,81 +85,61 @@ func selectSerenaContainer(serenaTool any) string {
 }
 
 // renderSerenaMCPConfigWithOptions generates the Serena MCP server configuration with engine-specific options
-// Supports two modes:
-// - "docker" (default): Uses Docker container with stdio transport (ghcr.io/github/serena-mcp-server:latest)
-// - "local": Uses local uvx with HTTP transport on fixed port
+// Uses Docker container with stdio transport (ghcr.io/github/serena-mcp-server:latest)
 func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
-	// Determine the mode - check if serenaTool is a map with mode field
-	mode := "docker" // default
-	if toolMap, ok := serenaTool.(map[string]any); ok {
-		if modeStr, ok := toolMap["mode"].(string); ok {
-			mode = modeStr
-		}
-	}
-
 	yaml.WriteString("              \"serena\": {\n")
 
-	if mode == "local" {
-		// Local mode: use HTTP transport
-		// The MCP server is started in a separate step using uvx
-		if includeCopilotFields {
-			yaml.WriteString("                \"type\": \"http\",\n")
-		}
-
-		yaml.WriteString("                \"url\": \"http://localhost:$GH_AW_SERENA_PORT\"\n")
-	} else {
-		// Docker mode: use stdio transport (default behavior)
-		// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
-		if includeCopilotFields {
-			yaml.WriteString("                \"type\": \"stdio\",\n")
-		}
-
-		// Select the appropriate Serena container based on requested languages
-		containerImage := selectSerenaContainer(serenaTool)
-		yaml.WriteString("                \"container\": \"" + containerImage + ":latest\",\n")
-
-		// Docker runtime args (--network host for network access)
-		if inlineArgs {
-			yaml.WriteString("                \"args\": [\"--network\", \"host\"],\n")
-		} else {
-			yaml.WriteString("                \"args\": [\n")
-			yaml.WriteString("                  \"--network\",\n")
-			yaml.WriteString("                  \"host\"\n")
-			yaml.WriteString("                ],\n")
-		}
-
-		// Serena entrypoint
-		yaml.WriteString("                \"entrypoint\": \"serena\",\n")
-
-		// Entrypoint args for Serena MCP server
-		// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
-		if inlineArgs {
-			yaml.WriteString("                \"entrypointArgs\": [\"start-mcp-server\", \"--context\", \"codex\", \"--project\", \"\\${GITHUB_WORKSPACE}\"")
-			// Append custom args if present
-			writeArgsToYAMLInline(yaml, customArgs)
-			yaml.WriteString("],\n")
-		} else {
-			yaml.WriteString("                \"entrypointArgs\": [\n")
-			yaml.WriteString("                  \"start-mcp-server\",\n")
-			yaml.WriteString("                  \"--context\",\n")
-			yaml.WriteString("                  \"codex\",\n")
-			yaml.WriteString("                  \"--project\",\n")
-			yaml.WriteString("                  \"\\${GITHUB_WORKSPACE}\"")
-			// Append custom args if present
-			writeArgsToYAML(yaml, customArgs, "                  ")
-			yaml.WriteString("\n")
-			yaml.WriteString("                ],\n")
-		}
-
-		// Add volume mount for workspace access
-		// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
-		yaml.WriteString("                \"mounts\": [\"\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw\"]\n")
-
-		// Note: tools field is NOT included here - the converter script adds it back
-		// for Copilot. This keeps the gateway config compatible with the schema.
+	// Docker mode: use stdio transport (default behavior)
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
+
+	// Select the appropriate Serena container based on requested languages
+	containerImage := selectSerenaContainer(serenaTool)
+	yaml.WriteString("                \"container\": \"" + containerImage + ":latest\",\n")
+
+	// Docker runtime args (--network host for network access)
+	if inlineArgs {
+		yaml.WriteString("                \"args\": [\"--network\", \"host\"],\n")
+	} else {
+		yaml.WriteString("                \"args\": [\n")
+		yaml.WriteString("                  \"--network\",\n")
+		yaml.WriteString("                  \"host\"\n")
+		yaml.WriteString("                ],\n")
+	}
+
+	// Serena entrypoint
+	yaml.WriteString("                \"entrypoint\": \"serena\",\n")
+
+	// Entrypoint args for Serena MCP server
+	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+	if inlineArgs {
+		yaml.WriteString("                \"entrypointArgs\": [\"start-mcp-server\", \"--context\", \"codex\", \"--project\", \"\\${GITHUB_WORKSPACE}\"")
+		// Append custom args if present
+		writeArgsToYAMLInline(yaml, customArgs)
+		yaml.WriteString("],\n")
+	} else {
+		yaml.WriteString("                \"entrypointArgs\": [\n")
+		yaml.WriteString("                  \"start-mcp-server\",\n")
+		yaml.WriteString("                  \"--context\",\n")
+		yaml.WriteString("                  \"codex\",\n")
+		yaml.WriteString("                  \"--project\",\n")
+		yaml.WriteString("                  \"\\${GITHUB_WORKSPACE}\"")
+		// Append custom args if present
+		writeArgsToYAML(yaml, customArgs, "                  ")
+		yaml.WriteString("\n")
+		yaml.WriteString("                ],\n")
+	}
+
+	// Add volume mount for workspace access
+	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+	yaml.WriteString("                \"mounts\": [\"\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw\"]\n")
+
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
 
 	if isLast {
 		yaml.WriteString("              }\n")

@@ -260,12 +260,12 @@ const PublicGitHubHost URL = "https://github.com"
 const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.62"
+const DefaultClaudeCodeVersion Version = "2.1.63"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.419"
+const DefaultCopilotVersion Version = "0.0.420"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 // Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
@@ -329,10 +329,10 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.106.0"
+const DefaultCodexVersion Version = "0.107.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.29.0"
+const DefaultGeminiVersion Version = "0.31.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.31.0"
@@ -352,7 +352,7 @@ const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
 const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.1.6"
+const DefaultMCPGatewayVersion Version = "v0.1.7"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -549,6 +549,7 @@ var AllowedExpressions = []string{
 	"github.event.pull_request.head.sha",
 	"github.event.pull_request.base.sha",
 	"github.actor",
+	"github.event_name",
 	"github.job",
 	"github.owner",
 	"github.repository",
@@ -623,8 +624,6 @@ const (
 	SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
-	// DangerousPermissionsWriteFeatureFlag is the feature flag name for allowing write permissions
-	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt
 	DisableXPIAPromptFeatureFlag FeatureFlag = "disable-xpia-prompt"
 	// CopilotRequestsFeatureFlag is the feature flag name for enabling copilot-requests mode.

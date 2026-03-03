@@ -265,17 +265,6 @@ After generating charts:
 
 For each metric: current value, 7-day % change, 30-day % change, trend indicator (⬆️/➡️/⬇️)
 
-## Report Formatting Guidelines
-
-**IMPORTANT**: Use h3 (###) or lower for all headers in the discussion report to maintain proper document hierarchy. The discussion title serves as h1.
-
-**Structure**:
-- Main sections: h3 (###) - e.g., "### 📊 Visualizations"
-- Subsections: h4 (####) - e.g., "#### LOC Distribution by Language"
-- Detail sections inside `<details>`: h3/h4 as appropriate
-
-**Progressive Disclosure**: Keep executive summary and key visualizations visible. Use `<details>` tags for detailed metrics tables (as already shown in template).
-
 ## Report Format
 
 Use detailed template with embedded visualization charts:

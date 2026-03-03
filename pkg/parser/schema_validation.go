@@ -44,7 +44,7 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 	return nil
 }
 
-// ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
+// ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info.
 //
 // This function validates all frontmatter fields including pass-through fields that are
 // extracted and passed directly to GitHub Actions (concurrency, container, environment, env,
@@ -54,8 +54,6 @@ func validateSharedWorkflowFields(frontmatter map[string]any) error {
 //   - Invalid additional properties (e.g., unknown fields)
 //
 // See pkg/parser/schema_passthrough_validation_test.go for comprehensive test coverage.
-
-// ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
 func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
 	schemaValidationLog.Printf("Validating main workflow frontmatter: file=%s, fields=%d", filePath, len(frontmatter))
 	// Filter out ignored fields before validation
@@ -74,8 +72,6 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 	// Finally run other custom validation rules
 	return validateEngineSpecificRules(filtered)
 }
-
-// ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
 
 // ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
 func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {

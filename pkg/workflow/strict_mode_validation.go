@@ -163,21 +163,6 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Check if serena is configured with local mode
-	serenaValue, hasSerena := toolsMap["serena"]
-	if hasSerena {
-		// Check if serena is a map (detailed configuration)
-		if serenaConfig, ok := serenaValue.(map[string]any); ok {
-			// Check if mode is set to "local"
-			if mode, hasMode := serenaConfig["mode"]; hasMode {
-				if modeStr, ok := mode.(string); ok && modeStr == "local" {
-					strictModeValidationLog.Printf("Serena local mode validation failed")
-					return errors.New("strict mode: serena tool with 'mode: local' is not allowed for security reasons. Local mode runs the MCP server directly on the host without containerization, bypassing security isolation. Use 'mode: docker' (default) instead, which runs Serena in a container. See: https://github.github.com/gh-aw/reference/tools/#serena")
-				}
-			}
-		}
-	}
-
 	// Check if cache-memory is configured with scope: repo
 	cacheMemoryValue, hasCacheMemory := toolsMap["cache-memory"]
 	if hasCacheMemory {

@@ -51,6 +51,10 @@ describe("push_to_pull_request_branch.cjs", () => {
   beforeEach(async () => {
     originalEnv = { ...process.env };
 
+    // Set GITHUB_REPOSITORY to match the default test owner/repo so the
+    // cross-repo guard in extra_empty_commit doesn't interfere.
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+
     // Create temp directory for test artifacts
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-to-pr-test-"));
 

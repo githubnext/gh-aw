@@ -25,7 +25,7 @@ strict: false  # disable strict mode for testing
 tools:
   github:
     mode: local
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       repositories:
@@ -48,12 +48,12 @@ Test workflow with GitHub MCP Server app configuration.
 	require.NoError(t, err, "Failed to parse markdown content")
 	require.NotNil(t, workflowData.ParsedTools, "ParsedTools should not be nil")
 	require.NotNil(t, workflowData.ParsedTools.GitHub, "GitHub tool should be parsed")
-	require.NotNil(t, workflowData.ParsedTools.GitHub.App, "App configuration should be parsed")
+	require.NotNil(t, workflowData.ParsedTools.GitHub.GitHubApp, "App configuration should be parsed")
 
 	// Verify app configuration
-	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.ParsedTools.GitHub.App.AppID)
-	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.ParsedTools.GitHub.App.PrivateKey)
-	assert.Equal(t, []string{"repo1", "repo2"}, workflowData.ParsedTools.GitHub.App.Repositories)
+	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.ParsedTools.GitHub.GitHubApp.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.ParsedTools.GitHub.GitHubApp.PrivateKey)
+	assert.Equal(t, []string{"repo1", "repo2"}, workflowData.ParsedTools.GitHub.GitHubApp.Repositories)
 }
 
 // TestGitHubMCPAppTokenMintingStep tests that token minting step is generated
@@ -69,7 +69,7 @@ strict: false  # disable strict mode for testing
 tools:
   github:
     mode: local
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
@@ -127,7 +127,7 @@ tools:
   github:
     mode: local
     github-token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
@@ -146,7 +146,7 @@ Test that setting both app and github-token is an error.
 	// Compile the workflow - should fail because both app and github-token are set
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Expected error when both app and github-token are set")
-	assert.Contains(t, err.Error(), "'tools.github.app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
+	assert.Contains(t, err.Error(), "'tools.github.github-app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
 }
 
 // TestGitHubMCPAppTokenWithRemoteMode tests that app token works with remote mode
@@ -160,7 +160,7 @@ permissions:
 tools:
   github:
     mode: remote
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
 engine: claude
@@ -215,7 +215,7 @@ strict: false
 tools:
   github:
     mode: local
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       repositories:
@@ -270,7 +270,7 @@ strict: false
 tools:
   github:
     mode: local
-    app:
+    github-app:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       repositories:

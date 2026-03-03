@@ -230,8 +230,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 
 		// Parse app configuration for GitHub App token minting
-		if app, ok := configMap["app"].(map[string]any); ok {
-			config.App = parseAppConfig(app)
+		if rawApp, exists := configMap["github-app"]; exists {
+			if appMap, ok := rawApp.(map[string]any); ok {
+				config.GitHubApp = parseAppConfig(appMap)
+			}
 		}
 
 		// Parse guard policy fields (flat syntax: repos and min-integrity directly under github:)
@@ -352,11 +354,6 @@ func parseSerenaTool(val any) *SerenaToolConfig {
 
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
-		}
-
-		// Parse mode field
-		if mode, ok := configMap["mode"].(string); ok {
-			config.Mode = mode
 		}
 
 		if args, ok := configMap["args"].([]any); ok {

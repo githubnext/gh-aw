@@ -31,8 +31,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -53,8 +51,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -77,8 +73,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -99,8 +93,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -121,8 +113,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -143,8 +133,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -160,12 +148,10 @@ on:
   issue_comment:
     types: [created]
 permissions:
-  issues: write
+  issues: read
   contents: read
   pull-requests: read
 engine: codex
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -264,8 +250,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -337,8 +321,6 @@ permissions:
   pull-requests: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow

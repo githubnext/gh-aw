@@ -257,6 +257,66 @@ func TestGenerateMaintenanceWorkflow_DeletesExistingFile(t *testing.T) {
 	}
 }
 
+func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
+	workflowDataList := []*WorkflowData{
+		{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					Expires: 48,
+				},
+			},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	if err != nil {
+		t.Fatalf("Expected maintenance workflow to be generated: %v", err)
+	}
+	yaml := string(content)
+
+	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
+	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != ''`
+
+	const jobSectionSearchRange = 300
+	const runOpSectionSearchRange = 200
+
+	// Jobs that should be disabled when operation is set
+	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "zizmor-scan:", "secret-validation:"}
+	for _, job := range disabledJobs {
+		// Find the if: condition for each job
+		jobIdx := strings.Index(yaml, "\n  "+job)
+		if jobIdx == -1 {
+			t.Errorf("Job %q not found in generated workflow", job)
+			continue
+		}
+		// Check that the operation skip condition appears after the job name (within a reasonable range)
+		jobSection := yaml[jobIdx : jobIdx+jobSectionSearchRange]
+		if !strings.Contains(jobSection, operationSkipCondition) {
+			t.Errorf("Job %q is missing the operation skip condition %q in:\n%s", job, operationSkipCondition, jobSection)
+		}
+	}
+
+	// run_operation job should NOT have the skip condition but should have its own activation condition
+	runOpIdx := strings.Index(yaml, "\n  run_operation:")
+	if runOpIdx == -1 {
+		t.Errorf("Job run_operation not found in generated workflow")
+	} else {
+		runOpSection := yaml[runOpIdx : runOpIdx+runOpSectionSearchRange]
+		if strings.Contains(runOpSection, operationSkipCondition) {
+			t.Errorf("Job run_operation should NOT have the operation skip condition")
+		}
+		if !strings.Contains(runOpSection, operationRunCondition) {
+			t.Errorf("Job run_operation should have the activation condition %q", operationRunCondition)
+		}
+	}
+}
+
 func TestGenerateMaintenanceWorkflow_ActionTag(t *testing.T) {
 	workflowDataList := []*WorkflowData{
 		{

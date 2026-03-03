@@ -237,17 +237,6 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
    ```
    ```
 
-### Report Formatting Guidelines
-
-**Header Hierarchy**: Use h3 (###) or lower for all headers in the static analysis report. The discussion title serves as h1.
-
-**Structure**:
-- Main report sections: h3 (###) - e.g., "### Analysis Summary"
-- Subsections and details: h4 (####) - e.g., "#### Zizmor Security Findings"
-- Nested details: h5 (#####) if needed
-
-**Progressive Disclosure**: Use `<details>` tags to collapse verbose content like individual workflow findings (as shown in template).
-
 ### Phase 5: Create Discussion Report
 
 **ALWAYS create a comprehensive discussion report** with your static analysis findings, regardless of whether issues were found or not.

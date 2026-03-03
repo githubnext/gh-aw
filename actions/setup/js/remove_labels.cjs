@@ -25,7 +25,7 @@ async function main(config = {}) {
   const blockedPatterns = config.blocked || [];
   const maxCount = config.max || 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -163,7 +163,7 @@ async function main(config = {}) {
     // Remove labels one at a time (GitHub API doesn't have a bulk remove endpoint)
     for (const label of uniqueLabels) {
       try {
-        await authClient.rest.issues.removeLabel({
+        await githubClient.rest.issues.removeLabel({
           owner: repoParts.owner,
           repo: repoParts.repo,
           issue_number: itemNumber,

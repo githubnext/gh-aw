@@ -12,115 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
-
-func TestParseRunURL(t *testing.T) {
-	tests := []struct {
-		name             string
-		input            string
-		expectedRunID    int64
-		expectedOwner    string
-		expectedRepo     string
-		expectedHostname string
-		shouldErr        bool
-	}{
-		{
-			name:             "Numeric run ID",
-			input:            "1234567890",
-			expectedRunID:    1234567890,
-			expectedOwner:    "",
-			expectedRepo:     "",
-			expectedHostname: "",
-			shouldErr:        false,
-		},
-		{
-			name:             "Run URL with /actions/runs/",
-			input:            "https://github.com/owner/repo/actions/runs/12345678",
-			expectedRunID:    12345678,
-			expectedOwner:    "owner",
-			expectedRepo:     "repo",
-			expectedHostname: "github.com",
-			shouldErr:        false,
-		},
-		{
-			name:             "Job URL",
-			input:            "https://github.com/owner/repo/actions/runs/12345678/job/98765432",
-			expectedRunID:    12345678,
-			expectedOwner:    "owner",
-			expectedRepo:     "repo",
-			expectedHostname: "github.com",
-			shouldErr:        false,
-		},
-		{
-			name:             "Workflow run URL without /actions/",
-			input:            "https://github.com/owner/repo/runs/12345678",
-			expectedRunID:    12345678,
-			expectedOwner:    "owner",
-			expectedRepo:     "repo",
-			expectedHostname: "github.com",
-			shouldErr:        false,
-		},
-		{
-			name:             "GitHub Enterprise URL",
-			input:            "https://github.example.com/owner/repo/actions/runs/12345678",
-			expectedRunID:    12345678,
-			expectedOwner:    "owner",
-			expectedRepo:     "repo",
-			expectedHostname: "github.example.com",
-			shouldErr:        false,
-		},
-		{
-			name:             "GitHub Enterprise URL without /actions/",
-			input:            "https://ghe.company.com/myorg/myrepo/runs/99999",
-			expectedRunID:    99999,
-			expectedOwner:    "myorg",
-			expectedRepo:     "myrepo",
-			expectedHostname: "ghe.company.com",
-			shouldErr:        false,
-		},
-		{
-			name:      "Invalid URL format",
-			input:     "https://github.com/owner/repo/actions",
-			shouldErr: true,
-		},
-		{
-			name:      "Invalid string",
-			input:     "not-a-number",
-			shouldErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			runID, owner, repo, hostname, err := parser.ParseRunURL(tt.input)
-
-			if tt.shouldErr {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
-				if runID != tt.expectedRunID {
-					t.Errorf("Expected run ID %d, got %d", tt.expectedRunID, runID)
-				}
-				if owner != tt.expectedOwner {
-					t.Errorf("Expected owner '%s', got '%s'", tt.expectedOwner, owner)
-				}
-				if repo != tt.expectedRepo {
-					t.Errorf("Expected repo '%s', got '%s'", tt.expectedRepo, repo)
-				}
-				if hostname != tt.expectedHostname {
-					t.Errorf("Expected hostname '%s', got '%s'", tt.expectedHostname, hostname)
-				}
-			}
-		})
-	}
-}
 
 func TestIsPermissionError(t *testing.T) {
 	tests := []struct {
@@ -247,13 +141,12 @@ func TestBuildAuditData(t *testing.T) {
 	if auditData.Overview.Status != "completed" {
 		t.Errorf("Expected status 'completed', got %s", auditData.Overview.Status)
 	}
-	// LogsPath should be converted to relative path
+	// LogsPath should be set and preserved as-is (absolute path, resolved in AuditWorkflowRun via filepath.Abs)
 	if auditData.Overview.LogsPath == "" {
 		t.Error("Expected logs path to be set")
 	}
-	// Verify that LogsPath is relative (doesn't start with /)
-	if filepath.IsAbs(auditData.Overview.LogsPath) && auditData.Overview.LogsPath != run.LogsPath {
-		t.Errorf("Expected logs path to be relative or match original, got '%s'", auditData.Overview.LogsPath)
+	if auditData.Overview.LogsPath != run.LogsPath {
+		t.Errorf("Expected logs path %q, got %q", run.LogsPath, auditData.Overview.LogsPath)
 	}
 
 	// Verify metrics
@@ -528,11 +421,6 @@ func TestAuditCachingBehavior(t *testing.T) {
 	if err != nil {
 		t.Errorf("downloadRunArtifacts should skip download when valid summary exists, but got error: %v", err)
 	}
-}
-
-// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
-func TestAuditParseFlagBehavior(t *testing.T) {
-	t.Skip("Test skipped - log parser scripts now use require() pattern and are loaded at runtime from external files")
 }
 
 func TestBuildAuditDataWithFirewall(t *testing.T) {

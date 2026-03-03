@@ -1,6 +1,7 @@
 // @ts-check
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 
 const fs = require("fs");
 
@@ -95,7 +96,28 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
   tools.forEach(tool => {
     // Check if this is a regular tool matching a config key
     if (Object.keys(config).find(configKey => normalizeTool(configKey) === tool.name)) {
-      registerTool(server, tool);
+      let toolToRegister = tool;
+      // Enrich create_pull_request tool description when target-repo is configured
+      if (tool.name === "create_pull_request" && config.create_pull_request) {
+        const targetRepo = config.create_pull_request["target-repo"];
+        if (targetRepo) {
+          // Validate the configured target-repo against the allowed-repos list
+          const allowedRepos = parseAllowedRepos(config.create_pull_request.allowed_repos);
+          if (allowedRepos.size > 0) {
+            const defaultRepo = getDefaultTargetRepo(config.create_pull_request);
+            const validation = validateTargetRepo(targetRepo, defaultRepo, allowedRepos);
+            if (!validation.valid) {
+              server.debug(`WARNING: SEC-005: ${validation.error}`);
+            }
+          }
+          toolToRegister = JSON.parse(JSON.stringify(tool));
+          toolToRegister.description += ` Note: This workflow is configured to create pull requests in '${targetRepo}'. You do not need to specify the repo parameter.`;
+          if (toolToRegister.inputSchema && toolToRegister.inputSchema.properties && toolToRegister.inputSchema.properties.repo) {
+            toolToRegister.inputSchema.properties.repo.description += ` Configured default: '${targetRepo}'.`;
+          }
+        }
+      }
+      registerTool(server, toolToRegister);
       return;
     }
 

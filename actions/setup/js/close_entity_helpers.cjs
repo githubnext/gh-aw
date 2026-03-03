@@ -7,6 +7,7 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -36,16 +37,6 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
  */
 
 /**
- * Build the run URL for the current workflow
- * @returns {string} The workflow run URL
- */
-function buildRunUrl() {
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  return context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-}
-
-/**
  * Build comment body with tracker ID and footer
  * @param {string} body - The original comment body
  * @param {number|undefined} triggeringIssueNumber - Issue number that triggered this workflow
@@ -56,7 +47,7 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-  const runUrl = buildRunUrl();
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   // Sanitize the body content to prevent injection attacks
   const sanitizedBody = sanitizeContent(body);

@@ -18,7 +18,7 @@ var githubToolToToolsetJSON []byte
 
 // GitHubToolToToolsetMap maps individual GitHub MCP tools to their respective toolsets
 // This mapping is loaded from an embedded JSON file based on the documentation
-// in .github/instructions/github-mcp-server.instructions.md
+// in .github/aw/github-mcp-server.md
 var GitHubToolToToolsetMap map[string]string
 
 func init() {

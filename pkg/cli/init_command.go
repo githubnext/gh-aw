@@ -67,7 +67,6 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
   ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
-  ` + string(constants.CLIExtensionPrefix) + ` init --push                         # Initialize and automatically commit/push
   ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request          # Initialize and create a pull request`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -76,7 +75,6 @@ Examples:
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 			completions, _ := cmd.Flags().GetBool("completions")
-			push, _ := cmd.Flags().GetBool("push")
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
@@ -102,14 +100,13 @@ Examples:
 				}
 			}
 
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, push=%v, createPR=%v", verbose, mcp, codespaceRepos, codespaceEnabled, completions, push, createPR)
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, createPR=%v", verbose, mcp, codespaceRepos, codespaceEnabled, completions, createPR)
 			opts := InitOptions{
 				Verbose:          verbose,
 				MCP:              mcp,
 				CodespaceRepos:   codespaceRepos,
 				CodespaceEnabled: codespaceEnabled,
 				Completions:      completions,
-				Push:             push,
 				CreatePR:         createPR,
 				RootCmd:          cmd.Root(),
 			}
@@ -129,7 +126,6 @@ Examples:
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
-	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful initialization")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output

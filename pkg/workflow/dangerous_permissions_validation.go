@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var dangerousPermissionsLog = logger.New("workflow:dangerous_permissions_validation")
 
-// validateDangerousPermissions validates that write permissions are not used unless
-// the dangerous-permissions-write feature flag is enabled.
+// validateDangerousPermissions validates that write permissions are not used.
 //
 // This validation applies to:
 // - Top-level workflow permissions
@@ -20,16 +18,9 @@ var dangerousPermissionsLog = logger.New("workflow:dangerous_permissions_validat
 // - Custom jobs (jobs defined in the jobs: section)
 // - Safe outputs jobs (jobs defined in safe-outputs.job section)
 //
-// Returns an error if write permissions are found without the feature flag enabled.
+// Returns an error if write permissions are found.
 func validateDangerousPermissions(workflowData *WorkflowData) error {
 	dangerousPermissionsLog.Print("Starting dangerous permissions validation")
-
-	// Check if the feature flag is enabled
-	featureEnabled := isFeatureEnabled(constants.DangerousPermissionsWriteFeatureFlag, workflowData)
-	if featureEnabled {
-		dangerousPermissionsLog.Print("dangerous-permissions-write feature flag is enabled, allowing write permissions")
-		return nil
-	}
 
 	// Parse the top-level workflow permissions
 	if workflowData.Permissions == "" {
@@ -46,7 +37,7 @@ func validateDangerousPermissions(workflowData *WorkflowData) error {
 	// Check for write permissions
 	writePermissions := findWritePermissions(permissions)
 	if len(writePermissions) > 0 {
-		dangerousPermissionsLog.Printf("Found %d write permissions without feature flag", len(writePermissions))
+		dangerousPermissionsLog.Printf("Found %d write permissions", len(writePermissions))
 		return formatDangerousPermissionsError(writePermissions)
 	}
 

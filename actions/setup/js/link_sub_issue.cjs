@@ -19,7 +19,7 @@ async function main(config = {}) {
   const subRequiredLabels = config.sub_required_labels || [];
   const subTitlePrefix = config.sub_title_prefix || "";
   const maxCount = config.max || 5;
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -156,7 +156,7 @@ async function main(config = {}) {
     // Fetch parent issue to validate filters
     let parentIssue;
     try {
-      const parentResponse = await authClient.rest.issues.get({
+      const parentResponse = await githubClient.rest.issues.get({
         owner,
         repo,
         issue_number: parentIssueNumber,
@@ -201,7 +201,7 @@ async function main(config = {}) {
     // Fetch sub-issue to validate filters
     let subIssue;
     try {
-      const subResponse = await authClient.rest.issues.get({
+      const subResponse = await githubClient.rest.issues.get({
         owner,
         repo,
         issue_number: subIssueNumber,
@@ -232,7 +232,7 @@ async function main(config = {}) {
           }
         }
       `;
-      const parentCheckResult = await authClient.graphql(parentCheckQuery, {
+      const parentCheckResult = await githubClient.graphql(parentCheckQuery, {
         owner,
         repo,
         number: subIssueNumber,
@@ -299,7 +299,7 @@ async function main(config = {}) {
       }
 
       // Use GraphQL mutation to add sub-issue
-      await authClient.graphql(
+      await githubClient.graphql(
         `
         mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
           addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {

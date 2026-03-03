@@ -43,14 +43,12 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     toolsets: [issues, pull_requests]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: true,
@@ -64,14 +62,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     toolsets: [repos, issues, pull_requests]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: true,
@@ -85,7 +81,7 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 steps:
   - name: Custom checkout
@@ -98,8 +94,6 @@ tools:
   github:
     toolsets: [issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---`,
 			expectedHasCheckout: false,
@@ -217,13 +211,13 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 		},
 		{
 			name:        "contents write permission specified, no custom steps",
-			permissions: "permissions:\n  contents: write",
+			permissions: "permissions:\n  contents: read",
 			customSteps: "",
 			expected:    true,
 		},
 		{
 			name:        "no contents permission specified, no custom steps - checkout added for .github access",
-			permissions: "permissions:\n  issues: write",
+			permissions: "permissions:\n  issues: read",
 			customSteps: "",
 			expected:    true,
 		},

@@ -7,8 +7,8 @@ inputs:
     description: 'Destination directory for activation files (default: /opt/gh-aw/actions)'
     required: false
     default: '/opt/gh-aw/actions'
-  safe-output-projects:
-    description: 'Enable safe-output-projects support (installs @actions/github package for project handlers)'
+  safe-output-custom-tokens:
+    description: 'Install @actions/github for handlers that use a per-handler github-token (creates Octokit via getOctokit)'
     required: false
     default: 'false'
 
@@ -23,7 +23,7 @@ runs:
       shell: bash
       env:
         INPUT_DESTINATION: ${{ inputs.destination }}
-        INPUT_SAFE_OUTPUT_PROJECTS: ${{ inputs.safe-output-projects }}
+        INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: ${{ inputs.safe-output-custom-tokens }}
       run: ${{ github.action_path }}/setup.sh
 
 branding:

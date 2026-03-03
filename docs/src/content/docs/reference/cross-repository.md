@@ -25,8 +25,18 @@ If only a the current repository, you can use `checkout:` to override default ch
 
 ```yaml wrap
 checkout:
-  fetch-depth: 0                        # Full git history
-  token: ${{ secrets.MY_TOKEN }}        # Custom authentication
+  fetch-depth: 0                              # Full git history
+  github-token: ${{ secrets.MY_TOKEN }}        # Custom authentication
+```
+
+Or use GitHub App authentication:
+
+```yaml wrap
+checkout:
+  fetch-depth: 0
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
 You can also use `checkout:` to check out additional repositories alongside the main repository:
@@ -37,7 +47,7 @@ checkout:
   - repository: owner/other-repo
     path: ./libs/other
     ref: main
-    token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
 ### Checkout Configuration Options
@@ -47,12 +57,53 @@ checkout:
 | `repository` | string | Repository in `owner/repo` format. Defaults to the current repository. |
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
-| `token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
+| `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
+| `app` | object | GitHub App credentials (`app-id`, `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
+| `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
 | `submodules` | string/bool | Submodule handling: `"recursive"`, `"true"`, or `"false"`. |
 | `lfs` | boolean | Download Git LFS objects. |
 | `current` | boolean | Marks this checkout as the primary working repository. The agent uses this as the default target for all GitHub operations. Only one checkout may set `current: true`; the compiler rejects workflows where multiple checkouts enable it. |
+
+### Fetching Additional Refs
+
+By default, `actions/checkout` performs a shallow clone (`fetch-depth: 1`) of a single ref. For workflows that need to work with other branches — for example, a scheduled workflow that must push changes to open pull-request branches — use the `fetch:` option to retrieve additional refs after the checkout step.
+
+A dedicated git fetch step is emitted after the `actions/checkout` step. Authentication re-uses the checkout token (or falls back to `github.token`) via a transient `http.extraheader` credential — no credentials are persisted to disk, consistent with the enforced `persist-credentials: false` policy.
+
+| Value | Description |
+|-------|-------------|
+| `"*"` | All remote branches. |
+| `"refs/pulls/open/*"` | All open pull-request head refs (GH-AW shorthand). |
+| `"main"` | A specific branch name. |
+| `"feature/*"` | A glob pattern matching branch names. |
+
+```yaml wrap
+checkout:
+  - fetch: ["*"]                 # fetch all branches (default checkout)
+    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
+```
+
+```yaml wrap
+checkout:
+  - repository: githubnext/gh-aw-side-repo
+    github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    fetch: ["refs/pulls/open/*"]      # fetch all open PR refs after checkout
+    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
+```
+
+```yaml wrap
+checkout:
+  - repository: org/target-repo
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+    fetch: ["main", "feature/*"] # fetch specific branches
+    fetch-depth: 0               # fetch full history to ensure we can see all commits and PR details
+```
+
+:::note
+If a branch you need is not available after checkout and is not covered by a `fetch:` pattern, and you're in a private or internal repo, then the agent cannot access its Git history except inefficiently, file by file, via the GitHub MCP. For private repositories, it will be unable to fetch or explore additional branches. If the branch is required and unavailable, configure the appropriate pattern in `fetch:` (e.g., `fetch: ["*"]` for all branches, or `fetch: ["refs/pulls/open/*"]` for PR branches) and recompile the workflow.
+:::
 
 ### Checkout Merging
 
@@ -61,10 +112,11 @@ Multiple `checkout:` configurations can target the same path and repository. Thi
 When multiple `checkout:` entries target the same repository and path, their configurations are merged with the following rules:
 
 - **Fetch depth**: Deepest value wins (`0` = full history always takes precedence)
+- **Fetch refs**: Merged (union of all patterns; duplicates are removed)
 - **Sparse patterns**: Merged (union of all patterns)
 - **LFS**: OR-ed (if any config enables `lfs`, the merged configuration enables it)
 - **Submodules**: First non-empty value wins for each `(repository, path)`; once set, later values are ignored
-- **Ref/Token**: First-seen wins
+- **Ref/Token/App**: First-seen wins
 
 ### Marking a Primary Repository (`current: true`)
 
@@ -74,7 +126,7 @@ When a workflow running from a central repository targets a different repository
 checkout:
   - repository: org/target-repo
     path: ./target
-    token: ${{ secrets.CROSS_REPO_PAT }}
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
     current: true                                    # agent's primary target
 ```
 
@@ -150,7 +202,7 @@ checkout:
   - repository: org/shared-libs
     path: ./libs/shared
     ref: main
-    token: ${{ secrets.LIBS_PAT }}
+    github-token: ${{ secrets.LIBS_PAT }}
   - repository: org/config-repo
     path: ./config
     sparse-checkout: |
@@ -266,6 +318,39 @@ Compare code structure between main-repo and secondary-repo.
 ```
 
 This approach provides full control over checkout timing and configuration.
+
+### Example: Scheduled Push to Pull-Request Branch
+
+A scheduled workflow that automatically pushes changes to open pull-request branches in another repository needs to fetch those branches after checkout. Without `fetch:`, only the default branch (usually `main`) is available.
+
+```aw wrap
+---
+on:
+  schedule:
+    - cron: "0 * * * *"
+
+checkout:
+  - repository: org/target-repo
+    github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+    fetch: ["refs/pulls/open/*"]   # fetch all open PR branches after checkout
+    current: true
+
+permissions:
+  contents: read
+
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
+  push-to-pull-request-branch:
+    target-repo: "org/target-repo"
+---
+
+# Auto-Update PR Branches
+
+Check open pull requests in org/target-repo and apply any pending automated
+updates to each PR branch.
+```
+
+`fetch: ["refs/pulls/open/*"]` causes a `git fetch` step to run after `actions/checkout`, downloading all open PR head refs into the workspace. The agent can then inspect and modify those branches directly.
 
 ## Related Documentation
 

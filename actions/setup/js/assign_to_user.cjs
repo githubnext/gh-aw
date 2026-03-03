@@ -28,7 +28,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -133,7 +133,7 @@ async function main(config = {}) {
       // If unassign_first is enabled, get current assignees and remove them first
       if (unassignFirst) {
         core.info(`Fetching current assignees for issue #${issueNumber} to unassign them first`);
-        const issue = await authClient.rest.issues.get({
+        const issue = await githubClient.rest.issues.get({
           owner: repoParts.owner,
           repo: repoParts.repo,
           issue_number: issueNumber,
@@ -142,7 +142,7 @@ async function main(config = {}) {
         const currentAssignees = issue.data.assignees?.map(a => a.login) || [];
         if (currentAssignees.length > 0) {
           core.info(`Unassigning ${currentAssignees.length} current assignee(s): ${JSON.stringify(currentAssignees)}`);
-          await authClient.rest.issues.removeAssignees({
+          await githubClient.rest.issues.removeAssignees({
             owner: repoParts.owner,
             repo: repoParts.repo,
             issue_number: issueNumber,
@@ -155,7 +155,7 @@ async function main(config = {}) {
       }
 
       // Add assignees to the issue
-      await authClient.rest.issues.addAssignees({
+      await githubClient.rest.issues.addAssignees({
         owner: repoParts.owner,
         repo: repoParts.repo,
         issue_number: issueNumber,

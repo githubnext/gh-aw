@@ -37,7 +37,11 @@ func IsDailyCron(cron string) bool {
 		}
 	}
 
-	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+	if result {
+		log.Printf("Cron expression classified as daily: %q (minute=%s, hour=%s)", cron, minute, hour)
+	}
+	return result
 }
 
 // IsHourlyCron checks if a cron expression represents an hourly interval with a fixed minute
@@ -67,7 +71,11 @@ func IsHourlyCron(cron string) bool {
 	}
 
 	// Check remaining fields are wildcards
-	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+	if result {
+		log.Printf("Cron expression classified as hourly: %q (minute=%s, hour=%s)", cron, minute, hour)
+	}
+	return result
 }
 
 // IsWeeklyCron checks if a cron expression represents a weekly schedule at a fixed time
@@ -125,6 +133,7 @@ func IsCronExpression(input string) bool {
 	// A cron expression has exactly 5 fields
 	fields := strings.Fields(input)
 	if len(fields) != 5 {
+		log.Printf("Input is not a cron expression (expected 5 fields, got %d): %q", len(fields), input)
 		return false
 	}
 

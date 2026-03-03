@@ -16,7 +16,7 @@ safe-outputs:
   add-comment:
     max: 1
   messages:
-    footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*"
+    footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{history_link}"
     footer-workflow-recompile: "> 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*"
     run-started: "🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}..."
     run-success: "🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆"

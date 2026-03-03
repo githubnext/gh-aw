@@ -28,7 +28,8 @@ function resetIssuesToAssignCopilot() {
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
-const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowIdMarker, generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
@@ -43,6 +44,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -218,7 +220,7 @@ async function main(config = {}) {
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
@@ -340,7 +342,7 @@ async function main(config = {}) {
       } else {
         // Check if it looks like a malformed temporary ID
         if (parentWithoutHash.startsWith("aw_")) {
-          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`);
+          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 12 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`);
         } else {
           // It's a real issue number
           const parsed = parseInt(parentWithoutHash, 10);
@@ -431,9 +433,12 @@ async function main(config = {}) {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
     const workflowId = process.env.GH_AW_WORKFLOW_ID ?? "";
-    const { runId } = context;
-    const githubServer = process.env.GITHUB_SERVER_URL ?? "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    // GH_AW_CALLER_WORKFLOW_ID is set at compile time to `github.repository/<workflow-id>`.
+    // When multiple workflows call the same reusable workflow via workflow_call they all
+    // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
+    // with the caller's identity so close-older-issues can distinguish callers precisely.
+    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
+    const runUrl = buildWorkflowRunUrl(context, context.repo);
 
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");
@@ -444,7 +449,19 @@ async function main(config = {}) {
     // Generate footer and add expiration using helper
     // When footer is disabled, only add XML markers (no visible footer content)
     if (includeFooter) {
-      const footer = addExpirationToFooter(generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
+      const historyUrl = generateHistoryUrl({
+        owner: repoParts.owner,
+        repo: repoParts.repo,
+        itemType: "issue",
+        workflowCallId: callerWorkflowId,
+        workflowId,
+        serverUrl: context.serverUrl,
+      });
+      const footer = addExpirationToFooter(
+        generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd(),
+        expiresHours,
+        "Issue"
+      );
       bodyLines.push(``, ``, footer);
     }
 
@@ -452,6 +469,11 @@ async function main(config = {}) {
     // Always add XML markers even when footer is disabled
     if (workflowId) {
       bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    }
+    // Add workflow-call-id marker when available to allow close-older-issues to
+    // distinguish callers that share the same reusable workflow (and GH_AW_WORKFLOW_ID)
+    if (callerWorkflowId) {
+      bodyLines.push(generateWorkflowCallIdMarker(callerWorkflowId));
     }
 
     bodyLines.push("");
@@ -483,7 +505,7 @@ async function main(config = {}) {
     }
 
     try {
-      const { data: issue } = await authClient.rest.issues.create({
+      const { data: issue } = await githubClient.rest.issues.create({
         owner: repoParts.owner,
         repo: repoParts.repo,
         title,
@@ -512,7 +534,7 @@ async function main(config = {}) {
         if (workflowId) {
           core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
           try {
-            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl, callerWorkflowId);
             if (closedIssues.length > 0) {
               core.info(`Closed ${closedIssues.length} older issue(s)`);
             }
@@ -524,8 +546,6 @@ async function main(config = {}) {
           core.warning("Close older issues enabled but GH_AW_WORKFLOW_ID environment variable not set - skipping");
         }
       }
-
-      // Handle grouping - find or create parent issue and link sub-issue
       if (groupEnabled && !effectiveParentIssueNumber) {
         // Use workflow name as the group ID
         const groupId = workflowName;
@@ -539,7 +559,7 @@ async function main(config = {}) {
           // Parent issue expires 1 day (24 hours) after sub-issues
           const parentExpiresHours = expiresHours > 0 ? expiresHours + 24 : 0;
           groupParentNumber = await findOrCreateParentIssue({
-            githubClient: authClient,
+            githubClient: githubClient,
             groupId,
             owner: repoParts.owner,
             repo: repoParts.repo,
@@ -582,7 +602,7 @@ async function main(config = {}) {
           `;
 
           // Get parent issue node ID
-          const parentResult = await authClient.graphql(getIssueNodeIdQuery, {
+          const parentResult = await githubClient.graphql(getIssueNodeIdQuery, {
             owner: repoParts.owner,
             repo: repoParts.repo,
             issueNumber: effectiveParentIssueNumber,
@@ -592,7 +612,7 @@ async function main(config = {}) {
 
           // Get child issue node ID
           core.info(`Fetching node ID for child issue #${issue.number}...`);
-          const childResult = await authClient.graphql(getIssueNodeIdQuery, {
+          const childResult = await githubClient.graphql(getIssueNodeIdQuery, {
             owner: repoParts.owner,
             repo: repoParts.repo,
             issueNumber: issue.number,
@@ -616,7 +636,7 @@ async function main(config = {}) {
             }
           `;
 
-          await authClient.graphql(addSubIssueMutation, {
+          await githubClient.graphql(addSubIssueMutation, {
             issueId: parentNodeId,
             subIssueId: childNodeId,
           });
@@ -628,7 +648,7 @@ async function main(config = {}) {
           // Fallback: add a comment if sub-issue linking fails
           try {
             core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
-            await authClient.rest.issues.createComment({
+            await githubClient.rest.issues.createComment({
               owner: repoParts.owner,
               repo: repoParts.repo,
               issue_number: effectiveParentIssueNumber,

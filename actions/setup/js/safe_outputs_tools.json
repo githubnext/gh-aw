@@ -209,6 +209,10 @@
         "draft": {
           "type": "boolean",
           "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. Required when changes are in a subdirectory checkout (e.g., 'repos/repo-a/'). Must be in the allowed-repos list. If omitted, uses the repository at the workspace root."
         }
       },
       "additionalProperties": false

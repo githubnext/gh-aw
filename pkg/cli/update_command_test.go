@@ -314,7 +314,7 @@ Base content.`
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
 source: test/repo/workflow.md@v1.0.0
 ---
 
@@ -327,7 +327,7 @@ Base content with local notes.`
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -980,7 +980,7 @@ func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Running update with no source workflows should succeed with an info message, not an error
-	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false, false)
+	err := RunUpdateWorkflows(nil, false, false, false, "", "", false, "", false, false, false)
 	assert.NoError(t, err, "Should not error when no workflows with source field exist")
 }
 
@@ -996,7 +996,7 @@ func TestRunUpdateWorkflows_SpecificWorkflowNotFound(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Running update with a specific name that doesn't exist should fail
-	err := RunUpdateWorkflows([]string{"nonexistent"}, false, false, false, "", "", false, "", false, false)
+	err := RunUpdateWorkflows([]string{"nonexistent"}, false, false, false, "", "", false, "", false, false, false)
 	require.Error(t, err, "Should error when specified workflow not found")
 	assert.Contains(t, err.Error(), "no workflows found matching the specified names")
 }

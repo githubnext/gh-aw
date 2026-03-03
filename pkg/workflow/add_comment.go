@@ -1,10 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -28,122 +24,6 @@ type AddCommentsConfig struct {
 	PullRequests         *bool    `yaml:"pull-requests,omitempty"`       // When false, excludes pull-requests:write permission and PRs from event condition. Default (nil or true) includes pull-requests:write.
 	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission and discussions from event condition. Default (nil or true) includes discussions:write.
 	Footer               *string  `yaml:"footer,omitempty"`              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
-}
-
-// buildCreateOutputAddCommentJob creates the add_comment job
-func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string, createIssueJobName string, createDiscussionJobName string, createPullRequestJobName string) (*Job, error) {
-	addCommentLog.Printf("Building add_comment job: target=%s, discussion=%v", data.SafeOutputs.AddComments.Target, data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion)
-	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
-		return nil, errors.New("safe-outputs.add-comment configuration is required")
-	}
-
-	// Build pre-steps for debugging output
-	var preSteps []string
-	preSteps = append(preSteps, "      - name: Debug agent outputs\n")
-	preSteps = append(preSteps, "        env:\n")
-	preSteps = append(preSteps, fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	preSteps = append(preSteps, fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName))
-	preSteps = append(preSteps, "        run: |\n")
-	preSteps = append(preSteps, "          echo \"Output: $AGENT_OUTPUT\"\n")
-	preSteps = append(preSteps, "          echo \"Output types: $AGENT_OUTPUT_TYPES\"\n")
-
-	// Build custom environment variables specific to add-comment
-	var customEnvVars []string
-
-	// Pass the comment target configuration
-	if data.SafeOutputs.AddComments.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
-	}
-	// Pass the discussion flag configuration
-	if data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
-	}
-	// Pass the hide-older-comments flag configuration
-	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_HIDE_OLDER_COMMENTS", data.SafeOutputs.AddComments.HideOlderComments)...)
-	// Pass the allowed-reasons list configuration
-	if len(data.SafeOutputs.AddComments.AllowedReasons) > 0 {
-		reasonsJSON, err := json.Marshal(data.SafeOutputs.AddComments.AllowedReasons)
-		if err == nil {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ALLOWED_REASONS: %q\n", string(reasonsJSON)))
-		}
-	}
-	// Add environment variables for the URLs from other safe output jobs if they exist
-	if createIssueJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_ISSUE_URL: ${{ needs.%s.outputs.issue_url }}\n", createIssueJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.%s.outputs.issue_number }}\n", createIssueJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
-	}
-	if createDiscussionJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_DISCUSSION_URL: ${{ needs.%s.outputs.discussion_url }}\n", createDiscussionJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.%s.outputs.discussion_number }}\n", createDiscussionJobName))
-	}
-	if createPullRequestJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.%s.outputs.pull_request_url }}\n", createPullRequestJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.%s.outputs.pull_request_number }}\n", createPullRequestJobName))
-	}
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AddComments.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"comment_id":  "${{ steps.add_comment.outputs.comment_id }}",
-		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
-	}
-
-	// Build job condition with event check if target is not specified
-	jobCondition := BuildSafeOutputType("add_comment")
-	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
-		var eventTerms []ConditionNode
-		if data.SafeOutputs.AddComments.Issues == nil || *data.SafeOutputs.AddComments.Issues {
-			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.issue.number"))
-		}
-		if data.SafeOutputs.AddComments.PullRequests == nil || *data.SafeOutputs.AddComments.PullRequests {
-			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.pull_request.number"))
-		}
-		if data.SafeOutputs.AddComments.Discussions == nil || *data.SafeOutputs.AddComments.Discussions {
-			eventTerms = append(eventTerms, BuildPropertyAccess("github.event.discussion.number"))
-		}
-		if len(eventTerms) > 0 {
-			eventCondition := &DisjunctionNode{Terms: eventTerms}
-			jobCondition = BuildAnd(jobCondition, eventCondition)
-		}
-	}
-
-	// Build the needs list - always depend on mainJobName, and conditionally on the other jobs
-	needs := []string{mainJobName}
-	if createIssueJobName != "" {
-		needs = append(needs, createIssueJobName)
-	}
-	if createDiscussionJobName != "" {
-		needs = append(needs, createDiscussionJobName)
-	}
-	if createPullRequestJobName != "" {
-		needs = append(needs, createPullRequestJobName)
-	}
-
-	// Determine permissions based on Issues, PullRequests, and Discussions fields.
-	// Issues: nil or true → issues:write (default: true)
-	// PullRequests: nil or true → pull-requests:write (default: true)
-	// Discussions: nil or true → discussions:write (default: true)
-	permissions := buildAddCommentPermissions(data.SafeOutputs.AddComments)
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "add_comment",
-		StepName:       "Add Issue Comment",
-		StepID:         "add_comment",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		ScriptName:     "add_comment",
-		Permissions:    permissions,
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Needs:          needs,
-		PreSteps:       preSteps,
-		Token:          data.SafeOutputs.AddComments.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.AddComments.TargetRepoSlug,
-	})
 }
 
 // parseCommentsConfig handles add-comment configuration

@@ -28,11 +28,9 @@ on:
     types: [opened, edited]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

@@ -25,12 +25,10 @@ func TestAllowGitHubReferencesEnvVar(t *testing.T) {
 			workflow: `---
 on: push
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
-  issues: write
+  issues: read
 safe-outputs:
   allowed-github-references: ["repo"]
   create-issue: {}
@@ -48,12 +46,10 @@ Test workflow with allowed-github-references.
 			workflow: `---
 on: push
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
-  issues: write
+  issues: read
 safe-outputs:
   allowed-github-references: ["repo", "org/repo2", "org/repo3"]
   create-issue: {}
@@ -71,12 +67,10 @@ Test workflow with multiple allowed repos.
 			workflow: `---
 on: push
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
-  issues: write
+  issues: read
 safe-outputs:
   create-issue: {}
 ---
@@ -92,12 +86,10 @@ Test workflow without allowed-github-references.
 			workflow: `---
 on: push
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
-  issues: write
+  issues: read
 safe-outputs:
   allowed-github-references: ["my-org/my-repo", "test-org/test.repo"]
   create-issue: {}
@@ -115,12 +107,10 @@ Test workflow with special characters in repo names.
 			workflow: `---
 on: push
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
-  issues: write
+  issues: read
 safe-outputs:
   allowed-github-references: ["repo", "microsoft/vscode"]
   create-issue: {}
@@ -138,12 +128,10 @@ Test workflow mixing repo keyword with specific repos.
 			workflow: `---
 on: push
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 permissions:
   contents: read
-  issues: write
+  issues: read
 safe-outputs:
   allowed-github-references: ["octocat/hello-world", "github/copilot"]
   create-issue: {}

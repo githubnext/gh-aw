@@ -58,11 +58,9 @@ func BenchmarkProcessToolsComplex(b *testing.B) {
 on: push
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -245,14 +243,12 @@ func BenchmarkProcessPermissions(b *testing.B) {
 on: push
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
   actions: read
-  discussions: write
-  deployments: write
+  discussions: read
+  deployments: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -287,10 +283,8 @@ on:
   roles: [admin, maintainer, write, read]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

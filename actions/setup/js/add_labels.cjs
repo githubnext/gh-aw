@@ -33,7 +33,7 @@ async function main(config = {}) {
   const blockedPatterns = config.blocked || [];
   const maxCount = config.max || 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -163,7 +163,7 @@ async function main(config = {}) {
     }
 
     try {
-      await authClient.rest.issues.addLabels({
+      await githubClient.rest.issues.addLabels({
         owner: repoParts.owner,
         repo: repoParts.repo,
         issue_number: itemNumber,

@@ -100,7 +100,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 		{
 			name: "with GitHub App token",
 			safeOutputs: &SafeOutputsConfig{
-				App: &GitHubAppConfig{
+				GitHubApp: &GitHubAppConfig{
 					AppID:      "12345",
 					PrivateKey: "test-key",
 				},
@@ -232,8 +232,9 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			},
 			workflowID: "test-workflow",
 			expectedVars: map[string]string{
-				"GH_AW_WORKFLOW_ID":   `"test-workflow"`,
-				"GH_AW_WORKFLOW_NAME": `"Test Workflow"`,
+				"GH_AW_WORKFLOW_ID":        `"test-workflow"`,
+				"GH_AW_WORKFLOW_NAME":      `"Test Workflow"`,
+				"GH_AW_CALLER_WORKFLOW_ID": `"${{ github.repository }}/test-workflow"`,
 			},
 			checkContains: true,
 		},
@@ -402,7 +403,7 @@ func TestJobWithGitHubApp(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			App: &GitHubAppConfig{
+			GitHubApp: &GitHubAppConfig{
 				AppID:      "12345",
 				PrivateKey: "test-key",
 			},
@@ -530,7 +531,7 @@ func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			App: &GitHubAppConfig{
+			GitHubApp: &GitHubAppConfig{
 				AppID:      "${{ vars.ACTIONS_APP_ID }}",
 				PrivateKey: "${{ secrets.ACTIONS_PRIVATE_KEY }}",
 			},

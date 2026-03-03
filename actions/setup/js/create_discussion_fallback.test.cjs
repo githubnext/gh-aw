@@ -55,6 +55,10 @@ describe("create_discussion fallback with close_older_discussions", () => {
                   html_url: "https://github.com/owner/repo/issues/123",
                   labels: [],
                   state: "open",
+                  // body must contain the exact gh-aw-workflow-id marker so the
+                  // exact-body filter passes (GH_AW_CALLER_WORKFLOW_ID is not set
+                  // in these tests, so we fall back to gh-aw-workflow-id matching)
+                  body: "<!-- gh-aw-workflow-id: test-workflow -->",
                 },
               ],
             },

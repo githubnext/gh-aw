@@ -31,10 +31,8 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]
@@ -57,10 +55,8 @@ on:
   schedule:
     - cron: "0 9 * * 1"
 permissions:
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]
@@ -445,10 +441,8 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]
@@ -469,10 +463,8 @@ on:
   pull_request:
     types: [opened]
 permissions:
-  pull-requests: write
+  pull-requests: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [pull_requests]
@@ -493,10 +485,8 @@ on:
   discussion:
     types: [created]
 permissions:
-  discussions: write
+  discussions: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [discussions]
@@ -517,10 +507,8 @@ on:
   issue_comment:
     types: [created]
 permissions:
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]
@@ -541,10 +529,8 @@ on:
   schedule:
     - cron: "0 9 * * 1"
 permissions:
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]
@@ -565,10 +551,8 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]

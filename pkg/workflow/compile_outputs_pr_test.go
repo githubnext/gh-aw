@@ -22,11 +22,9 @@ func TestOutputPullRequestConfigParsing(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -89,14 +87,12 @@ func TestOutputPullRequestJobGeneration(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -197,14 +193,12 @@ func TestOutputPullRequestDraftFalse(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -273,14 +267,12 @@ func TestOutputPullRequestDraftTrue(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -353,14 +345,12 @@ on:
         default: true
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -419,11 +409,9 @@ func TestCreatePullRequestIfNoChangesConfig(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -468,11 +456,9 @@ This workflow tests the create-pull-request if-no-changes configuration parsing.
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
   issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -609,12 +595,10 @@ on:
   pull_request:
     types: [opened]
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
   issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 safe-outputs:
   create-pull-request:
     title-prefix: "[bot] "
@@ -687,10 +671,8 @@ func TestOutputPullRequestFallbackAsIssueFalse(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:
@@ -791,10 +773,8 @@ func TestOutputPullRequestFallbackAsIssueDefault(t *testing.T) {
 on: push
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   create-pull-request:

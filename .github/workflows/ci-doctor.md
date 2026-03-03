@@ -36,7 +36,7 @@ safe-outputs:
   update-issue:
   noop:
   messages:
-    footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*"
+    footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🏥 CI Doctor reporting for duty! [{workflow_name}]({run_url}) is examining the patient on this {event_type}..."
     run-success: "🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊"
     run-failure: "🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance..."
@@ -112,7 +112,7 @@ steps:
         -name "*.txt" -o -name "*.log" -o -name "*.json" \
         -o -name "*.xml" -o -name "*.out" -o -name "*.err" \
       \) | while read -r ARTIFACT_FILE; do
-        REL_PATH="${ARTIFACT_FILE#$ARTIFACT_DIR/}"
+        REL_PATH="${ARTIFACT_FILE#"$ARTIFACT_DIR"/}"
         SAFE_NAME=$(echo "$REL_PATH" | tr '/' '_')
         HINTS_FILE="$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt"
         grep -n -iE "(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])" \

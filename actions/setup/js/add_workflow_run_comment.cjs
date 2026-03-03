@@ -8,6 +8,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -69,11 +70,9 @@ async function main() {
     return;
   }
 
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
-  core.info(`Run ID: ${runId}`);
+  core.info(`Run ID: ${context.runId}`);
   core.info(`Run URL: ${runUrl}`);
 
   // Determine the API endpoint based on the event type

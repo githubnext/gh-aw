@@ -18,6 +18,23 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
+	// Generate GitHub App token minting steps for checkouts with app auth
+	// These must be emitted BEFORE the checkout steps that reference them
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token minting steps")
+		var permissions *Permissions
+		if data.Permissions != "" {
+			parser := NewPermissionsParser(data.Permissions)
+			permissions = parser.ToPermissions()
+		} else {
+			permissions = NewPermissions()
+		}
+		appTokenSteps := checkoutMgr.GenerateCheckoutAppTokenSteps(c, permissions)
+		for _, step := range appTokenSteps {
+			yaml.WriteString(step)
+		}
+	}
+
 	// Add checkout step first if needed
 	if needsCheckout {
 		// Emit the default workspace checkout, applying any user-supplied overrides
@@ -252,6 +269,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
+	// Add inference access error detection step for Copilot engine
+	// This step detects when the Copilot CLI fails due to the token lacking inference access
+	// It must run in the main job (not threat detection job) to avoid step ID conflicts
+	if _, ok := engine.(*CopilotEngine); ok {
+		detectionStep := generateInferenceAccessErrorDetectionStep()
+		for _, line := range detectionStep {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
 	// Mark that we've completed agent execution - step order validation starts from here
 	compilerYamlLog.Print("Marking agent execution as complete for step order tracking")
 	c.stepOrderTracker.MarkAgentExecutionComplete()
@@ -382,7 +409,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch
 	// tools are called, providing immediate error feedback if no changes are present.
-	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-*.patch")
 	}
 
@@ -403,6 +430,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
+
+	// Add checkout app token invalidation steps if configured (runs always, even on failure)
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token invalidation steps")
+		invalidationSteps := checkoutMgr.GenerateCheckoutAppTokenInvalidationSteps(c)
+		for _, step := range invalidationSteps {
+			yaml.WriteString(step)
+		}
+	}
 
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {

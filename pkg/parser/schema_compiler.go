@@ -87,7 +87,7 @@ var safeOutputMetaFields = map[string]bool{
 	"staged":          true,
 	"env":             true,
 	"github-token":    true,
-	"app":             true,
+	"github-app":      true,
 	"max-patch-size":  true,
 	"jobs":            true,
 	"runs-on":         true,
@@ -137,18 +137,23 @@ func GetSafeOutputTypeKeys() ([]string, error) {
 }
 
 func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) error {
+	schemaCompilerLog.Printf("Validating frontmatter against schema for context: %s (%d fields)", context, len(frontmatter))
+
 	// Determine which cached schema to use based on the schemaJSON
 	var schema *jsonschema.Schema
 	var err error
 
 	switch schemaJSON {
 	case mainWorkflowSchema:
+		schemaCompilerLog.Print("Using cached main workflow schema")
 		schema, err = getCompiledMainWorkflowSchema()
 	case mcpConfigSchema:
+		schemaCompilerLog.Print("Using cached MCP config schema")
 		schema, err = getCompiledMcpConfigSchema()
 	default:
 		// Fallback for unknown schemas (shouldn't happen in normal operation)
 		// Compile the schema on-the-fly
+		schemaCompilerLog.Print("Compiling unknown schema on-the-fly")
 		schema, err = compileSchema(schemaJSON, "http://contoso.com/schema.json")
 	}
 
@@ -177,9 +182,11 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 
 	// Validate the normalized frontmatter
 	if err := schema.Validate(normalizedFrontmatter); err != nil {
+		schemaCompilerLog.Printf("Schema validation failed for %s: %v", context, err)
 		return err
 	}
 
+	schemaCompilerLog.Printf("Schema validation passed for context: %s", context)
 	return nil
 }
 
@@ -369,9 +376,4 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 		message = message + ". " + suggestions
 	}
 	return fmt.Sprintf("at '%s' (line %d, column %d): %s", path, line, column, message)
-}
-
-// GetMainWorkflowSchema returns the embedded main workflow schema JSON
-func GetMainWorkflowSchema() string {
-	return mainWorkflowSchema
 }

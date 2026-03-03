@@ -54,6 +54,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Weekly Report - 2024-01",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },
@@ -62,6 +63,7 @@ describe("close_older_discussions.cjs", () => {
               number: 10, // This is the new discussion, should be excluded
               title: "Weekly Report - 2024-02",
               url: "https://github.com/testowner/testrepo/discussions/10",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },
@@ -93,6 +95,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Open Report",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },
@@ -101,6 +104,7 @@ describe("close_older_discussions.cjs", () => {
               number: 6,
               title: "Closed Report",
               url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: true, // Already closed
             },
@@ -125,6 +129,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Matching Report",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },
@@ -158,6 +163,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Report in right category",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_reports" },
               closed: false,
             },
@@ -166,6 +172,7 @@ describe("close_older_discussions.cjs", () => {
               number: 6,
               title: "Report in wrong category",
               url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_general" },
               closed: false,
             },
@@ -197,6 +204,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Report 1",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_reports" },
               closed: false,
             },
@@ -205,6 +213,7 @@ describe("close_older_discussions.cjs", () => {
               number: 6,
               title: "Report 2",
               url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_general" },
               closed: false,
             },
@@ -223,6 +232,94 @@ describe("close_older_discussions.cjs", () => {
 
       expect(result).toHaveLength(2);
     });
+
+    it("should exclude discussions whose body does not contain the exact marker", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_exact",
+              number: 5,
+              title: "Exact match",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_substr",
+              number: 6,
+              title: "Substring match - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/6",
+              // Related-but-longer workflow ID - GitHub search may match this
+              // but exact filtering should exclude it
+              body: "<!-- gh-aw-workflow-id: test-workflow-extended -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_nomarker",
+              number: 7,
+              title: "No marker - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/7",
+              body: "Discussion without any marker",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "test-workflow", "DIC_test123", 99);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+    });
+
+    it("should filter by gh-aw-workflow-call-id when callerWorkflowId is provided", async () => {
+      const { searchOlderDiscussions } = await import("./close_older_discussions.cjs");
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        search: {
+          nodes: [
+            {
+              id: "D_same_caller",
+              number: 5,
+              title: "Same caller - should be included",
+              url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_diff_caller",
+              number: 6,
+              title: "Different caller - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerB -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+            {
+              id: "D_old",
+              number: 7,
+              title: "Old discussion without call-id - should be excluded",
+              url: "https://github.com/testowner/testrepo/discussions/7",
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->",
+              category: { id: "DIC_test123" },
+              closed: false,
+            },
+          ],
+        },
+      });
+
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "my-reusable-workflow", "DIC_test123", 99, "owner/repo/CallerA");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].number).toBe(5);
+    });
   });
 
   describe("closeOlderDiscussions", () => {
@@ -238,6 +335,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Old Report",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },
@@ -290,6 +388,7 @@ describe("close_older_discussions.cjs", () => {
         number: i + 1,
         title: `Old Report ${i + 1}`,
         url: `https://github.com/testowner/testrepo/discussions/${i + 1}`,
+        body: "<!-- gh-aw-workflow-id: test-workflow -->",
         category: { id: "DIC_test123" },
         closed: false,
       }));
@@ -366,6 +465,7 @@ describe("close_older_discussions.cjs", () => {
               number: 5,
               title: "Will Fail",
               url: "https://github.com/testowner/testrepo/discussions/5",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },
@@ -374,6 +474,7 @@ describe("close_older_discussions.cjs", () => {
               number: 6,
               title: "Will Succeed",
               url: "https://github.com/testowner/testrepo/discussions/6",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
               category: { id: "DIC_test123" },
               closed: false,
             },

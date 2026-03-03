@@ -456,7 +456,7 @@ This workflow imports copilot-setup-steps.yml.
 	require.NoError(t, err, "Failed to extract frontmatter")
 
 	// Process imports
-	importsResult, err := ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, workflowsDir, nil)
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, workflowsDir, nil, "", "")
 	require.NoError(t, err, "Failed to process imports")
 
 	// Verify that steps were extracted to CopilotSetupSteps (not MergedSteps or MergedJobs)

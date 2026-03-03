@@ -55,58 +55,32 @@ Navigate to your repository on https://github.com and click the "Agents" tab, th
 /agent agentic-workflows create a workflow that triages issues
 ```
 
-The agent will:
-- Generate a new workflow file in `.github/workflows/`
-- Write the frontmatter and natural language prompt
-- Configure necessary tools and permissions
-- Compile the workflow to `.lock.yml`
+The agent will generate a workflow file in `.github/workflows/`, write the frontmatter and prompt, configure tools and permissions, and compile to `.lock.yml`.
 
 ### Updating Existing Workflows
 
-Modify or improve existing workflows using natural language prompts. The agentic-workflows agent can analyze your current workflow and suggest or implement changes:
+Modify or improve existing workflows using natural language prompts:
 
 ```text wrap
 /agent agentic-workflows update the issue-triage workflow to add web-fetch tool and
   improve the prompt for better accuracy
 ```
 
-The agent will:
-- Load the existing workflow file
-- Analyze the current configuration and prompt
-- Apply requested changes to tools, prompts, triggers, or permissions
-- Recompile the workflow to `.lock.yml`
-
 ### Upgrading Agentic Workflows
 
-Keep your agentic workflows up-to-date with the latest `gh-aw` versions and features using the unified agentic-workflows agent:
+Keep workflows up-to-date with the latest `gh-aw` versions and features:
 
 ```text wrap
 /agent agentic-workflows upgrade all workflows to latest version
 ```
 
-The agent will:
-- Detect all workflows in your repository
-- Check for available updates to `gh-aw` version
-- Update deprecated frontmatter configurations
-- Fix compatibility issues with new features
-- Recompile workflows after changes
-- Generate a summary of upgraded workflows
-
 ### Importing Workflows
 
-Import existing workflows from GitHub repositories using natural language prompts. The agentic-workflows agent can fetch, install, and configure workflows from any accessible GitHub repository:
+Import workflows from any accessible GitHub repository:
 
 ```text wrap
 /agent agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
 ```
-
-The agent will:
-- Fetch the workflow file from the GitHub URL
-- Install it in your `.github/workflows/` directory
-- Update frontmatter with source tracking
-- Configure necessary secrets and permissions
-- Compile the workflow to `.lock.yml`
-- Commit and push changes
 
 When importing, you can specify customizations:
 
@@ -125,14 +99,6 @@ When workflows fail or behave unexpectedly, use the agentic-workflows agent to i
 ```text wrap
 /agent agentic-workflows debug why is my issue-triage workflow failing?
 ```
-
-The debugging agent will:
-- Download and analyze workflow run logs
-- Identify errors and warnings
-- Check tool and permission configurations
-- Review MCP server connectivity
-- Examine safe-input and safe-output configurations
-- Suggest specific fixes for identified issues
 
 You can investigate a specific workflow run using its ID or URL:
 
@@ -166,33 +132,13 @@ The agent file can be loaded into other AI chat interfaces that support custom i
 
 ## Creating Agentic Workflows with an AI Chatbot
 
-If you prefer to use an AI chatbot to author agentic workflow, you can use the [agentic-chat instructions](https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/agentic-chat.md) with any conversational AI application to create clear, actionable task descriptions. Use the button below to copy the full instructions: <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/agentic-chat.md" label="Copy agentic-chat instructions" />.
+If you prefer to use an AI chatbot to author agentic workflows, use the [agentic-chat instructions](https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/agentic-chat.md) with any conversational AI application. <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/agentic-chat.md" label="Copy agentic-chat instructions" />
 
-The agentic-chat assistant helps you:
-- Break down complex problems into clear, actionable phases
-- Structure task descriptions for AI coding agents
-- Write specifications without implementation details
-- Follow best practices for agentic workflow task descriptions
-
-To use the agentic-chat instructions:
-
-1. Copy the full instructions using the button above
-2. Paste them into your AI chat interface
-3. Describe your workflow goal or problem
-4. The assistant will ask clarifying questions and generate a structured task description
-5. Copy the generated task description (wrapped in 5 backticks) and use it in your workflow
-
-The assistant uses a neutral, technical tone and focuses on what needs to be done rather than how to implement it, making it ideal for creating specifications that AI coding agents can execute.
+Copy the instructions into your AI chat interface, describe your workflow goal, and the assistant will generate a structured task description you can use in your workflow. It focuses on clear, actionable specifications rather than implementation details.
 
 ## Dictating Agentic Workflows
 
 When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/github/gh-aw/main/skills/dictation/SKILL.md) or <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/skills/dictation/SKILL.md" label="Copy full instructions" />.
 
-This prompt helps rephrase text captured through speech-to-text recognition by:
-- Correcting project-specific terminology (e.g., "ghaw" → "gh-aw", "work flow" → "workflow")
-- Transforming casual dictated sentences into clear, imperative task descriptions
-- Removing filler words and improving technical tone
-- Adding necessary context that might be implicit in spoken requests
-
-Load the dictation prompt into your AI assistant before or after dictating your workflow instructions to improve accuracy and clarity.
+This prompt corrects terminology (e.g., "ghaw" → "gh-aw"), removes filler words, and transforms dictated sentences into clear, imperative task descriptions. Load it into your AI assistant before or after dictating to improve accuracy.
 

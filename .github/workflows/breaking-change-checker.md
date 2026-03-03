@@ -27,7 +27,7 @@ safe-outputs:
     assignees: copilot
     max: 1
   messages:
-    footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*"
+    footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"
     run-started: "🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}..."
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
@@ -131,19 +131,6 @@ Is it removing schema fields or making optional fields required?
 ```
 
 ## Step 5: Report Findings
-
-### Report Formatting Guidelines
-
-**CRITICAL**: Follow the formatting guidelines from `shared/reporting.md` to create well-structured, readable reports.
-
-**Key Requirements**:
-1. **Header Levels**: Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy. The issue title serves as h1, so all content headers should start at h3.
-2. **Progressive Disclosure**: Wrap detailed analysis in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
-3. **Report Structure**:
-   - **Summary** (always visible): Count of breaking changes, severity assessment
-   - **Critical Breaking Changes** (always visible): List of changes requiring immediate attention
-   - **Detailed Analysis** (in `<details>` tags): Full diff analysis, code examples
-   - **Recommendations** (always visible): Migration steps, version bump guidance
 
 ### If NO Breaking Changes Found
 

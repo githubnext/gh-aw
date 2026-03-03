@@ -26,7 +26,7 @@ async function main(config = {}) {
   // Extract configuration
   const allowedReviewers = config.allowed || [];
   const maxCount = config.max || 10;
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -108,7 +108,7 @@ async function main(config = {}) {
 
       // Add non-copilot reviewers first
       if (otherReviewers.length > 0) {
-        await authClient.rest.pulls.requestReviewers({
+        await githubClient.rest.pulls.requestReviewers({
           owner: context.repo.owner,
           repo: context.repo.repo,
           pull_number: prNumber,
@@ -120,7 +120,7 @@ async function main(config = {}) {
       // Add copilot reviewer separately if requested
       if (hasCopilot) {
         try {
-          await authClient.rest.pulls.requestReviewers({
+          await githubClient.rest.pulls.requestReviewers({
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: prNumber,

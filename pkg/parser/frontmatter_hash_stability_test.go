@@ -3,7 +3,6 @@
 package parser
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -177,22 +176,4 @@ Use env: ${{ env.TEST_VAR }}
 	expressions := extractRelevantTemplateExpressions(result.Markdown)
 	require.Len(t, expressions, 1, "Should extract one env expression")
 	assert.Equal(t, "${{ env.TEST_VAR }}", expressions[0], "Should extract correct expression")
-
-	// Build canonical
-	importsResult := &ImportsResult{}
-	canonical := buildCanonicalFrontmatter(result.Frontmatter, importsResult)
-	canonical["template-expressions"] = expressions
-
-	canonicalJSON, err := marshalCanonicalJSON(canonical)
-	require.NoError(t, err, "Should marshal canonical JSON")
-
-	// Verify the canonical JSON structure
-	var parsed map[string]any
-	err = json.Unmarshal([]byte(canonicalJSON), &parsed)
-	require.NoError(t, err, "Should parse canonical JSON")
-
-	// Verify template expressions are included
-	exprs, hasExprs := parsed["template-expressions"].([]any)
-	require.True(t, hasExprs, "Canonical JSON should include template expressions")
-	assert.Len(t, exprs, 1, "Should have one expression")
 }

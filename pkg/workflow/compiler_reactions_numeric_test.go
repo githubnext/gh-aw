@@ -24,7 +24,7 @@ on:
   reaction: invalid_emoji
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 strict: false
 tools:
@@ -106,10 +106,8 @@ on:
   reaction: %s
 permissions:
   contents: read
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]
@@ -151,10 +149,8 @@ on:
   reaction: 2
 permissions:
   contents: read
-  issues: write
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [issue_read]

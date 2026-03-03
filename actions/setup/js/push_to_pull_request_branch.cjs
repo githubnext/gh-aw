@@ -37,7 +37,7 @@ async function main(config = {}) {
   // Cross-repo support: resolve target repository from config
   // This allows pushing to PRs in a different repository than the workflow
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Base branch from config (if set) - used only for logging at factory level
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
@@ -227,7 +227,7 @@ async function main(config = {}) {
     // Fetch the specific PR to get its head branch, title, and labels
     let pullRequest;
     try {
-      const response = await authClient.rest.pulls.get({
+      const response = await githubClient.rest.pulls.get({
         owner: repoParts.owner,
         repo: repoParts.repo,
         pull_number: pullNumber,
@@ -461,6 +461,9 @@ async function main(config = {}) {
 
     // Update the activation comment with commit link (if a comment was created and changes were pushed)
     // Pass pullNumber so a new comment is created on the PR when no activation comment exists (e.g., schedule triggers)
+    //
+    // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
+    // in the same repo as the activation, so the global client has the correct context for updating the comment.
     if (hasChanges) {
       await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, { targetIssueNumber: pullNumber });
     }

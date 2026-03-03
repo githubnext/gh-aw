@@ -4,6 +4,8 @@ package cli
 
 import (
 	"testing"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 func TestExtractBaseRepo_Integration(t *testing.T) {
@@ -29,9 +31,9 @@ func TestExtractBaseRepo_Integration(t *testing.T) {
 
 	for actionPath, expectedBase := range realWorldCases {
 		t.Run(actionPath, func(t *testing.T) {
-			got := extractBaseRepo(actionPath)
+			got := gitutil.ExtractBaseRepo(actionPath)
 			if got != expectedBase {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", actionPath, got, expectedBase)
+				t.Errorf("gitutil.ExtractBaseRepo(%q) = %q, want %q", actionPath, got, expectedBase)
 			}
 		})
 	}
@@ -56,11 +58,11 @@ func TestExtractBaseRepoAPICompatibility(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.actionPath, func(t *testing.T) {
-			baseRepo := extractBaseRepo(tc.actionPath)
+			baseRepo := gitutil.ExtractBaseRepo(tc.actionPath)
 
 			// Verify the base repo matches expected format
 			if baseRepo != tc.wantRepoPath {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", tc.actionPath, baseRepo, tc.wantRepoPath)
+				t.Errorf("gitutil.ExtractBaseRepo(%q) = %q, want %q", tc.actionPath, baseRepo, tc.wantRepoPath)
 			}
 
 			// Verify it can be used to construct a valid API path

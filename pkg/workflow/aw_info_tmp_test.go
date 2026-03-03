@@ -22,14 +22,12 @@ func TestAwInfoTmpPath(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

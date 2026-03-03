@@ -48,7 +48,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
-			name: "GitHub tool with read-only false",
+			name: "GitHub tool with read-only false (always enforced as read-only)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"github": map[string]any{
@@ -61,6 +61,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
 					Env: map[string]string{
@@ -68,6 +69,27 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					}}, Name: "github",
 
 					Allowed: []string{},
+				},
+			},
+		},
+		{
+			name: "GitHub tool with boolean true (shorthand)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": true,
+				},
+			},
+			expected: []MCPServerConfig{
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
+						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
+					},
+					Env: map[string]string{
+						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+					}}, Name: "github",
 				},
 			},
 		},
@@ -83,6 +105,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
 					Env: map[string]string{
@@ -119,6 +142,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
 					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
@@ -142,6 +166,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:latest",
 					},
 					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
@@ -164,6 +189,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:20",
 					},
 					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
@@ -186,6 +212,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:3.11",
 					},
 					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
@@ -317,6 +344,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
 					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",

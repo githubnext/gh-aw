@@ -483,7 +483,7 @@ describe("safe_output_topological_sort.cjs", () => {
       messages.push({ type: "create_issue", temporary_id: rootId, title: "Root" });
 
       for (let i = 0; i < 10; i++) {
-        const level1Id = `aw_lv1_${i.toString().padStart(7, "0")}`;
+        const level1Id = `aw_lv1n${i.toString().padStart(7, "0")}`;
         messages.push({
           type: "create_issue",
           temporary_id: level1Id,
@@ -491,7 +491,7 @@ describe("safe_output_topological_sort.cjs", () => {
         });
 
         for (let j = 0; j < 5; j++) {
-          const level2Id = `aw_lv2_${i}_${j.toString().padStart(4, "0")}`;
+          const level2Id = `aw_lv2n${i}n${j.toString().padStart(4, "0")}`;
           messages.push({
             type: "create_issue",
             temporary_id: level2Id,
@@ -507,11 +507,11 @@ describe("safe_output_topological_sort.cjs", () => {
 
       // Verify each level-1 item comes before its level-2 children
       for (let i = 0; i < 10; i++) {
-        const level1Id = `aw_lv1_${i.toString().padStart(7, "0")}`;
+        const level1Id = `aw_lv1n${i.toString().padStart(7, "0")}`;
         const level1Index = sorted.findIndex(m => m.temporary_id === level1Id);
 
         for (let j = 0; j < 5; j++) {
-          const level2Id = `aw_lv2_${i}_${j.toString().padStart(4, "0")}`;
+          const level2Id = `aw_lv2n${i}n${j.toString().padStart(4, "0")}`;
           const level2Index = sorted.findIndex(m => m.temporary_id === level2Id);
           expect(level1Index).toBeLessThan(level2Index);
         }
@@ -520,7 +520,7 @@ describe("safe_output_topological_sort.cjs", () => {
       // Verify root comes before all level-1 items
       const rootIndex = sorted.findIndex(m => m.temporary_id === rootId);
       for (let i = 0; i < 10; i++) {
-        const level1Id = `aw_lv1_${i.toString().padStart(7, "0")}`;
+        const level1Id = `aw_lv1n${i.toString().padStart(7, "0")}`;
         const level1Index = sorted.findIndex(m => m.temporary_id === level1Id);
         expect(rootIndex).toBeLessThan(level1Index);
       }

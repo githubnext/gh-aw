@@ -24,11 +24,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -86,14 +84,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [issue_read]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -196,11 +192,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -276,11 +270,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -360,11 +352,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -419,11 +409,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -488,11 +476,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -534,14 +520,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [issue_read]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -607,14 +591,12 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [issue_read]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -673,11 +655,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -718,11 +698,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels: {}
@@ -763,11 +741,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -853,11 +829,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   remove-labels:

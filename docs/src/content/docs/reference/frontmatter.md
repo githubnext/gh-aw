@@ -571,24 +571,7 @@ if: github.event_name == 'push'
 
 Configure how `actions/checkout` is invoked in the agent job. Override default checkout settings or check out multiple repositories for cross-repository workflows.
 
-```yaml wrap
-# Single repository with custom settings
-checkout:
-  fetch-depth: 0
-  token: ${{ secrets.MY_TOKEN }}
-```
-
-```yaml wrap
-# Multiple repositories
-checkout:
-  - path: .
-    fetch-depth: 0
-  - repository: owner/other-repo
-    path: ./libs/other
-    ref: main
-```
-
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options, merging behavior, and cross-repo examples.
+See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for complete documentation on checkout configuration options (including `fetch:`), merging behavior, and cross-repo examples.
 
 ## Custom Steps (`steps:`)
 
@@ -625,7 +608,7 @@ Post-execution steps run OUTSIDE the firewall sandbox. These steps execute with 
 
 ## Custom Jobs (`jobs:`)
 
-Define custom jobs that run before agentic execution. Supports complete GitHub Actions step specification.
+Define custom jobs that run before agentic execution.
 
 ```yaml wrap
 jobs:
@@ -642,6 +625,57 @@ jobs:
 The agentic execution job waits for all custom jobs to complete. Custom jobs can share data through artifacts or job outputs. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for multi-job workflows.
 
 Custom jobs run outside the firewall sandbox. These jobs execute with standard GitHub Actions security.
+
+### Supported Job-Level Fields
+
+The following job-level fields are supported in custom jobs:
+
+| Field | Description |
+|---|---|
+| `name` | Display name for the job |
+| `needs` | Jobs that must complete before this job runs |
+| `runs-on` | Runner label — string, array, or object form |
+| `if` | Conditional expression to control job execution |
+| `permissions` | GitHub token permissions for this job |
+| `outputs` | Values exposed to downstream jobs |
+| `env` | Environment variables available to all steps |
+| `timeout-minutes` | Maximum job duration (default: 360) |
+| `concurrency` | Concurrency group to prevent parallel runs |
+| `continue-on-error` | Allow the workflow to continue if this job fails |
+| `container` | Docker container to run steps in |
+| `services` | Service containers (e.g. databases) |
+| `steps` | List of steps — supports complete GitHub Actions step specification |
+| `uses` | Reusable workflow to call |
+| `with` | Input parameters for a reusable workflow |
+| `secrets` | Secrets passed to a reusable workflow |
+
+The `strategy` field (matrix builds) is not supported.
+
+`runs-on` accepts a string, an array of runner labels, or the object form:
+
+```yaml wrap
+jobs:
+  build:
+    runs-on:
+      group: my-runner-group
+      labels: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v6
+```
+
+The following example uses `timeout-minutes` and `env`:
+
+```yaml wrap
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v6
+      - run: npm ci && npm run build
+```
 
 ### Job Outputs
 

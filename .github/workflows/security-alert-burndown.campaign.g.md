@@ -52,7 +52,7 @@ steps:
     GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
     GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,security-review
   id: discovery
-  name: Run campaign discovery precomputation
+  name: Precompute campaign discovery
   uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
   with:
     github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

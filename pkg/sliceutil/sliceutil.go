@@ -43,19 +43,6 @@ func MapToSlice[K comparable, V any](m map[K]V) []K {
 	return result
 }
 
-// FilterMap filters and transforms elements in a single pass.
-// Only elements where the predicate returns true are transformed and included in the result.
-// This is a pure function that does not modify the input slice.
-func FilterMap[T, U any](slice []T, predicate func(T) bool, transform func(T) U) []U {
-	result := make([]U, 0, len(slice))
-	for _, item := range slice {
-		if predicate(item) {
-			result = append(result, transform(item))
-		}
-	}
-	return result
-}
-
 // FilterMapKeys returns map keys that match the given predicate.
 // The order of elements is not guaranteed as map iteration order is undefined.
 // This is a pure function that does not modify the input map.

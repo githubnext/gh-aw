@@ -116,13 +116,11 @@ permissions:
   pull-requests: read
 timeout-minutes: 10
 engine: copilot
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission",
 		},
 		{
 			name: "issues write permission refused in strict mode",
@@ -132,13 +130,11 @@ permissions:
   issues: write
 timeout-minutes: 10
 engine: copilot
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'issues: write' is not allowed",
+			errorMsg:    "strict mode: write permission",
 		},
 		{
 			name: "pull-requests write permission refused in strict mode",
@@ -148,13 +144,11 @@ permissions:
   pull-requests: write
 timeout-minutes: 10
 engine: copilot
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'pull-requests: write' is not allowed",
+			errorMsg:    "strict mode: write permission",
 		},
 		{
 			name: "no permissions specified allowed in strict mode",
@@ -178,30 +172,26 @@ tools:
 			content: `---
 on: push
 permissions: write-all
-features:
-  dangerous-permissions-write: true
 timeout-minutes: 10
 engine: copilot
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission",
 		},
 		{
 			name: "shorthand write-all permission refused in strict mode",
 			content: `---
 on: push
 permissions: write-all
-features:
-  dangerous-permissions-write: true
 timeout-minutes: 10
 engine: copilot
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission",
 		},
 
 		{
@@ -229,13 +219,11 @@ permissions:
   pull-requests: read
 timeout-minutes: 10
 engine: copilot
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+			errorMsg:    "strict mode: write permission",
 		},
 	}
 
@@ -588,12 +576,10 @@ func TestNonStrictModeAllowsAll(t *testing.T) {
 	content := `---
 on: push
 permissions:
-  contents: write
-  issues: write
+  contents: read
+  issues: read
   pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 network:
   allowed:
@@ -647,12 +633,10 @@ network:
 on: push
 strict: false
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow`,
@@ -682,17 +666,18 @@ network:
 			content: `---
 on: push
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
+network:
+  allowed:
+    - "*"
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "strict mode: write permission",
+			errorMsg:    "strict mode:",
 		},
 	}
 
@@ -728,12 +713,13 @@ func TestCLIStrictFlagTakesPrecedence(t *testing.T) {
 on: push
 strict: false
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
+network:
+  allowed:
+    - "*"
 ---
 
 # Test Workflow`
@@ -749,11 +735,11 @@ features:
 	compiler.SetStrictMode(true) // CLI flag sets strict mode
 	err := compiler.CompileWorkflow(testFile)
 
-	// Should fail because CLI flag enforces strict mode and write permission is not allowed
+	// Should fail because CLI flag enforces strict mode and wildcard network is not allowed
 	if err == nil {
 		t.Error("Expected compilation to fail with CLI --strict flag, but it succeeded")
-	} else if !strings.Contains(err.Error(), "write permission") {
-		t.Errorf("Expected write permission error, got: %v", err)
+	} else if !strings.Contains(err.Error(), "strict mode:") {
+		t.Errorf("Expected strict mode error, got: %v", err)
 	}
 }
 
@@ -781,12 +767,10 @@ network:
 	nonStrictWorkflow := `---
 on: push
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

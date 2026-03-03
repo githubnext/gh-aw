@@ -29,7 +29,7 @@ safe-outputs:
     hide-older-comments: true
     max: 2
   messages:
-    footer: "> 🤖 *Smoke test by [{workflow_name}]({run_url})*"
+    footer: "> 🤖 *Smoke test by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🤖 [{workflow_name}]({run_url}) is looking for a Smoke issue to assign..."
     run-success: "✅ [{workflow_name}]({run_url}) completed. Issue assigned to the agentic-workflows agent."
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."

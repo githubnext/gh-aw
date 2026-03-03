@@ -4,16 +4,15 @@ theme: gh-aw
 paginate: true
 ---
 
-<script src="../js/mermaid.min.js"></script>
-<script>
+<script src="../js/mermaid.min.js">
 mermaid.initialize({ startOnLoad: true });
 </script>
 
 # GitHub Agentic Workflows
 
-## Write AI Automation in Natural Language
+## Agentic Processes for Continuous AI
 
-### Research Preview
+### Technical Preview
 
 <https://github.com/github/gh-aw>
 
@@ -66,11 +65,11 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write # danger zone
+  issues: write # DANGER zone
 jobs:
   agent:
     steps:
-      - run: copilot "Summarize issue and respond in a comment."
+      - run: copilot -p "Summarize issue and respond in a comment."
 ```
 
 ---
@@ -118,11 +117,11 @@ Summarize issue and respond in a comment.
 
 - **Containers**: Isolated GitHub Actions Jobs
 
-- **Firewalls**: Network Control
+- **Firewall**: Network Control
 
 - **Minimal Permissions**: Read-only by default
 
-- **MCP Proxy**: Secure tool access
+- **MCP Gateway**: Secure tool access
 
 - **Threat Detection**: Agentic detection of threats
 
@@ -137,17 +136,13 @@ Summarize issue and respond in a comment.
 ```yaml
 jobs:
   activation:
-    run: check authorization & sanitize inputs
+    run: check authorization
 
   agent: needs[activation] # isolated container
     permissions: contents: read # read-only!
-    run: copilot "Analyze package.json for breaking changes..."
+    run: copilot -p "Analyze package.json for breaking changes..."
 
-  detection: needs[agent] # new container
-    run: detect malicious outputs
-    permissions: none
-
-  add-comment: needs[detection] # isolated container
+  safe-outputs: needs[agent] # isolated container
     run: gh issue comment add ...
     permissions: issues: write
 ```
@@ -192,23 +187,6 @@ Fetch latest TypeScript docs report findings in a comment.
 ```
 
 > Control external access for security
-
----
-
-# Getting Started (Agentically)
-
-```sh
-# Install GitHub Agentic Workflows extension
-gh extension install github/gh-aw
-gh aw init
-
-# Agentic setup with Copilot CLI (optional)
-npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install.md"
-```
-
-> Built with AI agents in mind from day 0
-
-> Quick Start: <https://github.github.com/gh-aw/setup/quick-start/>
 
 ---
 
@@ -573,3 +551,20 @@ Analyze issue and create implementation PR
 **Visit:** <https://github.github.com/gh-aw/introduction/architecture/>
 
 Security is foundational to GitHub Agentic Workflows. We continuously evolve our security controls and welcome community feedback.
+
+# Getting Started (Agentically)
+
+```sh
+# Install GitHub Agentic Workflows extension
+gh extension install github/gh-aw
+gh aw init
+
+# Agentic setup with Copilot CLI (optional)
+npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install.md"
+```
+
+> Built with AI agents in mind from day 0
+
+> Quick Start: <https://github.github.com/gh-aw/setup/quick-start/>
+
+---

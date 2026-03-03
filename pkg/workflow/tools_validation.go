@@ -71,6 +71,21 @@ func isGitToolAllowed(tools *Tools) bool {
 	return false
 }
 
+// validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
+// The GitHub MCP server always operates in read-only mode; write access is not permitted.
+func validateGitHubReadOnly(tools *Tools, workflowName string) error {
+	if tools == nil || tools.GitHub == nil {
+		return nil
+	}
+
+	if !tools.GitHub.ReadOnly {
+		toolsValidationLog.Printf("Invalid read-only configuration in workflow: %s", workflowName)
+		return errors.New("invalid GitHub tool configuration: 'tools.github.read-only: false' is not allowed. The GitHub MCP server always operates in read-only mode. Remove the 'read-only' field or set it to 'true'")
+	}
+
+	return nil
+}
+
 // validateGitHubToolConfig validates that the GitHub tool configuration does not
 // specify both app and github-token at the same time, as only one authentication
 // method is allowed.
@@ -79,9 +94,9 @@ func validateGitHubToolConfig(tools *Tools, workflowName string) error {
 		return nil
 	}
 
-	if tools.GitHub.App != nil && tools.GitHub.GitHubToken != "" {
+	if tools.GitHub.GitHubApp != nil && tools.GitHub.GitHubToken != "" {
 		toolsValidationLog.Printf("Invalid GitHub tool configuration in workflow: %s", workflowName)
-		return errors.New("invalid GitHub tool configuration: 'tools.github.app' and 'tools.github.github-token' cannot both be set. Use one authentication method: either 'app' (GitHub App) or 'github-token' (personal access token)")
+		return errors.New("invalid GitHub tool configuration: 'tools.github.github-app' and 'tools.github.github-token' cannot both be set. Use one authentication method: either 'github-app' (GitHub App) or 'github-token' (personal access token)")
 	}
 
 	return nil

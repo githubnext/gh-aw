@@ -38,12 +38,14 @@ describe("close_older_issues", () => {
               title: "Weekly Report - 2024-01",
               html_url: "https://github.com/owner/repo/issues/123",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
             {
               number: 124,
               title: "Weekly Report - 2024-02",
               html_url: "https://github.com/owner/repo/issues/124",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
           ],
         },
@@ -69,12 +71,14 @@ describe("close_older_issues", () => {
               title: "Weekly Report - 2024-01",
               html_url: "https://github.com/owner/repo/issues/123",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
             {
               number: 124,
               title: "Weekly Report - 2024-02",
               html_url: "https://github.com/owner/repo/issues/124",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
           ],
         },
@@ -102,6 +106,7 @@ describe("close_older_issues", () => {
               title: "Issue",
               html_url: "https://github.com/owner/repo/issues/123",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
             {
               number: 124,
@@ -109,6 +114,7 @@ describe("close_older_issues", () => {
               html_url: "https://github.com/owner/repo/pull/124",
               labels: [],
               pull_request: {},
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
           ],
         },
@@ -130,6 +136,79 @@ describe("close_older_issues", () => {
       const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
 
       expect(results).toHaveLength(0);
+    });
+
+    it("should exclude issues whose body does not contain the exact marker", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Matching issue",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "Some content\n<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "Substring match - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              // Body has a related-but-longer workflow ID - GitHub search may match this
+              // but exact filtering should exclude it
+              body: "Some content\n<!-- gh-aw-workflow-id: test-workflow-extended -->",
+            },
+            {
+              number: 125,
+              title: "No marker - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/125",
+              labels: [],
+              body: "Issue without any marker",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 999);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+    });
+
+    it("should filter by gh-aw-workflow-call-id when callerWorkflowId is provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Same caller - should be included",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+            },
+            {
+              number: 124,
+              title: "Different caller - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              // Different caller shares the same reusable workflow-id but has a different call-id
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerB -->",
+            },
+            {
+              number: 125,
+              title: "Old issue without call-id - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/125",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "my-reusable-workflow", 999, "owner/repo/CallerA");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
     });
   });
 
@@ -208,6 +287,7 @@ describe("close_older_issues", () => {
               title: "Prefix - Old Issue",
               html_url: "https://github.com/owner/repo/issues/123",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
           ],
         },
@@ -238,6 +318,7 @@ describe("close_older_issues", () => {
           title: `Issue ${i}`,
           html_url: `https://github.com/owner/repo/issues/${i}`,
           labels: [],
+          body: "<!-- gh-aw-workflow-id: test-workflow -->",
         });
       }
 
@@ -269,12 +350,14 @@ describe("close_older_issues", () => {
               title: "Issue 1",
               html_url: "https://github.com/owner/repo/issues/123",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
             {
               number: 124,
               title: "Issue 2",
               html_url: "https://github.com/owner/repo/issues/124",
               labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
             },
           ],
         },

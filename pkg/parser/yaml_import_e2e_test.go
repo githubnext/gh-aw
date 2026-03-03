@@ -78,7 +78,7 @@ This workflow imports a YAML workflow and adds additional jobs.`
 	result, err := ExtractFrontmatterFromContent(mdWorkflow)
 	require.NoError(t, err, "Should extract frontmatter")
 
-	importsResult, err := ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, tmpDir, nil)
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
 	require.NoError(t, err, "Should process imports")
 
 	// Verify that jobs were imported
@@ -179,7 +179,7 @@ This workflow imports a YAML workflow with services.`
 	result, err := ExtractFrontmatterFromContent(mdWorkflow)
 	require.NoError(t, err, "Should extract frontmatter")
 
-	importsResult, err := ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, tmpDir, nil)
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
 	require.NoError(t, err, "Should process imports")
 
 	// Verify that jobs were imported

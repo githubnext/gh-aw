@@ -73,6 +73,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate GitHub tool read-only configuration
+	if err := validateGitHubReadOnly(workflowData.ParsedTools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate GitHub guard policy configuration
 	if err := validateGitHubGuardPolicy(workflowData.ParsedTools, workflowData.Name); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
@@ -538,8 +543,8 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 
 	// Populate the App field if it's not set in the top-level workflow but is in an included config
-	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.App == nil && includedApp != nil {
-		workflowData.SafeOutputs.App = includedApp
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.GitHubApp == nil && includedApp != nil {
+		workflowData.SafeOutputs.GitHubApp = includedApp
 	}
 
 	// Merge safe-outputs types from imports

@@ -1007,15 +1007,13 @@ name: Phase Test Workflow
 description: Tests phase data flow
 source: test-source
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   bash: ["echo", "ls"]
   github:
     allowed: [list_issues]
 permissions:
   contents: read
-  issues: write
+  issues: read
 network:
   allowed:
     - github.com

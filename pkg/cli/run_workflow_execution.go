@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -395,9 +396,17 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully triggered workflow: "+lockFileName))
 	executionLog.Printf("Workflow triggered successfully: %s", lockFileName)
 
-	// Try to get the latest run for this workflow to show a direct link
-	// Add a delay to allow GitHub Actions time to register the new workflow run
-	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, opts.RepoOverride, opts.Verbose)
+	// Try to get run info: first attempt to parse from gh workflow run output (new in v2.87+),
+	// then fall back to polling with getLatestWorkflowRunWithRetry for older gh CLI versions.
+	// Parsing failure is expected for older gh CLI versions and the fallback ensures backward compatibility.
+	var runInfo *WorkflowRunInfo
+	var runErr error
+	if parsedRunInfo := parseRunInfoFromOutput(output); parsedRunInfo != nil {
+		executionLog.Printf("Parsed run info from gh output: id=%d, url=%s", parsedRunInfo.DatabaseID, parsedRunInfo.URL)
+		runInfo = parsedRunInfo
+	} else {
+		runInfo, runErr = getLatestWorkflowRunWithRetry(lockFileName, opts.RepoOverride, opts.Verbose)
+	}
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔗 View workflow run: "+runInfo.URL))
 		executionLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
@@ -553,4 +562,27 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 		ExecuteFunc:   runAllWorkflows,
 		UseStderr:     false, // Use stdout for run command
 	})
+}
+
+// runInfoURLRegexp matches GitHub Actions run URLs of the form:
+// https://{host}/{owner}/{repo}/actions/runs/{run_id}
+// Supports both public GitHub (github.com) and GitHub Enterprise Server deployments.
+var runInfoURLRegexp = regexp.MustCompile(`https://[^/\s]+/[^/\s]+/[^/\s]+/actions/runs/(\d+)`)
+
+// parseRunInfoFromOutput tries to extract workflow run information from the
+// output of `gh workflow run` (v2.87+), which now returns the run URL.
+// Returns nil if the run URL cannot be found in the output.
+func parseRunInfoFromOutput(output string) *WorkflowRunInfo {
+	matches := runInfoURLRegexp.FindStringSubmatch(output)
+	if len(matches) < 2 {
+		return nil
+	}
+	runID, err := strconv.ParseInt(matches[1], 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &WorkflowRunInfo{
+		URL:        matches[0],
+		DatabaseID: runID,
+	}
 }

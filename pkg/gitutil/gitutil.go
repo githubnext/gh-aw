@@ -1,6 +1,8 @@
 package gitutil
 
 import (
+	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -38,4 +40,31 @@ func IsHexString(s string) bool {
 		}
 	}
 	return true
+}
+
+// ExtractBaseRepo extracts the base repository (owner/repo) from a repository path
+// that may include subfolders.
+// For "actions/checkout" -> "actions/checkout"
+// For "github/codeql-action/upload-sarif" -> "github/codeql-action"
+func ExtractBaseRepo(repoPath string) string {
+	parts := strings.Split(repoPath, "/")
+	if len(parts) >= 2 {
+		return parts[0] + "/" + parts[1]
+	}
+	return repoPath
+}
+
+// FindGitRoot finds the root directory of the git repository.
+// Returns an error if not in a git repository or if the git command fails.
+func FindGitRoot() (string, error) {
+	log.Print("Finding git root directory")
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Failed to find git root: %v", err)
+		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
+	}
+	gitRoot := strings.TrimSpace(string(output))
+	log.Printf("Found git root: %s", gitRoot)
+	return gitRoot, nil
 }

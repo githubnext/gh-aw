@@ -178,7 +178,7 @@ func TestUpdateCommand_RemovedFlags(t *testing.T) {
 	setup := setupUpdateIntegrationTest(t)
 	defer setup.cleanup()
 
-	removedFlags := []string{"--merge", "--pr", "--no-actions", "--audit", "--dry-run", "--json"}
+	removedFlags := []string{"--merge", "--no-actions", "--audit", "--dry-run", "--json"}
 
 	for _, flag := range removedFlags {
 		t.Run(flag, func(t *testing.T) {

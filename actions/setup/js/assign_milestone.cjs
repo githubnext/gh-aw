@@ -21,7 +21,7 @@ async function main(config = {}) {
   // Extract configuration
   const allowedMilestones = config.allowed || [];
   const maxCount = config.max || 10;
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -79,7 +79,7 @@ async function main(config = {}) {
     // Fetch milestones if needed and not already cached
     if (allowedMilestones.length > 0 && allMilestones === null) {
       try {
-        const milestonesResponse = await authClient.rest.issues.listMilestones({
+        const milestonesResponse = await githubClient.rest.issues.listMilestones({
           owner: context.repo.owner,
           repo: context.repo.repo,
           state: "all",
@@ -135,7 +135,7 @@ async function main(config = {}) {
         };
       }
 
-      await authClient.rest.issues.update({
+      await githubClient.rest.issues.update({
         owner: context.repo.owner,
         repo: context.repo.repo,
         issue_number: issueNumber,

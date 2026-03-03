@@ -49,7 +49,7 @@ func TestValidateIncludedPermissions(t *testing.T) {
 		},
 		{
 			name:                "Sufficient permissions pass validation",
-			topPermissionsYAML:  "permissions:\n  contents: write",
+			topPermissionsYAML:  "permissions:\n  contents: read",
 			importedPermissions: `{"contents":"read"}`,
 			expectError:         false,
 		},
@@ -62,13 +62,13 @@ func TestValidateIncludedPermissions(t *testing.T) {
 		},
 		{
 			name:                "All required permissions present passes validation",
-			topPermissionsYAML:  "permissions:\n  contents: write\n  issues: read\n  actions: read\n  pull-requests: write",
-			importedPermissions: strings.Join([]string{`{"actions":"read"}`, `{"contents":"write"}`, `{"pull-requests":"write"}`}, "\n"),
+			topPermissionsYAML:  "permissions:\n  contents: read\n  issues: read\n  actions: read\n  pull-requests: read",
+			importedPermissions: strings.Join([]string{`{"actions":"read"}`, `{"contents":"read"}`, `{"pull-requests":"read"}`}, "\n"),
 			expectError:         false,
 		},
 		{
 			name:                "Write satisfies read requirement",
-			topPermissionsYAML:  "permissions:\n  actions: write",
+			topPermissionsYAML:  "permissions:\n  actions: read",
 			importedPermissions: `{"actions":"read"}`,
 			expectError:         false,
 		},
@@ -207,16 +207,17 @@ tools:
 		}
 	})
 
-	// Test 3: Insufficient permission level fails validation
-	t.Run("Insufficient permission level fails validation", func(t *testing.T) {
+	// Test 3: Missing permission from imported workflow fails validation
+	t.Run("Missing permission from imported workflow fails validation", func(t *testing.T) {
 		sharedWorkflowUpgradeContent := `---
 permissions:
-  contents: write
+  contents: read
   issues: read
   pull-requests: read
+  metadata: read
 ---
 
-# Shared workflow with write permission
+# Shared workflow with extra permission
 `
 		sharedWorkflowUpgradePath := filepath.Join(sharedDir, "shared-upgrade.md")
 		if err := os.WriteFile(sharedWorkflowUpgradePath, []byte(sharedWorkflowUpgradeContent), 0644); err != nil {
@@ -253,8 +254,8 @@ tools:
 		}
 
 		// Check error message
-		if !strings.Contains(err.Error(), "Insufficient permissions") {
-			t.Errorf("Expected error to mention 'Insufficient permissions', got: %v", err)
+		if !strings.Contains(err.Error(), "permissions") {
+			t.Errorf("Expected error to mention permissions, got: %v", err)
 		}
 	})
 
@@ -268,9 +269,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  actions: write
-features:
-  dangerous-permissions-write: true
+  actions: read
 imports:
   - shared/shared-permissions.md
 tools:
@@ -307,11 +306,11 @@ func TestExtractPermissionsFromContent(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 ---
 # Content`,
-			expected: `{"contents":"read","issues":"write","pull-requests":"read"}`,
+			expected: `{"contents":"read","issues":"read","pull-requests":"read"}`,
 			wantErr:  false,
 		},
 		{

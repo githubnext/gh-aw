@@ -28,9 +28,9 @@
  * unchanged (preserving the step-level token from with.github-token).
  *
  * Usage in handlers:
- *   const authClient = await createAuthenticatedGitHubClient(config);
- *   // Use authClient for all GitHub API calls instead of the global github
- *   const { data } = await authClient.rest.issues.create({ ... });
+ *   const githubClient = await createAuthenticatedGitHubClient(config);
+ *   // Use githubClient for all GitHub API calls instead of the global github
+ *   const { data } = await githubClient.rest.issues.create({ ... });
  *
  * @param {Object} config - Handler config object, optionally containing "github-token"
  * @returns {Promise<Object>} Authenticated GitHub client — an Octokit instance created via getOctokit()

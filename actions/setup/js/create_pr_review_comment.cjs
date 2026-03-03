@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -28,7 +29,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const buffer = config._prReviewBuffer;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   if (!buffer) {
     core.warning("create_pull_request_review_comment: No PR review buffer provided in config");
@@ -57,9 +58,7 @@ async function main(config = {}) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   buffer.setFooterContext({
     workflowName,
@@ -205,7 +204,7 @@ async function main(config = {}) {
     // If we don't have the full PR details yet, fetch them
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       try {
-        const { data: fullPR } = await authClient.rest.pulls.get({
+        const { data: fullPR } = await githubClient.rest.pulls.get({
           owner: repoParts.owner,
           repo: repoParts.repo,
           pull_number: pullRequestNumber,

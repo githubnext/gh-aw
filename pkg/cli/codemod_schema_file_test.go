@@ -75,7 +75,7 @@ on:
 engine: copilot
 permissions:
   contents: read
-  issues: write
+  issues: read
 ---
 
 # Complex Workflow

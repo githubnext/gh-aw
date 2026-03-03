@@ -30,14 +30,12 @@ func TestCompileWorkflowWithInvalidYAML(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [list_issues
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -55,13 +53,11 @@ Invalid YAML with unclosed bracket.`,
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 invalid: yaml: syntax
   more: bad
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -79,10 +75,8 @@ Invalid YAML with bad mapping.`,
 on: push
 permissions:
 contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -100,14 +94,12 @@ Invalid YAML with bad indentation.`,
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: ["list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -128,10 +120,8 @@ permissions:
   issues: read
   pull-requests: read
 permissions:
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -169,11 +159,9 @@ Invalid YAML with non-boolean value for permissions.`,
 on: push
 permissions
   contents: read
-  issues: write
+  issues: read
 engine: claude
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Test Workflow
@@ -263,8 +251,6 @@ Invalid YAML with malformed nested structure.`,
 on: push
 permissions: {contents: read, issues: write
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

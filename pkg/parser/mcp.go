@@ -256,7 +256,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		// Check for custom GitHub configuration to determine mode (local vs remote)
 		var useRemote bool
 		var customGitHubToken string
-		var readOnly bool
 
 		if toolConfig, ok := toolValue.(map[string]any); ok {
 			// Check if mode is specified (remote or local)
@@ -270,13 +269,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			if token, hasToken := toolConfig["github-token"]; hasToken {
 				if tokenStr, ok := token.(string); ok {
 					customGitHubToken = tokenStr
-				}
-			}
-
-			// Check for read-only mode
-			if readOnlyField, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
-				if readOnlyBool, ok := readOnlyField.(bool); ok {
-					readOnly = readOnlyBool
 				}
 			}
 		}
@@ -300,10 +292,8 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				config.Env["GITHUB_TOKEN"] = customGitHubToken
 			}
 
-			// Add X-MCP-Readonly header if read-only mode is enabled
-			if readOnly {
-				config.Headers["X-MCP-Readonly"] = "true"
-			}
+			// Always enforce read-only mode for GitHub MCP server
+			config.Headers["X-MCP-Readonly"] = "true"
 		} else {
 			// Handle GitHub MCP server - use local/Docker by default
 			config = MCPServerConfig{
@@ -312,6 +302,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY=1", // Always enforce read-only mode
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
 					Env: make(map[string]string),
@@ -331,12 +322,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		// Check for custom GitHub configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check for read-only mode (only applicable in local/Docker mode)
-			if !useRemote && readOnly {
-				// When read-only is true, inline GITHUB_READ_ONLY=1 in docker args
-				config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
-			}
-
 			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
 				if allowedSlice, ok := allowed.([]any); ok {
 					for _, item := range allowedSlice {

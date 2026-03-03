@@ -231,12 +231,8 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
-				data.SafeOutputs.CreatePullRequests.Max,
+				data.SafeOutputs.CreatePullRequests,
 				1, // default max
-				data.SafeOutputs.CreatePullRequests.AllowedLabels,
-				data.SafeOutputs.CreatePullRequests.AllowEmpty,
-				data.SafeOutputs.CreatePullRequests.AutoMerge,
-				data.SafeOutputs.CreatePullRequests.Expires,
 			)
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
@@ -472,6 +468,18 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.HideComment.Max,
 				5, // default max
 				data.SafeOutputs.HideComment.AllowedReasons,
+			)
+		}
+		if data.SafeOutputs.SetIssueType != nil {
+			additionalFields := make(map[string]any)
+			if len(data.SafeOutputs.SetIssueType.Allowed) > 0 {
+				additionalFields["allowed"] = data.SafeOutputs.SetIssueType.Allowed
+			}
+			safeOutputsConfig["set_issue_type"] = generateTargetConfigWithRepos(
+				data.SafeOutputs.SetIssueType.SafeOutputTargetConfig,
+				data.SafeOutputs.SetIssueType.Max,
+				5, // default max
+				additionalFields,
 			)
 		}
 	}

@@ -29,8 +29,6 @@ permissions:
   pull-requests: read
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -320,8 +318,6 @@ func TestCompileWorkflow_LockFileSize(t *testing.T) {
 on: push
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 ---
 
 # Size Test Workflow

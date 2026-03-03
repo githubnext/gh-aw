@@ -231,6 +231,21 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 
    - You do not have to use any MCPs. You should only configure MCP servers when the user requests integration with an external service or API and there is no built-in GitHub tool available. Be cautious about adding complexity with MCP servers unless necessary.
 
+   - ⚠️ **GitHub API Access — All Engines**: Agentic workflow engines (including `copilot`, `claude`, `codex`, and custom engines) **cannot access `api.github.com` directly**. For any GitHub API operations (reading issues, searching PRs, listing commits, checking runs, etc.), you **must** configure the GitHub MCP server via `tools: github:`. Adding `api.github.com` to `network: allowed:` will **NOT** work and will cause silent failures.
+     - ✅ **CORRECT** — GitHub MCP server:
+       ```yaml
+       tools:
+         github:
+           mode: remote
+           toolsets: [default]
+       ```
+     - ❌ **WRONG** — Direct API access (will silently fail):
+       ```yaml
+       network:
+         allowed:
+           - api.github.com   # Does not grant API access to the engine
+       ```
+
    - The Serena MCP server should only be used when the user specifically requests semantic code parsing and analysis or repository introspection beyond what built-in GitHub tools provide or a regular coding agent will perform. Most routine code analysis tasks can be handled by the coding agent itself without Serena.
 
    - Detect which tools are needed based on the task. Examples:
@@ -483,7 +498,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 4. **Generate Workflows**
    - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
-   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`**.
+   - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`** (see [filename safety note](#cache-memory-filename-safety) below).
    - ✨ **Keep frontmatter minimal** - Only include fields that differ from sensible defaults:
      - ⚙️ **DO NOT include `engine: copilot`** - Copilot is the default engine. Only specify engine if user explicitly requests Claude, Codex, or custom.
      - ⏱️ **DO NOT include `timeout-minutes:`** unless user needs a specific timeout - the default is sensible.
@@ -521,6 +536,13 @@ When creating workflows that involve coding agents operating in large repositori
   tools:
     cache-memory: true
   ```
+
+  > ⚠️ **Filename safety**: Cache-memory files are uploaded as GitHub Actions artifacts.
+  > Artifact filenames **must not contain colons** (NTFS limitation).
+  > ✅ Use: `investigation-2026-02-12-11-20-45.json`
+  > ❌ Avoid: `investigation-2026-02-12T11:20:45Z.json`
+  > When instructing the agent to write timestamped files, explicitly say:
+  > "Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS[-sss]` (no colons, no `T`, no `Z`)."
 
   **In the workflow instructions**:
   1. **List all items** to process (e.g., find all packages/modules/directories)
@@ -573,7 +595,7 @@ Should run when issues are opened or edited
 Based on the parsed requirements, determine:
 
 1. **Workflow ID**: Convert the workflow name to kebab-case (e.g., "Issue Classifier" → "issue-classifier")
-2. **Triggers**: Infer appropriate triggers from the description:
+2. **Triggers**: Infer appropriate triggers from the description. **Always use `on:` as the YAML key** — never use `triggers:` (that is not a valid frontmatter key and will cause a compile error):
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
    - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
@@ -583,7 +605,7 @@ Based on the parsed requirements, determine:
    - **Note**: `workflow_dispatch:` is automatically added ONLY for fuzzy schedules (`daily`, `weekly`, etc.). For other triggers, add it explicitly if manual execution is desired.
 3. **Tools**: Determine required tools:
    - **`bash` and `edit` are enabled by default** - No need to add (sandboxed by AWF)
-   - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed)
+   - GitHub API reads → `tools: github: toolsets: [default]` (use toolsets, NOT allowed); ⚠️ engines cannot access `api.github.com` directly — GitHub MCP is required for all GitHub API operations
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
    - Browser automation → `tools: playwright:` and `network: allowed: [<domains>]`
    - **Network ecosystem inference**: For workflows that build/test/install packages, always include the language ecosystem in `network: allowed:`. Never use `network: defaults` alone — it only covers basic infrastructure, not package registries. Detect from repository files:

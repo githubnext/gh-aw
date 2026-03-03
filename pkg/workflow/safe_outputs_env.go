@@ -237,7 +237,7 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	}
 
 	// If app is configured, use app token
-	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
 		return
 	}
@@ -262,7 +262,7 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 	}
 
 	// If app is configured, use app token
-	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
 		return
 	}
@@ -283,7 +283,7 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 // This is specifically for assign-to-agent operations which require elevated permissions.
 func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
 	// If app is configured, use app token
-	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
 		return
 	}

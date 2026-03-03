@@ -5,6 +5,20 @@ import (
 	"strings"
 )
 
+// NormalizeGitHubHostURL ensures the host URL has a scheme (defaulting to https://) and no trailing slashes.
+// It is safe to call with URLs that already have an http:// or https:// scheme.
+func NormalizeGitHubHostURL(rawHostURL string) string {
+	// Remove all trailing slashes
+	normalized := strings.TrimRight(rawHostURL, "/")
+
+	// Add https:// scheme if no scheme is present
+	if !strings.HasPrefix(normalized, "https://") && !strings.HasPrefix(normalized, "http://") {
+		normalized = "https://" + normalized
+	}
+
+	return normalized
+}
+
 // ExtractDomainFromURL extracts the domain name from a URL string.
 // Handles various URL formats including full URLs with protocols, URLs with ports,
 // and plain domain names.

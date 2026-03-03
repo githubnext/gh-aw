@@ -27,30 +27,22 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:          "write permission without feature flag - should error",
+			name:          "write permission - should error",
 			permissions:   "permissions:\n  contents: write",
 			shouldError:   true,
 			errorContains: "Write permissions are not allowed",
 		},
 		{
-			name:          "multiple write permissions without feature flag - should error",
+			name:          "multiple write permissions - should error",
 			permissions:   "permissions:\n  contents: write\n  issues: write",
 			shouldError:   true,
 			errorContains: "Write permissions are not allowed",
 		},
 		{
-			name:        "write permission with feature flag enabled - should pass",
+			name:        "write permission with feature flag is still an error",
 			permissions: "permissions:\n  contents: write",
 			features: map[string]any{
 				"dangerous-permissions-write": true,
-			},
-			shouldError: false,
-		},
-		{
-			name:        "write permission with feature flag disabled - should error",
-			permissions: "permissions:\n  contents: write",
-			features: map[string]any{
-				"dangerous-permissions-write": false,
 			},
 			shouldError:   true,
 			errorContains: "Write permissions are not allowed",
@@ -61,35 +53,19 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:          "shorthand write-all without feature flag - should error",
+			name:          "shorthand write-all - should error",
 			permissions:   "permissions: write-all",
 			shouldError:   true,
 			errorContains: "Write permissions are not allowed",
 		},
 		{
-			name:        "shorthand write-all with feature flag - should pass",
-			permissions: "permissions: write-all",
-			features: map[string]any{
-				"dangerous-permissions-write": true,
-			},
-			shouldError: false,
-		},
-		{
-			name:        "mixed read and write with feature flag - should pass",
-			permissions: "permissions:\n  contents: read\n  issues: write\n  pull-requests: read",
-			features: map[string]any{
-				"dangerous-permissions-write": true,
-			},
-			shouldError: false,
-		},
-		{
-			name:          "mixed read and write without feature flag - should error",
+			name:          "mixed read and write - should error",
 			permissions:   "permissions:\n  contents: read\n  issues: write\n  pull-requests: read",
 			shouldError:   true,
 			errorContains: "issues: write",
 		},
 		{
-			name:        "id-token write without feature flag - should pass (id-token is safe)",
+			name:        "id-token write - should pass (id-token is safe)",
 			permissions: "permissions:\n  id-token: write",
 			shouldError: false,
 		},

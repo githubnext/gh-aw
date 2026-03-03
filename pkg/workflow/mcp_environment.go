@@ -123,11 +123,6 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
 	}
 
-	// Check if serena is in local mode and add its environment variables
-	if workflowData != nil && isSerenaInLocalMode(workflowData.ParsedTools) {
-		envVars["GH_AW_SERENA_PORT"] = "${{ steps.serena-config.outputs.serena_port }}"
-	}
-
 	// Check for agentic-workflows GITHUB_TOKEN
 	if hasAgenticWorkflows {
 		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
@@ -175,11 +170,17 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 				maps.Copy(envVars, headerSecrets)
 			}
 
-			// Also extract secrets from env section if present
+			// Also extract secrets and env expressions from env section if present
 			if len(mcpConfig.Env) > 0 {
 				envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
 				mcpEnvironmentLog.Printf("Extracted %d secrets from env section of MCP server '%s'", len(envSecrets), toolName)
 				maps.Copy(envVars, envSecrets)
+
+				// Also extract env var expressions in addition to secrets
+				// (e.g., ${{ env.SENTRY_HOST || 'https://sentry.io' }}) so the gateway container can resolve them
+				envExprs := ExtractEnvExpressionsFromMap(mcpConfig.Env)
+				mcpEnvironmentLog.Printf("Extracted %d env expressions from env section of MCP server '%s'", len(envExprs), toolName)
+				maps.Copy(envVars, envExprs)
 			}
 		}
 	}

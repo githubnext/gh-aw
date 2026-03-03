@@ -17,9 +17,10 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
  * missing info sections, blocked domains, and XML metadata marker).
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
+ * @param {string} [historyUrl] - GitHub search URL for items created by this workflow
  * @returns {string} AI attribution footer
  */
-function buildAIFooter(workflowName, runUrl) {
+function buildAIFooter(workflowName, runUrl, historyUrl) {
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
   // Use typeof guard since context is a global injected by the Actions Script runtime
@@ -27,7 +28,7 @@ function buildAIFooter(workflowName, runUrl) {
   const triggeringIssueNumber = ctx?.payload?.issue?.number;
   const triggeringPRNumber = ctx?.payload?.pull_request?.number;
   const triggeringDiscussionNumber = ctx?.payload?.discussion?.number;
-  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
+  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl || undefined).trimEnd();
 }
 
 /**
@@ -82,13 +83,14 @@ function findIsland(body, workflowId) {
  * @param {string} params.runUrl - URL of the workflow run
  * @param {string} params.workflowId - Workflow ID (stable identifier across runs)
  * @param {boolean} [params.includeFooter=true] - Whether to include AI-generated footer (default: true)
+ * @param {string} [params.historyUrl] - GitHub search URL for items created by this workflow
  * @returns {string} Updated body content
  */
 function updateBody(params) {
-  const { currentBody, newContent, operation, workflowName, runUrl, workflowId, includeFooter = true } = params;
+  const { currentBody, newContent, operation, workflowName, runUrl, workflowId, includeFooter = true, historyUrl } = params;
   // When footer is enabled use the full footer (includes install instructions, XML marker, etc.)
   // When footer is disabled still add standalone workflow-id marker for searchability
-  const aiFooter = includeFooter ? buildAIFooter(workflowName, runUrl) : "";
+  const aiFooter = includeFooter ? buildAIFooter(workflowName, runUrl, historyUrl) : "";
   const workflowIdMarker = !includeFooter && workflowId ? `\n\n${generateWorkflowIdMarker(workflowId)}` : "";
 
   // Sanitize new content to prevent injection attacks

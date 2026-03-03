@@ -71,6 +71,11 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	// Keep the original frontmatter with markers for YAML generation
 	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
 
+	// Check if user accidentally used "triggers:" instead of the correct "on:" keyword
+	if _, hasTriggers := frontmatterForValidation["triggers"]; hasTriggers {
+		return nil, fmt.Errorf("%s: invalid frontmatter key 'triggers:' — use 'on:' to define workflow triggers", cleanPath)
+	}
+
 	// Check if "on" field is missing - if so, treat as a shared/imported workflow
 	_, hasOnField := frontmatterForValidation["on"]
 	if !hasOnField {

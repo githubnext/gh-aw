@@ -26,10 +26,8 @@ on:
     types: [opened, synchronize]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -77,10 +75,8 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -174,8 +170,8 @@ on:
     types: [opened, synchronize, reopened]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine:
   id: copilot
   max-turns: 5
@@ -243,10 +239,8 @@ on:
     types: [opened, synchronize]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -295,10 +289,8 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 tools:
   github:
@@ -366,9 +358,9 @@ on:
           - production
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
-  deployments: write
+  issues: read
+  pull-requests: read
+  deployments: read
 engine:
   id: copilot
   max-turns: 10

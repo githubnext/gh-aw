@@ -22,7 +22,7 @@
 //   - Remote: Uses hosted GitHub MCP service
 //
 // Security features:
-//   - Read-only mode: Prevents write operations (default: true)
+//   - Read-only mode: Always enforced - write operations via GitHub MCP are not permitted
 //   - GitHub lockdown mode: Restricts access to current repository only
 //   - Automatic lockdown: Enables lockdown for public repositories with GH_AW_GITHUB_TOKEN
 //   - Allowed tools: Restricts available GitHub API operations
@@ -56,7 +56,6 @@
 //	  github:
 //	    mode: remote                    # or "local" for Docker
 //	    github-token: ${{ secrets.PAT }}
-//	    read-only: true
 //	    lockdown: true                  # or omit for automatic detection
 //	    toolsets: [repos, issues, pull_requests]
 //	    allowed: [get_repo, list_issues, get_pull_request]
@@ -84,8 +83,8 @@ func hasGitHubTool(parsedTools *Tools) bool {
 // hasGitHubApp checks if a GitHub App is configured in the (merged) GitHub tool configuration
 func hasGitHubApp(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		_, exists := toolConfig["app"]
-		return exists
+		_, hasGitHubApp := toolConfig["github-app"]
+		return hasGitHubApp
 	}
 	return false
 }
@@ -114,17 +113,10 @@ func getGitHubToken(githubTool any) string {
 	return ""
 }
 
-// getGitHubReadOnly checks if read-only mode is enabled for GitHub tool
-// Defaults to true for security
-func getGitHubReadOnly(githubTool any) bool {
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if readOnlySetting, exists := toolConfig["read-only"]; exists {
-			if boolValue, ok := readOnlySetting.(bool); ok {
-				return boolValue
-			}
-		}
-	}
-	return true // default to read-only for security
+// getGitHubReadOnly returns true always, since the GitHub MCP server is always read-only.
+// Setting read-only: false is not supported and will be flagged as a validation error.
+func getGitHubReadOnly(_ any) bool {
+	return true
 }
 
 // getGitHubLockdown checks if lockdown mode is enabled for GitHub tool
@@ -358,11 +350,11 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 // The step mints an installation access token with permissions matching the agent job permissions
 func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
-	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.App == nil {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
 		return
 	}
 
-	app := data.ParsedTools.GitHub.App
+	app := data.ParsedTools.GitHub.GitHubApp
 	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: app-id=%s", app.AppID)
 
 	// Get permissions from the agent job - parse from YAML string
@@ -390,7 +382,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 // This step always runs (even on failure) to ensure tokens are properly cleaned up
 func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
-	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.App == nil {
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
 		return
 	}
 

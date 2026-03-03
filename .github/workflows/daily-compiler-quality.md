@@ -306,44 +306,6 @@ Compare current analysis with previous analyses:
 
 Generate a comprehensive discussion report with findings.
 
-### Report Formatting Guidelines
-
-**IMPORTANT**: Follow these formatting standards to maintain consistency and readability:
-
-#### 1. Header Levels
-Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The discussion title serves as h1, so all content headers should start at h3.
-
-**Structure**:
-- Main sections: h3 (###) - e.g., "### 🔍 Quality Analysis Summary"
-- Subsections: h4 (####) - e.g., "#### Scores Breakdown"
-- Detail sections inside `<details>`: h3/h4 as appropriate
-
-#### 2. Progressive Disclosure
-Wrap detailed analysis and long code sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce visual clutter. This helps users quickly scan the most important information while still providing access to detailed content.
-
-**Example**:
-```markdown
-<details>
-<summary><b>Detailed File Analysis</b></summary>
-
-[Long detailed content here...]
-
-</details>
-```
-
-#### 3. Suggested Report Structure
-- **Brief summary** of quality score and key findings (always visible)
-- **Key quality issues** requiring immediate attention (always visible)
-- **Detailed file analysis** (wrapped in `<details>` tags for progressive disclosure)
-- **Historical trends** (wrapped in `<details>` tags if lengthy)
-- **Recommendations** (always visible for quick action)
-
-This structure follows Airbnb-inspired design principles:
-- **Build trust through clarity**: Most important info immediately visible
-- **Exceed expectations**: Add helpful context, trends, and comparisons
-- **Create delight**: Use progressive disclosure to reduce overwhelm
-- **Maintain consistency**: Follow the same patterns as other reporting workflows
-
 ### Discussion Title
 
 ```

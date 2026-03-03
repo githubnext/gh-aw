@@ -23,14 +23,12 @@ func TestAgenticOutputCollection(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [list_issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:
@@ -124,14 +122,12 @@ func TestCodexEngineWithOutputSteps(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
     allowed: [list_issues]
 engine: codex
-features:
-  dangerous-permissions-write: true
 strict: false
 safe-outputs:
   add-labels:

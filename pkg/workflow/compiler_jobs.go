@@ -465,6 +465,19 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			if runsOn, hasRunsOn := configMap["runs-on"]; hasRunsOn {
 				if runsOnStr, ok := runsOn.(string); ok {
 					job.RunsOn = "runs-on: " + runsOnStr
+				} else {
+					// Array or object form: marshal the value and build indented YAML snippet
+					yamlBytes, err := yaml.Marshal(runsOn)
+					if err != nil {
+						return fmt.Errorf("failed to convert runs-on to YAML for job '%s': %w", jobName, err)
+					}
+					lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+					var b strings.Builder
+					b.WriteString("runs-on:\n")
+					for _, line := range lines {
+						b.WriteString("      " + line + "\n")
+					}
+					job.RunsOn = strings.TrimSuffix(b.String(), "\n")
 				}
 			}
 

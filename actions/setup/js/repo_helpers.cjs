@@ -169,6 +169,21 @@ function validateRepo(repo, defaultRepo, allowedRepos) {
     }
   }
 
+  // Wildcard default repo allows any target repo, but still require a valid owner/repo slug
+  if (defaultRepo === "*") {
+    const parsed = parseRepoSlug(qualifiedRepo);
+    if (!parsed) {
+      return {
+        valid: false,
+        error: `Repository '${repo}' is not a valid 'owner/repo' slug.`,
+        qualifiedRepo,
+      };
+    }
+    // Normalize to a fully-qualified slug to honor the contract of RepoValidationResult
+    qualifiedRepo = `${parsed.owner}/${parsed.repo}`;
+    return { valid: true, error: null, qualifiedRepo };
+  }
+
   // Default repo is always allowed
   if (qualifiedRepo === defaultRepo) {
     return { valid: true, error: null, qualifiedRepo };

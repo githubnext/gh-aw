@@ -82,7 +82,7 @@ This workflow imports a custom agent with array-format tools.`
 		},
 	}
 
-	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, workflowsDir, nil)
+	result, err := ProcessImportsFromFrontmatterWithSource(frontmatter, workflowsDir, nil, "", "")
 	if err != nil {
 		t.Fatalf("ProcessImportsFromFrontmatterWithManifest() error = %v, want nil", err)
 	}
@@ -165,7 +165,7 @@ func TestMultipleAgentImportsError(t *testing.T) {
 		},
 	}
 
-	_, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, workflowsDir, nil)
+	_, err := ProcessImportsFromFrontmatterWithSource(frontmatter, workflowsDir, nil, "", "")
 	if err == nil {
 		t.Errorf("Expected error when importing multiple agent files, got nil")
 	}

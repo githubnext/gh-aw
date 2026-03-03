@@ -114,27 +114,6 @@ Test workflow with Serena tool.`,
 			expectStep: true,
 		},
 		{
-			name: "Serena tool in local mode does not generate docker image",
-			frontmatter: `---
-on: issues
-strict: false
-engine: claude
-tools:
-  serena:
-    mode: local
-    languages:
-      go:
-      typescript:
----
-
-# Test
-Test workflow with Serena tool in local mode.`,
-			expectedImages: []string{
-				"ghcr.io/github/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
-			},
-			expectStep: true,
-		},
-		{
 			name: "Serena tool with GitHub tool both generate images",
 			frontmatter: `---
 on: issues

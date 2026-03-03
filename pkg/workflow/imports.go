@@ -493,6 +493,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.LinkSubIssue != nil
 	case "hide-comment":
 		return config.HideComment != nil
+	case "set-issue-type":
+		return config.SetIssueType != nil
 	case "dispatch-workflow":
 		return config.DispatchWorkflow != nil
 	case "missing-data":
@@ -618,6 +620,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.HideComment == nil && importedConfig.HideComment != nil {
 		result.HideComment = importedConfig.HideComment
 	}
+	if result.SetIssueType == nil && importedConfig.SetIssueType != nil {
+		result.SetIssueType = importedConfig.SetIssueType
+	}
 	if result.DispatchWorkflow == nil && importedConfig.DispatchWorkflow != nil {
 		result.DispatchWorkflow = importedConfig.DispatchWorkflow
 	}
@@ -650,6 +655,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.GitHubToken == "" && importedConfig.GitHubToken != "" {
 		result.GitHubToken = importedConfig.GitHubToken
+	}
+	if result.GitHubApp == nil && importedConfig.GitHubApp != nil {
+		result.GitHubApp = importedConfig.GitHubApp
 	}
 	if result.MaximumPatchSize == 0 && importedConfig.MaximumPatchSize > 0 {
 		result.MaximumPatchSize = importedConfig.MaximumPatchSize

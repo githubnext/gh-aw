@@ -33,7 +33,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const targetConfig = config.target || "triggering";
   const buffer = config._prReviewBuffer;
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   if (!buffer) {
     core.warning("submit_pull_request_review: No PR review buffer provided in config");
@@ -124,7 +124,7 @@ async function main(config = {}) {
           core.info(`Set review context from triggering PR: ${repo}#${payloadPR.number}`);
         } else {
           try {
-            const { data: fetchedPR } = await authClient.rest.pulls.get({
+            const { data: fetchedPR } = await githubClient.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNum,

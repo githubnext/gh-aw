@@ -47,10 +47,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Add GitHub App token minting step if app is configured
-	if data.SafeOutputs.App != nil {
+	if data.SafeOutputs.GitHubApp != nil {
 		// Compute permissions based on configured safe outputs (principle of least privilege)
 		permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions)...)
 	}
 
 	// Add artifact download steps once (shared by noop and conclusion steps)
@@ -143,6 +143,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
 	}
 
+	// Pass inference access error output for Copilot engine
+	// This detects when the Copilot CLI fails due to the token lacking inference access
+	if _, ok := engine.(*CopilotEngine); ok {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
+	}
+
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")
@@ -186,6 +192,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"true\"\n")
 	} else {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"false\"\n")
+	}
+
+	// Pass timeout minutes value so the failure handler can provide an actionable hint when timed out
+	timeoutValue := strings.TrimPrefix(data.TimeoutMinutes, "timeout-minutes: ")
+	if timeoutValue != "" {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_TIMEOUT_MINUTES: %q\n", timeoutValue))
 	}
 
 	// Build the agent failure handling step
@@ -316,7 +328,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// See buildUnlockJob() in compiler_unlock_job.go
 
 	// Add GitHub App token invalidation step if app is configured
-	if data.SafeOutputs.App != nil {
+	if data.SafeOutputs.GitHubApp != nil {
 		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}

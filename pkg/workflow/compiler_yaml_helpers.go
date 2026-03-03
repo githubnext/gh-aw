@@ -316,10 +316,10 @@ func generateInlineGitHubScriptStep(stepName, script, condition string) string {
 // Parameters:
 //   - setupActionRef: The action reference for setup action (e.g., "./actions/setup" or "github/gh-aw/actions/setup@sha")
 //   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
-//   - enableSafeOutputProjects: Whether to enable safe-output-projects support (installs @actions/github for project handlers)
+//   - enableCustomTokens: Whether to enable custom-token support (installs @actions/github so handler_auth.cjs can create per-handler Octokit clients)
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
-func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableSafeOutputProjects bool) []string {
+func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableCustomTokens bool) []string {
 	// Script mode: run the setup.sh script directly
 	if c.actionMode.IsScript() {
 		lines := []string{
@@ -329,8 +329,8 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 			"        env:\n",
 			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
 		}
-		if enableSafeOutputProjects {
-			lines = append(lines, "          INPUT_SAFE_OUTPUT_PROJECTS: 'true'\n")
+		if enableCustomTokens {
+			lines = append(lines, "          INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: 'true'\n")
 		}
 		return lines
 	}
@@ -342,8 +342,8 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 		"        with:\n",
 		fmt.Sprintf("          destination: %s\n", destination),
 	}
-	if enableSafeOutputProjects {
-		lines = append(lines, "          safe-output-projects: 'true'\n")
+	if enableCustomTokens {
+		lines = append(lines, "          safe-output-custom-tokens: 'true'\n")
 	}
 	return lines
 }

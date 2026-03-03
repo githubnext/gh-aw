@@ -190,6 +190,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		safeOutputsPermissionsLog.Print("Adding permissions for assign-milestone")
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
+	if safeOutputs.SetIssueType != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for set-issue-type")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
 	if safeOutputs.AddReviewer != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for add-reviewer")
 		permissions.Merge(NewPermissionsContentsReadPRWrite())

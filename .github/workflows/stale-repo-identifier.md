@@ -40,7 +40,7 @@ safe-outputs:
     group: true
   upload-asset:
   messages:
-    footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*"
+    footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*{history_link}"
     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories."
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
@@ -66,7 +66,7 @@ env:
 steps:
   - name: Run stale-repos tool
     id: stale-repos
-    uses: github/stale-repos@v8.0.4
+    uses: github/stale-repos@v9.0.1
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ORGANIZATION: ${{ env.ORGANIZATION }}

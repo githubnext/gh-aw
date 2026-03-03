@@ -302,13 +302,11 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  issues: read
 tools:
   github:
     toolsets: [issues]
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -332,9 +330,7 @@ This is a normal-sized workflow that should compile successfully.`
 		"  issues:\n" +
 		"    types: [opened]\n" +
 		"permissions:\n" +
-		"  issues: write\n" +
-		"features:\n" +
-		"  dangerous-permissions-write: true\n" +
+		"  issues: read\n" +
 		"strict: false\n" +
 		"tools:\n" +
 		"  github:\n" +

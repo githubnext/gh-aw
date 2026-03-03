@@ -80,7 +80,18 @@ function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               // Ignore cleanup errors
             }
 
-            reject(error);
+            // Build an enhanced error message that includes stdout/stderr so the
+            // AI agent can see what actually went wrong (not just "Command failed").
+            const exitCode = typeof error.code === "number" ? error.code : 1;
+            const parts = [`Command failed: ${scriptPath} (exit code: ${exitCode})`];
+            if (stderr && stderr.trim()) {
+              parts.push(`stderr:\n${stderr.trim()}`);
+            }
+            if (stdout && stdout.trim()) {
+              parts.push(`stdout:\n${stdout.trim()}`);
+            }
+            const enhancedError = new Error(parts.join("\n"));
+            reject(enhancedError);
             return;
           }
 

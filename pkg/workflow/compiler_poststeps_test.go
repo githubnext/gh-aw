@@ -23,7 +23,7 @@ func TestPostStepsGeneration(t *testing.T) {
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
@@ -40,8 +40,6 @@ post-steps:
       name: test-artifact
       path: test-file.txt
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 
@@ -116,7 +114,7 @@ func TestPostStepsOnly(t *testing.T) {
 on: issues
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tools:
   github:
@@ -125,8 +123,6 @@ post-steps:
   - name: Only Post Step
     run: echo "This runs after AI only"
 engine: claude
-features:
-  dangerous-permissions-write: true
 strict: false
 ---
 

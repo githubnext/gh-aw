@@ -190,6 +190,8 @@ func DisplayDependencyReport(report *DependencyReport) {
 
 // DisplayDependencyReportJSON outputs the dependency report in JSON format
 func DisplayDependencyReportJSON(report *DependencyReport) error {
+	depsReportLog.Printf("Generating JSON dependency report: %d total, %d outdated, %d advisories", report.TotalDeps, len(report.Outdated), len(report.Advisories))
+
 	// Calculate percentages
 	outdatedPercentage := 0.0
 	if report.DirectDeps > 0 {
@@ -270,6 +272,8 @@ type DependencyInfoWithIndirect struct {
 
 // parseGoModWithIndirect parses go.mod including indirect dependencies
 func parseGoModWithIndirect(path string) ([]DependencyInfoWithIndirect, error) {
+	depsReportLog.Printf("Parsing go.mod file: %s", path)
+
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -313,6 +317,7 @@ func parseGoModWithIndirect(path string) ([]DependencyInfoWithIndirect, error) {
 		}
 	}
 
+	depsReportLog.Printf("Parsed go.mod: %d total dependencies", len(deps))
 	return deps, nil
 }
 

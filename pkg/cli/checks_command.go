@@ -58,12 +58,13 @@ type PRCommitStatus struct {
 
 // ChecksResult is the normalized output for the checks command.
 type ChecksResult struct {
-	State      CheckState       `json:"state"`
-	PRNumber   string           `json:"pr_number"`
-	HeadSHA    string           `json:"head_sha"`
-	CheckRuns  []PRCheckRun     `json:"check_runs"`
-	Statuses   []PRCommitStatus `json:"statuses"`
-	TotalCount int              `json:"total_count"`
+	State         CheckState       `json:"state"`
+	RequiredState CheckState       `json:"required_state"`
+	PRNumber      string           `json:"pr_number"`
+	HeadSHA       string           `json:"head_sha"`
+	CheckRuns     []PRCheckRun     `json:"check_runs"`
+	Statuses      []PRCommitStatus `json:"statuses"`
+	TotalCount    int              `json:"total_count"`
 }
 
 // NewChecksCommand creates the checks command.
@@ -81,6 +82,16 @@ Maps PR check rollups to one of the following normalized states:
   policy_blocked - policy or account gates are blocking the PR
 
 ` + "Raw check run and commit status signals are included in JSON output." + `
+
+JSON output includes two state fields:
+  state          - aggregate state across all check runs and commit statuses
+  required_state - state derived from check runs and policy commit statuses only;
+                   ignores optional third-party commit statuses (e.g. Vercel,
+                   Netlify deployments) but still surfaces policy_blocked when
+                   branch-protection or account-gate statuses fail
+
+Use required_state as the authoritative CI verdict in repos that have optional
+deployment integrations posting commit statuses alongside required CI checks.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` checks 42                    # Classify checks for PR #42
@@ -152,14 +163,16 @@ func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, err
 	}
 
 	state := classifyCheckState(checkRuns, statuses)
+	requiredState := classifyCheckState(checkRuns, policyStatuses(statuses))
 
 	return &ChecksResult{
-		State:      state,
-		PRNumber:   prNumber,
-		HeadSHA:    headSHA,
-		CheckRuns:  checkRuns,
-		Statuses:   statuses,
-		TotalCount: len(checkRuns) + len(statuses),
+		State:         state,
+		RequiredState: requiredState,
+		PRNumber:      prNumber,
+		HeadSHA:       headSHA,
+		CheckRuns:     checkRuns,
+		Statuses:      statuses,
+		TotalCount:    len(checkRuns) + len(statuses),
 	}, nil
 }
 
@@ -303,6 +316,22 @@ func isPolicyCheck(name string) bool {
 		}
 	}
 	return false
+}
+
+// policyStatuses returns only the commit statuses whose context matches a policy/account-gate
+// pattern. Used to compute required_state, which excludes optional third-party commit statuses
+// (e.g. Vercel, Netlify deployments) but still surfaces policy_blocked when policy gates fail.
+func policyStatuses(statuses []PRCommitStatus) []PRCommitStatus {
+	if len(statuses) == 0 {
+		return nil
+	}
+	var filtered []PRCommitStatus
+	for _, s := range statuses {
+		if isPolicyCheck(s.Context) {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
 }
 
 // classifyCheckState derives a normalized CheckState from raw check runs and commit statuses.

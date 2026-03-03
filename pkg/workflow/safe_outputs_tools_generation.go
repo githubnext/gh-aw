@@ -165,6 +165,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.HideComment != nil {
 		enabledTools["hide_comment"] = true
 	}
+	if data.SafeOutputs.SetIssueType != nil {
+		enabledTools["set_issue_type"] = true
+	}
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
 	}
@@ -373,7 +376,8 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			targetRepoSlug = config.TargetRepoSlug
 		}
 	case "add_labels", "remove_labels", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
-		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user":
+		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user",
+		"set_issue_type":
 		// These use SafeOutputTargetConfig - check the appropriate config
 		switch toolName {
 		case "add_labels":
@@ -423,6 +427,11 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			}
 		case "unassign_from_user":
 			if config := safeOutputs.UnassignFromUser; config != nil {
+				hasAllowedRepos = len(config.AllowedRepos) > 0
+				targetRepoSlug = config.TargetRepoSlug
+			}
+		case "set_issue_type":
+			if config := safeOutputs.SetIssueType; config != nil {
 				hasAllowedRepos = len(config.AllowedRepos) > 0
 				targetRepoSlug = config.TargetRepoSlug
 			}

@@ -741,3 +741,146 @@ describe("update_issue.cjs - title_prefix configuration", () => {
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 });
+
+describe("update_issue.cjs - cross-repo and operation integration", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+  });
+
+  it("should route API calls to the cross-repo target when repo field is provided", async () => {
+    let capturedOwner, capturedRepo;
+
+    mockGithub.rest.issues.get.mockImplementation(async ({ owner, repo, issue_number }) => ({
+      data: { number: issue_number, title: "Cross-repo Issue", body: "Original", html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}` },
+    }));
+    mockGithub.rest.issues.update.mockImplementation(async ({ owner, repo, issue_number, ...data }) => {
+      capturedOwner = owner;
+      capturedRepo = repo;
+      return { data: { number: issue_number, title: "Cross-repo Issue", body: data.body, html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}` } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({
+      "target-repo": "other-owner/other-repo",
+      allowed_repos: ["other-owner/other-repo"],
+      target: "*",
+    });
+
+    const result = await handler({ issue_number: 42, repo: "other-owner/other-repo", body: "New content" }, {});
+
+    expect(result.success).toBe(true);
+    expect(capturedOwner).toBe("other-owner");
+    expect(capturedRepo).toBe("other-repo");
+  });
+
+  it("should use current workflow repo in attribution URL for cross-repo updates", async () => {
+    let capturedBody;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: { number: 42, title: "Cross-repo Issue", body: "Original", html_url: "https://github.com/other-owner/other-repo/issues/42" },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ body }) => {
+      capturedBody = body;
+      return { data: { number: 42, title: "Cross-repo Issue", body, html_url: "https://github.com/other-owner/other-repo/issues/42" } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({
+      "target-repo": "other-owner/other-repo",
+      allowed_repos: ["other-owner/other-repo"],
+      target: "*",
+    });
+
+    await handler({ issue_number: 42, repo: "other-owner/other-repo", operation: "replace", body: "New content" }, {});
+
+    // Attribution URL must reference the current workflow's repo, not the cross-repo target
+    expect(capturedBody).toContain("testowner/testrepo/actions/runs/12345");
+    expect(capturedBody).not.toContain("other-owner/other-repo/actions/runs/12345");
+  });
+
+  it("should apply 'append' operation: new content added after existing body", async () => {
+    let capturedBody;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: { number: 100, title: "Test", body: "Existing body", html_url: "https://github.com/testowner/testrepo/issues/100" },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ body }) => {
+      capturedBody = body;
+      return { data: { number: 100, title: "Test", body, html_url: "https://github.com/testowner/testrepo/issues/100" } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    await handler({ issue_number: 100, operation: "append", body: "Appended content" }, {});
+
+    expect(capturedBody).toContain("Existing body");
+    expect(capturedBody).toContain("Appended content");
+    expect(capturedBody.indexOf("Existing body")).toBeLessThan(capturedBody.indexOf("Appended content"));
+  });
+
+  it("should apply 'replace' operation: old content replaced by new content", async () => {
+    let capturedBody;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: { number: 100, title: "Test", body: "Old body to replace", html_url: "https://github.com/testowner/testrepo/issues/100" },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ body }) => {
+      capturedBody = body;
+      return { data: { number: 100, title: "Test", body, html_url: "https://github.com/testowner/testrepo/issues/100" } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    await handler({ issue_number: 100, operation: "replace", body: "Replacement content" }, {});
+
+    expect(capturedBody).not.toContain("Old body to replace");
+    expect(capturedBody).toContain("Replacement content");
+  });
+
+  it("should apply 'prepend' operation: new content placed before existing body", async () => {
+    let capturedBody;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: { number: 100, title: "Test", body: "Existing body", html_url: "https://github.com/testowner/testrepo/issues/100" },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ body }) => {
+      capturedBody = body;
+      return { data: { number: 100, title: "Test", body, html_url: "https://github.com/testowner/testrepo/issues/100" } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    await handler({ issue_number: 100, operation: "prepend", body: "Prepended content" }, {});
+
+    expect(capturedBody).toContain("Existing body");
+    expect(capturedBody).toContain("Prepended content");
+    expect(capturedBody.indexOf("Prepended content")).toBeLessThan(capturedBody.indexOf("Existing body"));
+  });
+
+  it("should apply 'replace-island' operation: only the island section is updated", async () => {
+    const existingBody = "Header\n<!-- gh-aw-island-start:test-workflow -->\nOld island\n<!-- gh-aw-island-end:test-workflow -->\nFooter";
+    let capturedBody;
+
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: { number: 100, title: "Test", body: existingBody, html_url: "https://github.com/testowner/testrepo/issues/100" },
+    });
+    mockGithub.rest.issues.update.mockImplementation(async ({ body }) => {
+      capturedBody = body;
+      return { data: { number: 100, title: "Test", body, html_url: "https://github.com/testowner/testrepo/issues/100" } };
+    });
+
+    const { main } = await import("./update_issue.cjs");
+    const handler = await main({ target: "*" });
+    await handler({ issue_number: 100, operation: "replace-island", body: "New island content" }, {});
+
+    expect(capturedBody).toContain("Header");
+    expect(capturedBody).toContain("Footer");
+    expect(capturedBody).toContain("New island content");
+    expect(capturedBody).not.toContain("Old island");
+    expect(capturedBody).toContain("<!-- gh-aw-island-start:test-workflow -->");
+    expect(capturedBody).toContain("<!-- gh-aw-island-end:test-workflow -->");
+  });
+});

@@ -104,12 +104,10 @@ func (g *GitHubToolConfig) GetToolsets() string {
 	return expandDefaultToolset(toolsetsStr)
 }
 
-// IsReadOnly implements ValidatableTool for GitHubToolConfig
+// IsReadOnly implements ValidatableTool for GitHubToolConfig.
+// The GitHub MCP server always operates in read-only mode.
 func (g *GitHubToolConfig) IsReadOnly() bool {
-	if g == nil {
-		return true // default to read-only for security
-	}
-	return g.ReadOnly
+	return true
 }
 
 // PermissionsValidationResult contains the result of permissions validation
@@ -193,18 +191,11 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 			continue
 		}
 
-		// Add read permissions
+		// Add read permissions only (write tools are not considered for permission requirements)
 		for _, scope := range perms.ReadPermissions {
 			// Always require at least read access
 			if existing, found := required[scope]; !found || existing == PermissionNone {
 				required[scope] = PermissionRead
-			}
-		}
-
-		// Add write permissions only if not in read-only mode
-		if !readOnly {
-			for _, scope := range perms.WritePermissions {
-				required[scope] = PermissionWrite
 			}
 		}
 	}

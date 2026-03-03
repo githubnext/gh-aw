@@ -1,9 +1,6 @@
 package workflow
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -18,72 +15,6 @@ type CreatePullRequestReviewCommentsConfig struct {
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that PR review comments can be added to (additionally to the target-repo)
 }
 
-// buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
-//
-//nolint:unused // Only used in integration tests
-func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	createPRReviewCommentLog.Printf("Building PR review comment job: main_job=%s", mainJobName)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequestReviewComments == nil {
-		return nil, errors.New("safe-outputs.create-pull-request-review-comment configuration is required")
-	}
-
-	// Log configuration details
-	side := data.SafeOutputs.CreatePullRequestReviewComments.Side
-	target := data.SafeOutputs.CreatePullRequestReviewComments.Target
-	createPRReviewCommentLog.Printf("Configuration: side=%s, target=%s", side, target)
-
-	// Build custom environment variables specific to create-pull-request-review-comment
-	var customEnvVars []string
-
-	// Pass the side configuration
-	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
-	}
-	// Pass the target configuration
-	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
-	}
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"review_comment_id":  "${{ steps.create_pr_review_comment.outputs.review_comment_id }}",
-		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
-	}
-
-	var jobCondition = BuildSafeOutputType("create_pull_request_review_comment")
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil && data.SafeOutputs.CreatePullRequestReviewComments.Target == "" {
-		issueWithPR := &AndNode{
-			Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-			Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
-		}
-		eventCondition := BuildOr(
-			issueWithPR,
-			BuildPropertyAccess("github.event.pull_request"),
-		)
-		jobCondition = BuildAnd(jobCondition, eventCondition)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "create_pr_review_comment",
-		StepName:       "Create PR Review Comment",
-		StepID:         "create_pr_review_comment",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		ScriptName:     "create_pr_review_comment",
-		Permissions:    NewPermissionsContentsReadPRWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug,
-	})
-}
-
-// parsePullRequestReviewCommentsConfig handles create-pull-request-review-comment configuration
 func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any) *CreatePullRequestReviewCommentsConfig {
 	if _, exists := outputMap["create-pull-request-review-comment"]; !exists {
 		createPRReviewCommentLog.Printf("Configuration not found")

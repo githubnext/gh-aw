@@ -48,7 +48,6 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues]
-    read-only: false
 ---
 
 # Test Workflow
@@ -73,11 +72,9 @@ on: push
 			content: `---
 on: push
 permissions:
-  contents: write
-  issues: write
+  contents: read
+  issues: read
 strict: false
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [repos, issues]
@@ -210,7 +207,6 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues]
-    read-only: false
 ---
 
 # Test Workflow

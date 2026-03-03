@@ -276,58 +276,44 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, serenaTool any) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
-	// Determine the mode
-	mode := "docker" // default
-	if toolMap, ok := serenaTool.(map[string]any); ok {
-		if modeStr, ok := toolMap["mode"].(string); ok {
-			mode = modeStr
-		}
-	}
-
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.serena]\n")
 
-	if mode == "local" {
-		// Local mode: use HTTP transport
-		yaml.WriteString("          type = \"http\"\n")
-		yaml.WriteString("          url = \"http://localhost:$GH_AW_SERENA_PORT\"\n")
-	} else {
-		// Docker mode: use stdio transport (default)
-		// Select the appropriate Serena container based on requested languages
-		containerImage := selectSerenaContainer(serenaTool)
-		yaml.WriteString("          container = \"" + containerImage + ":latest\"\n")
+	// Docker mode: use stdio transport (default)
+	// Select the appropriate Serena container based on requested languages
+	containerImage := selectSerenaContainer(serenaTool)
+	yaml.WriteString("          container = \"" + containerImage + ":latest\"\n")
 
-		// Docker runtime args (--network host for network access)
-		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"--network\",\n")
-		yaml.WriteString("            \"host\",\n")
-		yaml.WriteString("          ]\n")
+	// Docker runtime args (--network host for network access)
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"--network\",\n")
+	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("          ]\n")
 
-		// Serena entrypoint
-		yaml.WriteString("          entrypoint = \"serena\"\n")
+	// Serena entrypoint
+	yaml.WriteString("          entrypoint = \"serena\"\n")
 
-		// Entrypoint args for Serena MCP server
-		yaml.WriteString("          entrypointArgs = [\n")
-		yaml.WriteString("            \"start-mcp-server\",\n")
-		yaml.WriteString("            \"--context\",\n")
-		yaml.WriteString("            \"codex\",\n")
-		yaml.WriteString("            \"--project\",\n")
-		// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
-		yaml.WriteString("            \"${GITHUB_WORKSPACE}\"")
+	// Entrypoint args for Serena MCP server
+	yaml.WriteString("          entrypointArgs = [\n")
+	yaml.WriteString("            \"start-mcp-server\",\n")
+	yaml.WriteString("            \"--context\",\n")
+	yaml.WriteString("            \"codex\",\n")
+	yaml.WriteString("            \"--project\",\n")
+	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+	yaml.WriteString("            \"${GITHUB_WORKSPACE}\"")
 
-		// Append custom args if present
-		for _, arg := range customArgs {
-			yaml.WriteString(",\n")
-			fmt.Fprintf(yaml, "            \"%s\"", arg)
-		}
-
-		yaml.WriteString("\n")
-		yaml.WriteString("          ]\n")
-
-		// Add volume mount for workspace access
-		// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
-		yaml.WriteString("          mounts = [\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"]\n")
+	// Append custom args if present
+	for _, arg := range customArgs {
+		yaml.WriteString(",\n")
+		fmt.Fprintf(yaml, "            \"%s\"", arg)
 	}
+
+	yaml.WriteString("\n")
+	yaml.WriteString("          ]\n")
+
+	// Add volume mount for workspace access
+	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+	yaml.WriteString("          mounts = [\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"]\n")
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration

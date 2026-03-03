@@ -14,6 +14,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 // Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
@@ -30,7 +31,7 @@ async function main(config = {}) {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const includeFooter = parseBoolTemplatable(config.footer, true);
-  const authClient = await createAuthenticatedGitHubClient(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
 
   /**
    * Process a single update-release message
@@ -69,7 +70,7 @@ async function main(config = {}) {
           if (!releaseTag && context.payload.inputs.release_id) {
             const releaseId = context.payload.inputs.release_id;
             core.info(`Fetching release with ID: ${releaseId}`);
-            const { data: release } = await authClient.rest.repos.getRelease({
+            const { data: release } = await githubClient.rest.repos.getRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: parseInt(releaseId, 10),
@@ -86,7 +87,7 @@ async function main(config = {}) {
 
       // Get the release by tag
       core.info(`Fetching release with tag: ${releaseTag}`);
-      const { data: release } = await authClient.rest.repos.getReleaseByTag({
+      const { data: release } = await githubClient.rest.repos.getReleaseByTag({
         owner: context.repo.owner,
         repo: context.repo.repo,
         tag: releaseTag,
@@ -95,7 +96,7 @@ async function main(config = {}) {
       core.info(`Found release: ${release.name || release.tag_name} (ID: ${release.id})`);
 
       // Get workflow run URL for AI attribution
-      const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+      const runUrl = buildWorkflowRunUrl(context, context.repo);
       const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
 
       // Use shared helper to update body based on operation
@@ -110,7 +111,7 @@ async function main(config = {}) {
       });
 
       // Update the release
-      const { data: updatedRelease } = await authClient.rest.repos.updateRelease({
+      const { data: updatedRelease } = await githubClient.rest.repos.updateRelease({
         owner: context.repo.owner,
         repo: context.repo.repo,
         release_id: release.id,

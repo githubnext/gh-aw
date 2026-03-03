@@ -21,8 +21,6 @@ on: push
 engine: copilot
 timeout-minutes: 10
 strict: false
-features:
-  dangerous-permissions-write: true
 permissions:
   contents: read
 ---
@@ -348,7 +346,7 @@ func TestParseWorkflowFile_StrictMode(t *testing.T) {
 				if *tt.yamlStrict {
 					frontmatter += "\nstrict: true"
 				} else {
-					frontmatter += "\nstrict: false\nfeatures:\n  dangerous-permissions-write: true"
+					frontmatter += "\nstrict: false"
 				}
 			}
 			frontmatter += "\n---"

@@ -711,6 +711,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.HideComment != nil {
 		tools = append(tools, "hide_comment")
 	}
+	if safeOutputs.SetIssueType != nil {
+		tools = append(tools, "set_issue_type")
+	}
 	if safeOutputs.DispatchWorkflow != nil {
 		tools = append(tools, "dispatch_workflow")
 	}

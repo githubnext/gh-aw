@@ -71,6 +71,36 @@ Can be imported
 	assert.True(t, result.isSharedWorkflow, "Should be detected as shared workflow")
 }
 
+// TestParseFrontmatterSection_TriggersInsteadOfOn tests that using "triggers:" gives a helpful error
+func TestParseFrontmatterSection_TriggersInsteadOfOn(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-triggers")
+
+	testContent := `---
+triggers:
+  issues:
+    types: [opened]
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+Content here
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.Error(t, err, "Using 'triggers:' instead of 'on:' should cause error")
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "'triggers:'", "Error should mention the invalid key")
+	assert.Contains(t, err.Error(), "'on:'", "Error should mention the correct key")
+}
+
 // TestParseFrontmatterSection_MissingFrontmatter tests error for no frontmatter
 func TestParseFrontmatterSection_MissingFrontmatter(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "frontmatter-missing")

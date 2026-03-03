@@ -155,11 +155,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 ---`,
 			markdown:            "# Agent\n\n{{#runtime-import .github/shared.md}}\n\nDo the task.",
 			expectedHasCheckout: true,
@@ -173,11 +171,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 ---`,
 			markdown:            "# Agent\n\nSimple task instructions here.",
 			expectedHasCheckout: true,
@@ -233,11 +229,9 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: copilot
 strict: false
-features:
-  dangerous-permissions-write: true
 ---`
 	markdown := "# Agent\n\n{{#runtime-import .github/shared-instructions.md}}\n\nComplete the task."
 

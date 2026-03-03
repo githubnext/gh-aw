@@ -56,10 +56,8 @@ on:
   manual-approval: staging
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: copilot
-features:
-  dangerous-permissions-write: true
 strict: false
 ---`,
 			wantEnvironmentInJob: true,
