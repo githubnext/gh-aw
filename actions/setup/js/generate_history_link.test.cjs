@@ -392,10 +392,10 @@ describe("generate_history_link.cjs", () => {
         serverUrl: "https://github.com",
       });
 
-      expect(link).toMatch(/^\[🕐 history\]\(https:\/\/github\.com\/search\?/);
+      expect(link).toMatch(/^\[history\]\(https:\/\/github\.com\/search\?/);
     });
 
-    it("should use the clock emoji 🕐 as history symbol", () => {
+    it("should use 'history' as the link label", () => {
       const link = generateHistoryLink({
         owner: "testowner",
         repo: "testrepo",
@@ -404,7 +404,7 @@ describe("generate_history_link.cjs", () => {
         serverUrl: "https://github.com",
       });
 
-      expect(link).toContain("🕐");
+      expect(link).not.toContain("🕐");
       expect(link).toContain("history");
     });
 

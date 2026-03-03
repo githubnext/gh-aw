@@ -82,21 +82,21 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
 }
 
 /**
- * Generate a markdown history link with a clock symbol (🕐) for use in GitHub item footers.
+ * Generate a markdown history link for use in GitHub item footers.
  *
  * The link opens a GitHub search page filtered to items of the same type created by
  * the same workflow. Returns null if no workflow ID is available (so callers can
  * conditionally include the link).
  *
  * @param {HistoryLinkParams} params
- * @returns {string | null} Markdown link (e.g. "[🕐 history](url)"), or null if unavailable
+ * @returns {string | null} Markdown link (e.g. "[history](url)"), or null if unavailable
  */
 function generateHistoryLink(params) {
   const url = generateHistoryUrl(params);
   if (!url) {
     return null;
   }
-  return `[🕐 history](${url})`;
+  return `[history](${url})`;
 }
 
 module.exports = {

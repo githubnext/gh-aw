@@ -45,7 +45,7 @@ function getFooterMessage(ctx) {
   }
   // Append history link with clock symbol when available
   if (ctx.historyUrl) {
-    defaultFooter += " · [🕐 history]({history_url})";
+    defaultFooter += " · [history]({history_url})";
   }
   return renderTemplate(defaultFooter, templateContext);
 }
