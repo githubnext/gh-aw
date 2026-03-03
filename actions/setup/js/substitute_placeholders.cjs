@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// Ensures global.core is available when running outside github-script context
 require("./shim.cjs");
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
