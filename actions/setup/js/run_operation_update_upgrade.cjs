@@ -4,18 +4,6 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
- * Returns true when the given file path should be excluded from the PR.
- * .github/workflows/*.yml files (including .lock.yml) are excluded because
- * the github-actions bot cannot modify workflow files directly.
- *
- * @param {string} file - Relative path of the file
- * @returns {boolean}
- */
-function isExcludedWorkflowFile(file) {
-  return /^\.github\/workflows\/[^/]+\.yml$/.test(file);
-}
-
-/**
  * Format a UTC Date as YYYY-MM-DD-HH-MM-SS for use in branch names.
  * Colons are not allowed in artifact filenames or branch names on some systems.
  *
@@ -32,10 +20,9 @@ function formatTimestamp(date) {
  * Run 'gh aw update', 'gh aw upgrade', 'gh aw disable', or 'gh aw enable',
  * creating a pull request when needed for update/upgrade operations.
  *
- * For update/upgrade: .github/workflows/*.yml files (including compiled .lock.yml
- * files) are excluded from the PR because the github-actions bot cannot modify
- * workflow files directly. The PR body instructs reviewers to recompile lock files
- * after merging.
+ * For update/upgrade: runs with --no-compile so lock files are not modified.
+ * A pull request is opened for any changed files. The PR body instructs
+ * reviewers to recompile lock files after merging.
  *
  * For disable/enable: simply runs the command; no PR is created.
  *
@@ -76,10 +63,10 @@ async function main() {
 
   const isUpgrade = operation === "upgrade";
 
-  // Run gh aw update or gh aw upgrade
-  const fullCmd = [bin, ...prefixArgs, operation].join(" ");
+  // Run gh aw update or gh aw upgrade (--no-compile: do not touch lock files)
+  const fullCmd = [bin, ...prefixArgs, operation, "--no-compile"].join(" ");
   core.info(`Running: ${fullCmd}`);
-  const exitCode = await exec.exec(bin, [...prefixArgs, operation]);
+  const exitCode = await exec.exec(bin, [...prefixArgs, operation, "--no-compile"]);
   if (exitCode !== 0) {
     throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
   }
@@ -87,10 +74,9 @@ async function main() {
   // Check for changed files
   const { stdout: statusOutput } = await exec.getExecOutput("git", ["status", "--porcelain"]);
 
-  // Parse changed files - filter out .github/workflows/*.yml (including .lock.yml)
-  // git status --porcelain format: "XY path" (X and Y are 1-char each at positions 0-1,
-  // position 2 is a space, filename starts at position 3). Do NOT trim the full line
-  // before slicing or the positional indices shift.
+  // Parse changed files from git status --porcelain format: "XY path"
+  // X and Y are 1-char each at positions 0-1, position 2 is a space,
+  // filename starts at position 3. Do NOT trim the full line before slicing.
   const changedFiles = statusOutput
     .split("\n")
     .filter(line => line.length > 2)
@@ -99,10 +85,10 @@ async function main() {
       const path = line.slice(3).trim();
       return path.includes(" -> ") ? (path.split(" -> ").at(-1) ?? path) : path;
     })
-    .filter(file => file.length > 0 && !isExcludedWorkflowFile(file));
+    .filter(file => file.length > 0);
 
   if (changedFiles.length === 0) {
-    core.info("✓ No changes detected (excluding compiled workflow files) - nothing to create a PR for");
+    core.info("✓ No changes detected - nothing to create a PR for");
     return;
   }
 
@@ -175,13 +161,11 @@ async function main() {
   const operationLabel = isUpgrade ? "Upgrade" : "Update";
   const prBody = `## Agentic Workflows ${operationLabel}
 
-The \`gh aw ${operation}\` command was run automatically and produced the following changes:
+The \`gh aw ${operation} --no-compile\` command was run automatically and produced the following changes:
 
 ${fileList}
 
 ### ⚠️ Lock Files Need Recompilation
-
-The compiled workflow files (\`.github/workflows/*.yml\`) were **not included** in this PR because the \`github-actions\` bot cannot modify workflow files directly.
 
 After merging this PR, **recompile the lock files** using one of these methods:
 
@@ -203,8 +187,8 @@ After merging this PR, **recompile the lock files** using one of these methods:
     .addHeading(prTitle, 2)
     .addRaw(`Pull request created: [${prUrl}](${prUrl})\n\n`)
     .addRaw(`**Changed files included in PR:**\n\n${fileList}\n\n`)
-    .addRaw(`> **Note**: The \`.github/workflows/*.yml\` lock files were excluded. Recompile them after merging via \`@copilot compile agentic workflows\` or \`gh aw compile\`.`)
+    .addRaw(`> **Note**: Recompile lock files after merging via \`@copilot compile agentic workflows\` or \`gh aw compile\`.`)
     .write();
 }
 
-module.exports = { main, isExcludedWorkflowFile, formatTimestamp };
+module.exports = { main, formatTimestamp };
