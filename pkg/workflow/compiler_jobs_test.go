@@ -2224,6 +2224,11 @@ func TestBuildCustomJobsRunsOnForms(t *testing.T) {
 			runsOn:           map[string]any{"group": "my-runners"},
 			expectedContains: []string{"runs-on:", "group: my-runners"},
 		},
+		{
+			name:      "unmarshalable value returns error",
+			runsOn:    make(chan int), // channels cannot be marshaled to YAML
+			shouldErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2247,6 +2252,8 @@ func TestBuildCustomJobsRunsOnForms(t *testing.T) {
 			if tt.shouldErr {
 				if err == nil {
 					t.Error("Expected error but got none")
+				} else if !strings.Contains(err.Error(), "my_job") {
+					t.Errorf("Expected error to mention job name 'my_job', got: %v", err)
 				}
 				return
 			}
