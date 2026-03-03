@@ -185,6 +185,24 @@ describe("run_operation_update_upgrade", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update", "--no-compile"]);
     });
+
+    it("finishes without PR when only workflow yml files changed", async () => {
+      process.env.GH_AW_OPERATION = "update";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+      process.env.GH_TOKEN = "test-token";
+
+      mockExec.getExecOutput = vi.fn().mockResolvedValueOnce({
+        stdout: " M .github/workflows/agentics-maintenance.yml\n",
+        stderr: "",
+        exitCode: 0,
+      });
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No non-workflow files changed"));
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["add"]));
+    });
   });
 
   describe("main - creates PR when files changed", () => {
@@ -265,6 +283,8 @@ describe("run_operation_update_upgrade", () => {
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);
       // Verify PR title is "[aw] Upgrade available"
       expect(getExecOutputMock).toHaveBeenCalledWith("gh", expect.arrayContaining(["pr", "create", "--title", "[aw] Upgrade available", "--label", "agentic-workflows"]), expect.anything());
+      // Verify workflow yml was NOT staged
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
     });
 
     it("uses ./gh-aw as binary in dev mode", async () => {

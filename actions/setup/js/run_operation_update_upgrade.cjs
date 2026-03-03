@@ -93,8 +93,23 @@ async function main() {
     return;
   }
 
-  core.info(`Found ${changedFiles.length} changed file(s) to include in PR:`);
-  for (const f of changedFiles) {
+  // Exclude .github/workflows/*.yml files: they cannot be modified by the
+  // GitHub Actions bot and including them would cause the PR checks to fail.
+  const filesToStage = changedFiles.filter(file => {
+    const lower = file.toLowerCase();
+    return !(
+      lower.startsWith(".github/workflows/") &&
+      (lower.endsWith(".yml") || lower.endsWith(".yaml"))
+    );
+  });
+
+  if (filesToStage.length === 0) {
+    core.info("✓ No non-workflow files changed - nothing to create a PR for");
+    return;
+  }
+
+  core.info(`Found ${filesToStage.length} file(s) to include in PR:`);
+  for (const f of filesToStage) {
     core.info(`  ${f}`);
   }
 
@@ -107,8 +122,8 @@ async function main() {
   core.info(`Creating branch: ${branchName}`);
   await exec.exec("git", ["checkout", "-b", branchName]);
 
-  // Stage only the non-yml files
-  for (const file of changedFiles) {
+  // Stage non-workflow-yml files only
+  for (const file of filesToStage) {
     try {
       await exec.exec("git", ["add", "--", file]);
     } catch (error) {
@@ -119,7 +134,7 @@ async function main() {
   // Verify staged content
   const { stdout: stagedOutput } = await exec.getExecOutput("git", ["diff", "--cached", "--name-only"]);
   if (!stagedOutput.trim()) {
-    core.info("✓ No staged changes after filtering workflow files - nothing to commit");
+    core.info("✓ No staged changes - nothing to commit");
     return;
   }
 
