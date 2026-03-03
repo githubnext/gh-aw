@@ -488,6 +488,8 @@ The YAML frontmatter supports these fields:
         hide-older-comments: true       # Optional: minimize previous comments from same workflow
         allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
         discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
+        issues: true                    # Optional: set false to exclude issues:write permission (default: true)
+        pull-requests: true             # Optional: set false to exclude pull-requests:write permission (default: true)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -503,10 +505,11 @@ The YAML frontmatter supports these fields:
         reviewers: [user1, copilot]     # Optional: reviewers (use 'copilot' for bot)
         draft: true                     # Optional: create as draft PR (defaults to true)
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+        allow-empty: false              # Optional: create PR with empty branch, no changes required (default: false)
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
         auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
         base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
-        fallback-as-issue: false        # Optional: create issue if PR creation fails (default: true)
+        fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
         target-repo: "owner/repo"       # Optional: cross-repository
         github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
     ```
