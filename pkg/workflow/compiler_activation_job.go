@@ -108,6 +108,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if data.StatusComment != nil && *data.StatusComment {
 		reactionCondition := BuildReactionCondition()
 
+		// If a GitHub App is configured, mint an installation access token before the comment step
+		if data.ActivationGitHubApp != nil {
+			// Compute permissions needed for the status comment (issues:write, pull_requests:write, discussions:write)
+			commentPerms := NewPermissions()
+			commentPerms.Set(PermissionIssues, PermissionWrite)
+			commentPerms.Set(PermissionPullRequests, PermissionWrite)
+			commentPerms.Set(PermissionDiscussions, PermissionWrite)
+			steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, commentPerms)...)
+		}
+
 		steps = append(steps, "      - name: Add comment with workflow run link\n")
 		steps = append(steps, "        id: add-comment\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
@@ -139,6 +149,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 
 		steps = append(steps, "        with:\n")
+		// Use configured github-token or app-minted token if set; omit to use default GITHUB_TOKEN
+		commentToken := c.resolveActivationToken(data)
+		if commentToken != "${{ secrets.GITHUB_TOKEN }}" {
+			steps = append(steps, fmt.Sprintf("          github-token: %s\n", commentToken))
+		}
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("add_workflow_run_comment.cjs"))
 
@@ -294,6 +309,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	if data.AIReaction != "" && data.AIReaction != "none" {
+		permsMap[PermissionDiscussions] = PermissionWrite
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	// Add write permissions if status comments are enabled (even without a reaction).
+	// Status comments post to issues, PRs, and discussions, so write access is required.
+	// Assigning write to the map is safe here - it does not downgrade existing permissions.
+	if data.StatusComment != nil && *data.StatusComment {
 		permsMap[PermissionDiscussions] = PermissionWrite
 		permsMap[PermissionIssues] = PermissionWrite
 		permsMap[PermissionPullRequests] = PermissionWrite

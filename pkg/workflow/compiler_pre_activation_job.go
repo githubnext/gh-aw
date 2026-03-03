@@ -76,6 +76,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if data.AIReaction != "" && data.AIReaction != "none" {
 		reactionCondition := BuildReactionCondition()
 
+		// If a GitHub App is configured, mint an installation access token before the reaction step
+		if data.ActivationGitHubApp != nil {
+			steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, perms)...)
+		}
+
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
@@ -87,9 +92,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
 
 		steps = append(steps, "        with:\n")
-		// Explicitly use the GitHub Actions token (GITHUB_TOKEN) for reactions
-		// This ensures proper authentication for adding reactions
-		steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
+		// Use configured github-token or app-minted token; fall back to GITHUB_TOKEN
+		reactionToken := c.resolveActivationToken(data)
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", reactionToken))
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
 	}

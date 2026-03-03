@@ -267,3 +267,67 @@ func (c *Compiler) buildGitHubAppTokenInvalidationStep() []string {
 
 	return steps
 }
+
+// ========================================
+// Activation Token Steps Generation
+// ========================================
+
+// buildActivationAppTokenMintStep generates the step to mint a GitHub App installation access token
+// for use in the pre-activation (reaction) and activation (status comment) jobs.
+func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permissions *Permissions) []string {
+	safeOutputsAppLog.Printf("Building activation GitHub App token mint step: owner=%s", app.Owner)
+	var steps []string
+
+	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
+	steps = append(steps, "        id: activation-app-token\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
+	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
+
+	// Default to current repository
+	steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+
+	// Always add github-api-url from environment variable
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
+
+	// Add permission-* fields automatically computed from job permissions
+	if permissions != nil {
+		permissionFields := convertPermissionsToAppTokenFields(permissions)
+
+		keys := make([]string, 0, len(permissionFields))
+		for key := range permissionFields {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			steps = append(steps, fmt.Sprintf("          %s: %s\n", key, permissionFields[key]))
+		}
+	}
+
+	return steps
+}
+
+// resolveActivationToken returns the GitHub token to use for activation steps (reactions, status comments).
+// Priority: GitHub App minted token > custom github-token > GITHUB_TOKEN (default)
+//
+// When returning the app token reference, callers MUST ensure that buildActivationAppTokenMintStep
+// has already been called to generate the 'activation-app-token' step, since this function returns
+// a reference to that step's output (${{ steps.activation-app-token.outputs.token }}).
+func (c *Compiler) resolveActivationToken(data *WorkflowData) string {
+	if data.ActivationGitHubApp != nil {
+		return "${{ steps.activation-app-token.outputs.token }}"
+	}
+	if data.ActivationGitHubToken != "" {
+		return data.ActivationGitHubToken
+	}
+	return "${{ secrets.GITHUB_TOKEN }}"
+}
