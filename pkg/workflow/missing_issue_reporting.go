@@ -1,10 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -43,69 +39,6 @@ type issueReportingJobParams struct {
 	log *logger.Logger
 }
 
-// buildIssueReportingJob constructs the GitHub Actions job for a missing-data or missing-tool
-// safe-output type. The two callers differ only in the params they supply.
-func (c *Compiler) buildIssueReportingJob(data *WorkflowData, mainJobName string, p issueReportingJobParams) (*Job, error) {
-	p.log.Printf("Building %s job for workflow: %s", p.kind, data.Name)
-
-	var customEnvVars []string
-
-	if p.config.Max != nil {
-		p.log.Printf("Setting max %s limit: %s", p.kind, *p.config.Max)
-		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar(p.envPrefix+"_MAX", p.config.Max)...)
-	}
-
-	if p.config.CreateIssue {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          %s_CREATE_ISSUE: \"true\"\n", p.envPrefix))
-		p.log.Printf("create-issue enabled for %s", p.kind)
-	}
-
-	if p.config.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          %s_TITLE_PREFIX: %q\n", p.envPrefix, p.config.TitlePrefix))
-		p.log.Printf("title-prefix: %s", p.config.TitlePrefix)
-	}
-
-	if len(p.config.Labels) > 0 {
-		labelsJSON, err := json.Marshal(p.config.Labels)
-		if err == nil {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          %s_LABELS: %q\n", p.envPrefix, string(labelsJSON)))
-			p.log.Printf("labels: %v", p.config.Labels)
-		}
-	}
-
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
-
-	outputs := map[string]string{
-		p.outputKey:   fmt.Sprintf("${{ steps.%s.outputs.%s }}", p.kind, p.outputKey),
-		"total_count": fmt.Sprintf("${{ steps.%s.outputs.total_count }}", p.kind),
-	}
-
-	jobCondition := BuildSafeOutputType(p.kind)
-
-	permissions := NewPermissionsContentsRead()
-	if p.config.CreateIssue {
-		permissions.Set(PermissionIssues, PermissionWrite)
-		p.log.Printf("Added issues:write permission for create-issue functionality")
-	}
-
-	script := fmt.Sprintf("const { main } = require('/opt/gh-aw/actions/%s.cjs'); await main();", p.kind)
-
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:       p.kind,
-		StepName:      p.stepName,
-		StepID:        p.kind,
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        script,
-		Permissions:   permissions,
-		Outputs:       outputs,
-		Condition:     jobCondition,
-		Token:         p.config.GitHubToken,
-	})
-}
-
-// parseIssueReportingConfig is the shared parsing implementation for missing-data and
-// missing-tool configuration blocks. The caller supplies the YAML key and default title.
 func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, log *logger.Logger) *IssueReportingConfig {
 	configData, exists := outputMap[yamlKey]
 	if !exists {
@@ -168,10 +101,4 @@ func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, 
 	}
 
 	return cfg
-}
-
-// envVarPrefix converts a snake_case kind (e.g. "missing_data") to its env-var prefix
-// (e.g. "GH_AW_MISSING_DATA").
-func envVarPrefix(kind string) string {
-	return "GH_AW_" + strings.ToUpper(kind)
 }

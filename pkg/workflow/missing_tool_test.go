@@ -111,31 +111,6 @@ func TestMissingToolSafeOutput(t *testing.T) {
 					t.Error("Expected MissingTool config to be nil, but it was not")
 				}
 			}
-
-			// Test job creation
-			if tt.expectJob {
-				if safeOutputs == nil || safeOutputs.MissingTool == nil {
-					t.Error("Expected SafeOutputs and MissingTool config to exist for job creation test")
-				} else {
-					job, err := compiler.buildCreateOutputMissingToolJob(&WorkflowData{
-						SafeOutputs: safeOutputs,
-					}, "main-job")
-					if err != nil {
-						t.Errorf("Failed to build missing tool job: %v", err)
-					}
-					if job == nil {
-						t.Error("Expected job to be created, but it was nil")
-					}
-					if job != nil {
-						if job.Name != "missing_tool" {
-							t.Errorf("Expected job name to be 'missing_tool', got '%s'", job.Name)
-						}
-						if len(job.Needs) != 1 || job.Needs[0] != "main-job" {
-							t.Errorf("Expected job to depend on 'main-job', got %v", job.Needs)
-						}
-					}
-				}
-			}
 		})
 	}
 }

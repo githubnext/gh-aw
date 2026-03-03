@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -128,84 +127,6 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	return &config
 }
 
-// buildCreateOutputDiscussionJob creates the create_discussion job
-func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string, createIssueJobName string) (*Job, error) {
-	discussionLog.Printf("Building create_discussion job for workflow: %s", data.Name)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
-		return nil, errors.New("safe-outputs.create-discussion configuration is required")
-	}
-
-	// Build custom environment variables specific to create-discussion using shared helpers
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_DISCUSSION_TITLE_PREFIX", data.SafeOutputs.CreateDiscussions.TitlePrefix)...)
-	customEnvVars = append(customEnvVars, buildCategoryEnvVar("GH_AW_DISCUSSION_CATEGORY", data.SafeOutputs.CreateDiscussions.Category)...)
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_LABELS", data.SafeOutputs.CreateDiscussions.Labels)...)
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_ALLOWED_LABELS", data.SafeOutputs.CreateDiscussions.AllowedLabels)...)
-	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateDiscussions.AllowedRepos)...)
-
-	// Add close-older-discussions flag if set
-	customEnvVars = append(customEnvVars, buildTemplatableBoolEnvVar("GH_AW_CLOSE_OLDER_DISCUSSIONS", data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions)...)
-
-	// Add expires value if set
-	if data.SafeOutputs.CreateDiscussions.Expires > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_EXPIRES: \"%d\"\n", data.SafeOutputs.CreateDiscussions.Expires))
-	}
-
-	// Add fallback-to-issue flag
-	ftiVal := data.SafeOutputs.CreateDiscussions.FallbackToIssue
-	if ftiVal != nil {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_FALLBACK_TO_ISSUE: \"%t\"\n", *ftiVal))
-	} else {
-		customEnvVars = append(customEnvVars, "          GH_AW_DISCUSSION_FALLBACK_TO_ISSUE: \"true\"\n")
-	}
-
-	// Add footer flag if explicitly set to false
-	if data.SafeOutputs.CreateDiscussions.Footer != nil && *data.SafeOutputs.CreateDiscussions.Footer == "false" {
-		customEnvVars = append(customEnvVars, "          GH_AW_FOOTER: \"false\"\n")
-		discussionLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
-	}
-
-	// Add environment variable for temporary ID map from create_issue job
-	if createIssueJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
-	}
-
-	discussionLog.Printf("Configured %d custom environment variables for discussion creation", len(customEnvVars))
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateDiscussions.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
-		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
-	}
-
-	// Build the needs list - always depend on mainJobName, and conditionally on create_issue
-	needs := []string{mainJobName}
-	if createIssueJobName != "" {
-		needs = append(needs, createIssueJobName)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "create_discussion",
-		StepName:       "Create Output Discussion",
-		StepID:         "create_discussion",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		ScriptName:     "create_discussion",
-		Permissions:    NewPermissionsContentsReadIssuesWriteDiscussionsWrite(),
-		Outputs:        outputs,
-		Needs:          needs,
-		Token:          data.SafeOutputs.CreateDiscussions.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
-	})
-}
-
-// normalizeDiscussionCategory normalizes discussion category to lowercase
-// and provides warnings about naming conventions
 // Returns normalized category (or original if it's a category ID)
 func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPath string) string {
 	// Empty category is allowed (GitHub Discussions will use default)

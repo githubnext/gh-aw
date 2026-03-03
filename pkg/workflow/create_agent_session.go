@@ -1,9 +1,6 @@
 package workflow
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -82,60 +79,4 @@ func (c *Compiler) parseAgentSessionConfig(outputMap map[string]any) *CreateAgen
 	}
 
 	return nil
-}
-
-// buildCreateOutputAgentSessionJob creates the create_agent_session job
-func (c *Compiler) buildCreateOutputAgentSessionJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateAgentSessions == nil {
-		return nil, errors.New("safe-outputs.create-agent-session configuration is required")
-	}
-
-	createAgentSessionLog.Printf("Building create-agent-session job: workflow=%s, main_job=%s, base=%s",
-		data.Name, mainJobName, data.SafeOutputs.CreateAgentSessions.Base)
-
-	var preSteps []string
-
-	// Step 1: Checkout repository for gh CLI to work
-	preSteps = append(preSteps, "      - name: Checkout repository for gh CLI\n")
-	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, "          persist-credentials: false\n")
-
-	// Build custom environment variables specific to create-agent-session
-	customEnvVars := []string{
-		fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name),
-	}
-
-	// Pass custom base branch only if explicitly configured; JS will resolve dynamically otherwise
-	if data.SafeOutputs.CreateAgentSessions.Base != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_AGENT_SESSION_BASE: %q\n", data.SafeOutputs.CreateAgentSessions.Base))
-	}
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateAgentSessions.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"session_number": "${{ steps.create_agent_session.outputs.session_number }}",
-		"session_url":    "${{ steps.create_agent_session.outputs.session_url }}",
-	}
-
-	jobCondition := BuildSafeOutputType("create_agent_session")
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:                 "create_agent_session",
-		StepName:                "Create Agent Session",
-		StepID:                  "create_agent_session",
-		MainJobName:             mainJobName,
-		CustomEnvVars:           customEnvVars,
-		Script:                  "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
-		Permissions:             NewPermissionsContentsWriteIssuesWritePRWrite(),
-		Outputs:                 outputs,
-		Condition:               jobCondition,
-		PreSteps:                preSteps,
-		Token:                   data.SafeOutputs.CreateAgentSessions.GitHubToken,
-		UseCopilotRequestsToken: true, // Use Copilot token preference for agent session creation
-		TargetRepoSlug:          data.SafeOutputs.CreateAgentSessions.TargetRepoSlug,
-	})
 }

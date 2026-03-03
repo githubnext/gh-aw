@@ -1,9 +1,6 @@
 package workflow
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -15,79 +12,6 @@ type CreateCodeScanningAlertsConfig struct {
 	Driver               string   `yaml:"driver,omitempty"`        // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository code scanning alert creation
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories in format "owner/repo" that code scanning alerts can be created in
-}
-
-// buildCreateOutputCodeScanningAlertJob creates the create_code_scanning_alert job
-func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateCodeScanningAlerts == nil {
-		return nil, errors.New("safe-outputs.create-code-scanning-alert configuration is required")
-	}
-
-	// Build custom environment variables specific to create-code-scanning-alert
-	var customEnvVars []string
-	if maxVal := templatableIntValue(data.SafeOutputs.CreateCodeScanningAlerts.Max); maxVal > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_MAX: %d\n", maxVal))
-	} else {
-		customEnvVars = append(customEnvVars, buildTemplatableIntEnvVar("GH_AW_SECURITY_REPORT_MAX", data.SafeOutputs.CreateCodeScanningAlerts.Max)...)
-	}
-	// Pass the driver configuration, defaulting to frontmatter name
-	driverName := data.SafeOutputs.CreateCodeScanningAlerts.Driver
-	if driverName == "" {
-		if data.FrontmatterName != "" {
-			driverName = data.FrontmatterName
-		} else {
-			driverName = data.Name // fallback to H1 header name
-		}
-	}
-	createCodeScanningAlertLog.Printf("Building create_code_scanning_alert job: driver=%s, max=%d", driverName, data.SafeOutputs.CreateCodeScanningAlerts.Max)
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
-	// Pass the workflow filename for rule ID prefix
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
-
-	// Add workflow metadata (name, source, and tracker-id) for consistency
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
-
-	// Build post-steps for SARIF artifact upload
-	var postSteps []string
-	// Add step to upload SARIF artifact
-	postSteps = append(postSteps, "      - name: Upload SARIF artifact\n")
-	postSteps = append(postSteps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
-	postSteps = append(postSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	postSteps = append(postSteps, "        with:\n")
-	postSteps = append(postSteps, "          name: code-scanning-alert.sarif\n")
-	postSteps = append(postSteps, "          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
-
-	// Add step to upload SARIF to GitHub Code Scanning
-	postSteps = append(postSteps, "      - name: Upload SARIF to GitHub Security\n")
-	postSteps = append(postSteps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
-	postSteps = append(postSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif")))
-	postSteps = append(postSteps, "        with:\n")
-	postSteps = append(postSteps, "          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"sarif_file":        "${{ steps.create_code_scanning_alert.outputs.sarif_file }}",
-		"findings_count":    "${{ steps.create_code_scanning_alert.outputs.findings_count }}",
-		"artifact_uploaded": "${{ steps.create_code_scanning_alert.outputs.artifact_uploaded }}",
-		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
-	}
-
-	jobCondition := BuildSafeOutputType("create_code_scanning_alert")
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:       "create_code_scanning_alert",
-		StepName:      "Create Code Scanning Alert",
-		StepID:        "create_code_scanning_alert",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        "",
-		Permissions:   NewPermissionsContentsReadSecurityEventsWriteActionsRead(),
-		Outputs:       outputs,
-		Condition:     jobCondition,
-		PostSteps:     postSteps,
-		Token:         data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken,
-	})
 }
 
 // parseCodeScanningAlertsConfig handles create-code-scanning-alert configuration
