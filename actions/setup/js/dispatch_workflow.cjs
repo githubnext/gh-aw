@@ -156,15 +156,21 @@ async function main(config = {}) {
       core.info(`Dispatching workflow: ${workflowFile}`);
 
       // Dispatch the workflow using the resolved file
-      await githubClient.rest.actions.createWorkflowDispatch({
+      const response = await githubClient.rest.actions.createWorkflowDispatch({
         owner: repo.owner,
         repo: repo.repo,
         workflow_id: workflowFile,
         ref: ref,
         inputs: inputs,
+        return_run_details: true,
       });
 
-      core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
+      const runId = response.data?.workflow_run_id;
+      if (runId) {
+        core.info(`✓ Successfully dispatched workflow: ${workflowFile} (run ID: ${runId})`);
+      } else {
+        core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
+      }
 
       // Record the time of this dispatch for rate limiting
       lastDispatchTime = Date.now();
@@ -173,6 +179,7 @@ async function main(config = {}) {
         success: true,
         workflow_name: workflowName,
         inputs: inputs,
+        run_id: runId,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
