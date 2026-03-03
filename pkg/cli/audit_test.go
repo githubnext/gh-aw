@@ -423,11 +423,6 @@ func TestAuditCachingBehavior(t *testing.T) {
 	}
 }
 
-// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
-func TestAuditParseFlagBehavior(t *testing.T) {
-	t.Skip("Test skipped - log parser scripts now use require() pattern and are loaded at runtime from external files")
-}
-
 func TestBuildAuditDataWithFirewall(t *testing.T) {
 	// Create test data with firewall analysis
 	run := WorkflowRun{
