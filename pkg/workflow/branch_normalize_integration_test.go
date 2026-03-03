@@ -84,9 +84,3 @@ func TestBranchNormalizationStepNotAddedWhenNoUploadAssets(t *testing.T) {
 		t.Error("Expected normalization step to NOT be present when upload-assets is not configured")
 	}
 }
-
-// TestUploadAssetsJobHasInlinedNormalization tests that upload_assets job has inlined normalization logic
-// SKIPPED: Scripts are now loaded from external files at runtime using require() pattern
-func TestUploadAssetsJobHasInlinedNormalization(t *testing.T) {
-	t.Skip("Upload assets inlined normalization tests skipped - scripts now use require() pattern to load external files at runtime")
-}
