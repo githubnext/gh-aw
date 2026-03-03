@@ -83,7 +83,8 @@ async function main() {
     .map(line => {
       // "XY path" or "XY old -> new" for renames
       const path = line.slice(3).trim();
-      return path.includes(" -> ") ? (path.split(" -> ").at(-1) ?? path) : path;
+      const parts = path.split(" -> ");
+      return path.includes(" -> ") ? (parts[parts.length - 1] ?? path) : path;
     })
     .filter(file => file.length > 0);
 
