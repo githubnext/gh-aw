@@ -43,5 +43,6 @@ func GetAllCodemods() []Codemod {
 		getPlaywrightDomainsCodemod(),         // Migrate tools.playwright.allowed_domains to network.allowed
 		getExpiresIntegerToStringCodemod(),    // Convert expires integer (days) to string with 'd' suffix
 		getSerenaLocalModeCodemod(),           // Replace tools.serena mode: local with mode: docker
+		getGitHubAppCodemod(),                 // Rename deprecated 'app' to 'github-app'
 	}
 }

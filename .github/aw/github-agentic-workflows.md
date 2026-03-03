@@ -377,7 +377,7 @@ The YAML frontmatter supports these fields:
     - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
     - `github-token:` - Custom GitHub token
     - `lockdown:` - Enable lockdown mode to limit content surfaced from public repositories to items authored by users with push access (boolean, default: false)
-    - `app:` - GitHub App configuration for token minting; when set, mints an installation access token at workflow start that overrides `github-token`
+    - `github-app:` - GitHub App configuration for token minting; when set, mints an installation access token at workflow start that overrides `github-token`
       - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
       - `private-key:` - GitHub App private key (required, e.g., `${{ secrets.APP_PRIVATE_KEY }}`)
       - `owner:` - Optional installation owner (defaults to current repository owner)
@@ -1064,7 +1064,7 @@ The YAML frontmatter supports these fields:
   - `concurrency-group:` - Concurrency group for the safe-outputs job (string)
     - When set, the safe-outputs job uses this concurrency group with `cancel-in-progress: false`
     - Supports GitHub Actions expressions, e.g., `"safe-outputs-${{ github.repository }}"`
-  - `app:` - GitHub App credentials for minting installation access tokens (object)
+  - `github-app:` - GitHub App credentials for minting installation access tokens (object)
     - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
     - Fields:
       - `app-id:` - GitHub App ID (required, e.g., `${{ vars.APP_ID }}`)
@@ -1074,7 +1074,7 @@ The YAML frontmatter supports these fields:
     - Example:
       ```yaml
       safe-outputs:
-        app:
+        github-app:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
         create-issue:

@@ -230,7 +230,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 
 		// Parse app configuration for GitHub App token minting
-		if app, ok := configMap["app"].(map[string]any); ok {
+		// Support both "github-app" (preferred) and "app" (deprecated)
+		if app, ok := configMap["github-app"].(map[string]any); ok {
+			config.App = parseAppConfig(app)
+		} else if app, ok := configMap["app"].(map[string]any); ok {
 			config.App = parseAppConfig(app)
 		}
 

@@ -498,17 +498,17 @@ tools:
 
 **Security Best Practice**: Use `lockdown: true` for workflows that should only access the triggering repository, preventing unintended cross-repository operations.
 
-#### 4.2.9 app (Existing Feature)
+#### 4.2.9 github-app (Renamed from app)
 
 **Type**: Object (GitHubAppConfig)  
 **Required**: No  
 **Default**: Not specified (uses standard token authentication)
 
-The `app` field enables GitHub App-based authentication, allowing the workflow to mint short-lived installation access tokens with fine-grained permissions.
+The `github-app` field enables GitHub App-based authentication, allowing the workflow to mint short-lived installation access tokens with fine-grained permissions. (The previous name `app` is deprecated but still supported.)
 
 **Configuration Structure**:
 ```yaml
-app:
+github-app:
   app-id: "${{ vars.APP_ID }}"                    # GitHub App ID (required)
   private-key: "${{ secrets.APP_PRIVATE_KEY }}"  # App private key (required)
   owner: "myorg"                                  # Optional: Installation owner (defaults to current repo owner)
@@ -534,7 +534,7 @@ app:
 tools:
   github:
     mode: "remote"
-    app:
+    github-app:
       app-id: "${{ vars.GITHUB_APP_ID }}"
       private-key: "${{ secrets.GITHUB_APP_PRIVATE_KEY }}"
       owner: "my-organization"
@@ -1796,7 +1796,7 @@ Use GitHub App for fine-grained, short-lived token authentication:
 tools:
   github:
     mode: "remote"
-    app:
+    github-app:
       app-id: "${{ vars.GITHUB_APP_ID }}"
       private-key: "${{ secrets.GITHUB_APP_PRIVATE_KEY }}"
       owner: "myorg"

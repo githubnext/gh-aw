@@ -83,8 +83,9 @@ func hasGitHubTool(parsedTools *Tools) bool {
 // hasGitHubApp checks if a GitHub App is configured in the (merged) GitHub tool configuration
 func hasGitHubApp(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		_, exists := toolConfig["app"]
-		return exists
+		_, hasGitHubApp := toolConfig["github-app"]
+		_, hasApp := toolConfig["app"]
+		return hasGitHubApp || hasApp
 	}
 	return false
 }

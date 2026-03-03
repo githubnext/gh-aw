@@ -34,7 +34,7 @@ Or use GitHub App authentication:
 ```yaml wrap
 checkout:
   fetch-depth: 0
-  app:
+  github-app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
