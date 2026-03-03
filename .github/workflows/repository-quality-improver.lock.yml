@@ -1048,7 +1048,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/repository-quality-improver"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "repository-quality-improver"
       GH_AW_WORKFLOW_NAME: "Repository Quality Improvement Agent"

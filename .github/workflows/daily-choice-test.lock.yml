@@ -1031,7 +1031,7 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-choice-test"
       GH_AW_ENGINE_ID: "claude"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
       GH_AW_TRACKER_ID: "daily-choice-test"

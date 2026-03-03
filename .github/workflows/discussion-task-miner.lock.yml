@@ -1192,7 +1192,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/discussion-task-miner"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
       GH_AW_TRACKER_ID: "discussion-task-miner"

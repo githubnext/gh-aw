@@ -1009,7 +1009,7 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/artifacts-summary"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "artifacts-summary"
       GH_AW_WORKFLOW_NAME: "Artifacts Summary"

@@ -1246,7 +1246,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/${{ github.workflow }}"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/code-scanning-fixer"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "code-scanning-fixer"
       GH_AW_WORKFLOW_NAME: "Code Scanning Fixer"

@@ -511,7 +511,7 @@ async function main(config = {}) {
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    // GH_AW_CALLER_WORKFLOW_ID is set at runtime to `github.repository/github.workflow`.
+    // GH_AW_CALLER_WORKFLOW_ID is set at compile time to `github.repository/<workflow-id>`.
     // When multiple workflows call the same reusable workflow via workflow_call they all
     // share the same GH_AW_WORKFLOW_ID. We embed a separate gh-aw-workflow-call-id marker
     // with the caller's identity so close-older-discussions can distinguish callers precisely.
