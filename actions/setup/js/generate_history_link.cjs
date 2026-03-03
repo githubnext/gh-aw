@@ -11,14 +11,14 @@
  */
 
 /**
- * @typedef {"issue" | "pull_request" | "discussion"} ItemType
+ * @typedef {"issue" | "pull_request" | "discussion" | "comment"} ItemType
  */
 
 /**
  * @typedef {Object} HistoryLinkParams
  * @property {string} owner - Repository owner
  * @property {string} repo - Repository name
- * @property {ItemType} itemType - Type of GitHub item: "issue", "pull_request", or "discussion"
+ * @property {ItemType} itemType - Type of GitHub item: "issue", "pull_request", "discussion", or "comment"
  * @property {string} [workflowCallId] - Caller workflow ID (e.g. "owner/repo/WorkflowName"). Takes precedence over workflowId.
  * @property {string} [workflowId] - Workflow identifier. Used when workflowCallId is not available.
  * @property {string} [serverUrl] - GitHub server URL for enterprise deployments (e.g. "https://github.example.com"). Defaults to "https://github.com".
@@ -51,16 +51,17 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
   // Build the search query parts
   const queryParts = [`repo:${owner}/${repo}`];
 
-  // Add item type qualifier (issues and PRs use is: qualifiers; discussions use type= param only)
+  // Add item type qualifier (issues and PRs use is: qualifiers; discussions and comments do not)
   if (itemType === "issue") {
     queryParts.push("is:issue");
   } else if (itemType === "pull_request") {
     queryParts.push("is:pr");
   }
 
-  // Search for the XML marker in the body
+  // Search for the XML marker in the appropriate field
+  // Comments use in:comments (searches comment bodies); all others use in:body
   queryParts.push(`"${markerId}"`);
-  queryParts.push("in:body");
+  queryParts.push(itemType === "comment" ? "in:comments" : "in:body");
 
   // Determine the search result type parameter
   let typeParam;
@@ -70,6 +71,9 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
     typeParam = "pullrequests";
   } else if (itemType === "discussion") {
     typeParam = "discussions";
+  } else if (itemType === "comment") {
+    // Search issues and PRs that have matching comments
+    typeParam = "issues";
   }
 
   const url = new URL(`${server}/search`);

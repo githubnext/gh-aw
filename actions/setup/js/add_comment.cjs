@@ -22,6 +22,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { generateHistoryUrl } = require("./generate_history_link.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -335,6 +336,7 @@ async function main(config = {}) {
 
   // Get workflow ID for hiding older comments
   const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+  const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
 
   /**
    * Message handler function
@@ -525,9 +527,22 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
+    // Generate history URL: use in:comments for issue/PR comments; skip for discussion comments
+    // (GitHub search does not support in:comments for discussions)
+    const historyUrl = !isDiscussion
+      ? generateHistoryUrl({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          itemType: "comment",
+          workflowCallId: callerWorkflowId,
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) || undefined
+      : undefined;
+
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers
-      processedBody += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
+      processedBody += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd();
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
       processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);

@@ -17,6 +17,7 @@ const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { generateHistoryUrl } = require("./generate_history_link.cjs");
 
 /**
  * Maximum limits for issue update parameters to prevent resource exhaustion.
@@ -80,8 +81,19 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
       // context may be effectiveContext with repo overridden to a cross-repo target.
       const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
       const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
       const workflowRepo = _workflowRepo || context.repo;
       const runUrl = buildWorkflowRunUrl(context, workflowRepo);
+
+      const historyUrl =
+        generateHistoryUrl({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          itemType: "issue",
+          workflowCallId: callerWorkflowId,
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) || undefined;
 
       // Use helper to update body (handles all operations including replace)
       apiData.body = updateBody({
@@ -92,6 +104,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
         runUrl,
         workflowId,
         includeFooter, // Pass footer flag to helper
+        historyUrl,
       });
 
       core.info(`Will update body (length: ${apiData.body.length})`);
