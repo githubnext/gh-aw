@@ -565,8 +565,9 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 }
 
 // runInfoURLRegexp matches GitHub Actions run URLs of the form:
-// https://github.com/{owner}/{repo}/actions/runs/{run_id}
-var runInfoURLRegexp = regexp.MustCompile(`https://github\.com/[^/\s]+/[^/\s]+/actions/runs/(\d+)`)
+// https://{host}/{owner}/{repo}/actions/runs/{run_id}
+// Supports both public GitHub (github.com) and GitHub Enterprise Server deployments.
+var runInfoURLRegexp = regexp.MustCompile(`https://[^/\s]+/[^/\s]+/[^/\s]+/actions/runs/(\d+)`)
 
 // parseRunInfoFromOutput tries to extract workflow run information from the
 // output of `gh workflow run` (v2.87+), which now returns the run URL.

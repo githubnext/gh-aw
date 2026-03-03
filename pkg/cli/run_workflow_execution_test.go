@@ -287,6 +287,22 @@ func TestParseRunInfoFromOutput(t *testing.T) {
 			expectedID:  9876543210,
 			expectedURL: "https://github.com/my-org/my-repo/actions/runs/9876543210",
 		},
+		{
+			name:        "GitHub Enterprise Server URL",
+			output:      "https://github.mycompany.com/owner/repo/actions/runs/55554444",
+			expectNil:   false,
+			expectedID:  55554444,
+			expectedURL: "https://github.mycompany.com/owner/repo/actions/runs/55554444",
+		},
+		{
+			name: "GHES URL in multi-line output",
+			output: "Created workflow_dispatch event for test.lock.yml at refs/heads/main\n" +
+				"To see the workflow run, visit:\n" +
+				"  https://ghe.example.com/myorg/myrepo/actions/runs/99887766\n",
+			expectNil:   false,
+			expectedID:  99887766,
+			expectedURL: "https://ghe.example.com/myorg/myrepo/actions/runs/99887766",
+		},
 	}
 
 	for _, tt := range tests {
