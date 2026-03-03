@@ -37,6 +37,16 @@ on:
   schedule:
     - cron: "37 */2 * * *"  # Every 2 hours (based on minimum expires: 1 days)
   workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Optional maintenance operation to run'
+        required: false
+        type: choice
+        default: ''
+        options:
+          - ''
+          - 'disable all agentic workflows'
+          - 'enable all agentic workflows'
 
 permissions: {}
 
@@ -87,6 +97,53 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/close_expired_pull_requests.cjs');
             await main();
+
+  run_operation:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && !github.event.repository.fork }}
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Setup Go
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Disable all agentic workflows
+        if: ${{ github.event.inputs.operation == 'disable all agentic workflows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gh-aw disable
+
+      - name: Enable all agentic workflows
+        if: ${{ github.event.inputs.operation == 'enable all agentic workflows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gh-aw enable
 
   compile-workflows:
     if: ${{ !github.event.repository.fork }}

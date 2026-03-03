@@ -135,6 +135,16 @@ on:
   schedule:
     - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + strconv.Itoa(minExpiresDays) + ` days)
   workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Optional maintenance operation to run'
+        required: false
+        type: choice
+        default: ''
+        options:
+          - ''
+          - 'disable all agentic workflows'
+          - 'enable all agentic workflows'
 
 permissions: {}
 
@@ -211,6 +221,97 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/close_expired_pull_requests.cjs');
             await main();
 `)
+
+	// Add run_operation job (always included; skipped via 'if' when not triggered by workflow_dispatch with operation)
+	yaml.WriteString(`
+  run_operation:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && !github.event.repository.fork }}
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+    steps:
+`)
+
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+`)
+	} else {
+		yaml.WriteString(`      - name: Checkout workflows
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            .github/workflows
+          persist-credentials: false
+
+`)
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: /opt/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+`)
+
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Setup Go
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Disable all agentic workflows
+        if: ${{ github.event.inputs.operation == 'disable all agentic workflows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gh-aw disable
+
+      - name: Enable all agentic workflows
+        if: ${{ github.event.inputs.operation == 'enable all agentic workflows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gh-aw enable
+`)
+	} else {
+		extensionRef := version
+		if actionTag != "" {
+			extensionRef = actionTag
+		}
+		yaml.WriteString(`      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh extension install github/gh-aw@` + extensionRef + `
+
+      - name: Disable all agentic workflows
+        if: ${{ github.event.inputs.operation == 'disable all agentic workflows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh aw disable
+
+      - name: Enable all agentic workflows
+        if: ${{ github.event.inputs.operation == 'enable all agentic workflows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh aw enable
+`)
+	}
 
 	// Add compile-workflows and zizmor-scan jobs only in dev mode
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
