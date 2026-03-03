@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -51,7 +52,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	}
 
 	resolverLog.Printf("Cache miss for %s@%s, querying GitHub API", repo, version)
-	resolverLog.Printf("This may take a moment as we query GitHub API at /repos/%s/git/ref/tags/%s", extractBaseRepo(repo), version)
+	resolverLog.Printf("This may take a moment as we query GitHub API at /repos/%s/git/ref/tags/%s", gitutil.ExtractBaseRepo(repo), version)
 
 	// Resolve using GitHub CLI
 	sha, err := r.resolveFromGitHub(repo, version)
@@ -75,7 +76,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 // resolveFromGitHub uses gh CLI to resolve the SHA for an action@version
 func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error) {
 	// Extract base repository (for actions like "github/codeql-action/upload-sarif")
-	baseRepo := extractBaseRepo(repo)
+	baseRepo := gitutil.ExtractBaseRepo(repo)
 	resolverLog.Printf("Extracted base repository: %s from %s", baseRepo, repo)
 
 	// Use gh api to get the git ref for the tag
@@ -104,16 +105,4 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	}
 
 	return sha, nil
-}
-
-// extractBaseRepo extracts the base repository from a repo path
-// For "actions/checkout" -> "actions/checkout"
-// For "github/codeql-action/upload-sarif" -> "github/codeql-action"
-func extractBaseRepo(repo string) string {
-	parts := strings.Split(repo, "/")
-	if len(parts) >= 2 {
-		// Take first two parts (owner/repo)
-		return parts[0] + "/" + parts[1]
-	}
-	return repo
 }

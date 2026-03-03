@@ -17,18 +17,6 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// extractBaseRepo extracts the base repository (owner/repo) from an action path
-// that may include subfolders (e.g., "actions/cache/restore" -> "actions/cache")
-func extractBaseRepo(actionPath string) string {
-	parts := strings.Split(actionPath, "/")
-	if len(parts) >= 2 {
-		// Return owner/repo (first two segments)
-		return parts[0] + "/" + parts[1]
-	}
-	// If less than 2 parts, return as-is (shouldn't happen in practice)
-	return actionPath
-}
-
 // isCoreAction returns true if the repo is a GitHub-maintained core action (actions/* org).
 // Core actions are always updated to the latest major version without requiring --major.
 func isCoreAction(repo string) bool {
@@ -172,7 +160,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
 
 	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
-	baseRepo := extractBaseRepo(repo)
+	baseRepo := gitutil.ExtractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
 	// Use gh CLI to get releases
@@ -282,7 +270,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	}
 
 	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
-	baseRepo := extractBaseRepo(repo)
+	baseRepo := gitutil.ExtractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s (git fallback)", baseRepo, repo)
 
 	githubHost := getGitHubHostForRepo(baseRepo)

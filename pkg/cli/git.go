@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -22,16 +23,7 @@ func isGitRepo() bool {
 
 // findGitRoot finds the root directory of the git repository
 func findGitRoot() (string, error) {
-	gitLog.Print("Finding git root directory")
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		gitLog.Printf("Failed to find git root: %v", err)
-		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
-	}
-	gitRoot := strings.TrimSpace(string(output))
-	gitLog.Printf("Found git root: %s", gitRoot)
-	return gitRoot, nil
+	return gitutil.FindGitRoot()
 }
 
 // findGitRootForPath finds the root directory of the git repository containing the specified path
