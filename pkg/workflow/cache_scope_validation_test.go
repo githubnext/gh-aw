@@ -40,7 +40,7 @@ func TestCacheMemoryScopeValidationObject(t *testing.T) {
 			errorText: `invalid cache-memory scope "global": must be one of [workflow, repo]`,
 		},
 		{
-			name:      "invalid empty string scope",
+			name:      "invalid whitespace scope",
 			scope:     "   ",
 			wantError: true,
 			errorText: `invalid cache-memory scope "   ": must be one of [workflow, repo]`,
