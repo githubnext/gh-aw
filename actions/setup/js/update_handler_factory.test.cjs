@@ -659,7 +659,7 @@ describe("update_handler_factory.cjs", () => {
       const result = await handler({ title: "Test" });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid repository format");
+      expect(result.error).toContain("not a valid 'owner/repo' slug");
       expect(mockExecuteUpdate).not.toHaveBeenCalled();
     });
 
