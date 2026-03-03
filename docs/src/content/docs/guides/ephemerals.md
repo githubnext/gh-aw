@@ -89,18 +89,7 @@ See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete docume
 
 ### Manual Maintenance Operations
 
-The generated `agentics-maintenance.yml` workflow also supports manual bulk operations via `workflow_dispatch`. Admin or maintainer users can trigger it from the GitHub Actions UI or the CLI to disable or enable all agentic workflows in the repository at once.
-
-```bash
-# Disable all agentic workflows
-gh aw run agentics-maintenance --raw-field operation="disable all agentic workflows"
-
-# Enable all agentic workflows
-gh aw run agentics-maintenance --raw-field operation="enable all agentic workflows"
-```
-
-> [!NOTE]
-> The role check uses `check_team_member.cjs` to verify the triggering user is an admin or maintainer. Manual operations are not available on forks. Dispatching without selecting an operation does nothing.
+The generated `agentics-maintenance.yml` workflow also supports manual bulk operations via `workflow_dispatch`. Admin or maintainer users can trigger it from the GitHub Actions UI or the CLI to disable or enable all agentic workflows in the repository at once. The operation is restricted to admin and maintainer roles and is not available on forks.
 
 ### Close Older Issues
 
