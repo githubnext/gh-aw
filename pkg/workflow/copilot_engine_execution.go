@@ -397,14 +397,7 @@ func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
 	step = append(step, "        id: detect-inference-error")
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: |")
-	step = append(step, "          LOG_FILE=\"/tmp/gh-aw/agent-stdio.log\"")
-	step = append(step, "          if [ -f \"$LOG_FILE\" ] && grep -qE \"Access denied by policy settings|invalid access to inference\" \"$LOG_FILE\"; then")
-	step = append(step, "            echo \"Detected inference access error in agent log\"")
-	step = append(step, "            echo \"inference_access_error=true\" >> \"$GITHUB_OUTPUT\"")
-	step = append(step, "          else")
-	step = append(step, "            echo \"inference_access_error=false\" >> \"$GITHUB_OUTPUT\"")
-	step = append(step, "          fi")
+	step = append(step, "        run: bash /opt/gh-aw/actions/detect_inference_access_error.sh")
 
 	return GitHubActionStep(step)
 }

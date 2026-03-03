@@ -48,9 +48,9 @@ Test workflow`
 		t.Error("Expected agent job to have detect-inference-error step")
 	}
 
-	// Check that the detection step uses the correct log file path
-	if !strings.Contains(lockStr, "LOG_FILE=\"/tmp/gh-aw/agent-stdio.log\"") {
-		t.Error("Expected detect-inference-error step to check agent-stdio.log")
+	// Check that the detection step calls the shell script
+	if !strings.Contains(lockStr, "bash /opt/gh-aw/actions/detect_inference_access_error.sh") {
+		t.Error("Expected detect-inference-error step to call detect_inference_access_error.sh")
 	}
 
 	// Check that the agent job exposes inference_access_error output

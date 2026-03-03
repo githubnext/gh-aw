@@ -463,14 +463,9 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
     return "";
   }
 
-  let ctx = "\n**🔑 Inference Access Denied**: The Copilot CLI failed because the token does not have access to inference.";
-  ctx += " This can happen when:\n\n";
-  ctx += "- Your organization has restricted Copilot access\n";
-  ctx += "- The `COPILOT_GITHUB_TOKEN` does not have a valid Copilot subscription\n";
-  ctx += "- Required policies have not been enabled by your administrator\n\n";
-  ctx += "To resolve this, verify that the `COPILOT_GITHUB_TOKEN` secret belongs to an account with an active Copilot subscription and check your [Copilot settings](https://github.com/settings/copilot).\n\n";
-
-  return ctx;
+  const templatePath = "/opt/gh-aw/prompts/inference_access_error.md";
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + template;
 }
 
 /**
