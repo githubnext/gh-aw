@@ -481,7 +481,7 @@ type latestReleaseResult struct {
 // major version. Updated files are recompiled. By default all actions are updated to
 // the latest major version; pass disableReleaseBump=true to only update core
 // (actions/*) references.
-func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose, disableReleaseBump bool) error {
+func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -528,10 +528,12 @@ func UpdateActionsInWorkflowFiles(workflowsDir, engineOverride string, verbose, 
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action references in "+d.Name()))
 		updatedFiles = append(updatedFiles, path)
 
-		// Recompile the updated workflow
-		if err := compileWorkflowWithRefresh(path, verbose, false, engineOverride, false); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
+		// Recompile the updated workflow (unless --no-compile is set)
+		if !noCompile {
+			if err := compileWorkflowWithRefresh(path, verbose, false, engineOverride, false); err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
+				}
 			}
 		}
 		return nil
