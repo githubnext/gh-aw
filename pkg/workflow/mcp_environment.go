@@ -170,11 +170,17 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 				maps.Copy(envVars, headerSecrets)
 			}
 
-			// Also extract secrets from env section if present
+			// Also extract secrets and env expressions from env section if present
 			if len(mcpConfig.Env) > 0 {
 				envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
 				mcpEnvironmentLog.Printf("Extracted %d secrets from env section of MCP server '%s'", len(envSecrets), toolName)
 				maps.Copy(envVars, envSecrets)
+
+				// Also extract env var expressions in addition to secrets
+				// (e.g., ${{ env.SENTRY_HOST || 'https://sentry.io' }}) so the gateway container can resolve them
+				envExprs := ExtractEnvExpressionsFromMap(mcpConfig.Env)
+				mcpEnvironmentLog.Printf("Extracted %d env expressions from env section of MCP server '%s'", len(envExprs), toolName)
+				maps.Copy(envVars, envExprs)
 			}
 		}
 	}
