@@ -63,22 +63,8 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
   queryParts.push(`"${markerId}"`);
   queryParts.push(itemType === "comment" ? "in:comments" : "in:body");
 
-  // Determine the search result type parameter
-  let typeParam;
-  if (itemType === "issue") {
-    typeParam = "issues";
-  } else if (itemType === "pull_request") {
-    typeParam = "pullrequests";
-  } else if (itemType === "discussion") {
-    typeParam = "discussions";
-  }
-  // For "comment" itemType, no type filter is applied so all item types are searched
-
   const url = new URL(`${server}/search`);
   url.searchParams.set("q", queryParts.join(" "));
-  if (typeParam) {
-    url.searchParams.set("type", typeParam);
-  }
 
   return url.toString();
 }

@@ -45,7 +45,7 @@ describe("generate_history_link.cjs", () => {
         });
 
         expect(url).toContain("is%3Aissue");
-        expect(url).toContain("type=issues");
+        expect(url).not.toContain("type=");
       });
 
       it("should include is:pr qualifier for pull_request type", () => {
@@ -58,7 +58,7 @@ describe("generate_history_link.cjs", () => {
         });
 
         expect(url).toContain("is%3Apr");
-        expect(url).toContain("type=pullrequests");
+        expect(url).not.toContain("type=");
       });
 
       it("should NOT include is: qualifier for discussion type", () => {
@@ -71,7 +71,7 @@ describe("generate_history_link.cjs", () => {
         });
 
         expect(url).not.toContain("is%3A");
-        expect(url).toContain("type=discussions");
+        expect(url).not.toContain("type=");
       });
     });
 
@@ -295,7 +295,7 @@ describe("generate_history_link.cjs", () => {
           serverUrl: "https://github.com",
         });
 
-        expect(url).toContain("type=");
+        expect(url).not.toContain("type=");
       });
 
       it("should generate a complete issue search URL", () => {
@@ -310,7 +310,7 @@ describe("generate_history_link.cjs", () => {
         const parsed = new URL(url);
         expect(parsed.hostname).toBe("github.com");
         expect(parsed.pathname).toBe("/search");
-        expect(parsed.searchParams.get("type")).toBe("issues");
+        expect(parsed.searchParams.get("type")).toBeNull();
 
         const query = parsed.searchParams.get("q");
         expect(query).toContain("repo:myowner/myrepo");
@@ -329,7 +329,7 @@ describe("generate_history_link.cjs", () => {
         });
 
         const parsed = new URL(url);
-        expect(parsed.searchParams.get("type")).toBe("pullrequests");
+        expect(parsed.searchParams.get("type")).toBeNull();
 
         const query = parsed.searchParams.get("q");
         expect(query).toContain("is:pr");
@@ -346,7 +346,7 @@ describe("generate_history_link.cjs", () => {
         });
 
         const parsed = new URL(url);
-        expect(parsed.searchParams.get("type")).toBe("discussions");
+        expect(parsed.searchParams.get("type")).toBeNull();
 
         const query = parsed.searchParams.get("q");
         expect(query).not.toContain("is:issue");
@@ -430,7 +430,7 @@ describe("generate_history_link.cjs", () => {
         serverUrl: "https://github.com",
       });
 
-      expect(link).toContain("type=issues");
+      expect(link).not.toContain("type=");
       expect(link).toContain("is%3Aissue");
     });
 
@@ -443,7 +443,7 @@ describe("generate_history_link.cjs", () => {
         serverUrl: "https://github.com",
       });
 
-      expect(link).toContain("type=pullrequests");
+      expect(link).not.toContain("type=");
     });
 
     it("should generate link with correct search URL for discussion", () => {
@@ -455,7 +455,7 @@ describe("generate_history_link.cjs", () => {
         serverUrl: "https://github.com",
       });
 
-      expect(link).toContain("type=discussions");
+      expect(link).not.toContain("type=");
     });
 
     it("should support enterprise URLs in the history link", () => {
