@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestActivationGitHubToken tests that on.github-token is extracted and used in pre-activation and activation jobs
+// TestActivationGitHubToken tests that on.github-token is extracted and used in the activation job
 func TestActivationGitHubToken(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -21,12 +21,11 @@ func TestActivationGitHubToken(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:                  "Test Workflow",
 			AIReaction:            "eyes",
-			Command:               []string{"test"}, // command provides the activated condition
 			ActivationGitHubToken: "${{ secrets.MY_GITHUB_TOKEN }}",
 		}
 
-		job, err := compiler.buildPreActivationJob(workflowData, false)
-		require.NoError(t, err, "buildPreActivationJob should succeed")
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
 		require.NotNil(t, job)
 
 		stepsStr := strings.Join(job.Steps, "")
@@ -38,11 +37,10 @@ func TestActivationGitHubToken(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:       "Test Workflow",
 			AIReaction: "eyes",
-			Command:    []string{"test"}, // command provides the activated condition
 		}
 
-		job, err := compiler.buildPreActivationJob(workflowData, false)
-		require.NoError(t, err, "buildPreActivationJob should succeed")
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
 		require.NotNil(t, job)
 
 		stepsStr := strings.Join(job.Steps, "")
@@ -90,7 +88,7 @@ func TestActivationGitHubToken(t *testing.T) {
 	})
 }
 
-// TestActivationGitHubApp tests that on.github-app is extracted and used in pre-activation and activation jobs
+// TestActivationGitHubApp tests that on.github-app is extracted and used in the activation job
 func TestActivationGitHubApp(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -98,15 +96,14 @@ func TestActivationGitHubApp(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:       "Test Workflow",
 			AIReaction: "eyes",
-			Command:    []string{"test"}, // command provides the activated condition
 			ActivationGitHubApp: &GitHubAppConfig{
 				AppID:      "${{ vars.APP_ID }}",
 				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		}
 
-		job, err := compiler.buildPreActivationJob(workflowData, false)
-		require.NoError(t, err, "buildPreActivationJob should succeed")
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
 		require.NotNil(t, job)
 
 		stepsStr := strings.Join(job.Steps, "")
@@ -149,6 +146,33 @@ func TestActivationGitHubApp(t *testing.T) {
 
 		// Add-comment step should use the app token
 		assert.Contains(t, stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}", "Add-comment step should use app token")
+	})
+
+	t.Run("app_token_minted_once_for_both_reaction_and_comment", func(t *testing.T) {
+		statusComment := true
+		workflowData := &WorkflowData{
+			Name:          "Test Workflow",
+			AIReaction:    "eyes",
+			StatusComment: &statusComment,
+			ActivationGitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job)
+
+		stepsStr := strings.Join(job.Steps, "")
+		// The token should be minted exactly once
+		mintCount := strings.Count(stepsStr, "id: activation-app-token")
+		assert.Equal(t, 1, mintCount, "Token mint step should appear exactly once")
+
+		// Both steps should use the same app token
+		assert.Contains(t, stepsStr, "id: react", "Reaction step should be present")
+		assert.Contains(t, stepsStr, "id: add-comment", "Add-comment step should be present")
+		assert.Equal(t, 2, strings.Count(stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}"), "Both reaction and comment steps should use app token")
 	})
 }
 
