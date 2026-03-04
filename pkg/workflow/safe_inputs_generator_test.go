@@ -225,6 +225,14 @@ func TestGenerateSafeInputJavaScriptToolScript(t *testing.T) {
 	if !strings.Contains(script, "module.exports") {
 		t.Error("Script should export execute function")
 	}
+
+	if !strings.Contains(script, "require.main === module") {
+		t.Error("Script should have main execution block for subprocess execution")
+	}
+
+	if !strings.Contains(script, "require(\"./safe-inputs-runner.cjs\")(execute)") {
+		t.Error("Script should delegate to safe-inputs-runner.cjs for subprocess execution")
+	}
 }
 
 func TestGenerateSafeInputShellToolScript(t *testing.T) {
