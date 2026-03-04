@@ -18,12 +18,6 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 		expectedCommand string
 	}{
 		{
-			name:            "Copilot coding agent uses GH_AW_MODEL_AGENT_COPILOT",
-			engine:          "copilot",
-			expectedEnvVar:  constants.EnvVarModelAgentCopilot,
-			expectedCommand: "${" + constants.EnvVarModelAgentCopilot + ":+ --model",
-		},
-		{
 			name:            "Claude agent uses GH_AW_MODEL_AGENT_CLAUDE",
 			engine:          "claude",
 			expectedEnvVar:  constants.EnvVarModelAgentClaude,
@@ -98,12 +92,6 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 		expectedEnvVar  string
 		expectedDefault string
 	}{
-		{
-			name:            "Copilot detection uses GH_AW_MODEL_DETECTION_COPILOT",
-			engine:          "copilot",
-			expectedEnvVar:  constants.EnvVarModelDetectionCopilot,
-			expectedDefault: "", // No builtin default, CLI will use its own
-		},
 		{
 			name:            "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
 			engine:          "claude",
@@ -219,6 +207,73 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	// The --model flag should NOT appear in the shell command (model is via env var)
 	if strings.Contains(stepsContent, "--model gpt-4") {
 		t.Errorf("--model flag should not be in command when model is set via native env var:\n%s", stepsContent)
+	}
+}
+
+// TestCopilotFallbackModelMapsToNativeEnvVar tests that when model is not explicitly configured,
+// the Copilot engine maps the GitHub org variable to the native COPILOT_MODEL env var instead
+// of using the broken --model CLI flag.
+func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		expectedOrgVar string
+	}{
+		{
+			name:           "Agent job maps GH_AW_MODEL_AGENT_COPILOT to COPILOT_MODEL",
+			safeOutputs:    &SafeOutputsConfig{},
+			expectedOrgVar: constants.EnvVarModelAgentCopilot,
+		},
+		{
+			name:           "Detection job maps GH_AW_MODEL_DETECTION_COPILOT to COPILOT_MODEL",
+			safeOutputs:    nil,
+			expectedOrgVar: constants.EnvVarModelDetectionCopilot,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				AI:   "copilot",
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get engine: %v", err)
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+			var stepsStr strings.Builder
+			for _, step := range steps {
+				for _, line := range step {
+					stepsStr.WriteString(line)
+					stepsStr.WriteString("\n")
+				}
+			}
+			stepsContent := stepsStr.String()
+
+			// The model must be passed via COPILOT_MODEL env var pointing to the org variable
+			expectedEnvLine := constants.CopilotCLIModelEnvVar + ": ${{ vars." + tt.expectedOrgVar + " || '' }}"
+			if !strings.Contains(stepsContent, expectedEnvLine) {
+				t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+			}
+
+			// The --model flag must NOT appear in the shell command
+			if strings.Contains(stepsContent, "--model") {
+				t.Errorf("--model flag should not appear in command (model is passed via COPILOT_MODEL env var):\n%s", stepsContent)
+			}
+
+			// The org variable must NOT appear as its own env block key
+			if strings.Contains(stepsContent, tt.expectedOrgVar+":") {
+				t.Errorf("Org var %s should not appear as env block key (only as value in COPILOT_MODEL):\n%s", tt.expectedOrgVar, stepsContent)
+			}
+		})
 	}
 }
 

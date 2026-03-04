@@ -70,20 +70,20 @@ Actor: ${{ github.actor }}
 		}
 	}
 
-	// Verify that the prompt content contains ${GH_AW_...} references
-	// These will be interpolated by the github-script step, not by bash
+	// Verify that the prompt content contains __GH_AW_...__ references
+	// These are Handlebars-style placeholders interpolated by the github-script step
 	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
-	if !strings.Contains(compiledStr, "${GH_AW_") {
-		t.Error("Prompt content should contain ${GH_AW_...} references for JavaScript interpolation")
+	if !strings.Contains(compiledStr, "__GH_AW_") {
+		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
 	}
 
 	// Verify the original expressions have been replaced in the prompt content
 	// With grouped redirects, heredocs inside the group have no individual redirects
 	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
-		t.Error("Original GitHub expressions should be replaced with ${GH_AW_...} references in prompt heredoc")
+		t.Error("Original GitHub expressions should be replaced with __GH_AW_...__ references in prompt heredoc")
 	}
-	if !strings.Contains(compiledStr, "${GH_AW_") {
-		t.Error("Prompt content should contain ${GH_AW_...} references for JavaScript interpolation")
+	if !strings.Contains(compiledStr, "__GH_AW_") {
+		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
 	}
 
 	// Verify that the interpolation and template rendering step exists
