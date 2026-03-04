@@ -1143,6 +1143,12 @@ func TestRuntimeImportPathGitHubIO(t *testing.T) {
 			description: "Normal repo without .github.io should work as before",
 		},
 		{
+			name:        "repo_named_dot_github",
+			repoName:    ".github",
+			expected:    "{{#runtime-import .github/workflows/test.md}}",
+			description: "Repo named '.github' should not duplicate .github in runtime-import path",
+		},
+		{
 			name:        "repo_with_github_in_name",
 			repoName:    "my-github-project",
 			expected:    "{{#runtime-import .github/workflows/test.md}}",

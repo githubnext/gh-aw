@@ -391,9 +391,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		normalizedPath := filepath.ToSlash(c.markdownPath)
 
 		// Look for "/.github/" as a directory (not just substring in repo name like "username.github.io")
-		// We need to match the directory component, not arbitrary substrings
+		// We need to match the directory component, not arbitrary substrings.
+		// Use LastIndex so that when the repo itself is named ".github" (path like
+		// "/root/.github/.github/workflows/file.md"), we find the actual .github
+		// workflows directory rather than the repo root directory.
 		githubDirPattern := "/.github/"
-		githubIndex := strings.Index(normalizedPath, githubDirPattern)
+		githubIndex := strings.LastIndex(normalizedPath, githubDirPattern)
 
 		if githubIndex != -1 {
 			// Extract everything from ".github/" onwards (inclusive)
