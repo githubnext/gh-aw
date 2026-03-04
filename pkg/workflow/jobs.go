@@ -323,10 +323,8 @@ func (jm *JobManager) renderJob(job *Job) string {
 		fmt.Fprintf(&yaml, "    timeout-minutes: %d\n", job.TimeoutMinutes)
 	}
 
-	// Add continue-on-error if true
-	if job.ContinueOnError {
-		yaml.WriteString("    continue-on-error: true\n")
-	}
+	// Add continue-on-error, always reflecting the configured value
+	fmt.Fprintf(&yaml, "    continue-on-error: %t\n", job.ContinueOnError)
 
 	// Add environment variables section
 	if len(job.Env) > 0 {
