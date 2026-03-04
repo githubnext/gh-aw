@@ -37,7 +37,7 @@ async function ensureAgentRunsIssue() {
       };
     }
   } catch (error) {
-    core.warning(`Error searching for no-op runs issue: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`);
   }
 
   // Create no-op runs issue if it doesn't exist

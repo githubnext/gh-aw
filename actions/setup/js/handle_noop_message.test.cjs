@@ -480,6 +480,36 @@ This issue helps you:
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not create no-op runs issue"));
   });
 
+  it("should not create issue when search throws (prevents duplicate issues)", async () => {
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/789";
+    process.env.GH_AW_NOOP_MESSAGE = "All checks passed";
+    process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+    // Create agent output file with only noop outputs
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(
+      outputFile,
+      JSON.stringify({
+        items: [{ type: "noop", message: "All checks passed" }],
+      })
+    );
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+    // Mock search failure (e.g. transient API error)
+    mockGithub.rest.search.issuesAndPullRequests.mockRejectedValue(new Error("API rate limit exceeded"));
+
+    const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
+    await main();
+
+    // Search error should be caught and logged as a warning (via ensureAgentRunsIssue throw → main catch)
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not create no-op runs issue"));
+    // Issue must NOT be created to prevent duplicates
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    // Comment must NOT be posted
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
   it("should extract run ID from URL correctly", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test";
     process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/987654321";
