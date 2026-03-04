@@ -153,6 +153,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 }
 
 func cleanupTrialRepository(repoSlug string, verbose bool) error {
+	trialRepoLog.Printf("Cleaning up trial repository: %s", repoSlug)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up host repository: "+repoSlug))
 	}
@@ -161,9 +162,11 @@ func cleanupTrialRepository(repoSlug string, verbose bool) error {
 	output, err := workflow.RunGHCombined("Deleting repository...", "repo", "delete", repoSlug, "--yes")
 
 	if err != nil {
+		trialRepoLog.Printf("Failed to delete trial repository %s: %v", repoSlug, err)
 		return fmt.Errorf("failed to delete host repository: %w (output: %s)", err, string(output))
 	}
 
+	trialRepoLog.Printf("Successfully deleted trial repository: %s", repoSlug)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Deleted host repository: "+repoSlug))
 	}
@@ -172,6 +175,7 @@ func cleanupTrialRepository(repoSlug string, verbose bool) error {
 }
 
 func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
+	trialRepoLog.Printf("Cloning trial host repository: %s", repoSlug)
 	// Create temporary directory
 	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("gh-aw-trial-%x", time.Now().UnixNano()))
 
@@ -183,12 +187,15 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 
 	// Clone the repository using the full slug
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repoSlug)
+	trialRepoLog.Printf("Cloning repository from URL to tempDir: %s", tempDir)
 
 	output, err := workflow.RunGitCombined(fmt.Sprintf("Cloning %s...", repoSlug), "clone", repoURL, tempDir)
 	if err != nil {
+		trialRepoLog.Printf("Failed to clone host repository %s: %v", repoSlug, err)
 		return "", fmt.Errorf("failed to clone host repository %s: %w (output: %s)", repoURL, err, string(output))
 	}
 
+	trialRepoLog.Printf("Successfully cloned trial repository to: %s", tempDir)
 	return tempDir, nil
 }
 
@@ -333,6 +340,7 @@ type trialWorkflowWriteResult struct {
 // - Writing to destination
 // Returns the destination path and workflows directory for further processing.
 func writeWorkflowToTrialDir(tempDir string, workflowName string, content []byte, opts *TrialOptions) (*trialWorkflowWriteResult, error) {
+	trialRepoLog.Printf("Writing workflow to trial dir: workflow=%s, content_size=%d bytes, securityScanDisabled=%v", workflowName, len(content), opts.DisableSecurityScanner)
 	// Security scan: reject workflows containing malicious or dangerous content
 	if !opts.DisableSecurityScanner {
 		if findings := workflow.ScanMarkdownSecurity(string(content)); len(findings) > 0 {
@@ -387,6 +395,7 @@ func writeWorkflowToTrialDir(tempDir string, workflowName string, content []byte
 
 // modifyWorkflowForTrialMode modifies the workflow to work in trial mode
 func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, verbose bool) error {
+	trialRepoLog.Printf("Modifying workflow for trial mode: workflow=%s, logicalRepo=%s", workflowName, logicalRepoSlug)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Modifying workflow for trial mode"))
 	}

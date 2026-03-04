@@ -507,6 +507,26 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				}
 			}
 
+			// Extract strategy for custom jobs
+			if strategy, hasStrategy := configMap["strategy"]; hasStrategy {
+				if strategyMap, ok := strategy.(map[string]any); ok {
+					// Use goccy/go-yaml to marshal strategy
+					yamlBytes, err := yaml.Marshal(strategyMap)
+					if err != nil {
+						return fmt.Errorf("failed to convert strategy to YAML for job '%s': %w", jobName, err)
+					}
+					// Indent the YAML properly for job-level strategy
+					strategyYAML := string(yamlBytes)
+					lines := strings.Split(strings.TrimSpace(strategyYAML), "\n")
+					var formattedStrategy strings.Builder
+					formattedStrategy.WriteString("strategy:\n")
+					for _, line := range lines {
+						formattedStrategy.WriteString("      " + line + "\n")
+					}
+					job.Strategy = formattedStrategy.String()
+				}
+			}
+
 			// Extract outputs for custom jobs
 			if outputs, hasOutputs := configMap["outputs"]; hasOutputs {
 				if outputsMap, ok := outputs.(map[string]any); ok {

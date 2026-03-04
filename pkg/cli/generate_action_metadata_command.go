@@ -59,12 +59,15 @@ func GenerateActionMetadataCommand() error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔍 Generating actions for %d JavaScript modules...", len(targetFiles))))
 
 	generatedCount := 0
+	generateActionMetadataLog.Printf("Processing %d target JavaScript files in %s", len(targetFiles), jsDir)
 	for _, filename := range targetFiles {
 		jsPath := filepath.Join(jsDir, filename)
+		generateActionMetadataLog.Printf("Processing file: %s", filename)
 
 		// Read file content directly from filesystem
 		contentBytes, err := os.ReadFile(jsPath)
 		if err != nil {
+			generateActionMetadataLog.Printf("Skipping %s: failed to read file: %v", filename, err)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Skipping %s: %s", filename, err.Error())))
 			continue
 		}
@@ -115,6 +118,7 @@ func GenerateActionMetadataCommand() error {
 		generatedCount++
 	}
 
+	generateActionMetadataLog.Printf("Action metadata generation complete: generated=%d, total=%d", generatedCount, len(targetFiles))
 	if generatedCount == 0 {
 		return errors.New("no actions were generated")
 	}
@@ -282,6 +286,7 @@ func extractDependencies(content string) []string {
 
 // generateActionYml generates an action.yml file
 func generateActionYml(actionDir string, metadata *ActionMetadata) error {
+	generateActionMetadataLog.Printf("Generating action.yml: action=%s, inputs=%d, outputs=%d", metadata.ActionName, len(metadata.Inputs), len(metadata.Outputs))
 	var content strings.Builder
 
 	fmt.Fprintf(&content, "name: '%s'\n", metadata.Name)
@@ -333,6 +338,7 @@ func generateActionYml(actionDir string, metadata *ActionMetadata) error {
 
 // generateReadme generates a README.md file
 func generateReadme(actionDir string, metadata *ActionMetadata) error {
+	generateActionMetadataLog.Printf("Generating README.md: action=%s, deps=%d", metadata.ActionName, len(metadata.Dependencies))
 	var content strings.Builder
 
 	fmt.Fprintf(&content, "# %s\n\n", metadata.Name)

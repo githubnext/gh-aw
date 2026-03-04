@@ -67,6 +67,7 @@ func newImportAccumulator() *importAccumulator {
 // safe-inputs, steps, runtimes, services, network, permissions, secret-masking, bots,
 // skip-roles, skip-bots, plugins, post-steps, labels, cache, and features.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
+	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 	// Extract tools from imported file
 	toolsContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
 	if err != nil {
@@ -112,6 +113,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// Extract engines from imported file
 	engineContent, err := extractFrontmatterField(string(content), "engine", "")
 	if err == nil && engineContent != "" {
+		log.Printf("Found engine config in import: %s", item.fullPath)
 		acc.engines = append(acc.engines, engineContent)
 	}
 
@@ -281,6 +283,8 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 // toImportsResult converts the accumulated state to a final ImportsResult.
 // topologicalOrder is the result from topologicalSortImports.
 func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *ImportsResult {
+	log.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, plugins=%d, labels=%d",
+		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.plugins), len(acc.labels))
 	return &ImportsResult{
 		MergedTools:         acc.toolsBuilder.String(),
 		MergedMCPServers:    acc.mcpServersBuilder.String(),

@@ -2199,6 +2199,79 @@ func TestBuildCustomJobsSkipsPreActivationJob(t *testing.T) {
 	}
 }
 
+// TestBuildCustomJobsWithStrategy tests custom jobs with matrix strategy configuration
+func TestBuildCustomJobsWithStrategy(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "strategy-test")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  matrix_job:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20]
+      fail-fast: false
+      max-parallel: 2
+    steps:
+      - run: echo "matrix job"
+  simple_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "simple job"
+---
+
+# Test Workflow
+
+Test content`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	// Read compiled output
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify matrix_job has strategy section
+	if !strings.Contains(yamlStr, "matrix_job:") {
+		t.Error("Expected matrix_job in compiled output")
+	}
+	if !strings.Contains(yamlStr, "strategy:") {
+		t.Error("Expected strategy section in compiled output")
+	}
+	if !strings.Contains(yamlStr, "matrix:") {
+		t.Error("Expected matrix section in compiled output")
+	}
+	if !strings.Contains(yamlStr, "fail-fast: false") {
+		t.Error("Expected fail-fast: false in compiled output")
+	}
+	if !strings.Contains(yamlStr, "max-parallel: 2") {
+		t.Error("Expected max-parallel: 2 in compiled output")
+	}
+
+	// Verify simple_job has no strategy
+	if !strings.Contains(yamlStr, "simple_job:") {
+		t.Error("Expected simple_job in compiled output")
+	}
+}
+
 // TestBuildCustomJobsRunsOnForms tests that runs-on string, array, and object forms
 // are all correctly handled in buildCustomJobs.
 func TestBuildCustomJobsRunsOnForms(t *testing.T) {
