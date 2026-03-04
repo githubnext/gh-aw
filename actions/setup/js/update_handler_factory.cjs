@@ -10,6 +10,7 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {Object} UpdateHandlerConfig
@@ -216,6 +217,11 @@ function createUpdateHandlerFactory(handlerConfig) {
       // and will be processed by executeUpdate. We should NOT skip if _rawBody exists.
       const updateFields = Object.keys(updateData).filter(k => !k.startsWith("_"));
       const hasRawBody = updateData._rawBody !== undefined;
+
+      // Sanitize body content before forwarding to the GitHub API (safe outputs conformance)
+      if (hasRawBody) {
+        updateData._rawBody = sanitizeContent(updateData._rawBody);
+      }
 
       if (updateFields.length === 0 && !hasRawBody) {
         core.info(`No update fields provided for ${itemTypeName} #${itemNumber} - treating as no-op (skipping update)`);
