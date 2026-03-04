@@ -316,6 +316,43 @@ func TestValidateExpressionSafetyWithParser(t *testing.T) {
 			wantErr:     true,
 			errContains: "secrets.INVALID_TOKEN",
 		},
+		// Default-value patterns: safe_expression || 'literal' (#issue)
+		{
+			name:    "inputs with string default",
+			content: `${{ inputs.devices || 'mobile,tablet,desktop' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with simple string default",
+			content: `${{ inputs.docs_dir || 'docs' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with command default",
+			content: `${{ inputs.build_command || 'npm run build' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with port default",
+			content: `${{ inputs.server_port || '4321' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "github.event.inputs with string default",
+			content: `${{ github.event.inputs.environment || 'production' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "multiple default expressions in one block",
+			content: "- **Devices**: ${{ inputs.devices || 'mobile,tablet,desktop' }}\n- **Dir**: ${{ inputs.docs_dir || 'docs' }}",
+			wantErr: false,
+		},
+		{
+			name:        "unauthorized left side with string default",
+			content:     `${{ secrets.TOKEN || 'fallback' }}`,
+			wantErr:     true,
+			errContains: "secrets.TOKEN",
+		},
 	}
 
 	for _, tt := range tests {
