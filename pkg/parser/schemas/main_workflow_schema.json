@@ -4061,10 +4061,9 @@
           "type": "array",
           "description": "List of allowed repositories for GitHub references (e.g., #123 or owner/repo#456). Use 'repo' to allow current repository. References to other repositories will be escaped with backticks. If not specified, all references are allowed.",
           "items": {
-            "type": "string",
-            "pattern": "^(repo|[a-zA-Z0-9][-a-zA-Z0-9]{0,38}/[a-zA-Z0-9._-]+)$"
+            "type": "string"
           },
-          "examples": [["repo"], ["repo", "octocat/hello-world"], ["microsoft/vscode", "microsoft/typescript"]]
+          "examples": [["repo"], ["repo", "octocat/hello-world"], ["microsoft/vscode", "microsoft/typescript"], ["repo", "${{ github.repository }}"]]
         },
         "create-issue": {
           "oneOf": [
