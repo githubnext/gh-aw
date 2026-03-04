@@ -247,7 +247,7 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
 function logGraphQLErrorDetails(error, header, logFn) {
   try {
     if (!error || typeof error !== "object") return;
-    const err = /** @type {any} */ (error);
+    const err = /** @type {any} */ error;
     const details = {
       ...(err.errors && { errors: err.errors }),
       ...(err.response && { response: err.response }),
