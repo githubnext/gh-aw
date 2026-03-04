@@ -36,7 +36,7 @@ function runSafeInput(execute) {
         inputs = JSON.parse(inputJson.trim());
       }
     } catch (e) {
-      process.stderr.write("Warning: Failed to parse inputs: " + e.message + "\n");
+      process.stderr.write("Warning: Failed to parse inputs: " + (e instanceof Error ? e.message : String(e)) + "\n");
     }
     try {
       const result = await execute(inputs);
