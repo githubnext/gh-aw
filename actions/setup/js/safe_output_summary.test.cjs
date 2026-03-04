@@ -169,6 +169,117 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("Project URL");
       expect(summary).toContain("https://github.com/orgs/owner/projects/123");
     });
+
+    it("should display secrecy field when present in message", () => {
+      const options = {
+        type: "create_issue",
+        messageIndex: 1,
+        success: true,
+        result: {
+          repo: "owner/repo",
+          number: 123,
+        },
+        message: {
+          title: "Secure Issue",
+          body: "Sensitive content",
+          secrecy: "private",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("Secrecy:");
+      expect(summary).toContain("private");
+    });
+
+    it("should display integrity field when present in message", () => {
+      const options = {
+        type: "create_issue",
+        messageIndex: 1,
+        success: true,
+        result: {
+          repo: "owner/repo",
+          number: 123,
+        },
+        message: {
+          title: "Trusted Issue",
+          body: "Verified content",
+          integrity: "high",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("Integrity:");
+      expect(summary).toContain("high");
+    });
+
+    it("should display both secrecy and integrity fields when present", () => {
+      const options = {
+        type: "add_comment",
+        messageIndex: 2,
+        success: true,
+        result: {
+          repo: "owner/repo",
+          number: 456,
+        },
+        message: {
+          body: "A comment",
+          secrecy: "internal",
+          integrity: "medium",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("Secrecy:");
+      expect(summary).toContain("internal");
+      expect(summary).toContain("Integrity:");
+      expect(summary).toContain("medium");
+    });
+
+    it("should not display secrecy or integrity when absent from message", () => {
+      const options = {
+        type: "create_issue",
+        messageIndex: 1,
+        success: true,
+        result: {
+          repo: "owner/repo",
+          number: 123,
+        },
+        message: {
+          title: "Normal Issue",
+          body: "Normal content",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).not.toContain("Secrecy:");
+      expect(summary).not.toContain("Integrity:");
+    });
+
+    it("should display secrecy and integrity fields even when operation fails", () => {
+      const options = {
+        type: "create_issue",
+        messageIndex: 1,
+        success: false,
+        result: null,
+        message: {
+          title: "Failed Issue",
+          secrecy: "public",
+          integrity: "low",
+        },
+        error: "Permission denied",
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("Secrecy:");
+      expect(summary).toContain("public");
+      expect(summary).toContain("Integrity:");
+      expect(summary).toContain("low");
+    });
   });
 
   describe("writeSafeOutputSummaries", () => {

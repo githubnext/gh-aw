@@ -214,7 +214,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
+			expectedUses: "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -297,9 +297,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (30 as of March 2026)
-	if len(pins) != 30 {
-		t.Errorf("getActionPins() returned %d pins, expected 30", len(pins))
+	// Verify we got all the pins (32 as of March 2026)
+	if len(pins) != 32 {
+		t.Errorf("getActionPins() returned %d pins, expected 32", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -345,7 +345,7 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/setup-node",
 			expectExists: true,
 			expectRepo:   "actions/setup-node",
-			expectVer:    "v6.2.0",
+			expectVer:    "v6.3.0",
 		},
 		{
 			repo:         "unknown/action",
@@ -407,7 +407,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
+			expectedUses: "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -1396,7 +1396,7 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 				},
 			},
 			wantErr:      false,
-			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
+			expectedUses: "actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6",
 		},
 	}
 
