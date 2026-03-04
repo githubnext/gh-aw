@@ -6,10 +6,12 @@ describe("extra_empty_commit.cjs", () => {
   let pushExtraEmptyCommit;
   let originalEnv;
   let originalGithubRepo;
+  let originalGithubServerUrl;
 
   beforeEach(() => {
     originalEnv = process.env.GH_AW_CI_TRIGGER_TOKEN;
     originalGithubRepo = process.env.GITHUB_REPOSITORY;
+    originalGithubServerUrl = process.env.GITHUB_SERVER_URL;
     // Set GITHUB_REPOSITORY to match the default test owner/repo so the
     // cross-repo guard doesn't interfere with unrelated tests.
     process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
@@ -43,6 +45,11 @@ describe("extra_empty_commit.cjs", () => {
       process.env.GITHUB_REPOSITORY = originalGithubRepo;
     } else {
       delete process.env.GITHUB_REPOSITORY;
+    }
+    if (originalGithubServerUrl !== undefined) {
+      process.env.GITHUB_SERVER_URL = originalGithubServerUrl;
+    } else {
+      delete process.env.GITHUB_SERVER_URL;
     }
     delete global.core;
     delete global.exec;
@@ -152,6 +159,39 @@ describe("extra_empty_commit.cjs", () => {
       // Find remote remove cleanup call (after push)
       const removeRemoteCalls = execCalls.filter(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "remove");
       expect(removeRemoteCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should use github.com by default when GITHUB_SERVER_URL is not set", async () => {
+      delete process.env.GITHUB_SERVER_URL;
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const addRemote = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemote).toBeDefined();
+      expect(addRemote[1][3]).toContain("github.com/test-owner/test-repo.git");
+    });
+
+    it("should use GITHUB_SERVER_URL hostname for GitHub Enterprise", async () => {
+      process.env.GITHUB_SERVER_URL = "https://github.example.com";
+      delete require.cache[require.resolve("./extra_empty_commit.cjs")];
+      ({ pushExtraEmptyCommit } = require("./extra_empty_commit.cjs"));
+
+      await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      const addRemote = mockExec.exec.mock.calls.find(c => c[0] === "git" && c[1] && c[1][0] === "remote" && c[1][1] === "add");
+      expect(addRemote).toBeDefined();
+      expect(addRemote[1][3]).toContain("github.example.com/test-owner/test-repo.git");
+      expect(addRemote[1][3]).not.toContain("github.com/test-owner/test-repo.git");
     });
 
     it("should use default commit message when none provided", async () => {

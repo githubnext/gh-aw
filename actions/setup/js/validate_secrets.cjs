@@ -97,7 +97,8 @@ async function testGitHubRESTAPI(token, owner, repo) {
   }
 
   try {
-    const result = await makeRequest("api.github.com", `/repos/${owner}/${repo}`, {
+    const apiUrl = new URL(process.env.GITHUB_API_URL || "https://api.github.com");
+    const result = await makeRequest(apiUrl.hostname, `${apiUrl.pathname.replace(/\/$/, "")}/repos/${owner}/${repo}`, {
       "User-Agent": "gh-aw-secret-validation",
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
@@ -159,9 +160,10 @@ async function testGitHubGraphQLAPI(token, owner, repo) {
   try {
     const result = await new Promise((resolve, reject) => {
       const postData = JSON.stringify({ query });
+      const graphqlUrl = new URL(process.env.GITHUB_GRAPHQL_URL || "https://api.github.com/graphql");
       const options = {
-        hostname: "api.github.com",
-        path: "/graphql",
+        hostname: graphqlUrl.hostname,
+        path: graphqlUrl.pathname,
         method: "POST",
         headers: {
           "User-Agent": "gh-aw-secret-validation",
@@ -564,7 +566,7 @@ function generateMarkdownReport(results) {
         report += `> - [\`${secret}\`](${docsLink})\n`;
       });
       report += `>\n`;
-      report += `> Configure these secrets in [repository settings](https://github.com/${repository}/settings/secrets/actions) if needed.\n\n`;
+      report += `> Configure these secrets in [repository settings](${process.env.GITHUB_SERVER_URL || "https://github.com"}/${repository}/settings/secrets/actions) if needed.\n\n`;
     }
   }
 

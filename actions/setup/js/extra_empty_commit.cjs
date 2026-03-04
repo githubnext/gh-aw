@@ -127,7 +127,9 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     core.info(`Cycle check passed: ${emptyCommitCount} empty commit(s) in last ${COMMITS_TO_CHECK} (limit: ${MAX_EMPTY_COMMITS})`);
 
     // Configure git remote with the token for authentication
-    const remoteUrl = `https://x-access-token:${token}@github.com/${repoOwner}/${repoName}.git`;
+    const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const serverHostStripped = githubServerUrl.replace(/^https?:\/\//, "");
+    const remoteUrl = `https://x-access-token:${token}@${serverHostStripped}/${repoOwner}/${repoName}.git`;
 
     // Add a temporary remote with the token
     try {

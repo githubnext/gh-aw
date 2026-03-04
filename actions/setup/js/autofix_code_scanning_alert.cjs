@@ -100,7 +100,7 @@ async function main(config = {}) {
         headers: { "X-GitHub-Api-Version": "2022-11-28" },
       });
 
-      const autofixUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/security/code-scanning/${alertNumber}`;
+      const autofixUrl = `${process.env.GITHUB_SERVER_URL || "https://github.com"}/${context.repo.owner}/${context.repo.repo}/security/code-scanning/${alertNumber}`;
       core.info(`✓ Successfully created autofix for code scanning alert ${alertNumber}: ${autofixUrl}`);
 
       processedAutofixes.push({
