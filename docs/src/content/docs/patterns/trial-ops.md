@@ -5,13 +5,7 @@ sidebar:
   badge: { text: 'Testing', variant: 'tip' }
 ---
 
-> [!NOTE]
-> Part of SideRepoOps
-> TrialOps is a specialized testing pattern that extends [SideRepoOps](/gh-aw/patterns/side-repo-ops/). While SideRepoOps runs workflows from a separate repository against your main codebase, TrialOps uses temporary trial repositories to safely validate and test workflows before production deployment.
-
-TrialOps runs agentic workflows in isolated trial repositories to safely validate behavior, compare approaches, and iterate on prompts without affecting production. The `trial` command creates temporary private repositories where workflows execute and capture safe outputs (issues, PRs, comments) without modifying your actual codebase.
-
-Use TrialOps to test workflows before production deployment, compare implementations, validate prompt changes, debug in isolation, or demonstrate capabilities with real results.
+TrialOps extends [SideRepoOps](/gh-aw/patterns/side-repo-ops/) with temporary trial repositories for safely validating and iterating on workflows before production deployment. The `trial` command creates isolated private repos where workflows execute and capture safe outputs (issues, PRs, comments) without affecting your actual codebase.
 
 ## How Trial Mode Works
 
@@ -19,59 +13,29 @@ Use TrialOps to test workflows before production deployment, compare implementat
 gh aw trial githubnext/agentics/weekly-research
 ```
 
-The CLI creates a temporary private repository (default: `gh-aw-trial`), installs and executes the workflow via `workflow_dispatch`, then saves results in three locations:
-
-- **Local**: `trials/weekly-research.DATETIME-ID.json` (safe output metadata)
-- **GitHub**: Trial repository at `<username>/gh-aw-trial` (actual issues/PRs/comments)
-- **Console**: Summary with execution results and links
+The CLI creates a temporary private repository (default: `gh-aw-trial`), installs and executes the workflow via `workflow_dispatch`. Results are saved locally in `trials/weekly-research.DATETIME-ID.json`, in the trial repository on GitHub, and summarized in the console.
 
 ## Repository Modes
 
-### Default Mode
+| Mode | Flag | Description |
+|------|------|-------------|
+| Default | (none) | `github.repository` points to your repo; outputs go to trial repo |
+| Direct | `--repo myorg/test-repo` | Runs in specified repo; creates real issues/PRs there |
+| Logical | `--logical-repo myorg/target-repo` | Simulates running against specified repo; outputs in trial repo |
+| Clone | `--clone-repo myorg/real-repo` | Clones repo contents so workflows can analyze actual code |
 
-Simulates running against your current repository - `github.repository` points to your repo, but outputs go to the trial repository.
-
-```bash
-gh aw trial githubnext/agentics/my-workflow
-```
-
-### Direct Mode (`--repo`)
-
-Installs and runs the workflow in a specified repository. All outputs are created there.
-
-```bash
-gh aw trial githubnext/agentics/my-workflow --repo myorg/test-repo
-```
-
-This creates real issues and PRs in the target repository. Only use with test repositories.
-
-### Logical Repository Mode (`--logical-repo`)
-
-Simulates running against a specified repository (like default mode, but for any repo).
-
-```bash
-gh aw trial githubnext/agentics/my-workflow --logical-repo myorg/target-repo
-```
-
-### Clone Mode (`--clone-repo`)
-
-Clones repository contents into the trial repo so workflows can analyze actual code and file structures.
-
-```bash
-gh aw trial githubnext/agentics/code-review --clone-repo myorg/real-repo
-```
+> [!WARNING]
+> Direct mode creates real issues and PRs in the target repository. Only use with test repositories.
 
 ## Basic Usage
 
 ### Dry-Run Mode
 
-Preview trial operations without executing workflows or creating repositories:
+Preview what would happen without executing workflows or creating repositories:
 
 ```bash
 gh aw trial ./my-workflow.md --dry-run
 ```
-
-Dry-run mode shows what actions would be taken, including repository creation, workflow installation, and execution plans. Use this to verify trial configuration before committing to the full process.
 
 ### Single Workflow
 
@@ -177,13 +141,7 @@ Results are saved in `trials/*.json` with workflow runs, issues, PRs, and commen
 
 ## Comparing Multiple Workflows
 
-```bash
-gh aw trial ./workflow-v1.md ./workflow-v2.md ./workflow-v3.md
-```
-
-Compare quality (detail/accuracy), quantity (output count), performance (execution time), and consistency (use `--repeat`).
-
-**Example:**
+Run multiple workflows to compare quality, quantity, performance, and consistency:
 
 ```bash
 gh aw trial v1.md v2.md v3.md --repeat 2
@@ -202,13 +160,7 @@ cat trials/combined-results.*.json | jq '.results[] | {workflow: .workflow_name,
 
 ### Development Workflow
 
-1. Write workflows locally in your editor
-2. Preview with `gh aw trial ./my-workflow.md --dry-run`
-3. Test with `gh aw trial ./my-workflow.md`
-4. Adjust based on trial results
-5. Compare variants side-by-side
-6. Validate with `--repeat`
-7. Deploy to production
+Iterate locally: write the workflow, preview with `--dry-run`, run a trial, adjust, compare variants side-by-side, validate consistency with `--repeat`, then deploy.
 
 ### Testing Strategy
 
@@ -259,29 +211,6 @@ jobs:
 | `failed to create trial repository` | Check `gh auth status`, verify quota with `gh api user \| jq .plan`, try explicit `--host-repo name` |
 | `execution timed out` | Increase with `--timeout 60` (minutes, default: 30) |
 | No issues/PRs created | Configure `safe-outputs` in workflow frontmatter, check Actions logs for errors |
-
-## Common Trial Patterns
-
-**Pre-deployment validation:**
-```bash
-gh aw trial ./new-feature.md --clone-repo myorg/production-repo --host-repo pre-deployment-test
-```
-
-**Prompt optimization:**
-```bash
-gh aw trial ./workflow-detailed.md ./workflow-concise.md
-cat trials/combined-results.*.json | jq
-```
-
-**Documentation examples:**
-```bash
-gh aw trial ./workflow.md --force-delete-host-repo-before --host-repo workflow-demo
-```
-
-**Debugging production issues:**
-```bash
-gh aw trial ./workflow.md --clone-repo myorg/production --trigger-context "https://github.com/myorg/production/issues/456" --host-repo debug-session
-```
 
 ## Related Documentation
 

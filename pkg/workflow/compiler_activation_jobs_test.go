@@ -83,7 +83,7 @@ func TestBuildPreActivationJob_WithStopTime(t *testing.T) {
 		"Steps should include the actual stop-time value")
 }
 
-// TestBuildPreActivationJob_WithReaction tests building pre-activation job with reaction
+// TestBuildPreActivationJob_WithReaction tests that reaction step is NOT in pre-activation (it moved to activation)
 func TestBuildPreActivationJob_WithReaction(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -122,26 +122,34 @@ func TestBuildPreActivationJob_WithReaction(t *testing.T) {
 				AIReaction: tt.reaction,
 			}
 
-			job, err := compiler.buildPreActivationJob(workflowData, false)
+			// Pre-activation job should NOT contain the reaction step any more
+			preJob, err := compiler.buildPreActivationJob(workflowData, false)
 			require.NoError(t, err)
-			require.NotNil(t, job)
+			require.NotNil(t, preJob)
+			preStepsStr := strings.Join(preJob.Steps, "\n")
+			assert.NotContains(t, preStepsStr, "GH_AW_REACTION",
+				"Pre-activation job should not contain reaction step")
 
-			stepsStr := strings.Join(job.Steps, "\n")
+			// Activation job should contain the reaction step
+			activationJob, err := compiler.buildActivationJob(workflowData, true, "", "test.lock.yml")
+			require.NoError(t, err)
+			require.NotNil(t, activationJob)
+			stepsStr := strings.Join(activationJob.Steps, "\n")
 
 			if tt.shouldHaveReaction {
 				assert.Contains(t, stepsStr, "Add "+tt.reaction+" reaction",
-					"Steps should include reaction step for %s", tt.reaction)
+					"Activation job steps should include reaction step for %s", tt.reaction)
 				assert.Contains(t, stepsStr, "GH_AW_REACTION",
-					"Steps should include reaction environment variable")
+					"Activation job steps should include reaction environment variable")
 
-				// Check permissions include reaction permissions
-				assert.Contains(t, job.Permissions, "issues: write",
-					"Permissions should include issues: write for reactions")
+				// Check activation job permissions include reaction permissions
+				assert.Contains(t, activationJob.Permissions, "issues: write",
+					"Activation job permissions should include issues: write for reactions")
 			} else {
 				// When reaction is "none" or empty, no reaction step should be added
 				if tt.reaction == "none" || tt.reaction == "" {
 					assert.NotContains(t, stepsStr, "GH_AW_REACTION",
-						"Steps should not include reaction for %s", tt.reaction)
+						"Activation job steps should not include reaction for %s", tt.reaction)
 				}
 			}
 		})
@@ -389,15 +397,15 @@ func TestBuildPreActivationJob_Integration(t *testing.T) {
 
 	stepsStr := strings.Join(job.Steps, "\n")
 
-	// Should have all features
+	// Should have membership check and stop-time check (reaction moved to activation job)
 	assert.Contains(t, stepsStr, "setup", "Should include setup step")
 	assert.Contains(t, stepsStr, constants.CheckMembershipStepID.String(), "Should include membership check")
 	assert.Contains(t, stepsStr, constants.CheckStopTimeStepID.String(), "Should include stop-time check")
-	assert.Contains(t, stepsStr, "eyes", "Should include reaction")
+	// Reaction step is in activation job now, not pre-activation
+	assert.NotContains(t, stepsStr, "GH_AW_REACTION", "Reaction step should NOT be in pre-activation job")
 
-	// Should have proper permissions
-	assert.Contains(t, job.Permissions, "issues: write", "Should have issues write permission")
-	assert.Contains(t, job.Permissions, "pull-requests: write", "Should have PR write permission")
+	// Pre-activation job should NOT have reaction write permissions (reaction moved to activation)
+	assert.NotContains(t, job.Permissions, "issues: write", "Pre-activation should not have issues write for reaction")
 
 	// Should have activated output
 	_, hasActivated := job.Outputs["activated"]

@@ -112,8 +112,11 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 		return nil
 	}
 
+	agentValidationLog.Printf("Validating max-turns support: engine=%s, maxTurns=%s", engine.GetID(), engineConfig.MaxTurns)
+
 	// max-turns is specified, check if the engine supports it
 	if !engine.SupportsMaxTurns() {
+		agentValidationLog.Printf("Engine %s does not support max-turns feature", engine.GetID())
 		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
 	}
 
@@ -133,8 +136,11 @@ func (c *Compiler) validateMaxContinuationsSupport(frontmatter map[string]any, e
 		return nil
 	}
 
+	agentValidationLog.Printf("Validating max-continuations support: engine=%s, maxContinuations=%d", engine.GetID(), engineConfig.MaxContinuations)
+
 	// max-continuations is specified, check if the engine supports it
 	if !engine.SupportsMaxContinuations() {
+		agentValidationLog.Printf("Engine %s does not support max-continuations feature", engine.GetID())
 		return fmt.Errorf("max-continuations not supported: engine '%s' does not support the max-continuations feature", engine.GetID())
 	}
 
@@ -151,8 +157,11 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 		return
 	}
 
+	agentValidationLog.Printf("Validating web-search support for engine: %s", engine.GetID())
+
 	// web-search is specified, check if the engine supports it
 	if !engine.SupportsWebSearch() {
+		agentValidationLog.Printf("Engine %s does not natively support web-search tool, emitting warning", engine.GetID())
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://github.github.com/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
 		c.IncrementWarningCount()
 	}

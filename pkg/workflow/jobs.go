@@ -24,6 +24,7 @@ type Job struct {
 	TimeoutMinutes             int
 	Concurrency                string            // Job-level concurrency configuration
 	Environment                string            // Job environment configuration
+	Strategy                   string            // Job strategy configuration (matrix strategy)
 	Container                  string            // Job container configuration
 	Services                   string            // Job services configuration
 	Env                        map[string]string // Job-level environment variables
@@ -284,6 +285,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 	// Add runs-on
 	if job.RunsOn != "" {
 		fmt.Fprintf(&yaml, "    %s\n", job.RunsOn)
+	}
+
+	// Add strategy section
+	if job.Strategy != "" {
+		fmt.Fprintf(&yaml, "    %s\n", strings.TrimRight(job.Strategy, "\n"))
 	}
 
 	// Add environment section

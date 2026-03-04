@@ -630,3 +630,35 @@ func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string
 
 	return result
 }
+
+// extractActivationGitHubToken extracts the 'github-token' field from the 'on:' section of frontmatter.
+// This token is used for pre-activation reactions and activation status comments.
+func (c *Compiler) extractActivationGitHubToken(frontmatter map[string]any) string {
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			if tokenValue, hasToken := onMap["github-token"]; hasToken {
+				if tokenStr, ok := tokenValue.(string); ok {
+					roleLog.Printf("Extracted activation github-token from on section")
+					return tokenStr
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// extractActivationGitHubApp extracts the 'github-app' field from the 'on:' section of frontmatter.
+// When configured, a GitHub App installation access token is minted for use in reactions and status comments.
+func (c *Compiler) extractActivationGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			if appValue, hasApp := onMap["github-app"]; hasApp {
+				if appMap, ok := appValue.(map[string]any); ok {
+					roleLog.Printf("Extracted activation github-app from on section")
+					return parseAppConfig(appMap)
+				}
+			}
+		}
+	}
+	return nil
+}

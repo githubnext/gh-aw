@@ -283,7 +283,7 @@ tools:
 1. **Security**: Restrict AI agent access to specific repositories
 2. **Compliance**: Enforce minimum min-integrity requirements
 3. **Flexibility**: Support diverse repository patterns and wildcards
-4. **Extensibility**: Easy to add policies for Jira, WorkIQ, etc.
+4. **Extensibility**: Supports adding policies for Jira, WorkIQ, etc.
 5. **Clarity**: Clear error messages and validation
 6. **Documentation**: Self-documenting through type system
 
@@ -299,7 +299,7 @@ tools:
 This implementation provides a solid foundation for guard policies in the MCP gateway. The design is:
 
 - **Type-safe**: Strongly-typed structs with validation
-- **Extensible**: Easy to add new servers and policy types
+- **Extensible**: New servers and policy types can be added without structural changes
 - **User-friendly**: Intuitive frontmatter syntax
 - **Well-validated**: Comprehensive validation with clear error messages
 - **Forward-compatible**: Supports future enhancements

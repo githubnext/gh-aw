@@ -399,6 +399,8 @@ type WorkflowData struct {
 	CommandOtherEvents    map[string]any       // for merging command with other events
 	AIReaction            string               // AI reaction type like "eyes", "heart", etc.
 	StatusComment         *bool                // whether to post status comments (default: true when ai-reaction is set, false otherwise)
+	ActivationGitHubToken string               // custom github token from on.github-token for reactions/comments
+	ActivationGitHubApp   *GitHubAppConfig     // github app config from on.github-app for minting activation tokens
 	LockForAgent          bool                 // whether to lock the issue during agent workflow execution
 	Jobs                  map[string]any       // custom job configurations with dependencies
 	Cache                 string               // cache configuration

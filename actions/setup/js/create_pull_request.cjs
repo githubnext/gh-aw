@@ -986,16 +986,61 @@ ${patchPreview}`;
       // Check if the error is the specific "GitHub actions is not permitted to create or approve pull requests" error
       if (errorMessage.includes("GitHub Actions is not permitted to create or approve pull requests")) {
         core.error("Permission error: GitHub Actions is not permitted to create or approve pull requests");
-        // Set output variable for conclusion job to handle
-        core.setOutput(
-          "error_message",
-          "GitHub Actions is not permitted to create or approve pull requests. Please enable 'Allow GitHub Actions to create and approve pull requests' in repository settings: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests"
-        );
-        return {
-          success: false,
-          error: errorMessage,
-          error_type: "permission_denied",
-        };
+
+        // Branch has already been pushed - create a fallback issue with a link to create the PR via GitHub UI
+        const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+        // Encode branch name path segments individually to preserve '/' while encoding other special characters
+        const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
+        const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
+        const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
+
+        // Read patch content for preview
+        let patchPreview = "";
+        if (patchFilePath && fs.existsSync(patchFilePath)) {
+          const patchContent = fs.readFileSync(patchFilePath, "utf8");
+          patchPreview = generatePatchPreview(patchContent);
+        }
+
+        const fallbackBody =
+          `${body}\n\n---\n\n` +
+          `> [!NOTE]\n` +
+          `> This was originally intended as a pull request, but GitHub Actions is not permitted to create or approve pull requests in this repository.\n` +
+          `> The changes have been pushed to branch \`${branchName}\`.\n` +
+          `>\n` +
+          `> **[Click here to create the pull request](${createPrUrl})**\n\n` +
+          `To fix the permissions issue, go to **Settings** → **Actions** → **General** and enable **Allow GitHub Actions to create and approve pull requests**.` +
+          patchPreview;
+
+        try {
+          const { data: issue } = await githubClient.rest.issues.create({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            title: title,
+            body: fallbackBody,
+            labels: mergeFallbackIssueLabels(labels),
+          });
+
+          core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+
+          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+
+          return {
+            success: true,
+            fallback_used: true,
+            issue_number: issue.number,
+            issue_url: issue.html_url,
+            branch_name: branchName,
+            repo: itemRepo,
+          };
+        } catch (issueError) {
+          const error = `Failed to create pull request (permission denied) and failed to create fallback issue. PR error: ${errorMessage}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+          core.error(error);
+          return {
+            success: false,
+            error,
+            error_type: "permission_denied",
+          };
+        }
       }
 
       if (!fallbackAsIssue) {

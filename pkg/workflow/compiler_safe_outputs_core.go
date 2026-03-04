@@ -21,6 +21,7 @@ func (c *Compiler) hasCustomTokenSafeOutputs(safeOutputs *SafeOutputsConfig) boo
 	if safeOutputs.UpdateProjects != nil ||
 		safeOutputs.CreateProjects != nil ||
 		safeOutputs.CreateProjectStatusUpdates != nil {
+		consolidatedSafeOutputsLog.Print("Custom token required: project-related safe outputs detected")
 		return true
 	}
 
@@ -31,16 +32,19 @@ func (c *Compiler) hasCustomTokenSafeOutputs(safeOutputs *SafeOutputsConfig) boo
 	// the npm install.
 	for _, base := range c.collectBaseSafeOutputConfigs(safeOutputs) {
 		if base != nil && base.GitHubToken != "" {
+			consolidatedSafeOutputsLog.Print("Custom token required: per-handler github-token configured")
 			return true
 		}
 	}
 
+	consolidatedSafeOutputsLog.Print("No custom token required for safe outputs")
 	return false
 }
 
 // collectBaseSafeOutputConfigs returns pointers to the BaseSafeOutputConfig
 // embedded in every configured safe output type. Nil entries are skipped by callers.
 func (c *Compiler) collectBaseSafeOutputConfigs(so *SafeOutputsConfig) []*BaseSafeOutputConfig {
+	consolidatedSafeOutputsLog.Print("Collecting base safe output configs for custom token check")
 	var configs []*BaseSafeOutputConfig
 	if so.CreateIssues != nil {
 		configs = append(configs, &so.CreateIssues.BaseSafeOutputConfig)
@@ -156,6 +160,7 @@ func (c *Compiler) collectBaseSafeOutputConfigs(so *SafeOutputsConfig) []*BaseSa
 	if so.NoOp != nil {
 		configs = append(configs, &so.NoOp.BaseSafeOutputConfig)
 	}
+	consolidatedSafeOutputsLog.Printf("Collected %d base safe output configs", len(configs))
 	return configs
 }
 
