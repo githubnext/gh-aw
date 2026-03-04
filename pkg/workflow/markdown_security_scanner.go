@@ -60,14 +60,6 @@ type SecurityFinding struct {
 	Snippet     string // Short excerpt of the problematic content
 }
 
-// String returns a human-readable description of the finding
-func (f SecurityFinding) String() string {
-	if f.Line > 0 {
-		return fmt.Sprintf("[%s] line %d: %s", f.Category, f.Line, f.Description)
-	}
-	return fmt.Sprintf("[%s] %s", f.Category, f.Description)
-}
-
 // countCategories counts unique security finding categories
 func countCategories(findings []SecurityFinding) int {
 	categories := make(map[SecurityFindingCategory]bool)

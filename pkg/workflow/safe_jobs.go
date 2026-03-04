@@ -30,11 +30,6 @@ type SafeJobConfig struct {
 	Output      string                      `yaml:"output,omitempty"`
 }
 
-// HasSafeJobsEnabled checks if any safe-jobs are enabled at the top level
-func HasSafeJobsEnabled(safeJobs map[string]*SafeJobConfig) bool {
-	return len(safeJobs) > 0
-}
-
 // parseSafeJobsConfig parses safe-jobs configuration from a jobs map.
 // This function expects a map of job configurations directly (from safe-outputs.jobs).
 // The top-level "safe-jobs" key is NOT supported - only "safe-outputs.jobs" is valid.

@@ -27,50 +27,6 @@ func validateBashToolConfig(tools *Tools, workflowName string) error {
 	return nil
 }
 
-// isGitToolAllowed checks if git commands are allowed in bash tool configuration
-func isGitToolAllowed(tools *Tools) bool {
-	if tools == nil {
-		// No tools configured - defaults will be applied which include git for PR operations
-		return true
-	}
-
-	if tools.Bash == nil {
-		// No bash tool configured - defaults will be applied which include git for PR operations
-		return true
-	}
-
-	// If AllowedCommands is nil or empty, check which case it is:
-	// - nil AllowedCommands = bash: true (all commands allowed, including git)
-	// - empty slice = bash: false (explicitly disabled)
-	if tools.Bash.AllowedCommands == nil {
-		// bash: true - all commands allowed
-		return true
-	}
-
-	if len(tools.Bash.AllowedCommands) == 0 {
-		// bash: false or bash: [] - explicitly disabled or no commands
-		return false
-	}
-
-	// Check if git is in the allowed commands list
-	for _, cmd := range tools.Bash.AllowedCommands {
-		if cmd == "*" {
-			// Wildcard allows all commands
-			return true
-		}
-		if cmd == "git" {
-			// Exact match for git command
-			return true
-		}
-		// Check for git with wildcards: "git *", "git:*", "git checkout:*", etc.
-		if strings.HasPrefix(cmd, "git ") || strings.HasPrefix(cmd, "git:") {
-			return true
-		}
-	}
-
-	return false
-}
-
 // validateGitHubReadOnly validates that read-only: false is not set for the GitHub tool.
 // The GitHub MCP server always operates in read-only mode; write access is not permitted.
 func validateGitHubReadOnly(tools *Tools, workflowName string) error {

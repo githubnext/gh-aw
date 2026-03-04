@@ -257,19 +257,6 @@ func PrettifyToolName(toolName string) string {
 	return toolName
 }
 
-// ExtractMCPServer extracts the MCP server name from a tool name
-func ExtractMCPServer(toolName string) string {
-	// For MCP tools with pattern "mcp__server__method", extract "server"
-	if strings.HasPrefix(toolName, "mcp__") {
-		parts := strings.Split(toolName, "__")
-		if len(parts) >= 2 {
-			return parts[1]
-		}
-	}
-	// For non-MCP tools, return the tool name as-is
-	return toolName
-}
-
 // FinalizeToolMetricsOptions holds the options for FinalizeToolMetrics
 type FinalizeToolMetricsOptions struct {
 	Metrics         *LogMetrics

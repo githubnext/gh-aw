@@ -20,7 +20,6 @@
 // Configuration Array Parsing:
 //   - ParseStringArrayFromConfig() - Generic string array extraction
 //   - parseLabelsFromConfig() - Extract labels array
-//   - parseParticipantsFromConfig() - Extract participants array
 //   - parseAllowedLabelsFromConfig() - Extract allowed labels array
 //
 // Configuration String Parsing:
@@ -124,40 +123,6 @@ func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
 	return targetRepoSlug, false
 }
 
-// parseParticipantsFromConfig extracts and validates participants (assignees/reviewers) from a config map.
-// Supports both string (single participant) and array (multiple participants) formats.
-// Returns a slice of participant usernames, or nil if not present or invalid.
-// The participantKey parameter specifies which key to look for (e.g., "assignees" or "reviewers").
-func parseParticipantsFromConfig(configMap map[string]any, participantKey string) []string {
-	if participants, exists := configMap[participantKey]; exists {
-		configHelpersLog.Printf("Parsing %s from config", participantKey)
-
-		// Handle single string format
-		if participantStr, ok := participants.(string); ok {
-			configHelpersLog.Printf("Parsed single %s: %s", participantKey, participantStr)
-			return []string{participantStr}
-		}
-
-		// Handle array format
-		if participantsArray, ok := participants.([]any); ok {
-			var participantStrings []string
-			for _, participant := range participantsArray {
-				if participantStr, ok := participant.(string); ok {
-					participantStrings = append(participantStrings, participantStr)
-				}
-			}
-			// Return the slice even if empty (to distinguish from not provided)
-			if participantStrings == nil {
-				configHelpersLog.Printf("No valid %s strings found, returning empty array", participantKey)
-				return []string{}
-			}
-			configHelpersLog.Printf("Parsed %d %s from config", len(participantStrings), participantKey)
-			return participantStrings
-		}
-	}
-	return nil
-}
-
 // parseAllowedLabelsFromConfig extracts and validates allowed-labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
 func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
@@ -208,27 +173,6 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 		}
 	}
 	return expiresDisabled
-}
-
-// ParseIntFromConfig is a generic helper that extracts and validates an integer value from a map.
-// Supports int, int64, float64, and uint64 types.
-// Returns the integer value, or 0 if not present or invalid.
-// If log is provided, it will log the extracted value for debugging.
-// Note: For uint64 values, returns 0 if the value would overflow int.
-func ParseIntFromConfig(m map[string]any, key string, log *logger.Logger) int {
-	if value, exists := m[key]; exists {
-		if log != nil {
-			log.Printf("Parsing %s from config", key)
-		}
-		// Use parseIntValue for the actual type conversion
-		if result, ok := parseIntValue(value); ok {
-			if log != nil {
-				log.Printf("Parsed %s from config: %d", key, result)
-			}
-			return result
-		}
-	}
-	return 0
 }
 
 // ParseBoolFromConfig is a generic helper that extracts and validates a boolean value from a map.
