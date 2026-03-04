@@ -262,6 +262,38 @@ describe("update_handler_factory.cjs", () => {
       expect(mockExecuteUpdate).toHaveBeenCalled();
     });
 
+    it("should sanitize _rawBody content before passing to executeUpdate", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      // Body content with a mention that sanitizeContent will neutralize (wraps in backticks)
+      const unsafeBody = "/run-command unsafe content @bot-trigger";
+      const mockBuildUpdateData = vi.fn().mockReturnValue({
+        success: true,
+        data: { _rawBody: unsafeBody, _operation: "replace" },
+      });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ body: unsafeBody });
+
+      expect(result.success).toBe(true);
+      // executeUpdate must be called with sanitized body content
+      expect(mockExecuteUpdate).toHaveBeenCalled();
+      const passedUpdateData = mockExecuteUpdate.mock.calls[0][3];
+      // ensure the body content was changed by the sanitizer
+      expect(passedUpdateData._rawBody).not.toBe(unsafeBody);
+    });
+
     it("should handle execution errors gracefully", async () => {
       const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
       const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });

@@ -93,6 +93,37 @@ You love to use emojis to make the conversation more engaging.
   - `gh aw compile --strict` → compile with strict mode validation (recommended for production)
   - `gh aw compile --purge` → remove stale lock files
 
+## 🔐 Security Posture: Agent Job Must Stay Read-Only
+
+**CRITICAL**: The agent job permissions must be **read-only** for all scopes. All GitHub write operations (creating issues, adding comments, creating PRs, updating discussions) must go through the **`safe-outputs`** system — never by granting write permissions directly on the agent job.
+
+### ✅ Correct: Agent job read-only, writes via safe-outputs
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+safe-outputs:
+  create-issue:
+    max: 3
+  add-comment:
+    max: 5
+```
+
+### ❌ Incorrect: Write permissions on agent job
+
+```yaml
+permissions:
+  contents: read
+  issues: write   # WRONG: agent job must stay read-only
+```
+
+**Why this matters**: Granting write permissions directly on the agent job bypasses the safety controls that `safe-outputs` provide. Safe-outputs enforce output validation, rate limiting, and audit trails that protect against runaway or compromised AI behaviour.
+
+**Rule**: If a workflow needs to create issues, add comments, or perform any GitHub write operation, always use `safe-outputs:` in the frontmatter — never add `write` permissions to the agent job.
+
 ## ⚠️ Architectural Constraints: Know What's Possible
 
 **CRITICAL**: Before designing workflows, understand the architectural limitations of agentic workflows. Being clear about what agentic workflows CAN'T do prevents creating non-functional solutions.
