@@ -242,9 +242,11 @@ if [ "$TRY_GH_INSTALL" = true ] && command -v gh &> /dev/null; then
     # Call gh extension install directly to avoid command injection
     install_result=0
     if [ -n "$VERSION" ] && [ "$VERSION" != "latest" ]; then
-        gh extension install "$REPO" --force --pin "$VERSION" 2>&1 | tee /tmp/gh-install.log || install_result=$?
+        gh extension install "$REPO" --force --pin "$VERSION" 2>&1 | tee /tmp/gh-install.log
+        install_result=${PIPESTATUS[0]}
     else
-        gh extension install "$REPO" --force 2>&1 | tee /tmp/gh-install.log || install_result=$?
+        gh extension install "$REPO" --force 2>&1 | tee /tmp/gh-install.log
+        install_result=${PIPESTATUS[0]}
     fi
     
     if [ $install_result -eq 0 ]; then
