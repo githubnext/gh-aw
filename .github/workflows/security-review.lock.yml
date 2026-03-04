@@ -1160,6 +1160,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    concurrency:
+      group: "gh-aw-conclusion-security-review"
+      cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}

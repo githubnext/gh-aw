@@ -2053,6 +2053,9 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    concurrency:
+      group: "gh-aw-conclusion-smoke-copilot-arm"
+      cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
