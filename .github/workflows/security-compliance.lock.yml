@@ -53,6 +53,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
@@ -280,6 +281,7 @@ jobs:
     permissions:
       contents: read
       security-events: read
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -989,6 +991,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1094,6 +1097,7 @@ jobs:
     concurrency:
       group: "push-repo-memory-${{ github.repository }}"
       cancel-in-progress: false
+    continue-on-error: false
     outputs:
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
       validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
@@ -1163,6 +1167,7 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/security-compliance"
       GH_AW_ENGINE_ID: "copilot"

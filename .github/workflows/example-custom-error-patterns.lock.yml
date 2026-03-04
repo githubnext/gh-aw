@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
@@ -245,6 +246,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+    continue-on-error: false
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: examplecustomerrorpatterns
     outputs:
@@ -506,6 +508,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+    continue-on-error: false
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_rate_limit.outputs.rate_limit_ok == 'true') }}
       matched_command: ''

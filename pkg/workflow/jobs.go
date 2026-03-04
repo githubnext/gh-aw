@@ -28,7 +28,7 @@ type Job struct {
 	Container                  string            // Job container configuration
 	Services                   string            // Job services configuration
 	Env                        map[string]string // Job-level environment variables
-	ContinueOnError            bool              // continue-on-error flag for the job
+	ContinueOnError            *bool             // continue-on-error flag for the job (nil means unset)
 	Steps                      []string
 	Needs                      []string // Job dependencies (needs clause)
 	Outputs                    map[string]string
@@ -323,8 +323,10 @@ func (jm *JobManager) renderJob(job *Job) string {
 		fmt.Fprintf(&yaml, "    timeout-minutes: %d\n", job.TimeoutMinutes)
 	}
 
-	// Add continue-on-error, always reflecting the configured value
-	fmt.Fprintf(&yaml, "    continue-on-error: %t\n", job.ContinueOnError)
+	// Add continue-on-error only when explicitly set
+	if job.ContinueOnError != nil {
+		fmt.Fprintf(&yaml, "    continue-on-error: %t\n", *job.ContinueOnError)
+	}
 
 	// Add environment variables section
 	if len(job.Env) > 0 {

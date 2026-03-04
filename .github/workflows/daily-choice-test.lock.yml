@@ -43,6 +43,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -237,6 +238,7 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -930,6 +932,7 @@ jobs:
       - test_environment
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1032,6 +1035,7 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.agent.outputs.detection_success == 'true')
     runs-on: ubuntu-slim
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-choice-test"
       GH_AW_ENGINE_ID: "claude"
@@ -1093,6 +1097,7 @@ jobs:
     if: >
       ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'test_environment'))
     runs-on: ubuntu-latest
+    continue-on-error: false
     steps:
       - name: Download agent output artifact
         continue-on-error: true

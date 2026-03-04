@@ -45,6 +45,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -230,6 +231,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    continue-on-error: false
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: testworkflow
     outputs:

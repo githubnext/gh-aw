@@ -55,6 +55,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -254,6 +255,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -932,6 +934,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1031,6 +1034,7 @@ jobs:
       - activation
       - pre_activation
     runs-on: ubuntu-latest
+    continue-on-error: false
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
     steps:
@@ -1138,6 +1142,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
@@ -1177,6 +1182,7 @@ jobs:
       id-token: write
       packages: write
 
+    continue-on-error: false
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
@@ -1320,6 +1326,7 @@ jobs:
     permissions:
       contents: write
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/release"
       GH_AW_ENGINE_ID: "copilot"

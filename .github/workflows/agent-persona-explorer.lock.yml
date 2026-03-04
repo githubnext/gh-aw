@@ -50,6 +50,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -258,6 +259,7 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1010,6 +1012,7 @@ jobs:
       contents: read
       discussions: write
       issues: write
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1110,6 +1113,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
@@ -1146,6 +1150,7 @@ jobs:
       discussions: write
       issues: write
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/agent-persona-explorer"
       GH_AW_ENGINE_ID: "copilot"
@@ -1212,6 +1217,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    continue-on-error: false
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: agentpersonaexplorer
     steps:

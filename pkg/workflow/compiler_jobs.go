@@ -622,7 +622,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// Extract continue-on-error for custom jobs
 			if continueOnError, hasCOE := configMap["continue-on-error"]; hasCOE {
 				if coeVal, ok := continueOnError.(bool); ok {
-					job.ContinueOnError = coeVal
+					job.ContinueOnError = &coeVal
 				}
 			}
 

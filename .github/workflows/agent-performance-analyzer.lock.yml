@@ -50,6 +50,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -257,6 +258,7 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -1127,6 +1129,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1228,6 +1231,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
@@ -1264,6 +1268,7 @@ jobs:
     concurrency:
       group: "push-repo-memory-${{ github.repository }}"
       cancel-in-progress: false
+    continue-on-error: false
     outputs:
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
       validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
@@ -1335,6 +1340,7 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/agent-performance-analyzer"
       GH_AW_ENGINE_ID: "copilot"

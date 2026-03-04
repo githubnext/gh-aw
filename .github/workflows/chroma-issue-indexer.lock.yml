@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -244,6 +245,7 @@ jobs:
       issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    continue-on-error: false
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: chromaissueindexer
     outputs:

@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -253,6 +254,7 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -988,6 +990,7 @@ jobs:
   ast_grep:
     needs: activation
     runs-on: ubuntu-latest
+    continue-on-error: false
     outputs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
     steps:
@@ -1029,6 +1032,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1130,6 +1134,7 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/go-pattern-detector"
       GH_AW_ENGINE_ID: "claude"

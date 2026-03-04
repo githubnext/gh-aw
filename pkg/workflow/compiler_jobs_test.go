@@ -2583,7 +2583,7 @@ func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 	if job.TimeoutMinutes != 30 {
 		t.Errorf("TimeoutMinutes = %d, want 30", job.TimeoutMinutes)
 	}
-	if !job.ContinueOnError {
+	if job.ContinueOnError == nil || !*job.ContinueOnError {
 		t.Error("Expected ContinueOnError to be true")
 	}
 	if job.Concurrency != "concurrency: ci-group" {

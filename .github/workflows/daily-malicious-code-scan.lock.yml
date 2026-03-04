@@ -48,6 +48,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -241,6 +242,7 @@ jobs:
       security-events: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -831,6 +833,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -936,6 +939,7 @@ jobs:
       contents: read
       security-events: write
     timeout-minutes: 15
+    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-malicious-code-scan"
       GH_AW_ENGINE_ID: "copilot"
