@@ -11,14 +11,14 @@
  */
 
 /**
- * @typedef {"issue" | "pull_request" | "discussion" | "comment"} ItemType
+ * @typedef {"issue" | "pull_request" | "discussion" | "comment" | "discussion_comment"} ItemType
  */
 
 /**
  * @typedef {Object} HistoryLinkParams
  * @property {string} owner - Repository owner
  * @property {string} repo - Repository name
- * @property {ItemType} itemType - Type of GitHub item: "issue", "pull_request", "discussion", or "comment"
+ * @property {ItemType} itemType - Type of GitHub item: "issue", "pull_request", "discussion", "comment", or "discussion_comment"
  * @property {string} [workflowCallId] - Caller workflow ID (e.g. "owner/repo/WorkflowName"). Takes precedence over workflowId.
  * @property {string} [workflowId] - Workflow identifier. Used when workflowCallId is not available.
  * @property {string} [serverUrl] - GitHub server URL for enterprise deployments (e.g. "https://github.example.com"). Defaults to "https://github.com".
@@ -59,12 +59,17 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
   }
 
   // Search for the XML marker in the appropriate field
-  // Comments use in:comments (searches comment bodies); all others use in:body
+  // Comments (issue/PR or discussion) use in:comments; all others use in:body
+  const isComment = itemType === "comment" || itemType === "discussion_comment";
   queryParts.push(`"${markerId}"`);
-  queryParts.push(itemType === "comment" ? "in:comments" : "in:body");
+  queryParts.push(isComment ? "in:comments" : "in:body");
 
   const url = new URL(`${server}/search`);
   url.searchParams.set("q", queryParts.join(" "));
+
+  // Set the type parameter based on itemType for correct GitHub search filtering
+  const searchTypeMap = { issue: "issues", pull_request: "issues", discussion: "discussions", comment: "issues", discussion_comment: "discussions" };
+  url.searchParams.set("type", searchTypeMap[itemType] ?? "issues");
 
   return url.toString();
 }

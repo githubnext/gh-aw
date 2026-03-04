@@ -79,14 +79,17 @@ func findWritePermissions(permissions *Permissions) []PermissionScope {
 // formatDangerousPermissionsError formats an error message for write permissions violations
 func formatDangerousPermissionsError(writePermissions []PermissionScope) error {
 	var lines []string
-	lines = append(lines, "Write permissions are not allowed.")
+	lines = append(lines, "The agent job must not have write permissions.")
+	lines = append(lines, "The agent job should stay read-only. All writes must go through safe-outputs,")
+	lines = append(lines, "which uses a scoped GitHub App token. See: docs/safe-outputs.md")
 	lines = append(lines, "")
-	lines = append(lines, "Found write permissions:")
+	lines = append(lines, "Found write permissions on agent job:")
 	for _, scope := range writePermissions {
 		lines = append(lines, fmt.Sprintf("  - %s: write", scope))
 	}
 	lines = append(lines, "")
-	lines = append(lines, "To fix this issue, change write permissions to read:")
+	lines = append(lines, "To fix this issue, remove write permissions from the agent job and use safe-outputs instead.")
+	lines = append(lines, "If read access is still needed, keep the read permission:")
 	lines = append(lines, "permissions:")
 	for _, scope := range writePermissions {
 		lines = append(lines, fmt.Sprintf("  %s: read", scope))

@@ -65,6 +65,11 @@
       "version": "v6.2.0",
       "sha": "6044e13b5dc448c55e2357c09f80417699197238"
     },
+    "actions/setup-node@v6.3.0": {
+      "repo": "actions/setup-node",
+      "version": "v6.3.0",
+      "sha": "53b83947a5a98c8d113130e565377fae1a50d02f"
+    },
     "actions/setup-python@v6.2.0": {
       "repo": "actions/setup-python",
       "version": "v6.2.0",
@@ -129,6 +134,11 @@
       "repo": "github/stale-repos",
       "version": "v9.0.1",
       "sha": "86c425f3b9ad6696e3f967c7f8fa5ccc1e59a7bc"
+    },
+    "github/stale-repos@v9.0.2": {
+      "repo": "github/stale-repos",
+      "version": "v9.0.2",
+      "sha": "f592689f914c623d9fb51a0372f15d05f9849b09"
     },
     "haskell-actions/setup@v2.10.3": {
       "repo": "haskell-actions/setup",

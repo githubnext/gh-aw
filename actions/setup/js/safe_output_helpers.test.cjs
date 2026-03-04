@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 describe("safe_output_helpers", () => {
   let helpers;
@@ -579,6 +579,57 @@ describe("safe_output_helpers", () => {
       expect(helpers.isUsernameBlocked("github-actions[bot]", blocked)).toBe(true);
       expect(helpers.isUsernameBlocked("test-user", blocked)).toBe(true);
       expect(helpers.isUsernameBlocked("alice", blocked)).toBe(false);
+    });
+  });
+
+  describe("resolveIssueNumber", () => {
+    it("should return issue number from message.issue_number", () => {
+      const result = helpers.resolveIssueNumber({ issue_number: 42 });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.issueNumber).toBe(42);
+      }
+    });
+
+    it("should return error for invalid issue_number in message", () => {
+      const result = helpers.resolveIssueNumber({ issue_number: "not-a-number" });
+      expect(result.success).toBe(false);
+    });
+
+    it("should fall back to global context payload issue number when message has no issue_number", () => {
+      global.context = { payload: { issue: { number: 99 } } };
+      try {
+        const result = helpers.resolveIssueNumber({});
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.issueNumber).toBe(99);
+        }
+      } finally {
+        delete global.context;
+      }
+    });
+
+    it("should return error when context is not defined and message has no issue_number", () => {
+      const savedContext = global.context;
+      delete global.context;
+      try {
+        const result = helpers.resolveIssueNumber({});
+        expect(result.success).toBe(false);
+        expect(result.error).toBe("No issue number available");
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return error when context has no issue in payload (e.g. schedule event)", () => {
+      global.context = { eventName: "schedule", payload: {} };
+      try {
+        const result = helpers.resolveIssueNumber({});
+        expect(result.success).toBe(false);
+        expect(result.error).toBe("No issue number available");
+      } finally {
+        delete global.context;
+      }
     });
   });
 });

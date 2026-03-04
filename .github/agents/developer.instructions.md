@@ -21,6 +21,7 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Repo-Memory System](#repo-memory-system)
 - [Hierarchical Agent Management](#hierarchical-agent-management)
 - [Release Management](#release-management)
+- [Scope Hints for Complex Workflows](#scope-hints-for-complex-workflows)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -630,6 +631,72 @@ For manual feature testing in pull requests:
 4. Do not merge dev.md changes - it remains a reusable test harness
 
 **Implementation**: See scratchpad/changesets.md and scratchpad/end-to-end-feature-testing.md
+
+---
+
+## Scope Hints for Complex Workflows
+
+When creating agentic workflows for complex analysis tasks, provide concrete constraints upfront to avoid agent timeouts and vague output. Open-ended prompts force the agent to explore multiple implementation paths, which can exhaust the available time budget.
+
+### General Rule
+
+> The more constraints you provide upfront, the faster and more accurate the generated workflow.
+
+### Workflow-Type Guidance
+
+| Workflow Type | Key Constraints to Specify |
+|---------------|---------------------------|
+| **File-parsing** | File format (lcov, cobertura, jacoco, etc.) and path |
+| **Cross-branch diff** | Branch strategy (base/head names, e.g. `main`/`feature`) |
+| **Reporting** | Output format (markdown, JSON, HTML) |
+| **Coverage analysis** | Coverage threshold (e.g. 80%), report location |
+| **Dependency audit** | Package manager (npm, pip, cargo), severity filter |
+| **Performance benchmarks** | Benchmark tool, metric to track, regression threshold |
+
+### Examples
+
+#### ✅ Constrained (faster, more accurate)
+
+```
+Create a workflow that reads an lcov coverage report from `coverage/lcov.info`
+and comments on PRs if coverage drops below 80%.
+```
+
+```
+Create a workflow that diffs `main` and the PR head branch, lists changed
+Go files, and posts a markdown summary as a PR comment.
+```
+
+```
+Create a workflow that runs `npm audit --json`, filters results for
+high-severity vulnerabilities, and fails the check if any are found.
+```
+
+#### ⚠️ Unconstrained (may cause timeout or vague output)
+
+```
+Create a workflow that monitors test coverage.
+```
+
+```
+Create a workflow that checks for dependency vulnerabilities.
+```
+
+```
+Create a workflow that compares branches and reports differences.
+```
+
+### Timeout Prevention Checklist
+
+Before submitting a complex workflow request, confirm you have specified:
+
+- [ ] **Input file path and format** — e.g. `coverage/lcov.info` in lcov format
+- [ ] **Triggering event** — e.g. `pull_request`, `push to main`, `schedule`
+- [ ] **Success/failure criterion** — e.g. coverage ≥ 80%, zero high-severity CVEs
+- [ ] **Output destination** — e.g. PR comment, issue, Slack notification, artifact
+- [ ] **Scope boundaries** — e.g. only changed files, only the `src/` directory
+
+**Implementation**: See discussion [#19488](https://github.com/github/gh-aw/discussions/19488) for background on timeout root causes.
 
 ---
 

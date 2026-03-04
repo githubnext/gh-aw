@@ -694,7 +694,8 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 }
 
 // TestBuildAgentOutputDownloadSteps verifies the agent output download steps
-// include directory creation to handle cases where artifact doesn't exist
+// include directory creation to handle cases where artifact doesn't exist,
+// and that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds.
 func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	steps := buildAgentOutputDownloadSteps()
 	stepsStr := strings.Join(steps, "")
@@ -702,11 +703,13 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	// Verify expected steps are present
 	expectedComponents := []string{
 		"- name: Download agent output artifact",
+		"id: download-agent-output",
 		"continue-on-error: true",
 		"uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3",
 		"name: agent-output",
 		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",
+		"if: steps.download-agent-output.outcome == 'success'",
 		"mkdir -p /tmp/gh-aw/safeoutputs/",
 		"find \"/tmp/gh-aw/safeoutputs/\" -type f -print",
 		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json",
@@ -730,6 +733,19 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	}
 	if mkdirIdx > findIdx {
 		t.Error("mkdir should come before find to ensure directory exists")
+	}
+
+	// Verify env-setup conditional comes before the run command
+	condIdx := strings.Index(stepsStr, "if: steps.download-agent-output.outcome == 'success'")
+	runIdx := strings.Index(stepsStr, "run: |")
+	if condIdx == -1 {
+		t.Fatal("env-setup conditional not found in steps")
+	}
+	if runIdx == -1 {
+		t.Fatal("run command not found in steps")
+	}
+	if condIdx > runIdx {
+		t.Error("env-setup conditional should come before run command")
 	}
 }
 

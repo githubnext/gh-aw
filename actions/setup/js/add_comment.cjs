@@ -6,6 +6,7 @@
  */
 
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
+const { generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -527,18 +528,16 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
-    // Generate history URL: use in:comments for issue/PR comments; skip for discussion comments
-    // (GitHub search does not support in:comments for discussions)
-    const historyUrl = !isDiscussion
-      ? generateHistoryUrl({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          itemType: "comment",
-          workflowCallId: callerWorkflowId,
-          workflowId,
-          serverUrl: context.serverUrl,
-        }) || undefined
-      : undefined;
+    // Generate history URL using in:comments, with type= based on execution context
+    const historyUrl =
+      generateHistoryUrl({
+        owner: repoParts.owner,
+        repo: repoParts.repo,
+        itemType: isDiscussion ? "discussion_comment" : "comment",
+        workflowCallId: callerWorkflowId,
+        workflowId,
+        serverUrl: context.serverUrl,
+      }) || undefined;
 
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers
@@ -546,6 +545,12 @@ async function main(config = {}) {
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
       processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);
+    }
+
+    // Add workflow-call-id marker when available to allow close-older-comments to
+    // distinguish callers that share the same reusable workflow (and GH_AW_WORKFLOW_ID)
+    if (callerWorkflowId) {
+      processedBody += "\n" + generateWorkflowCallIdMarker(callerWorkflowId);
     }
 
     // Enforce max limits again after adding footer and metadata

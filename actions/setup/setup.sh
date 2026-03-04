@@ -165,6 +165,7 @@ SAFE_INPUTS_FILES=(
   "error_codes.cjs"
   "mcp_enhanced_errors.cjs"
   "shim.cjs"
+  "safe-inputs-runner.cjs"
 )
 
 SAFE_INPUTS_COUNT=0

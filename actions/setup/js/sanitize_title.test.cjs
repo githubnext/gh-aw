@@ -240,5 +240,43 @@ describe("sanitize_title", () => {
       const sanitized = sanitizeTitle(title);
       expect(sanitized).toBe("`@user` Testtitle with (redacted)");
     });
+
+    it("should decode &gt; in title to prevent literal &gt; appearing in issues", () => {
+      // If an agent outputs a title with &gt; (e.g. because the prompt context contained it),
+      // the sanitizer must decode it back to > so the issue title is not &gt; in markdown.
+      expect(sanitizeTitle("value &gt; threshold")).toBe("value > threshold");
+    });
+
+    it("should decode double-encoded &amp;gt; in title to >", () => {
+      expect(sanitizeTitle("value &amp;gt; threshold")).toBe("value > threshold");
+    });
+
+    it("should decode &lt; in title and neutralize any resulting HTML tags", () => {
+      // &lt;tag&gt; → <tag> → convertXmlTags → (tag)
+      expect(sanitizeTitle("&lt;script&gt; injection")).toBe("(script) injection");
+    });
+
+    it("should decode &amp; in title to &", () => {
+      expect(sanitizeTitle("cats &amp; dogs")).toBe("cats & dogs");
+    });
+
+    it("should be idempotent - sanitizing a title with > twice gives same result", () => {
+      const title = "Fix bug: value > 5";
+      const once = sanitizeTitle(title);
+      const twice = sanitizeTitle(once);
+      expect(once).toBe("Fix bug: value > 5");
+      expect(twice).toBe(once);
+    });
+
+    it("should be idempotent - sanitizing &gt; title twice should not produce &gt;", () => {
+      // Simulates agent outputting &gt; in title because prompt context had HTML-encoded >
+      const title = "Fix bug: value &gt; 5";
+      const once = sanitizeTitle(title);
+      const twice = sanitizeTitle(once);
+      expect(once).not.toContain("&gt;");
+      expect(once).toBe("Fix bug: value > 5");
+      // Idempotency: a second pass on the decoded result should not re-introduce &gt;
+      expect(twice).toBe(once);
+    });
   });
 });

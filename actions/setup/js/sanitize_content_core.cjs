@@ -643,8 +643,9 @@ function applyTruncation(content, maxLength) {
 }
 
 /**
- * Decodes HTML entities to prevent bypass of @mention detection.
- * Handles named entities (e.g., &commat;), decimal entities (e.g., &#64;),
+ * Decodes HTML entities to prevent bypass of @mention detection and to ensure
+ * HTML-encoded characters do not persist in sanitized output (e.g. &gt; in titles).
+ * Handles named entities (e.g., &commat;, &gt;, &lt;, &amp;), decimal entities (e.g., &#64;),
  * and hex entities (e.g., &#x40;), including double-encoded variants (e.g., &amp;commat;).
  *
  * @param {string} text - Input text that may contain HTML entities
@@ -660,6 +661,16 @@ function decodeHtmlEntities(text) {
   // Decode named entity for @ symbol (including double-encoded variants)
   // &commat; and &amp;commat; → @
   result = result.replace(/&(?:amp;)?commat;/gi, "@");
+
+  // Decode common named HTML entities (including double-encoded variants)
+  // These prevent HTML-encoded characters from persisting as literal entities
+  // in sanitized output (e.g. a title containing &gt; instead of >).
+  // &gt; and &amp;gt; → >
+  result = result.replace(/&(?:amp;)?gt;/gi, ">");
+  // &lt; and &amp;lt; → < (convertXmlTags will then neutralise any resulting tags)
+  result = result.replace(/&(?:amp;)?lt;/gi, "<");
+  // &amp; and &amp;amp; → & (decoded after gt/lt so &amp;gt; is already handled above)
+  result = result.replace(/&(?:amp;)?amp;/gi, "&");
 
   // Decode decimal entities (including double-encoded variants)
   // &#64; and &amp;#64; → @

@@ -1663,6 +1663,51 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("&commat;author is allowed", { allowedAliases: ["author"] });
       expect(result).toBe("@author is allowed");
     });
+
+    it("should decode &gt; entity to > to prevent literal &gt; in output", () => {
+      const result = sanitizeContent("value &gt; threshold");
+      expect(result).toBe("value > threshold");
+    });
+
+    it("should decode double-encoded &amp;gt; entity to >", () => {
+      const result = sanitizeContent("value &amp;gt; threshold");
+      expect(result).toBe("value > threshold");
+    });
+
+    it("should decode &lt; entity to < and then neutralize resulting tags", () => {
+      const result = sanitizeContent("&lt;script&gt; injection");
+      // &lt; → < and &gt; → >, then convertXmlTags turns <script> into (script)
+      expect(result).toBe("(script) injection");
+    });
+
+    it("should decode &amp; entity to &", () => {
+      const result = sanitizeContent("cats &amp; dogs");
+      expect(result).toBe("cats & dogs");
+    });
+
+    it("should decode double-encoded &amp;amp; entity to &", () => {
+      const result = sanitizeContent("cats &amp;amp; dogs");
+      expect(result).toBe("cats & dogs");
+    });
+
+    it("should be idempotent - applying sanitizeContent twice gives same result for > character", () => {
+      const input = "value > threshold";
+      const once = sanitizeContent(input);
+      const twice = sanitizeContent(once);
+      expect(once).toBe("value > threshold");
+      expect(twice).toBe(once);
+    });
+
+    it("should be idempotent - sanitizing &gt; twice should not produce &gt; in output", () => {
+      // If agent outputs &gt; because it received &gt; in context, sanitizing should decode it
+      const input = "value &gt; threshold";
+      const once = sanitizeContent(input);
+      const twice = sanitizeContent(once);
+      expect(once).not.toContain("&gt;");
+      expect(once).toBe("value > threshold");
+      // Idempotency: a second pass on the decoded result should not re-introduce &gt;
+      expect(twice).toBe(once);
+    });
   });
 
   describe("template delimiter neutralization (T24)", () => {

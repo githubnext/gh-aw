@@ -274,8 +274,10 @@ function resolveIssueNumber(message) {
       };
     }
   } else {
-    // Use context issue if available
-    const contextIssue = context.payload?.issue?.number;
+    // Use context issue if available (guard against context being undefined in
+    // non-github-script environments such as schedule events or the MCP server)
+    const ctx = typeof context !== "undefined" ? context : null;
+    const contextIssue = ctx?.payload?.issue?.number;
     if (!contextIssue) {
       return {
         success: false,

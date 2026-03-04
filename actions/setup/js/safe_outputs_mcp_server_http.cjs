@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// Load the shim before any other module so that global.core and global.context
+// are available even when this module is started directly (i.e. not through the
+// safe-outputs-mcp-server.cjs entry point).  The shim is a no-op when those
+// globals are already provided by the github-script environment.
+require("./shim.cjs");
+
 const { createLogger } = require("./mcp_logger.cjs");
 const moduleLogger = createLogger("safe_outputs_mcp_server_http");
 
