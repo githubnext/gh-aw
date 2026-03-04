@@ -12,6 +12,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 	tests := []struct {
 		name          string
 		permissions   string
+		safeOutputs   *SafeOutputsConfig
 		features      map[string]any
 		shouldError   bool
 		errorContains string
@@ -30,13 +31,13 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			name:          "write permission - should error",
 			permissions:   "permissions:\n  contents: write",
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "agent job must not have write permissions",
 		},
 		{
 			name:          "multiple write permissions - should error",
 			permissions:   "permissions:\n  contents: write\n  issues: write",
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "agent job must not have write permissions",
 		},
 		{
 			name:        "write permission with feature flag is still an error",
@@ -45,7 +46,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 				"dangerous-permissions-write": true,
 			},
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "agent job must not have write permissions",
 		},
 		{
 			name:        "shorthand read-all - should pass",
@@ -56,7 +57,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			name:          "shorthand write-all - should error",
 			permissions:   "permissions: write-all",
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "agent job must not have write permissions",
 		},
 		{
 			name:          "mixed read and write - should error",
@@ -80,6 +81,15 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			shouldError:   true,
 			errorContains: "contents: write",
 		},
+		{
+			// Configuring safe-outputs does not exempt the agent job from the write-permission rule;
+			// all writes must go through the safe-outputs job, not the agent job directly.
+			name:          "agent job with write permission and safe-outputs configured - should still error",
+			permissions:   "permissions:\n  issues: write",
+			safeOutputs:   &SafeOutputsConfig{AddComments: &AddCommentsConfig{}},
+			shouldError:   true,
+			errorContains: "safe-outputs",
+		},
 	}
 
 	for _, tt := range tests {
@@ -87,6 +97,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			workflowData := &WorkflowData{
 				Permissions: tt.permissions,
 				Features:    tt.features,
+				SafeOutputs: tt.safeOutputs,
 			}
 
 			err := validateDangerousPermissions(workflowData)
@@ -208,7 +219,8 @@ func TestFormatDangerousPermissionsError(t *testing.T) {
 				PermissionContents,
 			},
 			expectedContains: []string{
-				"Write permissions are not allowed",
+				"agent job must not have write permissions",
+				"safe-outputs",
 				"contents: write",
 				"contents: read",
 			},
@@ -224,7 +236,8 @@ func TestFormatDangerousPermissionsError(t *testing.T) {
 				PermissionIssues,
 			},
 			expectedContains: []string{
-				"Write permissions are not allowed",
+				"agent job must not have write permissions",
+				"safe-outputs",
 				"contents: write",
 				"issues: write",
 				"contents: read",
