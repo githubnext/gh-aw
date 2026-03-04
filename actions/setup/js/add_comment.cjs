@@ -6,6 +6,7 @@
  */
 
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
+const { generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -544,6 +545,12 @@ async function main(config = {}) {
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
       processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);
+    }
+
+    // Add workflow-call-id marker when available to allow close-older-comments to
+    // distinguish callers that share the same reusable workflow (and GH_AW_WORKFLOW_ID)
+    if (callerWorkflowId) {
+      processedBody += "\n" + generateWorkflowCallIdMarker(callerWorkflowId);
     }
 
     // Enforce max limits again after adding footer and metadata
