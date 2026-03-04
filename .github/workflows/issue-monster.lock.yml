@@ -52,7 +52,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -267,7 +266,6 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
-    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -355,9 +353,17 @@ jobs:
                     "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "item_number": {
                     "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers — it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the comment will be silently discarded.",
                     "type": "number"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -374,6 +380,10 @@ jobs:
                 "properties": {
                   "agent": {
                     "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
+                    "type": "string"
+                  },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
                     "type": "string"
                   },
                   "issue_number": {
@@ -393,6 +403,10 @@ jobs:
                   "pull_request_repo": {
                     "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos.",
                     "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -408,8 +422,16 @@ jobs:
                     "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "tool": {
@@ -429,8 +451,16 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "message": {
                     "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -458,8 +488,16 @@ jobs:
                     "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -970,7 +1008,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1072,7 +1109,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    continue-on-error: false
     outputs:
       activated: ${{ ((steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true')) && (steps.check_skip_if_no_match.outputs.skip_no_match_check_ok == 'true') }}
       matched_command: ''
@@ -1136,7 +1172,6 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
-    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/issue-monster"
       GH_AW_ENGINE_ID: "copilot"
@@ -1227,7 +1262,6 @@ jobs:
     permissions:
       issues: read
 
-    continue-on-error: false
     outputs:
       has_issues: ${{ steps.search.outputs.has_issues }}
       issue_count: ${{ steps.search.outputs.issue_count }}

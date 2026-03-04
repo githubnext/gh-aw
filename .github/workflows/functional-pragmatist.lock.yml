@@ -47,7 +47,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -250,7 +249,6 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
-    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -356,6 +354,10 @@ jobs:
                     "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true.",
                     "type": "boolean"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "labels": {
                     "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
                     "items": {
@@ -365,6 +367,10 @@ jobs:
                   },
                   "repo": {
                     "description": "Target repository in 'owner/repo' format. For multi-repo workflows where the target repo differs from the workflow repo, this must match a repo in the allowed-repos list or the configured target-repo. If omitted, defaults to the configured target-repo (from safe-outputs config), NOT the workflow repository. In most cases, you should omit this parameter and let the system use the configured default.",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "title": {
@@ -389,8 +395,16 @@ jobs:
                     "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "tool": {
@@ -410,8 +424,16 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "message": {
                     "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -439,8 +461,16 @@ jobs:
                     "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -945,7 +975,6 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1072,7 +1101,6 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
-    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/functional-pragmatist"
       GH_AW_ENGINE_ID: "copilot"

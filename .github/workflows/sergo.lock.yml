@@ -49,7 +49,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    continue-on-error: false
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -260,7 +259,6 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
-    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -376,6 +374,14 @@ jobs:
                     "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
+                  },
                   "title": {
                     "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
                     "type": "string"
@@ -398,8 +404,16 @@ jobs:
                     "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "tool": {
@@ -419,8 +433,16 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "message": {
                     "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -448,8 +470,16 @@ jobs:
                     "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -1031,7 +1061,6 @@ jobs:
       contents: read
       discussions: write
       issues: write
-    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1140,7 +1169,6 @@ jobs:
       discussions: write
       issues: write
     timeout-minutes: 15
-    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/sergo"
       GH_AW_ENGINE_ID: "claude"
@@ -1208,7 +1236,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    continue-on-error: false
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: sergo
     steps:

@@ -53,7 +53,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    continue-on-error: false
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
@@ -281,7 +280,6 @@ jobs:
     permissions:
       contents: read
       security-events: read
-    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -389,6 +387,10 @@ jobs:
                     "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "labels": {
                     "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
                     "items": {
@@ -402,6 +404,10 @@ jobs:
                       "number",
                       "string"
                     ]
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   },
                   "temporary_id": {
                     "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 3 to 8 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
@@ -430,8 +436,16 @@ jobs:
                     "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "tool": {
@@ -451,8 +465,16 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "message": {
                     "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -480,8 +502,16 @@ jobs:
                     "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -991,7 +1021,6 @@ jobs:
     permissions:
       contents: read
       issues: write
-    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1097,7 +1126,6 @@ jobs:
     concurrency:
       group: "push-repo-memory-${{ github.repository }}"
       cancel-in-progress: false
-    continue-on-error: false
     outputs:
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
       validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
@@ -1167,7 +1195,6 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
-    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/security-compliance"
       GH_AW_ENGINE_ID: "copilot"

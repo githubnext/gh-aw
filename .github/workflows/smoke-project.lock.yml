@@ -54,7 +54,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    continue-on-error: false
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -292,7 +291,6 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
-    continue-on-error: false
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -390,6 +388,10 @@ jobs:
                     "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "labels": {
                     "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
                     "items": {
@@ -403,6 +405,10 @@ jobs:
                       "number",
                       "string"
                     ]
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   },
                   "temporary_id": {
                     "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 3 to 8 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
@@ -431,9 +437,17 @@ jobs:
                     "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "item_number": {
                     "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers — it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the comment will be silently discarded.",
                     "type": "number"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -460,6 +474,10 @@ jobs:
                     "description": "Whether to create the PR as a draft. Draft PRs cannot be merged until marked as ready for review. Use mark_pull_request_as_ready_for_review to convert a draft PR. Default: true.",
                     "type": "boolean"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "labels": {
                     "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
                     "items": {
@@ -469,6 +487,10 @@ jobs:
                   },
                   "repo": {
                     "description": "Target repository in 'owner/repo' format. For multi-repo workflows where the target repo differs from the workflow repo, this must match a repo in the allowed-repos list or the configured target-repo. If omitted, defaults to the configured target-repo (from safe-outputs config), NOT the workflow repository. In most cases, you should omit this parameter and let the system use the configured default.",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "title": {
@@ -489,6 +511,10 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "item_number": {
                     "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required — omitting it will silently skip the label operation.",
                     "type": "number"
@@ -499,6 +525,10 @@ jobs:
                       "type": "string"
                     },
                     "type": "array"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -510,6 +540,10 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "item_number": {
                     "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, removes labels from the item that triggered this workflow.",
                     "type": "number"
@@ -520,6 +554,10 @@ jobs:
                       "type": "string"
                     },
                     "type": "array"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -538,8 +576,16 @@ jobs:
                     "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this tool is needed or what information you want to share about the limitation (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "tool": {
@@ -559,8 +605,16 @@ jobs:
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "message": {
                     "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -649,6 +703,10 @@ jobs:
                     "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
                     "type": "object"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "operation": {
                     "description": "Optional operation mode. Use create_fields to create required fields up-front, or create_view to add a project view. When omitted, the tool adds/updates project items.",
                     "enum": [
@@ -660,6 +718,10 @@ jobs:
                   "project": {
                     "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call (e.g., '#aw_abc1', 'aw_Test123'). Project names or numbers alone are NOT accepted.",
                     "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9]{3,8})$",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "temporary_id": {
@@ -724,8 +786,16 @@ jobs:
                     "description": "Type or description of the missing data or information (max 128 characters). Be specific about what data is needed.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "reason": {
                     "description": "Explanation of why this data is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   }
                 },
@@ -743,9 +813,17 @@ jobs:
                     "description": "Status update body in markdown format describing progress, findings, trends, and next steps. Should provide stakeholders with clear understanding of project state.",
                     "type": "string"
                   },
+                  "integrity": {
+                    "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\").",
+                    "type": "string"
+                  },
                   "project": {
                     "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
                     "pattern": "^https://github\\\\.com/(orgs|users)/[^/]+/projects/\\\\d+$",
+                    "type": "string"
+                  },
+                  "secrecy": {
+                    "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\").",
                     "type": "string"
                   },
                   "start_date": {
@@ -1446,7 +1524,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    continue-on-error: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1584,7 +1661,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-    continue-on-error: false
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
       matched_command: ''
@@ -1624,7 +1700,6 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
-    continue-on-error: false
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-project"
       GH_AW_ENGINE_ID: "copilot"
