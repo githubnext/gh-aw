@@ -316,6 +316,104 @@ func TestValidateExpressionSafetyWithParser(t *testing.T) {
 			wantErr:     true,
 			errContains: "secrets.INVALID_TOKEN",
 		},
+		// Default-value patterns: safe_expression || 'literal' (#issue)
+		{
+			name:    "inputs with string default",
+			content: `${{ inputs.devices || 'mobile,tablet,desktop' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with simple string default",
+			content: `${{ inputs.docs_dir || 'docs' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with command default",
+			content: `${{ inputs.build_command || 'npm run build' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with port default",
+			content: `${{ inputs.server_port || '4321' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "github.event.inputs with string default",
+			content: `${{ github.event.inputs.environment || 'production' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "multiple default expressions in one block",
+			content: "- **Devices**: ${{ inputs.devices || 'mobile,tablet,desktop' }}\n- **Dir**: ${{ inputs.docs_dir || 'docs' }}",
+			wantErr: false,
+		},
+		{
+			name:        "unauthorized left side with string default",
+			content:     `${{ secrets.TOKEN || 'fallback' }}`,
+			wantErr:     true,
+			errContains: "secrets.TOKEN",
+		},
+		// Additional default-value tests: number and boolean literals
+		{
+			name:    "inputs with number default",
+			content: `${{ inputs.timeout || 30 }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with boolean default",
+			content: `${{ inputs.debug || false }}`,
+			wantErr: false,
+		},
+		{
+			name:    "inputs with true boolean default",
+			content: `${{ inputs.enabled || true }}`,
+			wantErr: false,
+		},
+		{
+			name:    "github.actor with string fallback",
+			content: `${{ github.actor || 'unknown' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "steps output with string fallback",
+			content: `${{ steps.build.outputs.version || '0.0.0' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "needs output with string fallback",
+			content: `${{ needs.setup.outputs.environment || 'staging' }}`,
+			wantErr: false,
+		},
+		{
+			name:    "double-quoted string default",
+			content: `${{ inputs.branch || "main" }}`,
+			wantErr: false,
+		},
+		{
+			name:    "serve command with double-quoted default",
+			content: `${{ inputs.serve_command || "npm run preview" }}`,
+			wantErr: false,
+		},
+		// Full example from the issue
+		{
+			name: "full issue example",
+			content: `- **Repository**: ${{ github.repository }}
+- **Run ID**: ${{ github.run_id }}
+- **Triggered by**: @${{ github.actor }}
+- **Devices to test**: ${{ inputs.devices || 'mobile,tablet,desktop' }}
+- **Docs directory**: ${{ inputs.docs_dir || 'docs' }}
+- **Build command**: ${{ inputs.build_command || 'npm run build' }}
+- **Serve command**: ${{ inputs.serve_command || 'npm run preview' }}
+- **Server port**: ${{ inputs.server_port || '4321' }}
+- **Working directory**: ${{ github.workspace }}`,
+			wantErr: false,
+		},
+		// env.* with defaults
+		{
+			name:    "env variable with string default",
+			content: `${{ env.LOG_LEVEL || 'info' }}`,
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
