@@ -369,25 +369,36 @@ async function main() {
     return;
   }
 
-  // Pull with merge strategy (ours wins on conflicts)
-  core.info(`Pulling latest changes from ${branchName}...`);
-  try {
-    const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
-    execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit" });
-  } catch (error) {
-    // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
-    core.warning(`Pull failed (this may be expected): ${getErrorMessage(error)}`);
-  }
+  const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 1000;
 
-  // Push changes
-  core.info(`Pushing changes to ${branchName}...`);
-  try {
-    const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
-    execGitSync(["push", repoUrl, `HEAD:${branchName}`], { stdio: "inherit" });
-    core.info(`Successfully pushed changes to ${branchName} branch`);
-  } catch (error) {
-    core.setFailed(`Failed to push changes: ${getErrorMessage(error)}`);
-    return;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // Pull with merge strategy (ours wins on conflicts)
+    core.info(`Pulling latest changes from ${branchName}...`);
+    try {
+      execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit" });
+    } catch (error) {
+      // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
+      core.warning(`Pull failed (this may be expected): ${getErrorMessage(error)}`);
+    }
+
+    // Push changes
+    core.info(`Pushing changes to ${branchName}...`);
+    try {
+      execGitSync(["push", repoUrl, `HEAD:${branchName}`], { stdio: "inherit" });
+      core.info(`Successfully pushed changes to ${branchName} branch`);
+      return;
+    } catch (error) {
+      if (attempt < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        core.warning(`Push failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms: ${getErrorMessage(error)}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        core.setFailed(`Failed to push changes after ${MAX_RETRIES + 1} attempts: ${getErrorMessage(error)}`);
+        return;
+      }
+    }
   }
 }
 

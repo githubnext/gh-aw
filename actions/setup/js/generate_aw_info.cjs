@@ -4,6 +4,7 @@
 const fs = require("fs");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateContextVariables } = require("./validate_context_variables.cjs");
 const validateLockdownRequirements = require("./validate_lockdown_requirements.cjs");
 
@@ -84,6 +85,11 @@ async function main(core, ctx) {
   fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";
   fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+
+  if (awInfo.staged) {
+    logStagedPreviewInfo("Generating workflow info in staged mode — no changes applied");
+  }
+
   core.info("Generated aw_info.json at: " + tmpPath);
   core.info(JSON.stringify(awInfo, null, 2));
 

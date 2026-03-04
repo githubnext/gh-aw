@@ -318,6 +318,37 @@ The reaction is added to the triggering item. For issues/PRs, a comment with the
 
 **Available reactions:** `+1` 👍, `-1` 👎, `laugh` 😄, `confused` 😕, `heart` ❤️, `hooray` 🎉, `rocket` 🚀, `eyes` 👀
 
+### Activation Token (`on.github-token:`, `on.github-app:`)
+
+Configure a custom GitHub token or GitHub App for the activation job. The activation job posts the initial reaction and status comment on the triggering item. By default it uses the workflow's `GITHUB_TOKEN`.
+
+Use `github-token:` to supply a PAT or custom token:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  reaction: "eyes"
+  github-token: ${{ secrets.MY_TOKEN }}
+```
+
+Use `github-app:` to mint a short-lived installation token instead:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  reaction: "rocket"
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_KEY }}
+```
+
+The `github-app` object accepts the same fields as the GitHub App configuration used elsewhere in the framework (`app-id`, `private-key`, and optionally `owner` and `repositories`). The token is minted once for the activation job and covers both the reaction step and the status comment step.
+
+> [!NOTE]
+> `github-token` and `github-app` affect only the activation job. For the agent job, configure tokens via `tools.github.github-token`/`tools.github.github-app` or `safe-outputs.github-token`/`safe-outputs.github-app`. See [Authentication](/gh-aw/reference/auth/) for a full overview.
+
 ### Stop After Configuration (`stop-after:`)
 
 Automatically disable workflow triggering after a deadline to control costs.

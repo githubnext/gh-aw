@@ -682,6 +682,34 @@ on:
   # (optional)
   status-comment: true
 
+  # Custom GitHub token to use for pre-activation reactions and activation status
+  # comments. When specified, overrides the default GITHUB_TOKEN for these operations.
+  # (optional)
+  github-token: "${{ secrets.MY_GITHUB_TOKEN }}"
+
+  # GitHub App configuration for minting a token used in pre-activation reactions
+  # and activation status comments. When configured, a GitHub App installation
+  # access token is minted and used instead of the default GITHUB_TOKEN.
+  # (optional)
+  github-app:
+    # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
+    app-id: "${{ vars.APP_ID }}"
+
+    # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
+    # mint a GitHub App token.
+    private-key: "${{ secrets.APP_PRIVATE_KEY }}"
+
+    # Optional owner of the GitHub App installation (defaults to current repository
+    # owner if not specified)
+    # (optional)
+    owner: "example-value"
+
+    # Optional list of repositories to grant access to (defaults to current repository
+    # if not specified)
+    # (optional)
+    repositories: []
+      # Array of strings
+
 # GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can
 # access during execution. Use the principle of least privilege - only grant the
 # minimum permissions needed.

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,15 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// mockSHAResolver is a test double for workflow.ActionSHAResolver that returns a fixed SHA
+type mockSHAResolver struct {
+	sha string
+	err error
+}
+
+func (m *mockSHAResolver) ResolveSHA(_, _ string) (string, error) {
+	return m.sha, m.err
+}
 func TestEnsureCopilotSetupSteps(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -1082,7 +1092,7 @@ func TestUpgradeSetupCliVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			upgraded, err := upgradeSetupCliVersion(tt.workflow, tt.actionMode, tt.version)
+			upgraded, err := upgradeSetupCliVersion(tt.workflow, tt.actionMode, tt.version, nil)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("upgradeSetupCliVersion() error = %v, expectError %v", err, tt.expectError)
@@ -1097,5 +1107,91 @@ func TestUpgradeSetupCliVersion(t *testing.T) {
 				tt.validateFunc(t, tt.workflow)
 			}
 		})
+	}
+}
+
+// TestGetActionRef tests the getActionRef helper with and without a resolver
+func TestGetActionRef(t *testing.T) {
+	tests := []struct {
+		name        string
+		actionMode  workflow.ActionMode
+		version     string
+		resolver    workflow.ActionSHAResolver
+		expectedRef string
+	}{
+		{
+			name:        "release mode without resolver uses version tag",
+			actionMode:  workflow.ActionModeRelease,
+			version:     "v1.2.3",
+			resolver:    nil,
+			expectedRef: "@v1.2.3",
+		},
+		{
+			name:        "release mode with resolver uses SHA-pinned reference",
+			actionMode:  workflow.ActionModeRelease,
+			version:     "v1.2.3",
+			resolver:    &mockSHAResolver{sha: "abc1234567890123456789012345678901234567890"},
+			expectedRef: "@abc1234567890123456789012345678901234567890 # v1.2.3",
+		},
+		{
+			name:        "release mode with failing resolver falls back to version tag",
+			actionMode:  workflow.ActionModeRelease,
+			version:     "v1.2.3",
+			resolver:    &mockSHAResolver{sha: "", err: errors.New("resolution failed")},
+			expectedRef: "@v1.2.3",
+		},
+		{
+			name:        "dev mode uses @main",
+			actionMode:  workflow.ActionModeDev,
+			version:     "v1.2.3",
+			resolver:    nil,
+			expectedRef: "@main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ref := getActionRef(tt.actionMode, tt.version, tt.resolver)
+			if ref != tt.expectedRef {
+				t.Errorf("getActionRef() = %q, want %q", ref, tt.expectedRef)
+			}
+		})
+	}
+}
+
+// TestUpgradeSetupCliVersion_WithSHAResolver tests SHA-pinned upgrade with a mock resolver
+func TestUpgradeSetupCliVersion_WithSHAResolver(t *testing.T) {
+	resolver := &mockSHAResolver{sha: "abc1234567890123456789012345678901234567890"}
+	wf := &Workflow{
+		Jobs: map[string]WorkflowJob{
+			"copilot-setup-steps": {
+				Steps: []CopilotWorkflowStep{
+					{
+						Name: "Install gh-aw",
+						Uses: "github/gh-aw/actions/setup-cli@v1.0.0",
+						With: map[string]any{"version": "v1.0.0"},
+					},
+				},
+			},
+		},
+	}
+
+	upgraded, err := upgradeSetupCliVersion(wf, workflow.ActionModeRelease, "v2.0.0", resolver)
+	if err != nil {
+		t.Fatalf("upgradeSetupCliVersion() error: %v", err)
+	}
+	if !upgraded {
+		t.Fatal("Expected upgrade to occur")
+	}
+
+	job := wf.Jobs["copilot-setup-steps"]
+	installStep := job.Steps[0]
+	// SHA-pinned reference should be used
+	expectedUses := "github/gh-aw/actions/setup-cli@abc1234567890123456789012345678901234567890 # v2.0.0"
+	if installStep.Uses != expectedUses {
+		t.Errorf("Expected Uses = %q, got: %q", expectedUses, installStep.Uses)
+	}
+	if installStep.With["version"] != "v2.0.0" {
+		t.Errorf("Expected version to be v2.0.0, got: %v", installStep.With["version"])
 	}
 }
