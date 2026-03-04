@@ -8,6 +8,7 @@ on:
     names: ["smoke"]
   reaction: "eyes"
   status-comment: true
+  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 permissions:
   contents: read
   pull-requests: read

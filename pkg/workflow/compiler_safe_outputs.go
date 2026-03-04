@@ -140,7 +140,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.On = ""
 			}
 			// Extract other (non-conflicting) events excluding slash_command, command, reaction, status-comment, and stop-after
-			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "status-comment", "stop-after")
+			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "status-comment", "stop-after", "github-token", "github-app")
 		}
 	}
 

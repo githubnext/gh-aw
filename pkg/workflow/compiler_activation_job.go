@@ -66,6 +66,41 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	steps = append(steps, checkoutSteps...)
 
+	// Mint a single activation app token upfront if a GitHub App is configured and either
+	// the reaction or status-comment step will need it. This avoids minting multiple tokens.
+	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+	hasStatusComment := data.StatusComment != nil && *data.StatusComment
+	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment) {
+		// Build the combined permissions needed for reactions and/or status comments
+		appPerms := NewPermissions()
+		appPerms.Set(PermissionIssues, PermissionWrite)
+		appPerms.Set(PermissionPullRequests, PermissionWrite)
+		appPerms.Set(PermissionDiscussions, PermissionWrite)
+		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
+	}
+
+	// Add reaction step for immediate feedback.
+	// This runs in the activation job so it can use any configured github-token or github-app.
+	if hasReaction {
+		reactionCondition := BuildReactionCondition()
+
+		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
+		steps = append(steps, "        id: react\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+		// Add environment variables
+		steps = append(steps, "        env:\n")
+		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
+
+		steps = append(steps, "        with:\n")
+		// Use configured github-token or app-minted token; fall back to GITHUB_TOKEN
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
+	}
+
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
@@ -104,7 +139,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	// Add comment with workflow run link if status comments are explicitly enabled
-	// Note: The reaction was already added in the pre-activation job for immediate feedback
 	if data.StatusComment != nil && *data.StatusComment {
 		reactionCondition := BuildReactionCondition()
 
@@ -139,10 +173,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 
 		steps = append(steps, "        with:\n")
+		// Use configured github-token or app-minted token if set; omit to use default GITHUB_TOKEN
+		commentToken := c.resolveActivationToken(data)
+		if commentToken != "${{ secrets.GITHUB_TOKEN }}" {
+			steps = append(steps, fmt.Sprintf("          github-token: %s\n", commentToken))
+		}
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("add_workflow_run_comment.cjs"))
 
-		// Add comment outputs (no reaction_id since reaction was added in pre-activation)
+		// Add comment outputs
 		outputs["comment_id"] = "${{ steps.add-comment.outputs.comment-id }}"
 		outputs["comment_url"] = "${{ steps.add-comment.outputs.comment-url }}"
 		outputs["comment_repo"] = "${{ steps.add-comment.outputs.comment-repo }}"
@@ -287,13 +326,22 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "          retention-days: 1\n")
 
 	// Set permissions - activation job always needs contents:read for GitHub API access
-	// Also add reaction permissions if reaction is configured and not "none"
+	// Also add reaction/comment permissions if reaction or status-comment is configured
 	// Also add issues:write permission if lock-for-agent is enabled (for locking issues)
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead, // Always needed for GitHub API access to check file commits
 	}
 
-	if data.AIReaction != "" && data.AIReaction != "none" {
+	if hasReaction {
+		permsMap[PermissionDiscussions] = PermissionWrite
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	// Add write permissions if status comments are enabled (even without a reaction).
+	// Status comments post to issues, PRs, and discussions, so write access is required.
+	// Assigning write to the map is safe here - it does not downgrade existing permissions.
+	if hasStatusComment {
 		permsMap[PermissionDiscussions] = PermissionWrite
 		permsMap[PermissionIssues] = PermissionWrite
 		permsMap[PermissionPullRequests] = PermissionWrite
