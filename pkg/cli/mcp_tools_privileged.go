@@ -297,8 +297,10 @@ Returns JSON with the following structure:
 				"run_id_or_url": args.RunIDOrURL,
 			}
 
-			// Use stderr content as the main message when available (provides actionable details)
-			mainMsg := strings.TrimSpace(stderr)
+			// Extract the user-facing message from stderr, filtering out debug log lines
+			// (e.g. "workflow:script_registry Creating new script registry +151ns")
+			// to avoid leaking internal diagnostic output in the MCP error response.
+			mainMsg := extractLastConsoleMessage(stderr)
 			if mainMsg == "" {
 				mainMsg = err.Error()
 			}
@@ -313,4 +315,35 @@ Returns JSON with the following structure:
 	})
 
 	return nil
+}
+
+// extractLastConsoleMessage extracts the last user-facing console message from stderr output,
+// filtering out debug log lines (e.g. "workflow:script_registry Creating... +151ns").
+// Console messages are identified by their prefix symbols (✗, ✓, ℹ, ⚠, etc.).
+// Falls back to the last non-empty line if no console message is found.
+func extractLastConsoleMessage(stderr string) string {
+	// Console message prefixes used by the console package
+	consoleSymbols := []string{"✗ ", "✓ ", "ℹ ", "⚠ ", "⚡ ", "🔨 ", "❓ ", "🔍 "}
+
+	var lastConsole string
+	var lastLine string
+
+	for line := range strings.SplitSeq(stderr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		lastLine = trimmed
+		for _, sym := range consoleSymbols {
+			if strings.HasPrefix(trimmed, sym) {
+				lastConsole = trimmed
+				break
+			}
+		}
+	}
+
+	if lastConsole != "" {
+		return lastConsole
+	}
+	return lastLine
 }
