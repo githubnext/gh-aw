@@ -800,6 +800,9 @@ jobs:
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
+    concurrency:
+      group: "gh-aw-conclusion-notion-issue-summary"
+      cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}

@@ -887,6 +887,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: write
+    concurrency:
+      group: "gh-aw-conclusion-test-dispatcher"
+      cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}

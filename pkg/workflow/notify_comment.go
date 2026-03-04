@@ -391,11 +391,21 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Compute permissions based on configured safe outputs (principle of least privilege)
 	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 
+	// Build concurrency config for the conclusion job using the workflow ID.
+	// This prevents concurrent agents on the same workflow from interfering with each other.
+	var concurrency string
+	if data.WorkflowID != "" {
+		group := "gh-aw-conclusion-" + data.WorkflowID
+		concurrency = c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", group), "    ")
+		notifyCommentLog.Printf("Configuring conclusion job concurrency group: %s", group)
+	}
+
 	job := &Job{
 		Name:        "conclusion",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions.RenderToYAML(),
+		Concurrency: concurrency,
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     outputs,

@@ -999,6 +999,9 @@ jobs:
       contents: read
       discussions: write
       issues: write
+    concurrency:
+      group: "gh-aw-conclusion-copilot-cli-deep-research"
+      cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}

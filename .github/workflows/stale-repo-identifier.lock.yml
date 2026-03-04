@@ -1116,6 +1116,9 @@ jobs:
     permissions:
       contents: write
       issues: write
+    concurrency:
+      group: "gh-aw-conclusion-stale-repo-identifier"
+      cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
