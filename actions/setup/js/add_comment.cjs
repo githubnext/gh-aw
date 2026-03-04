@@ -527,18 +527,16 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
-    // Generate history URL: use in:comments for issue/PR comments; skip for discussion comments
-    // (GitHub search does not support in:comments for discussions)
-    const historyUrl = !isDiscussion
-      ? generateHistoryUrl({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          itemType: "comment",
-          workflowCallId: callerWorkflowId,
-          workflowId,
-          serverUrl: context.serverUrl,
-        }) || undefined
-      : undefined;
+    // Generate history URL using in:comments, with type= based on execution context
+    const historyUrl =
+      generateHistoryUrl({
+        owner: repoParts.owner,
+        repo: repoParts.repo,
+        itemType: isDiscussion ? "discussion_comment" : "comment",
+        workflowCallId: callerWorkflowId,
+        workflowId,
+        serverUrl: context.serverUrl,
+      }) || undefined;
 
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers

@@ -73,6 +73,20 @@ describe("generate_history_link.cjs", () => {
         expect(url).not.toContain("is%3A");
         expect(url).toContain("type=discussions");
       });
+
+      it("should NOT include is: qualifier for discussion_comment type", () => {
+        const url = generateHistoryUrl({
+          owner: "testowner",
+          repo: "testrepo",
+          itemType: "discussion_comment",
+          workflowId: "my-workflow",
+          serverUrl: "https://github.com",
+        });
+
+        expect(url).not.toContain("is%3A");
+        expect(url).toContain("type=discussions");
+        expect(url).toContain("in%3Acomments");
+      });
     });
 
     describe("workflow ID selection", () => {
@@ -352,6 +366,25 @@ describe("generate_history_link.cjs", () => {
         expect(query).not.toContain("is:issue");
         expect(query).not.toContain("is:pr");
         expect(query).toContain('"gh-aw-workflow-id: my-workflow"');
+      });
+
+      it("should generate a complete discussion_comment search URL", () => {
+        const url = generateHistoryUrl({
+          owner: "myowner",
+          repo: "myrepo",
+          itemType: "discussion_comment",
+          workflowId: "my-workflow",
+          serverUrl: "https://github.com",
+        });
+
+        const parsed = new URL(url);
+        expect(parsed.searchParams.get("type")).toBe("discussions");
+
+        const query = parsed.searchParams.get("q");
+        expect(query).not.toContain("is:issue");
+        expect(query).not.toContain("is:pr");
+        expect(query).toContain('"gh-aw-workflow-id: my-workflow"');
+        expect(query).toContain("in:comments");
       });
 
       it("should generate correct URL with workflowCallId", () => {
