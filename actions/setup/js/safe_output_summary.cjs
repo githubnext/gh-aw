@@ -80,6 +80,18 @@ function generateSafeOutputSummary(options) {
     }
   }
 
+  // Display secrecy and integrity security metadata fields if present in the message.
+  // secrecy indicates the confidentiality level of the message content.
+  // integrity indicates the trustworthiness level of the message source.
+  if (message) {
+    if (message.secrecy !== undefined && message.secrecy !== null) {
+      summary += `**Secrecy:** \`${message.secrecy}\`\n\n`;
+    }
+    if (message.integrity !== undefined && message.integrity !== null) {
+      summary += `**Integrity:** \`${message.integrity}\`\n\n`;
+    }
+  }
+
   summary += `</details>\n\n`;
 
   return summary;

@@ -9,6 +9,18 @@
 interface BaseSafeOutputItem {
   /** The type of safe output action */
   type: string;
+  /**
+   * Secrecy level of the message content.
+   * Indicates the confidentiality of the data included in this message
+   * (e.g., "public", "internal", "private").
+   */
+  secrecy?: string;
+  /**
+   * Integrity level of the message content.
+   * Indicates the trustworthiness of the data source for this message
+   * (e.g., "low", "medium", "high").
+   */
+  integrity?: string;
 }
 
 /**
