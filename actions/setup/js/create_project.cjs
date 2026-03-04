@@ -459,6 +459,11 @@ async function main(config = {}, githubClient = null) {
 
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
 
+      // Store temporary ID mapping so subsequent operations can reference this project
+      const normalizedTempId = normalizeTemporaryId(temporaryId);
+      temporaryIdMap.set(normalizedTempId, { projectUrl: projectInfo.projectUrl });
+      core.info(`Stored temporary ID mapping: ${temporaryId} -> ${projectInfo.projectUrl}`);
+
       // Create configured views if any
       if (configuredViews.length > 0) {
         core.info(`Creating ${configuredViews.length} configured view(s) on project: ${projectInfo.projectUrl}`);
@@ -488,6 +493,7 @@ async function main(config = {}, githubClient = null) {
         projectTitle: projectInfo.projectTitle,
         projectUrl: projectInfo.projectUrl,
         itemId: projectInfo.itemId,
+        temporaryId,
       };
     } catch (err) {
       // prettier-ignore
