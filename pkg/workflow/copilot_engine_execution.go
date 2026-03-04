@@ -147,12 +147,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build the copilot command
 	var copilotCommand string
 
-	// When model is not configured, use the GH_AW_MODEL_AGENT_COPILOT fallback env var
-	// via shell expansion (${VAR:+ --model "$VAR"}) so users can set it as a GitHub variable.
-	// When model IS configured, COPILOT_MODEL is set in the env block (see below) and the
-	// Copilot CLI reads it natively - no --model flag in the shell command needed.
-	needsModelFlag := !modelConfigured
-	// Check if this is a detection job (has no SafeOutputs config)
+	// Determine model org variable name based on job type (used in env block below).
+	// The model is always passed via the native COPILOT_MODEL env var - no --model flag needed.
 	var modelEnvVar string
 	if isDetectionJob {
 		modelEnvVar = constants.EnvVarModelDetectionCopilot
@@ -174,26 +170,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		commandName = "copilot"
 	}
 
-	if sandboxEnabled {
-		// Build base command
-		baseCommand := fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
-
-		// Add conditional model flag if needed
-		if needsModelFlag {
-			copilotCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, baseCommand, modelEnvVar, modelEnvVar)
-		} else {
-			copilotCommand = baseCommand
-		}
-	} else {
-		baseCommand := fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
-
-		// Add conditional model flag if needed
-		if needsModelFlag {
-			copilotCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, baseCommand, modelEnvVar, modelEnvVar)
-		} else {
-			copilotCommand = baseCommand
-		}
-	}
+	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below)
+	copilotCommand = fmt.Sprintf("%s %s", commandName, shellJoinArgs(copilotArgs))
 
 	// Conditionally wrap with sandbox (AWF only)
 	var command string
@@ -301,21 +279,18 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	// Set the model environment variable.
-	// When model is configured, use the native COPILOT_MODEL env var - the Copilot CLI reads it
-	// directly, avoiding the need to embed the value in the shell command (which would fail
-	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
-	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_COPILOT so users
-	// can set a default via GitHub Actions variables.
+	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads
+	// directly. This avoids embedding the value in the shell command (which would fail template
+	// injection validation for GitHub Actions expressions like ${{ inputs.model }}).
+	// When model is explicitly configured, use its value directly.
+	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set
+	// a default via GitHub Actions variables without requiring per-workflow frontmatter changes.
 	if modelConfigured {
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		// No model configured - use fallback GitHub variable with shell expansion
-		if isDetectionJob {
-			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCopilot)
-		} else {
-			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
-		}
+		// No model configured - map org variable to native COPILOT_MODEL env var
+		env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
 	}
 
 	// Add custom environment variables from engine config
