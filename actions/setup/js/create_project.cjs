@@ -460,7 +460,7 @@ async function main(config = {}, githubClient = null) {
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
 
       // Store temporary ID mapping so subsequent operations can reference this project
-      const normalizedTempId = normalizeTemporaryId(temporaryId);
+      const normalizedTempId = normalizeTemporaryId(temporaryId ?? "");
       temporaryIdMap.set(normalizedTempId, { projectUrl: projectInfo.projectUrl });
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${projectInfo.projectUrl}`);
 
