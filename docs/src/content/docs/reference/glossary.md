@@ -89,9 +89,17 @@ Pre-approved actions the AI can take without elevated permissions. The AI genera
 
 Automated security analysis that scans agent output and code changes for potential security issues before application. When safe outputs are configured, a threat detection job automatically runs between the agent job and safe output processing to identify prompt injection attempts, secret leaks, and malicious code patches. See [Threat Detection Reference](/gh-aw/reference/threat-detection/).
 
+### Secrecy
+
+An optional field on safe output tool calls indicating the confidentiality level of the message content. Accepted values include `"public"`, `"internal"`, and `"private"`. Used alongside [`integrity`](#integrity) as security metadata displayed in safe output step summaries and available to [Threat Detection](#threat-detection) scanning.
+
 ### Staged Mode
 
 A preview mode where workflows simulate actions without making changes. The AI generates output showing what would happen, but no GitHub API write operations are performed. Use for testing before production runs.
+
+### Integrity
+
+An optional field on safe output tool calls indicating the trustworthiness level of the message source. Accepted values include `"low"`, `"medium"`, and `"high"`. Used alongside [`secrecy`](#secrecy) as security metadata displayed in safe output step summaries and available to [Threat Detection](#threat-detection) scanning.
 
 ### Lockdown Mode
 
@@ -142,6 +150,10 @@ A safe output capability for removing user assignments from issues or pull reque
 A safe output capability (`update-issue:`) for modifying existing issues without creating new ones. Each updatable field (`status`, `title`, `body`) must be explicitly enabled. Body updates accept an `operation` field: `append` (default), `prepend`, `replace`, or `replace-island` (updates a specific section delimited by HTML comments). Supports cross-repository issue updates. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-updates-update-issue).
 
 ## Workflow Components
+
+### Activation Token (`on.github-token:`, `on.github-app:`)
+
+Custom GitHub token or GitHub App used by the activation job to post reactions and status comments on the triggering item. Configured via `github-token:` (for a PAT or token expression) or `github-app:` (to mint a short-lived installation token) inside the `on:` section. Affects only the activation job — agent job tokens are configured separately via `tools.github.github-token` or `safe-outputs.github-app`. See [Authentication Reference](/gh-aw/reference/auth/).
 
 ### Cron Schedule
 

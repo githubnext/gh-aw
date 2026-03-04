@@ -527,6 +527,105 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				}
 			}
 
+			// Extract name (display name) for custom jobs
+			if name, hasName := configMap["name"]; hasName {
+				if nameStr, ok := name.(string); ok {
+					job.DisplayName = nameStr
+				}
+			}
+
+			// Extract timeout-minutes for custom jobs
+			if timeout, hasTimeout := configMap["timeout-minutes"]; hasTimeout {
+				switch v := timeout.(type) {
+				case int:
+					job.TimeoutMinutes = v
+				case uint64:
+					if v <= uint64(^uint(0)>>1) {
+						job.TimeoutMinutes = int(v)
+					}
+				case float64:
+					job.TimeoutMinutes = int(v)
+				}
+			}
+
+			// Extract concurrency for custom jobs
+			if concurrency, hasConcurrency := configMap["concurrency"]; hasConcurrency {
+				switch v := concurrency.(type) {
+				case string:
+					job.Concurrency = "concurrency: " + v
+				case map[string]any:
+					yamlBytes, err := yaml.Marshal(v)
+					if err != nil {
+						return fmt.Errorf("failed to convert concurrency to YAML for job '%s': %w", jobName, err)
+					}
+					lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+					var formattedConcurrency strings.Builder
+					formattedConcurrency.WriteString("concurrency:\n")
+					for _, line := range lines {
+						formattedConcurrency.WriteString("      " + line + "\n")
+					}
+					job.Concurrency = formattedConcurrency.String()
+				}
+			}
+
+			// Extract env for custom jobs
+			if env, hasEnv := configMap["env"]; hasEnv {
+				if envMap, ok := env.(map[string]any); ok {
+					job.Env = make(map[string]string)
+					for key, val := range envMap {
+						if valStr, ok := val.(string); ok {
+							job.Env[key] = valStr
+						} else {
+							compilerJobsLog.Printf("Warning: env '%s' in job '%s' has non-string value (type: %T), ignoring", key, jobName, val)
+						}
+					}
+				}
+			}
+
+			// Extract container for custom jobs
+			if container, hasContainer := configMap["container"]; hasContainer {
+				switch v := container.(type) {
+				case string:
+					job.Container = "container: " + v
+				case map[string]any:
+					yamlBytes, err := yaml.Marshal(v)
+					if err != nil {
+						return fmt.Errorf("failed to convert container to YAML for job '%s': %w", jobName, err)
+					}
+					lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+					var formattedContainer strings.Builder
+					formattedContainer.WriteString("container:\n")
+					for _, line := range lines {
+						formattedContainer.WriteString("      " + line + "\n")
+					}
+					job.Container = formattedContainer.String()
+				}
+			}
+
+			// Extract services for custom jobs
+			if services, hasServices := configMap["services"]; hasServices {
+				if servicesMap, ok := services.(map[string]any); ok {
+					yamlBytes, err := yaml.Marshal(servicesMap)
+					if err != nil {
+						return fmt.Errorf("failed to convert services to YAML for job '%s': %w", jobName, err)
+					}
+					lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+					var formattedServices strings.Builder
+					formattedServices.WriteString("services:\n")
+					for _, line := range lines {
+						formattedServices.WriteString("      " + line + "\n")
+					}
+					job.Services = formattedServices.String()
+				}
+			}
+
+			// Extract continue-on-error for custom jobs
+			if continueOnError, hasCOE := configMap["continue-on-error"]; hasCOE {
+				if coeVal, ok := continueOnError.(bool); ok {
+					job.ContinueOnError = &coeVal
+				}
+			}
+
 			// Extract outputs for custom jobs
 			if outputs, hasOutputs := configMap["outputs"]; hasOutputs {
 				if outputsMap, ok := outputs.(map[string]any); ok {
