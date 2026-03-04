@@ -331,12 +331,13 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
-  - String format: `"default"` (no sandbox), `"awf"` (Agent Workflow Firewall), `"srt"` or `"sandbox-runtime"` (Anthropic Sandbox Runtime)
+  - String format: `"default"` (no sandbox), `"awf"` (Agent Workflow Firewall)
   - **⚠️ Deprecated**: Top-level `sandbox: false` is deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to automatically migrate.
+  - **Note**: Legacy `"srt"` and `"sandbox-runtime"` values are automatically migrated to `"awf"`.
   - Object format for full configuration:
     ```yaml
     sandbox:
-      agent: awf                      # or "srt", or false to disable
+      agent: awf                      # or false to disable
       mcp:                            # MCP Gateway configuration (requires mcp-gateway feature flag)
         container: ghcr.io/githubnext/mcp-gateway
         port: 8080
@@ -344,7 +345,6 @@ The YAML frontmatter supports these fields:
     ```
   - **Agent sandbox options**:
     - `awf`: Agent Workflow Firewall for domain-based access control
-    - `srt`: Anthropic Sandbox Runtime for filesystem and command sandboxing
     - `false`: Disable agent firewall
   - **AWF configuration**:
     ```yaml
@@ -354,17 +354,6 @@ The YAML frontmatter supports these fields:
         mounts:
           - "/host/data:/data:ro"
           - "/host/bin/tool:/usr/local/bin/tool:ro"
-    ```
-  - **SRT configuration**:
-    ```yaml
-    sandbox:
-      agent:
-        id: srt
-        config:
-          filesystem:
-            allowWrite: [".", "/tmp"]
-            denyRead: ["/etc/secrets"]
-          enableWeakerNestedSandbox: true
     ```
   - **MCP Gateway**: Routes MCP server calls through unified HTTP gateway (experimental)
 
@@ -1221,11 +1210,13 @@ tools:
 
 For single cache (object notation):
 - `key:` - Custom cache key (defaults to `memory-${{ github.workflow }}-${{ github.run_id }}`)
+- `allowed-extensions:` - List of allowed file extensions (e.g., `[".json", ".txt"]`). Default: all extensions allowed. When set, files with other extensions are rejected.
 
 For multiple caches (array notation):
 - `id:` - Cache identifier (required for array notation, defaults to "default" if omitted)
 - `key:` - Custom cache key (defaults to `memory-{id}-${{ github.workflow }}-${{ github.run_id }}`)
 - `retention-days:` - Number of days to retain artifacts (1-90 days)
+- `allowed-extensions:` - List of allowed file extensions (e.g., `[".json", ".txt"]`). Default: all extensions allowed.
 
 **Restore Key Generation:**
 The system automatically generates restore keys by progressively splitting the cache key on '-':
@@ -1248,6 +1239,17 @@ The `repo-memory:` field enables repository-specific memory storage for maintain
 ```yaml
 tools:
   repo-memory:
+```
+
+**Advanced Configuration:**
+```yaml
+tools:
+  repo-memory:
+    branch-name: memory/agent-notes  # Optional: custom git branch name
+    target-repo: owner/other-repo    # Optional: store memory in another repo
+    allowed-extensions: [".json", ".md"]  # Optional: restrict file types (default: all allowed)
+    max-file-size: 10240             # Optional: max size per file in bytes (default: 10KB)
+    max-file-count: 100              # Optional: max files per commit (default: 100)
 ```
 
 This provides persistent memory storage specific to the repository, useful for maintaining workflow-specific context and state across runs.
@@ -2159,6 +2161,7 @@ Agentic workflows compile to GitHub Actions YAML:
 ### Deprecated Features
 
 - **`sandbox: false`** (top-level) - Deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to migrate automatically.
+- **`sandbox.agent: srt`** / **`sandbox: "srt"`** / **`sandbox: "sandbox-runtime"`** - Deprecated. The Anthropic Sandbox Runtime (SRT) backend has been removed. These values are automatically migrated to `awf`.
 - **`timeout_minutes`** (underscore) - Breaking change. Must use `timeout-minutes` (with hyphen).
 - **`create-agent-task`** - Deprecated. Use `create-agent-session` instead for Copilot coding agent sessions.
 - **`safe-outputs.add-comment.discussion`** - Deprecated. The `discussion: true` flag is no longer needed; `add-comment` auto-detects the target type. Run `gh aw fix --write` with codemod `add-comment-discussion-removal` to remove it automatically.
@@ -2202,7 +2205,7 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 
 - **Invalid field names** - Only fields in the schema are allowed
 - **Wrong field types** - e.g., `timeout-minutes` must be integer
-- **Invalid enum values** - e.g., `engine` must be "copilot", "claude", or "codex"
+- **Invalid enum values** - e.g., `engine` must be "copilot", "claude", "codex", or "gemini"
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.
