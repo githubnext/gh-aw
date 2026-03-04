@@ -683,9 +683,10 @@ on:
   status-comment: true
 
   # Custom GitHub token to use for pre-activation reactions and activation status
-  # comments. When specified, overrides the default GITHUB_TOKEN for these operations.
+  # comments. When specified, overrides the default GITHUB_TOKEN for these
+  # operations.
   # (optional)
-  github-token: "${{ secrets.MY_GITHUB_TOKEN }}"
+  github-token: "${{ secrets.GITHUB_TOKEN }}"
 
   # GitHub App configuration for minting a token used in pre-activation reactions
   # and activation status comments. When configured, a GitHub App installation
@@ -693,11 +694,11 @@ on:
   # (optional)
   github-app:
     # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-    app-id: "${{ vars.APP_ID }}"
+    app-id: "example-value"
 
     # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
     # mint a GitHub App token.
-    private-key: "${{ secrets.APP_PRIVATE_KEY }}"
+    private-key: "example-value"
 
     # Optional owner of the GitHub App installation (defaults to current repository
     # owner if not specified)
@@ -1518,27 +1519,6 @@ tools:
     # fine-grained permissions matching the agent job requirements.
     # (optional)
     github-app:
-      # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-      app-id: "example-value"
-
-      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-      # mint a GitHub App token.
-      private-key: "example-value"
-
-      # Optional owner of the GitHub App installation (defaults to current repository
-      # owner if not specified)
-      # (optional)
-      owner: "example-value"
-
-      # Optional list of repositories to grant access to (defaults to current repository
-      # if not specified)
-      # (optional)
-      repositories: []
-        # Array of strings
-
-    # Deprecated: Use github-app instead. GitHub App configuration for token minting.
-    # (optional)
-    app:
       # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
       app-id: "example-value"
 
@@ -4220,30 +4200,6 @@ safe-outputs:
   # operations.
   # (optional)
   github-app:
-    # GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).
-    app-id: "example-value"
-
-    # GitHub App private key. Should reference a secret (e.g., ${{
-    # secrets.APP_PRIVATE_KEY }}).
-    private-key: "example-value"
-
-    # Optional: The owner of the GitHub App installation. If empty, defaults to the
-    # current repository owner.
-    # (optional)
-    owner: "example-value"
-
-    # Optional: Comma or newline-separated list of repositories to grant access to. If
-    # owner is set and repositories is empty, access will be scoped to all
-    # repositories in the provided repository owner's installation. If owner and
-    # repositories are empty, access will be scoped to only the current repository.
-    # (optional)
-    repositories: []
-      # Array of strings
-
-  # Deprecated: Use github-app instead. GitHub App credentials for minting
-  # installation access tokens.
-  # (optional)
-  app:
     # GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).
     app-id: "example-value"
 
