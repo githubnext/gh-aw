@@ -226,7 +226,13 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 	// Indent the user's script code
 	sb.WriteString("  " + strings.ReplaceAll(toolConfig.Script, "\n", "\n  ") + "\n")
 	sb.WriteString("}\n\n")
-	sb.WriteString("module.exports = { execute };\n")
+	sb.WriteString("module.exports = { execute };\n\n")
+
+	// Delegate subprocess execution to the shared runner module
+	sb.WriteString("// Run when executed directly (as a subprocess by the MCP handler)\n")
+	sb.WriteString("if (require.main === module) {\n")
+	sb.WriteString("  require(\"./safe-inputs-runner.cjs\")(execute);\n")
+	sb.WriteString("}\n")
 
 	return sb.String()
 }
