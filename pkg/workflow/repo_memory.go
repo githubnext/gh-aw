@@ -770,12 +770,17 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		outputs["validation_error_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
 	}
 
+	// Serialize all push_repo_memory jobs per repository to prevent concurrent git pushes
+	// cancel-in-progress is false so that updates from concurrent agents are queued, not dropped
+	concurrency := c.indentYAMLLines("concurrency:\n  group: \"push-repo-memory-${{ github.repository }}\"\n  cancel-in-progress: false", "    ")
+
 	job := &Job{
 		Name:        "push_repo_memory",
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
+		Concurrency: concurrency,
 		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
 		Steps:       steps,
 		Outputs:     outputs,
