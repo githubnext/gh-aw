@@ -17,6 +17,7 @@ type ArtifactDownloadConfig struct {
 	EnvVarName       string // Environment variable name to set (e.g., "GH_AW_AGENT_OUTPUT")
 	StepName         string // Optional custom step name (defaults to "Download {artifact} artifact")
 	IfCondition      string // Optional conditional expression for the step (e.g., "needs.agent.outputs.has_patch == 'true'")
+	StepID           string // Optional step ID; when set, the env-setup step is gated on this step's success
 }
 
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact
@@ -36,6 +37,11 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 
 	// Add step to download artifact
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
+	// Add step ID if specified (used to condition the env-setup step on download success)
+	if config.StepID != "" {
+		steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+		artifactsLog.Printf("Added step ID: %s", config.StepID)
+	}
 	// Add conditional if specified
 	if config.IfCondition != "" {
 		steps = append(steps, fmt.Sprintf("        if: %s\n", config.IfCondition))
@@ -52,6 +58,11 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s",
 			config.EnvVarName, config.DownloadPath, config.ArtifactFilename)
 		steps = append(steps, "      - name: Setup agent output environment variable\n")
+		// Only set the env var when the artifact was actually downloaded
+		if config.StepID != "" {
+			steps = append(steps, fmt.Sprintf("        if: steps.%s.outcome == 'success'\n", config.StepID))
+			artifactsLog.Printf("Added env-setup conditional on step outcome: %s", config.StepID)
+		}
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, fmt.Sprintf("          mkdir -p %s\n", config.DownloadPath))
 		steps = append(steps, fmt.Sprintf("          find \"%s\" -type f -print\n", config.DownloadPath))
