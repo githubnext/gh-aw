@@ -59,7 +59,7 @@ test_executable() {
 # Test 3: Verify INPUT_VERSION support
 test_input_version() {
   echo ""
-  echo "Test 4: Verify INPUT_VERSION environment variable support"
+  echo "Test 3: Verify INPUT_VERSION environment variable support"
   
   # Check if script references INPUT_VERSION
   if grep -q "INPUT_VERSION" "$SCRIPT_PATH"; then
@@ -69,10 +69,10 @@ test_input_version() {
   fi
 }
 
-# Test 5: Verify gh extension install attempt
+# Test 4: Verify gh extension install attempt
 test_gh_install() {
   echo ""
-  echo "Test 5: Verify gh extension install logic"
+  echo "Test 4: Verify gh extension install logic"
   
   # Check if script has gh extension install logic
   if grep -q "gh extension install" "$SCRIPT_PATH"; then
@@ -82,15 +82,17 @@ test_gh_install() {
   fi
 }
 
-# Test 5: Verify release validation
-test_release_validation() {
+# Test 5: Verify version pinning support
+test_version_pinning() {
   echo ""
-  echo "Test 5: Verify release validation"
+  echo "Test 5: Verify version pinning for gh extension install"
   
-  if grep -q "Validating release.*exists" "$SCRIPT_PATH"; then
-    print_result "Script includes release validation" "PASS"
+  # Check if script uses --pin flag with $VERSION variable AND checks VERSION != "latest"
+  if grep -q -- '--pin.*\$VERSION' "$SCRIPT_PATH" && \
+     grep -q '"\$VERSION" != "latest"' "$SCRIPT_PATH"; then
+    print_result "Script supports version pinning with correct variable usage" "PASS"
   else
-    print_result "Script missing release validation" "FAIL"
+    print_result "Script missing proper version pinning support (must use --pin with \$VERSION and check VERSION != latest)" "FAIL"
   fi
 }
 
@@ -116,7 +118,7 @@ test_script_syntax
 test_executable
 test_input_version
 test_gh_install
-test_release_validation
+test_version_pinning
 test_checksum_validation
 
 # Summary
