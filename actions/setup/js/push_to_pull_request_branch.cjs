@@ -192,7 +192,7 @@ async function main(config = {}) {
     // Compute the target branch name based on target configuration
     let pullNumber;
     if (target === "triggering") {
-      pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
+      pullNumber = typeof context !== "undefined" ? context.payload?.pull_request?.number || context.payload?.issue?.number : undefined;
 
       if (!pullNumber) {
         return { success: false, error: 'push-to-pull-request-branch with target "triggering" requires pull request context' };

@@ -58,11 +58,7 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
     queryParts.push("is:pr");
   }
 
-  // Search for the XML marker in the appropriate field
-  // Comments (issue/PR or discussion) use in:comments; all others use in:body
-  const isComment = itemType === "comment" || itemType === "discussion_comment";
   queryParts.push(`"${markerId}"`);
-  queryParts.push(isComment ? "in:comments" : "in:body");
 
   const url = new URL(`${server}/search`);
   url.searchParams.set("q", queryParts.join(" "));

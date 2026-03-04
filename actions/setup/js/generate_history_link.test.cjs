@@ -85,7 +85,6 @@ describe("generate_history_link.cjs", () => {
 
         expect(url).not.toContain("is%3A");
         expect(url).toContain("type=discussions");
-        expect(url).toContain("in%3Acomments");
       });
     });
 
@@ -191,18 +190,6 @@ describe("generate_history_link.cjs", () => {
         });
 
         expect(url).toContain("gh-aw-workflow-id%3A+my-workflow");
-      });
-
-      it("should include in:body qualifier in search query", () => {
-        const url = generateHistoryUrl({
-          owner: "testowner",
-          repo: "testrepo",
-          itemType: "issue",
-          workflowId: "my-workflow",
-          serverUrl: "https://github.com",
-        });
-
-        expect(url).toContain("in%3Abody");
       });
 
       it("should NOT include open/closed state filter", () => {
@@ -330,7 +317,6 @@ describe("generate_history_link.cjs", () => {
         expect(query).toContain("repo:myowner/myrepo");
         expect(query).toContain("is:issue");
         expect(query).toContain('"gh-aw-workflow-id: my-workflow"');
-        expect(query).toContain("in:body");
       });
 
       it("should generate a complete pull_request search URL", () => {
@@ -384,7 +370,6 @@ describe("generate_history_link.cjs", () => {
         expect(query).not.toContain("is:issue");
         expect(query).not.toContain("is:pr");
         expect(query).toContain('"gh-aw-workflow-id: my-workflow"');
-        expect(query).toContain("in:comments");
       });
 
       it("should generate correct URL with workflowCallId", () => {

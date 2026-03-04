@@ -528,7 +528,7 @@ async function main(config = {}) {
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
-    // Generate history URL using in:comments, with type= based on execution context
+    // Generate history URL with type= based on execution context
     const historyUrl =
       generateHistoryUrl({
         owner: repoParts.owner,

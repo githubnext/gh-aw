@@ -334,6 +334,19 @@ index 0000000..abc1234
       expect(result.error).toContain("pull request context");
     });
 
+    it('should fail gracefully with target "triggering" when context is undefined (MCP daemon mode)', async () => {
+      delete global.context;
+
+      const patchPath = createPatchFile();
+
+      const module = await loadModule();
+      const handler = await module.main({ target: "triggering" });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("pull request context");
+    });
+
     it('should handle schedule event with target "*" and explicit PR number', async () => {
       mockContext.eventName = "schedule";
       delete mockContext.payload.pull_request;
