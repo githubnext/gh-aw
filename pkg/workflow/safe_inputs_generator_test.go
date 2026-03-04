@@ -225,6 +225,18 @@ func TestGenerateSafeInputJavaScriptToolScript(t *testing.T) {
 	if !strings.Contains(script, "module.exports") {
 		t.Error("Script should export execute function")
 	}
+
+	if !strings.Contains(script, "require.main === module") {
+		t.Error("Script should have main execution block for subprocess execution")
+	}
+
+	if !strings.Contains(script, "process.stdin") {
+		t.Error("Script should read inputs from stdin in main block")
+	}
+
+	if !strings.Contains(script, "process.stdout.write") {
+		t.Error("Script should write result to stdout in main block")
+	}
 }
 
 func TestGenerateSafeInputShellToolScript(t *testing.T) {
