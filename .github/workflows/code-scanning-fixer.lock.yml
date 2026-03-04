@@ -1180,6 +1180,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency:
+      group: "push-repo-memory-${{ github.repository }}"
+      cancel-in-progress: false
     outputs:
       validation_error_campaigns: ${{ steps.push_repo_memory_campaigns.outputs.validation_error }}
       validation_failed_campaigns: ${{ steps.push_repo_memory_campaigns.outputs.validation_failed }}

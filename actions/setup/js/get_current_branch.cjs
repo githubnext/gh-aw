@@ -18,6 +18,7 @@ function getCurrentBranch(customCwd) {
     const branch = execSync("git rev-parse --abbrev-ref HEAD", {
       encoding: "utf8",
       cwd: cwd,
+      stdio: ["pipe", "pipe", "pipe"],
     }).trim();
     return branch;
   } catch (error) {

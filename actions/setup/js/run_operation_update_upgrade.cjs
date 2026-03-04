@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * Format a UTC Date as YYYY-MM-DD-HH-MM-SS for use in branch names.
@@ -49,7 +50,7 @@ async function main() {
     core.info(`Running: ${fullCmd}`);
     const exitCode = await exec.exec(bin, [...prefixArgs, operation]);
     if (exitCode !== 0) {
-      throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
+      throw new Error(`${ERR_SYSTEM}: Command '${fullCmd}' failed with exit code ${exitCode}`);
     }
     core.info(`✓ All agentic workflows have been ${operation}d`);
     return;
@@ -72,7 +73,7 @@ async function main() {
   core.info(`Running: ${fullCmd}`);
   const exitCode = await exec.exec(bin, [...prefixArgs, operation]);
   if (exitCode !== 0) {
-    throw new Error(`Command '${fullCmd}' failed with exit code ${exitCode}`);
+    throw new Error(`${ERR_SYSTEM}: Command '${fullCmd}' failed with exit code ${exitCode}`);
   }
 
   // Check for changed files
@@ -154,7 +155,7 @@ async function main() {
   const repo = context.repo.repo;
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   if (!token) {
-    throw new Error("Missing GitHub token: set GH_TOKEN or GITHUB_TOKEN to push changes and create a pull request for agentic workflow update/upgrade operations.");
+    throw new Error(`${ERR_CONFIG}: Missing GitHub token: set GH_TOKEN or GITHUB_TOKEN to push changes and create a pull request for agentic workflow update/upgrade operations.`);
   }
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   let githubHost;

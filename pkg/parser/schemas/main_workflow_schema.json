@@ -1449,6 +1449,44 @@
               "type": "boolean",
               "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link and updates it on completion. When false or not specified, no status comments are posted. Must be explicitly set to true to enable status comments - there is no automatic bundling with ai-reaction.",
               "examples": [true, false]
+            },
+            "github-token": {
+              "type": "string",
+              "description": "Custom GitHub token to use for pre-activation reactions and activation status comments. When specified, overrides the default GITHUB_TOKEN for these operations.",
+              "examples": ["${{ secrets.MY_GITHUB_TOKEN }}"]
+            },
+            "github-app": {
+              "type": "object",
+              "description": "GitHub App configuration for minting a token used in pre-activation reactions and activation status comments. When configured, a GitHub App installation access token is minted and used instead of the default GITHUB_TOKEN.",
+              "properties": {
+                "app-id": {
+                  "type": "string",
+                  "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token."
+                },
+                "private-key": {
+                  "type": "string",
+                  "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to mint a GitHub App token."
+                },
+                "owner": {
+                  "type": "string",
+                  "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"
+                },
+                "repositories": {
+                  "type": "array",
+                  "description": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["app-id", "private-key"],
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "app-id": "${{ vars.APP_ID }}",
+                  "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+                }
+              ]
             }
           },
           "additionalProperties": false,

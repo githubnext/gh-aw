@@ -101,9 +101,8 @@ The activation job references text output: "${{ steps.sanitized.outputs.text }}"
 		t.Error("Activation job should have pull-requests: write permission")
 	}
 
-	// Test 6: Verify reaction step is in pre-activation job (moved for immediate feedback)
-	preActivationJobSection := extractJobSection(lockContentStr, string(constants.PreActivationJobName))
-	if !strings.Contains(preActivationJobSection, "Add eyes reaction for immediate feedback") {
-		t.Error("Pre-activation job should contain the reaction step")
+	// Test 6: Verify reaction step is in activation job (moved from pre-activation)
+	if !strings.Contains(activationJobSection, "Add eyes reaction for immediate feedback") {
+		t.Error("Activation job should contain the reaction step")
 	}
 }

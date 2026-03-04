@@ -47,17 +47,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		perms = NewPermissionsContentsRead()
 	}
 
-	// Add reaction permissions if reaction is configured (reactions added in pre-activation for immediate feedback)
-	if data.AIReaction != "" && data.AIReaction != "none" {
-		if perms == nil {
-			perms = NewPermissions()
-		}
-		// Add write permissions for reactions
-		perms.Set(PermissionIssues, PermissionWrite)
-		perms.Set(PermissionPullRequests, PermissionWrite)
-		perms.Set(PermissionDiscussions, PermissionWrite)
-	}
-
 	// Add actions: read permission if rate limiting is configured (needed to query workflow runs)
 	if data.RateLimit != nil {
 		if perms == nil {
@@ -69,29 +58,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Set permissions if any were configured
 	if perms != nil {
 		permissions = perms.RenderToYAML()
-	}
-
-	// Add reaction step immediately after setup for instant user feedback
-	// This happens BEFORE any checks, so users see progress immediately
-	if data.AIReaction != "" && data.AIReaction != "none" {
-		reactionCondition := BuildReactionCondition()
-
-		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
-		steps = append(steps, "        id: react\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-
-		// Add environment variables
-		steps = append(steps, "        env:\n")
-		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
-		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
-
-		steps = append(steps, "        with:\n")
-		// Explicitly use the GitHub Actions token (GITHUB_TOKEN) for reactions
-		// This ensures proper authentication for adding reactions
-		steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
 	}
 
 	// Add team member check if permission checks are needed
