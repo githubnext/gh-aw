@@ -230,12 +230,8 @@ func TestGenerateSafeInputJavaScriptToolScript(t *testing.T) {
 		t.Error("Script should have main execution block for subprocess execution")
 	}
 
-	if !strings.Contains(script, "process.stdin") {
-		t.Error("Script should read inputs from stdin in main block")
-	}
-
-	if !strings.Contains(script, "process.stdout.write") {
-		t.Error("Script should write result to stdout in main block")
+	if !strings.Contains(script, "require(\"./safe-inputs-runner.cjs\")(execute)") {
+		t.Error("Script should delegate to safe-inputs-runner.cjs for subprocess execution")
 	}
 }
 
