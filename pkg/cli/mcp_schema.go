@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/google/jsonschema-go/jsonschema"
 )
+
+var mcpSchemaLog = logger.New("cli:mcp_schema")
 
 // GenerateSchema generates a JSON schema from a Go struct type.
 // This is used for both MCP tool input parameters (InputSchema) and output data types.
@@ -54,6 +57,7 @@ func AddSchemaDefault(schema *jsonschema.Schema, propertyName string, value any)
 
 	prop, ok := schema.Properties[propertyName]
 	if !ok {
+		mcpSchemaLog.Printf("Schema property not found, skipping default: %s", propertyName)
 		return nil // Property doesn't exist, nothing to do
 	}
 
@@ -63,6 +67,7 @@ func AddSchemaDefault(schema *jsonschema.Schema, propertyName string, value any)
 		return fmt.Errorf("failed to marshal default value for %s: %w", propertyName, err)
 	}
 
+	mcpSchemaLog.Printf("Setting default value for schema property: %s", propertyName)
 	prop.Default = json.RawMessage(defaultBytes)
 	return nil
 }

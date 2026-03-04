@@ -5,9 +5,12 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/spf13/cobra"
 )
+
+var addWizardLog = logger.New("cli:add_wizard_command")
 
 // NewAddWizardCommand creates the add-wizard command, which is always interactive.
 func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
@@ -54,12 +57,17 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 
+			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
+
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
 
 			// add-wizard requires an interactive terminal
-			if !tty.IsStdoutTerminal() || os.Getenv("CI") != "" {
+			isTerminal := tty.IsStdoutTerminal()
+			isCIEnv := os.Getenv("CI") != ""
+			addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
+			if !isTerminal || isCIEnv {
 				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
 			}
 
