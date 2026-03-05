@@ -139,6 +139,17 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
 
           debugLog(`Strategy 1 (incremental): Fetching origin/${branchName}`);
           try {
+            // Configure git authentication using GITHUB_TOKEN and GITHUB_SERVER_URL.
+            // This ensures the fetch works on GitHub Enterprise Server (GHES) where
+            // the default credential helper may not be configured for the enterprise endpoint.
+            const githubToken = process.env.GITHUB_TOKEN;
+            const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+            if (githubToken) {
+              const tokenBase64 = Buffer.from(`x-access-token:${githubToken}`).toString("base64");
+              execGitSync(["config", "--local", `http.${githubServerUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { cwd });
+              debugLog(`Strategy 1 (incremental): Configured git auth for ${githubServerUrl}`);
+            }
+
             // Explicitly fetch origin/branchName to ensure we have the latest
             // Use "--" to prevent branch names starting with "-" from being interpreted as options
             execGitSync(["fetch", "origin", "--", `${branchName}:refs/remotes/origin/${branchName}`], { cwd });
