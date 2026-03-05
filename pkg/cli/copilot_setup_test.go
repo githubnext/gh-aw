@@ -1159,7 +1159,131 @@ jobs:
 	}
 }
 
-// TestUpgradeCopilotSetupSteps_SHAPinnedNoQuotes verifies that a full upgrade to a
+// TestUpgradeSetupCliVersionInContent_ExactPreservation verifies that
+// upgradeSetupCliVersionInContent changes ONLY the two target lines
+// (uses: and version:) and leaves every other byte of the file intact —
+// including YAML comments at all positions, blank lines, field ordering,
+// indentation, and unrelated step entries.
+func TestUpgradeSetupCliVersionInContent_ExactPreservation(t *testing.T) {
+	t.Parallel()
+
+	// A deliberately rich workflow file:
+	// - top-level comment before the name field
+	// - inline comment on the on: trigger
+	// - comment inside the jobs block
+	// - multiple steps with their own comments
+	// - a step after setup-cli with its own comment
+	// - trailing comment at end of file
+	input := `# Top-level workflow comment — must survive the upgrade.
+name: "Copilot Setup Steps"
+
+# Trigger comment: dispatched manually or on push.
+on: # inline comment on on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml # path filter comment
+
+jobs:
+  # Job-level comment that must not be lost.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    # Permission comment.
+    permissions:
+      contents: read # read-only is sufficient
+
+    steps:
+      # Step 1 comment.
+      - name: Checkout repository
+        uses: actions/checkout@v4 # pin to stable tag
+        with:
+          fetch-depth: 0 # full history
+
+      # Step 2 comment — this step should be updated.
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+          extra-param: keep-me # this param must not be touched
+
+      # Step 3 comment — must be fully preserved.
+      - name: Run something else
+        run: echo "hello" # inline run comment
+`
+
+	// Expected output: identical to input except the two target lines.
+	expected := `# Top-level workflow comment — must survive the upgrade.
+name: "Copilot Setup Steps"
+
+# Trigger comment: dispatched manually or on push.
+on: # inline comment on on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml # path filter comment
+
+jobs:
+  # Job-level comment that must not be lost.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    # Permission comment.
+    permissions:
+      contents: read # read-only is sufficient
+
+    steps:
+      # Step 1 comment.
+      - name: Checkout repository
+        uses: actions/checkout@v4 # pin to stable tag
+        with:
+          fetch-depth: 0 # full history
+
+      # Step 2 comment — this step should be updated.
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v2.0.0
+        with:
+          version: v2.0.0
+          extra-param: keep-me # this param must not be touched
+
+      # Step 3 comment — must be fully preserved.
+      - name: Run something else
+        run: echo "hello" # inline run comment
+`
+
+	upgraded, got, err := upgradeSetupCliVersionInContent([]byte(input), workflow.ActionModeRelease, "v2.0.0", nil)
+	if err != nil {
+		t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
+	}
+	if !upgraded {
+		t.Fatal("Expected upgrade to occur")
+	}
+
+	gotStr := string(got)
+	if gotStr != expected {
+		// Show a line-by-line diff to make failures easy to diagnose.
+		inputLines := strings.Split(input, "\n")
+		expectedLines := strings.Split(expected, "\n")
+		gotLines := strings.Split(gotStr, "\n")
+
+		t.Errorf("Output does not match expected (only uses: and version: lines should differ).\n")
+		for i := 0; i < len(expectedLines) || i < len(gotLines); i++ {
+			var exp, act string
+			if i < len(expectedLines) {
+				exp = expectedLines[i]
+			}
+			if i < len(gotLines) {
+				act = gotLines[i]
+			}
+			if exp != act {
+				orig := ""
+				if i < len(inputLines) {
+					orig = inputLines[i]
+				}
+				t.Errorf("  line %d:\n    input:    %q\n    expected: %q\n    got:      %q", i+1, orig, exp, act)
+			}
+		}
+	}
+}
+
 // SHA-pinned reference writes an unquoted uses: line, preserving the rest of the file.
 // Regression test for: gh aw upgrade wraps uses value in quotes including inline comment.
 func TestUpgradeCopilotSetupSteps_SHAPinnedNoQuotes(t *testing.T) {
