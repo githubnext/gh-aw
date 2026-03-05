@@ -32,6 +32,7 @@ network:
 | `containers` | Docker Hub, GHCR, Quay, GCR, MCR | Container images |
 | `java` | Maven, Gradle | Java dependencies |
 | `dotnet` | NuGet | .NET packages |
+| `julia` | pkg.julialang.org, storage.julialang.net | Julia packages |
 | `ruby` | RubyGems, Bundler | Ruby gems |
 | `rust` | crates.io | Rust crates |
 | `github` | githubusercontent.com | GitHub resources |
