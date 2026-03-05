@@ -610,6 +610,90 @@ describe("git patch integration tests", () => {
       }
     });
 
+    /**
+     * Sets GITHUB_WORKSPACE, DEFAULT_BRANCH, GITHUB_TOKEN, and GITHUB_SERVER_URL for
+     * a test, then restores the original values (or deletes them if they were unset).
+     * Returns a restore function to call in `finally`.
+     */
+    function setTestEnv(workspaceDir) {
+      const saved = {
+        GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
+        DEFAULT_BRANCH: process.env.DEFAULT_BRANCH,
+        GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+        GITHUB_SERVER_URL: process.env.GITHUB_SERVER_URL,
+      };
+      process.env.GITHUB_WORKSPACE = workspaceDir;
+      process.env.DEFAULT_BRANCH = "main";
+      process.env.GITHUB_TOKEN = "ghs_test_token_for_cleanup_verification";
+      process.env.GITHUB_SERVER_URL = "https://github.example.com";
+      return () => {
+        for (const [key, value] of Object.entries(saved)) {
+          if (value === undefined) {
+            delete process.env[key];
+          } else {
+            process.env[key] = value;
+          }
+        }
+      };
+    }
+
+    it("should remove auth extraheader from git config after a successful fetch", async () => {
+      // Set up a feature branch, push a first commit, then add a second commit so
+      // incremental mode has something new to patch.
+      execGit(["checkout", "-b", "auth-cleanup-success"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "auth.txt"), "auth test\n");
+      execGit(["add", "auth.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Auth cleanup base commit"], { cwd: workingRepo });
+      execGit(["push", "-u", "origin", "auth-cleanup-success"], { cwd: workingRepo });
+
+      // Add a second commit that will become the incremental patch
+      fs.writeFileSync(path.join(workingRepo, "auth2.txt"), "auth test 2\n");
+      execGit(["add", "auth2.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Auth cleanup new commit"], { cwd: workingRepo });
+
+      // Delete the tracking ref so generateGitPatch has to re-fetch
+      execGit(["update-ref", "-d", "refs/remotes/origin/auth-cleanup-success"], { cwd: workingRepo });
+
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitPatch("auth-cleanup-success", "main", { mode: "incremental" });
+
+        expect(result.success).toBe(true);
+
+        // Verify the extraheader was removed from git config
+        const configCheck = spawnSync("git", ["config", "--local", "--get", "http.https://github.example.com/.extraheader"], { cwd: workingRepo, encoding: "utf8" });
+        // exit status 1 means the key does not exist — that is what we want
+        expect(configCheck.status).toBe(1);
+      } finally {
+        restore();
+      }
+    });
+
+    it("should remove auth extraheader from git config even when fetch fails", async () => {
+      // Create a local-only branch (fetch will fail because it's not on origin)
+      execGit(["checkout", "-b", "auth-cleanup-failure"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "auth-fail.txt"), "auth fail test\n");
+      execGit(["add", "auth-fail.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Auth cleanup failure test commit"], { cwd: workingRepo });
+      // Do NOT push — so the fetch fails
+
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitPatch("auth-cleanup-failure", "main", { mode: "incremental" });
+
+        // The fetch must fail since origin/auth-cleanup-failure doesn't exist
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Cannot generate incremental patch");
+
+        // Verify the extraheader was removed even though the fetch failed
+        const configCheck = spawnSync("git", ["config", "--local", "--get", "http.https://github.example.com/.extraheader"], { cwd: workingRepo, encoding: "utf8" });
+        // exit status 1 means the key does not exist — that is what we want
+        expect(configCheck.status).toBe(1);
+      } finally {
+        restore();
+      }
+    });
+
     it("should include all commits in full mode even when origin/branch exists", async () => {
       // Create a feature branch with first commit
       execGit(["checkout", "-b", "full-mode-branch"], { cwd: workingRepo });
