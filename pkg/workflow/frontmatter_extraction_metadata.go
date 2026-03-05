@@ -241,12 +241,6 @@ func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) (int, error)
 	return 0, nil
 }
 
-// extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
-// This now uses the structured extraction helper for better error handling
-func extractMapFromFrontmatter(frontmatter map[string]any, key string) map[string]any {
-	return ExtractMapField(frontmatter, key)
-}
-
 // extractToolsFromFrontmatter extracts tools section from frontmatter map
 func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "tools")

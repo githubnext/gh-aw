@@ -172,47 +172,6 @@ type FrontmatterConfig struct {
 	CheckoutConfigs []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 }
 
-// unmarshalFromMap converts a value from a map[string]any to a destination variable
-// using JSON marshaling/unmarshaling for type conversion.
-// This provides cleaner error messages than manual type assertions.
-//
-// Parameters:
-//   - data: The map containing the configuration data
-//   - key: The key to extract from the map
-//   - dest: Pointer to the destination variable to unmarshal into (can be any type)
-//
-// Returns an error if:
-//   - The key doesn't exist in the map
-//   - The value cannot be marshaled to JSON
-//   - The JSON cannot be unmarshaled into the destination type
-//
-// Example:
-//
-//	var name string
-//	err := unmarshalFromMap(frontmatter, "name", &name)
-//
-//	var tools map[string]any
-//	err := unmarshalFromMap(frontmatter, "tools", &tools)
-func unmarshalFromMap(data map[string]any, key string, dest any) error {
-	value, exists := data[key]
-	if !exists {
-		return fmt.Errorf("key '%s' not found in frontmatter", key)
-	}
-
-	// Use JSON as intermediate format for type conversion
-	// This handles nested maps, arrays, and complex structures cleanly
-	jsonBytes, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("failed to marshal '%s' to JSON: %w", key, err)
-	}
-
-	if err := json.Unmarshal(jsonBytes, dest); err != nil {
-		return fmt.Errorf("failed to unmarshal '%s' into destination type: %w", key, err)
-	}
-
-	return nil
-}
-
 // ParseFrontmatterConfig creates a FrontmatterConfig from a raw frontmatter map
 // This provides a single entry point for converting untyped frontmatter into
 // a structured configuration with better error handling.

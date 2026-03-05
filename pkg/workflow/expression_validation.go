@@ -368,12 +368,6 @@ func containsExpression(list *[]string, expr string) bool {
 	return slices.Contains(*list, expr)
 }
 
-// ValidateExpressionSafetyPublic is a public wrapper for validateExpressionSafety
-// that allows testing expression validation from external packages
-func ValidateExpressionSafetyPublic(markdownContent string) error {
-	return validateExpressionSafety(markdownContent)
-}
-
 // extractRuntimeImportPaths extracts all runtime-import file paths from markdown content.
 // Returns a list of file paths (not URLs) referenced in {{#runtime-import}} macros.
 // URLs (http:// or https://) are excluded since they are validated separately.

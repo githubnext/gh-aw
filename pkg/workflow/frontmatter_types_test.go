@@ -3,127 +3,8 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 )
-
-func TestUnmarshalFromMap(t *testing.T) {
-	t.Run("extracts simple string field", func(t *testing.T) {
-		data := map[string]any{
-			"name": "test-workflow",
-		}
-
-		var result string
-
-		err := unmarshalFromMap(data, "name", &result)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-
-		if result != "test-workflow" {
-			t.Errorf("got %q, want %q", result, "test-workflow")
-		}
-	})
-
-	t.Run("extracts nested map", func(t *testing.T) {
-		data := map[string]any{
-			"tools": map[string]any{
-				"bash": map[string]any{
-					"enabled": true,
-					"timeout": 300,
-				},
-			},
-		}
-
-		var result map[string]any
-		err := unmarshalFromMap(data, "tools", &result)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-
-		if result == nil {
-			t.Fatal("result is nil")
-		}
-
-		bash, ok := result["bash"].(map[string]any)
-		if !ok {
-			t.Fatal("bash tool not found or wrong type")
-		}
-
-		if bash["enabled"] != true {
-			t.Errorf("bash.enabled = %v, want true", bash["enabled"])
-		}
-	})
-
-	t.Run("returns error for missing key", func(t *testing.T) {
-		data := map[string]any{
-			"name": "test",
-		}
-
-		var result string
-
-		err := unmarshalFromMap(data, "missing", &result)
-		if err == nil {
-			t.Error("expected error for missing key, got nil")
-		}
-
-		if !strings.Contains(err.Error(), "not found") {
-			t.Errorf("error should mention 'not found', got: %v", err)
-		}
-	})
-
-	t.Run("handles numeric types", func(t *testing.T) {
-		data := map[string]any{
-			"timeout": 42,
-			"count":   int64(100),
-			"ratio":   3.14,
-		}
-
-		var timeout int
-		if err := unmarshalFromMap(data, "timeout", &timeout); err != nil {
-			t.Errorf("timeout unmarshal error: %v", err)
-		}
-		if timeout != 42 {
-			t.Errorf("timeout = %d, want 42", timeout)
-		}
-
-		var count int64
-		if err := unmarshalFromMap(data, "count", &count); err != nil {
-			t.Errorf("count unmarshal error: %v", err)
-		}
-		if count != 100 {
-			t.Errorf("count = %d, want 100", count)
-		}
-
-		var ratio float64
-		if err := unmarshalFromMap(data, "ratio", &ratio); err != nil {
-			t.Errorf("ratio unmarshal error: %v", err)
-		}
-		if ratio != 3.14 {
-			t.Errorf("ratio = %f, want 3.14", ratio)
-		}
-	})
-
-	t.Run("handles arrays", func(t *testing.T) {
-		data := map[string]any{
-			"items": []any{"a", "b", "c"},
-		}
-
-		var items []string
-		err := unmarshalFromMap(data, "items", &items)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-
-		if len(items) != 3 {
-			t.Errorf("got %d items, want 3", len(items))
-		}
-
-		if items[0] != "a" || items[1] != "b" || items[2] != "c" {
-			t.Errorf("got %v, want [a b c]", items)
-		}
-	})
-}
 
 func TestParseFrontmatterConfig(t *testing.T) {
 	t.Run("parses minimal workflow config", func(t *testing.T) {
@@ -467,7 +348,7 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 	// This test ensures that the new structured types work with existing
 	// frontmatter extraction patterns used throughout the codebase
 
-	t.Run("compatible with extractMapFromFrontmatter pattern", func(t *testing.T) {
+	t.Run("compatible with ExtractMapField pattern", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"tools": map[string]any{
 				"bash": map[string]any{
@@ -476,8 +357,8 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 			},
 		}
 
-		// Old pattern: extractMapFromFrontmatter
-		oldResult := extractMapFromFrontmatter(frontmatter, "tools")
+		// Old pattern: ExtractMapField
+		oldResult := ExtractMapField(frontmatter, "tools")
 
 		// New pattern: Parse then access field
 		config, err := ParseFrontmatterConfig(frontmatter)
