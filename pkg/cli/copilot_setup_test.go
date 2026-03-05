@@ -1010,103 +1010,367 @@ jobs:
 	}
 }
 
-// TestUpgradeSetupCliVersion tests the upgradeSetupCliVersion helper function
-func TestUpgradeSetupCliVersion(t *testing.T) {
+// TestUpgradeSetupCliVersionInContent tests the regex-based content upgrade helper.
+func TestUpgradeSetupCliVersionInContent(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
-		workflow      *Workflow
+		content       string
 		actionMode    workflow.ActionMode
 		version       string
+		resolver      workflow.ActionSHAResolver
 		expectUpgrade bool
-		expectError   bool
-		validateFunc  func(*testing.T, *Workflow)
+		validate      func(*testing.T, string)
 	}{
 		{
-			name: "upgrades release mode version",
-			workflow: &Workflow{
-				Jobs: map[string]WorkflowJob{
-					"copilot-setup-steps": {
-						Steps: []CopilotWorkflowStep{
-							{
-								Name: "Checkout",
-								Uses: "actions/checkout@v4",
-							},
-							{
-								Name: "Install gh-aw",
-								Uses: "github/gh-aw/actions/setup-cli@v1.0.0",
-								With: map[string]any{"version": "v1.0.0"},
-							},
-						},
-					},
-				},
-			},
+			name: "upgrades version-tag ref",
+			content: `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+`,
 			actionMode:    workflow.ActionModeRelease,
 			version:       "v2.0.0",
+			resolver:      nil,
 			expectUpgrade: true,
-			expectError:   false,
-			validateFunc: func(t *testing.T, wf *Workflow) {
-				job := wf.Jobs["copilot-setup-steps"]
-				installStep := job.Steps[1]
-				if !strings.Contains(installStep.Uses, "@v2.0.0") {
-					t.Errorf("Expected Uses to contain @v2.0.0, got: %s", installStep.Uses)
+			validate: func(t *testing.T, got string) {
+				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v2.0.0") {
+					t.Errorf("Expected updated uses: line, got:\n%s", got)
 				}
-				if installStep.With["version"] != "v2.0.0" {
-					t.Errorf("Expected version to be v2.0.0, got: %v", installStep.With["version"])
+				if !strings.Contains(got, "version: v2.0.0") {
+					t.Errorf("Expected updated version: parameter, got:\n%s", got)
+				}
+				if strings.Contains(got, "v1.0.0") {
+					t.Errorf("Old version v1.0.0 should be gone, got:\n%s", got)
+				}
+				// File structure must be preserved (comment line, on: key, etc.)
+				if !strings.Contains(got, "on: workflow_dispatch") {
+					t.Errorf("Expected on: field to be preserved, got:\n%s", got)
 				}
 			},
 		},
 		{
-			name: "no upgrade when no setup-cli action",
-			workflow: &Workflow{
-				Jobs: map[string]WorkflowJob{
-					"copilot-setup-steps": {
-						Steps: []CopilotWorkflowStep{
-							{
-								Name: "Some step",
-								Run:  "echo test",
-							},
-						},
-					},
-				},
-			},
+			name: "upgrades SHA-pinned ref and produces unquoted uses: value",
+			content: `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+`,
 			actionMode:    workflow.ActionModeRelease,
 			version:       "v2.0.0",
-			expectUpgrade: false,
-			expectError:   false,
+			resolver:      &mockSHAResolver{sha: "bd9c0ca491e6334a2797ef56ad6ee89958d54ab9"},
+			expectUpgrade: true,
+			validate: func(t *testing.T, got string) {
+				want := "uses: github/gh-aw/actions/setup-cli@bd9c0ca491e6334a2797ef56ad6ee89958d54ab9 # v2.0.0"
+				if !strings.Contains(got, want) {
+					t.Errorf("Expected unquoted SHA-pinned uses: line %q, got:\n%s", want, got)
+				}
+				// Confirm NO quoted form is present
+				if strings.Contains(got, `uses: "github/gh-aw`) {
+					t.Errorf("uses: value must not be quoted, got:\n%s", got)
+				}
+				if !strings.Contains(got, "version: v2.0.0") {
+					t.Errorf("Expected updated version: parameter, got:\n%s", got)
+				}
+			},
 		},
 		{
-			name: "error when job not found",
-			workflow: &Workflow{
-				Jobs: map[string]WorkflowJob{
-					"other-job": {
-						Steps: []CopilotWorkflowStep{},
-					},
-				},
-			},
+			name: "strips existing quotes from uses: value",
+			content: `jobs:
+  copilot-setup-steps:
+    steps:
+      - name: Install gh-aw extension
+        uses: "github/gh-aw/actions/setup-cli@oldsha # v0.53.2"
+        with:
+          version: v0.53.2
+`,
 			actionMode:    workflow.ActionModeRelease,
 			version:       "v2.0.0",
+			resolver:      nil,
+			expectUpgrade: true,
+			validate: func(t *testing.T, got string) {
+				if strings.Contains(got, `"github/gh-aw`) {
+					t.Errorf("Quotes must be stripped from uses: value, got:\n%s", got)
+				}
+				if !strings.Contains(got, "uses: github/gh-aw/actions/setup-cli@v2.0.0") {
+					t.Errorf("Expected updated unquoted uses: line, got:\n%s", got)
+				}
+				if !strings.Contains(got, "version: v2.0.0") {
+					t.Errorf("Expected version: to be updated to v2.0.0, got:\n%s", got)
+				}
+			},
+		},
+		{
+			name: "no upgrade when no setup-cli step",
+			content: `jobs:
+  copilot-setup-steps:
+    steps:
+      - run: echo hello
+`,
+			actionMode:    workflow.ActionModeRelease,
+			version:       "v2.0.0",
+			resolver:      nil,
 			expectUpgrade: false,
-			expectError:   true,
+		},
+		{
+			name: "no upgrade in dev mode",
+			content: `jobs:
+  copilot-setup-steps:
+    steps:
+      - uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+`,
+			actionMode:    workflow.ActionModeDev,
+			version:       "v2.0.0",
+			resolver:      nil,
+			expectUpgrade: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			upgraded, err := upgradeSetupCliVersion(tt.workflow, tt.actionMode, tt.version, nil)
-
-			if (err != nil) != tt.expectError {
-				t.Errorf("upgradeSetupCliVersion() error = %v, expectError %v", err, tt.expectError)
-				return
+			upgraded, got, err := upgradeSetupCliVersionInContent([]byte(tt.content), tt.actionMode, tt.version, tt.resolver)
+			if err != nil {
+				t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
 			}
-
 			if upgraded != tt.expectUpgrade {
-				t.Errorf("upgradeSetupCliVersion() upgraded = %v, expectUpgrade %v", upgraded, tt.expectUpgrade)
+				t.Errorf("upgraded = %v, want %v", upgraded, tt.expectUpgrade)
 			}
-
-			if tt.validateFunc != nil && !tt.expectError {
-				tt.validateFunc(t, tt.workflow)
+			if tt.validate != nil {
+				tt.validate(t, string(got))
 			}
 		})
+	}
+}
+
+// TestUpgradeSetupCliVersionInContent_ExactPreservation verifies that
+// upgradeSetupCliVersionInContent changes ONLY the two target lines
+// (uses: and version:) and leaves every other byte of the file intact —
+// including YAML comments at all positions, blank lines, field ordering,
+// indentation, and unrelated step entries.
+func TestUpgradeSetupCliVersionInContent_ExactPreservation(t *testing.T) {
+	t.Parallel()
+
+	// A deliberately rich workflow file:
+	// - top-level comment before the name field
+	// - inline comment on the on: trigger
+	// - comment inside the jobs block
+	// - multiple steps with their own comments
+	// - a step after setup-cli with its own comment
+	// - trailing comment at end of file
+	input := `# Top-level workflow comment — must survive the upgrade.
+name: "Copilot Setup Steps"
+
+# Trigger comment: dispatched manually or on push.
+on: # inline comment on on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml # path filter comment
+
+jobs:
+  # Job-level comment that must not be lost.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    # Permission comment.
+    permissions:
+      contents: read # read-only is sufficient
+
+    steps:
+      # Step 1 comment.
+      - name: Checkout repository
+        uses: actions/checkout@v4 # pin to stable tag
+        with:
+          fetch-depth: 0 # full history
+
+      # Step 2 comment — this step should be updated.
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+          extra-param: keep-me # this param must not be touched
+
+      # Step 3 comment — must be fully preserved.
+      - name: Run something else
+        run: echo "hello" # inline run comment
+`
+
+	// Expected output: identical to input except the two target lines.
+	expected := `# Top-level workflow comment — must survive the upgrade.
+name: "Copilot Setup Steps"
+
+# Trigger comment: dispatched manually or on push.
+on: # inline comment on on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml # path filter comment
+
+jobs:
+  # Job-level comment that must not be lost.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    # Permission comment.
+    permissions:
+      contents: read # read-only is sufficient
+
+    steps:
+      # Step 1 comment.
+      - name: Checkout repository
+        uses: actions/checkout@v4 # pin to stable tag
+        with:
+          fetch-depth: 0 # full history
+
+      # Step 2 comment — this step should be updated.
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v2.0.0
+        with:
+          version: v2.0.0
+          extra-param: keep-me # this param must not be touched
+
+      # Step 3 comment — must be fully preserved.
+      - name: Run something else
+        run: echo "hello" # inline run comment
+`
+
+	upgraded, got, err := upgradeSetupCliVersionInContent([]byte(input), workflow.ActionModeRelease, "v2.0.0", nil)
+	if err != nil {
+		t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
+	}
+	if !upgraded {
+		t.Fatal("Expected upgrade to occur")
+	}
+
+	gotStr := string(got)
+	if gotStr != expected {
+		// Show a line-by-line diff to make failures easy to diagnose.
+		inputLines := strings.Split(input, "\n")
+		expectedLines := strings.Split(expected, "\n")
+		gotLines := strings.Split(gotStr, "\n")
+
+		t.Errorf("Output does not match expected (only uses: and version: lines should differ).\n")
+		for i := 0; i < len(expectedLines) || i < len(gotLines); i++ {
+			var exp, act string
+			if i < len(expectedLines) {
+				exp = expectedLines[i]
+			}
+			if i < len(gotLines) {
+				act = gotLines[i]
+			}
+			if exp != act {
+				orig := ""
+				if i < len(inputLines) {
+					orig = inputLines[i]
+				}
+				t.Errorf("  line %d:\n    input:    %q\n    expected: %q\n    got:      %q", i+1, orig, exp, act)
+			}
+		}
+	}
+}
+
+// SHA-pinned reference writes an unquoted uses: line, preserving the rest of the file.
+// Regression test for: gh aw upgrade wraps uses value in quotes including inline comment.
+func TestUpgradeCopilotSetupSteps_SHAPinnedNoQuotes(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Pre-existing file with a version-tagged reference and extra comments/fields
+	// that must be preserved unchanged.
+	existingContent := `name: "Copilot Setup Steps"
+
+# This workflow configures the environment for GitHub Copilot Agent
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+`
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// upgradeSetupCliVersionInContent with a SHA resolver — the result must be unquoted
+	sha := "bd9c0ca491e6334a2797ef56ad6ee89958d54ab9"
+	resolver := &mockSHAResolver{sha: sha}
+	upgraded, updated, err := upgradeSetupCliVersionInContent([]byte(existingContent), workflow.ActionModeRelease, "v2.0.0", resolver)
+	if err != nil {
+		t.Fatalf("upgradeSetupCliVersionInContent() error: %v", err)
+	}
+	if !upgraded {
+		t.Fatal("Expected upgrade to occur")
+	}
+
+	updatedStr := string(updated)
+
+	// The uses: line must be unquoted
+	wantUses := "uses: github/gh-aw/actions/setup-cli@" + sha + " # v2.0.0"
+	if !strings.Contains(updatedStr, wantUses) {
+		t.Errorf("Expected unquoted uses: line %q, got:\n%s", wantUses, updatedStr)
+	}
+	if strings.Contains(updatedStr, `uses: "github/gh-aw`) {
+		t.Errorf("uses: value must not be quoted, got:\n%s", updatedStr)
+	}
+
+	// version: parameter updated
+	if !strings.Contains(updatedStr, "version: v2.0.0") {
+		t.Errorf("Expected version: v2.0.0, got:\n%s", updatedStr)
+	}
+
+	// All other content must be preserved exactly
+	for _, preserved := range []string{
+		`# This workflow configures the environment for GitHub Copilot Agent`,
+		`workflow_dispatch:`,
+		`- .github/workflows/copilot-setup-steps.yml`,
+		`permissions:`,
+		`contents: read`,
+		`uses: actions/checkout@v4`,
+	} {
+		if !strings.Contains(updatedStr, preserved) {
+			t.Errorf("Expected content %q to be preserved, got:\n%s", preserved, updatedStr)
+		}
 	}
 }
 
@@ -1156,42 +1420,5 @@ func TestGetActionRef(t *testing.T) {
 				t.Errorf("getActionRef() = %q, want %q", ref, tt.expectedRef)
 			}
 		})
-	}
-}
-
-// TestUpgradeSetupCliVersion_WithSHAResolver tests SHA-pinned upgrade with a mock resolver
-func TestUpgradeSetupCliVersion_WithSHAResolver(t *testing.T) {
-	resolver := &mockSHAResolver{sha: "abc1234567890123456789012345678901234567890"}
-	wf := &Workflow{
-		Jobs: map[string]WorkflowJob{
-			"copilot-setup-steps": {
-				Steps: []CopilotWorkflowStep{
-					{
-						Name: "Install gh-aw",
-						Uses: "github/gh-aw/actions/setup-cli@v1.0.0",
-						With: map[string]any{"version": "v1.0.0"},
-					},
-				},
-			},
-		},
-	}
-
-	upgraded, err := upgradeSetupCliVersion(wf, workflow.ActionModeRelease, "v2.0.0", resolver)
-	if err != nil {
-		t.Fatalf("upgradeSetupCliVersion() error: %v", err)
-	}
-	if !upgraded {
-		t.Fatal("Expected upgrade to occur")
-	}
-
-	job := wf.Jobs["copilot-setup-steps"]
-	installStep := job.Steps[0]
-	// SHA-pinned reference should be used
-	expectedUses := "github/gh-aw/actions/setup-cli@abc1234567890123456789012345678901234567890 # v2.0.0"
-	if installStep.Uses != expectedUses {
-		t.Errorf("Expected Uses = %q, got: %q", expectedUses, installStep.Uses)
-	}
-	if installStep.With["version"] != "v2.0.0" {
-		t.Errorf("Expected version to be v2.0.0, got: %v", installStep.With["version"])
 	}
 }

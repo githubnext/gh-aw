@@ -329,7 +329,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[deps]\". Labels [dependencies go cookie] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[deps]\". Labels [\"dependencies\" \"go\" \"cookie\"] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {

@@ -623,12 +623,21 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 
 		// Check if it's because there are no artifacts
 		if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {
-			// Clean up empty directory
-			if err := os.RemoveAll(outputDir); err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, err)))
-			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", runID)))
+			}
+			// Even with no artifacts, attempt to download workflow run logs so that
+			// pre-agent step failures (e.g., activation job errors) can be diagnosed.
+			if logErr := downloadWorkflowRunLogs(runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
+				}
+				// Clean up empty directory only if logs download also produced nothing
+				if fileutil.IsDirEmpty(outputDir) {
+					if removeErr := os.RemoveAll(outputDir); removeErr != nil && verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, removeErr)))
+					}
+				}
 			}
 			return ErrNoArtifacts
 		}

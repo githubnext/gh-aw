@@ -1,15 +1,15 @@
 package cli
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
-	"github.com/goccy/go-yaml"
 )
 
 var copilotSetupLog = logger.New("cli:copilot_setup")
@@ -197,14 +197,7 @@ func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.Action
 		if (hasLegacyInstall || hasActionInstall) && upgradeVersion {
 			copilotSetupLog.Print("Extension install step exists, attempting version upgrade (upgrade command)")
 
-			// Parse existing workflow
-			var workflow Workflow
-			if err := yaml.Unmarshal(content, &workflow); err != nil {
-				return fmt.Errorf("failed to parse existing copilot-setup-steps.yml: %w", err)
-			}
-
-			// Upgrade the version in existing steps
-			upgraded, err := upgradeSetupCliVersion(&workflow, actionMode, version, resolver)
+			upgraded, updatedContent, err := upgradeSetupCliVersionInContent(content, actionMode, version, resolver)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
 			}
@@ -215,12 +208,6 @@ func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.Action
 					fmt.Fprintf(os.Stderr, "No version upgrade needed for %s\n", setupStepsPath)
 				}
 				return nil
-			}
-
-			// Marshal back to YAML
-			updatedContent, err := yaml.Marshal(&workflow)
-			if err != nil {
-				return fmt.Errorf("failed to marshal updated workflow: %w", err)
 			}
 
 			if err := os.WriteFile(setupStepsPath, updatedContent, 0600); err != nil {
@@ -287,48 +274,45 @@ func renderCopilotSetupUpdateInstructions(filePath string, actionMode workflow.A
 	fmt.Fprintln(os.Stderr)
 }
 
-// upgradeSetupCliVersion upgrades the version in existing actions/setup-cli steps
-// Returns true if any upgrades were made, false otherwise
-func upgradeSetupCliVersion(workflow *Workflow, actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) (bool, error) {
-	copilotSetupLog.Printf("Upgrading setup-cli version to %s with action mode: %s", version, actionMode)
+// setupCliUsesPattern matches the uses: line for github/gh-aw/actions/setup-cli.
+// It handles unquoted version-tag refs, unquoted SHA-pinned refs (with trailing comment),
+// and quoted refs produced by some YAML marshalers (e.g. "...@sha # vX.Y.Z").
+var setupCliUsesPattern = regexp.MustCompile(
+	`(?m)^(\s+uses:[ \t]*)"?(github/gh-aw/actions/setup-cli@[^"\n]*)"?([ \t]*)$`)
 
-	// Find the copilot-setup-steps job
-	job, exists := workflow.Jobs["copilot-setup-steps"]
-	if !exists {
-		return false, errors.New("copilot-setup-steps job not found in workflow")
+// upgradeSetupCliVersionInContent replaces the setup-cli action reference and the
+// associated version: parameter in the raw YAML content using targeted regex
+// substitutions, preserving all other formatting in the file.
+//
+// Returns (upgraded, updatedContent, error).  upgraded is false when no change
+// was required (e.g. already at the target version, or file has no setup-cli step).
+func upgradeSetupCliVersionInContent(content []byte, actionMode workflow.ActionMode, version string, resolver workflow.ActionSHAResolver) (bool, []byte, error) {
+	if !actionMode.IsRelease() {
+		return false, content, nil
 	}
 
-	upgraded := false
+	if !setupCliUsesPattern.Match(content) {
+		return false, content, nil
+	}
+
 	actionRef := getActionRef(actionMode, version, resolver)
+	newUses := "github/gh-aw/actions/setup-cli" + actionRef
 
-	// Iterate through steps and update any actions/setup-cli steps
-	for i := range job.Steps {
-		step := &job.Steps[i]
+	// Replace the uses: line, stripping any surrounding quotes in the process.
+	updated := setupCliUsesPattern.ReplaceAll(content, []byte("${1}"+newUses+"${3}"))
 
-		// Check if this is a setup-cli action step
-		if step.Uses != "" && strings.Contains(step.Uses, "actions/setup-cli") {
-			// Update the action reference
-			oldUses := step.Uses
-			if actionMode.IsRelease() {
-				// Update to the new version tag
-				newUses := "github/gh-aw/actions/setup-cli" + actionRef
-				step.Uses = newUses
+	// Replace the version: value in the with: block immediately following the
+	// setup-cli uses: line.  A combined multiline match is used so that only the
+	// version: parameter belonging to this specific step is updated.
+	// This pattern cannot be pre-compiled at package level because it embeds
+	// the runtime value newUses (which varies with version and resolver output).
+	escapedNewUses := regexp.QuoteMeta(newUses)
+	versionInWithPattern := regexp.MustCompile(
+		`(?s)(uses:[ \t]*` + escapedNewUses + `[^\n]*\n(?:[^\n]*\n)*?[ \t]+with:[ \t]*\n(?:[^\n]*\n)*?[ \t]+version:[ \t]*)(\S+)([ \t]*(?:\n|$))`)
+	updated = versionInWithPattern.ReplaceAll(updated, []byte("${1}"+version+"${3}"))
 
-				// Update the with.version parameter
-				if step.With == nil {
-					step.With = make(map[string]any)
-				}
-				step.With["version"] = version
-
-				copilotSetupLog.Printf("Upgraded setup-cli action from %s to %s", oldUses, newUses)
-				upgraded = true
-			}
-		}
+	if bytes.Equal(content, updated) {
+		return false, content, nil
 	}
-
-	if upgraded {
-		workflow.Jobs["copilot-setup-steps"] = job
-	}
-
-	return upgraded, nil
+	return true, updated, nil
 }

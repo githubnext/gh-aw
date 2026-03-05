@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Handle create_pull_request permission errors
@@ -56,34 +57,40 @@ async function main() {
 
   // Search for existing issue with the same title
   const searchQuery = "repo:" + owner + "/" + repo + ' is:issue is:open in:title "' + issueTitle + '"';
-  const searchResult = await github.rest.search.issuesAndPullRequests({
-    q: searchQuery,
-    per_page: 1,
-  });
 
-  if (searchResult.data.total_count > 0) {
-    const existingIssue = searchResult.data.items[0];
-    core.info("Issue already exists: #" + existingIssue.number);
+  try {
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 1,
+    });
 
-    // Add a comment with run details
-    const commentBody = sanitizeContent("This error occurred again in workflow run: " + runUrl);
-    await github.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: existingIssue.number,
-      body: commentBody,
-    });
-    core.info("Added comment to existing issue #" + existingIssue.number);
-  } else {
-    // Create new issue
-    const { data: issue } = await github.rest.issues.create({
-      owner,
-      repo,
-      title: issueTitle,
-      body: sanitizeContent(issueBody),
-      labels: ["agentic-workflows", "configuration"],
-    });
-    core.info("Created issue #" + issue.number + ": " + issue.html_url);
+    if (searchResult.data.total_count > 0) {
+      const existingIssue = searchResult.data.items[0];
+      core.info("Issue already exists: #" + existingIssue.number);
+
+      // Add a comment with run details
+      const commentBody = sanitizeContent("This error occurred again in workflow run: " + runUrl);
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: existingIssue.number,
+        body: commentBody,
+      });
+      core.info("Added comment to existing issue #" + existingIssue.number);
+    } else {
+      // Create new issue
+      const { data: issue } = await github.rest.issues.create({
+        owner,
+        repo,
+        title: issueTitle,
+        body: sanitizeContent(issueBody),
+        labels: ["agentic-workflows", "configuration"],
+      });
+      core.info("Created issue #" + issue.number + ": " + issue.html_url);
+    }
+  } catch (error) {
+    core.warning("Failed to create or update permission error issue: " + getErrorMessage(error));
+    // Don't fail the conclusion job if we can't report the PR creation error
   }
 }
 
