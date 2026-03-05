@@ -60,6 +60,11 @@
       "version": "v5.2.0",
       "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
     },
+    "actions/setup-node@v6.2.0": {
+      "repo": "actions/setup-node",
+      "version": "v6.2.0",
+      "sha": "6044e13b5dc448c55e2357c09f80417699197238"
+    },
     "actions/setup-node@v6.3.0": {
       "repo": "actions/setup-node",
       "version": "v6.3.0",
@@ -100,6 +105,11 @@
       "version": "v6.19.2",
       "sha": "10e90e3645eae34f1e60eeb005ba3a3d33f178e8"
     },
+    "docker/login-action@v3.7.0": {
+      "repo": "docker/login-action",
+      "version": "v3.7.0",
+      "sha": "c94ce9fb468520275223c153574b00df6fe4bcc9"
+    },
     "docker/login-action@v4": {
       "repo": "docker/login-action",
       "version": "v4",
@@ -109,6 +119,11 @@
       "repo": "docker/metadata-action",
       "version": "v5.10.0",
       "sha": "c299e40c65443455700f0fdfc63efafe5b349051"
+    },
+    "docker/setup-buildx-action@v3.12.0": {
+      "repo": "docker/setup-buildx-action",
+      "version": "v3.12.0",
+      "sha": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
     },
     "docker/setup-buildx-action@v4": {
       "repo": "docker/setup-buildx-action",
@@ -124,6 +139,11 @@
       "repo": "github/codeql-action/upload-sarif",
       "version": "v4.32.5",
       "sha": "9c6c5ab400c838ab09eec30bfeded23893cf60cc"
+    },
+    "github/stale-repos@v9.0.1": {
+      "repo": "github/stale-repos",
+      "version": "v9.0.1",
+      "sha": "86c425f3b9ad6696e3f967c7f8fa5ccc1e59a7bc"
     },
     "github/stale-repos@v9.0.2": {
       "repo": "github/stale-repos",
