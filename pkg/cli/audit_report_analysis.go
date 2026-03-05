@@ -105,7 +105,10 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 
 	// Missing tool findings
 	if len(processedRun.MissingTools) > 0 {
-		toolNames := sliceutil.Map(processedRun.MissingTools[:min(3, len(processedRun.MissingTools))], func(t MissingToolReport) string { return t.Tool })
+		toolNames := sliceutil.Map(
+			processedRun.MissingTools[:min(3, len(processedRun.MissingTools))],
+			func(t MissingToolReport) string { return t.Tool },
+		)
 		desc := "Missing tools: " + strings.Join(toolNames, ", ")
 		if len(processedRun.MissingTools) > 3 {
 			desc += fmt.Sprintf(" (and %d more)", len(processedRun.MissingTools)-3)

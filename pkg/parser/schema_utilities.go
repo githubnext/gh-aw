@@ -29,8 +29,7 @@ func filterIgnoredFields(frontmatter map[string]any) map[string]any {
 	filtered := make(map[string]any)
 	for key, value := range frontmatter {
 		// Skip ignored fields
-		ignored := slices.Contains(constants.IgnoredFrontmatterFields, key)
-		if ignored {
+		if slices.Contains(constants.IgnoredFrontmatterFields, key) {
 			schemaUtilitiesLog.Printf("Removing ignored frontmatter field: %s", key)
 		} else {
 			filtered[key] = value

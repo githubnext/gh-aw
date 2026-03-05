@@ -3,6 +3,7 @@ package fileutil
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 
@@ -20,7 +21,7 @@ func ExtractFileFromTar(data []byte, path string) ([]byte, error) {
 	entriesScanned := 0
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			tarLog.Printf("File not found in tar archive after scanning %d entries: %s", entriesScanned, path)
 			break
 		}
