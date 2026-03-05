@@ -122,8 +122,11 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 
 	// Find and filter markdown files (shared helper keeps logic in one place)
 	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
-	if err != nil || len(mdFiles) == 0 {
-		compileHelpersLog.Printf("No markdown files found in %s: %v", workflowsDir, err)
+	if err != nil {
+		return stats, fmt.Errorf("failed to find markdown files: %w", err)
+	}
+	if len(mdFiles) == 0 {
+		compileHelpersLog.Printf("No markdown files found in %s", workflowsDir)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No markdown files found in "+workflowsDir))
 		}
