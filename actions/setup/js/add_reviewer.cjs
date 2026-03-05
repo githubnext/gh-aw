@@ -57,20 +57,18 @@ async function main(config = {}) {
 
     processedCount++;
 
-    const reviewerItem = message;
-
     // Determine PR number using helper
-    const { prNumber, error } = getPullRequestNumber(reviewerItem, context);
+    const { prNumber, error } = getPullRequestNumber(message, context);
 
     if (error) {
       core.warning(error);
       return {
         success: false,
-        error: error,
+        error,
       };
     }
 
-    const requestedReviewers = reviewerItem.reviewers || [];
+    const requestedReviewers = message.reviewers || [];
     core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
 
     // Use shared helper to filter, sanitize, dedupe, and limit
@@ -80,7 +78,7 @@ async function main(config = {}) {
       core.info("No reviewers to add");
       return {
         success: true,
-        prNumber: prNumber,
+        prNumber,
         reviewersAdded: [],
         message: "No valid reviewers found",
       };
@@ -135,7 +133,7 @@ async function main(config = {}) {
 
       return {
         success: true,
-        prNumber: prNumber,
+        prNumber,
         reviewersAdded: uniqueReviewers,
       };
     } catch (error) {
