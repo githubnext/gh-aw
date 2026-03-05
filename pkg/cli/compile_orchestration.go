@@ -209,14 +209,11 @@ func compileAllFilesInDirectory(
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Scanning for markdown files in "+workflowsDir))
 	}
 
-	// Find all markdown files
-	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Find and filter markdown files (shared helper keeps logic in one place)
+	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find markdown files: %w", err)
 	}
-
-	// Filter out README.md files
-	mdFiles = filterWorkflowFiles(mdFiles)
 
 	if len(mdFiles) == 0 {
 		return nil, fmt.Errorf("no markdown files found in %s", workflowsDir)

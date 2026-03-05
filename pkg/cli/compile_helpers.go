@@ -120,17 +120,10 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	// Track compilation statistics
 	stats := &CompilationStats{}
 
-	// Find all markdown files
-	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
-	if err != nil {
-		return stats, fmt.Errorf("failed to find markdown files: %w", err)
-	}
-
-	// Filter out README.md files
-	mdFiles = filterWorkflowFiles(mdFiles)
-
-	if len(mdFiles) == 0 {
-		compileHelpersLog.Printf("No markdown files found in %s", workflowsDir)
+	// Find and filter markdown files (shared helper keeps logic in one place)
+	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
+	if err != nil || len(mdFiles) == 0 {
+		compileHelpersLog.Printf("No markdown files found in %s: %v", workflowsDir, err)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No markdown files found in "+workflowsDir))
 		}
@@ -158,36 +151,11 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
-	// Save the action cache after all compilations
+	// Save action cache and update .gitattributes (shared post-compile helpers)
 	actionCache := compiler.GetSharedActionCache()
-	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
 	successCount := stats.Total - stats.Errors
-
-	if actionCache != nil {
-		if err := actionCache.Save(); err != nil {
-			compileHelpersLog.Printf("Failed to save action cache: %v", err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
-			}
-		} else {
-			compileHelpersLog.Print("Action cache saved successfully")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Action cache saved to "+actionCache.GetCachePath()))
-			}
-		}
-	}
-
-	// Ensure .gitattributes marks .lock.yml files as generated
-	// Only update if we successfully compiled workflows or have action cache entries
-	if successCount > 0 || hasActionCacheEntries {
-		if err := ensureGitAttributes(); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
-			}
-		}
-	} else {
-		compileHelpersLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
-	}
+	_ = saveActionCache(actionCache, verbose)
+	_ = updateGitAttributes(successCount, actionCache, verbose)
 
 	return stats, nil
 }
