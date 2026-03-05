@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.5
-**Last Updated**: 2026-03-04
+**Version**: 3.6
+**Last Updated**: 2026-03-05
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2120,6 +2120,8 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v3.6 (2026-03-05): Fixed 2 tone issues — removed "seamlessly" from guard-policies-specification.md:307 and "robust" from pr-checkout-logic-explained.md:56. Coverage: 63 spec files (62 spec + 1 test artifact).
+- v3.5 (2026-03-04): Fixed 3 tone issues — "Easy to add policies" → "Supports adding policies" (guard-policies-specification.md:286), "Easy to add new servers" → "New servers and policy types can be added without structural changes" (guard-policies-specification.md:302), "Easy to understand and follow" → "Consistent, well-documented for straightforward implementation" (engine-review-summary.md:282). Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.4 (2026-03-01): Added Package Structure section to Core Architecture (from `architecture.md`, updated 2026-03-01); added GitHub MCP Guard Policies section to MCP Integration (from `guard-policies-specification.md`); added 2 new Related Documentation links. Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.3 (2026-02-28): Maintenance review — analyzed 62 files; 0 tone issues, 0 formatting issues, 0 new spec files found. HEAD commit (980b021, 'Fix: multi-line block scalar descriptions in safe-inputs script generators') brought clean scratchpad files: all `` ```text `` fences are legitimate opening fences for plain text blocks, not non-standard closers. Coverage remains 100% (61 spec files + 1 test artifact).
 - v3.2 (2026-02-27): Fixed 42 non-standard code fence closing markers across 12 spec files (`` ```text `` and `` ```yaml `` incorrectly used as closing fences in actions.md, code-organization.md, github-actions-security-best-practices.md, and 9 others); identified 1 new test artifact file (smoke-test-22422877284.md) as non-spec content
