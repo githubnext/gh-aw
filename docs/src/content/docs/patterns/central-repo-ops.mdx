@@ -350,6 +350,35 @@ jobs:
 > [!TIP]
 > Use `secrets: inherit` to forward all repository secrets to the called workflow automatically. If you prefer explicit control, list each secret under `secrets:` in the `uses` block.
 
+### Calling the Orchestrator from Another Repository
+
+The trigger file can also live in a **different repository** — for example, inside each target repo — and call back into the orchestrator in the central control repository. This lets individual repositories decide *when* to request a rollout without requiring direct access to the central repo.
+
+```yaml title=".github/workflows/request-dependabot-rollout.yml"
+name: Request Dependabot Rollout
+
+on:
+  # Trigger when a maintainer labels the repo for rollout
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    # Call the orchestrator workflow in the central control repo
+    uses: my-org/central-ops/.github/workflows/dependabot-rollout-orchestrator.lock.yml@main
+    with:
+      reason: "${{ github.event_name }} in ${{ github.repository }}"
+    secrets:
+      GH_AW_READ_ORG_TOKEN: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
+```
+
+> [!NOTE]
+> Cross-repository `workflow_call` requires the caller and the callee to be in the **same organization**. The called workflow's `on.workflow_call` section must be present (added in the orchestrator step above). The caller must have access to any secrets it forwards.
+
+> [!WARNING]
+> Cross-repository calls do not support `secrets: inherit`. You must explicitly list each secret forwarded from the calling repository.
+
 ### Trade-offs: Schedule Only vs Trigger File
 
 | | Schedule only | Trigger file + `workflow_call` |
