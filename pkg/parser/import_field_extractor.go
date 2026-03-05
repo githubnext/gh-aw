@@ -79,9 +79,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// Track import path for runtime-import macro generation (only if no inputs).
 	// Imports with inputs must be inlined for compile-time substitution.
 	// Extract relative path from repository root (from .github/ onwards).
+	//
+	// Use LastIndex so that when the repo itself is named ".github" (path like
+	// "/root/.github/.github/workflows/file.md"), we find the actual .github
+	// workflows directory rather than the repo root directory.
 	var importRelPath string
 	normalizedFullPath := filepath.ToSlash(item.fullPath)
-	if idx := strings.Index(normalizedFullPath, "/.github/"); idx >= 0 {
+	if idx := strings.LastIndex(normalizedFullPath, "/.github/"); idx >= 0 {
 		importRelPath = normalizedFullPath[idx+1:] // +1 to skip the leading slash
 	} else if strings.HasPrefix(normalizedFullPath, ".github/") {
 		// Relative path already starting with ".github/" — use as-is.
