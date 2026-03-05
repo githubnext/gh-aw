@@ -143,7 +143,13 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	for _, file := range mdFiles {
 		// Resolve to absolute path so that runtime-import macros and dispatch-workflow
 		// input extraction work correctly regardless of the caller's working directory.
-		if absFile, err := filepath.Abs(file); err == nil {
+		absFile, err := filepath.Abs(file)
+		if err != nil {
+			compileHelpersLog.Printf("Failed to resolve absolute path for %s: %v", file, err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve absolute path for %s: %v", file, err)))
+			}
+		} else {
 			file = absFile
 		}
 		compileSingleFile(compiler, file, stats, verbose, false)
