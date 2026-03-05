@@ -183,7 +183,8 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
                 debugLog(`Strategy 1 (incremental): Removed git auth header`);
               } catch {
                 // Non-fatal: the header may already be absent or the repo state changed.
-                // clean_git_credentials.sh will handle any residual cleanup.
+                // However, a persistent failure here may leave the credential in .git/config
+                // for the remainder of the agent session and should be investigated.
                 debugLog(`Strategy 1 (incremental): Warning - failed to remove git auth header`);
               }
             }
