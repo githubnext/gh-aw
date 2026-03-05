@@ -1195,3 +1195,113 @@ func TestUpgradeSetupCliVersion_WithSHAResolver(t *testing.T) {
 		t.Errorf("Expected version to be v2.0.0, got: %v", installStep.With["version"])
 	}
 }
+
+// TestUpgradeCopilotSetupSteps_SHAPinnedNoQuotes verifies that when upgrading to a
+// SHA-pinned reference the written YAML does NOT wrap the uses: value in double-quotes.
+// Regression test for: gh aw upgrade wraps uses value in quotes including the inline comment.
+func TestUpgradeCopilotSetupSteps_SHAPinnedNoQuotes(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write existing workflow with a version-tagged (non-SHA) reference
+	existingContent := `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install gh-aw extension
+        uses: github/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+`
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// Upgrade with a SHA resolver so the new uses: value contains "# v2.0.0"
+	resolver := &mockSHAResolver{sha: "bd9c0ca491e6334a2797ef56ad6ee89958d54ab9"}
+	upgraded, err := upgradeSetupCliVersion(&Workflow{
+		Jobs: map[string]WorkflowJob{
+			"copilot-setup-steps": {
+				Steps: []CopilotWorkflowStep{
+					{Name: "Checkout repository", Uses: "actions/checkout@v4"},
+					{Name: "Install gh-aw extension", Uses: "github/gh-aw/actions/setup-cli@v1.0.0", With: map[string]any{"version": "v1.0.0"}},
+				},
+			},
+		},
+	}, workflow.ActionModeRelease, "v2.0.0", resolver)
+	if err != nil {
+		t.Fatalf("upgradeSetupCliVersion() error: %v", err)
+	}
+	if !upgraded {
+		t.Fatal("Expected upgrade to occur")
+	}
+
+	// Call the full upgrade path so the file is written
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to reset existing workflow: %v", err)
+	}
+
+	// Build a minimal FakeResolver-backed upgrade call via ensureCopilotSetupStepsWithUpgrade.
+	// We simulate the marshal path directly: marshal a workflow with the SHA-pinned uses value,
+	// then apply unquoteUsesValues, and verify no quotes remain.
+	wf := &Workflow{
+		Name: "Copilot Setup Steps",
+		Jobs: map[string]WorkflowJob{
+			"copilot-setup-steps": {
+				Steps: []CopilotWorkflowStep{
+					{Name: "Checkout repository", Uses: "actions/checkout@v4"},
+					{
+						Name: "Install gh-aw extension",
+						Uses: "github/gh-aw/actions/setup-cli@bd9c0ca491e6334a2797ef56ad6ee89958d54ab9 # v2.0.0",
+						With: map[string]any{"version": "v2.0.0"},
+					},
+				},
+			},
+		},
+	}
+
+	marshaled, err := yaml.Marshal(wf)
+	if err != nil {
+		t.Fatalf("yaml.Marshal failed: %v", err)
+	}
+
+	// Confirm the marshaler actually quoted the value (so our fix is needed)
+	marshaledStr := string(marshaled)
+	if !strings.Contains(marshaledStr, `"github/gh-aw/actions/setup-cli@bd9c0ca491e6334a2797ef56ad6ee89958d54ab9 # v2.0.0"`) {
+		// If the library no longer quotes it, the fix may be unnecessary, but it is still safe.
+		t.Logf("Note: YAML library did not quote the uses: value (fix may already be unnecessary): %s", marshaledStr)
+	}
+
+	// Apply the fix
+	fixed := unquoteUsesValues(marshaled)
+	fixedStr := string(fixed)
+
+	// Verify the fixed output does NOT contain a quoted uses: value
+	if strings.Contains(fixedStr, `uses: "github/gh-aw`) {
+		t.Errorf("Expected uses: value to be unquoted after fix, got:\n%s", fixedStr)
+	}
+
+	// Verify the correct unquoted form IS present
+	if !strings.Contains(fixedStr, "uses: github/gh-aw/actions/setup-cli@bd9c0ca491e6334a2797ef56ad6ee89958d54ab9 # v2.0.0") {
+		t.Errorf("Expected unquoted SHA-pinned uses: value, got:\n%s", fixedStr)
+	}
+}

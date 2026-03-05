@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -223,6 +224,12 @@ func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.Action
 				return fmt.Errorf("failed to marshal updated workflow: %w", err)
 			}
 
+			// The YAML marshaler quotes strings that contain '#' (e.g. SHA-pinned refs
+			// like "org/repo@sha # vX.Y.Z"). GitHub Actions requires uses: values to be
+			// unquoted so the trailing "# vX.Y.Z" is parsed as a YAML comment rather
+			// than as part of the action reference.
+			updatedContent = unquoteUsesValues(updatedContent)
+
 			if err := os.WriteFile(setupStepsPath, updatedContent, 0600); err != nil {
 				return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
 			}
@@ -331,4 +338,15 @@ func upgradeSetupCliVersion(workflow *Workflow, actionMode workflow.ActionMode, 
 	}
 
 	return upgraded, nil
+}
+
+// unquoteUsesValues removes double-quotes that the YAML marshaler wraps around
+// `uses:` values containing a '#' character (e.g. SHA-pinned action refs such as
+// "org/repo@<sha> # vX.Y.Z"). GitHub Actions requires the value to be unquoted so
+// that the trailing "# vX.Y.Z" is interpreted as a YAML comment rather than as
+// part of the action reference string.
+var usesQuotePattern = regexp.MustCompile(`(?m)^(\s+uses:\s*)"([^"]+)"(\s*)$`)
+
+func unquoteUsesValues(data []byte) []byte {
+	return usesQuotePattern.ReplaceAll(data, []byte("${1}${2}${3}"))
 }
