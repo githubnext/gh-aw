@@ -138,15 +138,23 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // We must explicitly fetch origin/branchName and fail if it doesn't exist.
 
           debugLog(`Strategy 1 (incremental): Fetching origin/${branchName}`);
+          // Configure git authentication using GITHUB_TOKEN and GITHUB_SERVER_URL.
+          // This ensures the fetch works on GitHub Enterprise Server (GHES) where
+          // the default credential helper may not be configured for the enterprise endpoint.
+          // SECURITY: The header is set immediately before the fetch and removed in a finally
+          // block to minimize the window during which the token is stored on disk. This is
+          // important because clean_git_credentials.sh runs before the agent starts — any
+          // credential written after that cleanup must be removed immediately after use so the
+          // agent cannot read the token from .git/config.
+          const githubToken = process.env.GITHUB_TOKEN;
+          const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+          const extraHeaderKey = `http.${githubServerUrl}/.extraheader`;
+          let authHeaderSet = false;
           try {
-            // Configure git authentication using GITHUB_TOKEN and GITHUB_SERVER_URL.
-            // This ensures the fetch works on GitHub Enterprise Server (GHES) where
-            // the default credential helper may not be configured for the enterprise endpoint.
-            const githubToken = process.env.GITHUB_TOKEN;
-            const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
             if (githubToken) {
               const tokenBase64 = Buffer.from(`x-access-token:${githubToken}`).toString("base64");
-              execGitSync(["config", "--local", `http.${githubServerUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { cwd });
+              execGitSync(["config", "--local", extraHeaderKey, `Authorization: basic ${tokenBase64}`], { cwd });
+              authHeaderSet = true;
               debugLog(`Strategy 1 (incremental): Configured git auth for ${githubServerUrl}`);
             }
 
@@ -165,6 +173,20 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               error: errorMessage,
               patchPath: patchPath,
             };
+          } finally {
+            // SECURITY: Always remove the token from git config immediately after the fetch,
+            // regardless of success or failure. This prevents the agent from reading the
+            // credential out of .git/config for the remainder of its session.
+            if (authHeaderSet) {
+              try {
+                execGitSync(["config", "--local", "--unset-all", extraHeaderKey], { cwd });
+                debugLog(`Strategy 1 (incremental): Removed git auth header`);
+              } catch {
+                // Non-fatal: the header may already be absent or the repo state changed.
+                // clean_git_credentials.sh will handle any residual cleanup.
+                debugLog(`Strategy 1 (incremental): Warning - failed to remove git auth header`);
+              }
+            }
           }
         } else {
           // FULL MODE (for create_pull_request):
