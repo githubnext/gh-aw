@@ -141,6 +141,11 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 
 	// Compile each file
 	for _, file := range mdFiles {
+		// Resolve to absolute path so that runtime-import macros and dispatch-workflow
+		// input extraction work correctly regardless of the caller's working directory.
+		if absFile, err := filepath.Abs(file); err == nil {
+			file = absFile
+		}
 		compileSingleFile(compiler, file, stats, verbose, false)
 	}
 

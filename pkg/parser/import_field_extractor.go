@@ -7,6 +7,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -79,8 +80,13 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// Imports with inputs must be inlined for compile-time substitution.
 	// Extract relative path from repository root (from .github/ onwards).
 	var importRelPath string
-	if idx := strings.Index(item.fullPath, "/.github/"); idx >= 0 {
-		importRelPath = item.fullPath[idx+1:] // +1 to skip the leading slash
+	normalizedFullPath := filepath.ToSlash(item.fullPath)
+	if idx := strings.Index(normalizedFullPath, "/.github/"); idx >= 0 {
+		importRelPath = normalizedFullPath[idx+1:] // +1 to skip the leading slash
+	} else if strings.HasPrefix(normalizedFullPath, ".github/") {
+		// Relative path already starting with ".github/" — use as-is.
+		// This occurs when the compiler is invoked with a relative markdown path.
+		importRelPath = normalizedFullPath
 	} else {
 		// For files not under .github/, use the original import path
 		importRelPath = item.importPath

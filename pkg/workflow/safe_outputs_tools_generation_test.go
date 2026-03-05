@@ -298,6 +298,42 @@ func TestGenerateDispatchWorkflowToolEmptyInputs(t *testing.T) {
 	assert.False(t, hasRequired, "required field should not be present when no required inputs")
 }
 
+// TestGenerateDispatchWorkflowToolRequiredSorted tests that the required array is always sorted.
+// This ensures idempotent output regardless of map iteration order.
+func TestGenerateDispatchWorkflowToolRequiredSorted(t *testing.T) {
+	workflowInputs := map[string]any{
+		"tracker_issue": map[string]any{
+			"description": "Dashboard issue number to reference",
+			"type":        "string",
+			"required":    true,
+		},
+		"flag_key": map[string]any{
+			"description": "The LaunchDarkly flag key to clean up",
+			"type":        "string",
+			"required":    true,
+		},
+		"optional_param": map[string]any{
+			"description": "An optional parameter",
+			"type":        "string",
+			"required":    false,
+		},
+	}
+
+	// Run multiple times to catch non-determinism from map iteration
+	for i := range 10 {
+		tool := generateDispatchWorkflowTool("cleanup-worker", workflowInputs)
+
+		inputSchema, ok := tool["inputSchema"].(map[string]any)
+		require.True(t, ok, "inputSchema should be present (iteration %d)", i)
+
+		required, ok := inputSchema["required"].([]string)
+		require.True(t, ok, "required should be []string (iteration %d)", i)
+
+		assert.Equal(t, []string{"flag_key", "tracker_issue"}, required,
+			"required array should be sorted alphabetically (iteration %d)", i)
+	}
+}
+
 // TestCheckAllEnabledToolsPresentAllMatch tests that no error is returned when all enabled tools are present.
 func TestCheckAllEnabledToolsPresentAllMatch(t *testing.T) {
 	enabledTools := map[string]bool{
