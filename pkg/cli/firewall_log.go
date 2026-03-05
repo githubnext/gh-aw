@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var firewallLogLog = logger.New("cli:firewall_log")
@@ -352,14 +353,11 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	}
 
 	// Filter for firewall log files (they typically have "access" or "firewall" in the name)
-	var firewallLogs []string
-	for _, file := range files {
+	firewallLogs := sliceutil.Filter(files, func(file string) bool {
 		basename := filepath.Base(file)
-		if strings.Contains(basename, "firewall") ||
-			(strings.Contains(basename, "access") && !strings.Contains(basename, "access-")) {
-			firewallLogs = append(firewallLogs, file)
-		}
-	}
+		return strings.Contains(basename, "firewall") ||
+			(strings.Contains(basename, "access") && !strings.Contains(basename, "access-"))
+	})
 
 	if len(firewallLogs) == 0 {
 		firewallLogLog.Print("No firewall logs found")

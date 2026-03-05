@@ -210,12 +210,9 @@ func completeMCPListToolsArgs(cmd *cobra.Command, args []string, toComplete stri
 	// First argument: MCP server names are not easily discoverable without a workflow
 	// For now, provide no file completion but suggest common server names
 	if len(args) == 0 {
-		var filtered []string
-		for _, s := range commonMCPServerNames {
-			if toComplete == "" || strings.HasPrefix(s, toComplete) {
-				filtered = append(filtered, s)
-			}
-		}
+		filtered := sliceutil.Filter(commonMCPServerNames, func(s string) bool {
+			return toComplete == "" || strings.HasPrefix(s, toComplete)
+		})
 		return filtered, cobra.ShellCompDirectiveNoFileComp
 	}
 	// Second argument: complete workflow names
