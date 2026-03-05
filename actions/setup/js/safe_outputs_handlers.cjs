@@ -478,7 +478,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Generate temporary_id if not provided
     if (!entry.temporary_id) {
-      entry.temporary_id = "aw_" + crypto.randomBytes(6).toString("hex");
+      entry.temporary_id = "aw_" + crypto.randomBytes(4).toString("hex");
       server.debug(`Auto-generated temporary_id for create_project: ${entry.temporary_id}`);
     }
 
@@ -504,6 +504,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Handler for add_comment tool
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
    * to provide immediate feedback to the LLM before recording to NDJSON
+   * Also auto-generates a temporary_id if not provided and returns it to the agent
    */
   const addCommentHandler = args => {
     // Validate comment constraints before appending to safe outputs
@@ -521,8 +522,31 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // If validation passes, record the operation using default handler
-    return defaultHandler("add_comment")(args);
+    // Build the entry with a temporary_id
+    const entry = { ...(args || {}), type: "add_comment" };
+
+    // Generate temporary_id if not provided
+    if (!entry.temporary_id) {
+      entry.temporary_id = "aw_" + crypto.randomBytes(4).toString("hex");
+      server.debug(`Auto-generated temporary_id for add_comment: ${entry.temporary_id}`);
+    }
+
+    // Append to safe outputs
+    appendSafeOutput(entry);
+
+    // Return the temporary_id to the agent so it can reference this comment
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            result: "success",
+            temporary_id: entry.temporary_id,
+            comment: `#${entry.temporary_id}`,
+          }),
+        },
+      ],
+    };
   };
 
   return {
