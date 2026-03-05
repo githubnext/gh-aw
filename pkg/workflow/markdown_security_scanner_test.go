@@ -819,40 +819,6 @@ func TestFormatSecurityFindings_Multiple(t *testing.T) {
 	assert.Contains(t, result, "cannot be added", "should mention rejection")
 }
 
-func TestSecurityFinding_String(t *testing.T) {
-	tests := []struct {
-		name     string
-		finding  SecurityFinding
-		expected string
-	}{
-		{
-			name: "with line number",
-			finding: SecurityFinding{
-				Category:    CategoryUnicodeAbuse,
-				Description: "test description",
-				Line:        42,
-			},
-			expected: "[unicode-abuse] line 42: test description",
-		},
-		{
-			name: "without line number",
-			finding: SecurityFinding{
-				Category:    CategoryHTMLAbuse,
-				Description: "test description",
-				Line:        0,
-			},
-			expected: "[html-abuse] test description",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.finding.String()
-			assert.Equal(t, tt.expected, result, "String() output should match")
-		})
-	}
-}
-
 func TestTruncateSnippet(t *testing.T) {
 	tests := []struct {
 		name   string

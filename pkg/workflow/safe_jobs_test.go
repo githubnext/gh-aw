@@ -143,28 +143,6 @@ func TestParseSafeJobsConfig(t *testing.T) {
 	}
 }
 
-func TestHasSafeJobsEnabled(t *testing.T) {
-	// Test that safe-jobs are detected by HasSafeJobsEnabled
-	safeJobs := map[string]*SafeJobConfig{
-		"deploy": {
-			RunsOn: "ubuntu-latest",
-		},
-	}
-
-	if !HasSafeJobsEnabled(safeJobs) {
-		t.Error("Expected HasSafeJobsEnabled to return true when safe-jobs are configured")
-	}
-
-	// Test empty safe-jobs
-	if HasSafeJobsEnabled(nil) {
-		t.Error("Expected HasSafeJobsEnabled to return false when safe-jobs are nil")
-	}
-
-	if HasSafeJobsEnabled(map[string]*SafeJobConfig{}) {
-		t.Error("Expected HasSafeJobsEnabled to return false when safe-jobs are empty")
-	}
-}
-
 func TestBuildSafeJobs(t *testing.T) {
 	c := NewCompiler()
 

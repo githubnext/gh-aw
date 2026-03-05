@@ -267,7 +267,7 @@ The following workflow lock files have changes:
       repo: "testrepo",
       title: "[aw] agentic workflows out of sync",
       body: expect.stringContaining("Using gh aw CLI"),
-      labels: ["maintenance", "workflows"],
+      labels: ["agentic-workflows", "maintenance"],
     });
   });
 

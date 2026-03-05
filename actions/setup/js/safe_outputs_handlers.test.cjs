@@ -138,6 +138,38 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("uploadAssetHandler", () => {
+    it("should generate raw.githubusercontent.com URL for github.com", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+
+      const testFile = path.join(testWorkspaceDir, "test.png");
+      fs.writeFileSync(testFile, "test content");
+
+      handlers.uploadAssetHandler({ path: testFile });
+
+      const entry = mockAppendSafeOutput.mock.calls[0][0];
+      expect(entry.url).toContain("raw.githubusercontent.com");
+      expect(entry.url).toContain("myorg/myrepo");
+    });
+
+    it("should generate enterprise URL for GitHub Enterprise Server", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "test-branch";
+      process.env.GITHUB_SERVER_URL = "https://github.example.com";
+      process.env.GITHUB_REPOSITORY = "myorg/myrepo";
+
+      const testFile = path.join(testWorkspaceDir, "test2.png");
+      fs.writeFileSync(testFile, "test content");
+
+      handlers = createHandlers(mockServer, mockAppendSafeOutput);
+      handlers.uploadAssetHandler({ path: testFile });
+
+      const entry = mockAppendSafeOutput.mock.calls[0][0];
+      expect(entry.url).toContain("github.example.com");
+      expect(entry.url).toContain("/raw/");
+      expect(entry.url).not.toContain("raw.githubusercontent.com");
+    });
+
     it("should validate and process valid asset upload", () => {
       process.env.GH_AW_ASSETS_BRANCH = "test-branch";
 

@@ -1230,6 +1230,83 @@ This is a test workflow.`
 	}
 }
 
+// TestRuntimeImportPathRelative tests that relative markdown paths (e.g. ".github/workflows/test.md")
+// produce the same runtime-import path as absolute paths.  This simulates the difference between
+// `gh aw upgrade` (relative CWD-based paths) and `gh aw compile` (absolute git-root-based paths).
+func TestRuntimeImportPathRelative(t *testing.T) {
+	// Create a temporary directory that acts as the repo root.
+	repoRoot := testutil.TempDir(t, "runtime-import-relative-test")
+
+	// Create .github/workflows directory
+	workflowDir := filepath.Join(repoRoot, ".github", "workflows")
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+
+	// Write a simple workflow
+	workflowContent := `---
+on: push
+engine: copilot
+---
+
+# Test Workflow
+
+This is a test workflow.`
+
+	workflowPath := filepath.Join(workflowDir, "my-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Change CWD to repo root so that relative paths resolve correctly
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(origWD); err != nil {
+			t.Logf("Warning: failed to restore working directory: %v", err)
+		}
+	}()
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Failed to change to repo root: %v", err)
+	}
+
+	// Compile using a relative path (simulates gh aw upgrade behaviour)
+	relPath := filepath.Join(".github", "workflows", "my-workflow.md")
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(relPath); err != nil {
+		t.Fatalf("Compilation failed with relative path: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(strings.TrimSuffix(relPath, ".md") + ".lock.yml")
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	// The runtime-import path must start with ".github/" regardless of whether the
+	// caller passed a relative or absolute markdown path.
+	const expected = "{{#runtime-import .github/workflows/my-workflow.md}}"
+	if !strings.Contains(string(lockContent), expected) {
+		t.Errorf("Expected to find %q in lock file but it was not present.\nLock file content excerpt:\n%s",
+			expected, extractRuntimeImportLines(string(lockContent)))
+	}
+}
+
+// extractRuntimeImportLines returns all runtime-import lines from a string for diagnostic output.
+func extractRuntimeImportLines(content string) string {
+	var lines []string
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.Contains(line, "runtime-import") {
+			lines = append(lines, strings.TrimSpace(line))
+		}
+	}
+	if len(lines) == 0 {
+		return "(no runtime-import lines found)"
+	}
+	return strings.Join(lines, "\n")
+}
+
 func TestLockMetadataVersionInReleaseBuilds(t *testing.T) {
 	// Save and restore original values
 	originalIsRelease := isReleaseBuild

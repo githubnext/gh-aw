@@ -184,7 +184,8 @@ function sparseCheckoutGithubFolder(owner, repo, ref, tempDir) {
   validateGitParameter(repo, "repo");
   validateGitParameter(ref, "ref");
 
-  const repoUrl = `https://github.com/${owner}/${repo}.git`;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repoUrl = `${serverUrl}/${owner}/${repo}.git`;
 
   try {
     // Initialize git repository

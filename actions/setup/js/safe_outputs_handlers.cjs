@@ -160,7 +160,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-    const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
+    let url;
+    try {
+      const serverHostname = new URL(githubServer).hostname;
+      if (serverHostname === "github.com") {
+        url = `https://raw.githubusercontent.com/${repo}/${normalizedBranchName}/${targetFileName}`;
+      } else {
+        // GitHub Enterprise Server - raw content is served from the same host with /raw/ path
+        url = `${githubServer}/${repo}/raw/${normalizedBranchName}/${targetFileName}`;
+      }
+    } catch {
+      url = `${githubServer}/${repo}/raw/${normalizedBranchName}/${targetFileName}`;
+    }
 
     // Create entry for safe outputs
     const entry = {

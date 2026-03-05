@@ -8,7 +8,6 @@
 // # Validation Functions
 //
 //   - validateConcurrencyGroupExpression() - Validates syntax of a single group expression
-//   - extractGroupExpression() - Extracts group value from concurrency configuration
 //
 // # Validation Coverage
 //
@@ -281,31 +280,6 @@ func validateBalancedQuotes(expr string) error {
 // and expressions with '!=' will be successfully parsed by the parser.
 func containsLogicalOperators(expr string) bool {
 	return strings.Contains(expr, "&&") || strings.Contains(expr, "||") || strings.Contains(expr, "!")
-}
-
-// extractGroupExpression extracts the group value from a concurrency configuration.
-// Handles both string format ("group-name") and object format ({group: "group-name"}).
-// Returns the group expression string or empty string if not found.
-func extractGroupExpression(concurrency any) string {
-	if concurrency == nil {
-		return ""
-	}
-
-	// Handle string format (simple group name)
-	if groupStr, ok := concurrency.(string); ok {
-		return groupStr
-	}
-
-	// Handle object format with group field
-	if concurrencyObj, ok := concurrency.(map[string]any); ok {
-		if group, hasGroup := concurrencyObj["group"]; hasGroup {
-			if groupStr, ok := group.(string); ok {
-				return groupStr
-			}
-		}
-	}
-
-	return ""
 }
 
 // extractConcurrencyGroupFromYAML extracts the group value from a YAML-formatted concurrency string.

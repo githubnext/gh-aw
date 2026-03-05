@@ -49,34 +49,3 @@ func TestToolsetPermissionsLoadedFromJSON(t *testing.T) {
 		t.Error("context toolset should have tools listed")
 	}
 }
-
-func TestGetToolsetsData(t *testing.T) {
-	// Test that GetToolsetsData returns valid data
-	data := GetToolsetsData()
-
-	if data.Version == "" {
-		t.Error("GetToolsetsData should return data with version")
-	}
-
-	if len(data.Toolsets) == 0 {
-		t.Error("GetToolsetsData should return toolsets")
-	}
-
-	// Test specific toolset has expected structure
-	repos, exists := data.Toolsets["repos"]
-	if !exists {
-		t.Fatal("repos toolset not found in GetToolsetsData")
-	}
-
-	if repos.Description == "" {
-		t.Error("repos toolset should have description")
-	}
-
-	if len(repos.Tools) == 0 {
-		t.Error("repos toolset should have tools")
-	}
-
-	if len(repos.ReadPermissions) == 0 {
-		t.Error("repos toolset should have read permissions")
-	}
-}

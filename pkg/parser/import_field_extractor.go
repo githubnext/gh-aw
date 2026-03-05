@@ -7,6 +7,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -77,14 +78,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Track import path for runtime-import macro generation (only if no inputs).
 	// Imports with inputs must be inlined for compile-time substitution.
-	// Extract relative path from repository root (from .github/ onwards).
-	var importRelPath string
-	if idx := strings.Index(item.fullPath, "/.github/"); idx >= 0 {
-		importRelPath = item.fullPath[idx+1:] // +1 to skip the leading slash
-	} else {
-		// For files not under .github/, use the original import path
-		importRelPath = item.importPath
-	}
+	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
 
 	if len(item.inputs) == 0 {
 		// No inputs - use runtime-import macro
@@ -315,4 +309,26 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		RepositoryImports:   acc.repositoryImports,
 		ImportInputs:        acc.importInputs,
 	}
+}
+
+// computeImportRelPath returns the repository-root-relative path for a workflow file,
+// suitable for use in a {{#runtime-import ...}} macro.
+//
+// The rules are:
+//  1. If fullPath contains "/.github/" (as a path component), trim everything before
+//     and including the leading slash so the result starts with ".github/".
+//     LastIndex is used so that repos named ".github" (e.g. path
+//     "/root/.github/.github/workflows/file.md") resolve to the correct
+//     ".github/workflows/…" segment rather than the first occurrence.
+//  2. If fullPath already starts with ".github/" (a relative path) use it as-is.
+//  3. Otherwise fall back to importPath (the original import spec).
+func computeImportRelPath(fullPath, importPath string) string {
+	normalizedFullPath := filepath.ToSlash(fullPath)
+	if idx := strings.LastIndex(normalizedFullPath, "/.github/"); idx >= 0 {
+		return normalizedFullPath[idx+1:] // +1 to skip the leading slash
+	}
+	if strings.HasPrefix(normalizedFullPath, ".github/") {
+		return normalizedFullPath
+	}
+	return importPath
 }

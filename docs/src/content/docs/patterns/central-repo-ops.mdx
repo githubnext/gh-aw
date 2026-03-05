@@ -269,6 +269,129 @@ This allows the worker to create pull requests and issues in the target reposito
 
 After the setup is complete, you can run the orchestrator with `workflow_dispatch` (`target_repos`) or let the schedule trigger run automatically.
 
+## Richer Triggers with a Trigger File
+
+Embedding a `schedule:` trigger directly in the orchestrator is the simplest setup, but it limits the orchestrator to time-based execution only. A **trigger file** — a plain, hand-authored GitHub Actions workflow — solves this by separating the trigger definition from the agent logic:
+
+- The compiled orchestrator exposes a `workflow_call` trigger.
+- A stable, rarely-changing `.yml` file defines the actual GitHub events that kick off the run.
+- The trigger file calls the compiled orchestrator via `workflow_call`, forwarding any inputs and secrets.
+
+This means you can update when and why the orchestrator runs — reacting to a label, a repository push, a security alert, or a manual dispatch — without touching or recompiling the agentic workflow.
+
+### Add `workflow_call` to the Orchestrator
+
+Extend the orchestrator's `on:` section with `workflow_call` and declare any inputs you want callers to pass:
+
+```aw wrap
+---
+on:
+  schedule: weekly on monday
+  workflow_call:
+    inputs:
+      reason:
+        description: "Why this run was triggered (label name, event type, etc.)"
+        type: string
+        default: "scheduled"
+
+tools:
+  github:
+    github-token: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
+    toolsets: [repos]
+
+safe-outputs:
+  dispatch-workflow:
+    workflows: [dependabot-rollout]
+    max: 5
+---
+
+# Dependabot Rollout Orchestrator
+
+...
+```
+
+Compile the workflow after adding `workflow_call`: `gh aw compile`.
+
+### Create the Stable Trigger File
+
+Add a plain GitHub Actions workflow alongside the compiled orchestrator. This file is written by hand, committed once, and rarely needs to change:
+
+```yaml title=".github/workflows/central-ops-trigger.yml"
+name: Central Ops Trigger
+
+on:
+  # Trigger when a repository is labeled for Dependabot rollout
+  issues:
+    types: [labeled]
+
+  # Trigger on any push to main (e.g. config change)
+  push:
+    branches: [main]
+
+  # Allow manual runs with context
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual trigger"
+        required: false
+        default: "manual"
+
+jobs:
+  trigger:
+    uses: ./.github/workflows/dependabot-rollout-orchestrator.lock.yml
+    with:
+      reason: ${{ github.event_name }}
+    secrets: inherit
+```
+
+> [!NOTE]
+> The trigger file references the compiled **lock file** (`*.lock.yml`), not the markdown source. Recompiling the orchestrator regenerates the lock file in place; the trigger file does not need to change.
+
+> [!TIP]
+> Use `secrets: inherit` to forward all repository secrets to the called workflow automatically. If you prefer explicit control, list each secret under `secrets:` in the `uses` block.
+
+### Calling the Orchestrator from Another Repository
+
+The trigger file can also live in a **different repository** — for example, inside each target repo — and call back into the orchestrator in the central control repository. This lets individual repositories decide *when* to request a rollout without requiring direct access to the central repo.
+
+```yaml title=".github/workflows/request-dependabot-rollout.yml"
+name: Request Dependabot Rollout
+
+on:
+  # Trigger when a maintainer labels the repo for rollout
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    # Call the orchestrator workflow in the central control repo
+    uses: my-org/central-ops/.github/workflows/dependabot-rollout-orchestrator.lock.yml@main
+    with:
+      reason: "${{ github.event_name }} in ${{ github.repository }}"
+    secrets:
+      GH_AW_READ_ORG_TOKEN: ${{ secrets.GH_AW_READ_ORG_TOKEN }}
+```
+
+> [!NOTE]
+> Cross-repository `workflow_call` requires the caller and the callee to be in the **same organization**. The called workflow's `on.workflow_call` section must be present (added in the orchestrator step above). The caller must have access to any secrets it forwards.
+
+> [!WARNING]
+> Cross-repository calls do not support `secrets: inherit`. You must explicitly list each secret forwarded from the calling repository.
+
+### Trade-offs: Schedule Only vs Trigger File
+
+| | Schedule only | Trigger file + `workflow_call` |
+|---|---|---|
+| **Setup** | Single file, no extra config | Two files (orchestrator + trigger file) |
+| **Trigger flexibility** | Cron/schedule only | Any GitHub event (issues, push, PRs, labels…) |
+| **Change trigger without recompile** | No — trigger is embedded in the agentic workflow | Yes — edit the plain `.yml` trigger file |
+| **Pass event context to agent** | Not possible | Yes — via `workflow_call` inputs |
+| **Stability** | Trigger changes on every recompile | Trigger file stays fixed across recompiles |
+| **When to use** | Simple recurring jobs with no event dependency | Jobs that should react to repository activity or need flexible scheduling |
+
+The schedule-only approach is perfectly fine for a standalone nightly or weekly orchestrator. Move to the trigger file pattern when you need to react to repository events, pass extra context to the agent, or decouple trigger changes from the compilation cycle.
+
 ## Best Practices
 
 - Keep orchestrator permissions narrow; delegate repo-specific writes to workers.

@@ -73,16 +73,6 @@ func init() {
 	permissionsValidationLog.Printf("Loaded %d GitHub toolsets from JSON", len(toolsetPermissionsMap))
 }
 
-// GetToolsetsData returns the parsed GitHub toolsets data (for use by workflows)
-func GetToolsetsData() GitHubToolsetsData {
-	var data GitHubToolsetsData
-	if err := json.Unmarshal(githubToolsetsPermissionsJSON, &data); err != nil {
-		// This should never happen as we validate in init
-		panic(fmt.Sprintf("failed to parse GitHub toolsets data: %v", err))
-	}
-	return data
-}
-
 // ValidatableTool represents a tool configuration that can be validated for permissions
 // This interface abstracts the tool configuration structure to enable type-safe permission validation
 type ValidatableTool interface {

@@ -31,6 +31,7 @@ async function main() {
 
   const { owner, repo } = context.repo;
   const ref = context.sha;
+  const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
 
   // Helper function to get the last commit for a file
   async function getLastCommitForFile(path) {
@@ -151,10 +152,10 @@ async function main() {
         .addRaw("**Files:**\n")
         .addRaw(`- Source: \`${workflowMdPath}\`\n`)
         .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-        .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
+        .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](${githubServerUrl}/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
         .addRaw(`- Lock: \`${lockFilePath}\`\n`)
         .addRaw(`  - Last commit: ${lockTimestamp}\n`)
-        .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
+        .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](${githubServerUrl}/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
         .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
 
       await summary.write();
@@ -179,11 +180,11 @@ async function main() {
         .addRaw("**Files:**\n")
         .addRaw(`- Source: \`${workflowMdPath}\`\n`)
         .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-        .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
+        .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](${githubServerUrl}/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
         .addRaw(`  - Frontmatter hash: \`${hashComparison.recomputedHash.substring(0, 12)}...\`\n`)
         .addRaw(`- Lock: \`${lockFilePath}\`\n`)
         .addRaw(`  - Last commit: ${lockTimestamp}\n`)
-        .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n`)
+        .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](${githubServerUrl}/${owner}/${repo}/commit/${lockCommit.sha})\n`)
         .addRaw(`  - Stored hash: \`${hashComparison.storedHash.substring(0, 12)}...\`\n\n`)
         .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
 
@@ -223,11 +224,11 @@ async function main() {
         .addRaw("**Files:**\n")
         .addRaw(`- Source: \`${workflowMdPath}\`\n`)
         .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-        .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
+        .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](${githubServerUrl}/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
         .addRaw(`  - Frontmatter hash: \`${hashComparison.recomputedHash.substring(0, 12)}...\`\n`)
         .addRaw(`- Lock: \`${lockFilePath}\`\n`)
         .addRaw(`  - Last commit: ${lockTimestamp}\n`)
-        .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n`)
+        .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](${githubServerUrl}/${owner}/${repo}/commit/${lockCommit.sha})\n`)
         .addRaw(`  - Stored hash: \`${hashComparison.storedHash.substring(0, 12)}...\`\n\n`)
         .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
 

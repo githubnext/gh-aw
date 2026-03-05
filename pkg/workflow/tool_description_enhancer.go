@@ -9,6 +9,19 @@ import (
 
 var toolDescriptionEnhancerLog = logger.New("workflow:tool_description_enhancer")
 
+// formatLabelList formats a slice of labels with proper quoting for readability
+// Example: ["bug", "feature request", "docs"] -> ["bug" "feature request" "docs"]
+func formatLabelList(labels []string) string {
+	if len(labels) == 0 {
+		return "[]"
+	}
+	quoted := make([]string, len(labels))
+	for i, label := range labels {
+		quoted[i] = fmt.Sprintf("%q", label)
+	}
+	return "[" + strings.Join(quoted, " ") + "]"
+}
+
 // enhanceToolDescription adds configuration-specific constraints to tool descriptions
 // This provides agents with context about limits and restrictions configured in the workflow
 func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeOutputsConfig) string {
@@ -31,13 +44,13 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
 			}
 			if len(config.Labels) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Labels %v will be automatically added.", config.Labels))
+				constraints = append(constraints, fmt.Sprintf("Labels %s will be automatically added.", formatLabelList(config.Labels)))
 			}
 			if len(config.AllowedLabels) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.AllowedLabels))
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatLabelList(config.AllowedLabels)))
 			}
 			if len(config.Assignees) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Assignees %v will be automatically assigned.", config.Assignees))
+				constraints = append(constraints, fmt.Sprintf("Assignees %s will be automatically assigned.", formatLabelList(config.Assignees)))
 			}
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Issues will be created in repository %q.", config.TargetRepoSlug))
@@ -72,7 +85,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Discussions will be created in category %q.", config.Category))
 			}
 			if len(config.AllowedLabels) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.AllowedLabels))
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatLabelList(config.AllowedLabels)))
 			}
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Discussions will be created in repository %q.", config.TargetRepoSlug))
@@ -144,16 +157,16 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
 			}
 			if len(config.Labels) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Labels %v will be automatically added.", config.Labels))
+				constraints = append(constraints, fmt.Sprintf("Labels %s will be automatically added.", formatLabelList(config.Labels)))
 			}
 			if len(config.AllowedLabels) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.AllowedLabels))
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatLabelList(config.AllowedLabels)))
 			}
 			if config.Draft != nil && *config.Draft == "true" {
 				constraints = append(constraints, "PRs will be created as drafts.")
 			}
 			if len(config.Reviewers) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Reviewers %v will be assigned.", config.Reviewers))
+				constraints = append(constraints, fmt.Sprintf("Reviewers %s will be assigned.", formatLabelList(config.Reviewers)))
 			}
 		}
 
@@ -201,7 +214,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Maximum %d label(s) can be added.", templatableIntValue(config.Max)))
 			}
 			if len(config.Allowed) > 0 {
-				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.Allowed))
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatLabelList(config.Allowed)))
 			}
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))

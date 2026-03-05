@@ -53,7 +53,7 @@ gh pr checkout <pr-number>
 
 ## Fork PR Detection
 
-The script uses a robust multi-signal approach to detect fork PRs:
+The script uses a multi-signal approach to detect fork PRs:
 
 ### Detection Logic
 

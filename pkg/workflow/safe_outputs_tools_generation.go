@@ -564,6 +564,7 @@ func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string
 	}
 
 	if len(required) > 0 {
+		sort.Strings(required)
 		tool["inputSchema"].(map[string]any)["required"] = required
 	}
 

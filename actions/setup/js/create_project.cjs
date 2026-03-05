@@ -375,7 +375,7 @@ async function main(config = {}, githubClient = null) {
 
             if (resolved && resolved.repo && resolved.number) {
               // Build the proper GitHub issue URL
-              const resolvedUrl = `https://github.com/${resolved.repo}/issues/${resolved.number}`;
+              const resolvedUrl = `${process.env.GITHUB_SERVER_URL || "https://github.com"}/${resolved.repo}/issues/${resolved.number}`;
               core.info(`Resolved temporary ID ${tempIdStr} in item_url to ${resolvedUrl}`);
               item_url = resolvedUrl;
             } else {

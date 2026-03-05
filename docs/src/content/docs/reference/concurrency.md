@@ -67,6 +67,21 @@ When set, the `safe_outputs` job uses `cancel-in-progress: false` — meaning qu
 
 See [Safe Outputs](/gh-aw/reference/safe-outputs/#safe-outputs-job-concurrency-concurrency-group) for details.
 
+## Conclusion Job Concurrency
+
+The `conclusion` job — which handles reporting and post-agent cleanup — automatically receives a workflow-specific concurrency group derived from the workflow filename:
+
+```yaml wrap
+conclusion:
+  concurrency:
+    group: "gh-aw-conclusion-my-workflow"
+    cancel-in-progress: false
+```
+
+This prevents conclusion jobs from colliding when multiple agents run the same workflow concurrently. The group uses `cancel-in-progress: false` so queued conclusion runs complete in order rather than being discarded.
+
+This concurrency group is set automatically during compilation and requires no manual configuration.
+
 ## Related Documentation
 
 - [AI Engines](/gh-aw/reference/engines/) - Engine configuration and capabilities

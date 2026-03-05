@@ -304,4 +304,4 @@ This implementation provides a solid foundation for guard policies in the MCP ga
 - **Well-validated**: Comprehensive validation with clear error messages
 - **Forward-compatible**: Supports future enhancements
 
-The implementation follows established patterns in the codebase and integrates seamlessly with the existing compilation and validation infrastructure.
+The implementation follows established patterns in the codebase and integrates with the existing compilation and validation infrastructure.

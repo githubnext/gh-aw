@@ -243,4 +243,47 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     expect(result.message).toContain("No valid reviewers found");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
+
+  it("should preview in staged mode without calling API", async () => {
+    const originalEnv = process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    try {
+      const { main } = require("./add_reviewer.cjs");
+      const stagedHandler = await main({ max: 10, allowed: ["user1"] });
+
+      const message = {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+      };
+
+      const result = await stagedHandler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.staged).toBe(true);
+      expect(result.previewInfo).toBeDefined();
+      expect(result.previewInfo.reviewers).toEqual(["user1"]);
+      expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+    } finally {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = originalEnv;
+    }
+  });
+
+  it("should handle copilot reviewer failure gracefully", async () => {
+    mockGithub.rest.pulls.requestReviewers
+      .mockResolvedValueOnce({}) // regular reviewers succeed
+      .mockRejectedValueOnce(new Error("Copilot not available")); // copilot fails
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "copilot"],
+    };
+
+    const result = await handler(message, {});
+
+    // Should still succeed even if copilot reviewer fails
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "copilot"]);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add copilot as reviewer"));
+  });
 });

@@ -782,3 +782,63 @@ func TestStatusCommentDecoupling(t *testing.T) {
 		})
 	}
 }
+
+// TestConclusionJobConcurrencyGroup tests that the conclusion job has a concurrency group
+// based on the workflow ID to prevent concurrent agents on the same workflow from interfering.
+func TestConclusionJobConcurrencyGroup(t *testing.T) {
+	tests := []struct {
+		name              string
+		workflowID        string
+		expectConcurrency bool
+		expectedGroup     string
+	}{
+		{
+			name:              "concurrency group set when workflow ID is present",
+			workflowID:        "my-workflow",
+			expectConcurrency: true,
+			expectedGroup:     "gh-aw-conclusion-my-workflow",
+		},
+		{
+			name:              "no concurrency group when workflow ID is empty",
+			workflowID:        "",
+			expectConcurrency: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:       "Test Workflow",
+				WorkflowID: tt.workflowID,
+				SafeOutputs: &SafeOutputsConfig{
+					MissingTool: &MissingToolConfig{},
+				},
+			}
+
+			job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+			if err != nil {
+				t.Fatalf("Failed to build conclusion job: %v", err)
+			}
+			if job == nil {
+				t.Fatal("Expected conclusion job to be created")
+			}
+
+			if tt.expectConcurrency {
+				if job.Concurrency == "" {
+					t.Error("Expected conclusion job to have a concurrency group, but it was empty")
+				}
+				if !strings.Contains(job.Concurrency, tt.expectedGroup) {
+					t.Errorf("Expected concurrency group to contain %q, got: %s", tt.expectedGroup, job.Concurrency)
+				}
+				if !strings.Contains(job.Concurrency, "cancel-in-progress: false") {
+					t.Errorf("Expected concurrency group to have cancel-in-progress: false, got: %s", job.Concurrency)
+				}
+			} else {
+				if job.Concurrency != "" {
+					t.Errorf("Expected no concurrency group, but got: %s", job.Concurrency)
+				}
+			}
+		})
+	}
+}

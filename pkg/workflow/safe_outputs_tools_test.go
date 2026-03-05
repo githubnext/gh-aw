@@ -419,7 +419,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 					Labels: []string{"bug", "enhancement"},
 				},
 			},
-			wantContains: []string{"CONSTRAINTS:", "Labels [bug enhancement] will be automatically added"},
+			wantContains: []string{"CONSTRAINTS:", `Labels ["bug" "enhancement"] will be automatically added`},
 		},
 		{
 			name:            "create_issue with multiple constraints",
@@ -437,7 +437,7 @@ func TestEnhanceToolDescription(t *testing.T) {
 				"CONSTRAINTS:",
 				"Maximum 3 issue(s)",
 				`Title will be prefixed with "[bot] "`,
-				"Labels [automated]",
+				`Labels ["automated"]`,
 				`Issues will be created in repository "owner/repo"`,
 			},
 		},
@@ -454,7 +454,23 @@ func TestEnhanceToolDescription(t *testing.T) {
 			wantContains: []string{
 				"CONSTRAINTS:",
 				"Maximum 5 label(s)",
-				"Only these labels are allowed: [bug enhancement question]",
+				`Only these labels are allowed: ["bug" "enhancement" "question"]`,
+			},
+		},
+		{
+			name:            "add_labels with spaces in label names",
+			toolName:        "add_labels",
+			baseDescription: "Add labels to an issue or pull request.",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
+					Allowed:              []string{"bug", "feature request", "good first issue", "help wanted"},
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 3 label(s)",
+				`Only these labels are allowed: ["bug" "feature request" "good first issue" "help wanted"]`,
 			},
 		},
 		{
@@ -698,7 +714,7 @@ func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
 	assert.Contains(t, description, "CONSTRAINTS:", "Description should contain constraints")
 	assert.Contains(t, description, "Maximum 5 issue(s)", "Description should include max constraint")
 	assert.Contains(t, description, `Title will be prefixed with "[automated] "`, "Description should include title prefix")
-	assert.Contains(t, description, "Labels [bot enhancement]", "Description should include labels")
+	assert.Contains(t, description, `Labels ["bot" "enhancement"]`, "Description should include labels")
 
 	// Find and verify add_labels tool has enhanced description
 	var addLabelsTool map[string]any
@@ -713,7 +729,7 @@ func TestGenerateFilteredToolsJSONWithEnhancedDescriptions(t *testing.T) {
 	labelsDescription, ok := addLabelsTool["description"].(string)
 	require.True(t, ok, "description should be a string")
 	assert.Contains(t, labelsDescription, "CONSTRAINTS:", "Description should contain constraints")
-	assert.Contains(t, labelsDescription, "Only these labels are allowed: [bug enhancement]", "Description should include allowed labels")
+	assert.Contains(t, labelsDescription, `Only these labels are allowed: ["bug" "enhancement"]`, "Description should include allowed labels")
 }
 
 func TestRepoParameterAddedOnlyWithAllowedRepos(t *testing.T) {

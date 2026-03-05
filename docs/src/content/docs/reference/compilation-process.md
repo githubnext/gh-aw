@@ -9,17 +9,9 @@ This guide documents the internal compilation process that transforms markdown w
 
 ## Overview
 
-The `gh aw compile` command transforms a markdown file into a complete GitHub Actions workflow by embedding the frontmatter and setting up runtime loading of the markdown body. The GitHub Actions workflow will have multiple orchestrated jobs.
+The `gh aw compile` command transforms a markdown workflow file into a complete GitHub Actions `.lock.yml` by embedding frontmatter and setting up runtime loading of the markdown body. The process runs five compilation phases (parsing, validation, job construction, dependency resolution, and YAML generation) described below.
 
-This process involves:
-
-1. **Parsing** - Extract frontmatter and markdown content
-2. **Validation** - Verify configuration against JSON schemas
-3. **Job Building** - Create specialized jobs for different workflow stages
-4. **Dependency Management** - Establish job execution order
-5. **YAML Generation** - Output final `.lock.yml` file
-
-When the workflow runs, the markdown body is loaded at runtime, allowing you to edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.
+When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/editing-workflows/) for details.
 
 ## Compilation Phases
 
@@ -69,44 +61,14 @@ Main Workflow
 
 See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
 
-### Phase 2: Job Construction
+### Phases 2–5: Building the Workflow
 
-The compilation process builds multiple specialized jobs:
-
-- Pre-activation job (if needed)
-- Activation job
-- Main agent job
-- Safe output jobs
-- Safe-jobs
-- Custom jobs
-
-### Phase 3: Dependency Resolution
-
-The compilation process validates and orders jobs:
-
-- Checks all job dependencies exist
-- Detects circular dependencies
-- Computes topological execution order
-- Generates Mermaid dependency graph
-
-### Phase 4: Action Pinning
-
-All GitHub Actions are pinned to commit SHAs for security:
-
-1. Check action cache for cached resolution
-2. Try dynamic resolution via GitHub API
-3. Fall back to embedded action pins data
-4. Add version comment (e.g., `actions/checkout@sha # v6`)
-
-### Phase 5: YAML Generation
-
-The compilation process assembles the final workflow:
-
-- Renders workflow header with metadata comments
-- Includes job dependency Mermaid graph
-- Generates jobs in alphabetical order
-- Embeds original prompt as comment
-- Writes `.lock.yml` file
+| Phase | Steps |
+|-------|-------|
+| **2 Job Construction** | Builds specialized jobs: pre-activation (if needed), activation, agent, safe outputs, safe-jobs, and custom jobs |
+| **3 Dependency Resolution** | Validates job dependencies, detects circular references, computes topological order, generates Mermaid graph |
+| **4 Action Pinning** | Pins all actions to SHAs: check cache → GitHub API → embedded pins → add version comment (e.g., `actions/checkout@sha # v6`) |
+| **5 YAML Generation** | Assembles final `.lock.yml`: header with metadata, Mermaid dependency graph, alphabetical jobs, embedded original prompt |
 
 ## Job Types
 
@@ -181,9 +143,7 @@ graph LR
   add_comment --> conclusion
 ```
 
-**Execution flow**: Pre-activation validates permissions → Activation prepares context → Agent executes AI → Detection scans output → Safe outputs run in parallel → Add comment waits for created items → Conclusion summarizes results.
-
-Safe output jobs without cross-dependencies run concurrently for performance. When threat detection is enabled, safe outputs depend on both agent and detection jobs.
+**Execution flow**: Pre-activation validates permissions → Activation prepares context → Agent executes AI → Detection scans output → Safe outputs run in parallel → Add comment waits for created items → Conclusion summarizes results. Safe output jobs without cross-dependencies run concurrently; when threat detection is enabled, safe outputs depend on both agent and detection jobs.
 
 ## Why Detection, Safe Outputs, and Conclusion Are Separate Jobs
 
@@ -207,11 +167,7 @@ These three jobs form a **sequential security pipeline** and cannot be combined 
 
 ### 1. Security Architecture: Trust Boundaries
 
-The system is built on [Plan-Level Trust](/gh-aw/introduction/architecture/) — separating AI reasoning (read-only) from write operations. The **detection** job is a security gate between the agent's output and write operations:
-
-- It runs **its own AI engine** as a second opinion on whether the agent's output is safe
-- If combined with `safe_outputs`, a compromised agent's output could be executed before threat detection completes
-- The detection result (`success == 'true'`) is an **explicit gate** that controls whether `safe_outputs` runs at all
+The system enforces [Plan-Level Trust](/gh-aw/introduction/architecture/) — separating AI reasoning (read-only) from write operations. The **detection** job runs its own AI engine as a security gate: `success == 'true'` is the explicit condition controlling whether `safe_outputs` executes at all. If combined, a compromised agent's output could bypass detection.
 
 ### 2. Job-Level Permissions Are Immutable
 
@@ -227,33 +183,15 @@ If detection and safe_outputs were combined, the combined job would hold **write
 
 ### 3. Job-Level Gating Provides Hard Isolation
 
-The `safe_outputs` job condition ensures it only runs when detection approves:
-
-```yaml
-if: ((!cancelled()) && (needs.agent.result != 'skipped'))
-    && (needs.detection.outputs.success == 'true')
-```
-
-With job-level gating, if detection fails, the safe_outputs runner **never starts** — write-permission code never loads. Step-level `if` within a single job provides weaker isolation since subsequent steps could still reference dangerous output.
+The `safe_outputs` job condition (`needs.detection.outputs.success == 'true'`) ensures the runner **never starts** if detection fails — write-permission code never loads. Step-level `if` conditions within a single job provide weaker isolation.
 
 ### 4. The Conclusion Job Requires `always()` Semantics
 
-The `conclusion` job runs with `always()` — even when the agent, detection, or safe_outputs jobs fail. It handles:
-
-- Agent failure reporting and issue creation
-- No-op message logging
-- Activation comment updates with error status
-- Missing tool reporting
-
-As a separate job, it can inspect the **result status** of each upstream job (`needs.detection.result`, `needs.agent.result`) and report accordingly. If combined with safe_outputs, a failure in write operations would prevent conclusion steps from running.
+The `conclusion` job uses `always()` to handle upstream failures: agent errors, no-op logging, error status updates, and missing tool reporting. As a separate job it inspects upstream results via `needs.agent.result`; merging it with safe_outputs would block these steps when writes fail.
 
 ### 5. Different Runners and Resource Requirements
 
-- **detection**: `ubuntu-latest` — needs full environment for AI engine execution (Copilot CLI, Node.js)
-- **safe_outputs**: `ubuntu-slim` — lightweight, runs JavaScript/GitHub API calls
-- **conclusion**: `ubuntu-slim` — lightweight status reporting
-
-Combining detection with safe_outputs would force the expensive `ubuntu-latest` runner for the entire pipeline.
+Detection requires `ubuntu-latest` for AI execution; safe_outputs and conclusion use the lightweight `ubuntu-slim`. Merging detection with safe_outputs would force `ubuntu-latest` for the entire pipeline.
 
 ### 6. Concurrency Group Isolation
 
@@ -261,19 +199,11 @@ The `detection` job shares a **concurrency group** (`gh-aw-copilot-${{ github.wo
 
 ### 7. Artifact-Based Security Handoff
 
-Data flows between jobs via GitHub Actions artifacts:
-
-1. Agent writes `agent_output.json` as an artifact
-2. Detection downloads it, analyzes it, outputs `success`
-3. Safe_outputs downloads the same artifact **only if detection approved**
-
-This artifact-based handoff ensures the detection job cannot be influenced by the safe_outputs environment and vice versa. In a single job, the agent output would be a file on the same filesystem, and a compromised step could modify it between detection and execution.
+Data flows via GitHub Actions artifacts: agent writes `agent_output.json` → detection analyzes it and outputs `success` → safe_outputs downloads it only if approved. This prevents the output tampering possible with a shared filesystem in a single job.
 
 ## Action Pinning
 
-All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to prevent supply chain attacks and ensure reproducibility. Tags can be moved to malicious commits, but SHA commits are immutable.
-
-**Resolution process**: Check cache (`.github/aw/actions-lock.json`) → Query GitHub API for latest SHA → Fall back to embedded pins → Cache result for future compilations. Dynamic resolution fetches current SHAs for tag references and stores them with timestamps.
+All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...11 # v6`) to prevent supply chain attacks. Tags can be moved to malicious commits, but SHA commits are immutable. The resolution order mirrors Phase 4: cache (`.github/aw/actions-lock.json`) → GitHub API → embedded pins.
 
 ## Artifacts Created
 
@@ -337,10 +267,7 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 
 **Inspect `.lock.yml` files**: Check header comments (imports, dependencies, prompt), job dependency graphs (Mermaid diagrams), job structure (steps, environment, permissions), action SHA pinning, and MCP configurations.
 
-**Common issues**:
-- **Circular dependencies**: Review `needs:` clauses in custom jobs
-- **Missing action pin**: Add to `action_pins.json` or enable dynamic resolution
-- **Invalid MCP config**: Verify `command`, `args`, and `env` syntax
+**Common issues**: Circular deps → review `needs:` clauses; Missing action pin → add to `action_pins.json` or enable dynamic resolution; Invalid MCP config → verify `command`, `args`, `env`.
 
 ## Performance Optimization
 

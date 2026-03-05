@@ -486,66 +486,6 @@ func TestContainsLogicalOperators(t *testing.T) {
 	}
 }
 
-func TestExtractGroupExpression(t *testing.T) {
-	tests := []struct {
-		name        string
-		concurrency any
-		expected    string
-		description string
-	}{
-		{
-			name:        "string format",
-			concurrency: "my-workflow-group",
-			expected:    "my-workflow-group",
-			description: "Simple string should be returned as-is",
-		},
-		{
-			name: "object format with group",
-			concurrency: map[string]any{
-				"group": "my-workflow-group",
-			},
-			expected:    "my-workflow-group",
-			description: "Group value should be extracted from object",
-		},
-		{
-			name: "object format with group and cancel",
-			concurrency: map[string]any{
-				"group":              "my-workflow-group",
-				"cancel-in-progress": true,
-			},
-			expected:    "my-workflow-group",
-			description: "Group value should be extracted ignoring other fields",
-		},
-		{
-			name: "object format without group",
-			concurrency: map[string]any{
-				"cancel-in-progress": true,
-			},
-			expected:    "",
-			description: "Missing group should return empty string",
-		},
-		{
-			name:        "nil input",
-			concurrency: nil,
-			expected:    "",
-			description: "Nil should return empty string",
-		},
-		{
-			name:        "invalid type",
-			concurrency: 123,
-			expected:    "",
-			description: "Invalid type should return empty string",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractGroupExpression(tt.concurrency)
-			assert.Equal(t, tt.expected, result, tt.description)
-		})
-	}
-}
-
 // TestValidateConcurrencyGroupExpressionRealWorld tests real-world concurrency group patterns
 func TestValidateConcurrencyGroupExpressionRealWorld(t *testing.T) {
 	// These are actual patterns used in the codebase

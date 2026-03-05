@@ -166,7 +166,7 @@ async function main() {
       repo,
       title: issueTitle,
       body: issueBody,
-      labels: ["maintenance", "workflows"],
+      labels: ["agentic-workflows", "maintenance"],
     });
 
     core.info(`✓ Created issue #${newIssue.data.number}: ${newIssue.data.html_url}`);

@@ -51,24 +51,18 @@ function generateHistoryUrl({ owner, repo, itemType, workflowCallId, workflowId,
   // Build the search query parts
   const queryParts = [`repo:${owner}/${repo}`];
 
-  // Add item type qualifier (issues and PRs use is: qualifiers; discussions and comments do not)
+  // Add item type qualifier (issues use is:issue qualifier; discussions and comments do not)
   if (itemType === "issue") {
     queryParts.push("is:issue");
-  } else if (itemType === "pull_request") {
-    queryParts.push("is:pr");
   }
 
-  // Search for the XML marker in the appropriate field
-  // Comments (issue/PR or discussion) use in:comments; all others use in:body
-  const isComment = itemType === "comment" || itemType === "discussion_comment";
   queryParts.push(`"${markerId}"`);
-  queryParts.push(isComment ? "in:comments" : "in:body");
 
   const url = new URL(`${server}/search`);
   url.searchParams.set("q", queryParts.join(" "));
 
   // Set the type parameter based on itemType for correct GitHub search filtering
-  const searchTypeMap = { issue: "issues", pull_request: "issues", discussion: "discussions", comment: "issues", discussion_comment: "discussions" };
+  const searchTypeMap = { issue: "issues", pull_request: "pullrequests", discussion: "discussions", comment: "issues", discussion_comment: "discussions" };
   url.searchParams.set("type", searchTypeMap[itemType] ?? "issues");
 
   return url.toString();
