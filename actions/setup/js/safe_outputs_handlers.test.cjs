@@ -469,7 +469,7 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("success");
       expect(responseData.temporary_id).toBeDefined();
-      expect(responseData.temporary_id).toMatch(/^aw_[a-z0-9]+$/);
+      expect(responseData.temporary_id).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
     });
 
     it("should use the provided temporary_id when given", () => {

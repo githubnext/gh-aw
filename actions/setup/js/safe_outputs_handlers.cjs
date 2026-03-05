@@ -15,6 +15,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { generateTemporaryId, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -476,11 +477,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const createProjectHandler = args => {
     const entry = { ...(args || {}), type: "create_project" };
 
-    // Generate temporary_id if not provided
-    if (!entry.temporary_id) {
-      entry.temporary_id = "aw_" + crypto.randomBytes(4).toString("hex");
-      server.debug(`Auto-generated temporary_id for create_project: ${entry.temporary_id}`);
+    // Use helper to validate or generate temporary_id
+    const tempIdResult = getOrGenerateTemporaryId(entry, "create_project");
+    if (tempIdResult.error) {
+      throw {
+        code: -32602,
+        message: tempIdResult.error,
+      };
     }
+    entry.temporary_id = tempIdResult.temporaryId;
+    server.debug(`temporary_id for create_project: ${entry.temporary_id}`);
 
     // Append to safe outputs
     appendSafeOutput(entry);
@@ -525,11 +531,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
 
-    // Generate temporary_id if not provided
-    if (!entry.temporary_id) {
-      entry.temporary_id = "aw_" + crypto.randomBytes(4).toString("hex");
-      server.debug(`Auto-generated temporary_id for add_comment: ${entry.temporary_id}`);
+    // Use helper to validate or generate temporary_id
+    const tempIdResult = getOrGenerateTemporaryId(entry, "add_comment");
+    if (tempIdResult.error) {
+      throw {
+        code: -32602,
+        message: tempIdResult.error,
+      };
     }
+    entry.temporary_id = tempIdResult.temporaryId;
+    server.debug(`temporary_id for add_comment: ${entry.temporary_id}`);
 
     // Append to safe outputs
     appendSafeOutput(entry);

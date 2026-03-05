@@ -448,7 +448,7 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
       expect(lastLine.body).toBe("Valid comment");
       // temporary_id should be auto-generated and stored in NDJSON
       expect(lastLine.temporary_id).toBeDefined();
-      expect(lastLine.temporary_id).toMatch(/^aw_[a-z0-9]+$/);
+      expect(lastLine.temporary_id).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
     });
 
     it("should return temporary_id in response when validation passes", async () => {
@@ -470,7 +470,7 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
       const responseData = JSON.parse(response.result.content[0].text);
       expect(responseData.result).toBe("success");
       expect(responseData.temporary_id).toBeDefined();
-      expect(responseData.temporary_id).toMatch(/^aw_[a-z0-9]+$/);
+      expect(responseData.temporary_id).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
       expect(responseData.comment).toBe(`#${responseData.temporary_id}`);
     });
 
