@@ -366,6 +366,42 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 		steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", projectToken))
 	}
 
+	// When create-pull-request or push-to-pull-request-branch uses a custom token, expose it as
+	// GITHUB_TOKEN so that git CLI operations in the JavaScript handlers can authenticate.
+	// The create_pull_request.cjs handler reads process.env.GITHUB_TOKEN to enable dynamic
+	// repo checkout for multi-repo/cross-repo scenarios (allowed-repos). Without this, the
+	// handler falls back to the default repo-scoped token which lacks access to other repos.
+	if usesPatchesAndCheckouts(data.SafeOutputs) && data.SafeOutputs.GitHubApp == nil {
+		var createPRToken string
+		if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
+			createPRToken = data.SafeOutputs.CreatePullRequests.GitHubToken
+		}
+		var pushToPRBranchToken string
+		if data.SafeOutputs != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
+			pushToPRBranchToken = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
+		}
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
+		}
+		// Use the same precedence as buildSharedPRCheckoutSteps:
+		// create-pull-request token > push-to-pull-request-branch token > safe-outputs token
+		effectiveCustomToken := createPRToken
+		if effectiveCustomToken == "" {
+			effectiveCustomToken = pushToPRBranchToken
+		}
+		if effectiveCustomToken == "" {
+			effectiveCustomToken = safeOutputsToken
+		}
+		// Only set GITHUB_TOKEN when a custom token is explicitly configured.
+		// The default repo-scoped GITHUB_TOKEN set by GitHub Actions cannot access other repos.
+		if effectiveCustomToken != "" {
+			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+			steps = append(steps, fmt.Sprintf("          GITHUB_TOKEN: %s\n", getEffectiveSafeOutputGitHubToken(effectiveCustomToken)))
+			consolidatedSafeOutputsStepsLog.Printf("Adding GITHUB_TOKEN env var for cross-repo git CLI operations")
+		}
+	}
+
 	// With section for github-token
 	// Use the standard safe outputs token for all operations.
 	// If project operations are configured, prefer the project token for the github-script client.

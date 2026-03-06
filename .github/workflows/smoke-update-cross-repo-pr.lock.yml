@@ -1409,6 +1409,7 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"push_to_pull_request_branch\":{\"github-token\":\"${{ secrets.GH_AW_SIDE_REPO_PAT }}\",\"if_no_changes\":\"error\",\"labels\":[\"smoke-test\"],\"max_patch_size\":1024,\"target\":\"1\",\"target-repo\":\"githubnext/gh-aw-side-repo\",\"title_prefix\":\"[smoke] \"}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
