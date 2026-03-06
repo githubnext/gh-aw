@@ -76,6 +76,7 @@ func TestDetectWorkflowScheduleInfo(t *testing.T) {
 		wantFrequency      string
 		wantIsUpdatable    bool
 		wantIsMultiTrigger bool
+		wantIsOnMap        bool
 	}{
 		{
 			name: "simple on: daily",
@@ -134,6 +135,21 @@ engine: copilot
 			wantIsUpdatable: true,
 		},
 		{
+			name: "on: map with multiple cron entries (not updatable)",
+			content: `---
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Monday 9AM
+    - cron: "0 17 * * 5" # Friday 5PM
+  workflow_dispatch:
+engine: copilot
+---
+`,
+			wantRawExpr:     "",
+			wantFrequency:   "",
+			wantIsUpdatable: false,
+		},
+		{
 			name: "on: map with schedule array and workflow_dispatch",
 			content: `---
 on:
@@ -146,6 +162,7 @@ engine: copilot
 			wantRawExpr:     "daily",
 			wantFrequency:   "daily",
 			wantIsUpdatable: true,
+			wantIsOnMap:     true,
 		},
 		{
 			name: "on: map with schedule string shorthand",
@@ -159,6 +176,7 @@ engine: copilot
 			wantRawExpr:     "weekly",
 			wantFrequency:   "weekly",
 			wantIsUpdatable: true,
+			wantIsOnMap:     true,
 		},
 		{
 			name: "on: map with schedule and slash_command (multi-trigger, updatable)",
@@ -176,6 +194,7 @@ engine: copilot
 			wantFrequency:      "daily",
 			wantIsUpdatable:    true,
 			wantIsMultiTrigger: true,
+			wantIsOnMap:        true,
 		},
 		{
 			name: "on: map with schedule and push (multi-trigger, updatable)",
@@ -192,6 +211,7 @@ engine: copilot
 			wantFrequency:      "daily",
 			wantIsUpdatable:    true,
 			wantIsMultiTrigger: true,
+			wantIsOnMap:        true,
 		},
 		{
 			name: "on: workflow_dispatch only (not a schedule)",
@@ -234,6 +254,115 @@ engine: copilot
 			assert.Equal(t, tt.wantFrequency, detection.Frequency, "frequency")
 			assert.Equal(t, tt.wantIsUpdatable, detection.IsUpdatable, "is updatable")
 			assert.Equal(t, tt.wantIsMultiTrigger, detection.IsMultiTrigger, "is multi-trigger")
+			assert.Equal(t, tt.wantIsOnMap, detection.IsOnMap, "is on map")
+		})
+	}
+}
+
+func TestUpdateScheduleInOnBlock(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		newExpr     string
+		wantErr     bool
+		wantContain []string // substrings that must appear in the result
+		wantAbsent  []string // substrings that must NOT appear in the result
+	}{
+		{
+			name: "updates scalar schedule, preserves workflow_dispatch",
+			content: `---
+on:
+  schedule: daily
+  workflow_dispatch:
+engine: copilot
+---
+# My workflow
+`,
+			newExpr:     "weekly",
+			wantContain: []string{"schedule: weekly", "workflow_dispatch:", "engine: copilot"},
+			wantAbsent:  []string{"schedule: daily"},
+		},
+		{
+			name: "updates cron-list schedule to scalar, preserves workflow_dispatch",
+			content: `---
+on:
+  schedule:
+    - cron: daily
+  workflow_dispatch:
+engine: copilot
+---
+`,
+			newExpr:     "weekly",
+			wantContain: []string{"schedule: weekly", "workflow_dispatch:"},
+			wantAbsent:  []string{"- cron:", "schedule:\n"},
+		},
+		{
+			name: "updates schedule in multi-trigger on: block, preserves push trigger",
+			content: `---
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  push:
+    branches: [main]
+engine: copilot
+---
+`,
+			newExpr:     "every 3h",
+			wantContain: []string{"schedule: every 3h", "push:", "branches: [main]"},
+			wantAbsent:  []string{"0 9 * * *", "- cron:"},
+		},
+		{
+			name: "updates schedule with slash_command trigger preserved",
+			content: `---
+on:
+  schedule: daily
+  workflow_dispatch:
+  slash_command:
+    name: repo-assist
+engine: copilot
+---
+`,
+			newExpr:     "weekly",
+			wantContain: []string{"schedule: weekly", "workflow_dispatch:", "slash_command:", "name: repo-assist"},
+			wantAbsent:  []string{"schedule: daily"},
+		},
+		{
+			name: "returns error when no schedule key inside on: block",
+			content: `---
+on:
+  workflow_dispatch:
+engine: copilot
+---
+`,
+			newExpr: "daily",
+			wantErr: true,
+		},
+		{
+			name: "returns error when on: is a scalar (no block)",
+			content: `---
+on: daily
+engine: copilot
+---
+`,
+			newExpr: "weekly",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := UpdateScheduleInOnBlock(tt.content, tt.newExpr)
+			if tt.wantErr {
+				assert.Error(t, err, "expected an error")
+				return
+			}
+			require.NoError(t, err, "unexpected error")
+			for _, want := range tt.wantContain {
+				assert.Contains(t, result, want, "result should contain %q", want)
+			}
+			for _, absent := range tt.wantAbsent {
+				assert.NotContains(t, result, absent, "result should not contain %q", absent)
+			}
 		})
 	}
 }

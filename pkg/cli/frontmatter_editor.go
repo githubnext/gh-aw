@@ -472,3 +472,92 @@ func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error) 
 	frontmatterEditorLog.Printf("No raw frontmatter lines available")
 	return "", errors.New("no frontmatter lines available to modify")
 }
+
+// UpdateScheduleInOnBlock updates the "schedule" sub-key inside the "on:" block mapping in
+// the workflow frontmatter. It replaces the existing schedule value—whether a scalar
+// (schedule: daily) or a list (schedule:\n  - cron: "0 9 * * *")—with a new scalar
+// expression, while preserving all sibling trigger keys (e.g., workflow_dispatch, push).
+func UpdateScheduleInOnBlock(content, scheduleExpr string) (string, error) {
+	frontmatterEditorLog.Printf("Updating schedule in on: block to %q", scheduleExpr)
+
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	if len(result.FrontmatterLines) == 0 {
+		return "", errors.New("no frontmatter lines available to modify")
+	}
+
+	frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+	inOnBlock := false
+	onIndentLevel := 0
+	scheduleFound := false
+	skipScheduleChildren := false
+	scheduleIndentLevel := 0
+
+	for _, line := range result.FrontmatterLines {
+		trimmedLine := strings.TrimSpace(line)
+		currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+		// Detect the start of the 'on:' block (bare "on:" key, with optional trailing comment).
+		if !inOnBlock &&
+			(trimmedLine == "on:" || trimmedLine == `"on":` ||
+				strings.HasPrefix(trimmedLine, "on: #") || strings.HasPrefix(trimmedLine, `"on": #`)) {
+			inOnBlock = true
+			onIndentLevel = currentIndent
+			frontmatterLines = append(frontmatterLines, line)
+			continue
+		}
+
+		if inOnBlock {
+			// Drop child lines of the schedule: key (e.g., "- cron: daily").
+			if skipScheduleChildren {
+				if currentIndent > scheduleIndentLevel {
+					continue
+				}
+				skipScheduleChildren = false
+			}
+
+			// Exit the on: block when a non-empty, non-comment line appears at or above on: indent.
+			if trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") && currentIndent <= onIndentLevel {
+				inOnBlock = false
+				frontmatterLines = append(frontmatterLines, line)
+				continue
+			}
+
+			// Replace the schedule: line (handles both scalar and bare-key forms).
+			if !scheduleFound &&
+				(trimmedLine == "schedule:" ||
+					strings.HasPrefix(trimmedLine, "schedule: ") ||
+					strings.HasPrefix(trimmedLine, "schedule:\t")) {
+				leadingSpace := line[:currentIndent]
+				frontmatterLines = append(frontmatterLines, fmt.Sprintf("%sschedule: %s", leadingSpace, scheduleExpr))
+				scheduleFound = true
+				scheduleIndentLevel = currentIndent
+				skipScheduleChildren = true
+				frontmatterEditorLog.Printf("Updated schedule in on: block to %q", scheduleExpr)
+				continue
+			}
+
+			frontmatterLines = append(frontmatterLines, line)
+			continue
+		}
+
+		frontmatterLines = append(frontmatterLines, line)
+	}
+
+	if !scheduleFound {
+		return "", errors.New("schedule key not found inside on: block")
+	}
+
+	var lines []string
+	lines = append(lines, "---")
+	lines = append(lines, frontmatterLines...)
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, "")
+		lines = append(lines, result.Markdown)
+	}
+	return strings.Join(lines, "\n"), nil
+}

@@ -35,6 +35,7 @@ type scheduleDetection struct {
 	Frequency      string // Classified frequency ("hourly", "daily", "weekly", etc.)
 	IsUpdatable    bool   // Whether the schedule can be updated by the wizard
 	IsMultiTrigger bool   // True when on: is a map with triggers besides schedule/workflow_dispatch
+	IsOnMap        bool   // True when on: is a map (not a simple scalar string)
 }
 
 // detectWorkflowScheduleInfo extracts the schedule expression and classifies its frequency
@@ -63,6 +64,7 @@ func detectWorkflowScheduleInfo(content string) scheduleDetection {
 				RawExpr:     onStr,
 				Frequency:   classifyScheduleFrequency(onStr),
 				IsUpdatable: true,
+				IsOnMap:     false,
 			}
 		}
 		return scheduleDetection{}
@@ -92,11 +94,18 @@ func detectWorkflowScheduleInfo(content string) scheduleDetection {
 				Frequency:      classifyScheduleFrequency(schedStr),
 				IsUpdatable:    true,
 				IsMultiTrigger: isMultiTrigger,
+				IsOnMap:        true,
 			}
 		}
 
 		// Schedule as array (e.g., "schedule:\n  - cron: daily")
 		if schedArray, ok := schedValue.([]any); ok && len(schedArray) > 0 {
+			// Workflows with multiple cron entries cannot be safely rewritten to a single
+			// frequency, so mark them as not updatable.
+			if len(schedArray) > 1 {
+				scheduleWizardLog.Printf("Multiple cron entries (%d) detected — not updatable", len(schedArray))
+				return scheduleDetection{}
+			}
 			if item, ok := schedArray[0].(map[string]any); ok {
 				if cronVal, ok := item["cron"].(string); ok {
 					return scheduleDetection{
@@ -104,6 +113,7 @@ func detectWorkflowScheduleInfo(content string) scheduleDetection {
 						Frequency:      classifyScheduleFrequency(cronVal),
 						IsUpdatable:    true,
 						IsMultiTrigger: isMultiTrigger,
+						IsOnMap:        true,
 					}
 				}
 			}
@@ -243,16 +253,19 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		}
 
 		// Update the workflow content in memory.
-		// For multi-trigger on: maps, update the "schedule" sub-field to preserve other triggers.
-		// For simple on: strings, update the "on" field directly.
-		updateField := "on"
-		if detection.IsMultiTrigger {
-			updateField = "schedule"
+		// When on: is a mapping, update only the schedule sub-key so other triggers
+		// (e.g., workflow_dispatch, push) are preserved.
+		// When on: is a scalar string, replace the on: field value directly.
+		var updatedContent string
+		var updateErr error
+		if detection.IsOnMap {
+			updatedContent, updateErr = UpdateScheduleInOnBlock(content, newExpr)
+		} else {
+			updatedContent, updateErr = UpdateFieldInFrontmatter(content, "on", newExpr)
 		}
-		updatedContent, err := UpdateFieldInFrontmatter(content, updateField, newExpr)
-		if err != nil {
-			scheduleWizardLog.Printf("Failed to update schedule (field=%s): %v", updateField, err)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update schedule: %v", err)))
+		if updateErr != nil {
+			scheduleWizardLog.Printf("Failed to update schedule (isOnMap=%v): %v", detection.IsOnMap, updateErr)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update schedule: %v", updateErr)))
 			continue
 		}
 
