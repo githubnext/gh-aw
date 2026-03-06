@@ -1132,6 +1132,7 @@ jobs:
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
+          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_campaigns: ${{ needs.push_repo_memory.outputs.validation_failed_campaigns }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_campaigns: ${{ needs.push_repo_memory.outputs.validation_error_campaigns }}
           GH_AW_GROUP_REPORTS: "false"

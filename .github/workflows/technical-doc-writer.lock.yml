@@ -1240,6 +1240,7 @@ jobs:
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
+          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
           GH_AW_GROUP_REPORTS: "false"

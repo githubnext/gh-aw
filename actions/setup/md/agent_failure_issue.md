@@ -4,7 +4,7 @@
 **Branch:** {branch}  
 **Run:** {run_url}{pull_request_info}
 
-{secret_verification_context}{inference_access_error_context}{assignment_errors_context}{create_discussion_errors_context}{code_push_failure_context}{repo_memory_validation_context}{missing_data_context}{missing_safe_outputs_context}{timeout_context}{fork_context}
+{secret_verification_context}{inference_access_error_context}{assignment_errors_context}{create_discussion_errors_context}{code_push_failure_context}{repo_memory_validation_context}{push_repo_memory_failure_context}{missing_data_context}{missing_safe_outputs_context}{timeout_context}{fork_context}
 
 ### Action Required
 

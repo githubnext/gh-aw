@@ -842,3 +842,62 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 		})
 	}
 }
+
+// TestConclusionJobPushRepoMemoryResult verifies that when repo-memory is configured,
+// GH_AW_PUSH_REPO_MEMORY_RESULT is passed to the conclusion job so the failure handler
+// can report push_repo_memory job-level failures.
+func TestConclusionJobPushRepoMemoryResult(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			MissingTool: &MissingToolConfig{},
+		},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{ID: "default", BranchName: "memory/default"},
+			},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+	if !strings.Contains(allSteps, "GH_AW_PUSH_REPO_MEMORY_RESULT") {
+		t.Error("Expected conclusion job to include GH_AW_PUSH_REPO_MEMORY_RESULT env var for push job failure reporting")
+	}
+	if !strings.Contains(allSteps, "${{ needs.push_repo_memory.result }}") {
+		t.Error("Expected GH_AW_PUSH_REPO_MEMORY_RESULT to reference needs.push_repo_memory.result")
+	}
+}
+
+// TestConclusionJobNoPushRepoMemoryResult verifies that when repo-memory is NOT configured,
+// GH_AW_PUSH_REPO_MEMORY_RESULT is not added to the conclusion job (no unnecessary env vars).
+func TestConclusionJobNoPushRepoMemoryResult(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			MissingTool: &MissingToolConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	allSteps := strings.Join(job.Steps, "\n")
+	if strings.Contains(allSteps, "GH_AW_PUSH_REPO_MEMORY_RESULT") {
+		t.Error("Expected conclusion job to NOT include GH_AW_PUSH_REPO_MEMORY_RESULT when repo-memory is not configured")
+	}
+}

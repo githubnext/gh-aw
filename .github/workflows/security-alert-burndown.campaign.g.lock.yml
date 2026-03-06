@@ -1453,6 +1453,7 @@ jobs:
           GH_AW_WORKFLOW_ID: "security-alert-burndown.campaign.g"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
+          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_campaigns: ${{ needs.push_repo_memory.outputs.validation_failed_campaigns }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_campaigns: ${{ needs.push_repo_memory.outputs.validation_error_campaigns }}
           GH_AW_GROUP_REPORTS: "false"

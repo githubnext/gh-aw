@@ -177,9 +177,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 
-	// Pass repo-memory validation failure outputs if repo-memory is configured
-	// This allows the agent failure handler to report validation issues
+	// Pass repo-memory failure outputs if repo-memory is configured
+	// This allows the agent failure handler to report both job-level failures and validation issues
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
+		// Pass the overall push_repo_memory job result so the failure handler
+		// can report when the push job itself fails (e.g. permission or configuration errors)
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}\n")
 		for _, memory := range data.RepoMemoryConfig.Memories {
 			// Add validation status for each memory
 			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_REPO_MEMORY_VALIDATION_FAILED_%s: ${{ needs.push_repo_memory.outputs.validation_failed_%s }}\n", memory.ID, memory.ID))

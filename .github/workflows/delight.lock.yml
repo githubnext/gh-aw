@@ -1164,6 +1164,7 @@ jobs:
           GH_AW_CREATE_DISCUSSION_ERRORS: ${{ needs.safe_outputs.outputs.create_discussion_errors }}
           GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *User experience analysis by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
+          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
           GH_AW_GROUP_REPORTS: "false"

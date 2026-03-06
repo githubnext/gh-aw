@@ -492,6 +492,7 @@ async function main() {
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
+    const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -516,6 +517,7 @@ async function main() {
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
+    core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
 
     // Check if the agent timed out
     const isTimedOut = agentConclusion === "timed_out";
@@ -528,6 +530,9 @@ async function main() {
 
     // Check if there are code-push failures (regardless of agent job status)
     const hasCodePushFailures = parseInt(codePushFailureCount, 10) > 0;
+
+    // Check if the push_repo_memory job itself failed (e.g. permission or config errors)
+    const hasPushRepoMemoryFailure = pushRepoMemoryResult === "failure";
 
     // Check if agent succeeded but produced no safe outputs
     let hasMissingSafeOutputs = false;
@@ -549,10 +554,10 @@ async function main() {
       }
     }
 
-    // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR create_discussion errors OR code-push failures OR missing safe outputs
+    // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
-    if (agentConclusion !== "failure" && !isTimedOut && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasCodePushFailures && !hasMissingSafeOutputs) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+    if (agentConclusion !== "failure" && !isTimedOut && !hasAssignmentErrors && !hasCreateDiscussionErrors && !hasCodePushFailures && !hasPushRepoMemoryFailure && !hasMissingSafeOutputs) {
+      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -664,6 +669,13 @@ async function main() {
           repoMemoryValidationContext += "\n";
         }
 
+        // Build push_repo_memory job failure context
+        const pushRepoMemoryFailureContext = hasPushRepoMemoryFailure
+          ? "\n**⚠️ Repo-Memory Push Failed**: The push-repo-memory job failed to write memory back to the repository. This may indicate a permission issue, a configuration error, or a network problem. Check the [workflow run](" +
+            runUrl +
+            ") for details.\n\n"
+          : "";
+
         // Build missing_data context
         const missingDataContext = buildMissingDataContext();
 
@@ -705,6 +717,7 @@ async function main() {
           create_discussion_errors_context: createDiscussionErrorsContext,
           code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
+          push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           timeout_context: timeoutContext,
@@ -784,6 +797,13 @@ async function main() {
           repoMemoryValidationContext += "\n";
         }
 
+        // Build push_repo_memory job failure context
+        const pushRepoMemoryFailureContext = hasPushRepoMemoryFailure
+          ? "\n**⚠️ Repo-Memory Push Failed**: The push-repo-memory job failed to write memory back to the repository. This may indicate a permission issue, a configuration error, or a network problem. Check the [workflow run](" +
+            runUrl +
+            ") for details.\n\n"
+          : "";
+
         // Build missing_data context
         const missingDataContext = buildMissingDataContext();
 
@@ -826,6 +846,7 @@ async function main() {
           create_discussion_errors_context: createDiscussionErrorsContext,
           code_push_failure_context: codePushFailureContext,
           repo_memory_validation_context: repoMemoryValidationContext,
+          push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           timeout_context: timeoutContext,
