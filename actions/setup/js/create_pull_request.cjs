@@ -993,7 +993,6 @@ ${patchPreview}`;
       if (errorMessage.includes("GitHub Actions is not permitted to create or approve pull requests")) {
         core.error("Permission error: GitHub Actions is not permitted to create or approve pull requests");
 
-
         // Branch has already been pushed - create a fallback issue with a link to create the PR via GitHub UI
         const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
         // Encode branch name path segments individually to preserve '/' while encoding other special characters
