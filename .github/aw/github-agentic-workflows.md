@@ -95,6 +95,26 @@ The YAML frontmatter supports these fields:
   - **`skip-bots:`** - Skip workflow execution when triggered by specific GitHub actors (array)
     - Bot name matching is flexible (handles with/without `[bot]` suffix)
     - Example: `skip-bots: [dependabot, renovate]` - Skip for Dependabot and Renovate
+  - **`skip-if-match:`** - Skip workflow execution when a GitHub search query returns results (string or object)
+    - String format: `skip-if-match: "is:issue is:open label:bug"` (implies max=1)
+    - Object format with threshold:
+      ```yaml
+      skip-if-match:
+        query: "is:issue is:open label:in-progress"
+        max: 3   # Skip if 3 or more matches (default: 1)
+      ```
+    - Query is automatically scoped to the current repository
+    - Use to avoid duplicate work (e.g., skip if an open issue already exists)
+  - **`skip-if-no-match:`** - Skip workflow execution when a GitHub search query returns no results (string or object)
+    - String format: `skip-if-no-match: "is:pr is:open label:ready-to-deploy"` (implies min=1)
+    - Object format with threshold:
+      ```yaml
+      skip-if-no-match:
+        query: "is:pr is:open label:ready-to-deploy"
+        min: 2   # Require at least 2 matches to proceed (default: 1)
+      ```
+    - Query is automatically scoped to the current repository
+    - Use to gate workflows on preconditions (e.g., only run if open PRs exist)
 
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `write`, `none`
