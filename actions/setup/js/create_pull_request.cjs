@@ -535,7 +535,9 @@ async function main(config = {}) {
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/actions/runs/${runId}`;
+    const runUrl = context.payload.repository?.html_url
+      ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+      : `${(context.serverUrl || githubServer).replace(/\/+$/, "")}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
     const triggeringPRNumber = context.payload.pull_request?.number;
