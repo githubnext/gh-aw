@@ -31,6 +31,12 @@ const MAX_STEP_SUMMARY_SIZE = 1000 * 1024;
 const MAX_BASH_COMMAND_DISPLAY_LENGTH = 40;
 
 /**
+ * Maximum length for agent response text blocks in conversation summaries.
+ * Increased from 500 to allow structured output (tables, lists) to survive intact.
+ */
+const MAX_AGENT_TEXT_LENGTH = 2000;
+
+/**
  * Warning message shown when step summary size limit is reached.
  * This message is added directly to markdown (not tracked) to ensure it's always visible.
  * The message is small (~70 bytes) and won't cause practical issues with the 8MB limit.
@@ -1042,10 +1048,9 @@ function generatePlainTextSummary(logEntries, options = {}) {
           text = unfenceMarkdown(text);
           if (text && text.length > 0) {
             // Truncate long responses to keep output manageable
-            const maxTextLength = 500;
             let displayText = text;
-            if (displayText.length > maxTextLength) {
-              displayText = displayText.substring(0, maxTextLength) + "...";
+            if (displayText.length > MAX_AGENT_TEXT_LENGTH) {
+              displayText = displayText.substring(0, MAX_AGENT_TEXT_LENGTH) + `... [truncated: showing first ${MAX_AGENT_TEXT_LENGTH} of ${text.length} chars]`;
             }
 
             // Split into lines and add Agent prefix
@@ -1257,10 +1262,9 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
           text = unfenceMarkdown(text);
           if (text && text.length > 0) {
             // Truncate long responses to keep output manageable
-            const maxTextLength = 500;
             let displayText = text;
-            if (displayText.length > maxTextLength) {
-              displayText = displayText.substring(0, maxTextLength) + "...";
+            if (displayText.length > MAX_AGENT_TEXT_LENGTH) {
+              displayText = displayText.substring(0, MAX_AGENT_TEXT_LENGTH) + `... [truncated: showing first ${MAX_AGENT_TEXT_LENGTH} of ${text.length} chars]`;
             }
 
             // Split into lines and add Agent prefix

@@ -793,7 +793,6 @@ jobs:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           S2STOKENS: true
           XDG_CONFIG_HOME: /home/runner
@@ -1022,7 +1021,6 @@ jobs:
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           S2STOKENS: true
           XDG_CONFIG_HOME: /home/runner

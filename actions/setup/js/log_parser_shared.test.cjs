@@ -1748,7 +1748,7 @@ describe("log_parser_shared.cjs", () => {
     it("should truncate long agent responses", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
-      const longText = "a".repeat(600); // Longer than MAX_TEXT_LENGTH of 500
+      const longText = "a".repeat(2100); // Longer than MAX_AGENT_TEXT_LENGTH of 2000
       const logEntries = [
         { type: "system", subtype: "init" },
         {
@@ -1762,8 +1762,8 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Agent: " + "a".repeat(500) + "...");
-      expect(result).not.toContain("a".repeat(600));
+      expect(result).toContain("Agent: " + "a".repeat(2000) + "... [truncated: showing first 2000 of 2100 chars]");
+      expect(result).not.toContain("a".repeat(2001));
     });
 
     it("should handle multi-line agent responses", async () => {
@@ -1869,7 +1869,7 @@ describe("log_parser_shared.cjs", () => {
     it("should truncate long agent messages", async () => {
       const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
 
-      const longText = "a".repeat(600);
+      const longText = "a".repeat(2100); // Longer than MAX_AGENT_TEXT_LENGTH of 2000
       const logEntries = [
         {
           type: "assistant",
@@ -1882,7 +1882,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Agent: " + "a".repeat(500) + "...");
+      expect(result).toContain("Agent: " + "a".repeat(2000) + "... [truncated: showing first 2000 of 2100 chars]");
     });
 
     it("should skip internal file operation tools", async () => {

@@ -253,7 +253,6 @@ mkdir -p "$CODEX_HOME/logs"
 
 	env := map[string]string{
 		"CODEX_API_KEY":                "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
-		"GITHUB_STEP_SUMMARY":          "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GH_AW_PROMPT":                 "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GH_AW_MCP_CONFIG":             "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
