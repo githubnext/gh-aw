@@ -678,7 +678,15 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 		// public repositories are still accessible without authentication.
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
-			return downloadFileViaGit(owner, repo, path, ref)
+			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
+			if gitErr != nil {
+				// Both REST (auth error) and git fallback failed. Return the original auth error
+				// so callers and tests can detect the auth-unavailable condition and skip/handle
+				// it gracefully (git fails too in unauthenticated environments for private/invalid repos).
+				remoteLog.Printf("Git fallback also failed for %s/%s/%s@%s: %v", owner, repo, path, ref, gitErr)
+				return nil, fmt.Errorf("failed to fetch file content: %w", err)
+			}
+			return content, nil
 		}
 		return nil, fmt.Errorf("failed to create REST client: %w", err)
 	}
