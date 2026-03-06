@@ -1553,3 +1553,186 @@ func TestFuzzyScheduleDevModeDifferentFromReleaseMode(t *testing.T) {
 	t.Logf("Dev mode result: %s", devResult)
 	t.Logf("Release mode result: %s", releaseResult)
 }
+
+// TestLabelTriggerShorthandPreprocessing verifies that preprocessScheduleFields correctly
+// expands label trigger shorthands (e.g. "on: pull_request labeled my-label") into a
+// structured frontmatter with workflow_dispatch.inputs.item_number. These tests cover
+// the parsing side of the HasDispatchItemNumber feature so that extractDispatchItemNumber
+// can reliably detect the presence of item_number from the in-memory map.
+func TestLabelTriggerShorthandPreprocessing(t *testing.T) {
+	tests := []struct {
+		name             string
+		onValue          string
+		wantTriggerKey   string   // e.g. "pull_request", "issues", "discussion"
+		wantLabelNames   []string // label names expected in trigger config
+		wantEntitySubstr string   // substring expected in item_number description
+		wantItemNumber   bool     // whether extractDispatchItemNumber should return true
+	}{
+		{
+			name:             "pull_request labeled single label",
+			onValue:          "pull_request labeled needs-review",
+			wantTriggerKey:   "pull_request",
+			wantLabelNames:   []string{"needs-review"},
+			wantEntitySubstr: "pull request",
+			wantItemNumber:   true,
+		},
+		{
+			name:             "pull_request labeled multiple labels",
+			onValue:          "pull_request labeled bug fix",
+			wantTriggerKey:   "pull_request",
+			wantLabelNames:   []string{"bug", "fix"},
+			wantEntitySubstr: "pull request",
+			wantItemNumber:   true,
+		},
+		{
+			name:             "issue labeled single label",
+			onValue:          "issue labeled bug",
+			wantTriggerKey:   "issues",
+			wantLabelNames:   []string{"bug"},
+			wantEntitySubstr: "issue",
+			wantItemNumber:   true,
+		},
+		{
+			name:             "discussion labeled single label",
+			onValue:          "discussion labeled question",
+			wantTriggerKey:   "discussion",
+			wantLabelNames:   []string{"question"},
+			wantEntitySubstr: "discussion",
+			wantItemNumber:   true,
+		},
+		{
+			name:             "pull-request (hyphen) labeled single label",
+			onValue:          "pull-request labeled needs-review",
+			wantTriggerKey:   "pull_request",
+			wantLabelNames:   []string{"needs-review"},
+			wantEntitySubstr: "pull request",
+			wantItemNumber:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frontmatter := map[string]any{"on": tt.onValue}
+			compiler := NewCompiler()
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+
+			err := compiler.preprocessScheduleFields(frontmatter, "", "")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// The "on" field should now be a map
+			onValue, exists := frontmatter["on"]
+			if !exists {
+				t.Fatal("expected 'on' field to exist after preprocessing")
+			}
+			onMap, ok := onValue.(map[string]any)
+			if !ok {
+				t.Fatalf("expected 'on' to be a map after preprocessing, got %T", onValue)
+			}
+
+			// Trigger key (e.g. pull_request, issues, discussion) must be present
+			triggerVal, hasTrigger := onMap[tt.wantTriggerKey]
+			if !hasTrigger {
+				t.Errorf("expected trigger key %q in 'on' map, got keys: %v", tt.wantTriggerKey, onMap)
+			} else {
+				triggerMap, ok := triggerVal.(map[string]any)
+				if !ok {
+					t.Errorf("expected trigger %q to be a map, got %T", tt.wantTriggerKey, triggerVal)
+				} else {
+					// types: [labeled]
+					types, _ := triggerMap["types"].([]any)
+					if len(types) != 1 || types[0] != "labeled" {
+						t.Errorf("expected types=[labeled], got %v", types)
+					}
+					// names must match the expected labels
+					names, _ := triggerMap["names"].([]string)
+					if !slicesEqual(names, tt.wantLabelNames) {
+						t.Errorf("expected names %v, got %v", tt.wantLabelNames, names)
+					}
+				}
+			}
+
+			// workflow_dispatch must be present with inputs.item_number
+			wdVal, hasWD := onMap["workflow_dispatch"]
+			if !hasWD {
+				t.Fatal("expected workflow_dispatch in 'on' map")
+			}
+			wdMap, ok := wdVal.(map[string]any)
+			if !ok {
+				t.Fatalf("expected workflow_dispatch to be a map, got %T", wdVal)
+			}
+			inputsVal, hasInputs := wdMap["inputs"]
+			if !hasInputs {
+				t.Fatal("expected inputs in workflow_dispatch")
+			}
+			inputsMap, ok := inputsVal.(map[string]any)
+			if !ok {
+				t.Fatalf("expected inputs to be a map, got %T", inputsVal)
+			}
+			itemNumberVal, hasItemNumber := inputsMap["item_number"]
+			if !hasItemNumber {
+				t.Fatal("expected item_number in workflow_dispatch.inputs")
+			}
+			itemNumberMap, ok := itemNumberVal.(map[string]any)
+			if !ok {
+				t.Fatalf("expected item_number to be a map, got %T", itemNumberVal)
+			}
+			desc, _ := itemNumberMap["description"].(string)
+			if !strings.Contains(desc, tt.wantEntitySubstr) {
+				t.Errorf("expected item_number description to contain %q, got %q", tt.wantEntitySubstr, desc)
+			}
+
+			// Full pipeline: extractDispatchItemNumber must return true
+			got := extractDispatchItemNumber(frontmatter)
+			if got != tt.wantItemNumber {
+				t.Errorf("extractDispatchItemNumber() = %v, want %v", got, tt.wantItemNumber)
+			}
+		})
+	}
+}
+
+// TestLabelTriggerShorthandPreprocessingErrors verifies that invalid label trigger
+// shorthands produce the expected errors, and that incomplete patterns fall through
+// without being treated as label triggers.
+func TestLabelTriggerShorthandPreprocessingErrors(t *testing.T) {
+	t.Run("pull_request labeled with only empty labels (comma-only)", func(t *testing.T) {
+		// A comma-only token is parsed as empty labels → error
+		frontmatter := map[string]any{"on": "pull_request labeled ,"}
+		compiler := NewCompiler()
+		err := compiler.preprocessScheduleFields(frontmatter, "", "")
+		if err == nil {
+			t.Error("expected an error for label trigger with empty label names, got nil")
+			return
+		}
+		if !strings.Contains(err.Error(), "label trigger shorthand requires at least one label name") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("pull_request labeled with no labels (2 tokens - parsed as PR activity trigger, no item_number)", func(t *testing.T) {
+		// "pull_request labeled" has only 2 tokens so it doesn't match the
+		// label trigger shorthand (which needs >= 3). It is parsed instead as a
+		// plain pull_request activity-type trigger (types: [labeled]) with a bare
+		// workflow_dispatch (no inputs). extractDispatchItemNumber must return false.
+		frontmatter := map[string]any{"on": "pull_request labeled"}
+		compiler := NewCompiler()
+		err := compiler.preprocessScheduleFields(frontmatter, "", "")
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			return
+		}
+		onMap, ok := frontmatter["on"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected 'on' to be a map, got %T", frontmatter["on"])
+		}
+		// workflow_dispatch should exist but have no item_number input
+		if _, hasWD := onMap["workflow_dispatch"]; !hasWD {
+			t.Error("expected workflow_dispatch in 'on' map")
+		}
+		// extractDispatchItemNumber must be false — no item_number input was added
+		if extractDispatchItemNumber(frontmatter) {
+			t.Error("extractDispatchItemNumber() should be false: workflow_dispatch has no item_number inputs")
+		}
+	})
+}
