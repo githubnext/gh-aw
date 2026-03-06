@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -35,7 +34,7 @@ func ensureLatestExtensionVersion(verbose bool) error {
 	}
 
 	// Query GitHub API for latest release
-	latestVersion, err := getLatestReleaseVersion(verbose)
+	latestVersion, err := getLatestRelease()
 	if err != nil {
 		// Fail silently - don't block upgrade if we can't check for updates
 		updateExtensionCheckLog.Printf("Failed to check for updates (silently ignoring): %v", err)
@@ -82,25 +81,4 @@ func ensureLatestExtensionVersion(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
-}
-
-// getLatestReleaseVersion queries GitHub API for the latest release version of gh-aw
-func getLatestReleaseVersion(verbose bool) (string, error) {
-	updateExtensionCheckLog.Print("Querying GitHub API for latest release...")
-
-	// Create GitHub REST client using go-gh
-	client, err := api.NewRESTClient(api.ClientOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to create GitHub client: %w", err)
-	}
-
-	// Query the latest release
-	var release Release
-	err = client.Get("repos/github/gh-aw/releases/latest", &release)
-	if err != nil {
-		return "", fmt.Errorf("failed to query latest release: %w", err)
-	}
-
-	updateExtensionCheckLog.Printf("Latest release: %s", release.TagName)
-	return release.TagName, nil
 }

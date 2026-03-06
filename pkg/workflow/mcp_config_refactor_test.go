@@ -208,11 +208,15 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 }
 
 // TestRenderPlaywrightMCPConfigTOML verifies the TOML format helper for Codex engine
-// TestRenderSafeOutputsMCPConfigTOML verifies the Safe Outputs TOML format helper
+// TestRenderSafeOutputsMCPConfigTOML verifies the Safe Outputs TOML format via the production MCPConfigRendererUnified path
 func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	var output strings.Builder
 
-	renderSafeOutputsMCPConfigTOML(&output)
+	renderer := NewMCPConfigRenderer(MCPRendererOptions{
+		Format: "toml",
+		IsLast: true,
+	})
+	renderer.RenderSafeOutputsMCP(&output, nil)
 
 	result := output.String()
 
@@ -246,7 +250,57 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	}
 }
 
-// TestRenderAgenticWorkflowsMCPConfigTOML verifies the Agentic Workflows TOML format helper
+// TestRenderSafeOutputsMCPConfigTOMLSandboxAware verifies sandbox-aware host selection in the
+// production renderSafeOutputsTOML path
+func TestRenderSafeOutputsMCPConfigTOMLSandboxAware(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expectedHost string
+	}{
+		{
+			name:         "nil workflowData uses host.docker.internal",
+			workflowData: nil,
+			expectedHost: "host.docker.internal",
+		},
+		{
+			name: "agent enabled uses host.docker.internal",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{Disabled: false},
+				},
+			},
+			expectedHost: "host.docker.internal",
+		},
+		{
+			name: "agent disabled uses localhost",
+			workflowData: &WorkflowData{
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{Disabled: true},
+				},
+			},
+			expectedHost: "localhost",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output strings.Builder
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				Format: "toml",
+				IsLast: true,
+			})
+			renderer.RenderSafeOutputsMCP(&output, tt.workflowData)
+			result := output.String()
+			if !strings.Contains(result, tt.expectedHost) {
+				t.Errorf("Expected host %q not found in output:\n%s", tt.expectedHost, result)
+			}
+		})
+	}
+}
+
+// TestRenderAgenticWorkflowsMCPConfigTOML verifies the Agentic Workflows TOML format via the
+// production MCPConfigRendererUnified path.
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 	tests := []struct {
@@ -297,15 +351,18 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderAgenticWorkflowsMCPConfigTOML(&output, tt.actionMode)
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				Format:     "toml",
+				ActionMode: tt.actionMode,
+			})
+			renderer.RenderAgenticWorkflowsMCP(&output)
 
 			result := output.String()
 
 			expectedContent := []string{
 				`[mcp_servers.agenticworkflows]`,
 				tt.expectedContainer,
-				`args = ["--network", "host", "-w", "${GITHUB_WORKSPACE}"]`, // Network access + working directory
-				`env_vars = ["DEBUG", "GITHUB_TOKEN", "GITHUB_ACTOR", "GITHUB_REPOSITORY"]`,
+				`env_vars = ["DEBUG", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTOR", "GITHUB_REPOSITORY"]`,
 			}
 			expectedContent = append(expectedContent, tt.expectedMounts...)
 
