@@ -640,6 +640,7 @@ describe("create_project_status_update", () => {
         start_date: "2025-01-01",
         target_date: "2025-12-31",
       },
+      Object.fromEntries(temporaryIdMap),
       temporaryIdMap
     );
 
@@ -684,6 +685,7 @@ describe("create_project_status_update", () => {
         project: "#aw_abc12345",
         body: "Test status update",
       },
+      Object.fromEntries(temporaryIdMap),
       temporaryIdMap
     );
 
@@ -702,6 +704,7 @@ describe("create_project_status_update", () => {
         project: "aw_notfound",
         body: "Test status update",
       },
+      Object.fromEntries(temporaryIdMap),
       temporaryIdMap
     );
 

@@ -309,11 +309,11 @@ async function main(config = {}, githubClient = null) {
   /**
    * Message handler function that processes a single create_project_status_update message
    * @param {Object} message - The create_project_status_update message to process
-   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string}>} temporaryIdMap - Unified map of temporary IDs
    * @param {Object} resolvedTemporaryIds - Plain object version of temporaryIdMap for backward compatibility
+   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string}>|null} temporaryIdMap - Unified map of temporary IDs
    * @returns {Promise<Object>} Result with success/error status and status update details
    */
-  return async function handleCreateProjectStatusUpdate(message, temporaryIdMap, resolvedTemporaryIds = {}) {
+  return async function handleCreateProjectStatusUpdate(message, resolvedTemporaryIds = {}, temporaryIdMap = null) {
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping create-project-status-update: max count of ${maxCount} reached`);
@@ -345,7 +345,7 @@ async function main(config = {}, githubClient = null) {
     const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
     if (isTemporaryId(projectWithoutHash)) {
       const normalizedId = normalizeTemporaryId(projectWithoutHash);
-      const resolved = temporaryIdMap.get(normalizedId);
+      const resolved = temporaryIdMap instanceof Map ? temporaryIdMap.get(normalizedId) : resolvedTemporaryIds[normalizedId];
       if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
         core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
         effectiveProjectUrl = resolved.projectUrl;
