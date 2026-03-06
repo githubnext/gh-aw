@@ -107,9 +107,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
-		yaml.WriteString("            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');\n")
+		yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 		yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-		yaml.WriteString("            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/merge_remote_agent_github_folder.cjs');\n")
+		yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/merge_remote_agent_github_folder.cjs") + ");\n")
 		yaml.WriteString("            await main();\n")
 	}
 
@@ -172,9 +172,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          bash " + GhAwHome + "/actions/create_gh_aw_tmp_dir.sh\n")
-	yaml.WriteString("          echo \"GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl\" >> \"$GITHUB_ENV\"\n")
-	yaml.WriteString("          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/config.json\" >> \"$GITHUB_ENV\"\n")
-	yaml.WriteString("          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/tools.json\" >> \"$GITHUB_ENV\"\n")
+	yaml.WriteString("          echo \"GH_AW_SAFE_OUTPUTS=" + GhAwHome + "/safeoutputs/outputs.jsonl\" >> \"$GITHUB_ENV\"\n")
+	yaml.WriteString("          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=" + GhAwHome + "/safeoutputs/config.json\" >> \"$GITHUB_ENV\"\n")
+	yaml.WriteString("          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=" + GhAwHome + "/safeoutputs/tools.json\" >> \"$GITHUB_ENV\"\n")
 
 	// Add custom steps if present
 	if data.CustomSteps != "" {

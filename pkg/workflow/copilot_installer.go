@@ -22,7 +22,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 	// This script includes retry logic for robustness against transient network failures
 	stepLines := []string{
 		"      - name: " + stepName,
-		"        run: ${GH_AW_HOME:-/opt/gh-aw}/actions/install_copilot_cli.sh " + version,
+		"        run: " + GhAwHome + "/actions/install_copilot_cli.sh " + version,
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

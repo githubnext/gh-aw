@@ -997,7 +997,7 @@ func RenderJSONMCPConfig(
 
 	delimiter := GenerateHeredocDelimiter("MCP_CONFIG")
 	// Write the configuration to the YAML output
-	yaml.WriteString("          cat << " + delimiter + " | bash ${GH_AW_HOME:-/opt/gh-aw}/actions/start_mcp_gateway.sh\n")
+	yaml.WriteString("          cat << " + delimiter + " | bash " + GhAwHome + "/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString(generatedConfig)
 	yaml.WriteString("          " + delimiter + "\n")
 

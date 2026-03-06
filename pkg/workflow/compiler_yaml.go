@@ -475,13 +475,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	yaml.WriteString("      - name: Validate prompt placeholders\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/validate_prompt_placeholders.sh\n")
+	yaml.WriteString("        run: bash " + GhAwHome + "/actions/validate_prompt_placeholders.sh\n")
 
 	// Print prompt (merged into prompt generation)
 	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/print_prompt_summary.sh\n")
+	yaml.WriteString("        run: bash " + GhAwHome + "/actions/print_prompt_summary.sh\n")
 }
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {
@@ -623,7 +623,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/generate_aw_info.cjs');\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/generate_aw_info.cjs") + ");\n")
 	yaml.WriteString("            await main(core, context);\n")
 }
 
@@ -685,9 +685,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Load script from external file using require()
-	yaml.WriteString("            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-	yaml.WriteString("            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/collect_ndjson_output.cjs');\n")
+	yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/collect_ndjson_output.cjs") + ");\n")
 	yaml.WriteString("            await main();\n")
 
 	// Record artifact upload for validation

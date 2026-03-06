@@ -234,9 +234,9 @@ jobs:
 `)
 
 	// Add the close expired discussions script using require()
-	yaml.WriteString(`            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+	yaml.WriteString(`            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/close_expired_discussions.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/close_expired_discussions.cjs") + `);
             await main();
 
       - name: Close expired issues
@@ -246,9 +246,9 @@ jobs:
 `)
 
 	// Add the close expired issues script using require()
-	yaml.WriteString(`            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+	yaml.WriteString(`            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/close_expired_issues.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/close_expired_issues.cjs") + `);
             await main();
 
       - name: Close expired pull requests
@@ -258,9 +258,9 @@ jobs:
 `)
 
 	// Add the close expired pull requests script using require()
-	yaml.WriteString(`            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+	yaml.WriteString(`            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/close_expired_pull_requests.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/close_expired_pull_requests.cjs") + `);
             await main();
 `)
 
@@ -289,9 +289,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/check_team_member.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/check_team_member.cjs") + `);
             await main();
 
 `)
@@ -306,9 +306,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/run_operation_update_upgrade.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/run_operation_update_upgrade.cjs") + `);
             await main();
 `)
 
@@ -350,9 +350,9 @@ jobs:
         uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/check_workflow_recompile_needed.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/check_workflow_recompile_needed.cjs") + `);
             await main();
 
   zizmor-scan:
@@ -425,9 +425,9 @@ jobs:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(` + JsRequireGhAw("actions/setup_globals.cjs") + `);
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/validate_secrets.cjs');
+            const { main } = require(` + JsRequireGhAw("actions/validate_secrets.cjs") + `);
             await main();
 
       - name: Upload secret validation report

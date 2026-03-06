@@ -455,7 +455,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	}
 
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/create_prompt_first.sh\n")
+	yaml.WriteString("          bash " + GhAwHome + "/actions/create_prompt_first.sh\n")
 	yaml.WriteString("          {\n")
 
 	// Track if we're inside a heredoc

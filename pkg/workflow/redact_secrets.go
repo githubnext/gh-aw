@@ -80,7 +80,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		// Use setupGlobals helper to attach GitHub Actions builtin objects to global scope
 		yaml.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 		yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-		yaml.WriteString("            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/redact_secrets.cjs');\n")
+		yaml.WriteString("            const { main } = require(" + JsRequireGhAw("actions/redact_secrets.cjs") + ");\n")
 		yaml.WriteString("            await main();\n")
 
 		// Add environment variables

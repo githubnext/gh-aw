@@ -360,7 +360,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if useBackwardCompatiblePaths {
 			// For single default cache, use the original directory for backward compatibility
 			builder.WriteString("      - name: Create cache-memory directory\n")
-			builder.WriteString("        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/create_cache_memory_dir.sh\n")
+			builder.WriteString("        run: bash " + GhAwHome + "/actions/create_cache_memory_dir.sh\n")
 		} else {
 			fmt.Fprintf(builder, "      - name: Create cache-memory directory (%s)\n", cache.ID)
 			builder.WriteString("        run: |\n")
@@ -498,9 +498,9 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 
 		// Build validation script
 		var validationScript strings.Builder
-		validationScript.WriteString("            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');\n")
+		validationScript.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 		validationScript.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-		validationScript.WriteString("            const { validateMemoryFiles } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/validate_memory_files.cjs');\n")
+		validationScript.WriteString("            const { validateMemoryFiles } = require(" + JsRequireGhAw("actions/validate_memory_files.cjs") + ");\n")
 		fmt.Fprintf(&validationScript, "            const allowedExtensions = %s;\n", allowedExtsJSON)
 		fmt.Fprintf(&validationScript, "            const result = validateMemoryFiles('%s', 'cache', allowedExtensions);\n", cacheDir)
 		validationScript.WriteString("            if (!result.valid) {\n")
@@ -763,9 +763,9 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 			// Build validation script
 			var validationScript strings.Builder
-			validationScript.WriteString("            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');\n")
+			validationScript.WriteString("            const { setupGlobals } = require(" + JsRequireGhAw("actions/setup_globals.cjs") + ");\n")
 			validationScript.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-			validationScript.WriteString("            const { validateMemoryFiles } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/validate_memory_files.cjs');\n")
+			validationScript.WriteString("            const { validateMemoryFiles } = require(" + JsRequireGhAw("actions/validate_memory_files.cjs") + ");\n")
 			fmt.Fprintf(&validationScript, "            const allowedExtensions = %s;\n", allowedExtsJSON)
 			fmt.Fprintf(&validationScript, "            const result = validateMemoryFiles('%s', 'cache', allowedExtensions);\n", cacheDir)
 			validationScript.WriteString("            if (!result.valid) {\n")

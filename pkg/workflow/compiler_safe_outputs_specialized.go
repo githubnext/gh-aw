@@ -127,7 +127,7 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	return SafeOutputStepConfig{
 		StepName:                "Create Agent Session",
 		StepID:                  "create_agent_session",
-		Script:                  "const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/create_agent_session.cjs'); await main();",
+		Script:                  "const { main } = require(" + JsRequireGhAw("actions/create_agent_session.cjs") + "); await main();",
 		CustomEnvVars:           customEnvVars,
 		Condition:               condition,
 		Token:                   cfg.GitHubToken,
