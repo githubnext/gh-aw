@@ -223,6 +223,10 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())))
 			c.IncrementWarningCount()
 		}
+		if _, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'mcp-servers' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())))
+			c.IncrementWarningCount()
+		}
 		tools = map[string]any{}
 		// For now, we'll add a basic github tool (always uses docker MCP)
 		githubConfig := map[string]any{}

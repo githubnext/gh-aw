@@ -187,6 +187,139 @@ func TestHasMCPConfigDetection(t *testing.T) {
 	}
 }
 
+// TestMCPServersAllowedToolFilterCompilation verifies that the allowed tool filter in
+// mcp-servers section is properly compiled into the "tools" field in the output.
+func TestMCPServersAllowedToolFilterCompilation(t *testing.T) {
+	tests := []struct {
+		name               string
+		workflowContent    string
+		serverName         string
+		expectedContent    []string
+		unexpectedInServer []string
+	}{
+		{
+			name: "http mcp server with specific allowed tools",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+    allowed:
+      - get_data
+      - list_items
+---
+
+Test workflow.
+`,
+			serverName:         `"my-api"`,
+			expectedContent:    []string{`"get_data"`, `"list_items"`},
+			unexpectedInServer: []string{`"*"`},
+		},
+		{
+			name: "stdio mcp server with specific allowed tools",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-tool:
+    container: example/tool:latest
+    allowed:
+      - run_query
+      - fetch_results
+---
+
+Test workflow.
+`,
+			serverName:         `"my-tool"`,
+			expectedContent:    []string{`"run_query"`, `"fetch_results"`},
+			unexpectedInServer: []string{`"*"`},
+		},
+		{
+			name: "mcp server with no allowed field defaults to wildcard",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+---
+
+Test workflow.
+`,
+			serverName:         `"my-api"`,
+			expectedContent:    []string{`"*"`},
+			unexpectedInServer: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "test-allowed-filter-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.WriteString(tt.workflowContent); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			yamlContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			// Find the server-specific block in the YAML
+			serverIndex := strings.Index(yamlContent, tt.serverName)
+			if serverIndex == -1 {
+				t.Fatalf("Could not find server %s in generated YAML", tt.serverName)
+			}
+
+			// Extract the server block (next 500 chars should be sufficient)
+			endIdx := min(serverIndex+500, len(yamlContent))
+			serverBlock := yamlContent[serverIndex:endIdx]
+
+			for _, content := range tt.expectedContent {
+				if !strings.Contains(serverBlock, content) {
+					t.Errorf("Expected %q in server block for %s, but not found.\nServer block:\n%s",
+						content, tt.serverName, serverBlock)
+				}
+			}
+
+			for _, content := range tt.unexpectedInServer {
+				if strings.Contains(serverBlock, content) {
+					t.Errorf("Unexpected %q found in server block for %s.\nServer block:\n%s",
+						content, tt.serverName, serverBlock)
+				}
+			}
+		})
+	}
+}
+
 // TestDevModeAgenticWorkflowsContainer verifies that the agentic-workflows MCP server
 // uses the locally built Docker image in dev mode instead of alpine:latest
 func TestDevModeAgenticWorkflowsContainer(t *testing.T) {
