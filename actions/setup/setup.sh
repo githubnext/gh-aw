@@ -244,6 +244,7 @@ SAFE_OUTPUTS_FILES=(
   "missing_info_formatter.cjs"
   "sanitize_content_core.cjs"
   "markdown_code_region_balancer.cjs"
+  "temporary_id.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

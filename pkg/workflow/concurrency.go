@@ -183,9 +183,30 @@ func isSlashCommandWorkflow(on string) bool {
 	return strings.Contains(on, "slash_command")
 }
 
+// entityConcurrencyKey builds a ${{ ... }} concurrency-group expression for entity-number
+// based workflows. primaryParts are the event-number identifiers (e.g.,
+// "github.event.pull_request.number"), tailParts are the trailing fallbacks (e.g.,
+// "github.ref", "github.run_id"). When hasItemNumber is true, "inputs.item_number" is
+// inserted between the primary identifiers and the tail, providing a stable per-item
+// key for manual workflow_dispatch runs triggered via the label trigger shorthand.
+func entityConcurrencyKey(primaryParts []string, tailParts []string, hasItemNumber bool) string {
+	parts := make([]string, 0, len(primaryParts)+len(tailParts)+1)
+	parts = append(parts, primaryParts...)
+	if hasItemNumber {
+		parts = append(parts, "inputs.item_number")
+	}
+	parts = append(parts, tailParts...)
+	return "${{ " + strings.Join(parts, " || ") + " }}"
+}
+
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
+
+	// Whether this workflow exposes inputs.item_number via workflow_dispatch (label trigger shorthand).
+	// When true, include it in the concurrency key so that manual dispatches for different items
+	// use distinct groups and don't cancel each other.
+	hasItemNumber := workflowData.HasDispatchItemNumber
 
 	if isCommandTrigger || isSlashCommandWorkflow(workflowData.On) {
 		// For command/slash_command workflows: use issue/PR number; fall back to run_id when
@@ -193,23 +214,47 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
 		// Mixed workflows with both issue and PR triggers
-		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
+		keys = append(keys, entityConcurrencyKey(
+			[]string{"github.event.issue.number", "github.event.pull_request.number"},
+			[]string{"github.run_id"},
+			hasItemNumber,
+		))
 	} else if isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
 		// Mixed workflows with PR and discussion triggers
-		keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number || github.run_id }}")
+		keys = append(keys, entityConcurrencyKey(
+			[]string{"github.event.pull_request.number", "github.event.discussion.number"},
+			[]string{"github.run_id"},
+			hasItemNumber,
+		))
 	} else if isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
 		// Mixed workflows with issue and discussion triggers
-		keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number || github.run_id }}")
+		keys = append(keys, entityConcurrencyKey(
+			[]string{"github.event.issue.number", "github.event.discussion.number"},
+			[]string{"github.run_id"},
+			hasItemNumber,
+		))
 	} else if isPullRequestWorkflow(workflowData.On) {
 		// PR workflows: use PR number, fall back to ref then run_id
-		keys = append(keys, "${{ github.event.pull_request.number || github.ref || github.run_id }}")
+		keys = append(keys, entityConcurrencyKey(
+			[]string{"github.event.pull_request.number"},
+			[]string{"github.ref", "github.run_id"},
+			hasItemNumber,
+		))
 	} else if isIssueWorkflow(workflowData.On) {
 		// Issue workflows: run_id is the fallback when no issue context is available
 		// (e.g. when a mixed-trigger workflow is started via workflow_dispatch).
-		keys = append(keys, "${{ github.event.issue.number || github.run_id }}")
+		keys = append(keys, entityConcurrencyKey(
+			[]string{"github.event.issue.number"},
+			[]string{"github.run_id"},
+			hasItemNumber,
+		))
 	} else if isDiscussionWorkflow(workflowData.On) {
 		// Discussion workflows: run_id is the fallback when no discussion context is available.
-		keys = append(keys, "${{ github.event.discussion.number || github.run_id }}")
+		keys = append(keys, entityConcurrencyKey(
+			[]string{"github.event.discussion.number"},
+			[]string{"github.run_id"},
+			hasItemNumber,
+		))
 	} else if isPushWorkflow(workflowData.On) {
 		// Push workflows: use ref to differentiate between branches
 		keys = append(keys, "${{ github.ref || github.run_id }}")

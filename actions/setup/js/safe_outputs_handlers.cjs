@@ -15,6 +15,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -476,11 +477,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const createProjectHandler = args => {
     const entry = { ...(args || {}), type: "create_project" };
 
-    // Generate temporary_id if not provided
-    if (!entry.temporary_id) {
-      entry.temporary_id = "aw_" + crypto.randomBytes(6).toString("hex");
-      server.debug(`Auto-generated temporary_id for create_project: ${entry.temporary_id}`);
+    // Use helper to validate or generate temporary_id
+    const tempIdResult = getOrGenerateTemporaryId(entry, "create_project");
+    if (tempIdResult.error) {
+      throw {
+        code: -32602,
+        message: tempIdResult.error,
+      };
     }
+    entry.temporary_id = tempIdResult.temporaryId;
+    server.debug(`temporary_id for create_project: ${entry.temporary_id}`);
 
     // Append to safe outputs
     appendSafeOutput(entry);
@@ -504,12 +510,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Handler for add_comment tool
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
    * to provide immediate feedback to the LLM before recording to NDJSON
+   * Also auto-generates a temporary_id if not provided and returns it to the agent
    */
   const addCommentHandler = args => {
     // Validate comment constraints before appending to safe outputs
     // This provides early feedback per Requirement MCE1 (Early Validation)
     try {
-      const body = args.body || "";
+      const body = (args && args.body) || "";
       enforceCommentLimits(body);
     } catch (error) {
       // Return validation error with specific constraint violation details
@@ -521,8 +528,36 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // If validation passes, record the operation using default handler
-    return defaultHandler("add_comment")(args);
+    // Build the entry with a temporary_id
+    const entry = { ...(args || {}), type: "add_comment" };
+
+    // Use helper to validate or generate temporary_id
+    const tempIdResult = getOrGenerateTemporaryId(entry, "add_comment");
+    if (tempIdResult.error) {
+      throw {
+        code: -32602,
+        message: tempIdResult.error,
+      };
+    }
+    entry.temporary_id = tempIdResult.temporaryId;
+    server.debug(`temporary_id for add_comment: ${entry.temporary_id}`);
+
+    // Append to safe outputs
+    appendSafeOutput(entry);
+
+    // Return the temporary_id to the agent so it can reference this comment
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            result: "success",
+            temporary_id: entry.temporary_id,
+            comment: `#${entry.temporary_id}`,
+          }),
+        },
+      ],
+    };
   };
 
   return {

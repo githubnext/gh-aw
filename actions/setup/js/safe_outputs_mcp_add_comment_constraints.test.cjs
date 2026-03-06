@@ -446,6 +446,54 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
       const lastLine = JSON.parse(lines[lines.length - 1]);
       expect(lastLine.type).toBe("add_comment");
       expect(lastLine.body).toBe("Valid comment");
+      // temporary_id should be auto-generated and stored in NDJSON
+      expect(lastLine.temporary_id).toBeDefined();
+      expect(lastLine.temporary_id).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
+    });
+
+    it("should return temporary_id in response when validation passes", async () => {
+      const validRequest = {
+        jsonrpc: "2.0",
+        id: 17,
+        method: "tools/call",
+        params: {
+          name: "add_comment",
+          arguments: {
+            body: "Comment with temporary ID",
+          },
+        },
+      };
+
+      const response = await handleRequest(server, validRequest);
+
+      expect(response).not.toHaveProperty("error");
+      const responseData = JSON.parse(response.result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(responseData.temporary_id).toBeDefined();
+      expect(responseData.temporary_id).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
+      expect(responseData.comment).toBe(`#${responseData.temporary_id}`);
+    });
+
+    it("should use provided temporary_id in response", async () => {
+      const validRequest = {
+        jsonrpc: "2.0",
+        id: 18,
+        method: "tools/call",
+        params: {
+          name: "add_comment",
+          arguments: {
+            body: "Comment with explicit temporary ID",
+            temporary_id: "aw_mytest",
+          },
+        },
+      };
+
+      const response = await handleRequest(server, validRequest);
+
+      expect(response).not.toHaveProperty("error");
+      const responseData = JSON.parse(response.result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(responseData.temporary_id).toBe("aw_mytest");
     });
 
     it("should NOT record operation to NDJSON when validation fails", async () => {

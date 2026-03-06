@@ -850,6 +850,60 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number || github.run_id }}"},
 			description:    "Mixed discussion+workflow_dispatch workflows should fall back to run_id when discussion number is unavailable",
 		},
+		{
+			name: "Label trigger shorthand PR workflow should include inputs.item_number fallback",
+			workflowData: &WorkflowData{
+				On: `on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the pull request
+        required: true
+        type: string`,
+				HasDispatchItemNumber: true,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.pull_request.number || inputs.item_number || github.ref || github.run_id }}"},
+			description:    "Label trigger shorthand PR workflows should include inputs.item_number before ref fallback",
+		},
+		{
+			name: "Label trigger shorthand issue workflow should include inputs.item_number fallback",
+			workflowData: &WorkflowData{
+				On: `on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the issue
+        required: true
+        type: string`,
+				HasDispatchItemNumber: true,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || inputs.item_number || github.run_id }}"},
+			description:    "Label trigger shorthand issue workflows should include inputs.item_number fallback",
+		},
+		{
+			name: "Label trigger shorthand discussion workflow should include inputs.item_number fallback",
+			workflowData: &WorkflowData{
+				On: `on:
+  discussion:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      item_number:
+        description: The number of the discussion
+        required: true
+        type: string`,
+				HasDispatchItemNumber: true,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number || inputs.item_number || github.run_id }}"},
+			description:    "Label trigger shorthand discussion workflows should include inputs.item_number fallback",
+		},
 	}
 
 	for _, tt := range tests {

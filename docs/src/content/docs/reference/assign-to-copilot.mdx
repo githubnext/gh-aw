@@ -97,7 +97,11 @@ The required token type and permissions depend on whether you own the repository
 
 ### Using a GitHub App
 
-Alternatively, you can use a GitHub App with appropriate permissions instead of a PAT for enhanced security.
+:::caution[GitHub App tokens are not supported for Copilot assignment]
+The Copilot assignment API only accepts fine-grained PATs. GitHub App installation tokens are rejected with "not available as an assignee" regardless of the permissions granted to the App.
+
+When `github-app:` is configured in `safe-outputs`, `assign-to-agent` will not use the GitHub App installation token. It first looks for an explicit `github-token:` in the `assign-to-agent` config, then for `github-token:` configured at the `safe-outputs` level, and only then falls back to the magic secret chain (`GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN`). Make sure `GH_AW_AGENT_TOKEN` is set as a repository secret with the required PAT permissions, or specify an explicit `github-token:` in your `assign-to-agent` config.
+:::
 
 ### Using a magic secret
 

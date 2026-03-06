@@ -151,6 +151,9 @@ Compile Markdown workflows to GitHub Actions YAML with optional static analysis.
 - `warnings`: Array of warning objects
 - `compiled_file`: Path to generated `.lock.yml` file
 
+> [!NOTE]
+> The `actionlint`, `zizmor`, and `poutine` scanners use Docker images that download on first use. If images are still being pulled, the tool returns a "Docker images are being downloaded. Please wait and retry the compile command." message. Wait 15–30 seconds, then retry the request.
+
 ### `logs`
 
 Download and analyze workflow logs with timeout handling and size guardrails.

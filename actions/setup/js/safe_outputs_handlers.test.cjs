@@ -447,6 +447,7 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.uploadAssetHandler).toBeDefined();
       expect(handlers.createPullRequestHandler).toBeDefined();
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
+      expect(handlers.addCommentHandler).toBeDefined();
     });
 
     it("should create handlers that return proper structure", () => {
@@ -457,6 +458,52 @@ describe("safe_outputs_handlers", () => {
       expect(Array.isArray(result.content)).toBe(true);
       expect(result.content[0]).toHaveProperty("type");
       expect(result.content[0]).toHaveProperty("text");
+    });
+  });
+
+  describe("addCommentHandler", () => {
+    it("should auto-generate a temporary_id when not provided", () => {
+      const result = handlers.addCommentHandler({ body: "Valid comment body" });
+
+      expect(result).toHaveProperty("content");
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(responseData.temporary_id).toBeDefined();
+      expect(responseData.temporary_id).toMatch(/^aw_[A-Za-z0-9]{3,12}$/);
+    });
+
+    it("should use the provided temporary_id when given", () => {
+      const result = handlers.addCommentHandler({ body: "Valid comment body", temporary_id: "aw_abc123" });
+
+      expect(result).toHaveProperty("content");
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(responseData.temporary_id).toBe("aw_abc123");
+    });
+
+    it("should return comment reference using temporary_id", () => {
+      const result = handlers.addCommentHandler({ body: "Valid comment body" });
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.comment).toBe(`#${responseData.temporary_id}`);
+    });
+
+    it("should record the temporary_id in the NDJSON entry", () => {
+      handlers.addCommentHandler({ body: "Valid comment body", temporary_id: "aw_test01" });
+
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "add_comment",
+          body: "Valid comment body",
+          temporary_id: "aw_test01",
+        })
+      );
+    });
+
+    it("should throw validation error for oversized comment body", () => {
+      const longBody = "a".repeat(70000);
+
+      expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
     });
   });
 });

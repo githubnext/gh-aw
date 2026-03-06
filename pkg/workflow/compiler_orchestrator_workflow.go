@@ -220,6 +220,7 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	orchestratorWorkflowLog.Print("Extracting YAML sections from frontmatter")
 
 	workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
+	workflowData.HasDispatchItemNumber = extractDispatchItemNumber(frontmatter)
 	workflowData.Permissions = c.extractPermissions(frontmatter)
 	workflowData.Network = c.extractTopLevelYAMLSection(frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(frontmatter, "concurrency")
@@ -235,6 +236,39 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.Environment = c.extractTopLevelYAMLSection(frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(frontmatter, "container")
 	workflowData.Cache = c.extractTopLevelYAMLSection(frontmatter, "cache")
+}
+
+// extractDispatchItemNumber reports whether the frontmatter's on.workflow_dispatch
+// trigger exposes an item_number input. This is the signature produced by the label
+// trigger shorthand (e.g. "on: pull_request labeled my-label"). Reading the
+// structured map avoids re-parsing the rendered YAML string later.
+func extractDispatchItemNumber(frontmatter map[string]any) bool {
+	onVal, ok := frontmatter["on"]
+	if !ok {
+		return false
+	}
+	onMap, ok := onVal.(map[string]any)
+	if !ok {
+		return false
+	}
+	wdVal, ok := onMap["workflow_dispatch"]
+	if !ok {
+		return false
+	}
+	wdMap, ok := wdVal.(map[string]any)
+	if !ok {
+		return false
+	}
+	inputsVal, ok := wdMap["inputs"]
+	if !ok {
+		return false
+	}
+	inputsMap, ok := inputsVal.(map[string]any)
+	if !ok {
+		return false
+	}
+	_, ok = inputsMap["item_number"]
+	return ok
 }
 
 // processAndMergeSteps handles the merging of imported steps with main workflow steps

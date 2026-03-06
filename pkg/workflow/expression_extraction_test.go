@@ -462,3 +462,96 @@ Other: ${{ needs.activation.outputs.comment_id }}
 		})
 	}
 }
+
+func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
+	tests := []struct {
+		name          string
+		hasItemNumber bool
+		inputMappings []*ExpressionMapping
+		wantContents  map[string]string // envVar -> expected Content after applying fallbacks
+	}{
+		{
+			name:          "PR number expression gets fallback when hasItemNumber is true",
+			hasItemNumber: true,
+			inputMappings: []*ExpressionMapping{
+				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
+			},
+			wantContents: map[string]string{
+				"GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER": "github.event.pull_request.number || inputs.item_number",
+			},
+		},
+		{
+			name:          "issue number expression gets fallback",
+			hasItemNumber: true,
+			inputMappings: []*ExpressionMapping{
+				{Original: "${{ github.event.issue.number }}", EnvVar: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER", Content: "github.event.issue.number"},
+			},
+			wantContents: map[string]string{
+				"GH_AW_GITHUB_EVENT_ISSUE_NUMBER": "github.event.issue.number || inputs.item_number",
+			},
+		},
+		{
+			name:          "discussion number expression gets fallback",
+			hasItemNumber: true,
+			inputMappings: []*ExpressionMapping{
+				{Original: "${{ github.event.discussion.number }}", EnvVar: "GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER", Content: "github.event.discussion.number"},
+			},
+			wantContents: map[string]string{
+				"GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER": "github.event.discussion.number || inputs.item_number",
+			},
+		},
+		{
+			name:          "no fallback applied when hasItemNumber is false",
+			hasItemNumber: false,
+			inputMappings: []*ExpressionMapping{
+				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
+			},
+			wantContents: map[string]string{
+				"GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER": "github.event.pull_request.number",
+			},
+		},
+		{
+			name:          "unrelated expressions are not modified",
+			hasItemNumber: true,
+			inputMappings: []*ExpressionMapping{
+				{Original: "${{ github.repository }}", EnvVar: "GH_AW_GITHUB_REPOSITORY", Content: "github.repository"},
+				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
+			},
+			wantContents: map[string]string{
+				"GH_AW_GITHUB_REPOSITORY":                "github.repository",
+				"GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER": "github.event.pull_request.number || inputs.item_number",
+			},
+		},
+		{
+			name:          "EnvVar name is preserved after fallback is applied",
+			hasItemNumber: true,
+			inputMappings: []*ExpressionMapping{
+				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
+			},
+			wantContents: map[string]string{
+				"GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER": "github.event.pull_request.number || inputs.item_number",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applyWorkflowDispatchFallbacks(tt.inputMappings, tt.hasItemNumber)
+
+			for _, mapping := range tt.inputMappings {
+				wantContent, ok := tt.wantContents[mapping.EnvVar]
+				if !ok {
+					t.Errorf("unexpected mapping with EnvVar %q", mapping.EnvVar)
+					continue
+				}
+				if mapping.Content != wantContent {
+					t.Errorf("mapping %q Content = %q, want %q", mapping.EnvVar, mapping.Content, wantContent)
+				}
+				// Verify the EnvVar name itself was not changed by the fallback
+				if !strings.HasPrefix(mapping.EnvVar, "GH_AW_") {
+					t.Errorf("mapping EnvVar %q lost GH_AW_ prefix after fallback", mapping.EnvVar)
+				}
+			}
+		})
+	}
+}
