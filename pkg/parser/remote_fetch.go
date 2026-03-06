@@ -238,11 +238,9 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 		// Only resolve SHA if we're using the cache
 		resolvedSHA, err := resolveRefToSHA(owner, repo, ref)
 		if err != nil {
-			// If the error is an authentication error, propagate it immediately
-			lowerErr := strings.ToLower(err.Error())
-			if strings.Contains(lowerErr, "auth") || strings.Contains(lowerErr, "unauthoriz") || strings.Contains(lowerErr, "forbidden") || strings.Contains(lowerErr, "token") || strings.Contains(lowerErr, "permission denied") {
-				return "", fmt.Errorf("failed to resolve ref to SHA due to authentication error: %w", err)
-			}
+			// SHA resolution failure (including auth errors) only means we cannot cache; the
+			// actual file download will be attempted below and may succeed via git fallback for
+			// public repositories. Do not propagate this error - just skip caching.
 			remoteLog.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
 			// Continue without caching if SHA resolution fails
 		} else {
@@ -541,6 +539,13 @@ func resolveRemoteSymlinks(owner, repo, filePath, ref string) (string, error) {
 
 	client, err := api.DefaultRESTClient()
 	if err != nil {
+		// When auth is unavailable (e.g., running inside an agentic workflow without credentials),
+		// symlink resolution cannot proceed. Return a descriptive error so the caller can skip
+		// symlink resolution and proceed without it.
+		if gitutil.IsAuthError(err.Error()) {
+			remoteLog.Printf("REST client creation failed due to auth error, skipping symlink resolution for %s/%s/%s@%s", owner, repo, filePath, ref)
+			return "", fmt.Errorf("skipping symlink resolution: no auth available for %s/%s/%s@%s", owner, repo, filePath, ref)
+		}
 		return "", fmt.Errorf("failed to create REST client: %w", err)
 	}
 
@@ -627,6 +632,13 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 	// Create REST client
 	client, err := api.DefaultRESTClient()
 	if err != nil {
+		// When the REST client cannot be created due to missing auth (e.g., running inside an
+		// agentic workflow without gh CLI credentials), fall back to git-based download so that
+		// public repositories are still accessible without authentication.
+		if gitutil.IsAuthError(err.Error()) {
+			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
+			return downloadFileViaGit(owner, repo, path, ref)
+		}
 		return nil, fmt.Errorf("failed to create REST client: %w", err)
 	}
 
