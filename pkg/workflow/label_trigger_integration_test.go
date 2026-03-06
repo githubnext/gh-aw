@@ -39,10 +39,16 @@ func TestLabelTriggerIntegrationSimple(t *testing.T) {
 		t.Errorf("issues.types = %v, want [labeled]", types)
 	}
 
-	// Check names
-	names, ok := issues["names"].([]string)
+	// Check names (stored as []any by expandLabelTriggerShorthand)
+	namesRaw, ok := issues["names"].([]any)
 	if !ok {
-		t.Fatalf("issues.names is not a string array")
+		t.Fatalf("issues.names is not a []any array")
+	}
+	var names []string
+	for _, n := range namesRaw {
+		if s, isStr := n.(string); isStr {
+			names = append(names, s)
+		}
 	}
 	if len(names) != 2 || names[0] != "bug" || names[1] != "enhancement" {
 		t.Errorf("issues.names = %v, want [bug enhancement]", names)
@@ -149,10 +155,16 @@ func TestLabelTriggerIntegrationPullRequest(t *testing.T) {
 		t.Errorf("pull_request.types = %v, want [labeled]", types)
 	}
 
-	// Check names
-	names, ok := pr["names"].([]string)
+	// Check names (stored as []any by expandLabelTriggerShorthand)
+	namesRaw, ok := pr["names"].([]any)
 	if !ok {
-		t.Fatalf("pull_request.names is not a string array")
+		t.Fatalf("pull_request.names is not a []any array")
+	}
+	var names []string
+	for _, n := range namesRaw {
+		if s, isStr := n.(string); isStr {
+			names = append(names, s)
+		}
 	}
 	if len(names) != 2 || names[0] != "needs-review" || names[1] != "approved" {
 		t.Errorf("pull_request.names = %v, want [needs-review approved]", names)
