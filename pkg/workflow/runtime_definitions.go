@@ -77,6 +77,9 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "go-version",
 		DefaultVersion: string(constants.DefaultGoVersion),
 		Commands:       []string{"go"},
+		ExtraWithFields: map[string]string{
+			"cache": "false", // Disable caching to prevent cache poisoning in agentic workflows
+		},
 	},
 	{
 		ID:             "haskell",

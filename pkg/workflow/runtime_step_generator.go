@@ -101,7 +101,7 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	if runtime.ID == "go" && req.GoModFile != "" {
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: "+req.GoModFile)
-		step = append(step, "          cache: true")
+		step = append(step, "          cache: false") // Disable caching to prevent cache poisoning in agentic workflows
 		// Add any extra fields from user's setup step (sorted for stable output)
 		var extraKeys []string
 		for key := range req.ExtraFields {
