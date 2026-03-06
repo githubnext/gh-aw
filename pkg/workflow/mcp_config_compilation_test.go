@@ -198,7 +198,7 @@ func TestMCPServersAllowedToolFilterCompilation(t *testing.T) {
 		unexpectedInServer []string
 	}{
 		{
-			name: "http mcp server with specific allowed tools",
+			name: "copilot - http mcp server with specific allowed tools",
 			workflowContent: `---
 on:
   workflow_dispatch:
@@ -222,7 +222,7 @@ Test workflow.
 			unexpectedInServer: []string{`"*"`},
 		},
 		{
-			name: "stdio mcp server with specific allowed tools",
+			name: "copilot - stdio mcp server with specific allowed tools",
 			workflowContent: `---
 on:
   workflow_dispatch:
@@ -245,7 +245,7 @@ Test workflow.
 			unexpectedInServer: []string{`"*"`},
 		},
 		{
-			name: "mcp server with no allowed field defaults to wildcard",
+			name: "copilot - mcp server with no allowed field defaults to wildcard",
 			workflowContent: `---
 on:
   workflow_dispatch:
@@ -264,6 +264,51 @@ Test workflow.
 			serverName:         `"my-api"`,
 			expectedContent:    []string{`"*"`},
 			unexpectedInServer: []string{},
+		},
+		{
+			name: "claude - http mcp server with specific allowed tools passes through",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: claude
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+    allowed:
+      - get_data
+      - list_items
+---
+
+Test workflow.
+`,
+			serverName:         `"my-api"`,
+			expectedContent:    []string{`"get_data"`, `"list_items"`},
+			unexpectedInServer: []string{`"*"`},
+		},
+		{
+			name: "claude - http mcp server with no allowed field has no tools filter",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: claude
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+---
+
+Test workflow.
+`,
+			serverName:         `"my-api"`,
+			expectedContent:    []string{`"url":`},
+			unexpectedInServer: []string{`"tools":`},
 		},
 	}
 

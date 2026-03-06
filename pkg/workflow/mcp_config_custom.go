@@ -122,16 +122,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// TOML format for HTTP MCP servers uses url and http_headers
 			propertyOrder = []string{"url", "http_headers"}
 		} else {
-			// JSON format - include copilot fields if required
-			if renderer.RequiresCopilotFields {
-				// For HTTP MCP with secrets in headers, env passthrough is needed
-				if len(headerSecrets) > 0 {
-					propertyOrder = []string{"type", "url", "headers", "tools", "env"}
-				} else {
-					propertyOrder = []string{"type", "url", "headers", "tools"}
-				}
+			// JSON format - include tools field for MCP gateway tool filtering (all engines)
+			// For HTTP MCP with secrets in headers, env passthrough is needed
+			if len(headerSecrets) > 0 {
+				propertyOrder = []string{"type", "url", "headers", "tools", "env"}
 			} else {
-				propertyOrder = []string{"type", "url", "headers"}
+				propertyOrder = []string{"type", "url", "headers", "tools"}
 			}
 		}
 	default:
@@ -147,8 +143,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// Include type field only for engines that require copilot fields
 			existingProperties = append(existingProperties, prop)
 		case "tools":
-			// Include tools field only for engines that require copilot fields
-			if renderer.RequiresCopilotFields {
+			// Include tools field for JSON format when:
+			// - RequiresCopilotFields (Copilot always renders it; when Allowed is empty, the
+			//   rendering code below defaults to the "*" wildcard)
+			// - OR allowed tools are explicitly specified (pass the filter to the MCP gateway)
+			if renderer.RequiresCopilotFields || len(mcpConfig.Allowed) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "container":
