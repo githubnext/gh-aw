@@ -129,7 +129,7 @@ Returns JSON array with validation results for each workflow:
 		if args.Zizmor || args.Poutine || args.Actionlint {
 			// Check if Docker images are available; if not, start downloading and return retry message
 			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint); err != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "docker images not ready", err.Error())
+				return nil, nil, newMCPError(jsonrpc.CodeInternalError, err.Error(), nil)
 			}
 
 			// Check for cancellation after Docker image preparation
