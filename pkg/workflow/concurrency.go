@@ -187,29 +187,58 @@ func isSlashCommandWorkflow(on string) bool {
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
 
+	// Detect whether this workflow has a workflow_dispatch with item_number (label trigger shorthand).
+	// When present, inputs.item_number must be included in the concurrency key so that manual
+	// dispatches for different items don't cancel each other via the same concurrency group.
+	hasItemNumber := hasWorkflowDispatchItemNumber(workflowData.On)
+
 	if isCommandTrigger || isSlashCommandWorkflow(workflowData.On) {
 		// For command/slash_command workflows: use issue/PR number; fall back to run_id when
 		// neither is available (e.g. manual workflow_dispatch of the outer workflow).
 		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
 		// Mixed workflows with both issue and PR triggers
-		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
+		if hasItemNumber {
+			keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || inputs.item_number || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}")
+		}
 	} else if isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
 		// Mixed workflows with PR and discussion triggers
-		keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number || github.run_id }}")
+		if hasItemNumber {
+			keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number || inputs.item_number || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number || github.run_id }}")
+		}
 	} else if isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
 		// Mixed workflows with issue and discussion triggers
-		keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number || github.run_id }}")
+		if hasItemNumber {
+			keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number || inputs.item_number || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number || github.run_id }}")
+		}
 	} else if isPullRequestWorkflow(workflowData.On) {
 		// PR workflows: use PR number, fall back to ref then run_id
-		keys = append(keys, "${{ github.event.pull_request.number || github.ref || github.run_id }}")
+		if hasItemNumber {
+			keys = append(keys, "${{ github.event.pull_request.number || inputs.item_number || github.ref || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.pull_request.number || github.ref || github.run_id }}")
+		}
 	} else if isIssueWorkflow(workflowData.On) {
 		// Issue workflows: run_id is the fallback when no issue context is available
 		// (e.g. when a mixed-trigger workflow is started via workflow_dispatch).
-		keys = append(keys, "${{ github.event.issue.number || github.run_id }}")
+		if hasItemNumber {
+			keys = append(keys, "${{ github.event.issue.number || inputs.item_number || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.issue.number || github.run_id }}")
+		}
 	} else if isDiscussionWorkflow(workflowData.On) {
 		// Discussion workflows: run_id is the fallback when no discussion context is available.
-		keys = append(keys, "${{ github.event.discussion.number || github.run_id }}")
+		if hasItemNumber {
+			keys = append(keys, "${{ github.event.discussion.number || inputs.item_number || github.run_id }}")
+		} else {
+			keys = append(keys, "${{ github.event.discussion.number || github.run_id }}")
+		}
 	} else if isPushWorkflow(workflowData.On) {
 		// Push workflows: use ref to differentiate between branches
 		keys = append(keys, "${{ github.ref || github.run_id }}")
