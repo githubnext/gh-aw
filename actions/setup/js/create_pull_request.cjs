@@ -533,7 +533,6 @@ async function main(config = {}) {
     // Add AI disclaimer with workflow name and run url
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    const runId = context.runId;
     const runUrl = buildWorkflowRunUrl(context, context.repo);
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
@@ -728,9 +727,8 @@ async function main(config = {}) {
 
         core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
+        const runUrl = buildWorkflowRunUrl(context, context.repo);
         const runId = context.runId;
-        const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-        const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/actions/runs/${runId}`;
 
         // Read patch content for preview
         let patchPreview = "";
