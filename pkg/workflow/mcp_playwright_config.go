@@ -21,18 +21,11 @@ func getPlaywrightDockerImageVersion(playwrightConfig *PlaywrightToolConfig) str
 	return playwrightDockerImageVersion
 }
 
-// getPlaywrightMCPPackageVersion extracts version setting for the @playwright/mcp NPM package
-// This is separate from the Docker image version because they follow different versioning schemes
-func getPlaywrightMCPPackageVersion(playwrightConfig *PlaywrightToolConfig) string {
-	// Always use the default @playwright/mcp package version.
-	return string(constants.DefaultPlaywrightMCPVersion)
-}
-
 // generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
 func generatePlaywrightDockerArgs(playwrightConfig *PlaywrightToolConfig) PlaywrightDockerArgs {
 	args := PlaywrightDockerArgs{
 		ImageVersion:      getPlaywrightDockerImageVersion(playwrightConfig),
-		MCPPackageVersion: getPlaywrightMCPPackageVersion(playwrightConfig),
+		MCPPackageVersion: string(constants.DefaultPlaywrightMCPVersion),
 	}
 	log.Printf("Playwright Docker args: image_version=%s, mcp_package_version=%s", args.ImageVersion, args.MCPPackageVersion)
 	return args

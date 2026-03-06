@@ -473,57 +473,7 @@ Test content.`,
 
 // TestCommentOutProcessedFieldsInOnSection tests the commentOutProcessedFieldsInOnSection function directly
 
-// ========================================
-// convertGoPatternToJavaScript Tests
-// ========================================
-
-// TestConvertGoPatternToJavaScript tests the convertGoPatternToJavaScript method
-func TestConvertGoPatternToJavaScript(t *testing.T) {
-	compiler := NewCompiler()
-
-	tests := []struct {
-		name      string
-		goPattern string
-		expected  string
-	}{
-		{
-			name:      "case insensitive flag removed",
-			goPattern: "(?i)error.*pattern",
-			expected:  "error.*pattern",
-		},
-		{
-			name:      "no flag to remove",
-			goPattern: "error.*pattern",
-			expected:  "error.*pattern",
-		},
-		{
-			name:      "empty pattern",
-			goPattern: "",
-			expected:  "",
-		},
-		{
-			name:      "flag at start only",
-			goPattern: "(?i)",
-			expected:  "",
-		},
-		{
-			name:      "complex pattern with flag",
-			goPattern: "(?i)^(ERROR|WARN|FATAL):.*$",
-			expected:  "^(ERROR|WARN|FATAL):.*$",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.convertGoPatternToJavaScript(tt.goPattern)
-			if result != tt.expected {
-				t.Errorf("convertGoPatternToJavaScript(%q) = %q, want %q",
-					tt.goPattern, result, tt.expected)
-			}
-		})
-	}
-}
-
+// TestAddCustomStepsAsIsBasic tests adding custom steps as-is
 func TestAddCustomStepsAsIsBasic(t *testing.T) {
 	compiler := NewCompiler()
 

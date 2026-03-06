@@ -498,15 +498,6 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 	return GitHubActionStep(stepLines)
 }
 
-// GetAllEngines returns all registered engines
-func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
-	var engines []CodingAgentEngine
-	for _, engine := range r.engines {
-		engines = append(engines, engine)
-	}
-	return engines
-}
-
 // GetPlaywrightTools returns the list of playwright tools available in the copilot agent
 // This matches the tools available in the copilot agent MCP server configuration
 // This is a shared function used by all engines for consistent playwright tool configuration

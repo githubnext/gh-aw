@@ -235,21 +235,6 @@ func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) str
 	return result
 }
 
-// GetMappings returns all expression mappings
-func (e *ExpressionExtractor) GetMappings() []*ExpressionMapping {
-	var result []*ExpressionMapping
-	for _, mapping := range e.mappings {
-		result = append(result, mapping)
-	}
-
-	// Sort by environment variable name for consistent ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].EnvVar < result[j].EnvVar
-	})
-
-	return result
-}
-
 // awInputsExprRegex matches ${{ github.aw.inputs.<key> }} expressions
 var awInputsExprRegex = regexp.MustCompile(`\$\{\{\s*github\.aw\.inputs\.([a-zA-Z0-9_-]+)\s*\}\}`)
 

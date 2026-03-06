@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -13,28 +12,6 @@ import (
 )
 
 var frontmatterLog = logger.New("workflow:frontmatter_extraction")
-
-// extractYAMLValue extracts a scalar value from the frontmatter map
-func (c *Compiler) extractYAMLValue(frontmatter map[string]any, key string) string {
-	if value, exists := frontmatter[key]; exists {
-		if str, ok := value.(string); ok {
-			return str
-		}
-		if num, ok := value.(int); ok {
-			return strconv.Itoa(num)
-		}
-		if num, ok := value.(int64); ok {
-			return strconv.FormatInt(num, 10)
-		}
-		if num, ok := value.(uint64); ok {
-			return strconv.FormatUint(num, 10)
-		}
-		if float, ok := value.(float64); ok {
-			return fmt.Sprintf("%.0f", float)
-		}
-	}
-	return ""
-}
 
 // indentYAMLLines adds indentation to all lines of a multi-line YAML string except the first
 func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {

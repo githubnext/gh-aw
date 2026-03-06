@@ -498,39 +498,6 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 	})
 }
 
-// TestGetCurrentRepository verifies CheckoutManager.GetCurrentRepository behavior.
-func TestGetCurrentRepository(t *testing.T) {
-	t.Run("returns empty string when no current checkout", func(t *testing.T) {
-		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Repository: "owner/repo", Path: "./libs"},
-		})
-		assert.Empty(t, cm.GetCurrentRepository(), "should return empty string without current flag")
-	})
-
-	t.Run("returns repository when current: true is set", func(t *testing.T) {
-		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Repository: "owner/target-repo", Path: "./target", Current: true},
-		})
-		assert.Equal(t, "owner/target-repo", cm.GetCurrentRepository(), "should return current checkout repository")
-	})
-
-	t.Run("returns empty string when current: true but no repository", func(t *testing.T) {
-		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Path: ".", Current: true},
-		})
-		assert.Empty(t, cm.GetCurrentRepository(), "should return empty string when repository is not set")
-	})
-
-	t.Run("returns repository from current in multiple checkouts", func(t *testing.T) {
-		cm := NewCheckoutManager([]*CheckoutConfig{
-			{Path: "."},
-			{Repository: "owner/central", Path: "./central"},
-			{Repository: "owner/target", Path: "./target", Current: true},
-		})
-		assert.Equal(t, "owner/target", cm.GetCurrentRepository(), "should return the current checkout repository")
-	})
-}
-
 // TestGetCurrentCheckoutRepository verifies the standalone helper function.
 func TestGetCurrentCheckoutRepository(t *testing.T) {
 	t.Run("nil slice returns empty string", func(t *testing.T) {

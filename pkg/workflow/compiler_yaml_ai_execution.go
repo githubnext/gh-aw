@@ -122,12 +122,3 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        run: bash /opt/gh-aw/actions/append_agent_step_summary.sh\n")
 }
-
-func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {
-	// Convert (?i) inline case-insensitive flag by removing it
-	// JavaScript RegExp will be created with "gi" flags to handle case insensitivity
-	if strings.HasPrefix(goPattern, "(?i)") {
-		return goPattern[4:] // Remove (?i) prefix
-	}
-	return goPattern
-}

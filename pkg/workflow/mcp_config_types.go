@@ -104,8 +104,3 @@ func (m MapToolConfig) GetStringMap(key string) (map[string]string, bool) {
 	}
 	return nil, false
 }
-
-func (m MapToolConfig) GetAny(key string) (any, bool) {
-	value, exists := m[key]
-	return value, exists
-}

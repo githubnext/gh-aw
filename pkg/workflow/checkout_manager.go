@@ -225,18 +225,6 @@ func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {
 	return nil
 }
 
-// GetCurrentRepository returns the repository of the checkout marked as current (current: true).
-// Returns an empty string if no checkout is marked as current or if the current checkout
-// uses the default repository (empty Repository field).
-func (cm *CheckoutManager) GetCurrentRepository() string {
-	for _, entry := range cm.ordered {
-		if entry.current {
-			return entry.key.repository
-		}
-	}
-	return ""
-}
-
 // HasAppAuth returns true if any checkout entry uses GitHub App authentication.
 func (cm *CheckoutManager) HasAppAuth() bool {
 	for _, entry := range cm.ordered {

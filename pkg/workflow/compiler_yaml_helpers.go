@@ -215,57 +215,6 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 //
 // Returns a slice of strings that can be appended to a steps array, where each
 // string represents a line of YAML for the checkout step. Returns nil if:
-// - action-tag feature is specified (uses remote actions instead)
-// - full repository checkout will be performed (redundant to checkout .github separately)
-// - no contents permission (checkout not possible)
-func (c *Compiler) generateCheckoutGitHubFolder(data *WorkflowData) []string {
-	// Check if action-tag is specified - if so, skip checkout
-	if data != nil && data.Features != nil {
-		if actionTagVal, exists := data.Features["action-tag"]; exists {
-			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
-				// action-tag is set, no checkout needed
-				return nil
-			}
-		}
-	}
-
-	// Check if we have contents permission - without it, checkout is not possible
-	permParser := NewPermissionsParser(data.Permissions)
-	if !permParser.HasContentsReadAccess() {
-		compilerYamlLog.Print("Skipping .github and .agents checkout: no contents read access")
-		return nil
-	}
-
-	// Skip .github and .agents checkout if custom steps already contain a full repository checkout
-	// The full checkout already includes these folders, making sparse checkout redundant
-	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
-		compilerYamlLog.Print("Skipping .github and .agents sparse checkout: custom steps contain full repository checkout")
-		return nil
-	}
-
-	// Skip .github and .agents checkout if an automatic full repository checkout will be added
-	// The shouldAddCheckoutStep function returns true when a checkout step will be automatically added
-	if c.shouldAddCheckoutStep(data) {
-		compilerYamlLog.Print("Skipping .github and .agents sparse checkout: full repository checkout will be added automatically")
-		return nil
-	}
-
-	// For all modes (dev, script, release), checkout .github and .agents folders
-	// This works in release mode where actions aren't checked out
-	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
-	return []string{
-		"      - name: Checkout .github and .agents folders\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
-		"        with:\n",
-		"          sparse-checkout: |\n",
-		"            .github\n",
-		"            .agents\n",
-		"          sparse-checkout-cone-mode: true\n",
-		"          fetch-depth: 1\n",
-		"          persist-credentials: false\n",
-	}
-}
-
 // generateGitHubScriptWithRequire generates a github-script step that loads a module using require().
 // Instead of repeating the global variable assignments inline, it uses the setup_globals helper function.
 //
