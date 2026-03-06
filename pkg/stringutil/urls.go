@@ -3,7 +3,11 @@ package stringutil
 import (
 	"net/url"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var urlsLog = logger.New("stringutil:urls")
 
 // NormalizeGitHubHostURL ensures the host URL has a scheme (defaulting to https://) and no trailing slashes.
 // It is safe to call with URLs that already have an http:// or https:// scheme.
@@ -35,12 +39,14 @@ func NormalizeGitHubHostURL(rawHostURL string) string {
 //	ExtractDomainFromURL("http://sub.domain.com:8080/path")       // returns "sub.domain.com"
 //	ExtractDomainFromURL("localhost:8080")                        // returns "localhost"
 func ExtractDomainFromURL(urlStr string) string {
+	urlsLog.Printf("Extracting domain from URL: %s", urlStr)
 	// Handle full URLs with protocols (http://, https://)
 	if strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://") {
 		// Parse full URL
 		parsedURL, err := url.Parse(urlStr)
 		if err != nil {
 			// Fall back to string manipulation if parsing fails
+			urlsLog.Printf("URL parse failed, using fallback: %v", err)
 			return extractDomainFallback(urlStr)
 		}
 		return parsedURL.Hostname()
