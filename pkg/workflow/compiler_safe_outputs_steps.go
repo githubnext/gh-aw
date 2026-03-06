@@ -373,17 +373,14 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// handler falls back to the default repo-scoped token which lacks access to other repos.
 	if usesPatchesAndCheckouts(data.SafeOutputs) && data.SafeOutputs.GitHubApp == nil {
 		var createPRToken string
-		if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
+		if data.SafeOutputs.CreatePullRequests != nil {
 			createPRToken = data.SafeOutputs.CreatePullRequests.GitHubToken
 		}
 		var pushToPRBranchToken string
-		if data.SafeOutputs != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToPRBranchToken = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
 		}
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
+		safeOutputsToken := data.SafeOutputs.GitHubToken
 		// Use the same precedence as buildSharedPRCheckoutSteps:
 		// create-pull-request token > push-to-pull-request-branch token > safe-outputs token
 		effectiveCustomToken := createPRToken
