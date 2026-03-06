@@ -1366,6 +1366,7 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}.wiki
           BRANCH_NAME: master
+          REPO_MEMORY_ALLOWED_REPOS: ${{ github.repository }}.wiki
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
           MAX_PATCH_SIZE: 10240

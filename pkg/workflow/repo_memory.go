@@ -781,6 +781,11 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		fmt.Fprintf(&step, "          MEMORY_ID: %s\n", memory.ID)
 		fmt.Fprintf(&step, "          TARGET_REPO: %s\n", targetRepo)
 		fmt.Fprintf(&step, "          BRANCH_NAME: %s\n", memory.BranchName)
+		// For wiki mode, pre-populate the allowed-repos list with the wiki repo so the push
+		// script accepts it (defaultRepo is always the plain github.repository, not .wiki)
+		if memory.Wiki {
+			fmt.Fprintf(&step, "          REPO_MEMORY_ALLOWED_REPOS: %s\n", targetRepo)
+		}
 		fmt.Fprintf(&step, "          MAX_FILE_SIZE: %d\n", memory.MaxFileSize)
 		fmt.Fprintf(&step, "          MAX_FILE_COUNT: %d\n", memory.MaxFileCount)
 		fmt.Fprintf(&step, "          MAX_PATCH_SIZE: %d\n", memory.MaxPatchSize)

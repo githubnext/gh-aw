@@ -1194,3 +1194,55 @@ func TestRepoMemoryNonWikiPromptSection(t *testing.T) {
 	wikiNote := section.EnvVars["GH_AW_WIKI_NOTE"]
 	assert.Empty(t, wikiNote, "Non-wiki mode should have empty GH_AW_WIKI_NOTE")
 }
+
+// TestRepoMemoryWikiPushAllowedRepos tests that wiki mode sets REPO_MEMORY_ALLOWED_REPOS
+// in the push step so the push script accepts the .wiki repo as a valid target.
+func TestRepoMemoryWikiPushAllowedRepos(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "master",
+				Wiki:       true,
+			},
+		},
+	}
+
+	data := &WorkflowData{
+		RepoMemoryConfig: config,
+	}
+
+	compiler := NewCompiler()
+	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
+	require.NoError(t, err, "Should build push job without error")
+	require.NotNil(t, pushJob, "Should produce a push job")
+
+	pushJobOutput := strings.Join(pushJob.Steps, "\n")
+	assert.Contains(t, pushJobOutput, "REPO_MEMORY_ALLOWED_REPOS: ${{ github.repository }}.wiki",
+		"Wiki push step should pre-populate allowed repos with the wiki repo")
+}
+
+// TestRepoMemoryNonWikiPushNoAllowedRepos tests that non-wiki mode does NOT set REPO_MEMORY_ALLOWED_REPOS
+func TestRepoMemoryNonWikiPushNoAllowedRepos(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "memory/default",
+			},
+		},
+	}
+
+	data := &WorkflowData{
+		RepoMemoryConfig: config,
+	}
+
+	compiler := NewCompiler()
+	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
+	require.NoError(t, err, "Should build push job without error")
+	require.NotNil(t, pushJob, "Should produce a push job")
+
+	pushJobOutput := strings.Join(pushJob.Steps, "\n")
+	assert.NotContains(t, pushJobOutput, "REPO_MEMORY_ALLOWED_REPOS",
+		"Non-wiki push step should not set REPO_MEMORY_ALLOWED_REPOS")
+}
