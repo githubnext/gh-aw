@@ -101,16 +101,19 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	if runtime.ID == "go" && req.GoModFile != "" {
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: "+req.GoModFile)
-		step = append(step, "          cache: false") // Disable caching to prevent cache poisoning in agentic workflows
-		// Add any extra fields from user's setup step (sorted for stable output)
+		// Merge extra fields from runtime configuration and user's setup step
+		allGoModExtraFields := make(map[string]string)
+		maps.Copy(allGoModExtraFields, runtime.ExtraWithFields)
+		for k, v := range req.ExtraFields {
+			allGoModExtraFields[k] = formatYAMLValue(v)
+		}
 		var extraKeys []string
-		for key := range req.ExtraFields {
+		for key := range allGoModExtraFields {
 			extraKeys = append(extraKeys, key)
 		}
 		sort.Strings(extraKeys)
 		for _, key := range extraKeys {
-			valueStr := formatYAMLValue(req.ExtraFields[key])
-			step = append(step, fmt.Sprintf("          %s: %s", key, valueStr))
+			step = append(step, fmt.Sprintf("          %s: %s", key, allGoModExtraFields[key]))
 		}
 		return step
 	}
