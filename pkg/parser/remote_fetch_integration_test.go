@@ -272,8 +272,8 @@ func TestDownloadIncludeFromWorkflowSpecWithCache(t *testing.T) {
 }
 
 // TestDownloadFileFromGitHubUnauthenticated verifies that downloadFileFromGitHub
-// falls back to git-based download when api.DefaultRESTClient() fails because no
-// auth token is available. This reproduces the scenario that occurs when running
+// falls back to raw URL / git-based download when api.DefaultRESTClient() fails because
+// no auth token is available. This reproduces the scenario that occurs when running
 // gh aw add inside an agentic workflow without gh CLI credentials configured.
 func TestDownloadFileFromGitHubUnauthenticated(t *testing.T) {
 	// Clear all GitHub auth tokens to simulate the agentic-workflow environment
@@ -292,11 +292,17 @@ func TestDownloadFileFromGitHubUnauthenticated(t *testing.T) {
 	// If the REST client unexpectedly succeeds (e.g., gh config file has a token),
 	// that is also fine – the point is that the file is returned without error.
 	if err != nil {
-		// If git commands are blocked (e.g., restricted CI network), skip gracefully.
-		if strings.Contains(err.Error(), "git") || strings.Contains(err.Error(), "network") {
-			t.Skipf("Skipping test: git fallback unavailable (%v)", err)
+		// Skip only when the network or git executable is genuinely unavailable.
+		// Avoid matching on "git" alone because it would also match "gitignore".
+		errStr := err.Error()
+		if strings.Contains(errStr, `executable file not found`) ||
+			strings.Contains(errStr, "failed to clone repository") ||
+			strings.Contains(errStr, "connection refused") ||
+			strings.Contains(errStr, "no route to host") ||
+			strings.Contains(errStr, "dial tcp") {
+			t.Skipf("Skipping test: download fallback unavailable (%v)", err)
 		}
-		t.Fatalf("Expected successful download via git fallback for public repo, got: %v", err)
+		t.Fatalf("Expected successful download via raw URL / git fallback for public repo, got: %v", err)
 	}
 
 	require.NotEmpty(t, content, "downloaded content should not be empty")

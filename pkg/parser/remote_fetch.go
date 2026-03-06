@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -396,6 +399,14 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	remoteLog.Printf("Attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
+	// First, try via raw.githubusercontent.com — no auth required for public repos and
+	// no dependency on git being installed.
+	content, rawErr := downloadFileViaRawURL(owner, repo, path, ref)
+	if rawErr == nil {
+		return content, nil
+	}
+	remoteLog.Printf("Raw URL download failed for %s/%s/%s@%s, trying git archive: %v", owner, repo, path, ref, rawErr)
+
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
 	githubHost := GetGitHubHostForRepo(owner, repo)
@@ -412,12 +423,42 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	}
 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
-	content, err := fileutil.ExtractFileFromTar(archiveOutput, path)
+	content, err = fileutil.ExtractFileFromTar(archiveOutput, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
 
 	remoteLog.Printf("Successfully downloaded file via git archive: %s/%s/%s@%s", owner, repo, path, ref)
+	return content, nil
+}
+
+// downloadFileViaRawURL fetches a file using the raw.githubusercontent.com URL.
+// This requires no authentication for public repositories and no git installation.
+func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filePath)
+	remoteLog.Printf("Attempting raw URL download: %s", rawURL)
+
+	// Use a client with a timeout to prevent indefinite hangs on slow/unresponsive hosts.
+	rawClient := &http.Client{Timeout: 30 * time.Second}
+
+	// #nosec G107 -- rawURL is constructed from workflow import configuration authored by
+	// the developer; the owner, repo, filePath, and ref are user-supplied workflow spec fields.
+	resp, err := rawClient.Get(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("raw URL request failed for %s: %w", rawURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("raw URL returned HTTP %d for %s", resp.StatusCode, rawURL)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read raw URL response body for %s: %w", rawURL, err)
+	}
+
+	remoteLog.Printf("Successfully downloaded file via raw URL: %s", rawURL)
 	return content, nil
 }
 

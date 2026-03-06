@@ -2344,12 +2344,13 @@ jobs:
       - name: Run unauthenticated integration tests
         # Explicitly clear all GitHub auth tokens to reproduce the agentic-workflow
         # environment where gh CLI is not authenticated. Tests must succeed for public
-        # repositories via the git fallback path.
+        # repositories via the raw URL / git fallback path.
         env:
           GITHUB_TOKEN: ""
           GH_TOKEN: ""
         run: |
-          go test -v -parallel=4 -timeout=10m -tags 'integration' \
+          set -o pipefail
+          go test -v -parallel=4 -timeout=10m -tags 'integration' -json \
             -run 'TestAddPublicWorkflowUnauthenticated|TestDownloadFileFromGitHubUnauthenticated' \
             ./pkg/cli/ ./pkg/parser/ \
             | tee test-result-integration-unauthenticated.json
