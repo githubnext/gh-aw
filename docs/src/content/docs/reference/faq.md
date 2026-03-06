@@ -222,7 +222,7 @@ When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot R
 
 ### Can I use `CLAUDE_CODE_OAUTH_TOKEN` with the Claude engine?
 
-No. `CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), which must be configured as a GitHub Actions secret. Provider-based OAuth authentication for Claude (such as billing through a Claude Teams subscription) is not supported. See [Authentication](/gh-aw/reference/auth/) and [AI Engines](/gh-aw/reference/engines/#using-claude-by-anthropic-claude-code) for setup instructions.
+No. `CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), which must be configured as a GitHub Actions secret. Provider-based OAuth authentication for Claude (such as billing through a Claude Teams subscription) is not supported. See [Authentication](/gh-aw/reference/auth/) and [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for setup instructions.
 
 ### What hidden runtime dependencies does this have?
 
