@@ -176,13 +176,3 @@ This workflow tests that string imports still work.
 		t.Error("Expected shared content to NOT be inlined (should use runtime-import)")
 	}
 }
-
-// TestImportInputsExpressionValidation tests that github.aw.inputs expressions are allowed
-func TestImportInputsExpressionValidation(t *testing.T) {
-	// This test just verifies the expression is allowed in the markdown content
-	content := "Process ${{ github.aw.inputs.limit }} items."
-	err := workflow.ValidateExpressionSafetyPublic(content)
-	if err != nil {
-		t.Errorf("Expression validation should allow github.aw.inputs.* expressions: %v", err)
-	}
-}

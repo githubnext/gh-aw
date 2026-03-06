@@ -985,7 +985,6 @@ The YAML frontmatter supports these fields:
       - `staged-title:` - Staged mode preview title
       - `staged-description:` - Staged mode preview description
       - `append-only-comments:` - Create new comments instead of editing existing ones (boolean, default: false)
-      - `activation-comments:` - Set to `"false"` to disable all activation/fallback comments entirely (supports templatable boolean: literal `"true"`/`"false"` or GitHub Actions expressions)
       - `pull-request-created:` - Custom message when a PR is created. Placeholders: `{item_number}`, `{item_url}`
       - `issue-created:` - Custom message when an issue is created. Placeholders: `{item_number}`, `{item_url}`
       - `commit-pushed:` - Custom message when a commit is pushed. Placeholders: `{commit_sha}`, `{short_sha}`, `{commit_url}`
@@ -1034,6 +1033,9 @@ The YAML frontmatter supports these fields:
   - `max-bot-mentions:` - Maximum bot trigger references (e.g. `@copilot`, `@github-actions`) allowed in output before all excess are escaped with backticks (integer or expression, default: 10)
     - Set to `0` to escape all bot trigger phrases
     - Example: `max-bot-mentions: 3`
+  - `activation-comments:` - Disable all activation and fallback comments (boolean or expression, default: `true`)
+    - When `false`, disables run-started, run-success, run-failure, and PR/issue creation link comments
+    - Supports templatable boolean: `false`, `true`, or GitHub Actions expressions like `${{ inputs.activation-comments }}`
 
   **Templatable Integer Fields**: The `max`, `expires`, and `max-bot-mentions` fields (and most other numeric/boolean fields) accept GitHub Actions expression strings in addition to literal values, enabling runtime-configured limits:
   ```yaml

@@ -5,64 +5,20 @@ sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (normally a coding agent) to interpret and execute natural language instructions. Each coding agent has unique capabilities and configuration options.
+GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (normally a coding agent) to interpret and execute natural language instructions.
 
 ## Available Coding Agents
 
-- [**Copilot CLI**](#using-copilot-cli)
-- [**Claude by Anthropic (Claude Code)**](#using-claude-by-anthropic-claude-code)
-- [**OpenAI Codex**](#using-openai-codex)
-- [**Google Gemini CLI**](#using-google-gemini-cli)
+Set `engine:` in your workflow frontmatter and configure the corresponding secret:
 
-## Using Copilot CLI
+| Engine | `engine:` value | Required Secret |
+|--------|-----------------|-----------------|
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
+| [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) |
+| [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
+| [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
 
-[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) is the default AI engine (coding agent).
-
-To use Copilot CLI with GitHub Agentic Workflows:
-
-1. Copilot CLI is the default AI engine (coding agent). You can optionally request the use of the Copilot CLI in your workflow frontmatter:
-
-   ```yaml wrap
-   engine: copilot
-   ```
-
-2. Configure the `COPILOT_GITHUB_TOKEN` secret. See [Authentication: COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) for setup instructions.
-
-## Using Claude by Anthropic (Claude Code)
-
-To use [Claude by Anthropic](https://www.anthropic.com/index/claude) (aka Claude Code):
-
-1. Request the use of the Claude by Anthropic engine in your workflow frontmatter:
-
-   ```yaml wrap
-   engine: claude
-   ```
-
-2. Configure the `ANTHROPIC_API_KEY` secret. See [Authentication: ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) for setup instructions.
-
-## Using OpenAI Codex
-
-To use [OpenAI Codex](https://openai.com/blog/openai-codex):
-
-1. Request the use of the Codex engine in your workflow frontmatter:
-
-   ```yaml wrap
-   engine: codex
-   ```
-
-2. Configure the `OPENAI_API_KEY` secret. See [Authentication: OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) for setup instructions.
-
-## Using Google Gemini CLI
-
-To use [Google Gemini CLI](https://github.com/google-gemini/gemini-cli):
-
-1. Request the use of the Gemini engine in your workflow frontmatter:
-
-   ```yaml wrap
-   engine: gemini
-   ```
-
-2. Configure the `GEMINI_API_KEY` secret. See [Authentication: GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) for setup instructions.
+Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
 
 ## Extended Coding Agent Configuration
 
@@ -117,7 +73,7 @@ engine:
   args: ["--add-dir", "/workspace", "--verbose"]
 ```
 
-Arguments are added in order and placed before the `--prompt` flag. Common uses include adding directories (`--add-dir`), enabling verbose logging (`--verbose`, `--debug`), and passing engine-specific flags. Consult the specific engine's CLI documentation for available flags.
+Arguments are added in order and placed before the `--prompt` flag. Consult the specific engine's CLI documentation for available flags.
 
 ### Custom Engine Command
 
@@ -129,8 +85,6 @@ engine:
   command: /usr/local/bin/copilot-dev  # absolute path
   args: ["--verbose"]
 ```
-
-The command supports absolute paths (`/usr/local/bin/copilot`), relative paths (`./bin/claude`), environment variables (`$HOME/.local/bin/codex`), or commands in PATH.
 
 ## Related Documentation
 

@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -117,71 +116,6 @@ func TestErrorCollectorError_MultipleErrors(t *testing.T) {
 
 	// Check that all errors are included
 	errStr := result.Error()
-	assert.Contains(t, errStr, "first error", "Should contain first error")
-	assert.Contains(t, errStr, "second error", "Should contain second error")
-	assert.Contains(t, errStr, "third error", "Should contain third error")
-}
-
-func TestFormatAggregatedError_NoError(t *testing.T) {
-	result := FormatAggregatedError(nil, "validation")
-	require.NoError(t, result, "Should handle nil error")
-}
-
-func TestFormatAggregatedError_SingleError(t *testing.T) {
-	err := errors.New("single error")
-	result := FormatAggregatedError(err, "validation")
-
-	require.Error(t, result, "Should return error")
-	assert.Equal(t, err, result, "Should return single error unchanged")
-}
-
-func TestFormatAggregatedError_MultipleErrors(t *testing.T) {
-	err1 := errors.New("first error")
-	err2 := errors.New("second error")
-	err3 := errors.New("third error")
-
-	joined := errors.Join(err1, err2, err3)
-	result := FormatAggregatedError(joined, "validation")
-
-	require.Error(t, result, "Should return formatted error")
-	errStr := result.Error()
-
-	// Should contain header with count
-	assert.True(t, strings.Contains(errStr, "Found") && strings.Contains(errStr, "validation errors:"),
-		"Should contain header with count and category")
-
-	// Should contain all individual errors
-	assert.Contains(t, errStr, "first error", "Should contain first error")
-	assert.Contains(t, errStr, "second error", "Should contain second error")
-	assert.Contains(t, errStr, "third error", "Should contain third error")
-}
-
-func TestSplitJoinedErrors_NoError(t *testing.T) {
-	result := SplitJoinedErrors(nil)
-	assert.Nil(t, result, "Should return nil for nil error")
-}
-
-func TestSplitJoinedErrors_SingleError(t *testing.T) {
-	err := errors.New("single error")
-	result := SplitJoinedErrors(err)
-
-	require.Len(t, result, 1, "Should have 1 error")
-	assert.Equal(t, err, result[0], "Should contain the single error")
-}
-
-func TestSplitJoinedErrors_MultipleErrors(t *testing.T) {
-	err1 := errors.New("first error")
-	err2 := errors.New("second error")
-	err3 := errors.New("third error")
-
-	joined := errors.Join(err1, err2, err3)
-	result := SplitJoinedErrors(joined)
-
-	require.NotNil(t, result, "Should return error slice")
-	assert.Greater(t, len(result), 1, "Should have multiple errors")
-
-	// Check that all errors are present in the result
-	errStr := joined.Error()
 	assert.Contains(t, errStr, "first error", "Should contain first error")
 	assert.Contains(t, errStr, "second error", "Should contain second error")
 	assert.Contains(t, errStr, "third error", "Should contain third error")

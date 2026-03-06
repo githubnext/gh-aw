@@ -309,7 +309,7 @@ Engine code includes:
 
 The agentic engine architecture follows ISP, implements security at multiple layers, and is structured for extension. The Interface Segregation Principle implementation provides flexibility while maintaining backward compatibility. All current implementations follow established patterns and are thoroughly tested.
 
-The addition of comprehensive documentation (`adding-new-engines.md`) significantly improves the developer experience for adding new engines. The architecture requires no structural changes and is ready to support additional integrations.
+The `adding-new-engines.md` document provides step-by-step guidance for implementing new engines. The architecture requires no structural changes and supports additional integrations.
 
 ### Overall Rating
 

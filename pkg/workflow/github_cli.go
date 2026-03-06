@@ -3,12 +3,10 @@
 package workflow
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"os/exec"
 
-	"github.com/cli/go-gh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/tty"
@@ -73,17 +71,6 @@ func ExecGH(args ...string) *exec.Cmd {
 //	output, err := cmd.Output()
 func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 	return setupGHCommand(ctx, args...)
-}
-
-// ExecGHWithOutput executes a gh CLI command using go-gh/v2 and returns stdout, stderr, and error.
-// This is a convenience wrapper that directly uses go-gh/v2's Exec function.
-//
-// Usage:
-//
-//	stdout, stderr, err := ExecGHWithOutput("api", "/user")
-func ExecGHWithOutput(args ...string) (stdout, stderr bytes.Buffer, err error) {
-	githubCLILog.Printf("Executing gh CLI command via go-gh/v2: gh %v", args)
-	return gh.Exec(args...)
 }
 
 // runGHWithSpinner executes a gh CLI command with a spinner and returns the output.

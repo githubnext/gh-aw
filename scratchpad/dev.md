@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 3.6
-**Last Updated**: 2026-03-05
+**Version**: 3.7
+**Last Updated**: 2026-03-06
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2120,6 +2120,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v3.7 (2026-03-06): Fixed 3 tone issues — removed "intuitive way" (guard-policies-specification.md:17), replaced "User-friendly: Intuitive frontmatter syntax" with "Consistent syntax: Follows existing frontmatter conventions" (guard-policies-specification.md:303), and replaced "significantly improves the developer experience" with precise language (engine-architecture-review.md:312). Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.6 (2026-03-05): Fixed 2 tone issues — removed "seamlessly" from guard-policies-specification.md:307 and "robust" from pr-checkout-logic-explained.md:56. Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.5 (2026-03-04): Fixed 3 tone issues — "Easy to add policies" → "Supports adding policies" (guard-policies-specification.md:286), "Easy to add new servers" → "New servers and policy types can be added without structural changes" (guard-policies-specification.md:302), "Easy to understand and follow" → "Consistent, well-documented for straightforward implementation" (engine-review-summary.md:282). Coverage: 63 spec files (62 spec + 1 test artifact).
 - v3.4 (2026-03-01): Added Package Structure section to Core Architecture (from `architecture.md`, updated 2026-03-01); added GitHub MCP Guard Policies section to MCP Integration (from `guard-policies-specification.md`); added 2 new Related Documentation links. Coverage: 63 spec files (62 spec + 1 test artifact).

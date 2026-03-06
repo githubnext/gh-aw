@@ -97,7 +97,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `github` | GitHub domains |
 | `containers` | Docker Hub, GitHub Container Registry, Quay |
 | `linux-distros` | Debian, Alpine, and other Linux package repositories |
-| `dotnet`, `dart`, `go`, `haskell`, `java`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
+| `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
 
