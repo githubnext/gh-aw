@@ -303,7 +303,7 @@ Configuration section in frontmatter defining environment variables for the work
 
 ### Repo Memory
 
-Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. See [Repo Memory](/gh-aw/reference/repo-memory/).
+Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. Setting `wiki: true` switches the backing to the GitHub Wiki's git endpoint (`{repo}.wiki.git`), and the agent receives guidance to follow GitHub Wiki Markdown conventions (e.g. `[[Page Name]]` links). See [Repo Memory](/gh-aw/reference/repo-memory/).
 
 ### Sandbox
 
