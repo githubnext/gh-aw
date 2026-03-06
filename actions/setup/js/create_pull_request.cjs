@@ -22,6 +22,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -533,10 +534,7 @@ async function main(config = {}) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runId = context.runId;
-    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository?.html_url
-      ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `${(context.serverUrl || githubServer).replace(/\/+$/, "")}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    const runUrl = buildWorkflowRunUrl(context, context.repo);
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
     const triggeringPRNumber = context.payload.pull_request?.number;
