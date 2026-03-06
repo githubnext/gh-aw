@@ -427,6 +427,106 @@ func TestJobWithGitHubApp(t *testing.T) {
 	assert.Contains(t, stepsContent, "Invalidate GitHub App token")
 }
 
+// TestAssignToAgentWithGitHubAppUsesAgentToken tests that when github-app: is configured,
+// assign-to-agent uses GH_AW_AGENT_TOKEN rather than the App installation token.
+// The Copilot assignment API only accepts PATs, not GitHub App tokens.
+func TestAssignToAgentWithGitHubAppUsesAgentToken(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "12345",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			AssignToAgent: &AssignToAgentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// App token minting step should be present (github-app: is configured)
+	assert.Contains(t, stepsContent, "Generate GitHub App token", "App token minting step should be present")
+
+	// Find the assign_to_agent step section
+	assignToAgentStart := strings.Index(stepsContent, "id: assign_to_agent")
+	require.Greater(t, assignToAgentStart, -1, "assign_to_agent step should exist")
+
+	// Find the end of the assign_to_agent step (next step starts with "      - ")
+	nextStepOffset := strings.Index(stepsContent[assignToAgentStart:], "\n      - ")
+	var assignToAgentSection string
+	if nextStepOffset == -1 {
+		assignToAgentSection = stepsContent[assignToAgentStart:]
+	} else {
+		assignToAgentSection = stepsContent[assignToAgentStart : assignToAgentStart+nextStepOffset]
+	}
+
+	// The assign_to_agent step should use GH_AW_AGENT_TOKEN, NOT the App token
+	assert.Contains(t, assignToAgentSection, "GH_AW_AGENT_TOKEN",
+		"assign_to_agent step should use GH_AW_AGENT_TOKEN, not the App token")
+	assert.NotContains(t, assignToAgentSection, "safe-outputs-app-token.outputs.token",
+		"assign_to_agent step should not use the GitHub App token")
+}
+
+// TestAssignToAgentWithGitHubAppAndExplicitToken tests that an explicit github-token
+// on assign-to-agent takes precedence over both the App token and GH_AW_AGENT_TOKEN.
+func TestAssignToAgentWithGitHubAppAndExplicitToken(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "12345",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+			AssignToAgent: &AssignToAgentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max:         strPtr("1"),
+					GitHubToken: "${{ secrets.MY_CUSTOM_TOKEN }}",
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Find the assign_to_agent step section
+	assignToAgentStart := strings.Index(stepsContent, "id: assign_to_agent")
+	require.Greater(t, assignToAgentStart, -1, "assign_to_agent step should exist")
+
+	nextStepOffset := strings.Index(stepsContent[assignToAgentStart:], "\n      - ")
+	var assignToAgentSection string
+	if nextStepOffset == -1 {
+		assignToAgentSection = stepsContent[assignToAgentStart:]
+	} else {
+		assignToAgentSection = stepsContent[assignToAgentStart : assignToAgentStart+nextStepOffset]
+	}
+
+	// The explicit token should take precedence
+	assert.Contains(t, assignToAgentSection, "secrets.MY_CUSTOM_TOKEN",
+		"assign_to_agent step should use the explicitly configured github-token")
+	assert.NotContains(t, assignToAgentSection, "safe-outputs-app-token.outputs.token",
+		"assign_to_agent step should not use the GitHub App token even with explicit token")
+	assert.NotContains(t, assignToAgentSection, "GH_AW_AGENT_TOKEN",
+		"assign_to_agent step should not use GH_AW_AGENT_TOKEN when explicit token is set")
+}
+
 // TestJobOutputs tests that job outputs are correctly configured
 func TestJobOutputs(t *testing.T) {
 	compiler := NewCompiler()

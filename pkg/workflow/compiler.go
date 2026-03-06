@@ -218,6 +218,21 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or use 'threat-detection: false' to disable the threat-detection configuration in safe-outputs.", errors.New("threat detection requires sandbox.agent"))
 	}
 
+	// Emit warning when assign-to-agent is used with github-app: but no explicit github-token:.
+	// GitHub App tokens are rejected by the Copilot assignment API — a PAT is required.
+	// The token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) is used automatically.
+	if workflowData.SafeOutputs != nil &&
+		workflowData.SafeOutputs.AssignToAgent != nil &&
+		workflowData.SafeOutputs.GitHubApp != nil &&
+		workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"assign-to-agent does not support GitHub App tokens. "+
+				"The Copilot assignment API requires a fine-grained PAT. "+
+				"The token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) will be used automatically. "+
+				"Add github-token: to your assign-to-agent config to specify a different token."))
+		c.IncrementWarningCount()
+	}
+
 	// Emit experimental warning for safe-inputs feature
 	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: safe-inputs"))
