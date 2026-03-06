@@ -174,9 +174,12 @@ jobs:
           - name: "CLI MCP Connectivity"
             packages: "./pkg/cli"
             pattern: "TestMCPInspectPlaywright|TestMCPGateway"
+          - name: "CLI MCP Inspect GitHub"
+            packages: "./pkg/cli"
+            pattern: "TestMCPInspectGitHub"
           - name: "CLI MCP Other"
             packages: "./pkg/cli"
-            pattern: "TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig"
+            pattern: "TestMCPAdd|TestMCPServer|TestMCPConfig"
           - name: "CLI Audit Logs & Firewall"
             packages: "./pkg/cli"
             pattern: "TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|^TestAudit|^TestInspect"
@@ -2100,7 +2103,7 @@ jobs:
 
       - name: Upload conformance report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: safe-outputs-conformance-report
           path: conformance-output.txt
