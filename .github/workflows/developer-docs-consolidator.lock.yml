@@ -321,7 +321,7 @@ jobs:
           restore-keys: |
             developer-docs-cache-
       # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
+      - name: Clone wiki-memory branch (default)
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
@@ -1023,7 +1023,7 @@ jobs:
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
       # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
+      - name: Upload wiki-memory artifact (default)
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
@@ -1348,13 +1348,13 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
+      - name: Download wiki-memory artifact (default)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         continue-on-error: true
         with:
           name: repo-memory-default
           path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
+      - name: Push wiki-memory changes (default)
         id: push_repo_memory_default
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

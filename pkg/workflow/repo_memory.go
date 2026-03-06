@@ -537,7 +537,11 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
 
 		// Step: Upload repo-memory directory as artifact
-		fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
+		if memory.Wiki {
+			fmt.Fprintf(builder, "      - name: Upload wiki-memory artifact (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
+		}
 		builder.WriteString("        if: always()\n")
 		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
@@ -570,7 +574,11 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Step: Push changes to repo-memory branch
-		fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
+		if memory.Wiki {
+			fmt.Fprintf(builder, "      - name: Push wiki-memory changes (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
+		}
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
@@ -661,7 +669,11 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
 
 		// Step 1: Clone the repo-memory branch
-		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
+		if memory.Wiki {
+			fmt.Fprintf(builder, "      - name: Clone wiki-memory branch (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
+		}
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		builder.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
@@ -716,7 +728,11 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 		// Download artifact step
 		var step strings.Builder
-		fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
+		if memory.Wiki {
+			fmt.Fprintf(&step, "      - name: Download wiki-memory artifact (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
+		}
 		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
@@ -749,7 +765,11 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 		// Build step with github-script action
 		var step strings.Builder
-		fmt.Fprintf(&step, "      - name: Push repo-memory changes (%s)\n", memory.ID)
+		if memory.Wiki {
+			fmt.Fprintf(&step, "      - name: Push wiki-memory changes (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(&step, "      - name: Push repo-memory changes (%s)\n", memory.ID)
+		}
 		fmt.Fprintf(&step, "        id: push_repo_memory_%s\n", memory.ID)
 		step.WriteString("        if: always()\n")
 		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/github-script"))

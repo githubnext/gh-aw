@@ -1121,6 +1121,8 @@ func TestRepoMemoryWikiStepsGeneration(t *testing.T) {
 	output := builder.String()
 	assert.Contains(t, output, "TARGET_REPO: ${{ github.repository }}.wiki",
 		"Wiki mode should append .wiki to TARGET_REPO")
+	assert.Contains(t, output, "- name: Clone wiki-memory branch (default)",
+		"Wiki mode should use wiki-memory step name")
 }
 
 // TestRepoMemoryWikiStepsWithTargetRepo tests wiki mode with explicit target-repo
@@ -1146,6 +1148,8 @@ func TestRepoMemoryWikiStepsWithTargetRepo(t *testing.T) {
 	output := builder.String()
 	assert.Contains(t, output, "TARGET_REPO: myorg/myrepo.wiki",
 		"Wiki mode should append .wiki to explicit target-repo")
+	assert.Contains(t, output, "- name: Clone wiki-memory branch (default)",
+		"Wiki mode should use wiki-memory step name")
 }
 
 // TestRepoMemoryWikiPromptSection tests that wiki mode injects wiki note into prompt
