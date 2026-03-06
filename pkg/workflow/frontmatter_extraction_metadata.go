@@ -256,7 +256,31 @@ func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 	return ExtractMapField(frontmatter, "runtimes")
 }
 
-// extractPluginsFromFrontmatter extracts plugins configuration from frontmatter map
+// extractDependenciesFromFrontmatter extracts APM package dependencies from frontmatter.
+// Supports array format:
+//
+//	dependencies:
+//	  - microsoft/apm-sample-package
+//	  - github/awesome-copilot/skills/review-and-refactor
+func extractDependenciesFromFrontmatter(frontmatter map[string]any) []string {
+	value, exists := frontmatter["dependencies"]
+	if !exists {
+		return nil
+	}
+
+	if depsArray, ok := value.([]any); ok {
+		var deps []string
+		for _, d := range depsArray {
+			if s, ok := d.(string); ok && s != "" {
+				deps = append(deps, s)
+			}
+		}
+		return deps
+	}
+
+	return nil
+}
+
 // Returns: PluginInfo with plugins list, custom token, and per-plugin MCP configs
 // Supports both array format and object format with optional github-token
 // Each plugin item can be either a string (repository slug) or an object with id and optional mcp config

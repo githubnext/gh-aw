@@ -19,6 +19,7 @@ type toolsProcessingResult struct {
 	tools                 map[string]any
 	runtimes              map[string]any
 	pluginInfo            *PluginInfo // Consolidated plugin information
+	dependencies          []string    // APM package dependencies
 	toolsTimeout          int
 	toolsStartupTimeout   int
 	markdownContent       string
@@ -162,6 +163,12 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if pluginInfo != nil && len(pluginInfo.Plugins) > 0 {
 		orchestratorToolsLog.Printf("Extracted %d plugins from frontmatter (custom_token=%v, mcp_configs=%d)",
 			len(pluginInfo.Plugins), pluginInfo.CustomToken != "", len(pluginInfo.MCPConfigs))
+	}
+
+	// Extract APM dependencies from frontmatter
+	dependencies := extractDependenciesFromFrontmatter(result.Frontmatter)
+	if len(dependencies) > 0 {
+		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(dependencies))
 	}
 
 	// Merge plugins from imports with top-level plugins
@@ -335,6 +342,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		tools:                 tools,
 		runtimes:              runtimes,
 		pluginInfo:            pluginInfo,
+		dependencies:          dependencies,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,
 		markdownContent:       markdownContent,

@@ -227,6 +227,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Add APM dependencies setup step if dependencies are specified
+	if len(data.Dependencies) > 0 {
+		compilerYamlLog.Printf("Adding APM dependencies step: %d packages", len(data.Dependencies))
+		apmStep := GenerateAPMDependenciesStep(data.Dependencies, data)
+		for _, line := range apmStep {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add GitHub MCP lockdown detection step if needed

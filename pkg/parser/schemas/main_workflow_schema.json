@@ -7516,6 +7516,15 @@
           }
         }
       ]
+    },
+    "dependencies": {
+      "description": "APM package dependencies to install before workflow execution. When specified, a step using the microsoft/apm-setup action is emitted to install the listed packages.",
+      "examples": [["microsoft/apm-sample-package", "github/awesome-copilot/skills/review-and-refactor"]],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "APM package reference (e.g., 'org/repo', 'org/repo/path/to/skill')"
+      }
     }
   },
   "additionalProperties": false,
