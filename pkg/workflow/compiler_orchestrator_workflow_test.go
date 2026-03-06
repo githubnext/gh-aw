@@ -1448,3 +1448,130 @@ func TestBuildInitialWorkflowData_FieldMapping(t *testing.T) {
 	assert.Equal(t, []string{"/imported1"}, workflowData.ImportedFiles)
 	assert.NotNil(t, workflowData.ImportInputs)
 }
+
+// TestExtractDispatchItemNumber tests that the item_number presence is detected
+// directly from the frontmatter map rather than from re-parsing YAML strings.
+func TestExtractDispatchItemNumber(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		want        bool
+	}{
+		{
+			name: "label trigger shorthand PR workflow has item_number",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{"types": []any{"labeled"}},
+					"workflow_dispatch": map[string]any{
+						"inputs": map[string]any{
+							"item_number": map[string]any{
+								"description": "The number of the pull request",
+								"required":    true,
+								"type":        "string",
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "label trigger shorthand issue workflow has item_number",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{"types": []any{"labeled"}},
+					"workflow_dispatch": map[string]any{
+						"inputs": map[string]any{
+							"item_number": map[string]any{
+								"description": "The number of the issue",
+								"required":    true,
+								"type":        "string",
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "plain workflow_dispatch without item_number",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": nil,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "workflow_dispatch with unrelated inputs does not match",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": map[string]any{
+						"inputs": map[string]any{
+							"branch": map[string]any{"type": "string"},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "no workflow_dispatch",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{"types": []any{"opened"}},
+				},
+			},
+			want: false,
+		},
+		{
+			name:        "empty frontmatter",
+			frontmatter: map[string]any{},
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractDispatchItemNumber(tt.frontmatter)
+			assert.Equal(t, tt.want, got, "extractDispatchItemNumber() mismatch")
+		})
+	}
+}
+
+// TestExtractYAMLSections_HasDispatchItemNumber verifies that extractYAMLSections
+// populates WorkflowData.HasDispatchItemNumber from the frontmatter map.
+func TestExtractYAMLSections_HasDispatchItemNumber(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("label trigger shorthand workflow sets HasDispatchItemNumber", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"pull_request": map[string]any{"types": []any{"labeled"}},
+				"workflow_dispatch": map[string]any{
+					"inputs": map[string]any{
+						"item_number": map[string]any{
+							"description": "The number of the pull request",
+							"required":    true,
+							"type":        "string",
+						},
+					},
+				},
+			},
+		}
+		compiler.extractYAMLSections(frontmatter, workflowData)
+		assert.True(t, workflowData.HasDispatchItemNumber, "should detect item_number from label trigger shorthand")
+	})
+
+	t.Run("plain workflow does not set HasDispatchItemNumber", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"pull_request": map[string]any{"types": []any{"opened"}},
+			},
+		}
+		compiler.extractYAMLSections(frontmatter, workflowData)
+		assert.False(t, workflowData.HasDispatchItemNumber, "should not set HasDispatchItemNumber for plain workflow")
+	})
+}

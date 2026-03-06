@@ -463,102 +463,16 @@ Other: ${{ needs.activation.outputs.comment_id }}
 	}
 }
 
-func TestHasWorkflowDispatchItemNumber(t *testing.T) {
-	tests := []struct {
-		name     string
-		on       string
-		expected bool
-	}{
-		{
-			name: "label trigger shorthand PR workflow has item_number",
-			on: `on:
-  pull_request:
-    types: [labeled]
-  workflow_dispatch:
-    inputs:
-      item_number:
-        description: The number of the pull request
-        required: true
-        type: string`,
-			expected: true,
-		},
-		{
-			name: "label trigger shorthand issue workflow has item_number",
-			on: `on:
-  issues:
-    types: [labeled]
-  workflow_dispatch:
-    inputs:
-      item_number:
-        description: The number of the issue
-        required: true
-        type: string`,
-			expected: true,
-		},
-		{
-			name: "plain workflow_dispatch without item_number",
-			on: `on:
-  workflow_dispatch:`,
-			expected: false,
-		},
-		{
-			name: "workflow_dispatch with other inputs",
-			on: `on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch name
-        type: string`,
-			expected: false,
-		},
-		{
-			name: "no workflow_dispatch at all",
-			on: `on:
-  pull_request:
-    types: [opened, synchronize]`,
-			expected: false,
-		},
-		{
-			name:     "empty on",
-			on:       "",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := hasWorkflowDispatchItemNumber(tt.on)
-			if result != tt.expected {
-				t.Errorf("hasWorkflowDispatchItemNumber() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
-	labelTriggerOn := `on:
-  pull_request:
-    types: [labeled]
-  workflow_dispatch:
-    inputs:
-      item_number:
-        description: The number of the pull request
-        required: true
-        type: string`
-
-	plainOn := `on:
-  pull_request:
-    types: [opened, synchronize]`
-
 	tests := []struct {
 		name          string
-		on            string
+		hasItemNumber bool
 		inputMappings []*ExpressionMapping
 		wantContents  map[string]string // envVar -> expected Content after applying fallbacks
 	}{
 		{
-			name: "PR number expression gets fallback for label trigger workflow",
-			on:   labelTriggerOn,
+			name:          "PR number expression gets fallback when hasItemNumber is true",
+			hasItemNumber: true,
 			inputMappings: []*ExpressionMapping{
 				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
 			},
@@ -567,16 +481,8 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 			},
 		},
 		{
-			name: "issue number expression gets fallback",
-			on: `on:
-  issues:
-    types: [labeled]
-  workflow_dispatch:
-    inputs:
-      item_number:
-        description: The number of the issue
-        required: true
-        type: string`,
+			name:          "issue number expression gets fallback",
+			hasItemNumber: true,
 			inputMappings: []*ExpressionMapping{
 				{Original: "${{ github.event.issue.number }}", EnvVar: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER", Content: "github.event.issue.number"},
 			},
@@ -585,16 +491,8 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 			},
 		},
 		{
-			name: "discussion number expression gets fallback",
-			on: `on:
-  discussion:
-    types: [labeled]
-  workflow_dispatch:
-    inputs:
-      item_number:
-        description: The number of the discussion
-        required: true
-        type: string`,
+			name:          "discussion number expression gets fallback",
+			hasItemNumber: true,
 			inputMappings: []*ExpressionMapping{
 				{Original: "${{ github.event.discussion.number }}", EnvVar: "GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER", Content: "github.event.discussion.number"},
 			},
@@ -603,8 +501,8 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 			},
 		},
 		{
-			name: "no fallback applied when no item_number in workflow_dispatch",
-			on:   plainOn,
+			name:          "no fallback applied when hasItemNumber is false",
+			hasItemNumber: false,
 			inputMappings: []*ExpressionMapping{
 				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
 			},
@@ -613,8 +511,8 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 			},
 		},
 		{
-			name: "unrelated expressions are not modified",
-			on:   labelTriggerOn,
+			name:          "unrelated expressions are not modified",
+			hasItemNumber: true,
 			inputMappings: []*ExpressionMapping{
 				{Original: "${{ github.repository }}", EnvVar: "GH_AW_GITHUB_REPOSITORY", Content: "github.repository"},
 				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
@@ -625,8 +523,8 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 			},
 		},
 		{
-			name: "EnvVar name is preserved after fallback is applied",
-			on:   labelTriggerOn,
+			name:          "EnvVar name is preserved after fallback is applied",
+			hasItemNumber: true,
 			inputMappings: []*ExpressionMapping{
 				{Original: "${{ github.event.pull_request.number }}", EnvVar: "GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER", Content: "github.event.pull_request.number"},
 			},
@@ -638,7 +536,7 @@ func TestApplyWorkflowDispatchFallbacks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			applyWorkflowDispatchFallbacks(tt.inputMappings, tt.on)
+			applyWorkflowDispatchFallbacks(tt.inputMappings, tt.hasItemNumber)
 
 			for _, mapping := range tt.inputMappings {
 				wantContent, ok := tt.wantContents[mapping.EnvVar]

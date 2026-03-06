@@ -862,6 +862,7 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
         description: The number of the pull request
         required: true
         type: string`,
+				HasDispatchItemNumber: true,
 			},
 			isAliasTrigger: false,
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.pull_request.number || inputs.item_number || github.ref || github.run_id }}"},
@@ -879,6 +880,7 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
         description: The number of the issue
         required: true
         type: string`,
+				HasDispatchItemNumber: true,
 			},
 			isAliasTrigger: false,
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || inputs.item_number || github.run_id }}"},
@@ -896,6 +898,7 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
         description: The number of the discussion
         required: true
         type: string`,
+				HasDispatchItemNumber: true,
 			},
 			isAliasTrigger: false,
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number || inputs.item_number || github.run_id }}"},
