@@ -12,6 +12,11 @@ var engineOutputLog = logger.New("workflow:engine_output")
 // RedactedURLsLogPath is the path where redacted URL domains are logged during sanitization
 const RedactedURLsLogPath = "/tmp/gh-aw/redacted-urls.log"
 
+// AgentStepSummaryPath is the path used as GITHUB_STEP_SUMMARY inside the agent sandbox.
+// The agent writes its step summary content to this file, which is then appended to the
+// real $GITHUB_STEP_SUMMARY after secret redaction.
+const AgentStepSummaryPath = "/tmp/gh-aw/agent-step-summary.md"
+
 // generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/gh-aw/ files
 // Returns the YAML string and whether a cleanup step was generated
 func generateCleanupStep(outputFiles []string) (string, bool) {

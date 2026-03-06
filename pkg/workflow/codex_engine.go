@@ -228,7 +228,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Codex is not a TUI, outputs to stdout/stderr
 			AllowedDomains: allowedDomains,
-			PathSetup:      "mkdir -p \"$CODEX_HOME/logs\"", // Create logs directory before AWF
+			// Create logs directory and agent step summary file before AWF.
+			// The agent writes its step summary content to AgentStepSummaryPath, which is
+			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
+			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
 		})
 	} else {
 		// Build the command without AWF wrapping
@@ -236,15 +239,17 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
+touch %s
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, agentPath, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
+touch %s
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 		}
 	}
 
@@ -252,7 +257,12 @@ mkdir -p "$CODEX_HOME/logs"
 	effectiveGitHubToken := getEffectiveGitHubToken("")
 
 	env := map[string]string{
-		"CODEX_API_KEY":                "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		"CODEX_API_KEY": "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
+		// The runner's original path is unreachable within the AWF isolated filesystem;
+		// we create this file before the agent starts and append it to the real
+		// $GITHUB_STEP_SUMMARY after secret redaction.
+		"GITHUB_STEP_SUMMARY":          AgentStepSummaryPath,
 		"GH_AW_PROMPT":                 "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GH_AW_MCP_CONFIG":             "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",

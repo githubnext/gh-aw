@@ -893,6 +893,14 @@ jobs:
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Append agent step summary
+        if: always()
+        run: |
+          # Append the agent's step summary to the real $GITHUB_STEP_SUMMARY.
+          # The file was written by the agent and already redacted for secrets.
+          if [ -s /tmp/gh-aw/agent-step-summary.md ]; then
+            cat /tmp/gh-aw/agent-step-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7

@@ -307,6 +307,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
 
+	// Append the agent step summary to the real $GITHUB_STEP_SUMMARY after secrets are redacted.
+	// The agent writes its GITHUB_STEP_SUMMARY content to AgentStepSummaryPath (a file inside
+	// /tmp/gh-aw/ that is reachable in both AWF sandbox and non-sandbox modes).
+	// secret redaction already scanned this file, so it is safe to append.
+	c.generateAgentStepSummaryAppend(yaml)
+
 	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		c.generateOutputCollectionStep(yaml, data)

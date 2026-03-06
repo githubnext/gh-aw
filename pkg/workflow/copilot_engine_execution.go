@@ -196,13 +196,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Copilot doesn't require TTY
 			AllowedDomains: allowedDomains,
-			PathSetup:      "", // No path setup needed on host side
+			// Create the agent step summary file before AWF starts so it is accessible
+			// inside the sandbox. The agent writes its step summary content here, and the
+			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
+			PathSetup: "touch " + AgentStepSummaryPath,
 		})
 	} else {
-		// Run copilot command without AWF wrapper
+		// Run copilot command without AWF wrapper.
+		// Prepend a touch command to create the agent step summary file before copilot runs.
 		command = fmt.Sprintf(`set -o pipefail
+touch %s
 COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-%s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentStepSummaryPath, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
 	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
@@ -223,9 +228,14 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		"XDG_CONFIG_HOME":           "/home/runner",
 		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
 		"COPILOT_GITHUB_TOKEN":      copilotGitHubToken,
-		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
-		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
-		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
+		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
+		// The runner's original path is unreachable within the AWF isolated filesystem;
+		// we create this file before the agent starts and append it to the real
+		// $GITHUB_STEP_SUMMARY after secret redaction.
+		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+		"GITHUB_HEAD_REF":     "${{ github.head_ref }}",
+		"GITHUB_REF_NAME":     "${{ github.ref_name }}",
+		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 		// Pass GitHub server URL and API URL for GitHub Enterprise compatibility.
 		// In standard GitHub.com environments these resolve to https://github.com and
 		// https://api.github.com. In GitHub Enterprise they resolve to the enterprise
