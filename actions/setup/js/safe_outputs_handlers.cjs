@@ -15,7 +15,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { generateTemporaryId, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
+const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -516,7 +516,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Validate comment constraints before appending to safe outputs
     // This provides early feedback per Requirement MCE1 (Early Validation)
     try {
-      const body = args.body || "";
+      const body = (args && args.body) || "";
       enforceCommentLimits(body);
     } catch (error) {
       // Return validation error with specific constraint violation details

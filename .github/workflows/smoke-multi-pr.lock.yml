@@ -405,8 +405,8 @@ jobs:
                     "type": "string"
                   },
                   "temporary_id": {
-                    "description": "Unique temporary identifier for this comment. Format: 'aw_' followed by 3 to 8 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later.",
-                    "pattern": "^aw_[A-Za-z0-9]{3,8}$",
+                    "description": "Unique temporary identifier for this comment. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later.",
+                    "pattern": "^aw_[A-Za-z0-9]{3,12}$",
                     "type": "string"
                   }
                 },
