@@ -837,7 +837,7 @@ Please analyze the repository.
 }
 
 // TestAddPublicWorkflowUnauthenticated verifies that gh aw add works for a public
-// repository even when no GitHub auth tokens are present. This tests the git/raw-URL
+// repository even when no GitHub auth tokens are present. This tests the raw-URL
 // fallback path that is used when api.DefaultRESTClient() fails due to missing auth,
 // which is the scenario that occurs when running inside an agentic workflow without
 // gh CLI credentials configured.
@@ -861,9 +861,10 @@ func TestAddPublicWorkflowUnauthenticated(t *testing.T) {
 		}
 	}
 
-	// Use githubnext/agentics/poem-bot@main — a known public repo with a real workflow .md file.
-	// The three-part spec "owner/repo/workflow-name@ref" resolves to workflows/poem-bot.md.
-	workflowSpec := "githubnext/agentics/poem-bot@main"
+	// Use github/gh-aw with an explicit path spec (owner/repo/path/file.md@version).
+	// The file exists at v0.45.5 and the github org allows unauthenticated raw URL access
+	// for public repos (verified by TestDownloadFileFromGitHubUnauthenticated).
+	workflowSpec := "github/gh-aw/.github/workflows/github-mcp-tools-report.md@v0.45.5"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
 	cmd.Dir = setup.tempDir
@@ -881,7 +882,7 @@ func TestAddPublicWorkflowUnauthenticated(t *testing.T) {
 	require.NoError(t, err, ".github/workflows directory should exist after add")
 	assert.True(t, info.IsDir(), ".github/workflows should be a directory")
 
-	workflowFile := filepath.Join(workflowsDir, "poem-bot.md")
+	workflowFile := filepath.Join(workflowsDir, "github-mcp-tools-report.md")
 	_, err = os.Stat(workflowFile)
 	require.NoError(t, err, "downloaded workflow file should exist at %s", workflowFile)
 }
