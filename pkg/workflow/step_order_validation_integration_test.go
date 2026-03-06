@@ -173,7 +173,7 @@ This workflow uploads artifacts.
 
 	// Verify common upload paths are present and under /tmp/gh-aw/ or /opt/gh-aw/
 	uploadPaths := []string{
-		"${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl",
+		"${GH_AW_HOME}/safeoutputs/outputs.jsonl",
 		"/tmp/gh-aw/agent-stdio.log",
 		"/tmp/gh-aw/mcp-logs/",
 	}

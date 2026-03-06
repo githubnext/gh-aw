@@ -41,6 +41,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      GH_AW_HOME: /opt/gh-aw
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -75,11 +77,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/generate_aw_info.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/generate_aw_info.cjs');
             await main(core, context);
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         id: validate-secret
-        run: ${GH_AW_HOME:-/opt/gh-aw}/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
+        run: ${GH_AW_HOME}/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -98,9 +100,9 @@ jobs:
           GH_AW_WORKFLOW_FILE: "codex-github-remote-mcp-test.lock.yml"
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/check_workflow_timestamp_api.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -114,14 +116,14 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/create_prompt_first.sh
+          bash ${GH_AW_HOME}/actions/create_prompt_first.sh
           {
           cat << 'GH_AW_PROMPT_EOF'
           <system>
           GH_AW_PROMPT_EOF
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/xpia.md"
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/temp_folder_prompt.md"
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/markdown.md"
+          cat "${GH_AW_HOME}/prompts/xpia.md"
+          cat "${GH_AW_HOME}/prompts/temp_folder_prompt.md"
+          cat "${GH_AW_HOME}/prompts/markdown.md"
           cat << 'GH_AW_PROMPT_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -166,9 +168,9 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/interpolate_prompt.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/interpolate_prompt.cjs');
             await main();
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -184,10 +186,10 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             
-            const substitutePlaceholders = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/substitute_placeholders.cjs');
+            const substitutePlaceholders = require(process.env.GH_AW_HOME + '/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
             return await substitutePlaceholders({
@@ -206,11 +208,11 @@ jobs:
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/validate_prompt_placeholders.sh
+        run: bash ${GH_AW_HOME}/actions/validate_prompt_placeholders.sh
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/print_prompt_summary.sh
+        run: bash ${GH_AW_HOME}/actions/print_prompt_summary.sh
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -228,6 +230,7 @@ jobs:
       contents: read
       issues: read
     env:
+      GH_AW_HOME: /opt/gh-aw
       GH_AW_WORKFLOW_ID_SANITIZED: codexgithubremotemcptest
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
@@ -247,10 +250,10 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/create_gh_aw_tmp_dir.sh
-          echo "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl" >> "$GITHUB_ENV"
-          echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/config.json" >> "$GITHUB_ENV"
-          echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/tools.json" >> "$GITHUB_ENV"
+          bash ${GH_AW_HOME}/actions/create_gh_aw_tmp_dir.sh
+          echo "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME}/safeoutputs/outputs.jsonl" >> "$GITHUB_ENV"
+          echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${GH_AW_HOME}/safeoutputs/config.json" >> "$GITHUB_ENV"
+          echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${GH_AW_HOME}/safeoutputs/tools.json" >> "$GITHUB_ENV"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -273,9 +276,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/checkout_pr_branch.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/checkout_pr_branch.cjs');
             await main();
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -285,7 +288,7 @@ jobs:
       - name: Install Codex
         run: npm install -g --silent @openai/codex@0.107.0
       - name: Install awf binary
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/install_awf_binary.sh v0.23.1
+        run: bash ${GH_AW_HOME}/actions/install_awf_binary.sh v0.23.1
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -294,10 +297,10 @@ jobs:
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         with:
           script: |
-            const determineAutomaticLockdown = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/determine_automatic_lockdown.cjs');
+            const determineAutomaticLockdown = require(process.env.GH_AW_HOME + '/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.23.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.23.1 ghcr.io/github/gh-aw-firewall/squid:0.23.1 ghcr.io/github/gh-aw-mcpg:v0.1.8
+        run: bash ${GH_AW_HOME}/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.23.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.23.1 ghcr.io/github/gh-aw-firewall/squid:0.23.1 ghcr.io/github/gh-aw-mcpg:v0.1.8
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -338,7 +341,7 @@ jobs:
           GH_AW_MCP_CONFIG_EOF
           
           # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_EOF | bash ${GH_AW_HOME:-/opt/gh-aw}/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_EOF | bash ${GH_AW_HOME}/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -366,7 +369,7 @@ jobs:
           name: activation
           path: /tmp/gh-aw
       - name: Clean git credentials
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/clean_git_credentials.sh
+        run: bash ${GH_AW_HOME}/actions/clean_git_credentials.sh
       - name: Execute Codex
         run: |
           set -o pipefail
@@ -403,15 +406,15 @@ jobs:
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+          bash ${GH_AW_HOME}/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/redact_secrets.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/redact_secrets.cjs');
             await main();
         env:
           GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
@@ -435,18 +438,18 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/parse_codex_log.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/parse_codex_log.cjs');
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/parse_mcp_gateway_log.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/parse_mcp_gateway_log.cjs');
             await main();
       - name: Print firewall logs
         if: always()

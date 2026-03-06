@@ -227,8 +227,8 @@ This is a test workflow with cache-memory enabled.
 	}
 
 	// Test 3: Verify the template file is used (not inline text)
-	if !strings.Contains(lockStr, "${GH_AW_HOME:-/opt/gh-aw}/prompts/cache_memory_prompt.md") {
-		t.Error("Expected '${GH_AW_HOME:-/opt/gh-aw}/prompts/cache_memory_prompt.md' reference in generated workflow")
+	if !strings.Contains(lockStr, "${GH_AW_HOME}/prompts/cache_memory_prompt.md") {
+		t.Error("Expected '${GH_AW_HOME}/prompts/cache_memory_prompt.md' reference in generated workflow")
 	}
 
 	// Test 4: Verify the instruction mentions persistent cache
@@ -412,7 +412,7 @@ This is a test workflow with playwright enabled.
 	}
 
 	// Test 2: Verify the cat command for playwright prompt file is included
-	if !strings.Contains(lockStr, "cat \"${GH_AW_HOME:-/opt/gh-aw}/prompts/playwright_prompt.md\"") {
+	if !strings.Contains(lockStr, "cat \"${GH_AW_HOME}/prompts/playwright_prompt.md\"") {
 		t.Error("Expected cat command for playwright prompt file in generated workflow")
 	}
 
@@ -589,7 +589,7 @@ This is a test workflow with issue_comment trigger.
 	}
 
 	// Test 2: Verify the cat command for PR context prompt file is included
-	if !strings.Contains(lockStr, "cat \"${GH_AW_HOME:-/opt/gh-aw}/prompts/pr_context_prompt.md\"") {
+	if !strings.Contains(lockStr, "cat \"${GH_AW_HOME}/prompts/pr_context_prompt.md\"") {
 		t.Error("Expected cat command for PR context prompt file in generated workflow")
 	}
 

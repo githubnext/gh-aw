@@ -406,6 +406,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions.RenderToYAML(),
 		Concurrency: concurrency,
+		Env:         map[string]string{"GH_AW_HOME": constants.GhAwHomeDefault},
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     outputs,

@@ -21,12 +21,15 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 		shouldHaveEnv   bool
 	}{
 		{
-			name: "No safe outputs - no env section",
+			name: "No safe outputs - GH_AW_HOME always set",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",
 				"on":   "push",
 			},
-			shouldHaveEnv: false,
+			expectedEnvVars: []string{
+				"GH_AW_HOME: /opt/gh-aw",
+			},
+			shouldHaveEnv: true,
 		},
 		{
 			name: "Safe outputs with create-issue",
@@ -38,6 +41,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
+				"GH_AW_HOME: /opt/gh-aw",
 				// Config is now in file, not env var
 			},
 			shouldHaveEnv: true,
@@ -56,6 +60,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
+				"GH_AW_HOME: /opt/gh-aw",
 				// Config is now in file, not env var
 			},
 			shouldHaveEnv: true,

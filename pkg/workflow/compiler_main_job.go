@@ -166,11 +166,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Build job-level environment variables for safe outputs
-	var env map[string]string
-	if data.SafeOutputs != nil {
-		env = make(map[string]string)
+	// Build job-level environment variables
+	// Always initialize env with GH_AW_HOME so steps don't need the :-fallback syntax
+	env := map[string]string{
+		"GH_AW_HOME": constants.GhAwHomeDefault,
+	}
 
+	if data.SafeOutputs != nil {
 		// Safe outputs paths are set via $GITHUB_ENV in the "Create gh-aw temp directory" step
 		// (after setup.sh sets GH_AW_HOME). This ensures GitHub Actions expressions like
 		// ${{ env.GH_AW_SAFE_OUTPUTS }} in upload-artifact resolve to real paths, not
@@ -202,9 +204,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// This contains the workflow ID with all hyphens removed and lowercased
 	// Used in cache keys to avoid spaces and special characters
 	if data.WorkflowID != "" {
-		if env == nil {
-			env = make(map[string]string)
-		}
 		sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
 		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
 	}

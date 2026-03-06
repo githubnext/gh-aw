@@ -69,7 +69,7 @@ Create an issue.
 	}
 
 	// Check that the script uses require to load the parse_threat_detection_results.cjs file
-	if !strings.Contains(agentSection, "require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/parse_threat_detection_results.cjs')") {
+	if !strings.Contains(agentSection, "require(process.env.GH_AW_HOME + '/actions/parse_threat_detection_results.cjs')") {
 		t.Error("Parse results step doesn't use require to load parse_threat_detection_results.cjs")
 	}
 

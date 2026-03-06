@@ -69,6 +69,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      GH_AW_HOME: /opt/gh-aw
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
@@ -106,7 +108,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/generate_aw_info.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/generate_aw_info.cjs');
             await main(core, context);
       - name: Checkout .github and .agents folders
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -126,9 +128,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/add_reaction.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/add_reaction.cjs');
             await main();
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -136,18 +138,18 @@ jobs:
           GH_AW_WORKFLOW_FILE: "archie.lock.yml"
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/check_workflow_timestamp_api.cjs');
             await main();
       - name: Compute current body text
         id: sanitized
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/compute_text.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/compute_text.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -165,15 +167,15 @@ jobs:
           GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
           GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT: ${{ steps.sanitized.outputs.text }}
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/create_prompt_first.sh
+          bash ${GH_AW_HOME}/actions/create_prompt_first.sh
           {
           cat << 'GH_AW_PROMPT_EOF'
           <system>
           GH_AW_PROMPT_EOF
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/xpia.md"
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/temp_folder_prompt.md"
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/markdown.md"
-          cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/safe_outputs_prompt.md"
+          cat "${GH_AW_HOME}/prompts/xpia.md"
+          cat "${GH_AW_HOME}/prompts/temp_folder_prompt.md"
+          cat "${GH_AW_HOME}/prompts/markdown.md"
+          cat "${GH_AW_HOME}/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
           Tools: add_comment, missing_tool, missing_data, noop
@@ -208,7 +210,7 @@ jobs:
           
           GH_AW_PROMPT_EOF
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
-            cat "${GH_AW_HOME:-/opt/gh-aw}/prompts/pr_context_prompt.md"
+            cat "${GH_AW_HOME}/prompts/pr_context_prompt.md"
           fi
           cat << 'GH_AW_PROMPT_EOF'
           </system>
@@ -231,9 +233,9 @@ jobs:
           GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT: ${{ steps.sanitized.outputs.text }}
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/interpolate_prompt.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/interpolate_prompt.cjs');
             await main();
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -254,10 +256,10 @@ jobs:
           GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT: ${{ steps.sanitized.outputs.text }}
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             
-            const substitutePlaceholders = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/substitute_placeholders.cjs');
+            const substitutePlaceholders = require(process.env.GH_AW_HOME + '/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
             return await substitutePlaceholders({
@@ -281,11 +283,11 @@ jobs:
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/validate_prompt_placeholders.sh
+        run: bash ${GH_AW_HOME}/actions/validate_prompt_placeholders.sh
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/print_prompt_summary.sh
+        run: bash ${GH_AW_HOME}/actions/print_prompt_summary.sh
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -310,6 +312,7 @@ jobs:
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
+      GH_AW_HOME: /opt/gh-aw
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: archie
     outputs:
@@ -336,10 +339,10 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/create_gh_aw_tmp_dir.sh
-          echo "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl" >> "$GITHUB_ENV"
-          echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/config.json" >> "$GITHUB_ENV"
-          echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/tools.json" >> "$GITHUB_ENV"
+          bash ${GH_AW_HOME}/actions/create_gh_aw_tmp_dir.sh
+          echo "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME}/safeoutputs/outputs.jsonl" >> "$GITHUB_ENV"
+          echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${GH_AW_HOME}/safeoutputs/config.json" >> "$GITHUB_ENV"
+          echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${GH_AW_HOME}/safeoutputs/tools.json" >> "$GITHUB_ENV"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -362,14 +365,14 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/checkout_pr_branch.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: ${GH_AW_HOME:-/opt/gh-aw}/actions/install_copilot_cli.sh 0.0.421
+        run: ${GH_AW_HOME}/actions/install_copilot_cli.sh 0.0.421
       - name: Install awf binary
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/install_awf_binary.sh v0.23.1
+        run: bash ${GH_AW_HOME}/actions/install_awf_binary.sh v0.23.1
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -378,10 +381,10 @@ jobs:
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         with:
           script: |
-            const determineAutomaticLockdown = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/determine_automatic_lockdown.cjs');
+            const determineAutomaticLockdown = require(process.env.GH_AW_HOME + '/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.23.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.23.1 ghcr.io/github/gh-aw-firewall/squid:0.23.1 ghcr.io/github/gh-aw-mcpg:v0.1.8 ghcr.io/github/github-mcp-server:v0.31.0 ghcr.io/github/serena-mcp-server:latest node:lts-alpine
+        run: bash ${GH_AW_HOME}/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.23.1 ghcr.io/github/gh-aw-firewall/api-proxy:0.23.1 ghcr.io/github/gh-aw-firewall/squid:0.23.1 ghcr.io/github/gh-aw-mcpg:v0.1.8 ghcr.io/github/github-mcp-server:v0.31.0 ghcr.io/github/serena-mcp-server:latest node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -639,7 +642,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
           
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/start_safe_outputs_server.sh
+          bash ${GH_AW_HOME}/actions/start_safe_outputs_server.sh
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
@@ -668,7 +671,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.8'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_EOF | bash ${GH_AW_HOME:-/opt/gh-aw}/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_EOF | bash ${GH_AW_HOME}/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -711,7 +714,7 @@ jobs:
           name: activation
           path: /tmp/gh-aw
       - name: Clean git credentials
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/clean_git_credentials.sh
+        run: bash ${GH_AW_HOME}/actions/clean_git_credentials.sh
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -741,7 +744,7 @@ jobs:
         id: detect-inference-error
         if: always()
         continue-on-error: true
-        run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/detect_inference_access_error.sh
+        run: bash ${GH_AW_HOME}/actions/detect_inference_access_error.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -779,15 +782,15 @@ jobs:
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+          bash ${GH_AW_HOME}/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/redact_secrets.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/redact_secrets.cjs');
             await main();
         env:
           GH_AW_SECRET_NAMES: 'GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
@@ -813,9 +816,9 @@ jobs:
           GH_AW_COMMAND: archie
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/collect_ndjson_output.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/collect_ndjson_output.cjs');
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -839,18 +842,18 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/parse_copilot_log.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/parse_copilot_log.cjs');
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/parse_mcp_gateway_log.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/parse_mcp_gateway_log.cjs');
             await main();
       - name: Print firewall logs
         if: always()
@@ -921,9 +924,9 @@ jobs:
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_threat_detection.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/setup_threat_detection.cjs');
             await main();
       - name: Ensure threat-detection directory and log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
@@ -966,9 +969,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/parse_threat_detection_results.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/parse_threat_detection_results.cjs');
             await main();
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
@@ -1013,6 +1016,8 @@ jobs:
     concurrency:
       group: "gh-aw-conclusion-archie"
       cancel-in-progress: false
+    env:
+      GH_AW_HOME: /opt/gh-aw
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1049,9 +1054,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/noop.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
         id: missing_tool
@@ -1062,9 +1067,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/missing_tool.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/missing_tool.cjs');
             await main();
       - name: Handle Agent Failure
         id: handle_agent_failure
@@ -1083,9 +1088,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/handle_agent_failure.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/handle_agent_failure.cjs');
             await main();
       - name: Handle No-Op Message
         id: handle_noop_message
@@ -1100,9 +1105,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/handle_noop_message.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/handle_noop_message.cjs');
             await main();
 
   pre_activation:
@@ -1135,9 +1140,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/check_membership.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/check_membership.cjs');
             await main();
       - name: Check command position
         id: check_command_position
@@ -1146,9 +1151,9 @@ jobs:
           GH_AW_COMMANDS: "[\"archie\"]"
         with:
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/check_command_position.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/check_command_position.cjs');
             await main();
 
   safe_outputs:
@@ -1164,6 +1169,7 @@ jobs:
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/archie"
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_HOME: /opt/gh-aw
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
       GH_AW_WORKFLOW_ID: "archie"
       GH_AW_WORKFLOW_NAME: "Archie"
@@ -1210,9 +1216,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { setupGlobals } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/setup_globals.cjs');
+            const { setupGlobals } = require(process.env.GH_AW_HOME + '/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require((process.env.GH_AW_HOME || '/opt/gh-aw') + '/actions/safe_output_handler_manager.cjs');
+            const { main } = require(process.env.GH_AW_HOME + '/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Upload safe output items manifest
         if: always()

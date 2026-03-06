@@ -75,7 +75,7 @@ func TestValidateNoTemplateInjection(t *testing.T) {
     steps:
       - name: Unsafe usage
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}`,
+          bash ${GH_AW_HOME}/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}`,
 			shouldError: true,
 			errorString: "steps.*.outputs",
 		},
@@ -368,7 +368,7 @@ func TestTemplateInjectionRealWorldPatterns(t *testing.T) {
           MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}`
+          bash ${GH_AW_HOME}/actions/stop_mcp_gateway.sh ${{ steps.start-mcp-gateway.outputs.gateway-pid }}`
 
 		err := validateNoTemplateInjection(yaml)
 		require.Error(t, err, "Should detect unsafe gateway-pid usage in run command")
@@ -390,7 +390,7 @@ func TestTemplateInjectionRealWorldPatterns(t *testing.T) {
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash ${GH_AW_HOME:-/opt/gh-aw}/actions/stop_mcp_gateway.sh "$GATEWAY_PID"`
+          bash ${GH_AW_HOME}/actions/stop_mcp_gateway.sh "$GATEWAY_PID"`
 
 		err := validateNoTemplateInjection(yaml)
 		assert.NoError(t, err, "Should pass with gateway-pid in env variable")

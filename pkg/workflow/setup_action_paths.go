@@ -2,13 +2,15 @@ package workflow
 
 import "fmt"
 
-// GhAwHome is the shell expression for GH_AW_HOME with a fallback to /opt/gh-aw.
+// GhAwHome is the shell expression for GH_AW_HOME.
 // Use this in bash `run:` contexts where shell variable expansion occurs.
-const GhAwHome = "${GH_AW_HOME:-/opt/gh-aw}"
+// The job-level env sets GH_AW_HOME to /opt/gh-aw by default.
+const GhAwHome = "${GH_AW_HOME}"
 
-// GhAwHomeJS is the JavaScript expression for GH_AW_HOME with a fallback.
+// GhAwHomeJS is the JavaScript expression for GH_AW_HOME.
 // Use this inside require() or other JS expressions in github-script steps.
-const GhAwHomeJS = "(process.env.GH_AW_HOME || '/opt/gh-aw')"
+// The job-level env sets GH_AW_HOME to /opt/gh-aw by default.
+const GhAwHomeJS = "process.env.GH_AW_HOME"
 
 // SetupActionDestination is the path where the setup action copies script files
 // on the agent runner (e.g. /opt/gh-aw/actions).

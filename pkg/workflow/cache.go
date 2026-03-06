@@ -836,12 +836,13 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		permissions = perms.RenderToYAML()
 	}
 
-	// Set GH_AW_WORKFLOW_ID_SANITIZED so cache keys match those used in the agent job
-	var jobEnv map[string]string
+	// Build job-level environment variables
+	// Always include GH_AW_HOME so steps can use $GH_AW_HOME without the :-fallback syntax
+	jobEnv := map[string]string{
+		"GH_AW_HOME": constants.GhAwHomeDefault,
+	}
 	if data.WorkflowID != "" {
-		jobEnv = map[string]string{
-			"GH_AW_WORKFLOW_ID_SANITIZED": SanitizeWorkflowIDForCacheKey(data.WorkflowID),
-		}
+		jobEnv["GH_AW_WORKFLOW_ID_SANITIZED"] = SanitizeWorkflowIDForCacheKey(data.WorkflowID)
 	}
 
 	job := &Job{

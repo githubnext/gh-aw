@@ -366,6 +366,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
 	envVars := make(map[string]string)
 
+	// Set GH_AW_HOME so steps can use $GH_AW_HOME without the :-fallback syntax
+	envVars["GH_AW_HOME"] = constants.GhAwHomeDefault
+
 	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
 	// This is used for branch naming in create_pull_request and other operations
 	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)

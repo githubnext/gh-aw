@@ -167,6 +167,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		job := &Job{
 			Name: normalizedJobName,
+			Env:  map[string]string{"GH_AW_HOME": constants.GhAwHomeDefault},
 		}
 
 		// Set custom job name if specified

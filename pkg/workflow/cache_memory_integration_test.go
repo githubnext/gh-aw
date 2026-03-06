@@ -42,7 +42,7 @@ tools:
 				"uses: actions/cache@",
 				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
-				"cat \"${GH_AW_HOME:-/opt/gh-aw}/prompts/cache_memory_prompt.md\"",
+				"cat \"${GH_AW_HOME}/prompts/cache_memory_prompt.md\"",
 				"GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'",
 				"GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR",
 			},

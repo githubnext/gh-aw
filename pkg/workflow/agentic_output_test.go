@@ -62,8 +62,8 @@ This workflow tests the agentic output collection functionality.
 	lockContent := string(content)
 
 	// Verify GH_AW_SAFE_OUTPUTS is set via GITHUB_ENV in create temp dir step
-	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl") {
-		t.Error("Expected 'GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl' environment variable in generated workflow")
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME}/safeoutputs/outputs.jsonl") {
+		t.Error("Expected 'GH_AW_SAFE_OUTPUTS=${GH_AW_HOME}/safeoutputs/outputs.jsonl' environment variable in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
@@ -161,8 +161,8 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 	lockContent := string(content)
 
 	// Verify that Codex workflow DOES have GH_AW_SAFE_OUTPUTS functionality at job level
-	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl") {
-		t.Error("Codex workflow should have 'GH_AW_SAFE_OUTPUTS=${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/outputs.jsonl' environment variable (GH_AW_SAFE_OUTPUTS functionality)")
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS=${GH_AW_HOME}/safeoutputs/outputs.jsonl") {
+		t.Error("Codex workflow should have 'GH_AW_SAFE_OUTPUTS=${GH_AW_HOME}/safeoutputs/outputs.jsonl' environment variable (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {

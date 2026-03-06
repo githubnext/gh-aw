@@ -198,6 +198,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      GH_AW_HOME: /opt/gh-aw
     steps:
 `)
 
@@ -273,6 +275,8 @@ jobs:
       actions: write
       contents: write
       pull-requests: write
+    env:
+      GH_AW_HOME: /opt/gh-aw
     steps:
       - name: Checkout repository
         uses: ` + GetActionPin("actions/checkout") + `
@@ -324,6 +328,8 @@ jobs:
     permissions:
       contents: read
       issues: write
+    env:
+      GH_AW_HOME: /opt/gh-aw
     steps:
 `)
 
@@ -384,6 +390,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      GH_AW_HOME: /opt/gh-aw
     steps:
 `)
 

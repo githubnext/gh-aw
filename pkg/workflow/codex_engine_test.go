@@ -308,7 +308,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"GH_AW_MCP_CONFIG_EOF",
 				"",
 				"# Generate JSON config for MCP gateway",
-				"cat << GH_AW_MCP_CONFIG_EOF | bash ${GH_AW_HOME:-/opt/gh-aw}/actions/start_mcp_gateway.sh",
+				"cat << GH_AW_MCP_CONFIG_EOF | bash ${GH_AW_HOME}/actions/start_mcp_gateway.sh",
 				"{",
 				"\"mcpServers\": {",
 				"\"github\": {",

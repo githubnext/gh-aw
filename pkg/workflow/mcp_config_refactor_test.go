@@ -132,7 +132,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"agenticworkflows": {`,
 				`"type": "stdio"`,
 				`"container": "alpine:latest"`,
-				`"entrypoint": "${GH_AW_HOME:-/opt/gh-aw}/gh-aw"`,
+				`"entrypoint": "${GH_AW_HOME}/gh-aw"`,
 				`"entrypointArgs": ["mcp-server", "--validate-actor"]`,
 				`"\${GH_AW_HOME:-/opt/gh-aw}:\${GH_AW_HOME:-/opt/gh-aw}:ro"`,  // gh-aw binary mount (read-only)
 				`"/usr/bin/gh:/usr/bin/gh:ro"`,                                // gh CLI binary mount (read-only)
@@ -227,7 +227,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	unexpectedContent := []string{
 		`container = "node:lts-alpine"`,
 		`entrypoint = "node"`,
-		`entrypointArgs = ["${GH_AW_HOME:-/opt/gh-aw}/safeoutputs/mcp-server.cjs"]`,
+		`entrypointArgs = ["${GH_AW_HOME}/safeoutputs/mcp-server.cjs"]`,
 		`mounts =`,
 		`env_vars =`,
 		`stdio`,
@@ -280,7 +280,7 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 			expectedContainer:    `container = "alpine:latest"`,
 			shouldHaveEntrypoint: true,
 			expectedMounts: []string{
-				`entrypoint = "${GH_AW_HOME:-/opt/gh-aw}/gh-aw"`,             // Entrypoint needed in release mode
+				`entrypoint = "${GH_AW_HOME}/gh-aw"`,                         // Entrypoint needed in release mode
 				`entrypointArgs = ["mcp-server", "--validate-actor"]`,        // EntrypointArgs needed in release mode with validate-actor flag
 				`"\${GH_AW_HOME:-/opt/gh-aw}:\${GH_AW_HOME:-/opt/gh-aw}:ro"`, // gh-aw binary mount
 				`"/usr/bin/gh:/usr/bin/gh:ro"`,                               // gh CLI binary mount

@@ -201,7 +201,7 @@ func TestGitCredentialsCleanerStepsHelper(t *testing.T) {
 	// Verify the content of the steps
 	expectedContents := []string{
 		"Clean git credentials",
-		"run: bash ${GH_AW_HOME:-/opt/gh-aw}/actions/clean_git_credentials.sh",
+		"run: bash ${GH_AW_HOME}/actions/clean_git_credentials.sh",
 	}
 
 	fullContent := strings.Join(steps, "")

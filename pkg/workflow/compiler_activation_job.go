@@ -370,6 +370,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:                permissions,
 		Environment:                environment,
+		Env:                        map[string]string{"GH_AW_HOME": constants.GhAwHomeDefault},
 		Steps:                      steps,
 		Outputs:                    outputs,
 		Needs:                      activationNeeds, // Depend on pre-activation job if it exists
