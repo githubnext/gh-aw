@@ -120,12 +120,7 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Append agent step summary\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Append the agent's step summary to the real $GITHUB_STEP_SUMMARY.\n")
-	yaml.WriteString("          # The file was written by the agent and already redacted for secrets.\n")
-	yaml.WriteString("          if [ -s " + AgentStepSummaryPath + " ]; then\n")
-	yaml.WriteString("            cat " + AgentStepSummaryPath + " >> \"$GITHUB_STEP_SUMMARY\"\n")
-	yaml.WriteString("          fi\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/append_agent_step_summary.sh\n")
 }
 
 func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {
