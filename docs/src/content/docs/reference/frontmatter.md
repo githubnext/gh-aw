@@ -132,6 +132,26 @@ plugins:
 
 Each plugin repository must be specified in `org/repo` format. The compiler generates installation steps that run after the engine CLI is installed but before workflow execution begins.
 
+### APM Dependencies (`dependencies:`)
+
+Specifies [microsoft/apm](https://github.com/microsoft/apm) packages to install before workflow execution. When present, the compiler emits a step using the `microsoft/apm-action` action to install the listed packages.
+
+APM (Agent Package Manager) manages AI agent primitives such as skills, prompts, instructions, agents, and hooks. Packages can depend on other packages and APM resolves the full dependency tree.
+
+```yaml wrap
+dependencies:
+  - microsoft/apm-sample-package
+  - github/awesome-copilot/skills/review-and-refactor
+  - anthropics/skills/skills/frontend-design
+```
+
+Each entry is an APM package reference. Supported formats:
+
+- `owner/repo` — full APM package
+- `owner/repo/path/to/skill` — individual skill or primitive from a repository
+
+The compiler generates an `Install APM dependencies` step that runs after the engine CLI installation steps.
+
 ### Runtimes (`runtimes:`)
 
 Override default runtime versions for languages and tools used in workflows. The compiler automatically detects runtime requirements from tool configurations and workflow steps, then installs the specified versions.
