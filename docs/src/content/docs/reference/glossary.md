@@ -149,6 +149,10 @@ An extension mechanism for safe outputs that enables integration with third-part
 
 A safe output capability for removing user assignments from issues or pull requests. Supports an `allowed` list to restrict which users can be unassigned, and a `blocked` list using glob patterns to prevent unassignment of specific users regardless of the allow list. Configured via `unassign-from-user:` in `safe-outputs`.
 
+### Temporary ID
+
+A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+
 ### Update Issue
 
 A safe output capability (`update-issue:`) for modifying existing issues without creating new ones. Each updatable field (`status`, `title`, `body`) must be explicitly enabled. Body updates accept an `operation` field: `append` (default), `prepend`, `replace`, or `replace-island` (updates a specific section delimited by HTML comments). Supports cross-repository issue updates. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-updates-update-issue).
