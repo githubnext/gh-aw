@@ -1646,7 +1646,13 @@ func TestLabelTriggerShorthandPreprocessing(t *testing.T) {
 						t.Errorf("expected types=[labeled], got %v", types)
 					}
 					// names must match the expected labels
-					names, _ := triggerMap["names"].([]string)
+					namesRaw, _ := triggerMap["names"].([]any)
+					var names []string
+					for _, n := range namesRaw {
+						if s, isStr := n.(string); isStr {
+							names = append(names, s)
+						}
+					}
 					if !slicesEqual(names, tt.wantLabelNames) {
 						t.Errorf("expected names %v, got %v", tt.wantLabelNames, names)
 					}

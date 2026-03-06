@@ -110,7 +110,12 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 	// All event types use `names` field for job condition filtering
 	// The `names` field is an internal representation for job condition generation
 	// and won't be rendered in the final GitHub Actions YAML for these event types
-	triggerConfig["names"] = labelNames
+	// Convert []string to []any so applyLabelFilter can type-assert correctly
+	namesAny := make([]any, len(labelNames))
+	for i, name := range labelNames {
+		namesAny[i] = name
+	}
+	triggerConfig["names"] = namesAny
 
 	// Create workflow_dispatch with item_number input
 	workflowDispatchConfig := map[string]any{

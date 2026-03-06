@@ -379,9 +379,16 @@ func TestExpandLabelTriggerShorthand(t *testing.T) {
 			// Check names field:
 			// All entity types use 'names' field for job condition filtering
 			// (GitHub Actions doesn't support native label filtering)
-			names, ok := triggerConfig["names"].([]string)
+			// names is stored as []any so applyLabelFilter can type-assert correctly
+			namesRaw, ok := triggerConfig["names"].([]any)
 			if !ok {
-				t.Fatalf("expandLabelTriggerShorthand() names is not a string array for %s", tt.entityType)
+				t.Fatalf("expandLabelTriggerShorthand() names is not a []any for %s", tt.entityType)
+			}
+			var names []string
+			for _, n := range namesRaw {
+				if s, isStr := n.(string); isStr {
+					names = append(names, s)
+				}
 			}
 			if !slicesEqual(names, tt.labelNames) {
 				t.Errorf("expandLabelTriggerShorthand() names = %v, want %v", names, tt.labelNames)

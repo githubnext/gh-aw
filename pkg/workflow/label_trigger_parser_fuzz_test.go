@@ -141,8 +141,8 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 					// Check for names field (all event types use names for job condition filtering)
 					if names, hasNames := triggerMap["names"]; !hasNames {
 						t.Errorf("trigger missing names field for entityType=%q", entityType)
-					} else if namesArray, ok := names.([]string); !ok {
-						t.Errorf("names is not a string array for entityType=%q", entityType)
+					} else if namesArray, ok := names.([]any); !ok {
+						t.Errorf("names is not a []any for entityType=%q", entityType)
 					} else if len(namesArray) != len(labelNames) {
 						t.Errorf("names array length mismatch: got %d, want %d for entityType=%q", len(namesArray), len(labelNames), entityType)
 					}
