@@ -1865,6 +1865,12 @@ tools:
     # (optional)
     create-orphan: true
 
+    # Use the GitHub Wiki git repository instead of the regular repository. When enabled,
+    # files are stored in and read from the wiki, and the agent will be instructed to
+    # follow GitHub Wiki markdown syntax (default: false)
+    # (optional)
+    wiki: false
+
     # List of allowed file extensions (e.g., [".json", ".txt"]). Default: [".json",
     # ".jsonl", ".txt", ".md", ".csv"]
     # (optional)

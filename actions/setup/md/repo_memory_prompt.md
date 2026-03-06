@@ -1,7 +1,7 @@
 <repo-memory>
 ## Repo Memory Available
 
-You have access to a persistent repo memory folder at `__GH_AW_MEMORY_DIR__` where you can read and write files that are stored in a git branch.__GH_AW_MEMORY_DESCRIPTION__
+You have access to a persistent repo memory folder at `__GH_AW_MEMORY_DIR__` where you can read and write files that are stored in a git branch.__GH_AW_MEMORY_DESCRIPTION____GH_AW_WIKI_NOTE__
 
 - **Read/Write Access**: You can freely read from and write to any files in this folder
 - **Git Branch Storage**: Files are stored in the `__GH_AW_MEMORY_BRANCH_NAME__` branch__GH_AW_MEMORY_TARGET_REPO__

@@ -58,6 +58,15 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 			constraintsText = constraints.String()
 		}
 
+		// Build wiki note text (non-empty only when wiki mode is enabled)
+		wikiNoteText := ""
+		if memory.Wiki {
+			wikiNoteText = "\n\n> **GitHub Wiki**: This memory is backed by the GitHub Wiki for this repository. " +
+				"Files use GitHub Wiki Markdown syntax. Follow GitHub Wiki conventions when creating or editing pages " +
+				"(e.g., use standard Markdown headers, use `[[Page Name]]` syntax for internal wiki links, " +
+				"name page files with spaces replaced by hyphens or use the wiki page title as the filename)."
+		}
+
 		return &PromptSection{
 			Content: repoMemoryPromptFile,
 			IsFile:  true,
@@ -67,6 +76,7 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 				"GH_AW_MEMORY_BRANCH_NAME": memory.BranchName,
 				"GH_AW_MEMORY_TARGET_REPO": targetRepoText,
 				"GH_AW_MEMORY_CONSTRAINTS": constraintsText,
+				"GH_AW_WIKI_NOTE":          wikiNoteText,
 			},
 		}
 	}
@@ -85,6 +95,9 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 		fmt.Fprintf(&memoryList, " (branch: `%s`", memory.BranchName)
 		if memory.TargetRepo != "" {
 			fmt.Fprintf(&memoryList, " in `%s`", memory.TargetRepo)
+		}
+		if memory.Wiki {
+			memoryList.WriteString(", GitHub Wiki")
 		}
 		memoryList.WriteString(")\n")
 	}

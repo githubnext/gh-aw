@@ -3648,6 +3648,10 @@
                   "type": "boolean",
                   "description": "Create orphaned branch if it doesn't exist (default: true)"
                 },
+                "wiki": {
+                  "type": "boolean",
+                  "description": "Use the GitHub Wiki git repository instead of the regular repository. When enabled, files are stored in and read from the wiki, and the agent will be instructed to follow GitHub Wiki markdown syntax (default: false)"
+                },
                 "allowed-extensions": {
                   "type": "array",
                   "items": {
@@ -3728,6 +3732,10 @@
                   "create-orphan": {
                     "type": "boolean",
                     "description": "Create orphaned branch if it doesn't exist (default: true)"
+                  },
+                  "wiki": {
+                    "type": "boolean",
+                    "description": "Use the GitHub Wiki git repository instead of the regular repository. When enabled, files are stored in and read from the wiki, and the agent will be instructed to follow GitHub Wiki markdown syntax (default: false)"
                   },
                   "allowed-extensions": {
                     "type": "array",

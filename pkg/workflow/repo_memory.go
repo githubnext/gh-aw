@@ -61,6 +61,7 @@ type RepoMemoryEntry struct {
 	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
 	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
 	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
+	Wiki              bool     `yaml:"wiki,omitempty"`               // use the GitHub Wiki git repository instead of the regular repo
 }
 
 // RepoMemoryToolConfig represents the configuration for repo-memory in tools
@@ -220,9 +221,11 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 				}
 
 				// Parse branch-name
+				explicitBranchName := false
 				if branchName, exists := memoryMap["branch-name"]; exists {
 					if branchStr, ok := branchName.(string); ok {
 						entry.BranchName = branchStr
+						explicitBranchName = true
 					}
 				}
 				// Set default branch name if not specified.
@@ -309,6 +312,20 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 					}
 				}
 
+				// Parse wiki field
+				if wiki, exists := memoryMap["wiki"]; exists {
+					if wikiBool, ok := wiki.(bool); ok {
+						entry.Wiki = wikiBool
+					}
+				}
+				// Apply wiki-mode defaults: wikis use master branch and never need orphan creation
+				if entry.Wiki {
+					if !explicitBranchName {
+						entry.BranchName = "master"
+					}
+					entry.CreateOrphan = false
+				}
+
 				// Parse allowed-extensions field
 				if allowedExts, exists := memoryMap["allowed-extensions"]; exists {
 					if extArray, ok := allowedExts.([]any); ok {
@@ -370,9 +387,11 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 		}
 
 		// Parse branch-name
+		explicitBranchName := false
 		if branchName, exists := configMap["branch-name"]; exists {
 			if branchStr, ok := branchName.(string); ok {
 				entry.BranchName = branchStr
+				explicitBranchName = true
 			}
 		}
 
@@ -448,6 +467,20 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID 
 			if orphanBool, ok := createOrphan.(bool); ok {
 				entry.CreateOrphan = orphanBool
 			}
+		}
+
+		// Parse wiki field
+		if wiki, exists := configMap["wiki"]; exists {
+			if wikiBool, ok := wiki.(bool); ok {
+				entry.Wiki = wikiBool
+			}
+		}
+		// Apply wiki-mode defaults: wikis use master branch and never need orphan creation
+		if entry.Wiki {
+			if !explicitBranchName {
+				entry.BranchName = "master"
+			}
+			entry.CreateOrphan = false
 		}
 
 		// Parse allowed-extensions field
@@ -619,6 +652,10 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if targetRepo == "" {
 			targetRepo = "${{ github.repository }}"
 		}
+		// For wiki mode, append .wiki to the repo path so the clone script uses the wiki git URL
+		if memory.Wiki {
+			targetRepo = targetRepo + ".wiki"
+		}
 
 		// Determine the memory directory
 		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
@@ -696,6 +733,10 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		targetRepo := memory.TargetRepo
 		if targetRepo == "" {
 			targetRepo = "${{ github.repository }}"
+		}
+		// For wiki mode, append .wiki to the repo path so the push script uses the wiki git URL
+		if memory.Wiki {
+			targetRepo = targetRepo + ".wiki"
 		}
 
 		artifactDir := "/tmp/gh-aw/repo-memory/" + memory.ID

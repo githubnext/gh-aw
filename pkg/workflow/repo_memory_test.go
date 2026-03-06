@@ -1026,3 +1026,167 @@ func TestInvalidBranchPrefixRejectsConfig(t *testing.T) {
 		})
 	}
 }
+
+// TestRepoMemoryWikiObjectConfig tests that wiki:true in object config works correctly
+func TestRepoMemoryWikiObjectConfig(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"wiki": true,
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "my-workflow")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+	require.Len(t, config.Memories, 1, "Expected 1 memory")
+
+	memory := config.Memories[0]
+	assert.True(t, memory.Wiki, "Expected wiki to be true")
+	assert.Equal(t, "master", memory.BranchName, "Wiki mode should default to master branch")
+	assert.False(t, memory.CreateOrphan, "Wiki mode should disable create-orphan")
+}
+
+// TestRepoMemoryWikiArrayConfig tests that wiki:true in array config works correctly
+func TestRepoMemoryWikiArrayConfig(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":   "wiki-memory",
+				"wiki": true,
+			},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "my-workflow")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+	require.Len(t, config.Memories, 1, "Expected 1 memory")
+
+	memory := config.Memories[0]
+	assert.Equal(t, "wiki-memory", memory.ID, "Expected correct memory ID")
+	assert.True(t, memory.Wiki, "Expected wiki to be true")
+	assert.Equal(t, "master", memory.BranchName, "Wiki mode should default to master branch")
+	assert.False(t, memory.CreateOrphan, "Wiki mode should disable create-orphan")
+}
+
+// TestRepoMemoryWikiCustomBranchName tests that wiki mode respects an explicit branch-name
+func TestRepoMemoryWikiCustomBranchName(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"wiki":        true,
+			"branch-name": "custom-branch",
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+
+	memory := config.Memories[0]
+	assert.True(t, memory.Wiki, "Expected wiki to be true")
+	assert.Equal(t, "custom-branch", memory.BranchName, "Wiki mode should respect explicit branch-name")
+}
+
+// TestRepoMemoryWikiStepsGeneration tests that wiki:true appends .wiki to TARGET_REPO
+func TestRepoMemoryWikiStepsGeneration(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "master",
+				Wiki:       true,
+			},
+		},
+	}
+
+	data := &WorkflowData{
+		RepoMemoryConfig: config,
+	}
+
+	var builder strings.Builder
+	generateRepoMemorySteps(&builder, data)
+
+	output := builder.String()
+	assert.Contains(t, output, "TARGET_REPO: ${{ github.repository }}.wiki",
+		"Wiki mode should append .wiki to TARGET_REPO")
+}
+
+// TestRepoMemoryWikiStepsWithTargetRepo tests wiki mode with explicit target-repo
+func TestRepoMemoryWikiStepsWithTargetRepo(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "master",
+				TargetRepo: "myorg/myrepo",
+				Wiki:       true,
+			},
+		},
+	}
+
+	data := &WorkflowData{
+		RepoMemoryConfig: config,
+	}
+
+	var builder strings.Builder
+	generateRepoMemorySteps(&builder, data)
+
+	output := builder.String()
+	assert.Contains(t, output, "TARGET_REPO: myorg/myrepo.wiki",
+		"Wiki mode should append .wiki to explicit target-repo")
+}
+
+// TestRepoMemoryWikiPromptSection tests that wiki mode injects wiki note into prompt
+func TestRepoMemoryWikiPromptSection(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "master",
+				Wiki:       true,
+			},
+		},
+	}
+
+	section := buildRepoMemoryPromptSection(config)
+
+	require.NotNil(t, section, "Expected non-nil prompt section")
+	require.NotNil(t, section.EnvVars, "Expected env vars")
+
+	wikiNote := section.EnvVars["GH_AW_WIKI_NOTE"]
+	assert.NotEmpty(t, wikiNote, "Wiki mode should set GH_AW_WIKI_NOTE")
+	assert.Contains(t, wikiNote, "GitHub Wiki", "Wiki note should mention GitHub Wiki")
+	assert.Contains(t, wikiNote, "Markdown", "Wiki note should mention Markdown syntax")
+}
+
+// TestRepoMemoryNonWikiPromptSection tests that non-wiki mode has empty wiki note
+func TestRepoMemoryNonWikiPromptSection(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "memory/default",
+			},
+		},
+	}
+
+	section := buildRepoMemoryPromptSection(config)
+
+	require.NotNil(t, section, "Expected non-nil prompt section")
+	require.NotNil(t, section.EnvVars, "Expected env vars")
+
+	wikiNote := section.EnvVars["GH_AW_WIKI_NOTE"]
+	assert.Empty(t, wikiNote, "Non-wiki mode should have empty GH_AW_WIKI_NOTE")
+}
