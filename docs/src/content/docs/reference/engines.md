@@ -34,6 +34,34 @@ engine:
   agent: agent-id                       # custom agent file identifier
 ```
 
+### Pinning a Specific Engine Version
+
+By default, workflows install the latest available version of each engine CLI. To pin to a specific version, set `version` to the desired release:
+
+```yaml wrap
+# Pin Copilot CLI to a specific release
+engine:
+  id: copilot
+  version: "0.0.422"
+
+# Pin Claude Code to a specific release
+engine:
+  id: claude
+  version: "2.1.70"
+
+# Pin Codex to a specific release
+engine:
+  id: codex
+  version: "0.111.0"
+
+# Pin Gemini CLI to a specific release
+engine:
+  id: gemini
+  version: "0.31.0"
+```
+
+Pinning is useful when you need reproducible builds or want to avoid breakage from a new CLI release while testing. Remember to update the pinned version periodically to pick up bug fixes and new features.
+
 ### Copilot Custom Configuration
 
 For the Copilot engine, you can specify a specialized prompt to be used whenever the coding agent is invoked. This is called a "custom agent" in Copilot vocabulary. You specify this using the `agent` field. This references a file located in the `.github/agents/` directory:
