@@ -196,7 +196,7 @@ Interactive debugging session for issue #${{ inputs.issue_number }}
 
 ### mdflow Strengths
 
-#### 1. **Extreme Simplicity**
+#### 1. **Minimal Configuration Model**
 - **Line Count**: ~32,584 lines of TypeScript
 - **Core Concept**: Filename → Command mapping
 - **Zero Config**: Works immediately with `mdflow task.claude.md`
