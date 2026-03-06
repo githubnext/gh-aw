@@ -28,7 +28,7 @@
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f174f894cfb342e523c23e48a2c841a391fdfb8ac21ab6f7f1160f434906bb2f"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d344e91215e214c742c60a7c71f20c15fd9f545fa90bfe88550b392cbd69fb93"}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -136,6 +136,7 @@ jobs:
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md"
           cat "/opt/gh-aw/prompts/markdown.md"
           cat "/opt/gh-aw/prompts/cache_memory_prompt.md"
+          cat "/opt/gh-aw/prompts/repo_memory_prompt.md"
           cat "/opt/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_EOF'
           <safe-output-tools>
@@ -215,6 +216,12 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_MEMORY_BRANCH_NAME: 'master'
+          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Max File Size**: 10240 bytes (0.01 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 100 KB)\n"
+          GH_AW_MEMORY_DESCRIPTION: ' Technical documentation library'
+          GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
+          GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
+          GH_AW_WIKI_NOTE: "\n\n> **GitHub Wiki**: This memory is backed by the GitHub Wiki for this repository. Files use GitHub Wiki Markdown syntax. Follow GitHub Wiki conventions when creating or editing pages (e.g., use standard Markdown headers, use `[[Page Name]]` syntax for internal wiki links, name page files with spaces replaced by hyphens or use the wiki page title as the filename)."
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -237,7 +244,13 @@ jobs:
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
-                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_MEMORY_BRANCH_NAME: process.env.GH_AW_MEMORY_BRANCH_NAME,
+                GH_AW_MEMORY_CONSTRAINTS: process.env.GH_AW_MEMORY_CONSTRAINTS,
+                GH_AW_MEMORY_DESCRIPTION: process.env.GH_AW_MEMORY_DESCRIPTION,
+                GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR,
+                GH_AW_MEMORY_TARGET_REPO: process.env.GH_AW_MEMORY_TARGET_REPO,
+                GH_AW_WIKI_NOTE: process.env.GH_AW_WIKI_NOTE
               }
             });
       - name: Validate prompt placeholders
@@ -339,6 +352,16 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          BRANCH_NAME: master
+          TARGET_REPO: ${{ github.repository }}.wiki
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: false
+        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -974,6 +997,15 @@ jobs:
           else
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
@@ -1124,6 +1156,7 @@ jobs:
     needs:
       - activation
       - agent
+      - push_repo_memory
       - safe_outputs
       - update_cache_memory
       - upload_assets
@@ -1207,6 +1240,8 @@ jobs:
           GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
+          GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
+          GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
@@ -1246,6 +1281,75 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/handle_create_pr_error.cjs');
+            await main();
+
+  push_repo_memory:
+    needs: agent
+    if: always() && needs.agent.outputs.detection_success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: "push-repo-memory-${{ github.repository }}"
+      cancel-in-progress: false
+    outputs:
+      validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
+      validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global am.keepcr true
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        id: push_repo_memory_default
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}.wiki
+          BRANCH_NAME: master
+          MAX_FILE_SIZE: 10240
+          MAX_FILE_COUNT: 100
+          MAX_PATCH_SIZE: 10240
+          ALLOWED_EXTENSIONS: '[]'
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
             await main();
 
   safe_outputs:

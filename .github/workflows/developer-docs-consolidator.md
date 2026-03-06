@@ -35,6 +35,9 @@ safe-outputs:
 tools:
   cache-memory:
     key: developer-docs-cache
+  repo-memory:
+    wiki: true
+    description: "Consolidated developer documentation and instructions"
   github:
     toolsets: [default]
   edit:

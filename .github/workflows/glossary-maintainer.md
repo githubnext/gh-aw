@@ -36,6 +36,9 @@ safe-outputs:
 
 tools:
   cache-memory: true
+  repo-memory:
+    wiki: true
+    description: "Project glossary and terminology reference"
   github:
     toolsets: [default]
   edit:

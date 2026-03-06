@@ -63,6 +63,9 @@ steps:
 
 tools:
   cache-memory: true
+  repo-memory:
+    wiki: true
+    description: "Technical documentation library"
   github:
     toolsets: [default]
   edit:
