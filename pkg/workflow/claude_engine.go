@@ -284,6 +284,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		claudeCommandWithPath := fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
 
+		// Build host-side path setup: create the agent step summary file so it is accessible
+		// inside the sandbox. Combine with any existing promptSetup (may be empty).
+		touchSummary := "touch " + AgentStepSummaryPath
+		hostSetup := touchSummary
+		if promptSetup != "" {
+			hostSetup = promptSetup + "\n" + touchSummary
+		}
+
 		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
 		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
 		// The combined output (debug logs + JSON) will be in the log file for parsing
@@ -294,7 +302,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
 			AllowedDomains: allowedDomains,
-			PathSetup:      promptSetup, // Prompt setup runs BEFORE AWF on the host
+			PathSetup:      hostSetup, // Runs BEFORE AWF on the host (prompt setup + summary file creation)
 		})
 	} else {
 		// Run Claude command without AWF wrapper
@@ -304,13 +312,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// PATH is already set correctly by actions/setup-* steps which prepend to PATH
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
+          touch %s
           %s
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, promptSetup, claudeCommand, logFile)
+          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, promptSetup, claudeCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
+          touch %s
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, claudeCommand, logFile)
+          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, claudeCommand, logFile)
 		}
 	}
 
@@ -321,7 +331,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",
 		"GH_AW_PROMPT":            "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_WORKSPACE":        "${{ github.workspace }}",
+		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
+		// The runner's original path is unreachable within the AWF isolated filesystem;
+		// we create this file before the agent starts and append it to the real
+		// $GITHUB_STEP_SUMMARY after secret redaction.
+		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 	}
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers

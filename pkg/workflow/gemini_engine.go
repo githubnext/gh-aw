@@ -235,10 +235,15 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
 			AllowedDomains: allowedDomains,
+			// Create the agent step summary file before AWF starts so it is accessible
+			// inside the sandbox. The agent writes its step summary content here, and the
+			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
+			PathSetup: "touch " + AgentStepSummaryPath,
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
-%s 2>&1 | tee -a %s`, geminiCommand, logFile)
+touch %s
+%s 2>&1 | tee -a %s`, AgentStepSummaryPath, geminiCommand, logFile)
 	}
 
 	// Build environment variables
@@ -246,6 +251,11 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GEMINI_API_KEY":   "${{ secrets.GEMINI_API_KEY }}",
 		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
+		// The runner's original path is unreachable within the AWF isolated filesystem;
+		// we create this file before the agent starts and append it to the real
+		// $GITHUB_STEP_SUMMARY after secret redaction.
+		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 		// Enable verbose debug logging from Gemini CLI for better diagnostics.
 		// Gemini CLI uses the npm 'debug' package, and 'gemini-cli:*' enables all
 		// internal Gemini CLI debug channels (see: https://gemini-cli-docs.pages.dev/cli/configuration).
