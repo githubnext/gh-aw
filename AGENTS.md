@@ -879,7 +879,7 @@ type WorkflowID string
 type EngineName string
 
 const MaxExpressionLineLength LineLength = 120
-const DefaultCopilotVersion Version = "0.0.374"
+const DefaultCopilotVersion Version = "latest"
 const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 const CopilotEngine EngineName = "copilot"
 
