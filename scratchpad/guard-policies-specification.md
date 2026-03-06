@@ -14,7 +14,7 @@ The user requested support for guard policies in the MCP gateway configuration, 
 
 2. Design an extensible system that can support future MCP servers (Jira, WorkIQ) with different policy schemas
 
-3. Expose these parameters through workflow frontmatter in an intuitive way
+3. Expose these parameters through workflow frontmatter fields
 
 ## Proposed Solution
 
@@ -300,7 +300,7 @@ This implementation provides a solid foundation for guard policies in the MCP ga
 
 - **Type-safe**: Strongly-typed structs with validation
 - **Extensible**: New servers and policy types can be added without structural changes
-- **User-friendly**: Intuitive frontmatter syntax
+- **Consistent syntax**: Follows existing frontmatter conventions
 - **Well-validated**: Comprehensive validation with clear error messages
 - **Forward-compatible**: Supports future enhancements
 
