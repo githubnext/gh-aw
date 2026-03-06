@@ -86,6 +86,13 @@ type PluginsConfig struct {
 	GitHubToken string   `json:"github-token,omitempty"` // Custom GitHub token for plugin installation
 }
 
+// APMDependenciesInfo encapsulates APM (Agent Package Manager) dependency configuration.
+// Supports both simple array format (list of package slugs) and object format with
+// an "apm" sub-key. When present, a microsoft/apm-action setup step is emitted.
+type APMDependenciesInfo struct {
+	Packages []string // APM package slugs to install (e.g., "org/package")
+}
+
 // RateLimitConfig represents rate limiting configuration for workflow triggers
 // Limits how many times a user can trigger a workflow within a time window
 type RateLimitConfig struct {

@@ -7516,6 +7516,43 @@
           }
         }
       ]
+    },
+    "dependencies": {
+      "description": "APM (Agent Package Manager) dependencies to install before workflow execution. When specified, a microsoft/apm-action setup step is emitted. Supports array format (list of package slugs) and object format with an 'apm' sub-key.",
+      "examples": [
+        ["microsoft/apm-sample-package", "acme/custom-tools"],
+        {
+          "apm": ["microsoft/apm-sample-package", "acme/custom-tools"]
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "array",
+          "description": "List of APM package slugs to install (e.g., 'org/package').",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+$",
+            "description": "APM package slug in the format 'org/package' (e.g., 'microsoft/apm-sample-package')"
+          }
+        },
+        {
+          "type": "object",
+          "description": "APM dependency configuration with 'apm' sub-key.",
+          "required": ["apm"],
+          "properties": {
+            "apm": {
+              "type": "array",
+              "description": "List of APM package slugs to install.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+$",
+                "description": "APM package slug in the format 'org/package'"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -8147,7 +8184,9 @@
             "repositories": {
               "type": "array",
               "description": "Repositories to grant the token access to. Defaults to the current repository. Use [\"*\"] for org-wide access.",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "examples": [["repo-a", "repo-b"], ["*"]]
             }
           },

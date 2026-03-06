@@ -169,6 +169,11 @@
       "repo": "super-linter/super-linter",
       "version": "v8.5.0",
       "sha": "61abc07d755095a68f4987d1c2c3d1d64408f1f9"
+    },
+    "microsoft/apm-action@v1": {
+      "repo": "microsoft/apm-action",
+      "version": "v1",
+      "sha": "92d6dc8046ad61b340662adefd2f997bf93d2987"
     }
   }
 }

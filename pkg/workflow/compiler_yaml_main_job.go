@@ -227,6 +227,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Add APM (Agent Package Manager) setup step if dependencies are specified
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		compilerYamlLog.Printf("Adding APM setup step: %d packages", len(data.APMDependencies.Packages))
+		c.generateAPMSetupStep(yaml, data)
+	}
+
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add GitHub MCP lockdown detection step if needed
@@ -732,4 +738,25 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 	yaml.WriteString("          tags: localhost/gh-aw:dev\n")
 	yaml.WriteString("          build-args: |\n")
 	yaml.WriteString("            BINARY=dist/gh-aw-linux-amd64\n")
+}
+
+// generateAPMSetupStep generates a GitHub Actions step that installs APM (Agent Package Manager)
+// dependencies using the microsoft/apm-action action.
+//
+// The step lists all dependency packages in the YAML multi-line format required by the action:
+//
+//   - name: Setup APM dependencies
+//     uses: microsoft/apm-action@<sha> # v1
+//     with:
+//     dependencies: |
+//   - org/package1
+//   - org/package2
+func (c *Compiler) generateAPMSetupStep(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Setup APM dependencies\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("microsoft/apm-action"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          dependencies: |\n")
+	for _, pkg := range data.APMDependencies.Packages {
+		fmt.Fprintf(yaml, "            - %s\n", pkg)
+	}
 }
