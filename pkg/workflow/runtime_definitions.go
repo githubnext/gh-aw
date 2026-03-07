@@ -199,8 +199,9 @@ func getAllManifestFiles(extra ...string) []string {
 //
 // ".github/" covers workflow definitions, CODEOWNERS, Dependabot config, and
 // other repository-level security-sensitive configuration.
+// ".agents/" covers generic agent instruction and configuration files.
 func getProtectedPathPrefixes(extra ...string) []string {
-	return mergeUnique([]string{".github/"}, extra...)
+	return mergeUnique([]string{".github/", ".agents/"}, extra...)
 }
 
 // mergeUnique returns a deduplicated slice that starts with base and appends any
