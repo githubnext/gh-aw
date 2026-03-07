@@ -475,3 +475,76 @@ func TestGenerateFilteredToolsJSONSortsCustomJobs(t *testing.T) {
 	assert.Equal(t, "m_job", tools[1]["name"], "Second tool should be m_job")
 	assert.Equal(t, "z_job", tools[2]["name"], "Third tool should be z_job")
 }
+
+// TestGenerateFilteredToolsJSONIncludesPushRepoMemoryWithRepoMemoryConfig tests that
+// push_repo_memory is included in the filtered tools when RepoMemoryConfig is present.
+func TestGenerateFilteredToolsJSONIncludesPushRepoMemoryWithRepoMemoryConfig(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{ID: "default", MaxFileSize: 10240, MaxPatchSize: 10240, MaxFileCount: 100},
+			},
+		},
+	}
+
+	result, err := generateFilteredToolsJSON(data, ".github/workflows/test.md")
+	require.NoError(t, err, "generateFilteredToolsJSON should not error")
+
+	var tools []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &tools), "Result should be valid JSON")
+
+	toolNames := make(map[string]bool)
+	for _, tool := range tools {
+		if name, ok := tool["name"].(string); ok {
+			toolNames[name] = true
+		}
+	}
+	assert.True(t, toolNames["push_repo_memory"], "push_repo_memory should be present when RepoMemoryConfig is set")
+}
+
+// TestGenerateFilteredToolsJSONExcludesPushRepoMemoryWithoutRepoMemoryConfig tests that
+// push_repo_memory is NOT included in the filtered tools when RepoMemoryConfig is absent.
+func TestGenerateFilteredToolsJSONExcludesPushRepoMemoryWithoutRepoMemoryConfig(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+		RepoMemoryConfig: nil,
+	}
+
+	result, err := generateFilteredToolsJSON(data, ".github/workflows/test.md")
+	require.NoError(t, err, "generateFilteredToolsJSON should not error")
+
+	var tools []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &tools), "Result should be valid JSON")
+
+	for _, tool := range tools {
+		name, _ := tool["name"].(string)
+		assert.NotEqual(t, "push_repo_memory", name, "push_repo_memory should NOT be present when RepoMemoryConfig is nil")
+	}
+}
+
+// TestGenerateFilteredToolsJSONExcludesPushRepoMemoryWithEmptyMemories tests that
+// push_repo_memory is NOT included when RepoMemoryConfig has an empty Memories slice.
+func TestGenerateFilteredToolsJSONExcludesPushRepoMemoryWithEmptyMemories(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			MissingData: &MissingDataConfig{},
+		},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{},
+		},
+	}
+
+	result, err := generateFilteredToolsJSON(data, ".github/workflows/test.md")
+	require.NoError(t, err, "generateFilteredToolsJSON should not error")
+
+	var tools []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &tools), "Result should be valid JSON")
+
+	for _, tool := range tools {
+		name, _ := tool["name"].(string)
+		assert.NotEqual(t, "push_repo_memory", name, "push_repo_memory should NOT be present when Memories is empty")
+	}
+}
