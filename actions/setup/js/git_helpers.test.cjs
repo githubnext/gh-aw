@@ -1,6 +1,27 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 describe("git_helpers.cjs", () => {
+  let originalCore;
+
+  beforeEach(() => {
+    // Save existing core and provide a minimal no-op stub if not already set,
+    // matching the guarantee that shim.cjs provides in production.
+    originalCore = global.core;
+    if (!global.core) {
+      global.core = {
+        debug: () => {},
+        info: () => {},
+        warning: () => {},
+        error: () => {},
+        setFailed: () => {},
+      };
+    }
+  });
+
+  afterEach(() => {
+    global.core = originalCore;
+  });
+
   describe("execGitSync", () => {
     it("should export execGitSync function", async () => {
       const { execGitSync } = await import("./git_helpers.cjs");

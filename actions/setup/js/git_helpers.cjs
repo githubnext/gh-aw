@@ -30,9 +30,7 @@ function execGitSync(args, options = {}) {
     })
     .join(" ")}`;
 
-  if (typeof core !== "undefined" && core.debug) {
-    core.debug(`Executing git command: ${gitCommand}`);
-  }
+  core.debug(`Executing git command: ${gitCommand}`);
 
   const result = spawnSync("git", args, {
     encoding: "utf8",
@@ -40,40 +38,34 @@ function execGitSync(args, options = {}) {
   });
 
   if (result.error) {
-    if (typeof core !== "undefined" && core.error) {
-      core.error(`Git command failed with error: ${result.error.message}`);
-    }
+    // Spawn-level errors (e.g. ENOENT, EACCES) are always unexpected — log
+    // via core.error regardless of suppressLogs.
+    core.error(`Git command failed with error: ${result.error.message}`);
     throw result.error;
   }
 
   if (result.status !== 0) {
     const errorMsg = `${ERR_SYSTEM}: ${result.stderr || `Git command failed with status ${result.status}`}`;
-    if (typeof core !== "undefined") {
-      if (suppressLogs) {
-        if (core.debug) {
-          core.debug(`Git command failed (expected): ${gitCommand}`);
-          core.debug(`Exit status: ${result.status}`);
-          if (result.stderr) {
-            core.debug(`Stderr: ${result.stderr}`);
-          }
-        }
-      } else if (core.error) {
-        core.error(`Git command failed: ${gitCommand}`);
-        core.error(`Exit status: ${result.status}`);
-        if (result.stderr) {
-          core.error(`Stderr: ${result.stderr}`);
-        }
+    if (suppressLogs) {
+      core.debug(`Git command failed (expected): ${gitCommand}`);
+      core.debug(`Exit status: ${result.status}`);
+      if (result.stderr) {
+        core.debug(`Stderr: ${result.stderr}`);
+      }
+    } else {
+      core.error(`Git command failed: ${gitCommand}`);
+      core.error(`Exit status: ${result.status}`);
+      if (result.stderr) {
+        core.error(`Stderr: ${result.stderr}`);
       }
     }
     throw new Error(errorMsg);
   }
 
-  if (typeof core !== "undefined" && core.debug) {
-    if (result.stdout) {
-      core.debug(`Git command output: ${result.stdout.substring(0, 200)}${result.stdout.length > 200 ? "..." : ""}`);
-    } else {
-      core.debug("Git command completed successfully with no output");
-    }
+  if (result.stdout) {
+    core.debug(`Git command output: ${result.stdout.substring(0, 200)}${result.stdout.length > 200 ? "..." : ""}`);
+  } else {
+    core.debug("Git command completed successfully with no output");
   }
 
   return result.stdout;
