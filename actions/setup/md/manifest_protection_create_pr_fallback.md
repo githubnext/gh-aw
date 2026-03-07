@@ -11,4 +11,5 @@
 >
 > **[Click here to create the pull request once you have reviewed the changes]({create_pr_url})**
 
-To get changes like this applied directly as a pull request in future, use `manifest-files: fallback-to-issue` in your workflow configuration and review + create the PR manually when protection triggers.
+To prevent this agentic workflow proposing any changes like this in future, use `manifest-files: false` in your workflow configuration.
+
