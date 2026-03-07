@@ -335,7 +335,9 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
 
   // Manifest file protection section — shown before generic failures
   if (manifestErrors.length > 0) {
-    context += "\n**🛡️ Manifest File Protection Triggered**: The code push was refused because the patch modifies package manifest files. " + "This protection guards against unintended supply chain changes.\n";
+    context +=
+      "\n**🛡️ Manifest File Protection Triggered**: The code push was refused because the patch modifies protected files (package manifests, agent instruction files, or repository security configuration). " +
+      "This protection guards against unintended supply chain changes.\n";
     if (pullRequest) {
       context += `\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})\n`;
     }

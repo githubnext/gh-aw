@@ -11,5 +11,5 @@
 >
 > **[Click here to create the pull request once you have reviewed the changes]({create_pr_url})**
 
-To prevent this agentic workflow proposing any changes like this in future, use `manifest-files: false` in your workflow configuration.
+To route changes like this to a review issue instead of blocking, configure `manifest-files: fallback-to-issue` in your workflow configuration.
 

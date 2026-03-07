@@ -26,4 +26,4 @@ git am --3way /tmp/agent-artifacts-{run_id}/{patch_file_name}
 git push origin {branch_name}
 ```
 
-To prevent agentic workflows proposing any changes like this in future, use `manifest-files: false` in your workflow configuration.
+To route changes like this to a review issue instead of blocking, configure `manifest-files: fallback-to-issue` in your workflow configuration.
