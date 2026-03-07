@@ -40,7 +40,7 @@ function execGitSync(args, options = {}) {
   });
 
   if (result.error) {
-    if (!suppressLogs && typeof core !== "undefined" && core.error) {
+    if (typeof core !== "undefined" && core.error) {
       core.error(`Git command failed with error: ${result.error.message}`);
     }
     throw result.error;
