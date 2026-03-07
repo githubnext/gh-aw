@@ -697,6 +697,7 @@ safe-outputs:
     fallback-as-issue: false      # disable issue fallback (default: true)
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
+    allow-manifest-files: true    # allow manifest file modifications (default: false)
 ```
 
 The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
@@ -717,6 +718,17 @@ PR creation may fail if "Allow GitHub Actions to create and approve pull request
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
 By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers.
+
+#### Manifest File Protection
+
+By default (`allow-manifest-files: false`), patches that modify package manifest files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions. Matching is by filename only, regardless of directory depth.
+
+Protected files include: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, and others.
+
+Set `allow-manifest-files: true` to permit manifest file modifications.
+
+> [!CAUTION]
+> Enabling `allow-manifest-files: true` allows the agent to modify dependency definitions. Only enable this when the workflow is explicitly intended to manage dependencies.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -856,11 +868,23 @@ safe-outputs:
     if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
+    allow-manifest-files: true    # allow manifest file modifications (default: false)
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
 Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
+
+#### Manifest File Protection
+
+By default (`allow-manifest-files: false`), patches that modify package manifest files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions. Matching is by filename only, regardless of directory depth.
+
+Protected files include: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, and others.
+
+Set `allow-manifest-files: true` to permit manifest file modifications.
+
+> [!CAUTION]
+> Enabling `allow-manifest-files: true` allows the agent to modify dependency definitions. Only enable this when the workflow is explicitly intended to manage dependencies.
 
 #### Fail-Fast on Code Push Failure
 
