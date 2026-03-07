@@ -21,5 +21,5 @@ Examples of what you can store:
 
 Feel free to create, read, update, and organize files in these folders as needed for your tasks, using only the allowed file types.
 
-**Important**: After writing or updating memory files, call the `push_repo_memory` tool (with the appropriate `memory_id`) to validate that the total memory size is within the configured limits. If the tool returns an error, reduce the size of your memory files (e.g., summarize notes, remove outdated entries) and try again before completing your task.
+**Important**: After writing or updating memory files, if the `push_repo_memory` tool is available, call it (with the appropriate `memory_id`) to validate that the total memory size is within the configured limits. If the tool returns an error, reduce the size of your memory files (e.g., summarize notes, remove outdated entries) and try again before completing your task.
 </repo-memory>
