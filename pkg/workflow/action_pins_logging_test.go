@@ -34,11 +34,11 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			expectMismatch:     true,
 		},
 		{
-			name:               "setup-dotnet v5 resolves to v5.1.0 pin but comment shows v5",
+			name:               "setup-dotnet v5 resolves to v5.2.0 pin but comment shows v5",
 			repo:               "actions/setup-dotnet",
 			requestedVer:       "v5",
 			expectedCommentVer: "v5", // Comment shows requested version
-			fallbackPinVer:     "v5.1.0",
+			fallbackPinVer:     "v5.2.0",
 			expectMismatch:     true,
 		},
 		{
