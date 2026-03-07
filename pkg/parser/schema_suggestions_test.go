@@ -89,6 +89,15 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 			frontmatterContent: "engine: xyz123\n",
 			wantEmpty:          true,
 		},
+		{
+			// Full end-to-end: path is the oneOf container, message contains nested path,
+			// frontmatter has a permission level typo.
+			name:               "nested oneOf enum violation extracts sub-path and suggests Did you mean",
+			errorMessage:       "'oneOf' failed, none matched\n  - at '/permissions': got object, want string\n  - at '/permissions/contents': value must be one of 'read', 'write', 'none'",
+			jsonPath:           "/permissions",
+			frontmatterContent: "permissions:\n  contents: raed\n",
+			wantContains:       []string{"Did you mean", "read"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -461,6 +470,21 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 			yaml:      "permissions:\n  contents: raed\n",
 			path:      "/permissions",
 			wantValue: "",
+		},
+		{
+			// Ensures column-0 anchoring: a nested key with the same name must not
+			// satisfy a top-level path request.
+			name:      "indented key with same name does not match top-level path",
+			yaml:      "parent:\n  engine: nested-value\nengine: top-value\n",
+			path:      "/engine",
+			wantValue: "top-value",
+		},
+		{
+			// Grandchild key must not be returned for a direct-child path.
+			name:      "nested path - grandchild key not returned for child path",
+			yaml:      "permissions:\n  nested:\n    contents: grandchild\n  contents: direct\n",
+			path:      "/permissions/contents",
+			wantValue: "direct",
 		},
 	}
 

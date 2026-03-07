@@ -492,29 +492,33 @@ func extractYAMLValueAtPath(yamlContent, jsonPath string) string {
 
 // extractTopLevelYAMLValue extracts the scalar value of a top-level key from raw YAML.
 // Uses horizontal-only whitespace between the colon and value to avoid matching multi-line blocks.
+// Only keys at column 0 (no indentation) are matched, preventing false matches against
+// nested keys with the same name.
 func extractTopLevelYAMLValue(yamlContent, fieldName string) string {
 	escapedField := regexp.QuoteMeta(fieldName)
 
-	// Try single-quoted value: field: 'value'
-	reSingle := regexp.MustCompile(`(?m)^\s*` + escapedField + `[ \t]*:[ \t]*'([^'\n]+)'`)
+	// Try single-quoted value: field: 'value'  (anchored to column 0, no leading whitespace)
+	reSingle := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*'([^'\n]+)'`)
 	if match := reSingle.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try double-quoted value: field: "value"
-	reDouble := regexp.MustCompile(`(?m)^\s*` + escapedField + `[ \t]*:[ \t]*"([^"\n]+)"`)
+	reDouble := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*"([^"\n]+)"`)
 	if match := reDouble.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try unquoted value: field: value
-	reUnquoted := regexp.MustCompile(`(?m)^\s*` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
+	reUnquoted := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
 	if match := reUnquoted.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	return ""
 }
 
-// extractNestedYAMLValue extracts the scalar value of a child key under a parent key in raw YAML.
-// It finds the parent key's block (by indentation) and then extracts the child key's value within it.
+// extractNestedYAMLValue extracts the scalar value of a direct child key under a parent key in raw YAML.
+// It finds the parent key's block (by indentation), determines the direct-child indent level from
+// the first non-blank line inside the block, and only matches keys at that exact indent level.
+// This prevents false matches against grandchildren that share the same key name.
 func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	lines := strings.Split(yamlContent, "\n")
 
@@ -523,6 +527,7 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	escapedChild := regexp.QuoteMeta(childKey)
 
 	parentIndent := -1
+	childIndent := -1 // indent of direct children (set on first non-blank line inside the block)
 	inParentBlock := false
 
 	for _, line := range lines {
@@ -535,8 +540,7 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 		}
 
 		// Inside parent block: skip blank lines
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
@@ -544,6 +548,16 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 		// Left parent block if indentation returned to parent level or less
 		if lineIndent <= parentIndent {
 			break
+		}
+
+		// Establish the direct-child indentation from the first non-blank child line
+		if childIndent == -1 {
+			childIndent = lineIndent
+		}
+
+		// Only match keys at the direct-child indent level (not grandchildren deeper)
+		if lineIndent != childIndent {
+			continue
 		}
 
 		// Try to match child key with its value (single-quoted, double-quoted, unquoted).
