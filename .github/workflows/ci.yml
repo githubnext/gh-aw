@@ -2362,3 +2362,57 @@ jobs:
           name: test-result-integration-unauthenticated
           path: test-result-integration-unauthenticated.json
           retention-days: 14
+
+  integration-add-dispatch-workflow:
+    name: Integration Add with dispatch-workflow Dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-add-dispatch-workflow
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Run dispatch-workflow add integration tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          go test -v -parallel=4 -timeout=10m -tags 'integration' -json \
+            -run 'TestAddWorkflowWithDispatchWorkflow' \
+            ./pkg/cli/ \
+            | tee test-result-integration-add-dispatch-workflow.json
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-result-integration-add-dispatch-workflow
+          path: test-result-integration-add-dispatch-workflow.json
+          retention-days: 14

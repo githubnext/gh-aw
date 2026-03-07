@@ -886,3 +886,130 @@ func TestAddPublicWorkflowUnauthenticated(t *testing.T) {
 	_, err = os.Stat(workflowFile)
 	require.NoError(t, err, "downloaded workflow file should exist at %s", workflowFile)
 }
+
+// TestAddWorkflowWithDispatchWorkflowDependency tests that when a remote workflow is added
+// that references dispatch-workflow dependencies, those dependency workflows are automatically
+// fetched alongside the main workflow.
+//
+// The test installs test-dispatcher.md from the main branch of github/gh-aw. That workflow
+// has:
+//
+//	safe-outputs:
+//	  dispatch-workflow:
+//	    workflows:
+//	      - test-workflow
+//
+// After `gh aw add`, both test-dispatcher.md AND test-workflow.md should be present locally.
+// This test requires GitHub authentication.
+func TestAddWorkflowWithDispatchWorkflowDependency(t *testing.T) {
+	// Skip if GitHub authentication is not available
+	authCmd := exec.Command("gh", "auth", "status")
+	if err := authCmd.Run(); err != nil {
+		t.Skip("Skipping test: GitHub authentication not available (gh auth status failed)")
+	}
+
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Add test-dispatcher.md which has a dispatch-workflow dependency on test-workflow.
+	// Use an explicit path spec so the file resolves unambiguously from the main branch.
+	workflowSpec := "github/gh-aw/.github/workflows/test-dispatcher.md@main"
+
+	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "add command should succeed: %s", outputStr)
+
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+
+	// 1. The main workflow must be present.
+	mainFile := filepath.Join(workflowsDir, "test-dispatcher.md")
+	_, err = os.Stat(mainFile)
+	require.NoError(t, err, "main workflow test-dispatcher.md should exist at %s", mainFile)
+
+	// 2. The dispatch-workflow dependency (test-workflow.md) must be fetched automatically.
+	depFile := filepath.Join(workflowsDir, "test-workflow.md")
+	_, err = os.Stat(depFile)
+	require.NoError(t, err,
+		"dispatch-workflow dependency test-workflow.md should be auto-fetched alongside the main workflow")
+
+	// 3. Both .lock.yml files should be present (compilation must succeed).
+	mainLock := filepath.Join(workflowsDir, "test-dispatcher.lock.yml")
+	_, err = os.Stat(mainLock)
+	require.NoError(t, err, "compiled lock file test-dispatcher.lock.yml should exist")
+
+	depLock := filepath.Join(workflowsDir, "test-workflow.lock.yml")
+	_, err = os.Stat(depLock)
+	require.NoError(t, err, "compiled lock file test-workflow.lock.yml should exist")
+
+	// 4. Verify the dependency file has valid frontmatter.
+	depContent, err := os.ReadFile(depFile)
+	require.NoError(t, err, "should be able to read test-workflow.md")
+	assert.Contains(t, string(depContent), "workflow_dispatch",
+		"test-workflow.md should have workflow_dispatch trigger")
+}
+
+// TestAddWorkflowWithDispatchWorkflowFromSharedImport tests that dispatch-workflow
+// configuration is preserved correctly through compilation when `gh aw add` is used.
+// This exercises the post-write parse path (fetchAndSaveDispatchWorkflowsFromParsedFile)
+// that re-parses the written workflow file to discover any remaining dependencies.
+//
+// smoke-copilot.md has `safe-outputs.dispatch-workflow: [haiku-printer]` in its own
+// frontmatter. haiku-printer is a plain GitHub Actions workflow (.yml), not an agentic
+// workflow (.md), so the dispatch-workflow fetch is a no-op for it. The test verifies
+// that the overall add command still succeeds and the dispatch-workflow configuration
+// is correctly preserved in the compiled lock file.
+// This test requires GitHub authentication.
+func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
+	// Skip if GitHub authentication is not available
+	authCmd := exec.Command("gh", "auth", "status")
+	if err := authCmd.Run(); err != nil {
+		t.Skip("Skipping test: GitHub authentication not available (gh auth status failed)")
+	}
+
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// smoke-copilot.md has `safe-outputs.dispatch-workflow: [haiku-printer]` in its own
+	// frontmatter, making it a reliable test case for the dispatch-workflow code path.
+	// haiku-printer is a plain GitHub Actions workflow (.yml), not an agentic workflow
+	// (.md), so dispatch-workflow fetching (which only fetches .md files) is a best-effort
+	// no-op for it. This verifies the add command still succeeds in this scenario.
+	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@main"
+
+	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "add command should succeed: %s", outputStr)
+
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+
+	// 1. The main workflow must be present.
+	mainFile := filepath.Join(workflowsDir, "smoke-copilot.md")
+	_, err = os.Stat(mainFile)
+	require.NoError(t, err, "main workflow smoke-copilot.md should exist at %s", mainFile)
+
+	// 2. Verify the dispatch-workflow fetch path ran without crashing.
+	// smoke-copilot.md dispatches to haiku-printer which lives as haiku-printer.yml
+	// (a plain GitHub Actions workflow, not an agentic .md file). The dispatch-workflow
+	// fetch only attempts to retrieve .md files, so haiku-printer is intentionally NOT
+	// fetched — but the add command must still succeed (best-effort behaviour).
+	// Verify compilation succeeded (the lock file was created).
+	mainLock := filepath.Join(workflowsDir, "smoke-copilot.lock.yml")
+	_, err = os.Stat(mainLock)
+	require.NoError(t, err, "compiled lock file smoke-copilot.lock.yml should exist")
+
+	// Verify the lock file references the dispatch-workflow configuration
+	lockContent, err := os.ReadFile(mainLock)
+	require.NoError(t, err, "should be able to read lock file")
+	assert.Contains(t, string(lockContent), "haiku-printer",
+		"lock file should reference the haiku-printer dispatch-workflow target")
+}
