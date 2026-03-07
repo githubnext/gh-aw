@@ -288,6 +288,18 @@ Enable the required repository feature (Settings → General → Features) or us
 
 Use an engine with firewall support (e.g., `copilot`), compile without `--strict` flag, or use `network: defaults`.
 
+### Public Repository Requires Strict Mode
+
+`This workflow is running on a public repository but was not compiled with strict mode.`
+
+Recompile the workflow with strict mode enabled:
+
+```bash
+gh aw compile --strict
+```
+
+Alternatively, do not set `strict: false` in the workflow frontmatter (strict mode is the default). See [Strict Mode](/gh-aw/reference/frontmatter/#strict-mode-strict) for details.
+
 ## Toolsets Configuration Issues
 
 ### Tool Not Found After Migrating to Toolsets
