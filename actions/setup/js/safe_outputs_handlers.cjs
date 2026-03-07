@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference types="@actions/github-script" />
 
 const fs = require("fs");
 const path = require("path");
@@ -610,7 +611,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const totalSizeKb = Math.ceil(totalSize / 1024);
     const effectiveMaxKb = Math.floor(effectiveMaxPatchSize / 1024);
 
-    server.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
+    core.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
 
     if (totalSize > effectiveMaxPatchSize) {
       return {
