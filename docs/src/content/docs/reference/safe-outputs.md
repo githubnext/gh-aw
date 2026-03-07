@@ -677,7 +677,7 @@ Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 ### Pull Request Creation (`create-pull-request:`)
 
-Creates PRs with code changes. Includes configurable [Manifest File Protection](/gh-aw/reference/safe-outputs-pull-requests/#manifest-file-protection) against supply chain attacks.
+Creates PRs with code changes. Includes configurable [Protected File Protection](/gh-aw/reference/safe-outputs-pull-requests/#protected-file-protection) against supply chain attacks.
 
 See the full reference: [Safe Outputs (Pull Requests) — create-pull-request](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request)
 
@@ -687,10 +687,7 @@ safe-outputs:
     title-prefix: "[ai] "
     labels: [automation]
     reviewers: [user1, copilot]
-    protected-files: fallback-to-issue  # create review issue if manifest files modified
-```
-
-When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
+    protected-files: fallback-to-issue  # create review issue if protected files modified, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -814,7 +811,7 @@ safe-outputs:
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Includes configurable [Manifest File Protection](/gh-aw/reference/safe-outputs-pull-requests/#manifest-file-protection) against supply chain attacks.
+Pushes changes to a PR's branch. Includes configurable [Protected File Protection](/gh-aw/reference/safe-outputs-pull-requests/#protected-file-protection) against supply chain attacks.
 
 See the full reference: [Safe Outputs (Pull Requests) — push-to-pull-request-branch](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch)
 
@@ -824,7 +821,7 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
-    protected-files: fallback-to-issue  # create review issue if manifest files modified
+    protected-files: fallback-to-issue  # create review issue if protected files modified
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.

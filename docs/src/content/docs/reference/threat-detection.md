@@ -290,7 +290,7 @@ Reasons:
 
 If the detection process itself fails (e.g., network issues, tool errors), the workflow stops and safe outputs are not applied. This fail-safe approach prevents potentially malicious content from being processed.
 
-## Supply Chain Protection (Manifest File Protection)
+## Supply Chain Protection (Protected File Protection)
 
 Beyond AI-powered threat detection, GitHub Agentic Workflows includes a static, rule-based protection layer that guards against **supply chain attacks** — cases where an AI agent could (intentionally or accidentally) modify files that control how software is built, tested, or deployed.
 
@@ -304,32 +304,32 @@ An AI agent operating in a repository can be tricked (through prompt injection o
 
 ### Default Remediation
 
-Manifest file protection is **enabled by default** for `create-pull-request` and `push-to-pull-request-branch`. Any patch that touches a protected file or directory causes the safe output to fail with a clear error:
+Protected file protection is **enabled by default** for `create-pull-request` and `push-to-pull-request-branch`. Any patch that touches a protected file or directory causes the safe output to fail with a clear error:
 
 ```
 Cannot create pull request: patch modifies protected files (package.json).
 Set protected-files: fallback-to-issue to create a review issue instead.
 ```
 
-This error is also surfaced as a **🛡️ Manifest File Protection Triggered** section in the agent failure issue or comment created by the conclusion job.
+This error is also surfaced as a **🛡️ Protected File Protection Triggered** section in the agent failure issue or comment created by the conclusion job.
 
 ### Policy Options
 
-Configure how each safe output handles manifest file changes using the `protected-files` field:
+Configure how each safe output handles protected file changes using the `protected-files` field:
 
 | Value | Behaviour |
 |-------|-----------|
 | `blocked` (default) | Hard-block: the safe output fails with an error message |
-| `allowed` | No restriction — all manifest file changes are permitted |
+| `allowed` | No restriction — all protected file changes are permitted |
 | `fallback-to-issue` | Create a review issue instead of a PR / push, so a human can inspect and apply the changes manually |
 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    protected-files: fallback-to-issue  # human review required for manifest changes
+    protected-files: fallback-to-issue  # human review required for protected file changes
 
   push-to-pull-request-branch:
-    protected-files: fallback-to-issue  # create issue instead of pushing manifest changes
+    protected-files: fallback-to-issue  # create issue instead of pushing protected file changes
 ```
 
 ### Protected Files

@@ -314,7 +314,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     return "";
   }
 
-  // Split errors into manifest-file protection refusals and other push failures
+  // Split errors into protected-file protection refusals and other push failures
   const manifestErrors = [];
   const otherErrors = [];
   const errorLines = codePushFailureErrors.split("\n").filter(line => line.trim());
@@ -333,7 +333,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
 
   let context = "";
 
-  // Manifest file protection section — shown before generic failures
+  // Protected file protection section — shown before generic failures
   if (manifestErrors.length > 0) {
     context +=
       "\n**🛡️ Protected File Protection Triggered**: The code push was refused because the patch modifies protected files (package manifests, agent instruction files, or repository security configuration). " +

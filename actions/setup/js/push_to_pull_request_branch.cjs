@@ -331,7 +331,7 @@ async function main(config = {}) {
       core.info(`✓ Labels validation passed: ${envLabels.join(", ")}`);
     }
 
-    // Deferred manifest file protection – fallback-to-issue path.
+    // Deferred protected file protection – fallback-to-issue path.
     // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
     if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
       const runUrl = buildWorkflowRunUrl(context, context.repo);
@@ -339,7 +339,7 @@ async function main(config = {}) {
       const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
-      const issueTitle = `[gh-aw] Manifest File Protection: ${prTitle || `PR #${pullNumber}`}`;
+      const issueTitle = `[gh-aw] Protected File Protection: ${prTitle || `PR #${pullNumber}`}`;
       const templatePath = "/opt/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md";
       const template = fs.readFileSync(templatePath, "utf8");
       const issueBody = renderTemplate(template, {

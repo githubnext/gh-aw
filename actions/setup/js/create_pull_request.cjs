@@ -925,11 +925,11 @@ ${patchPreview}`;
       }
     }
 
-    // Manifest file protection – fallback-to-issue path:
+    // Protected file protection – fallback-to-issue path:
     // The patch has already been applied and pushed to the branch.  Instead of
     // creating a pull request, we create a review issue that explains why the PR
     // was not created and provides a PR intent URL so the reviewer can create it
-    // after manually inspecting the manifest changes.
+    // after manually inspecting the protected file changes.
     if (manifestProtectionFallback) {
       const allFound = [...manifestProtectionFallback.manifestFilesFound, ...manifestProtectionFallback.protectedPathsFound];
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
@@ -954,7 +954,7 @@ ${patchPreview}`;
           labels: mergeFallbackIssueLabels(labels),
         });
 
-        core.info(`Created manifest-protection review issue #${issue.number}: ${issue.html_url}`);
+        core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
 
         await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
@@ -967,7 +967,7 @@ ${patchPreview}`;
           repo: itemRepo,
         };
       } catch (issueError) {
-        const error = `Manifest file protection: failed to create review issue. Error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+        const error = `Protected file protection: failed to create review issue. Error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
         core.error(error);
         return { success: false, error };
       }
