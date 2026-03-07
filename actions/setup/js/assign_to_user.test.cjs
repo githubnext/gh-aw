@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const mockCore = {
   debug: vi.fn(),
@@ -481,6 +481,57 @@ describe("assign_to_user (Handler Factory Architecture)", () => {
       repo: "test-repo",
       issue_number: 123,
       assignees: ["new-user1"],
+    });
+  });
+
+  describe("staged mode", () => {
+    beforeEach(() => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    });
+
+    it("should preview without executing in staged mode", async () => {
+      vi.clearAllMocks();
+      const { main } = require("./assign_to_user.cjs");
+      const stagedHandler = await main({ max: 10 });
+
+      const message = {
+        type: "assign_to_user",
+        assignees: ["user1"],
+      };
+
+      const result = await stagedHandler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.staged).toBe(true);
+      expect(result.previewInfo).toMatchObject({
+        issueNumber: 123,
+        repo: "test-owner/test-repo",
+        assignees: ["user1"],
+        unassignFirst: false,
+      });
+      expect(mockGithub.rest.issues.addAssignees).not.toHaveBeenCalled();
+    });
+
+    it("should preview unassign_first in staged mode", async () => {
+      vi.clearAllMocks();
+      const { main } = require("./assign_to_user.cjs");
+      const stagedHandler = await main({ max: 10, unassign_first: true });
+
+      const message = {
+        type: "assign_to_user",
+        assignees: ["user1"],
+      };
+
+      const result = await stagedHandler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.staged).toBe(true);
+      expect(result.previewInfo.unassignFirst).toBe(true);
+      expect(mockGithub.rest.issues.addAssignees).not.toHaveBeenCalled();
     });
   });
 
