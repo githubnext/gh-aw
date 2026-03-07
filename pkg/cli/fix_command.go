@@ -46,10 +46,13 @@ The command will:
   1. Scan workflow files for deprecated fields
   2. Apply relevant codemods to fix issues
   3. Report what was changed in each file
-  4. Write updated files back to disk (with --write flag)
+
+Without --write (dry-run mode), no files are modified. With --write, the command performs
+all steps and additionally:
+  4. Write updated files back to disk
   5. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists
-  6. Delete old template files from pkg/cli/templates/ (with --write flag)
-  7. Delete old workflow-specific .agent.md files from .github/agents/ (with --write flag)
+  6. Delete old template files from pkg/cli/templates/ if present
+  7. Delete old workflow-specific .agent.md files from .github/agents/ if present
 
 ` + WorkflowIDExplanation + `
 

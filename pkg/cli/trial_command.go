@@ -110,7 +110,7 @@ Advanced examples:
 Repository modes:
 - Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
 - --logical-repo REPO: Simulates execution against a specified repository (github.repository context points to REPO while actually running in a temporary trial repository)
-- --repo REPO: Runs directly in the specified repository (no simulation, workflows installed and executed in REPO)
+- --host-repo REPO (or --repo REPO): Uses the specified repository as the host for trial execution instead of creating a temporary one
 - --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
 
 All workflows must support workflow_dispatch trigger to be used in trial mode.

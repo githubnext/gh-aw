@@ -19,7 +19,7 @@ The optional pattern argument filters workflows by name (case-insensitive substr
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` status                          # Show all workflow status
-  ` + string(constants.CLIExtensionPrefix) + ` status ci-                       # Show workflows with 'ci-' in name
+  ` + string(constants.CLIExtensionPrefix) + ` status ci-                      # Show workflows with 'ci-' in name
   ` + string(constants.CLIExtensionPrefix) + ` status --json                    # Output in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` status --ref main                # Show latest run status for main branch
   ` + string(constants.CLIExtensionPrefix) + ` status --label automation        # Show workflows with 'automation' label
