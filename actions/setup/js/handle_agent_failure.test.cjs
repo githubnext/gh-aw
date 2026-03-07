@@ -1,0 +1,101 @@
+// @ts-check
+
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+
+describe("handle_agent_failure", () => {
+  let buildCodePushFailureContext;
+
+  beforeEach(() => {
+    // Provide minimal GitHub Actions globals expected by require-time code
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setOutput: vi.fn(),
+      setFailed: vi.fn(),
+    };
+    global.github = {};
+    global.context = { repo: { owner: "owner", repo: "repo" } };
+
+    // Reset module registry so each test gets a fresh require
+    vi.resetModules();
+    ({ buildCodePushFailureContext } = require("./handle_agent_failure.cjs"));
+  });
+
+  afterEach(() => {
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete process.env.GITHUB_SHA;
+  });
+
+  describe("buildCodePushFailureContext", () => {
+    it("returns empty string when no errors", () => {
+      expect(buildCodePushFailureContext("")).toBe("");
+      expect(buildCodePushFailureContext(null)).toBe("");
+      expect(buildCodePushFailureContext(undefined)).toBe("");
+    });
+
+    it("shows manifest file protection section for manifest errors", () => {
+      const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🛡️ Manifest File Protection Triggered");
+      expect(result).toContain("package.json");
+      expect(result).toContain("allow-manifest-files: true");
+      // Should NOT contain generic "Code Push Failed" for pure manifest errors
+      expect(result).not.toContain("Code Push Failed");
+    });
+
+    it("shows manifest protection section for push_to_pull_request_branch manifest errors", () => {
+      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod, go.sum). Set allow-manifest-files: true in your workflow to allow this.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🛡️ Manifest File Protection Triggered");
+      expect(result).toContain("go.mod");
+      expect(result).toContain("`push_to_pull_request_branch`");
+      expect(result).not.toContain("Code Push Failed");
+    });
+
+    it("includes PR link in manifest protection section when PR is provided", () => {
+      const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.";
+      const pullRequest = { number: 42, html_url: "https://github.com/owner/repo/pull/42" };
+      const result = buildCodePushFailureContext(errors, pullRequest);
+      expect(result).toContain("🛡️ Manifest File Protection Triggered");
+      expect(result).toContain("#42");
+      expect(result).toContain("https://github.com/owner/repo/pull/42");
+      // PR state diagnostics should NOT appear for manifest-only failures
+      expect(result).not.toContain("PR State at Push Time");
+    });
+
+    it("shows generic code push failure section for non-manifest errors", () => {
+      const errors = "push_to_pull_request_branch:Branch not found";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("Code Push Failed");
+      expect(result).toContain("Branch not found");
+      expect(result).not.toContain("Manifest File Protection");
+    });
+
+    it("shows both sections when manifest and non-manifest errors are mixed", () => {
+      const errors = [
+        "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.",
+        "push_to_pull_request_branch:Branch not found",
+      ].join("\n");
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🛡️ Manifest File Protection Triggered");
+      expect(result).toContain("Code Push Failed");
+      expect(result).toContain("package.json");
+      expect(result).toContain("Branch not found");
+    });
+
+    it("includes yaml remediation snippet in manifest protection section", () => {
+      const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (requirements.txt). Set allow-manifest-files: true in your workflow to allow this.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("```yaml");
+      expect(result).toContain("create-pull-request:");
+      expect(result).toContain("allow-manifest-files: true");
+    });
+  });
+});
