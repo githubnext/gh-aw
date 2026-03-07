@@ -23,7 +23,7 @@
 #
 # Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture or extend AWF boundaries
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d5881d67be07fecc7e9406368eba2019fc2dc659a2db705ea58278f705731b16"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d5881d67be07fecc7e9406368eba2019fc2dc659a2db705ea58278f705731b16"}
 
 name: "Security Review Agent 🔒"
 "on":
@@ -93,6 +93,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

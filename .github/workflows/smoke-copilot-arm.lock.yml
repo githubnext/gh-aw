@@ -29,7 +29,7 @@
 #     - shared/github-queries-safe-input.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"cf1f5c608523795735700f940e81346adf7deda93a6d6f7ce67469c7230d52d1"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cf1f5c608523795735700f940e81346adf7deda93a6d6f7ce67469c7230d52d1"}
 
 name: "Smoke Copilot ARM64"
 "on":
@@ -97,6 +97,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

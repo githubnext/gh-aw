@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/go-make.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f25ce343847e9c88cf0b683033fae1614998f81e330da7bf355bcf7a2e50e199"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f25ce343847e9c88cf0b683033fae1614998f81e330da7bf355bcf7a2e50e199"}
 
 name: "Go Logger Enhancement"
 "on":
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

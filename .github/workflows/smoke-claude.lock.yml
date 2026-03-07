@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"db18e693a8f2c6dae969b17dfe2e0c3a3f7ea10e8e1292e71b8674294e5dfc6b"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"db18e693a8f2c6dae969b17dfe2e0c3a3f7ea10e8e1292e71b8674294e5dfc6b"}
 
 name: "Smoke Claude"
 "on":
@@ -105,6 +105,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

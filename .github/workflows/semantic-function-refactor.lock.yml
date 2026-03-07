@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"58b9c667bf6db3acec9c27027d1346b4cd6bb700b508ed533569938971852631"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"58b9c667bf6db3acec9c27027d1346b4cd6bb700b508ed533569938971852631"}
 
 name: "Semantic Function Refactoring"
 "on":
@@ -82,6 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

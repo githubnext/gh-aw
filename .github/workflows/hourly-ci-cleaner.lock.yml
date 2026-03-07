@@ -27,7 +27,7 @@
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f715c77536157d46d383a993c4e231ed9f29a36b211b1b17df979aae0699f650"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f715c77536157d46d383a993c4e231ed9f29a36b211b1b17df979aae0699f650"}
 
 name: "CI Cleaner"
 "on":
@@ -82,6 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

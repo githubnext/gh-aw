@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"cb88eff6090a5e966484e7a4dd6f39dcd1b246e1547c910ce2695d7faf605d00"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cb88eff6090a5e966484e7a4dd6f39dcd1b246e1547c910ce2695d7faf605d00"}
 
 name: "Stale Repository Identifier"
 "on":
@@ -91,6 +91,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}

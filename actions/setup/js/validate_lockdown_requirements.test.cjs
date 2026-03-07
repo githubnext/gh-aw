@@ -18,12 +18,14 @@ describe("validate_lockdown_requirements", () => {
     delete process.env.GH_AW_GITHUB_TOKEN;
     delete process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN;
     delete process.env.CUSTOM_GITHUB_TOKEN;
+    delete process.env.GITHUB_REPOSITORY_VISIBILITY;
+    delete process.env.GH_AW_COMPILED_STRICT;
 
     // Import the module
     validateLockdownRequirements = (await import("./validate_lockdown_requirements.cjs")).default;
   });
 
-  it("should skip validation when lockdown is not explicitly enabled", () => {
+  it("should skip lockdown validation when lockdown is not explicitly enabled", () => {
     // GITHUB_MCP_LOCKDOWN_EXPLICIT not set
 
     validateLockdownRequirements(mockCore);
@@ -109,7 +111,7 @@ describe("validate_lockdown_requirements", () => {
     expect(mockCore.setFailed).toHaveBeenCalled();
   });
 
-  it("should skip validation when GITHUB_MCP_LOCKDOWN_EXPLICIT is false", () => {
+  it("should skip lockdown validation when GITHUB_MCP_LOCKDOWN_EXPLICIT is false", () => {
     process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT = "false";
     // GH_AW_GITHUB_TOKEN not set
 
@@ -117,5 +119,106 @@ describe("validate_lockdown_requirements", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith("Lockdown mode not explicitly enabled, skipping validation");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  // Strict mode enforcement for public repositories
+  describe("strict mode enforcement for public repositories", () => {
+    it("should fail when repository is public and not compiled with strict mode", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("not compiled with strict mode");
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("public repository but was not compiled with strict mode"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("gh aw compile --strict"));
+    });
+
+    it("should fail when repository is public and GH_AW_COMPILED_STRICT is not set", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      // GH_AW_COMPILED_STRICT not set
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("not compiled with strict mode");
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("public repository but was not compiled with strict mode"));
+    });
+
+    it("should pass when repository is public and compiled with strict mode", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "true";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Strict mode requirements validated: Public repository compiled with strict mode");
+    });
+
+    it("should pass when repository is private and not compiled with strict mode", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "private";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should pass when repository is internal and not compiled with strict mode", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "internal";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should pass when visibility is unknown and not compiled with strict mode", () => {
+      // GITHUB_REPOSITORY_VISIBILITY not set
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should include documentation link in strict mode error message", () => {
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/security.mdx"));
+    });
+
+    it("should validate both lockdown and strict mode when both are required", () => {
+      process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT = "true";
+      process.env.GH_AW_GITHUB_TOKEN = "ghp_test_token";
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "true";
+
+      validateLockdownRequirements(mockCore);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Lockdown mode requirements validated: Custom GitHub token is configured");
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Strict mode requirements validated: Public repository compiled with strict mode");
+    });
+
+    it("should fail on lockdown check before strict mode check when both fail", () => {
+      process.env.GITHUB_MCP_LOCKDOWN_EXPLICIT = "true";
+      // No custom tokens - will fail on lockdown check
+      process.env.GITHUB_REPOSITORY_VISIBILITY = "public";
+      process.env.GH_AW_COMPILED_STRICT = "false";
+
+      expect(() => {
+        validateLockdownRequirements(mockCore);
+      }).toThrow("Lockdown mode is enabled");
+
+      // Strict mode error should not be reached since lockdown check throws first
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Lockdown mode is enabled"));
+    });
   });
 });

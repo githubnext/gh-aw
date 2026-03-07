@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c4b7c52a6c58b8c054b75b4e9240efd1b9435789fa1f35652462876451aed8b2"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c4b7c52a6c58b8c054b75b4e9240efd1b9435789fa1f35652462876451aed8b2"}
 
 name: "Daily Syntax Error Quality Check"
 "on":
@@ -80,6 +80,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

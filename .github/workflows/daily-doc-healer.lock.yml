@@ -23,7 +23,7 @@
 #
 # Self-healing companion to the Daily Documentation Updater that detects documentation gaps missed by DDUw and proposes corrections
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ea22cf3cae7f01b85d1c7223dfff4219798b9c1821418b55b53182a2c992c638"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ea22cf3cae7f01b85d1c7223dfff4219798b9c1821418b55b53182a2c992c638"}
 
 name: "Daily Documentation Healer"
 "on":
@@ -77,6 +77,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

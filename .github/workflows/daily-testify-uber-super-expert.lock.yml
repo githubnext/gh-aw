@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0935d96e21c4e3fcee9b2a941f983c92b12d0ea27c07d196b6d43a60eb7e482f"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0935d96e21c4e3fcee9b2a941f983c92b12d0ea27c07d196b6d43a60eb7e482f"}
 
 name: "Daily Testify Uber Super Expert"
 "on":
@@ -85,6 +85,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

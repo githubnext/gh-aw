@@ -118,7 +118,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
 		yaml.WriteString("#\n")
-		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime)
+		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.strictMode)
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails
@@ -615,6 +615,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
+	// Always include strict mode flag for lockdown validation.
+	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
+	fmt.Fprintf(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", c.strictMode)
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
 	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.
 	githubTool, hasGitHub := data.Tools["github"]

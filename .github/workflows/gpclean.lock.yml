@@ -23,7 +23,7 @@
 #
 # Reviews go.mod dependencies daily to detect and remove GPL-licensed transitive dependencies
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f1f3400034da3b5add3e5f4fc685db480ccc0fe3435b78acc5a6f002785e931c"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f1f3400034da3b5add3e5f4fc685db480ccc0fe3435b78acc5a6f002785e931c"}
 
 name: "GPL Dependency Cleaner (gpclean)"
 "on":
@@ -77,6 +77,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/ast-grep.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d0376cb6b3eae45827ed7c21ea355b6564f20c636546a5b3a584cf8f880edfba"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d0376cb6b3eae45827ed7c21ea355b6564f20c636546a5b3a584cf8f880edfba"}
 
 name: "Go Pattern Detector"
 "on":
@@ -80,6 +80,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

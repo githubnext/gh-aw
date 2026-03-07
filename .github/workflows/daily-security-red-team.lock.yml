@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"faae0c6b8934d1bddba33b3806bb7a6af5f34053fc5d210772b64dbf26c2baa0"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"faae0c6b8934d1bddba33b3806bb7a6af5f34053fc5d210772b64dbf26c2baa0"}
 
 name: "Daily Security Red Team Agent"
 "on":
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

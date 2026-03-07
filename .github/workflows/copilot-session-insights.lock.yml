@@ -32,7 +32,7 @@
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0e97b7dc1f36ccddaef55702eb1a54e51b2c23280be5b5c6c5f21199230a34b4"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0e97b7dc1f36ccddaef55702eb1a54e51b2c23280be5b5c6c5f21199230a34b4"}
 
 name: "Copilot Session Insights"
 "on":
@@ -86,6 +86,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

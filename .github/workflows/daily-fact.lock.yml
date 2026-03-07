@@ -23,7 +23,7 @@
 #
 # Posts a daily poetic verse about the gh-aw project to a discussion thread
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3fe8069e73efba5ca03ea4db342e0206f7f91ab0173b8e9897869d15d9c78230"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3fe8069e73efba5ca03ea4db342e0206f7f91ab0173b8e9897869d15d9c78230"}
 
 name: "Daily Fact About gh-aw"
 "on":
@@ -70,6 +70,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

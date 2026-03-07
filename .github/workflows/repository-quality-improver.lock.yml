@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6bb1a0d4a4a46eebdfbddfe915d6345a17575dd0489817be13e208c9921460da"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6bb1a0d4a4a46eebdfbddfe915d6345a17575dd0489817be13e208c9921460da"}
 
 name: "Repository Quality Improvement Agent"
 "on":
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

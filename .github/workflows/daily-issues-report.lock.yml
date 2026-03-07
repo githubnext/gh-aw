@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0b2b5a8686d1b1cbb7ae3b1539786c390d00c6b808d981771054a8a1c24c581b"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0b2b5a8686d1b1cbb7ae3b1539786c390d00c6b808d981771054a8a1c24c581b"}
 
 name: "Daily Issues Report Generator"
 "on":
@@ -87,6 +87,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}

@@ -23,7 +23,7 @@
 #
 # Test workflow to verify create_pull_request error handling
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"56ed383223178c83cf59d59dc38aa7e14a9cf53f0a4bc96927b48cfdf328eb16"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"56ed383223178c83cf59d59dc38aa7e14a9cf53f0a4bc96927b48cfdf328eb16"}
 
 name: "Test Create PR Error Handling"
 "on":
@@ -74,6 +74,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

@@ -28,7 +28,7 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f1edaf6fb88a3f4f73256faa6a1c60181f239cbc5e01436d07f90b282d6bff79"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f1edaf6fb88a3f4f73256faa6a1c60181f239cbc5e01436d07f90b282d6bff79"}
 
 name: "CLI Version Checker"
 "on":
@@ -82,6 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

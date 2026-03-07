@@ -23,7 +23,7 @@
 #
 # Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c1ab537bf460e015b81437b1d7b086f0abfa3872ab893889dc7ca6173e4e0d73"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c1ab537bf460e015b81437b1d7b086f0abfa3872ab893889dc7ca6173e4e0d73"}
 
 name: "Tidy"
 "on":
@@ -101,6 +101,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

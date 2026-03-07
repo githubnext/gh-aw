@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"79e0293df146b166f4756691d48758815d02702f4f41f9b2bf9c41229f56ccf7"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"79e0293df146b166f4756691d48758815d02702f4f41f9b2bf9c41229f56ccf7"}
 
 name: "Archie"
 "on":
@@ -105,6 +105,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

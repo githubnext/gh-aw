@@ -23,7 +23,7 @@
 #
 # Daily JavaScript unbloater that cleans one .cjs file per day, prioritizing files with @ts-nocheck to enable type checking
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3b152ad44091be5971f16c1244a76cc06b0bdc61a021b3b7027b743cf6b09a88"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3b152ad44091be5971f16c1244a76cc06b0bdc61a021b3b7027b743cf6b09a88"}
 
 name: "jsweep - JavaScript Unbloater"
 "on":
@@ -77,6 +77,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

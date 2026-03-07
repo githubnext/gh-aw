@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ccb4a4b9b79c5fda99bccf6c37c613c84d09d13bd2d0b60ed372613aa03e78d1"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ccb4a4b9b79c5fda99bccf6c37c613c84d09d13bd2d0b60ed372613aa03e78d1"}
 
 name: "Weekly Issue Summary"
 "on":
@@ -82,6 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}

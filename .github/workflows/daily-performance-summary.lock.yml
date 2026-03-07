@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e122dc205e62037c58443024bb7827fc2c4474c74536e2043be657fe4d9c79a2"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e122dc205e62037c58443024bb7827fc2c4474c74536e2043be657fe4d9c79a2"}
 
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
@@ -83,6 +83,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

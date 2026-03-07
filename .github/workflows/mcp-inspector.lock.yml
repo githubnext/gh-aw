@@ -42,7 +42,7 @@
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e92fc7f19a13329f2f521f2c3ade949e9a30c1bd31c9752c012a660be935c8a8"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e92fc7f19a13329f2f521f2c3ade949e9a30c1bd31c9752c012a660be935c8a8"}
 
 name: "MCP Inspector Agent"
 "on":
@@ -96,6 +96,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

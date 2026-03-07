@@ -28,7 +28,7 @@
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d344e91215e214c742c60a7c71f20c15fd9f545fa90bfe88550b392cbd69fb93"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d344e91215e214c742c60a7c71f20c15fd9f545fa90bfe88550b392cbd69fb93"}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -84,6 +84,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

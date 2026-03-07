@@ -28,7 +28,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e314a7caa709a40bada89d9ecc8da3d787fc666e3fc168e0b6ccc2d17f0fd89f"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e314a7caa709a40bada89d9ecc8da3d787fc666e3fc168e0b6ccc2d17f0fd89f"}
 
 name: "GitHub MCP Structural Analysis"
 "on":
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "false"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
