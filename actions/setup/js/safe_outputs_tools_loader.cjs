@@ -56,6 +56,7 @@ function attachHandlers(tools, handlers) {
   const handlerMap = {
     create_pull_request: handlers.createPullRequestHandler,
     push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
+    push_repo_memory: handlers.pushRepoMemoryHandler,
     upload_asset: handlers.uploadAssetHandler,
     create_project: handlers.createProjectHandler,
     add_comment: handlers.addCommentHandler,

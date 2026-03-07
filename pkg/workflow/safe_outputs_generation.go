@@ -599,6 +599,25 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Add push_repo_memory config if repo-memory is configured
+	// This enables the push_repo_memory MCP tool for early size validation during agent session
+	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
+		var memories []map[string]any
+		for _, memory := range data.RepoMemoryConfig.Memories {
+			memories = append(memories, map[string]any{
+				"id":             memory.ID,
+				"dir":            "/tmp/gh-aw/repo-memory/" + memory.ID,
+				"max_file_size":  memory.MaxFileSize,
+				"max_patch_size": memory.MaxPatchSize,
+				"max_file_count": memory.MaxFileCount,
+			})
+		}
+		safeOutputsConfig["push_repo_memory"] = map[string]any{
+			"memories": memories,
+		}
+		safeOutputsConfigLog.Printf("Added push_repo_memory config with %d memory entries", len(memories))
+	}
+
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
 	return string(configJSON)
@@ -1209,6 +1228,12 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		enabledTools["create_project"] = true
 	}
 	// Note: dispatch_workflow tools are generated dynamically below, not from the static tools list
+
+	// Add push_repo_memory tool if repo-memory is configured
+	// This tool enables early size validation during the agent session
+	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
+		enabledTools["push_repo_memory"] = true
+	}
 
 	// Filter tools to only include enabled ones and enhance descriptions
 	var filteredTools []map[string]any

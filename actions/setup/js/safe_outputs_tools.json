@@ -128,7 +128,7 @@
   },
   {
     "name": "close_discussion",
-    "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed.",
+    "description": "Close a GitHub discussion with a resolution comment and optional reason. You can and should always add a comment when closing a discussion to explain the action or provide context. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. If the discussion is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -160,7 +160,7 @@
   },
   {
     "name": "close_issue",
-    "description": "Close a GitHub issue with a closing comment. Use this when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing.",
+    "description": "Close a GitHub issue with a closing comment. You can and should always add a comment when closing an issue to explain the action or provide context. This tool is ONLY for closing issues - use update_issue if you need to change the title, body, labels, or other metadata without closing. Use close_issue when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing. If the issue is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -172,11 +172,6 @@
         "issue_number": {
           "type": ["number", "string"],
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger)."
-        },
-        "state_reason": {
-          "type": "string",
-          "enum": ["COMPLETED", "NOT_PLANNED", "DUPLICATE"],
-          "description": "The reason for closing the issue. Use 'COMPLETED' for resolved issues, 'NOT_PLANNED' for issues that won't be addressed, or 'DUPLICATE' for duplicate issues. Defaults to 'COMPLETED'."
         },
         "secrecy": {
           "type": "string",
@@ -192,7 +187,7 @@
   },
   {
     "name": "close_pull_request",
-    "description": "Close a pull request WITHOUT merging, adding a closing comment. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes.",
+    "description": "Close a pull request WITHOUT merging, adding a closing comment. You can and should always add a comment when closing a PR to explain the action or provide context. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes. If the PR is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -219,18 +214,18 @@
   },
   {
     "name": "add_comment",
-    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
+    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
-          "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
+          "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
         },
         "item_number": {
           "type": ["number", "string"],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion). If auto-targeting fails (e.g., for schedule or workflow_dispatch triggers), the tool call will fail with an error."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
         },
         "temporary_id": {
           "type": "string",
@@ -281,7 +276,7 @@
         },
         "repo": {
           "type": "string",
-          "description": "Target repository in 'owner/repo' format. Required when changes are in a subdirectory checkout (e.g., 'repos/repo-a/'). Must be in the allowed-repos list. If omitted, uses the repository at the workspace root."
+          "description": "Target repository in 'owner/repo' format. For multi-repo workflows where the target repo differs from the workflow repo, this must match a repo in the allowed-repos list or the configured target-repo. If omitted, defaults to the configured target-repo (from safe-outputs config), NOT the workflow repository. In most cases, you should omit this parameter and let the system use the configured default."
         },
         "secrecy": {
           "type": "string",
@@ -475,7 +470,7 @@
         },
         "item_number": {
           "type": "number",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow."
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -491,7 +486,7 @@
   },
   {
     "name": "remove_labels",
-    "description": "Remove labels from an existing GitHub issue or pull request. If a label is not present on the item, it will be silently skipped. Use this to clean up labels that are no longer applicable.",
+    "description": "Remove labels from an existing GitHub issue or pull request. Silently skips labels that don't exist on the item. Use this to clean up labels or manage label lifecycles (e.g., removing 'needs-review' after review is complete).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -500,8 +495,7 @@
           "items": {
             "type": "string"
           },
-          "minItems": 1,
-          "description": "Label names to remove (e.g., ['bug', 'needs-triage']). Labels that don't exist on the item are silently skipped. At least one label must be provided."
+          "description": "Label names to remove (e.g., ['smoke', 'needs-triage']). Non-existent labels are silently skipped."
         },
         "item_number": {
           "type": "number",
@@ -536,7 +530,7 @@
         },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow."
+          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow. Only works for pull_request event triggers. For workflow_dispatch, schedule, or other triggers, pull_request_number is required \u2014 omitting it will silently skip the reviewer assignment."
         },
         "secrecy": {
           "type": "string",
@@ -579,13 +573,13 @@
   },
   {
     "name": "assign_to_agent",
-    "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
+    "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\", pull_request_repo=\"owner/repo\")",
     "inputSchema": {
       "type": "object",
       "properties": {
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
+          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
         },
         "pull_number": {
           "type": ["number", "string"],
@@ -684,7 +678,7 @@
   },
   {
     "name": "update_issue",
-    "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
+    "description": "Update an existing GitHub issue's title, body, labels, assignees, or milestone WITHOUT closing it. This tool is primarily for editing issue metadata and content. While it supports changing status between 'open' and 'closed', use close_issue instead when you want to close an issue with a closing comment. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -699,11 +693,7 @@
         },
         "body": {
           "type": "string",
-          "description": "New issue body to replace the existing content. Use Markdown formatting."
-        },
-        "issue_number": {
-          "type": ["number", "string"],
-          "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue)."
+          "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated."
         },
         "operation": {
           "type": "string",
@@ -727,6 +717,10 @@
         "milestone": {
           "type": ["number", "string"],
           "description": "Milestone number to assign (e.g., 1). Use null to clear."
+        },
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue)."
         },
         "secrecy": {
           "type": "string",
@@ -948,7 +942,7 @@
   },
   {
     "name": "hide_comment",
-    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, or resolved. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, or resolved. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.hide-comment configuration to exclude this permission.",
     "inputSchema": {
       "type": "object",
       "required": ["comment_id"],
@@ -961,6 +955,33 @@
           "type": "string",
           "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"],
           "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved)."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_issue_type",
+    "description": "Set the type of a GitHub issue. Pass an empty string \"\" to clear the issue type. Issue types must be configured in the repository or organization settings before they can be assigned.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["issue_type"],
+      "properties": {
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to set the type for. If omitted, sets the type on the issue that triggered this workflow."
+        },
+        "issue_type": {
+          "type": "string",
+          "description": "Issue type name to set (e.g., \"Bug\", \"Feature\", \"Task\"). Use an empty string \"\" to clear the current issue type."
         },
         "secrecy": {
           "type": "string",
@@ -1002,7 +1023,7 @@
         },
         "draft_title": {
           "type": "string",
-          "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue' and creating a new draft (when draft_issue_id is not provided)."
+          "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'."
         },
         "draft_body": {
           "type": "string",
@@ -1127,7 +1148,7 @@
   },
   {
     "name": "create_project",
-    "description": "Create a new GitHub Project for organizing and tracking work across issues and pull requests. You can optionally provide a title, owner, owner_type, and an initial issue item_url to add to the project. You may also provide a temporary_id to reference this project before it is created; if not provided, a temporary_id will be auto-generated and returned, and can be used in subsequent update_project calls via the '#aw_ID' syntax.",
+    "description": "Create a new GitHub Project board. Use this to create a new project for organizing and tracking work across issues and pull requests, owned by a specific user or organization. You can optionally provide a custom title and add an initial issue item to the project via item_url.",
     "inputSchema": {
       "type": "object",
       "required": [],
@@ -1263,6 +1284,20 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "push_repo_memory",
+    "description": "Validate repo-memory files are within configured size limits before the workflow completes. Call this after writing files to memory to check that the total size is within limits. Returns an error if files are too large, with guidance on how to reduce memory size so the memory can be saved successfully.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "memory_id": {
+          "type": "string",
+          "description": "Memory identifier to validate. Defaults to 'default' if not specified."
         }
       },
       "additionalProperties": false
