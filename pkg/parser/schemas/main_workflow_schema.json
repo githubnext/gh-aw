@@ -5263,6 +5263,11 @@
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
+                },
+                "allow-manifest-files": {
+                  "type": "boolean",
+                  "description": "When true, allows modifications to package manifest files (e.g., package.json, requirements.txt, go.mod). By default (false), pull requests that modify manifest files are refused.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
@@ -6291,6 +6296,11 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "allow-manifest-files": {
+                  "type": "boolean",
+                  "description": "When true, allows modifications to package manifest files (e.g., package.json, requirements.txt, go.mod). By default (false), pushes that modify manifest files are refused.",
+                  "default": false
                 }
               },
               "additionalProperties": false

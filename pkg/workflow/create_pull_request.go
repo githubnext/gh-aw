@@ -32,6 +32,7 @@ type CreatePullRequestsConfig struct {
 	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
+	AllowManifestFiles             *bool    `yaml:"allow-manifest-files,omitempty"`                // When true, allows modifications to package manifest files (e.g., package.json, requirements.txt). Defaults to false.
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration

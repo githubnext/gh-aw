@@ -11,6 +11,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { checkForManifestFiles } = require("./manifest_file_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -133,6 +134,22 @@ async function main(config = {}) {
       }
 
       core.info("Patch size validation passed");
+    }
+
+    // Check for manifest file modifications (e.g., package.json, go.mod, requirements.txt)
+    // By default, manifest file modifications are refused to prevent supply chain attacks.
+    // Set allow-manifest-files: true in your workflow configuration to override this restriction.
+    if (!isEmpty) {
+      const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
+      const allowManifestFiles = config.allow_manifest_files === true;
+      if (!allowManifestFiles && manifestFiles.length > 0) {
+        const { hasManifestFiles, manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
+        if (hasManifestFiles) {
+          const msg = `Cannot push to pull request branch: patch modifies package manifest files (${manifestFilesFound.join(", ")}). Set allow-manifest-files: true in your workflow to allow this.`;
+          core.error(msg);
+          return { success: false, error: msg };
+        }
+      }
     }
 
     if (isEmpty) {

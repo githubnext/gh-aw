@@ -20,6 +20,7 @@ type PushToPullRequestBranchConfig struct {
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
+	AllowManifestFiles             *bool    `yaml:"allow-manifest-files,omitempty"`                // When true, allows modifications to package manifest files (e.g., package.json, requirements.txt). Defaults to false.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
