@@ -308,14 +308,14 @@ Manifest file protection is **enabled by default** for `create-pull-request` and
 
 ```
 Cannot create pull request: patch modifies protected files (package.json).
-Set manifest-files: fallback-to-issue to create a review issue instead.
+Set protected-files: fallback-to-issue to create a review issue instead.
 ```
 
 This error is also surfaced as a **🛡️ Manifest File Protection Triggered** section in the agent failure issue or comment created by the conclusion job.
 
 ### Policy Options
 
-Configure how each safe output handles manifest file changes using the `manifest-files` field:
+Configure how each safe output handles manifest file changes using the `protected-files` field:
 
 | Value | Behaviour |
 |-------|-----------|
@@ -326,10 +326,10 @@ Configure how each safe output handles manifest file changes using the `manifest
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    manifest-files: fallback-to-issue  # human review required for manifest changes
+    protected-files: fallback-to-issue  # human review required for manifest changes
 
   push-to-pull-request-branch:
-    manifest-files: fallback-to-issue  # create issue instead of pushing manifest changes
+    protected-files: fallback-to-issue  # create issue instead of pushing manifest changes
 ```
 
 ### Protected Files
@@ -344,7 +344,7 @@ The protection list is composed of three sources:
 3. **Repository security configuration** — the `.github/` and `.agents/` path prefixes (`.github/` covers GitHub Actions workflows, CODEOWNERS, Dependabot config; `.agents/` covers generic agent instruction and configuration files).
 
 > [!TIP]
-> If your workflow is explicitly designed to update dependencies or CI configuration, set `manifest-files: allowed` for that safe output. In repositories where human oversight is preferred, `manifest-files: fallback-to-issue` provides a middle ground: the agent performs all other operations normally, and a review issue is created for runs that involve protected files.
+> If your workflow is explicitly designed to update dependencies or CI configuration, set `protected-files: allowed` for that safe output. In repositories where human oversight is preferred, `protected-files: fallback-to-issue` provides a middle ground: the agent performs all other operations normally, and a review issue is created for runs that involve protected files.
 
 ## Troubleshooting
 

@@ -138,19 +138,19 @@ async function main(config = {}) {
       core.info("Patch size validation passed");
     }
 
-    // Check for manifest file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
-    // By default, manifest file modifications are refused to prevent supply chain attacks.
-    // Set manifest-files: fallback-to-issue to create a review issue instead of pushing.
-    // Set manifest-files: allowed only when the workflow is explicitly designed to manage these files.
+    // Check for protected file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
+    // By default, protected file modifications are refused to prevent supply chain attacks.
+    // Set protected-files: fallback-to-issue to create a review issue instead of pushing.
+    // Set protected-files: allowed only when the workflow is explicitly designed to manage these files.
     // NOTE: fallback-to-issue detection is done here but issue creation is deferred until after
     // the PR metadata (repoParts, prTitle, pullNumber) has been resolved below.
     /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
     let protectedFilesForFallback = null;
     if (!isEmpty) {
-      const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
+      const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
       const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      // manifest_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
-      const policy = config.manifest_files_policy;
+      // protected_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
+      const policy = config.protected_files_policy;
       const isAllowed = policy === "allowed";
       const isFallback = policy === "fallback-to-issue";
       if (!isAllowed) {
@@ -161,9 +161,9 @@ async function main(config = {}) {
           if (isFallback) {
             // Store for deferred issue creation (needs PR metadata resolved first)
             protectedFilesForFallback = allFound;
-            core.warning(`Manifest file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pushing.`);
+            core.warning(`Protected file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pushing.`);
           } else {
-            const msg = `Cannot push to pull request branch: patch modifies protected files (${allFound.join(", ")}). Set manifest-files: fallback-to-issue to create a review issue instead.`;
+            const msg = `Cannot push to pull request branch: patch modifies protected files (${allFound.join(", ")}). Set protected-files: fallback-to-issue to create a review issue instead.`;
             core.error(msg);
             return { success: false, error: msg };
           }

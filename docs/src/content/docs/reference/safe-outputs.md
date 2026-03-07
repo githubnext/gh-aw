@@ -687,7 +687,7 @@ safe-outputs:
     title-prefix: "[ai] "
     labels: [automation]
     reviewers: [user1, copilot]
-    manifest-files: fallback-to-issue  # create review issue if manifest files modified
+    protected-files: fallback-to-issue  # create review issue if manifest files modified
 ```
 
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
@@ -824,7 +824,7 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
-    manifest-files: fallback-to-issue  # create review issue if manifest files modified
+    protected-files: fallback-to-issue  # create review issue if manifest files modified
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.

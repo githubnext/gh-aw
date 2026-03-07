@@ -336,7 +336,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
   // Manifest file protection section — shown before generic failures
   if (manifestErrors.length > 0) {
     context +=
-      "\n**🛡️ Manifest File Protection Triggered**: The code push was refused because the patch modifies protected files (package manifests, agent instruction files, or repository security configuration). " +
+      "\n**🛡️ Protected File Protection Triggered**: The code push was refused because the patch modifies protected files (package manifests, agent instruction files, or repository security configuration). " +
       "This protection guards against unintended supply chain changes.\n";
     if (pullRequest) {
       context += `\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})\n`;
@@ -354,10 +354,10 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     let yamlSnippet = "```yaml\nsafe-outputs:\n";
     for (const type of blockedTypes) {
       const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
-      yamlSnippet += `  ${yamlKey}:\n    manifest-files: fallback-to-issue\n`;
+      yamlSnippet += `  ${yamlKey}:\n    protected-files: fallback-to-issue\n`;
     }
     yamlSnippet += "```\n";
-    context += "\nTo review and apply these changes manually, configure `manifest-files: fallback-to-issue` — the agent will create a review issue with instructions instead of blocking:\n";
+    context += "\nTo review and apply these changes manually, configure `protected-files: fallback-to-issue` — the agent will create a review issue with instructions instead of blocking:\n";
     context += yamlSnippet;
   }
 

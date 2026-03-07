@@ -481,8 +481,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
-			AddStringPtr("manifest_files_policy", c.ManifestFilesPolicy).
-			AddStringSlice("manifest_files", getAllManifestFiles()).
+			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
+			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes())
 		return builder.Build()
 	},
@@ -507,8 +507,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
-			AddStringPtr("manifest_files_policy", c.ManifestFilesPolicy).
-			AddStringSlice("manifest_files", getAllManifestFiles()).
+			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
+			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			Build()
 	},
@@ -733,9 +733,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// 1. It returns a non-nil config (explicitly enabled, even if empty)
 		// 2. For auto-enabled handlers, include even with empty config
 		if handlerConfig != nil {
-			// Augment manifest protection with engine-specific files for handlers that use it.
-			if _, hasManifest := handlerConfig["manifest_files"]; hasManifest {
-				handlerConfig["manifest_files"] = fullManifestFiles
+			// Augment protected-files protection with engine-specific files for handlers that use it.
+			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
+				handlerConfig["protected_files"] = fullManifestFiles
 				handlerConfig["protected_path_prefixes"] = fullPathPrefixes
 			}
 			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
