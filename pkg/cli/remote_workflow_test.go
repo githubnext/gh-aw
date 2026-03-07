@@ -555,3 +555,284 @@ imports:
 	require.NoError(t, readErr)
 	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
 }
+
+// --- extractDispatchWorkflowNames tests ---
+
+// TestExtractDispatchWorkflowNames_ArrayFormat verifies that workflow names are extracted
+// from the dispatch-workflow array (shorthand) format.
+func TestExtractDispatchWorkflowNames_ArrayFormat(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - workflow-a
+    - workflow-b
+---
+
+# Workflow
+`
+	names := extractDispatchWorkflowNames(content)
+	assert.Equal(t, []string{"workflow-a", "workflow-b"}, names, "should extract workflow names from array format")
+}
+
+// TestExtractDispatchWorkflowNames_MapFormat verifies that workflow names are extracted
+// from the dispatch-workflow map format (with explicit workflows key).
+func TestExtractDispatchWorkflowNames_MapFormat(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - workflow-x
+      - workflow-y
+---
+
+# Workflow
+`
+	names := extractDispatchWorkflowNames(content)
+	assert.Equal(t, []string{"workflow-x", "workflow-y"}, names, "should extract workflow names from map format")
+}
+
+// TestExtractDispatchWorkflowNames_SkipMacros verifies that workflow names containing
+// GitHub Actions expression syntax are filtered out.
+func TestExtractDispatchWorkflowNames_SkipMacros(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - plain-workflow
+    - ${{ vars.WORKFLOW_NAME }}
+    - ${{ needs.step.outputs.workflow }}
+    - another-plain-workflow
+---
+
+# Workflow
+`
+	names := extractDispatchWorkflowNames(content)
+	assert.Equal(t, []string{"plain-workflow", "another-plain-workflow"}, names, "should skip workflow names with GitHub Actions macro syntax")
+}
+
+// TestExtractDispatchWorkflowNames_NoSafeOutputs verifies that an empty slice is returned
+// when there is no safe-outputs section.
+func TestExtractDispatchWorkflowNames_NoSafeOutputs(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# Workflow
+`
+	names := extractDispatchWorkflowNames(content)
+	assert.Empty(t, names, "should return empty slice when no safe-outputs section")
+}
+
+// TestExtractDispatchWorkflowNames_NoDispatchWorkflow verifies that an empty slice is returned
+// when safe-outputs exists but has no dispatch-workflow key.
+func TestExtractDispatchWorkflowNames_NoDispatchWorkflow(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  add-comment:
+---
+
+# Workflow
+`
+	names := extractDispatchWorkflowNames(content)
+	assert.Empty(t, names, "should return empty slice when no dispatch-workflow key")
+}
+
+// TestExtractDispatchWorkflowNames_AllMacros verifies that all-macro lists return an empty slice.
+func TestExtractDispatchWorkflowNames_AllMacros(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - ${{ github.event.inputs.workflow }}
+    - ${{ vars.WORKFLOW }}
+---
+
+# Workflow
+`
+	names := extractDispatchWorkflowNames(content)
+	assert.Empty(t, names, "should return empty slice when all workflow names are macros")
+}
+
+// --- fetchAndSaveRemoteDispatchWorkflows tests ---
+
+// TestFetchAndSaveRemoteDispatchWorkflows_NoSafeOutputs verifies that the function is a
+// no-op when the workflow has no safe-outputs section.
+func TestFetchAndSaveRemoteDispatchWorkflows_NoSafeOutputs(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error when no safe-outputs present")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created when no dispatch-workflow configured")
+}
+
+// TestFetchAndSaveRemoteDispatchWorkflows_EmptyRepoSlug verifies that the function is a
+// no-op when the spec has no remote repo (local workflow).
+func TestFetchAndSaveRemoteDispatchWorkflows_EmptyRepoSlug(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - dependent-workflow
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "", // local workflow
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error for local workflow")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created for local workflows")
+}
+
+// TestFetchAndSaveRemoteDispatchWorkflows_OnlyMacros verifies that when all workflow names
+// are GitHub Actions macro syntax, no download is attempted and the function is a no-op.
+func TestFetchAndSaveRemoteDispatchWorkflows_OnlyMacros(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - ${{ vars.WORKFLOW_TO_RUN }}
+    - ${{ github.event.inputs.workflow }}
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error when all workflow names are macros")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created when all workflow names are macros")
+}
+
+// TestFetchAndSaveRemoteDispatchWorkflows_SkipExistingWithoutForce verifies that an existing
+// dispatch workflow file is not re-downloaded when force=false.
+func TestFetchAndSaveRemoteDispatchWorkflows_SkipExistingWithoutForce(t *testing.T) {
+	tmpDir := t.TempDir()
+	existingContent := []byte("existing dependent workflow content")
+	existingFile := filepath.Join(tmpDir, "dependent-workflow.md")
+	require.NoError(t, os.WriteFile(existingFile, existingContent, 0600))
+
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - dependent-workflow
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err)
+
+	// The existing file must be untouched (no network call attempted because file already exists)
+	gotContent, readErr := os.ReadFile(existingFile)
+	require.NoError(t, readErr)
+	assert.Equal(t, existingContent, gotContent, "pre-existing dispatch workflow file must not be modified when force=false")
+}
+
+// TestFetchAndSaveRemoteDispatchWorkflows_TrackerUpdated verifies that a pre-existing file
+// that is skipped due to force=false does NOT appear in any tracker list.
+func TestFetchAndSaveRemoteDispatchWorkflows_TrackerNoOpOnExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	existingFile := filepath.Join(tmpDir, "dep.md")
+	require.NoError(t, os.WriteFile(existingFile, []byte("existing"), 0600))
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - dep
+---
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, tracker)
+	require.NoError(t, err)
+	assert.Empty(t, tracker.CreatedFiles, "pre-existing file must not appear in CreatedFiles")
+	assert.Empty(t, tracker.ModifiedFiles, "pre-existing file must not appear in ModifiedFiles")
+}
+
+// TestFetchAndSaveRemoteDispatchWorkflows_InvalidRepoSlug verifies that an invalid
+// RepoSlug (not in owner/repo format) causes the function to return early without error.
+func TestFetchAndSaveRemoteDispatchWorkflows_InvalidRepoSlug(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    - dep-workflow
+---
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "not-a-valid-slug",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "invalid RepoSlug should return nil without error")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
+}

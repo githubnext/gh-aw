@@ -582,3 +582,189 @@ func getParentDir(path string) string {
 	}
 	return path[:idx]
 }
+
+// extractDispatchWorkflowNames extracts workflow names from the safe-outputs.dispatch-workflow
+// frontmatter field. It handles both array and map forms of the configuration.
+// Workflow names that contain GitHub Actions expression syntax (e.g. "${{") are skipped.
+func extractDispatchWorkflowNames(content string) []string {
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil || result.Frontmatter == nil {
+		return nil
+	}
+
+	safeOutputs, exists := result.Frontmatter["safe-outputs"]
+	if !exists {
+		return nil
+	}
+
+	safeOutputsMap, ok := safeOutputs.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	dispatchWorkflow, exists := safeOutputsMap["dispatch-workflow"]
+	if !exists {
+		return nil
+	}
+
+	var workflowNames []string
+
+	switch v := dispatchWorkflow.(type) {
+	case []any:
+		// Array format: dispatch-workflow: [name1, name2]
+		for _, item := range v {
+			if name, ok := item.(string); ok {
+				workflowNames = append(workflowNames, name)
+			}
+		}
+	case map[string]any:
+		// Map format: dispatch-workflow: {workflows: [name1, name2]}
+		if workflows, exists := v["workflows"]; exists {
+			if workflowsArray, ok := workflows.([]any); ok {
+				for _, item := range workflowsArray {
+					if name, ok := item.(string); ok {
+						workflowNames = append(workflowNames, name)
+					}
+				}
+			}
+		}
+	}
+
+	// Filter out GitHub Actions expression syntax (e.g. "${{ vars.WORKFLOW }}")
+	filtered := make([]string, 0, len(workflowNames))
+	for _, name := range workflowNames {
+		if !strings.Contains(name, "${{") {
+			filtered = append(filtered, name)
+		}
+	}
+
+	return filtered
+}
+
+// fetchAndSaveRemoteDispatchWorkflows fetches and saves the workflow files referenced in the
+// safe-outputs.dispatch-workflow configuration of a remote workflow. Each listed workflow name
+// (without extension) is resolved as a sibling file ("<name>.md") in the same directory as
+// the source workflow and downloaded from the same remote repository.
+//
+// Workflow names that use GitHub Actions expression syntax (e.g. "${{") are silently skipped
+// because they are dynamic values that cannot be resolved at add-time.
+//
+// Download failures are non-fatal (best-effort); the compiler will report still-missing files.
+func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	if spec.RepoSlug == "" {
+		return nil
+	}
+
+	parts := strings.SplitN(spec.RepoSlug, "/", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	owner, repo := parts[0], parts[1]
+	ref := spec.Version
+	if ref == "" {
+		defaultBranch, err := getRepoDefaultBranch(spec.RepoSlug)
+		if err != nil {
+			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
+			ref = "main"
+		} else {
+			ref = defaultBranch
+		}
+		spec.Version = ref
+	}
+
+	workflowNames := extractDispatchWorkflowNames(content)
+	if len(workflowNames) == 0 {
+		return nil
+	}
+
+	// workflowBaseDir is the directory of the source workflow in the remote repo
+	// (e.g. ".github/workflows"). Dispatch-workflow names are resolved relative to it.
+	workflowBaseDir := getParentDir(spec.WorkflowPath)
+
+	// Pre-compute the absolute target directory for path-traversal boundary checks.
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		remoteWorkflowLog.Printf("Failed to resolve absolute path for target directory %s: %v", targetDir, err)
+		return nil
+	}
+
+	for _, workflowName := range workflowNames {
+		// Build the remote file path for this dispatch workflow
+		var remoteFilePath string
+		if workflowBaseDir != "" {
+			remoteFilePath = path.Join(workflowBaseDir, workflowName+".md")
+		} else {
+			remoteFilePath = workflowName + ".md"
+		}
+		remoteFilePath = path.Clean(remoteFilePath)
+
+		// The local path is just the workflow filename in targetDir
+		localRelPath := filepath.Clean(workflowName + ".md")
+		targetPath := filepath.Join(targetDir, localRelPath)
+
+		// Belt-and-suspenders: verify the resolved path stays inside targetDir
+		absTargetPath, absErr := filepath.Abs(targetPath)
+		if absErr != nil {
+			remoteWorkflowLog.Printf("Failed to resolve absolute path for dispatch workflow %s: %v", workflowName, absErr)
+			continue
+		}
+		if rel, relErr := filepath.Rel(absTargetDir, absTargetPath); relErr != nil || strings.HasPrefix(rel, "..") {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Refusing to write dispatch workflow outside target directory: %q", workflowName)))
+			}
+			continue
+		}
+
+		// Skip download if the file already exists and force=false
+		fileExists := false
+		if _, statErr := os.Stat(targetPath); statErr == nil {
+			fileExists = true
+			if !force {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatch workflow file already exists, skipping: "+targetPath))
+				}
+				continue
+			}
+		}
+
+		// Download from the source repository
+		workflowContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
+			}
+			continue
+		}
+
+		// Create parent directory if needed
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for dispatch workflow %s: %v", remoteFilePath, err)))
+			}
+			continue
+		}
+
+		// Write the file
+		if err := os.WriteFile(targetPath, workflowContent, 0600); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", remoteFilePath, err)))
+			}
+			continue
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow: "+targetPath))
+		}
+
+		// Track the file
+		if tracker != nil {
+			if fileExists {
+				tracker.TrackModified(targetPath)
+			} else {
+				tracker.TrackCreated(targetPath)
+			}
+		}
+	}
+
+	return nil
+}

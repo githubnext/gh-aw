@@ -368,6 +368,13 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
 			}
 		}
+		// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
+		// available locally. Workflow names using GitHub Actions expression syntax are skipped.
+		if err := fetchAndSaveRemoteDispatchWorkflows(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow dependencies: %v", err)))
+			}
+		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {
 		// For local workflows, collect and copy include dependencies from local paths
 		// The source directory is derived from the workflow's path
