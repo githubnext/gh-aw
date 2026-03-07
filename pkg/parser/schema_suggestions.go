@@ -506,7 +506,6 @@ func extractTopLevelYAMLValue(yamlContent, fieldName string) string {
 		return strings.TrimSpace(match[1])
 	}
 	// Try unquoted value: field: value
-	// Use [ \t]* (not \s*) after the colon to prevent matching across lines.
 	reUnquoted := regexp.MustCompile(`(?m)^\s*` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
 	if match := reUnquoted.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
@@ -548,7 +547,6 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 		}
 
 		// Try to match child key with its value (single-quoted, double-quoted, unquoted).
-		// Use [ \t]* (not \s*) between the colon and value to avoid cross-line matches.
 		childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
 		reSingle := regexp.MustCompile(childPrefix + `'([^'\n]+)'`)
 		if match := reSingle.FindStringSubmatch(line); len(match) >= 2 {

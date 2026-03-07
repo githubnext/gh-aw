@@ -457,7 +457,7 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 			wantValue: "",
 		},
 		{
-			name:      "block value (no inline scalar) returns empty - prevents cross-line match",
+			name:      "top-level key with only nested block returns empty - no inline scalar value",
 			yaml:      "permissions:\n  contents: raed\n",
 			path:      "/permissions",
 			wantValue: "",
