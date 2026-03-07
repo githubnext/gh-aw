@@ -529,6 +529,56 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 
 	for _, jobEntry := range jobDirs {
 		if !jobEntry.IsDir() {
+			// Handle flat job-level log files (e.g., 3_activation.txt).
+			// GitHub Actions log zips may place per-job log files directly at the root of
+			// the zip (flat format) rather than in per-job subdirectories (hierarchical format).
+			if !strings.HasSuffix(jobEntry.Name(), ".txt") {
+				continue
+			}
+			num, jobName := parseStepFilename(jobEntry.Name())
+			if num <= 0 {
+				continue
+			}
+			flatFilePath := filepath.Join(workflowLogsDir, jobEntry.Name())
+
+			// Track the last flat job log (highest number) for fallback
+			if lastStep == nil || num > lastStep.num {
+				lastStep = &stepLog{
+					path:    flatFilePath,
+					num:     num,
+					stepKey: jobName,
+				}
+			}
+
+			// Scan this flat job log for ##[error] annotations
+			content, err := os.ReadFile(flatFilePath)
+			if err != nil {
+				auditReportLog.Printf("Failed to read job log %s: %v", flatFilePath, err)
+				continue
+			}
+
+			var errorLines []string
+			for line := range strings.SplitSeq(string(content), "\n") {
+				if strings.Contains(line, "##[error]") {
+					stripped := stripGHALogTimestamps(line)
+					if stripped != "" {
+						errorLines = append(errorLines, stripped)
+					}
+				}
+			}
+
+			if len(errorLines) > 0 {
+				message := strings.Join(errorLines, "\n")
+				if len(message) > maxMessageLen {
+					message = message[:maxMessageLen] + "..."
+				}
+				auditReportLog.Printf("Extracted ##[error] annotations from flat job log %s (job %d)", jobName, num)
+				errorAnnotations = append(errorAnnotations, ErrorInfo{
+					Type:    "step_failure",
+					File:    jobName,
+					Message: message,
+				})
+			}
 			continue
 		}
 		jobDir := filepath.Join(workflowLogsDir, jobEntry.Name())

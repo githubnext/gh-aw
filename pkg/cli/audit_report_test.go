@@ -148,6 +148,46 @@ func TestGenerateFindings(t *testing.T) {
 				require.NotNil(t, finding, "Failed workflow should generate an error finding")
 				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
 				assert.Contains(t, finding.Title, "Failed", "Error finding should have 'Failed' in title")
+				assert.Contains(t, finding.Description, "Test error", "Error finding description should include the first error message")
+			},
+		},
+		{
+			name: "failed workflow with very long error message truncates in description",
+			processedRun: func() ProcessedRun {
+				pr := createTestProcessedRun()
+				pr.Run.Conclusion = "failure"
+				return pr
+			}(),
+			metrics:       MetricsData{ErrorCount: 1},
+			errors:        []ErrorInfo{{Type: "step_failure", Message: strings.Repeat("x", 500)}},
+			warnings:      []ErrorInfo{},
+			expectedCount: 1,
+			checkFindings: func(t *testing.T, findings []Finding) {
+				finding := findFindingByCategory(findings, "error")
+				require.NotNil(t, finding, "Should generate an error finding")
+				assert.LessOrEqual(t, len(finding.Description), 300, "Description should be truncated for long error messages")
+				assert.True(t, strings.HasSuffix(finding.Description, "..."), "Truncated description should end with ellipsis")
+			},
+		},
+		{
+			name: "failed workflow without errors surfaces no message in description",
+			processedRun: func() ProcessedRun {
+				pr := createTestProcessedRun()
+				pr.Run.Conclusion = "failure"
+				return pr
+			}(),
+			metrics: MetricsData{
+				ErrorCount: 1,
+			},
+			errors:        []ErrorInfo{},
+			warnings:      []ErrorInfo{},
+			expectedCount: 1,
+			checkFindings: func(t *testing.T, findings []Finding) {
+				finding := findFindingByCategory(findings, "error")
+				require.NotNil(t, finding, "Failed workflow should generate an error finding")
+				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Equal(t, "Workflow 'Test Workflow' failed with 1 error(s)", finding.Description,
+					"Description should match standard format without error message suffix when no errors available")
 			},
 		},
 		{
@@ -1397,5 +1437,60 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		require.NotEmpty(t, data.Errors, "Should have errors extracted from step logs for failed run")
 		assert.Contains(t, data.Errors[0].Message, "Lockdown mode is enabled",
 			"Error should contain the actual error from the step log")
+	})
+
+	t.Run("extracts ##[error] from flat job log files", func(t *testing.T) {
+		// GitHub Actions log zips may use a flat structure where each job is a single file
+		// at the root of workflow-logs/ (e.g., 3_activation.txt) rather than a subdirectory.
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Flat job log with ##[error] annotation
+		lockdownLog := "2026-02-23T23:46:10.9523559Z ##[error]Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n2026-02-23T23:46:10.9523560Z Please configure GH_AW_GITHUB_TOKEN"
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_activation.txt"), []byte(lockdownLog), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should extract errors from flat job log")
+		require.Len(t, errors, 1, "Should return one error info for the flat job log")
+		assert.Equal(t, "step_failure", errors[0].Type, "Error type should be step_failure")
+		assert.Equal(t, "activation", errors[0].File, "File should be the job name from flat log")
+		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Message should contain the ##[error] content")
+		assert.NotContains(t, errors[0].Message, "2026-02-23T", "Should strip GHA timestamps")
+	})
+
+	t.Run("falls back to last flat job log when no ##[error] in flat files", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "1_setup.txt"), []byte("Setup output"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "3_activation.txt"), []byte("Error: lockdown check failed"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should fall back to last flat job log content")
+		require.Len(t, errors, 1, "Fallback should return one error")
+		assert.Equal(t, "activation", errors[0].File, "Fallback should use the last flat log (highest number)")
+		assert.Contains(t, errors[0].Message, "Error: lockdown check failed", "Should use last flat log content")
+	})
+
+	t.Run("flat job logs and subdirectory step logs are both scanned", func(t *testing.T) {
+		// Mixed structure: some jobs as flat files, some as subdirectories
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		// Flat job log with ##[error]
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "2_activation.txt"),
+			[]byte("2024-01-01T00:00:01Z ##[error]Flat job error"), 0600))
+		// Subdirectory job with ##[error] in a step
+		agentDir := filepath.Join(workflowLogsDir, "agent")
+		require.NoError(t, os.MkdirAll(agentDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(agentDir, "5_Run agent.txt"),
+			[]byte("2024-01-01T00:00:02Z ##[error]Subdirectory step error"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.NotNil(t, errors, "Should extract errors from both flat and subdirectory logs")
+		assert.Len(t, errors, 2, "Should return errors from both flat and subdirectory sources")
+		files := []string{errors[0].File, errors[1].File}
+		assert.Contains(t, files, "activation", "Should include flat job log error")
+		assert.Contains(t, files, "agent/Run agent", "Should include subdirectory step error")
 	})
 }
