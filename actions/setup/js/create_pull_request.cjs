@@ -924,7 +924,7 @@ ${patchPreview}`;
       }
     }
 
-    // Manifest file protection – fallback-as-issue path:
+    // Manifest file protection – fallback-to-issue path:
     // The patch has already been applied and pushed to the branch.  Instead of
     // creating a pull request, we create a review issue that explains why the PR
     // was not created and provides a PR intent URL so the reviewer can create it
