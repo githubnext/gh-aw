@@ -29,6 +29,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -64,6 +65,47 @@ func preprocessBoolFieldAsString(configData map[string]any, fieldName string, lo
 				return fmt.Errorf("field %q must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.flag }}'), got string %q", fieldName, v)
 			}
 			// expression string is already in the correct form
+		}
+	}
+	return nil
+}
+
+// preprocessBoolOrEnumFieldAsString converts the value of a config field that
+// accepts a boolean OR a specific set of string enum values.  Like
+// preprocessBoolFieldAsString it converts literal booleans to "true"/"false"
+// so that the target struct field can be typed as *string.  In addition it
+// accepts any string listed in allowedStrings as a valid value.
+//
+// allowedStrings should contain only the special enum values for this field
+// (e.g. ["fallback-as-issue"]) — "true" and "false" are handled automatically
+// for the boolean case and do not need to be listed here.
+//
+// GitHub Actions expression strings (e.g. "${{ inputs.flag }}") are also
+// accepted unchanged.
+func preprocessBoolOrEnumFieldAsString(configData map[string]any, fieldName string, allowedStrings []string, log *logger.Logger) error {
+	if configData == nil {
+		return nil
+	}
+	if val, exists := configData[fieldName]; exists {
+		switch v := val.(type) {
+		case bool:
+			if v {
+				configData[fieldName] = "true"
+			} else {
+				configData[fieldName] = "false"
+			}
+			if log != nil {
+				log.Printf("Converted %s bool to string before unmarshaling", fieldName)
+			}
+		case string:
+			if strings.HasPrefix(v, "${{") && strings.HasSuffix(v, "}}") {
+				// GitHub Actions expression – accepted unchanged
+				return nil
+			}
+			if slices.Contains(allowedStrings, v) {
+				return nil
+			}
+			return fmt.Errorf("field %q must be a boolean, one of %v, or a GitHub Actions expression, got string %q", fieldName, allowedStrings, v)
 		}
 	}
 	return nil

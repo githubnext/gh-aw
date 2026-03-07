@@ -20,7 +20,7 @@ type PushToPullRequestBranchConfig struct {
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
-	AllowManifestFiles             *bool    `yaml:"allow-manifest-files,omitempty"`                // When true, allows modifications to package manifest files (e.g., package.json, requirements.txt). Defaults to false.
+	AllowManifestFiles             *string  `yaml:"allow-manifest-files,omitempty"`                // Controls manifest-file protection. "true" allows all changes; "false" (default) hard-blocks; "fallback-as-issue" creates a review issue instead of pushing.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -134,6 +134,16 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 			// Parse allowed-repos for cross-repository push
 			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+
+			// Parse allow-manifest-files: accepts bool, "fallback-as-issue", or omitted (default deny).
+			// Use preprocessBoolOrEnumFieldAsString to convert bool → string in-place, then read the
+			// string value.  This keeps the parsing logic consistent with create-pull-request.
+			if err := preprocessBoolOrEnumFieldAsString(configMap, "allow-manifest-files", []string{"fallback-as-issue"}, pushToPullRequestBranchLog); err != nil {
+				pushToPullRequestBranchLog.Printf("Invalid allow-manifest-files value: %v", err)
+				// Fall through with default (nil = deny)
+			} else if strVal, ok := configMap["allow-manifest-files"].(string); ok {
+				pushToBranchConfig.AllowManifestFiles = &strVal
+			}
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig, 0)

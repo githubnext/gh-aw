@@ -32,7 +32,7 @@ type CreatePullRequestsConfig struct {
 	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
-	AllowManifestFiles             *bool    `yaml:"allow-manifest-files,omitempty"`                // When true, allows modifications to package manifest files (e.g., package.json, requirements.txt). Defaults to false.
+	AllowManifestFiles             *string  `yaml:"allow-manifest-files,omitempty"`                // Controls manifest-file protection. "true" allows all changes; "false" (default) hard-blocks; "fallback-as-issue" pushes the branch and creates a review issue instead of a PR.
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration
@@ -81,6 +81,12 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			createPRLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}
+	}
+
+	// Pre-process allow-manifest-files: accepts bool, "fallback-as-issue", or a GitHub Actions expression
+	if err := preprocessBoolOrEnumFieldAsString(configData, "allow-manifest-files", []string{"fallback-as-issue"}, createPRLog); err != nil {
+		createPRLog.Printf("Invalid allow-manifest-files value: %v", err)
+		return nil
 	}
 
 	// Pre-process templatable int fields

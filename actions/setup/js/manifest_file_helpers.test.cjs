@@ -198,4 +198,85 @@ rename to package.json.bak
       expect(result.manifestFilesFound).toContain("package.json");
     });
   });
+
+  describe("extractPathsFromPatch", () => {
+    const { extractPathsFromPatch } = require("./manifest_file_helpers.cjs");
+
+    it("should return empty array for empty patch", () => {
+      expect(extractPathsFromPatch("")).toEqual([]);
+      expect(extractPathsFromPatch(null)).toEqual([]);
+    });
+
+    it("should return full paths not just basenames", () => {
+      const patch = `diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index abc..def 100644
+`;
+      const result = extractPathsFromPatch(patch);
+      expect(result).toContain(".github/workflows/ci.yml");
+      expect(result).not.toContain("ci.yml"); // basenames not returned
+    });
+
+    it("should include both a/ and b/ paths for renames", () => {
+      const patch = `diff --git a/.github/old.yml b/.github/new.yml
+similarity index 100%
+rename from .github/old.yml
+rename to .github/new.yml
+`;
+      const result = extractPathsFromPatch(patch);
+      expect(result).toContain(".github/old.yml");
+      expect(result).toContain(".github/new.yml");
+    });
+
+    it("should skip dev/null sentinel", () => {
+      const patch = `diff --git a/dev/null b/.github/workflows/new.yml
+new file mode 100644
+index 0000000..abc
+`;
+      const result = extractPathsFromPatch(patch);
+      expect(result).toContain(".github/workflows/new.yml");
+      expect(result).not.toContain("dev/null");
+    });
+  });
+
+  describe("checkForProtectedPaths", () => {
+    const { checkForProtectedPaths } = require("./manifest_file_helpers.cjs");
+
+    it("should return false for empty patch", () => {
+      const result = checkForProtectedPaths("", [".github/"]);
+      expect(result.hasProtectedPaths).toBe(false);
+      expect(result.protectedPathsFound).toEqual([]);
+    });
+
+    it("should return false for empty prefixes list", () => {
+      const patch = `diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n`;
+      const result = checkForProtectedPaths(patch, []);
+      expect(result.hasProtectedPaths).toBe(false);
+    });
+
+    it("should detect .github/ files", () => {
+      const patch = `diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index abc..def 100644
+`;
+      const result = checkForProtectedPaths(patch, [".github/"]);
+      expect(result.hasProtectedPaths).toBe(true);
+      expect(result.protectedPathsFound).toContain(".github/workflows/ci.yml");
+    });
+
+    it("should not flag files outside protected path prefix", () => {
+      const patch = `diff --git a/src/ci.yml b/src/ci.yml
+index abc..def 100644
+`;
+      const result = checkForProtectedPaths(patch, [".github/"]);
+      expect(result.hasProtectedPaths).toBe(false);
+    });
+
+    it("should detect AGENTS.md via basename check (not path prefix)", () => {
+      // AGENTS.md is checked via checkForManifestFiles (basename), not path prefix
+      const patch = `diff --git a/AGENTS.md b/AGENTS.md
+index abc..def 100644
+`;
+      const basenameResult = checkForManifestFiles(patch, ["AGENTS.md"]);
+      expect(basenameResult.hasManifestFiles).toBe(true);
+    });
+  });
 });

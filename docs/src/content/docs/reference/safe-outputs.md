@@ -698,6 +698,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     allow-manifest-files: true    # allow manifest file modifications (default: false)
+    # allow-manifest-files: "fallback-as-issue"  # push branch, create review issue instead of PR
 ```
 
 The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
@@ -721,14 +722,29 @@ By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Tr
 
 #### Manifest File Protection
 
-By default (`allow-manifest-files: false`), patches that modify package manifest files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions. Matching is by filename only, regardless of directory depth.
+By default (`allow-manifest-files: false`), patches that modify package manifest files or repository configuration files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions or CI/CD pipelines.
 
-Protected files include: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, and others.
+Protection covers two categories:
 
-Set `allow-manifest-files: true` to permit manifest file modifications.
+- **Manifest files by filename** (matched anywhere in the repo): `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, `AGENTS.md`, and others.
+- **Protected path prefix**: any file under `.github/` (workflows, CODEOWNERS, Dependabot config, etc.).
+
+Three behaviours are available:
+
+| Value | Behaviour |
+|-------|-----------|
+| `false` (default) | Hard-block: the safe output fails with an error |
+| `true` | Allow all manifest/config file modifications |
+| `"fallback-as-issue"` | Push the branch normally but create a **review issue** instead of a PR. The issue includes a PR creation intent link and instructions to review carefully before creating the PR. |
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    allow-manifest-files: "fallback-as-issue"  # push branch, require human review before PR
+```
 
 > [!CAUTION]
-> Enabling `allow-manifest-files: true` allows the agent to modify dependency definitions. Only enable this when the workflow is explicitly intended to manage dependencies.
+> Enabling `allow-manifest-files: true` allows the agent to modify dependency definitions and CI/CD configuration. Only enable this when the workflow is explicitly intended to manage these files. Use `"fallback-as-issue"` when you want human oversight without fully blocking the agent.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -869,6 +885,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
     github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
     allow-manifest-files: true    # allow manifest file modifications (default: false)
+    # allow-manifest-files: "fallback-as-issue"  # create review issue instead of pushing
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
@@ -877,14 +894,29 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 #### Manifest File Protection
 
-By default (`allow-manifest-files: false`), patches that modify package manifest files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions. Matching is by filename only, regardless of directory depth.
+By default (`allow-manifest-files: false`), patches that modify package manifest files or repository configuration files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions or CI/CD pipelines.
 
-Protected files include: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, and others.
+Protection covers two categories:
 
-Set `allow-manifest-files: true` to permit manifest file modifications.
+- **Manifest files by filename** (matched anywhere in the repo): `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, `AGENTS.md`, and others.
+- **Protected path prefix**: any file under `.github/` (workflows, CODEOWNERS, Dependabot config, etc.).
+
+Three behaviours are available:
+
+| Value | Behaviour |
+|-------|-----------|
+| `false` (default) | Hard-block: the safe output fails with an error |
+| `true` | Allow all manifest/config file modifications |
+| `"fallback-as-issue"` | Instead of pushing to the PR branch, create a **review issue** with patch download instructions and a link to the target PR. The reviewer applies the patch manually after inspection. |
+
+```yaml wrap
+safe-outputs:
+  push-to-pull-request-branch:
+    allow-manifest-files: "fallback-as-issue"  # require human review before applying
+```
 
 > [!CAUTION]
-> Enabling `allow-manifest-files: true` allows the agent to modify dependency definitions. Only enable this when the workflow is explicitly intended to manage dependencies.
+> Enabling `allow-manifest-files: true` allows the agent to modify dependency definitions and CI/CD configuration. Only enable this when the workflow is explicitly intended to manage these files. Use `"fallback-as-issue"` when you want human oversight without fully blocking the agent.
 
 #### Fail-Fast on Code Push Failure
 

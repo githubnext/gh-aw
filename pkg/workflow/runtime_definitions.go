@@ -182,7 +182,8 @@ func init() {
 }
 
 // getAllManifestFiles returns the deduplicated union of all manifest file names
-// across all known runtimes. These are package manifest files matched by filename only (no path).
+// across all known runtimes, plus extra security-sensitive filenames.
+// These are matched by basename only (no path comparison).
 func getAllManifestFiles() []string {
 	seen := make(map[string]bool)
 	var result []string
@@ -194,7 +195,26 @@ func getAllManifestFiles() []string {
 			}
 		}
 	}
+	// AGENTS.md is a GitHub Copilot agent instruction file; modifying it can
+	// redirect AI agents and is treated the same as a dependency manifest.
+	for _, extra := range []string{"AGENTS.md"} {
+		if !seen[extra] {
+			seen[extra] = true
+			result = append(result, extra)
+		}
+	}
 	return result
+}
+
+// getProtectedPathPrefixes returns path prefixes (relative to repo root) whose
+// contents are always protected regardless of file basename.  Any file whose
+// path in the diff starts with one of these prefixes is considered a protected
+// file and will trigger the same manifest-file protection logic.
+//
+// ".github/" covers workflow definitions, CODEOWNERS, Dependabot config, and
+// other repository-level security-sensitive configuration.
+func getProtectedPathPrefixes() []string {
+	return []string{".github/"}
 }
 
 // findRuntimeByID finds a runtime configuration by its ID

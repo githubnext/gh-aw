@@ -5265,8 +5265,18 @@
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
                 },
                 "allow-manifest-files": {
-                  "type": "boolean",
-                  "description": "When true, allows modifications to package manifest files (e.g., package.json, requirements.txt, go.mod). By default (false), pull requests that modify manifest files are refused.",
+                  "oneOf": [
+                    {
+                      "type": "boolean",
+                      "description": "Set to true to allow all manifest file changes, or false (default) to hard-block them."
+                    },
+                    {
+                      "type": "string",
+                      "enum": ["fallback-as-issue"],
+                      "description": "The branch is pushed normally but an issue is created instead of a pull request. The issue contains a PR creation intent link and a warning to review the manifest changes carefully before creating the PR."
+                    }
+                  ],
+                  "description": "Controls manifest-file protection. false (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod) or .github/ files. true: allow all changes. fallback-as-issue: push the branch but create a review issue instead of a PR.",
                   "default": false
                 }
               },
@@ -6298,8 +6308,18 @@
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "allow-manifest-files": {
-                  "type": "boolean",
-                  "description": "When true, allows modifications to package manifest files (e.g., package.json, requirements.txt, go.mod). By default (false), pushes that modify manifest files are refused.",
+                  "oneOf": [
+                    {
+                      "type": "boolean",
+                      "description": "Set to true to allow all manifest file changes, or false (default) to hard-block them."
+                    },
+                    {
+                      "type": "string",
+                      "enum": ["fallback-as-issue"],
+                      "description": "Instead of pushing to the PR branch, a review issue is created. The issue contains the patch details, a warning about manifest file changes, and instructions to review carefully."
+                    }
+                  ],
+                  "description": "Controls manifest-file protection. false (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod) or .github/ files. true: allow all changes. fallback-as-issue: create a review issue instead of pushing.",
                   "default": false
                 }
               },

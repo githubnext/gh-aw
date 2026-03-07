@@ -41,7 +41,8 @@ describe("handle_agent_failure", () => {
     });
 
     it("shows manifest file protection section for manifest errors", () => {
-      const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.";
+      const errors =
+        'create_pull_request:Cannot create pull request: patch modifies protected files (package.json). Set allow-manifest-files: true to allow this, or allow-manifest-files: "fallback-as-issue" to create a review issue instead.';
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("🛡️ Manifest File Protection Triggered");
       expect(result).toContain("package.json");
@@ -50,13 +51,28 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Code Push Failed");
     });
 
+    it("shows manifest file protection section for legacy 'package manifest files' error messages", () => {
+      // Old error message format – must still be detected
+      const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🛡️ Manifest File Protection Triggered");
+      expect(result).not.toContain("Code Push Failed");
+    });
+
     it("shows manifest protection section for push_to_pull_request_branch manifest errors", () => {
-      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod, go.sum). Set allow-manifest-files: true in your workflow to allow this.";
+      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies protected files (go.mod, go.sum). Set allow-manifest-files: true to allow this.";
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("🛡️ Manifest File Protection Triggered");
       expect(result).toContain("go.mod");
       expect(result).toContain("`push_to_pull_request_branch`");
       expect(result).not.toContain("Code Push Failed");
+    });
+
+    it("shows manifest protection for .github/ protected path errors", () => {
+      const errors = "create_pull_request:Cannot create pull request: patch modifies protected files (.github/workflows/ci.yml). Set allow-manifest-files: true to allow this.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🛡️ Manifest File Protection Triggered");
+      expect(result).toContain(".github/workflows/ci.yml");
     });
 
     it("includes PR link in manifest protection section when PR is provided", () => {

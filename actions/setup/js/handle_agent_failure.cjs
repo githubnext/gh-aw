@@ -323,7 +323,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     if (colonIndex !== -1) {
       const type = errorLine.substring(0, colonIndex);
       const error = errorLine.substring(colonIndex + 1);
-      if (error.includes("manifest files")) {
+      if (error.includes("manifest files") || error.includes("protected files")) {
         manifestErrors.push({ type, error });
       } else {
         otherErrors.push({ type, error });
