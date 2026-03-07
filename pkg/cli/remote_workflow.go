@@ -584,6 +584,44 @@ func getParentDir(path string) string {
 	return path[:idx]
 }
 
+// readSourceRepoFromFile reads the 'source' frontmatter field from a local workflow file
+// and returns the "owner/repo" portion (e.g. "github/gh-aw"). Returns "" if the file
+// cannot be read, has no source field, or the field is not in the expected format.
+func readSourceRepoFromFile(path string) string {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil || result.Frontmatter == nil {
+		return ""
+	}
+	sourceRaw, ok := result.Frontmatter["source"]
+	if !ok {
+		return ""
+	}
+	source, ok := sourceRaw.(string)
+	if !ok || source == "" {
+		return ""
+	}
+	// source format: "owner/repo/path/to/file.md@ref" — extract just "owner/repo"
+	slashParts := strings.SplitN(source, "/", 3)
+	if len(slashParts) < 2 {
+		return ""
+	}
+	return slashParts[0] + "/" + slashParts[1]
+}
+
+// sourceRepoLabel returns the source repo string for display in error messages.
+// When the repo string is empty (file has no source field or is not a markdown file),
+// a human-readable placeholder is returned so the error message is not confusing.
+func sourceRepoLabel(repo string) string {
+	if repo == "" {
+		return "(no source field)"
+	}
+	return repo
+}
+
 // extractDispatchWorkflowNames extracts workflow names from the safe-outputs.dispatch-workflow
 // frontmatter field. It handles both array and map forms of the configuration.
 // Workflow names that contain GitHub Actions expression syntax (e.g. "${{") are skipped.
@@ -650,7 +688,9 @@ func extractDispatchWorkflowNames(content string) []string {
 // Workflow names that use GitHub Actions expression syntax (e.g. "${{") are silently skipped
 // because they are dynamic values that cannot be resolved at add-time.
 //
-// Download failures are non-fatal (best-effort); the compiler will report still-missing files.
+// If a target file already exists from a different source (different owner/repo in its
+// 'source:' frontmatter field, or no source field at all), an error is returned.
+// Files from the same source are silently skipped. Download failures are non-fatal.
 func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	if spec.RepoSlug == "" {
 		return nil
@@ -716,15 +756,24 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 			continue
 		}
 
-		// Skip download if the file already exists and force=false
+		// Check whether the target file already exists.
 		fileExists := false
 		if _, statErr := os.Stat(targetPath); statErr == nil {
 			fileExists = true
 			if !force {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatch workflow file already exists, skipping: "+targetPath))
+				// Allow if the existing file comes from the same source repository.
+				existingSourceRepo := readSourceRepoFromFile(targetPath)
+				if existingSourceRepo == spec.RepoSlug {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatch workflow from same source already exists, skipping: "+targetPath))
+					}
+					continue
 				}
-				continue
+				// Different or missing source — this is a conflict.
+				return fmt.Errorf(
+					"dispatch workflow %q already exists at %s (existing source: %q, installing from: %q); remove the file or use --force to overwrite",
+					workflowName, targetPath, sourceRepoLabel(existingSourceRepo), spec.RepoSlug,
+				)
 			}
 		}
 
@@ -735,6 +784,12 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
 			}
 			continue
+		}
+
+		// Embed the source field so future adds can detect same-source conflicts.
+		depSourceString := spec.RepoSlug + "/" + remoteFilePath + "@" + ref
+		if updated, srcErr := addSourceToWorkflow(string(workflowContent), depSourceString); srcErr == nil {
+			workflowContent = []byte(updated)
 		}
 
 		// Create parent directory if needed
@@ -816,6 +871,12 @@ func extractResources(content string) ([]string, error) {
 //
 // GitHub Actions expression syntax (e.g. "${{") is not allowed in resource paths and will
 // cause an error. Download failures for individual files are non-fatal (best-effort).
+//
+// For Markdown resource files: if the target already exists from a different source repository
+// (different 'source:' frontmatter field, or no source field), an error is returned. Files
+// from the same source are silently skipped.
+// For non-Markdown resource files: if the target already exists and force is false, an error
+// is returned regardless of origin (non-markdown files have no source tracking).
 func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	if spec.RepoSlug == "" {
 		return nil
@@ -902,15 +963,31 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 			continue
 		}
 
-		// Skip download if file already exists and force=false
+		// Check whether the target file already exists.
 		fileExists := false
 		if _, statErr := os.Stat(targetPath); statErr == nil {
 			fileExists = true
 			if !force {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resource file already exists, skipping: "+targetPath))
+				isMarkdown := strings.HasSuffix(strings.ToLower(targetPath), ".md")
+				if isMarkdown {
+					// For markdown files, allow same-source overwrites.
+					existingSourceRepo := readSourceRepoFromFile(targetPath)
+					if existingSourceRepo == spec.RepoSlug {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resource file from same source already exists, skipping: "+targetPath))
+						}
+						continue
+					}
+					return fmt.Errorf(
+						"resource %q already exists at %s (existing source: %q, installing from: %q); remove the file or use --force to overwrite",
+						resourcePath, targetPath, sourceRepoLabel(existingSourceRepo), spec.RepoSlug,
+					)
 				}
-				continue
+				// Non-markdown files have no source tracking — always conflict.
+				return fmt.Errorf(
+					"resource %q already exists at %s; remove the file or use --force to overwrite",
+					resourcePath, targetPath,
+				)
 			}
 		}
 
@@ -921,6 +998,14 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource %s: %v", remoteFilePath, err)))
 			}
 			continue
+		}
+
+		// For markdown resources, embed the source field for future conflict detection.
+		if strings.HasSuffix(strings.ToLower(remoteFilePath), ".md") {
+			depSourceString := spec.RepoSlug + "/" + remoteFilePath + "@" + ref
+			if updated, srcErr := addSourceToWorkflow(string(fileContent), depSourceString); srcErr == nil {
+				fileContent = []byte(updated)
+			}
 		}
 
 		// Create parent directory if needed
@@ -968,6 +1053,7 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 // All early returns (empty RepoSlug, invalid slug, parse failure, no dispatch workflows) are
 // intentional no-ops: this function is best-effort and must never block the add workflow flow.
 // Parse failures are logged at debug level so they can be investigated when needed.
+// Source conflicts are reported as warnings (not errors) because the main file is already written.
 func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) {
 	if spec.RepoSlug == "" {
 		return
@@ -1050,14 +1136,23 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 			continue
 		}
 
-		// Skip if the file already exists and force=false
+		// Check whether the target file already exists.
 		fileExists := false
 		if _, statErr := os.Stat(targetPath); statErr == nil {
 			fileExists = true
 			if !force {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatch workflow file already exists, skipping: "+targetPath))
+				existingSourceRepo := readSourceRepoFromFile(targetPath)
+				if existingSourceRepo == spec.RepoSlug {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatch workflow (from import) from same source already exists, skipping: "+targetPath))
+					}
+					continue
 				}
+				// Different or missing source — warn and skip (post-write best-effort).
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+					"Dispatch workflow %q already exists at %s from a different source (existing: %q, needed: %q); use --force to overwrite",
+					workflowName, targetPath, sourceRepoLabel(existingSourceRepo), spec.RepoSlug,
+				)))
 				continue
 			}
 		}
@@ -1069,6 +1164,12 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
 			}
 			continue
+		}
+
+		// Embed the source field for future conflict detection.
+		depSourceString := spec.RepoSlug + "/" + remoteFilePath + "@" + ref
+		if updated, srcErr := addSourceToWorkflow(string(workflowContent), depSourceString); srcErr == nil {
+			workflowContent = []byte(updated)
 		}
 
 		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {

@@ -371,16 +371,12 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
 		// available locally. Workflow names using GitHub Actions expression syntax are skipped.
 		if err := fetchAndSaveRemoteDispatchWorkflows(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow dependencies: %v", err)))
-			}
+			return err
 		}
 		// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
 		// action files that should be present alongside this workflow).
 		if err := fetchAndSaveRemoteResources(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource dependencies: %v", err)))
-			}
+			return err
 		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {
 		// For local workflows, collect and copy include dependencies from local paths

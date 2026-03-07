@@ -1384,3 +1384,326 @@ imports:
 	_, err := os.Stat(macroFile)
 	assert.True(t, os.IsNotExist(err), "macro-valued dispatch workflow must not create a file")
 }
+
+// ---------------------------------------------------------------------------
+// readSourceRepoFromFile
+// ---------------------------------------------------------------------------
+
+func TestSourceRepoLabel_NonEmpty(t *testing.T) {
+	assert.Equal(t, "github/gh-aw", sourceRepoLabel("github/gh-aw"), "non-empty repo should pass through")
+}
+
+func TestSourceRepoLabel_Empty(t *testing.T) {
+	assert.Equal(t, "(no source field)", sourceRepoLabel(""), "empty repo should return placeholder label")
+}
+
+func TestReadSourceRepoFromFile_ValidSource(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "wf.md")
+	content := `---
+source: github/gh-aw/.github/workflows/wf.md@abc123
+---
+# Workflow
+`
+	require.NoError(t, os.WriteFile(f, []byte(content), 0644))
+	assert.Equal(t, "github/gh-aw", readSourceRepoFromFile(f), "should return owner/repo")
+}
+
+func TestReadSourceRepoFromFile_NoSource(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "wf.md")
+	content := "---\non: push\n---\n# No source\n"
+	require.NoError(t, os.WriteFile(f, []byte(content), 0644))
+	assert.Empty(t, readSourceRepoFromFile(f), "should return empty string when no source field")
+}
+
+func TestReadSourceRepoFromFile_MissingFile(t *testing.T) {
+	assert.Empty(t, readSourceRepoFromFile("/nonexistent/file.md"), "should return empty string for missing file")
+}
+
+func TestReadSourceRepoFromFile_ShortSource(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "wf.md")
+	content := "---\nsource: only-one-segment\n---\n# Workflow\n"
+	require.NoError(t, os.WriteFile(f, []byte(content), 0644))
+	assert.Empty(t, readSourceRepoFromFile(f), "should return empty string for malformed source")
+}
+
+// ---------------------------------------------------------------------------
+// fetchAndSaveRemoteDispatchWorkflows — conflict detection
+// ---------------------------------------------------------------------------
+
+// TestFetchDispatchWorkflows_ConflictDifferentSource verifies that an error is returned
+// when a dispatch-workflow target file already exists with a different source repo.
+func TestFetchDispatchWorkflows_ConflictDifferentSource(t *testing.T) {
+	dir := t.TempDir()
+	workflowsDir := dir
+
+	// Pre-existing file from a DIFFERENT source repo
+	existingPath := filepath.Join(dir, "target-workflow.md")
+	existingContent := `---
+source: otherorg/other-repo/.github/workflows/target-workflow.md@v1
+---
+# Target workflow from a different repo
+`
+	require.NoError(t, os.WriteFile(existingPath, []byte(existingContent), 0644))
+
+	// Workflow content that references target-workflow as a dispatch-workflow
+	content := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target-workflow
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, workflowsDir, false, false, nil)
+	require.Error(t, err, "should error when existing file has a different source repo")
+	assert.Contains(t, err.Error(), "target-workflow", "error should name the conflicting file")
+	assert.Contains(t, err.Error(), "otherorg/other-repo", "error should mention existing source")
+	assert.Contains(t, err.Error(), "github/gh-aw", "error should mention the intended source")
+}
+
+// TestFetchDispatchWorkflows_SameSourceSkips verifies that an existing dispatch-workflow
+// file from the SAME source repo is silently skipped without error.
+func TestFetchDispatchWorkflows_SameSourceSkips(t *testing.T) {
+	dir := t.TempDir()
+	workflowsDir := dir
+
+	// Pre-existing file from the SAME source repo
+	existingPath := filepath.Join(dir, "target-workflow.md")
+	existingContent := `---
+source: github/gh-aw/.github/workflows/target-workflow.md@v1
+---
+# Target workflow from the same repo
+`
+	require.NoError(t, os.WriteFile(existingPath, []byte(existingContent), 0644))
+
+	content := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target-workflow
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, workflowsDir, false, false, nil)
+	require.NoError(t, err, "should not error when existing file is from the same source repo")
+
+	// File must not have been modified
+	got, readErr := os.ReadFile(existingPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, existingContent, string(got), "existing same-source file must be left unchanged")
+}
+
+// TestFetchDispatchWorkflows_NoSourceConflict verifies that a file with no source field
+// is treated as a conflict (unknown origin).
+func TestFetchDispatchWorkflows_NoSourceConflict(t *testing.T) {
+	dir := t.TempDir()
+	workflowsDir := dir
+
+	// Pre-existing file with NO source field
+	existingPath := filepath.Join(dir, "target-workflow.md")
+	require.NoError(t, os.WriteFile(existingPath, []byte("# No source field\n"), 0644))
+
+	content := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target-workflow
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, workflowsDir, false, false, nil)
+	require.Error(t, err, "should error when existing file has no source field")
+	assert.Contains(t, err.Error(), "target-workflow", "error should name the conflicting file")
+	assert.Contains(t, err.Error(), "(no source field)", "error should show placeholder for missing source")
+}
+
+// TestFetchDispatchWorkflows_ForceOverwritesConflict verifies that --force bypasses conflict detection.
+func TestFetchDispatchWorkflows_ForceOverwritesConflict(t *testing.T) {
+	dir := t.TempDir()
+
+	// Pre-existing file from a DIFFERENT source — would conflict without force
+	existingPath := filepath.Join(dir, "target-workflow.md")
+	existingContent := `---
+source: otherorg/other-repo/.github/workflows/target-workflow.md@v1
+---
+# From other repo
+`
+	require.NoError(t, os.WriteFile(existingPath, []byte(existingContent), 0644))
+
+	content := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target-workflow
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	// force=true should not error (even though there would normally be a conflict).
+	// Since there is no real network in unit tests, the download will fail; but the
+	// conflict check itself must NOT return an error.
+	// We simply verify the function is able to proceed past the conflict check.
+	// (The download failure is handled with a best-effort continue, so err==nil overall.)
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, dir, false, true, nil)
+	assert.NoError(t, err, "force=true should bypass conflict detection and return nil (download fails silently)")
+}
+
+// ---------------------------------------------------------------------------
+// fetchAndSaveRemoteResources — conflict detection
+// ---------------------------------------------------------------------------
+
+// TestFetchResources_MarkdownConflictDifferentSource verifies that an error is returned
+// when a markdown resource file exists from a different source.
+func TestFetchResources_MarkdownConflictDifferentSource(t *testing.T) {
+	dir := t.TempDir()
+
+	// Pre-existing markdown resource from a DIFFERENT source
+	existingPath := filepath.Join(dir, "helper.md")
+	existingContent := `---
+source: otherorg/other-repo/.github/workflows/helper.md@v1
+---
+# Helper from different repo
+`
+	require.NoError(t, os.WriteFile(existingPath, []byte(existingContent), 0644))
+
+	content := `---
+resources:
+  - helper.md
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAndSaveRemoteResources(content, spec, dir, false, false, nil)
+	require.Error(t, err, "should error when markdown resource exists from a different source")
+	assert.Contains(t, err.Error(), "helper.md", "error should name the conflicting resource")
+}
+
+// TestFetchResources_NonMarkdownConflict verifies that a non-markdown resource that already
+// exists always triggers a conflict error (no source tracking for non-markdown files).
+func TestFetchResources_NonMarkdownConflict(t *testing.T) {
+	dir := t.TempDir()
+
+	// Pre-existing .yml resource (no source tracking)
+	existingPath := filepath.Join(dir, "helper.yml")
+	require.NoError(t, os.WriteFile(existingPath, []byte("name: Helper\n"), 0644))
+
+	content := `---
+resources:
+  - helper.yml
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAndSaveRemoteResources(content, spec, dir, false, false, nil)
+	require.Error(t, err, "should error when non-markdown resource already exists")
+	assert.Contains(t, err.Error(), "helper.yml", "error should name the conflicting resource")
+}
+
+// TestFetchResources_MarkdownSameSourceSkips verifies that an existing markdown resource
+// from the same source repo is silently skipped without error.
+func TestFetchResources_MarkdownSameSourceSkips(t *testing.T) {
+	dir := t.TempDir()
+
+	// Pre-existing markdown resource from the SAME source
+	existingPath := filepath.Join(dir, "helper.md")
+	existingContent := `---
+source: github/gh-aw/.github/workflows/helper.md@main
+---
+# Helper from same repo
+`
+	require.NoError(t, os.WriteFile(existingPath, []byte(existingContent), 0644))
+
+	content := `---
+resources:
+  - helper.md
+---
+# Main
+`
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	err := fetchAndSaveRemoteResources(content, spec, dir, false, false, nil)
+	assert.NoError(t, err, "should not error when markdown resource is from the same source")
+}
+
+// ---------------------------------------------------------------------------
+// fetchAndSaveDispatchWorkflowsFromParsedFile — conflict detection (warning, not error)
+// ---------------------------------------------------------------------------
+
+// TestFetchDispatchWorkflowsFromParsed_ConflictWarnsAndContinues verifies that a conflict
+// in the post-write phase emits a warning but does NOT return an error (best-effort).
+func TestFetchDispatchWorkflowsFromParsed_ConflictWarnsAndContinues(t *testing.T) {
+	workflowsDir := t.TempDir()
+
+	// Main workflow: has dispatch-workflow: [triage-issue]
+	mainPath := filepath.Join(workflowsDir, "main.md")
+	mainContent := `---
+on:
+  issues:
+permissions:
+  issues: write
+  contents: read
+engine: copilot
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - triage-issue
+---
+# Main Workflow
+`
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
+
+	// Pre-existing triage-issue.md from a DIFFERENT source
+	conflictPath := filepath.Join(workflowsDir, "triage-issue.md")
+	conflictContent := `---
+source: otherorg/other-repo/.github/workflows/triage-issue.md@v1
+---
+# Triage from other repo
+`
+	require.NoError(t, os.WriteFile(conflictPath, []byte(conflictContent), 0644))
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	// Must not panic or error — post-write is best-effort.
+	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+
+	// The conflicting file must NOT have been overwritten.
+	got, readErr := os.ReadFile(conflictPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, conflictContent, string(got), "conflict file must not be overwritten in post-write phase")
+}
