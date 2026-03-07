@@ -97,5 +97,23 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("create-pull-request:");
       expect(result).toContain("allow-manifest-files: true");
     });
+
+    it("uses push-to-pull-request-branch key in yaml snippet for push type", () => {
+      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod). Set allow-manifest-files: true in your workflow to allow this.";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("push-to-pull-request-branch:");
+      expect(result).toContain("allow-manifest-files: true");
+      expect(result).not.toContain("create-pull-request:");
+    });
+
+    it("includes both yaml keys when both types have manifest errors", () => {
+      const errors = [
+        "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.",
+        "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod). Set allow-manifest-files: true in your workflow to allow this.",
+      ].join("\n");
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("create-pull-request:");
+      expect(result).toContain("push-to-pull-request-branch:");
+    });
   });
 });

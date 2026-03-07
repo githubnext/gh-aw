@@ -3,6 +3,9 @@
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
  * Parses "diff --git a/<path> b/<path>" headers to determine which files were modified.
+ * Both the a/<path> (original) and b/<path> (new) sides are captured so that renames and copies
+ * are detected even when only the original filename matches a manifest file pattern.
+ * The special sentinel "dev/null" (used for new-file/deleted-file diffs) is ignored.
  *
  * @param {string} patchContent - The git patch content
  * @returns {string[]} Deduplicated list of file basenames changed in the patch
@@ -12,13 +15,17 @@ function extractFilenamesFromPatch(patchContent) {
     return [];
   }
   const fileSet = new Set();
-  const matches = patchContent.matchAll(/^diff --git a\/.+ b\/(.+)$/gm);
+  const matches = patchContent.matchAll(/^diff --git a\/(.+) b\/(.+)$/gm);
   for (const match of matches) {
-    const filePath = match[1];
-    const parts = filePath.split("/");
-    const basename = parts[parts.length - 1];
-    if (basename) {
-      fileSet.add(basename);
+    for (const filePath of [match[1], match[2]]) {
+      // "dev/null" is the sentinel used when a file is created or deleted; skip it
+      if (filePath && filePath !== "dev/null") {
+        const parts = filePath.split("/");
+        const basename = parts[parts.length - 1];
+        if (basename) {
+          fileSet.add(basename);
+        }
+      }
     }
   }
   return Array.from(fileSet);

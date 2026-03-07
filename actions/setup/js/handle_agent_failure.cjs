@@ -343,8 +343,20 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     for (const { type, error } of manifestErrors) {
       context += `- \`${type}\`: ${error}\n`;
     }
+    // Build a dynamic YAML snippet listing only the safe output types that were actually blocked
+    const typeToYamlKey = {
+      create_pull_request: "create-pull-request",
+      push_to_pull_request_branch: "push-to-pull-request-branch",
+    };
+    const blockedTypes = [...new Set(manifestErrors.map(e => e.type))];
+    let yamlSnippet = "```yaml\nsafe-outputs:\n";
+    for (const type of blockedTypes) {
+      const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
+      yamlSnippet += `  ${yamlKey}:\n    allow-manifest-files: true\n`;
+    }
+    yamlSnippet += "```\n";
     context += "\nTo allow manifest file modifications, add `allow-manifest-files: true` to the safe output configuration:\n";
-    context += "```yaml\nsafe-outputs:\n  create-pull-request:\n    allow-manifest-files: true\n```\n";
+    context += yamlSnippet;
   }
 
   // Generic code-push failure section

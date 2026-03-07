@@ -65,6 +65,47 @@ index abc..def 100644
 `;
       expect(extractFilenamesFromPatch(patch)).toEqual(["package.json"]);
     });
+
+    it("should capture both sides of a rename header", () => {
+      // When package.json is renamed, the a/ side is the original manifest filename.
+      // Both sides must be captured so the manifest check catches the rename.
+      const patch = `diff --git a/package.json b/package.json.bak
+similarity index 100%
+rename from package.json
+rename to package.json.bak
+`;
+      const result = extractFilenamesFromPatch(patch);
+      expect(result).toContain("package.json");
+      expect(result).toContain("package.json.bak");
+    });
+
+    it("should ignore dev/null sentinel in new-file diffs", () => {
+      const patch = `diff --git a/dev/null b/src/new-file.js
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/src/new-file.js
+@@ -0,0 +1 @@
++hello
+`;
+      const result = extractFilenamesFromPatch(patch);
+      expect(result).toEqual(["new-file.js"]);
+      expect(result).not.toContain("null");
+    });
+
+    it("should ignore dev/null sentinel in deleted-file diffs", () => {
+      const patch = `diff --git a/src/old-file.js b/dev/null
+deleted file mode 100644
+index abc1234..0000000
+--- a/src/old-file.js
++++ /dev/null
+@@ -1 +0,0 @@
+-hello
+`;
+      const result = extractFilenamesFromPatch(patch);
+      expect(result).toEqual(["old-file.js"]);
+      expect(result).not.toContain("null");
+    });
   });
 
   describe("checkForManifestFiles", () => {
@@ -143,6 +184,18 @@ index abc..def 100644
 `;
       const result = checkForManifestFiles(patch, ["package.json"]);
       expect(result.hasManifestFiles).toBe(false);
+    });
+
+    it("should detect manifest file via the a/ side of a rename header", () => {
+      // package.json is renamed to package.json.bak - the original name must be flagged
+      const patch = `diff --git a/package.json b/package.json.bak
+similarity index 100%
+rename from package.json
+rename to package.json.bak
+`;
+      const result = checkForManifestFiles(patch, ["package.json", "package-lock.json"]);
+      expect(result.hasManifestFiles).toBe(true);
+      expect(result.manifestFilesFound).toContain("package.json");
     });
   });
 });
