@@ -39,11 +39,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var engineValidationLog = logger.New("workflow:engine_validation")
+var engineValidationLog = newValidationLogger("engine")
 
 // validateEngine validates that the given engine ID is supported
 func (c *Compiler) validateEngine(engineID string) error {

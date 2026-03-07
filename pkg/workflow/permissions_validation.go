@@ -9,10 +9,9 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var permissionsValidationLog = logger.New("workflow:permissions_validation")
+var permissionsValidationLog = newValidationLogger("permissions")
 
 //go:embed data/github_toolsets_permissions.json
 var githubToolsetsPermissionsJSON []byte

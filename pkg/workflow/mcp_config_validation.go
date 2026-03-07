@@ -50,11 +50,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var mcpValidationLog = logger.New("workflow:mcp_config_validation")
+var mcpValidationLog = newValidationLogger("mcp_config")
 
 // ValidateMCPConfigs validates all MCP configurations in the tools section using JSON schema
 func ValidateMCPConfigs(tools map[string]any) error {

@@ -31,11 +31,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var concurrencyValidationLog = logger.New("workflow:concurrency_validation")
+var concurrencyValidationLog = newValidationLogger("concurrency")
 
 // validateConcurrencyGroupExpression validates the syntax of a custom concurrency group expression.
 // It checks for common syntactic errors that would cause runtime failures:

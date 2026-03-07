@@ -21,6 +21,14 @@ const CLIExtensionPrefix CommandPrefix = "gh aw"
 //   - Easy refactoring: Can change implementation without affecting API
 //
 // See scratchpad/go-type-patterns.md for detailed guidance on type patterns.
+//
+// # Intentional Method Duplication
+//
+// Several string-based types below define identical String() and IsValid() method bodies.
+// This duplication is intentional: Go does not allow shared method sets for distinct named
+// types, so each type must define its own methods. The bodies are deliberately simple and
+// unlikely to diverge. Code-generation approaches (go:generate) were considered but add
+// more complexity than the duplication itself.
 
 // LineLength represents a line length in characters for expression formatting.
 // This semantic type distinguishes line lengths from arbitrary integers,

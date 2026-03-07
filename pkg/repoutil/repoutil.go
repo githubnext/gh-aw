@@ -22,12 +22,3 @@ func SplitRepoSlug(slug string) (owner, repo string, err error) {
 	log.Printf("Split result: owner=%s, repo=%s", parts[0], parts[1])
 	return parts[0], parts[1], nil
 }
-
-// SanitizeForFilename converts a repository slug (owner/repo) to a filename-safe string.
-// Replaces "/" with "-". Returns "clone-mode" if the slug is empty.
-func SanitizeForFilename(slug string) string {
-	if slug == "" {
-		return "clone-mode"
-	}
-	return strings.ReplaceAll(slug, "/", "-")
-}

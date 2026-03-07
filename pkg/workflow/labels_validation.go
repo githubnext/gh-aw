@@ -3,11 +3,9 @@ package workflow
 import (
 	"fmt"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var labelsValidationLog = logger.New("workflow:labels_validation")
+var labelsValidationLog = newValidationLogger("labels")
 
 // validateLabels validates the labels field in the workflow frontmatter.
 // It checks that:

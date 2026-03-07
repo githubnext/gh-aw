@@ -6,11 +6,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var stepOrderLog = logger.New("workflow:step_order_validation")
+var stepOrderLog = newValidationLogger("step_order")
 
 // StepType represents the type of step being generated
 type StepType int

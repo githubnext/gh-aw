@@ -47,11 +47,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var strictModeValidationLog = logger.New("workflow:strict_mode_validation")
+var strictModeValidationLog = newValidationLogger("strict_mode")
 
 // validateStrictPermissions refuses write permissions in strict mode
 func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {

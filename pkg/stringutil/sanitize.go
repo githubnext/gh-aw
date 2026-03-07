@@ -179,3 +179,17 @@ func SanitizeToolID(toolID string) string {
 
 	return cleaned
 }
+
+// SanitizeForFilename converts a repository slug (owner/repo) to a filename-safe string.
+// Replaces "/" with "-". Returns "clone-mode" if the slug is empty.
+//
+// Examples:
+//
+//	SanitizeForFilename("owner/repo")  // returns "owner-repo"
+//	SanitizeForFilename("")            // returns "clone-mode"
+func SanitizeForFilename(slug string) string {
+	if slug == "" {
+		return "clone-mode"
+	}
+	return strings.ReplaceAll(slug, "/", "-")
+}

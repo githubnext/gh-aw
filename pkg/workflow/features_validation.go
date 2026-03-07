@@ -25,11 +25,9 @@ package workflow
 import (
 	"fmt"
 	"regexp"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var featuresValidationLog = logger.New("workflow:features_validation")
+var featuresValidationLog = newValidationLogger("features")
 
 var shaRegex = regexp.MustCompile("^[0-9a-f]{40}$")
 

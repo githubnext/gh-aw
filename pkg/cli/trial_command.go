@@ -17,8 +17,8 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -503,7 +503,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			workflowResults = append(workflowResults, result)
 
 			// Save individual trial file
-			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
+			sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoForFilename)
 			individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
 			if err := saveTrialResult(individualFilename, result, opts.Verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
@@ -537,7 +537,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		if len(parsedSpecs) > 1 {
 			workflowNames := sliceutil.Map(parsedSpecs, func(spec *WorkflowSpec) string { return spec.WorkflowName })
 			workflowNamesStr := strings.Join(workflowNames, "-")
-			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
+			sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoForFilename)
 			combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 			combinedResult := CombinedTrialResult{
 				WorkflowNames: workflowNames,
@@ -906,7 +906,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	}
 
 	// Copy individual workflow result files
-	sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoSlug)
+	sanitizedTargetRepo := stringutil.SanitizeForFilename(targetRepoSlug)
 	for _, workflowName := range workflowNames {
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))

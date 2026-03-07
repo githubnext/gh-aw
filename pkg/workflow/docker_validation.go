@@ -44,10 +44,9 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var dockerValidationLog = logger.New("workflow:docker_validation")
+var dockerValidationLog = newValidationLogger("docker")
 
 // dockerDaemonCheckTimeout is how long to wait for `docker info` to respond.
 // If the daemon isn't running, this prevents long hangs on every docker command.

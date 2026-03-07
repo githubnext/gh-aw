@@ -49,10 +49,9 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var repositoryFeaturesLog = logger.New("workflow:repository_features_validation")
+var repositoryFeaturesLog = newValidationLogger("repository_features")
 
 // RepositoryFeatures holds cached information about repository capabilities
 type RepositoryFeatures struct {

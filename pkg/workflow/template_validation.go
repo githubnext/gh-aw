@@ -35,11 +35,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
-var templateValidationLog = logger.New("workflow:template_validation")
+var templateValidationLog = newValidationLogger("template")
 
 // Pre-compiled regexes for performance (avoid recompilation in hot paths)
 var (

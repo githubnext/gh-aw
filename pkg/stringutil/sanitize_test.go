@@ -548,3 +548,73 @@ func BenchmarkSanitizeToolID(b *testing.B) {
 		SanitizeToolID(toolID)
 	}
 }
+
+func TestSanitizeForFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		slug     string
+		expected string
+	}{
+		{
+			name:     "normal slug",
+			slug:     "github/gh-aw",
+			expected: "github-gh-aw",
+		},
+		{
+			name:     "empty slug",
+			slug:     "",
+			expected: "clone-mode",
+		},
+		{
+			name:     "slug with multiple slashes",
+			slug:     "owner/repo/extra",
+			expected: "owner-repo-extra",
+		},
+		{
+			name:     "slug with hyphen",
+			slug:     "owner/my-repo",
+			expected: "owner-my-repo",
+		},
+		{
+			name:     "multiple slashes",
+			slug:     "owner/repo/extra",
+			expected: "owner-repo-extra",
+		},
+		{
+			name:     "leading slash",
+			slug:     "/owner/repo",
+			expected: "-owner-repo",
+		},
+		{
+			name:     "trailing slash",
+			slug:     "owner/repo/",
+			expected: "owner-repo-",
+		},
+		{
+			name:     "only slashes",
+			slug:     "///",
+			expected: "---",
+		},
+		{
+			name:     "single character owner and repo",
+			slug:     "a/b",
+			expected: "a-b",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeForFilename(tt.slug)
+			if result != tt.expected {
+				t.Errorf("SanitizeForFilename(%q) = %q; want %q", tt.slug, result, tt.expected)
+			}
+		})
+	}
+}
+
+func BenchmarkSanitizeForFilename(b *testing.B) {
+	slug := "github/gh-aw"
+	for b.Loop() {
+		SanitizeForFilename(slug)
+	}
+}

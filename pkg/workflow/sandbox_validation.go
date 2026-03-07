@@ -14,10 +14,9 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var sandboxValidationLog = logger.New("workflow:sandbox_validation")
+var sandboxValidationLog = newValidationLogger("sandbox")
 
 // validateMountsSyntax validates that mount strings follow the correct syntax
 // Expected format: "source:destination:mode" where mode is either "ro" or "rw"

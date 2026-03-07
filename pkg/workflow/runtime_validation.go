@@ -46,10 +46,9 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var runtimeValidationLog = logger.New("workflow:runtime_validation")
+var runtimeValidationLog = newValidationLogger("runtime")
 
 // validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
