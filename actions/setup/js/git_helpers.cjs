@@ -7,11 +7,18 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 /**
  * Safely execute git command using spawnSync with args array to prevent shell injection
  * @param {string[]} args - Git command arguments
- * @param {Object} options - Spawn options
+ * @param {Object} options - Spawn options; set suppressLogs: true to avoid core.error annotations for expected failures
  * @returns {string} Command output
  * @throws {Error} If command fails
  */
 function execGitSync(args, options = {}) {
+  // Extract suppressLogs before spreading into spawnSync options.
+  // suppressLogs is a custom control flag (not a valid spawnSync option) that
+  // routes failure details to core.debug instead of core.error, preventing
+  // spurious GitHub Actions error annotations for expected failures (e.g., when
+  // a branch does not yet exist).
+  const { suppressLogs = false, ...spawnOptions } = options;
+
   // Log the git command being executed for debugging (but redact credentials)
   const gitCommand = `git ${args
     .map(arg => {
@@ -29,11 +36,11 @@ function execGitSync(args, options = {}) {
 
   const result = spawnSync("git", args, {
     encoding: "utf8",
-    ...options,
+    ...spawnOptions,
   });
 
   if (result.error) {
-    if (typeof core !== "undefined" && core.error) {
+    if (!suppressLogs && typeof core !== "undefined" && core.error) {
       core.error(`Git command failed with error: ${result.error.message}`);
     }
     throw result.error;
@@ -41,11 +48,21 @@ function execGitSync(args, options = {}) {
 
   if (result.status !== 0) {
     const errorMsg = `${ERR_SYSTEM}: ${result.stderr || `Git command failed with status ${result.status}`}`;
-    if (typeof core !== "undefined" && core.error) {
-      core.error(`Git command failed: ${gitCommand}`);
-      core.error(`Exit status: ${result.status}`);
-      if (result.stderr) {
-        core.error(`Stderr: ${result.stderr}`);
+    if (typeof core !== "undefined") {
+      if (suppressLogs) {
+        if (core.debug) {
+          core.debug(`Git command failed (expected): ${gitCommand}`);
+          core.debug(`Exit status: ${result.status}`);
+          if (result.stderr) {
+            core.debug(`Stderr: ${result.stderr}`);
+          }
+        }
+      } else if (core.error) {
+        core.error(`Git command failed: ${gitCommand}`);
+        core.error(`Exit status: ${result.status}`);
+        if (result.stderr) {
+          core.error(`Stderr: ${result.stderr}`);
+        }
       }
     }
     throw new Error(errorMsg);
