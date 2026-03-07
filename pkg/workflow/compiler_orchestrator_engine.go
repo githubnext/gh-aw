@@ -53,20 +53,8 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// This ensures that strict mode from one workflow doesn't affect other workflows
 	initialStrictMode := c.strictMode
 
-	// Check strict mode in frontmatter
-	// Priority: CLI flag > frontmatter > schema default (true)
-	if !c.strictMode {
-		// CLI flag not set, check frontmatter
-		if strictValue, exists := result.Frontmatter["strict"]; exists {
-			// Frontmatter explicitly sets strict mode
-			if strictBool, ok := strictValue.(bool); ok {
-				c.strictMode = strictBool
-			}
-		} else {
-			// Neither CLI nor frontmatter set - use schema default (true)
-			c.strictMode = true
-		}
-	}
+	// Resolve effective strict mode: CLI flag > frontmatter > schema default (true)
+	c.strictMode = c.effectiveStrictMode(result.Frontmatter)
 
 	// Perform strict mode validations
 	orchestratorEngineLog.Printf("Performing strict mode validation (strict=%v)", c.strictMode)
@@ -241,18 +229,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Re-evaluate strict mode for firewall and network validation
 	// (it was restored after validateStrictMode but we need it again)
 	initialStrictModeForFirewall := c.strictMode
-	if !c.strictMode {
-		// CLI flag not set, check frontmatter
-		if strictValue, exists := result.Frontmatter["strict"]; exists {
-			// Frontmatter explicitly sets strict mode
-			if strictBool, ok := strictValue.(bool); ok {
-				c.strictMode = strictBool
-			}
-		} else {
-			// Neither CLI nor frontmatter set - use schema default (true)
-			c.strictMode = true
-		}
-	}
+	c.strictMode = c.effectiveStrictMode(result.Frontmatter)
 
 	// Validate firewall is enabled in strict mode for copilot with network restrictions
 	orchestratorEngineLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
