@@ -26,4 +26,4 @@ git am --3way /tmp/agent-artifacts-{run_id}/{patch_file_name}
 git push origin {branch_name}
 ```
 
-To get changes like this applied directly to the pull request branch in future, use `manifest-files: fallback-to-issue` in your workflow configuration and apply the patch manually when protection triggers.
+To prevent agentic workflows proposing any changes like this in future, use `manifest-files: false` in your workflow configuration.
