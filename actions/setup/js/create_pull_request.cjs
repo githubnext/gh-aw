@@ -24,6 +24,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkForManifestFiles, checkForProtectedPaths } = require("./manifest_file_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -426,10 +427,10 @@ async function main(config = {}) {
     /** @type {{ manifestFilesFound: string[], protectedPathsFound: string[] } | null} */
     let manifestProtectionFallback = null;
     if (!isEmpty) {
-      const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
-      const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      // manifest_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
-      const policy = config.manifest_files_policy;
+      const manifestFiles = Array.isArray(config["manifest-files"]) ? config["manifest-files"] : [];
+      const protectedPathPrefixes = Array.isArray(config["protected-path-prefixes"]) ? config["protected-path-prefixes"] : [];
+      // manifest-files-policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
+      const policy = config["manifest-files-policy"];
       const isAllowed = policy === "allowed";
       const isFallback = policy === "fallback-to-issue";
       if (!isAllowed) {
@@ -936,17 +937,13 @@ ${patchPreview}`;
       const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
       const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
 
-      const fallbackBody =
-        `${body}\n\n---\n\n` +
-        `> [!WARNING]\n` +
-        `> 🛡️ **Manifest File Protection Triggered**\n` +
-        `>\n` +
-        `> This was originally intended as a pull request, but the patch modifies protected files: \`${allFound.join("`, `")}\`.\n` +
-        `>\n` +
-        `> These files may affect project dependencies, CI/CD pipelines, or agent behaviour. **Please review the changes carefully** before creating the pull request.\n` +
-        `>\n` +
-        `> **[Click here to create the pull request once you have reviewed the changes](${createPrUrl})**\n\n` +
-        `To get changes like this applied directly as a pull request in future, use \`manifest-files: fallback-to-issue\` in your workflow configuration and review + create the PR manually when protection triggers.`;
+      const templatePath = "/opt/gh-aw/prompts/manifest_protection_create_pr_fallback.md";
+      const template = fs.readFileSync(templatePath, "utf8");
+      const fallbackBody = renderTemplate(template, {
+        body,
+        files: allFound.map(f => `\`${f}\``).join(", "),
+        create_pr_url: createPrUrl,
+      });
 
       try {
         const { data: issue } = await githubClient.rest.issues.create({

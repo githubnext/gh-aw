@@ -13,6 +13,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkForManifestFiles, checkForProtectedPaths } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -146,10 +147,10 @@ async function main(config = {}) {
     /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
     let protectedFilesForFallback = null;
     if (!isEmpty) {
-      const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
-      const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      // manifest_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
-      const policy = config.manifest_files_policy;
+      const manifestFiles = Array.isArray(config["manifest-files"]) ? config["manifest-files"] : [];
+      const protectedPathPrefixes = Array.isArray(config["protected-path-prefixes"]) ? config["protected-path-prefixes"] : [];
+      // manifest-files-policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
+      const policy = config["manifest-files-policy"];
       const isAllowed = policy === "allowed";
       const isFallback = policy === "fallback-to-issue";
       if (!isAllowed) {
@@ -339,29 +340,17 @@ async function main(config = {}) {
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
       const issueTitle = `[gh-aw] Manifest File Protection: ${prTitle || `PR #${pullNumber}`}`;
-      const issueBody =
-        `> [!WARNING]\n` +
-        `> 🛡️ **Manifest File Protection Triggered**\n` +
-        `>\n` +
-        `> The push to pull request branch was blocked because the patch modifies protected files: \`${protectedFilesForFallback.join("`, `")}\`.\n` +
-        `>\n` +
-        `> **Target Pull Request:** [#${pullNumber}](${prUrl})\n` +
-        `>\n` +
-        `> **Please review the changes carefully** before pushing them to the pull request branch. These files may affect project dependencies, CI/CD pipelines, or agent behaviour.\n\n` +
-        `---\n\n` +
-        `The patch is available in the workflow run artifacts:\n\n` +
-        `**Workflow Run:** [View run details and download patch artifact](${runUrl})\n\n` +
-        `To apply the patch after review:\n\n` +
-        `\`\`\`sh\n` +
-        `# Download the artifact from the workflow run\n` +
-        `gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}\n\n` +
-        `# Apply the patch to the pull request branch\n` +
-        `git fetch origin ${branchName}\n` +
-        `git checkout ${branchName}\n` +
-        `git am --3way /tmp/agent-artifacts-${runId}/${patchFileName}\n` +
-        `git push origin ${branchName}\n` +
-        `\`\`\`\n\n` +
-        `To get changes like this applied directly to the pull request branch in future, use \`manifest-files: fallback-to-issue\` in your workflow configuration and apply the patch manually when protection triggers.`;
+      const templatePath = "/opt/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md";
+      const template = fs.readFileSync(templatePath, "utf8");
+      const issueBody = renderTemplate(template, {
+        files: protectedFilesForFallback.map(f => `\`${f}\``).join(", "),
+        pull_number: pullNumber,
+        pr_url: prUrl,
+        run_url: runUrl,
+        run_id: runId,
+        branch_name: branchName,
+        patch_file_name: patchFileName,
+      });
 
       try {
         const { data: issue } = await githubClient.rest.issues.create({
