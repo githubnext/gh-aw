@@ -777,11 +777,44 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 			}
 		}
 
-		// Download from the source repository
+		// Download from the source repository — try .md first, then .yml as fallback
+		// (the dispatch-workflow validator accepts either .md or .yml files locally).
 		workflowContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
 		if err != nil {
+			// .md not found — try .yml fallback (e.g. plain GitHub Actions workflow)
+			ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
+			ymlLocalPath := filepath.Join(targetDir, filepath.Clean(workflowName+".yml"))
+
+			ymlContent, ymlErr := parser.DownloadFileFromGitHub(owner, repo, ymlRemotePath, ref)
+			if ymlErr != nil {
+				// Neither .md nor .yml found — best-effort, continue
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
+				}
+				continue
+			}
+			// .yml fallback succeeded — write it (no source field for yml)
+			if mkErr := os.MkdirAll(filepath.Dir(ymlLocalPath), 0755); mkErr != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for dispatch workflow %s: %v", ymlRemotePath, mkErr)))
+				}
+				continue
+			}
+			if writeErr := os.WriteFile(ymlLocalPath, ymlContent, 0600); writeErr != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", ymlRemotePath, writeErr)))
+				}
+				continue
+			}
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow (.yml): "+ymlLocalPath))
+			}
+			if tracker != nil {
+				if _, statErr := os.Stat(ymlLocalPath); statErr == nil {
+					tracker.TrackModified(ymlLocalPath)
+				} else {
+					tracker.TrackCreated(ymlLocalPath)
+				}
 			}
 			continue
 		}
@@ -1157,11 +1190,41 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 			}
 		}
 
-		// Download from source repository
+		// Download from source repository — try .md first, then .yml as fallback
 		workflowContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
 		if err != nil {
+			// .md not found — try .yml fallback
+			ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
+			ymlLocalPath := filepath.Join(targetDir, filepath.Clean(workflowName+".yml"))
+
+			ymlContent, ymlErr := parser.DownloadFileFromGitHub(owner, repo, ymlRemotePath, ref)
+			if ymlErr != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
+				}
+				continue
+			}
+			if mkErr := os.MkdirAll(filepath.Dir(ymlLocalPath), 0755); mkErr != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for dispatch workflow %s: %v", ymlRemotePath, mkErr)))
+				}
+				continue
+			}
+			if writeErr := os.WriteFile(ymlLocalPath, ymlContent, 0600); writeErr != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", ymlRemotePath, writeErr)))
+				}
+				continue
+			}
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow %s: %v", remoteFilePath, err)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow (.yml, from import): "+ymlLocalPath))
+			}
+			if tracker != nil {
+				if _, statErr := os.Stat(ymlLocalPath); statErr == nil {
+					tracker.TrackModified(ymlLocalPath)
+				} else {
+					tracker.TrackCreated(ymlLocalPath)
+				}
 			}
 			continue
 		}

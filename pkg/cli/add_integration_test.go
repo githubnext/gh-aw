@@ -954,15 +954,15 @@ func TestAddWorkflowWithDispatchWorkflowDependency(t *testing.T) {
 }
 
 // TestAddWorkflowWithDispatchWorkflowFromSharedImport tests that dispatch-workflow
-// configuration is preserved correctly through compilation when `gh aw add` is used.
+// configuration is fetched and preserved correctly when `gh aw add` is used.
 // This exercises the post-write parse path (fetchAndSaveDispatchWorkflowsFromParsedFile)
 // that re-parses the written workflow file to discover any remaining dependencies.
 //
 // smoke-copilot.md has `safe-outputs.dispatch-workflow: [haiku-printer]` in its own
-// frontmatter. haiku-printer is a plain GitHub Actions workflow (.yml), not an agentic
-// workflow (.md), so the dispatch-workflow fetch is a no-op for it. The test verifies
-// that the overall add command still succeeds and the dispatch-workflow configuration
-// is correctly preserved in the compiled lock file.
+// frontmatter. haiku-printer exists as a plain GitHub Actions workflow (.yml), not an
+// agentic workflow (.md). The dispatch-workflow fetcher first tries haiku-printer.md
+// (404), then falls back to haiku-printer.yml which succeeds. The test verifies that
+// the overall add command succeeds and the compiled lock file references haiku-printer.
 // This test requires GitHub authentication.
 func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	// Skip if GitHub authentication is not available
@@ -975,10 +975,9 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	defer setup.cleanup()
 
 	// smoke-copilot.md has `safe-outputs.dispatch-workflow: [haiku-printer]` in its own
-	// frontmatter, making it a reliable test case for the dispatch-workflow code path.
-	// haiku-printer is a plain GitHub Actions workflow (.yml), not an agentic workflow
-	// (.md), so dispatch-workflow fetching (which only fetches .md files) is a best-effort
-	// no-op for it. This verifies the add command still succeeds in this scenario.
+	// frontmatter. haiku-printer lives as haiku-printer.yml (a plain GitHub Actions
+	// workflow). The fetcher falls back to .yml when .md is 404, so both the main
+	// workflow and the dispatch-workflow dependency are written to disk.
 	workflowSpec := "github/gh-aw/.github/workflows/smoke-copilot.md@main"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
@@ -997,12 +996,12 @@ func TestAddWorkflowWithDispatchWorkflowFromSharedImport(t *testing.T) {
 	_, err = os.Stat(mainFile)
 	require.NoError(t, err, "main workflow smoke-copilot.md should exist at %s", mainFile)
 
-	// 2. Verify the dispatch-workflow fetch path ran without crashing.
-	// smoke-copilot.md dispatches to haiku-printer which lives as haiku-printer.yml
-	// (a plain GitHub Actions workflow, not an agentic .md file). The dispatch-workflow
-	// fetch only attempts to retrieve .md files, so haiku-printer is intentionally NOT
-	// fetched — but the add command must still succeed (best-effort behaviour).
-	// Verify compilation succeeded (the lock file was created).
+	// 2. haiku-printer.yml should have been fetched via the .yml fallback path.
+	haikuFile := filepath.Join(workflowsDir, "haiku-printer.yml")
+	_, err = os.Stat(haikuFile)
+	require.NoError(t, err, "dispatch-workflow dependency haiku-printer.yml should be fetched")
+
+	// 3. Verify compilation succeeded (the lock file was created).
 	mainLock := filepath.Join(workflowsDir, "smoke-copilot.lock.yml")
 	_, err = os.Stat(mainLock)
 	require.NoError(t, err, "compiled lock file smoke-copilot.lock.yml should exist")
