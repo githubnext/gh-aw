@@ -43,7 +43,7 @@ describe("handle_agent_failure", () => {
     it("shows protected file protection section for protected file errors", () => {
       const errors = "create_pull_request:Cannot create pull request: patch modifies protected files (package.json). Set manifest-files: fallback-to-issue to create a review issue instead.";
       const result = buildCodePushFailureContext(errors);
-      expect(result).toContain("🛡️ Protected File Protection Triggered");
+      expect(result).toContain("🛡️ Protected Files");
       expect(result).toContain("package.json");
       expect(result).toContain("protected-files: fallback-to-issue");
       // Should NOT contain generic "Code Push Failed" for pure manifest errors
@@ -54,14 +54,14 @@ describe("handle_agent_failure", () => {
       // Old error message format – must still be detected
       const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.";
       const result = buildCodePushFailureContext(errors);
-      expect(result).toContain("🛡️ Protected File Protection Triggered");
+      expect(result).toContain("🛡️ Protected Files");
       expect(result).not.toContain("Code Push Failed");
     });
 
     it("shows protected file protection section for push_to_pull_request_branch errors", () => {
       const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies protected files (go.mod, go.sum). Set manifest-files: fallback-to-issue to create a review issue.";
       const result = buildCodePushFailureContext(errors);
-      expect(result).toContain("🛡️ Protected File Protection Triggered");
+      expect(result).toContain("🛡️ Protected Files");
       expect(result).toContain("go.mod");
       expect(result).toContain("`push_to_pull_request_branch`");
       expect(result).not.toContain("Code Push Failed");
@@ -70,7 +70,7 @@ describe("handle_agent_failure", () => {
     it("shows protected file protection for .github/ protected path errors", () => {
       const errors = "create_pull_request:Cannot create pull request: patch modifies protected files (.github/workflows/ci.yml). Set manifest-files: fallback-to-issue to create a review issue.";
       const result = buildCodePushFailureContext(errors);
-      expect(result).toContain("🛡️ Protected File Protection Triggered");
+      expect(result).toContain("🛡️ Protected Files");
       expect(result).toContain(".github/workflows/ci.yml");
     });
 
@@ -78,7 +78,7 @@ describe("handle_agent_failure", () => {
       const errors = "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set allow-manifest-files: true in your workflow to allow this.";
       const pullRequest = { number: 42, html_url: "https://github.com/owner/repo/pull/42" };
       const result = buildCodePushFailureContext(errors, pullRequest);
-      expect(result).toContain("🛡️ Protected File Protection Triggered");
+      expect(result).toContain("🛡️ Protected Files");
       expect(result).toContain("#42");
       expect(result).toContain("https://github.com/owner/repo/pull/42");
       // PR state diagnostics should NOT appear for protected-file-only failures
@@ -90,7 +90,7 @@ describe("handle_agent_failure", () => {
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("Code Push Failed");
       expect(result).toContain("Branch not found");
-      expect(result).not.toContain("Protected File Protection");
+      expect(result).not.toContain("Protected Files");
     });
 
     it("shows both sections when protected file and non-protected-file errors are mixed", () => {
@@ -99,7 +99,7 @@ describe("handle_agent_failure", () => {
         "push_to_pull_request_branch:Branch not found",
       ].join("\n");
       const result = buildCodePushFailureContext(errors);
-      expect(result).toContain("🛡️ Protected File Protection Triggered");
+      expect(result).toContain("🛡️ Protected Files");
       expect(result).toContain("Code Push Failed");
       expect(result).toContain("package.json");
       expect(result).toContain("Branch not found");

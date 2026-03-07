@@ -3,7 +3,7 @@
 ---
 
 > [!WARNING]
-> 🛡️ **Protected File Protection Triggered**
+> 🛡️ **Protected Files**
 >
 > This was originally intended as a pull request, but the patch modifies protected files: {files}.
 >

@@ -1,5 +1,5 @@
 > [!WARNING]
-> 🛡️ **Protected File Protection Triggered**
+> 🛡️ **Protected Files**
 >
 > The push to pull request branch was blocked because the patch modifies protected files: {files}.
 >

@@ -677,7 +677,7 @@ Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 ### Pull Request Creation (`create-pull-request:`)
 
-Creates PRs with code changes. Includes configurable [Protected File Protection](/gh-aw/reference/safe-outputs-pull-requests/#protected-file-protection) against supply chain attacks.
+Creates PRs with code changes. Includes configurable [Protected Files](/gh-aw/reference/safe-outputs-pull-requests/#protected-files) against supply chain attacks.
 
 See the full reference: [Safe Outputs (Pull Requests) — create-pull-request](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request)
 
@@ -811,7 +811,7 @@ safe-outputs:
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Includes configurable [Protected File Protection](/gh-aw/reference/safe-outputs-pull-requests/#protected-file-protection) against supply chain attacks.
+Pushes changes to a PR's branch. Includes configurable [Protected Files](/gh-aw/reference/safe-outputs-pull-requests/#protected-files) against supply chain attacks.
 
 See the full reference: [Safe Outputs (Pull Requests) — push-to-pull-request-branch](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch)
 

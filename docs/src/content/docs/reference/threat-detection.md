@@ -290,7 +290,7 @@ Reasons:
 
 If the detection process itself fails (e.g., network issues, tool errors), the workflow stops and safe outputs are not applied. This fail-safe approach prevents potentially malicious content from being processed.
 
-## Supply Chain Protection (Protected File Protection)
+## Supply Chain Protection (Protected Files)
 
 Beyond AI-powered threat detection, GitHub Agentic Workflows includes a static, rule-based protection layer that guards against **supply chain attacks** — cases where an AI agent could (intentionally or accidentally) modify files that control how software is built, tested, or deployed.
 
@@ -311,7 +311,7 @@ Cannot create pull request: patch modifies protected files (package.json).
 Set protected-files: fallback-to-issue to create a review issue instead.
 ```
 
-This error is also surfaced as a **🛡️ Protected File Protection Triggered** section in the agent failure issue or comment created by the conclusion job.
+This error is also surfaced as a **🛡️ Protected Files** section in the agent failure issue or comment created by the conclusion job.
 
 ### Policy Options
 
