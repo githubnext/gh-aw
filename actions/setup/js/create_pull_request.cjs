@@ -420,9 +420,9 @@ async function main(config = {}) {
 
     // Check for manifest file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
     // By default, manifest file modifications are refused to prevent supply chain attacks.
-    // Set manifest-files: allowed to allow all changes.
     // Set manifest-files: fallback-to-issue to push the branch but create a review issue
     // instead of a pull request, so a human can carefully review the manifest changes first.
+    // Set manifest-files: allowed only when the workflow is explicitly designed to manage these files.
     /** @type {{ manifestFilesFound: string[], protectedPathsFound: string[] } | null} */
     let manifestProtectionFallback = null;
     if (!isEmpty) {
@@ -442,7 +442,7 @@ async function main(config = {}) {
             manifestProtectionFallback = { manifestFilesFound, protectedPathsFound };
             core.warning(`Manifest file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pull request.`);
           } else {
-            const message = `Cannot create pull request: patch modifies protected files (${allFound.join(", ")}). Set manifest-files: allowed in your workflow to allow this, or manifest-files: fallback-to-issue to create a review issue instead.`;
+            const message = `Cannot create pull request: patch modifies protected files (${allFound.join(", ")}). Set manifest-files: fallback-to-issue to create a review issue instead.`;
             core.error(message);
             return { success: false, error: message };
           }
@@ -946,7 +946,7 @@ ${patchPreview}`;
         `> These files may affect project dependencies, CI/CD pipelines, or agent behaviour. **Please review the changes carefully** before creating the pull request.\n` +
         `>\n` +
         `> **[Click here to create the pull request once you have reviewed the changes](${createPrUrl})**\n\n` +
-        `To allow the agent to create this as a pull request directly in future runs, add \`manifest-files: allowed\` to your workflow configuration.`;
+        `To get changes like this applied directly as a pull request in future, use \`manifest-files: fallback-to-issue\` in your workflow configuration and review + create the PR manually when protection triggers.`;
 
       try {
         const { data: issue } = await githubClient.rest.issues.create({

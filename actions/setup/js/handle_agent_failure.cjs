@@ -352,10 +352,10 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     let yamlSnippet = "```yaml\nsafe-outputs:\n";
     for (const type of blockedTypes) {
       const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
-      yamlSnippet += `  ${yamlKey}:\n    manifest-files: allowed\n`;
+      yamlSnippet += `  ${yamlKey}:\n    manifest-files: fallback-to-issue\n`;
     }
     yamlSnippet += "```\n";
-    context += "\nTo allow manifest file modifications, add `manifest-files: allowed` to the safe output configuration:\n";
+    context += "\nTo review and apply these changes manually, configure `manifest-files: fallback-to-issue` — the agent will create a review issue with instructions instead of blocking:\n";
     context += yamlSnippet;
   }
 

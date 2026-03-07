@@ -47,29 +47,6 @@ func getEffectiveFooterString(localFooter *string, globalFooter *bool) *string {
 	return nil
 }
 
-// manifestFilesPolicyOrNil returns the effective manifest-files policy string.
-// It prefers ManifestFilesPolicy (new field); if that is nil it falls back to
-// AllowManifestFiles (deprecated field) and migrates the value on the fly.
-// Returns nil when neither field is set (runtime default: "blocked").
-func manifestFilesPolicyOrNil(newPolicy *string, legacyAllow *string) *string {
-	if newPolicy != nil {
-		return newPolicy
-	}
-	if legacyAllow != nil {
-		var migrated string
-		switch *legacyAllow {
-		case "true":
-			migrated = "allowed"
-		case "fallback-as-issue", "fallback-to-issue":
-			migrated = "fallback-to-issue"
-		default:
-			migrated = "blocked"
-		}
-		return &migrated
-	}
-	return nil
-}
-
 // handlerConfigBuilder provides a fluent API for building handler configurations
 type handlerConfigBuilder struct {
 	config map[string]any
@@ -504,7 +481,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
-			AddStringPtr("manifest_files_policy", manifestFilesPolicyOrNil(c.ManifestFilesPolicy, c.AllowManifestFiles)).
+			AddStringPtr("manifest_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("manifest_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes())
 		return builder.Build()
@@ -530,7 +507,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
-			AddStringPtr("manifest_files_policy", manifestFilesPolicyOrNil(c.ManifestFilesPolicy, c.AllowManifestFiles)).
+			AddStringPtr("manifest_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("manifest_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			Build()

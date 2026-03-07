@@ -41,12 +41,11 @@ describe("handle_agent_failure", () => {
     });
 
     it("shows manifest file protection section for manifest errors", () => {
-      const errors =
-        "create_pull_request:Cannot create pull request: patch modifies protected files (package.json). Set manifest-files: allowed in your workflow to allow this, or manifest-files: fallback-to-issue to create a review issue instead.";
+      const errors = "create_pull_request:Cannot create pull request: patch modifies protected files (package.json). Set manifest-files: fallback-to-issue to create a review issue instead.";
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("🛡️ Manifest File Protection Triggered");
       expect(result).toContain("package.json");
-      expect(result).toContain("manifest-files: allowed");
+      expect(result).toContain("manifest-files: fallback-to-issue");
       // Should NOT contain generic "Code Push Failed" for pure manifest errors
       expect(result).not.toContain("Code Push Failed");
     });
@@ -60,7 +59,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("shows manifest protection section for push_to_pull_request_branch manifest errors", () => {
-      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies protected files (go.mod, go.sum). Set manifest-files: allowed to allow this.";
+      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies protected files (go.mod, go.sum). Set manifest-files: fallback-to-issue to create a review issue.";
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("🛡️ Manifest File Protection Triggered");
       expect(result).toContain("go.mod");
@@ -69,7 +68,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("shows manifest protection for .github/ protected path errors", () => {
-      const errors = "create_pull_request:Cannot create pull request: patch modifies protected files (.github/workflows/ci.yml). Set manifest-files: allowed to allow this.";
+      const errors = "create_pull_request:Cannot create pull request: patch modifies protected files (.github/workflows/ci.yml). Set manifest-files: fallback-to-issue to create a review issue.";
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("🛡️ Manifest File Protection Triggered");
       expect(result).toContain(".github/workflows/ci.yml");
@@ -111,21 +110,21 @@ describe("handle_agent_failure", () => {
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("```yaml");
       expect(result).toContain("create-pull-request:");
-      expect(result).toContain("manifest-files: allowed");
+      expect(result).toContain("manifest-files: fallback-to-issue");
     });
 
     it("uses push-to-pull-request-branch key in yaml snippet for push type", () => {
-      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod). Set manifest-files: allowed in your workflow to allow this.";
+      const errors = "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod). Set manifest-files: fallback-to-issue in your workflow to allow this.";
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("push-to-pull-request-branch:");
-      expect(result).toContain("manifest-files: allowed");
+      expect(result).toContain("manifest-files: fallback-to-issue");
       expect(result).not.toContain("create-pull-request:");
     });
 
     it("includes both yaml keys when both types have manifest errors", () => {
       const errors = [
-        "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set manifest-files: allowed in your workflow to allow this.",
-        "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod). Set manifest-files: allowed in your workflow to allow this.",
+        "create_pull_request:Cannot create pull request: patch modifies package manifest files (package.json). Set manifest-files: fallback-to-issue in your workflow to allow this.",
+        "push_to_pull_request_branch:Cannot push to pull request branch: patch modifies package manifest files (go.mod). Set manifest-files: fallback-to-issue in your workflow to allow this.",
       ].join("\n");
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("create-pull-request:");

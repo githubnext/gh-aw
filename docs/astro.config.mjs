@@ -317,6 +317,7 @@ export default defineConfig({
 						{ label: 'Safe Inputs', link: '/reference/safe-inputs/' },
 						{ label: 'Safe Inputs (Spec)', link: '/reference/safe-inputs-specification/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
+						{ label: 'Safe Outputs (Pull Requests)', link: '/reference/safe-outputs-pull-requests/' },
 						{ label: 'Safe Outputs (Spec)', link: '/reference/safe-outputs-specification/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
 						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },

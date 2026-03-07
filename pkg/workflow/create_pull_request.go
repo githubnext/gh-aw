@@ -32,7 +32,6 @@ type CreatePullRequestsConfig struct {
 	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
-	AllowManifestFiles             *string  `yaml:"allow-manifest-files,omitempty"`                // Deprecated: use manifest-files instead.
 	ManifestFilesPolicy            *string  `yaml:"manifest-files,omitempty"`                      // Controls manifest-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" pushes the branch but creates a review issue.
 }
 
@@ -85,32 +84,8 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	// Pre-process manifest-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
-	// Also accept the legacy allow-manifest-files field (bool or "fallback-as-issue") and migrate it.
 	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
 	if configData != nil {
-		// Migrate legacy allow-manifest-files → manifest-files if not already set
-		if _, newSet := configData["manifest-files"]; !newSet {
-			if legacy, ok := configData["allow-manifest-files"]; ok {
-				switch v := legacy.(type) {
-				case bool:
-					if v {
-						configData["manifest-files"] = "allowed"
-					} else {
-						configData["manifest-files"] = "blocked"
-					}
-				case string:
-					switch v {
-					case "true":
-						configData["manifest-files"] = "allowed"
-					case "fallback-as-issue", "fallback-to-issue":
-						configData["manifest-files"] = "fallback-to-issue"
-					default:
-						configData["manifest-files"] = "blocked"
-					}
-				}
-				createPRLog.Printf("Migrated legacy allow-manifest-files value to manifest-files: %v → %v", legacy, configData["manifest-files"])
-			}
-		}
 		validateStringEnumField(configData, "manifest-files", manifestFilesEnums, createPRLog)
 	}
 

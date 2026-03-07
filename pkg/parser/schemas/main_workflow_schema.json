@@ -5264,10 +5264,6 @@
                   "type": "string",
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
                 },
-                "allow-manifest-files": {
-                  "description": "Deprecated. Use manifest-files instead.",
-                  "oneOf": [{ "type": "boolean" }, { "type": "string" }]
-                },
                 "manifest-files": {
                   "type": "string",
                   "enum": ["blocked", "allowed", "fallback-to-issue"],
@@ -6301,10 +6297,6 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
-                },
-                "allow-manifest-files": {
-                  "description": "Deprecated. Use manifest-files instead.",
-                  "oneOf": [{ "type": "boolean" }, { "type": "string" }]
                 },
                 "manifest-files": {
                   "type": "string",

@@ -32,13 +32,13 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Pull Requests
 
-- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
+- [**Create PR**](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
 - [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
 - [**Close PR**](#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
 - [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
 - [**Reply to PR Review Comment**](#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
 - [**Resolve PR Review Thread**](#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
-- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
+- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
 
 ### Labels, Assignments & Reviews
 
@@ -677,74 +677,20 @@ Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 ### Pull Request Creation (`create-pull-request:`)
 
-Creates PRs with code changes. By default, falls back to creating an issue if PR creation fails (e.g., org settings block it). Set `fallback-as-issue: false` to disable this fallback and avoid requiring `issues: write` permission. `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).
+Creates PRs with code changes. Includes configurable [Manifest File Protection](/gh-aw/reference/safe-outputs-pull-requests/#manifest-file-protection) against supply chain attacks.
 
-Multiple PRs per run are supported by setting `max` higher than 1. Each PR is created from its own branch with an independent patch, so concurrent calls do not conflict.
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[ai] "         # prefix for titles
-    labels: [automation]          # labels to attach
-    reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
-    draft: true                   # create as draft (default: true)
-    max: 3                        # max PRs per run (default: 1)
-    expires: 14                   # auto-close after 14 days (same-repo only)
-    if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
-    target-repo: "owner/repo"     # cross-repository
-    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
-    fallback-as-issue: false      # disable issue fallback (default: true)
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
-    manifest-files: allowed    # allow manifest file modifications (default: false)
-    # manifest-files: fallback-to-issue  # push branch, create review issue instead of PR
-```
-
-The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
-
-**Example use case:** A workflow in `org/engineering` that creates PRs in `org/docs` targeting the `vnext` branch for feature documentation:
+See the full reference: [Safe Outputs (Pull Requests) — create-pull-request](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request)
 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    target-repo: "org/docs"
-    base-branch: "vnext"
-    draft: true
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+    title-prefix: "[ai] "
+    labels: [automation]
+    reviewers: [user1, copilot]
+    manifest-files: fallback-to-issue  # create review issue if manifest files modified
 ```
-
-PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
 
 When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
-
-By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers.
-
-#### Manifest File Protection
-
-By default (`manifest-files: blocked`), patches that modify package manifest files or repository configuration files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions or CI/CD pipelines.
-
-Protection covers two categories:
-
-- **Manifest files by filename** (matched anywhere in the repo): `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, `AGENTS.md`, `CLAUDE.md`, and others.
-- **Protected path prefixes**: any file under `.github/` (workflows, CODEOWNERS, Dependabot config, etc.) or engine-specific config directories (e.g. `.claude/`).
-
-Three behaviours are available:
-
-| Value | Behaviour |
-|-------|-----------|
-| `blocked` (default) | Hard-block: the safe output fails with an error |
-| `allowed` | Allow all manifest/config file modifications |
-| `fallback-to-issue` | Push the branch normally but create a **review issue** instead of a PR. The issue includes a PR creation intent link and instructions to review carefully before creating the PR. |
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    manifest-files: fallback-to-issue  # push branch, require human review before PR
-```
-
-> [!CAUTION]
-> Enabling `manifest-files: allowed` allows the agent to modify dependency definitions and CI/CD configuration. Only enable this when the workflow is explicitly intended to manage these files. Use `fallback-to-issue` when you want human oversight without fully blocking the agent.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -868,11 +814,9 @@ safe-outputs:
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
+Pushes changes to a PR's branch. Includes configurable [Manifest File Protection](/gh-aw/reference/safe-outputs-pull-requests/#manifest-file-protection) against supply chain attacks.
 
-:::caution[Fork PRs Not Supported]
-This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
-:::
+See the full reference: [Safe Outputs (Pull Requests) — push-to-pull-request-branch](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch)
 
 ```yaml wrap
 safe-outputs:
@@ -880,47 +824,10 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
-    max: 3                      # max pushes per run (default: 1)
-    if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
-    manifest-files: allowed    # allow manifest file modifications (default: false)
-    # manifest-files: fallback-to-issue  # create review issue instead of pushing
+    manifest-files: fallback-to-issue  # create review issue if manifest files modified
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
-
-Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
-
-#### Manifest File Protection
-
-By default (`manifest-files: blocked`), patches that modify package manifest files or repository configuration files are refused. This protects against supply chain attacks where an AI agent could inadvertently alter dependency definitions or CI/CD pipelines.
-
-Protection covers two categories:
-
-- **Manifest files by filename** (matched anywhere in the repo): `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `go.sum`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `mix.exs`, `AGENTS.md`, `CLAUDE.md`, and others.
-- **Protected path prefixes**: any file under `.github/` (workflows, CODEOWNERS, Dependabot config, etc.) or engine-specific config directories (e.g. `.claude/`).
-
-Three behaviours are available:
-
-| Value | Behaviour |
-|-------|-----------|
-| `blocked` (default) | Hard-block: the safe output fails with an error |
-| `allowed` | Allow all manifest/config file modifications |
-| `fallback-to-issue` | Instead of pushing to the PR branch, create a **review issue** with patch download instructions and a link to the target PR. The reviewer applies the patch manually after inspection. |
-
-```yaml wrap
-safe-outputs:
-  push-to-pull-request-branch:
-    manifest-files: fallback-to-issue  # require human review before applying
-```
-
-> [!CAUTION]
-> Enabling `manifest-files: allowed` allows the agent to modify dependency definitions and CI/CD configuration. Only enable this when the workflow is explicitly intended to manage these files. Use `fallback-to-issue` when you want human oversight without fully blocking the agent.
-
-#### Fail-Fast on Code Push Failure
-
-If `push-to-pull-request-branch` (or `create-pull-request`) fails, the safe-output pipeline cancels all remaining non-code-push outputs. Each cancelled output is marked with an explicit reason such as "Cancelled: code push operation failed". The failure details appear in the agent failure issue or comment generated by the conclusion job.
 
 ### Release Updates (`update-release:`)
 

@@ -20,7 +20,6 @@ type PushToPullRequestBranchConfig struct {
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
-	AllowManifestFiles             *string  `yaml:"allow-manifest-files,omitempty"`                // Deprecated: use manifest-files instead.
 	ManifestFilesPolicy            *string  `yaml:"manifest-files,omitempty"`                      // Controls manifest-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
 }
 
@@ -137,30 +136,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
 
 			// Parse manifest-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
-			// Also accept legacy allow-manifest-files and migrate it to the new field.
 			manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
-			if _, newSet := configMap["manifest-files"]; !newSet {
-				if legacy, ok := configMap["allow-manifest-files"]; ok {
-					switch v := legacy.(type) {
-					case bool:
-						if v {
-							configMap["manifest-files"] = "allowed"
-						} else {
-							configMap["manifest-files"] = "blocked"
-						}
-					case string:
-						switch v {
-						case "true":
-							configMap["manifest-files"] = "allowed"
-						case "fallback-as-issue", "fallback-to-issue":
-							configMap["manifest-files"] = "fallback-to-issue"
-						default:
-							configMap["manifest-files"] = "blocked"
-						}
-					}
-					pushToPullRequestBranchLog.Printf("Migrated legacy allow-manifest-files value to manifest-files: %v → %v", legacy, configMap["manifest-files"])
-				}
-			}
 			validateStringEnumField(configMap, "manifest-files", manifestFilesEnums, pushToPullRequestBranchLog)
 			if strVal, ok := configMap["manifest-files"].(string); ok {
 				pushToBranchConfig.ManifestFilesPolicy = &strVal
