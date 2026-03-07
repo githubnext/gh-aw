@@ -375,6 +375,13 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch dispatch workflow dependencies: %v", err)))
 			}
 		}
+		// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
+		// action files that should be present alongside this workflow).
+		if err := fetchAndSaveRemoteResources(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource dependencies: %v", err)))
+			}
+		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {
 		// For local workflows, collect and copy include dependencies from local paths
 		// The source directory is derived from the workflow's path
@@ -512,6 +519,13 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
 			fmt.Fprintln(os.Stderr, "")
 		}
+	}
+
+	// For remote workflows: now that the main workflow and all its imports are on disk,
+	// parse the fully merged safe-outputs configuration to discover any dispatch workflows
+	// that originate from imported shared workflows (not visible in the raw frontmatter).
+	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
+		fetchAndSaveDispatchWorkflowsFromParsedFile(destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
 	}
 
 	// Compile the workflow

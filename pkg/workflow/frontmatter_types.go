@@ -161,9 +161,10 @@ type FrontmatterConfig struct {
 	Cache       map[string]any `json:"cache,omitempty"`
 
 	// Import and inclusion
-	Imports        any  `json:"imports,omitempty"`         // Can be string or array
-	Include        any  `json:"include,omitempty"`         // Can be string or array
-	InlinedImports bool `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
+	Imports        any      `json:"imports,omitempty"`         // Can be string or array
+	Include        any      `json:"include,omitempty"`         // Can be string or array
+	InlinedImports bool     `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
+	Resources      []string `json:"resources,omitempty"`       // Additional workflow .md or action .yml files to fetch alongside this workflow
 
 	// Metadata
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs

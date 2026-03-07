@@ -836,3 +836,275 @@ safe-outputs:
 	require.NoError(t, readErr)
 	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
 }
+
+// --- extractResources tests ---
+
+// TestExtractResources_BasicList verifies that resource paths are extracted from the resources field.
+func TestExtractResources_BasicList(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - triage-issue.md
+  - close-stale.md
+  - my-action.yml
+---
+
+# Workflow
+`
+	resources := extractResources(content)
+	assert.Equal(t, []string{"triage-issue.md", "close-stale.md", "my-action.yml"}, resources, "should extract all listed resources")
+}
+
+// TestExtractResources_SkipMacros verifies that entries with GitHub Actions expression syntax are filtered out.
+func TestExtractResources_SkipMacros(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - plain-workflow.md
+  - ${{ vars.WORKFLOW }}.md
+  - ${{ github.event.inputs.file }}
+  - another.yml
+---
+
+# Workflow
+`
+	resources := extractResources(content)
+	assert.Equal(t, []string{"plain-workflow.md", "another.yml"}, resources, "should skip entries with GitHub Actions macro syntax")
+}
+
+// TestExtractResources_NoResourcesField verifies that nil is returned when no resources field.
+func TestExtractResources_NoResourcesField(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+---
+
+# Workflow
+`
+	resources := extractResources(content)
+	assert.Empty(t, resources, "should return nil when no resources field")
+}
+
+// TestExtractResources_AllMacros verifies that all-macro lists return an empty slice.
+func TestExtractResources_AllMacros(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - ${{ vars.WORKFLOW_A }}
+  - ${{ vars.WORKFLOW_B }}
+---
+
+# Workflow
+`
+	resources := extractResources(content)
+	assert.Empty(t, resources, "should return empty slice when all resources are macros")
+}
+
+// --- fetchAndSaveRemoteResources tests ---
+
+// TestFetchAndSaveRemoteResources_NoResources verifies that the function is a no-op when the
+// workflow has no resources field.
+func TestFetchAndSaveRemoteResources_NoResources(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error when no resources field")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created when no resources configured")
+}
+
+// TestFetchAndSaveRemoteResources_EmptyRepoSlug verifies that the function is a no-op for local workflows.
+func TestFetchAndSaveRemoteResources_EmptyRepoSlug(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - triage-issue.md
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error for local workflow")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created for local workflows")
+}
+
+// TestFetchAndSaveRemoteResources_OnlyMacros verifies that all-macro resources are a no-op.
+func TestFetchAndSaveRemoteResources_OnlyMacros(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - ${{ vars.WORKFLOW }}
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "should not error when all resources are macros")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created when all resources are macros")
+}
+
+// TestFetchAndSaveRemoteResources_SkipExistingWithoutForce verifies that an existing resource
+// file is not re-downloaded when force=false.
+func TestFetchAndSaveRemoteResources_SkipExistingWithoutForce(t *testing.T) {
+	tmpDir := t.TempDir()
+	existingContent := []byte("existing resource content")
+	existingFile := filepath.Join(tmpDir, "triage-issue.md")
+	require.NoError(t, os.WriteFile(existingFile, existingContent, 0600))
+
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - triage-issue.md
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err)
+
+	gotContent, readErr := os.ReadFile(existingFile)
+	require.NoError(t, readErr)
+	assert.Equal(t, existingContent, gotContent, "pre-existing resource file must not be modified when force=false")
+}
+
+// TestFetchAndSaveRemoteResources_PathTraversal verifies that path traversal attempts are rejected.
+func TestFetchAndSaveRemoteResources_PathTraversal(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - ../etc/passwd
+  - ../../etc/shadow
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "path traversal should be silently rejected")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "traversal resources must not write any file")
+}
+
+// TestFetchAndSaveRemoteResources_InvalidRepoSlug verifies early return for invalid slug.
+func TestFetchAndSaveRemoteResources_InvalidRepoSlug(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - triage-issue.md
+---
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "not-a-valid-slug",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err, "invalid RepoSlug should return nil without error")
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
+}
+
+// TestFetchAndSaveRemoteResources_TrackerNoOpOnExisting verifies that a pre-existing resource
+// that is skipped (force=false) does NOT appear in any tracker list.
+func TestFetchAndSaveRemoteResources_TrackerNoOpOnExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	existingFile := filepath.Join(tmpDir, "resource.md")
+	require.NoError(t, os.WriteFile(existingFile, []byte("existing"), 0600))
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - resource.md
+---
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, tracker)
+	require.NoError(t, err)
+	assert.Empty(t, tracker.CreatedFiles, "pre-existing file must not appear in CreatedFiles")
+	assert.Empty(t, tracker.ModifiedFiles, "pre-existing file must not appear in ModifiedFiles")
+}
