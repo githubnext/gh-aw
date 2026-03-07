@@ -746,7 +746,13 @@ safe-outputs:
 // dispatch workflow file is not re-downloaded when force=false.
 func TestFetchAndSaveRemoteDispatchWorkflows_SkipExistingWithoutForce(t *testing.T) {
 	tmpDir := t.TempDir()
-	existingContent := []byte("existing dependent workflow content")
+	// Pre-existing file with a matching source field so it is treated as same-source (skip).
+	existingContent := []byte(`---
+source: github/gh-aw/.github/workflows/dependent-workflow.md@v1.0.0
+engine: copilot
+---
+# Existing dependent workflow
+`)
 	existingFile := filepath.Join(tmpDir, "dependent-workflow.md")
 	require.NoError(t, os.WriteFile(existingFile, existingContent, 0600))
 
@@ -781,7 +787,14 @@ safe-outputs:
 func TestFetchAndSaveRemoteDispatchWorkflows_TrackerNoOpOnExisting(t *testing.T) {
 	tmpDir := t.TempDir()
 	existingFile := filepath.Join(tmpDir, "dep.md")
-	require.NoError(t, os.WriteFile(existingFile, []byte("existing"), 0600))
+	// Pre-existing file with a matching source field so it is treated as same-source (skip).
+	existingContent := `---
+source: github/gh-aw/.github/workflows/dep.md@v1.0.0
+engine: copilot
+---
+# Existing dep
+`
+	require.NoError(t, os.WriteFile(existingFile, []byte(existingContent), 0600))
 
 	tracker := &FileTracker{
 		OriginalContent: make(map[string][]byte),
@@ -995,7 +1008,13 @@ resources:
 // file is not re-downloaded when force=false.
 func TestFetchAndSaveRemoteResources_SkipExistingWithoutForce(t *testing.T) {
 	tmpDir := t.TempDir()
-	existingContent := []byte("existing resource content")
+	// Pre-existing file with a matching source field so it is treated as same-source (skip).
+	existingContent := []byte(`---
+source: github/gh-aw/.github/workflows/triage-issue.md@v1.0.0
+engine: copilot
+---
+# Existing triage issue workflow
+`)
 	existingFile := filepath.Join(tmpDir, "triage-issue.md")
 	require.NoError(t, os.WriteFile(existingFile, existingContent, 0600))
 
@@ -1084,7 +1103,14 @@ resources:
 func TestFetchAndSaveRemoteResources_TrackerNoOpOnExisting(t *testing.T) {
 	tmpDir := t.TempDir()
 	existingFile := filepath.Join(tmpDir, "resource.md")
-	require.NoError(t, os.WriteFile(existingFile, []byte("existing"), 0600))
+	// Pre-existing file with a matching source field so it is treated as same-source (skip).
+	existingContent := `---
+source: github/gh-aw/.github/workflows/resource.md@v1.0.0
+engine: copilot
+---
+# Existing resource
+`
+	require.NoError(t, os.WriteFile(existingFile, []byte(existingContent), 0600))
 
 	tracker := &FileTracker{
 		OriginalContent: make(map[string][]byte),

@@ -761,20 +761,18 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 		if _, statErr := os.Stat(targetPath); statErr == nil {
 			fileExists = true
 			if !force {
-				// Allow if the existing file comes from the same source repository,
-				// or if the file has no source field (installed by an older version,
-				// hand-crafted, or managed externally — silently skip to be safe).
+				// Allow if the existing file comes from the same source repository.
 				existingSourceRepo := readSourceRepoFromFile(targetPath)
-				if existingSourceRepo == "" || existingSourceRepo == spec.RepoSlug {
+				if existingSourceRepo == spec.RepoSlug {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatch workflow from same source already exists, skipping: "+targetPath))
 					}
 					continue
 				}
-				// File was installed from a different known source — this is a conflict.
+				// Different or missing source — this is a conflict.
 				return fmt.Errorf(
 					"dispatch workflow %q already exists at %s (existing source: %q, installing from: %q); remove the file or use --force to overwrite",
-					workflowName, targetPath, existingSourceRepo, spec.RepoSlug,
+					workflowName, targetPath, sourceRepoLabel(existingSourceRepo), spec.RepoSlug,
 				)
 			}
 		}
@@ -1009,10 +1007,8 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 				isMarkdown := strings.HasSuffix(strings.ToLower(targetPath), ".md")
 				if isMarkdown {
 					// For markdown files, allow same-source overwrites.
-					// Also silently skip files with no source field (older installs,
-					// hand-crafted, or externally managed files).
 					existingSourceRepo := readSourceRepoFromFile(targetPath)
-					if existingSourceRepo == "" || existingSourceRepo == spec.RepoSlug {
+					if existingSourceRepo == spec.RepoSlug {
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resource file from same source already exists, skipping: "+targetPath))
 						}
@@ -1020,7 +1016,7 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 					}
 					return fmt.Errorf(
 						"resource %q already exists at %s (existing source: %q, installing from: %q); remove the file or use --force to overwrite",
-						resourcePath, targetPath, existingSourceRepo, spec.RepoSlug,
+						resourcePath, targetPath, sourceRepoLabel(existingSourceRepo), spec.RepoSlug,
 					)
 				}
 				// Non-markdown files have no source tracking — always conflict.
