@@ -852,26 +852,44 @@ resources:
 
 # Workflow
 `
-	resources := extractResources(content)
+	resources, err := extractResources(content)
+	require.NoError(t, err, "should not error for valid resources")
 	assert.Equal(t, []string{"triage-issue.md", "close-stale.md", "my-action.yml"}, resources, "should extract all listed resources")
 }
 
-// TestExtractResources_SkipMacros verifies that entries with GitHub Actions expression syntax are filtered out.
-func TestExtractResources_SkipMacros(t *testing.T) {
+// TestExtractResources_MacroRejected verifies that an entry with GitHub Actions expression syntax causes an error.
+func TestExtractResources_MacroRejected(t *testing.T) {
 	content := `---
 engine: copilot
 on: issues
 resources:
   - plain-workflow.md
   - ${{ vars.WORKFLOW }}.md
-  - ${{ github.event.inputs.file }}
-  - another.yml
 ---
 
 # Workflow
 `
-	resources := extractResources(content)
-	assert.Equal(t, []string{"plain-workflow.md", "another.yml"}, resources, "should skip entries with GitHub Actions macro syntax")
+	resources, err := extractResources(content)
+	require.Error(t, err, "should error when a resource entry contains macro syntax")
+	assert.Nil(t, resources, "should return nil resources on error")
+	assert.Contains(t, err.Error(), "${{", "error message should mention the disallowed syntax")
+}
+
+// TestExtractResources_AllMacrosRejected verifies that all-macro lists return an error.
+func TestExtractResources_AllMacrosRejected(t *testing.T) {
+	content := `---
+engine: copilot
+on: issues
+resources:
+  - ${{ vars.WORKFLOW_A }}
+  - ${{ vars.WORKFLOW_B }}
+---
+
+# Workflow
+`
+	resources, err := extractResources(content)
+	require.Error(t, err, "should error when all resources are macros")
+	assert.Nil(t, resources)
 }
 
 // TestExtractResources_NoResourcesField verifies that nil is returned when no resources field.
@@ -883,24 +901,9 @@ on: issues
 
 # Workflow
 `
-	resources := extractResources(content)
+	resources, err := extractResources(content)
+	require.NoError(t, err, "should not error when no resources field")
 	assert.Empty(t, resources, "should return nil when no resources field")
-}
-
-// TestExtractResources_AllMacros verifies that all-macro lists return an empty slice.
-func TestExtractResources_AllMacros(t *testing.T) {
-	content := `---
-engine: copilot
-on: issues
-resources:
-  - ${{ vars.WORKFLOW_A }}
-  - ${{ vars.WORKFLOW_B }}
----
-
-# Workflow
-`
-	resources := extractResources(content)
-	assert.Empty(t, resources, "should return empty slice when all resources are macros")
 }
 
 // --- fetchAndSaveRemoteResources tests ---
@@ -959,8 +962,8 @@ resources:
 	assert.Empty(t, entries, "no files should be created for local workflows")
 }
 
-// TestFetchAndSaveRemoteResources_OnlyMacros verifies that all-macro resources are a no-op.
-func TestFetchAndSaveRemoteResources_OnlyMacros(t *testing.T) {
+// TestFetchAndSaveRemoteResources_MacroRejected verifies that resources with macro syntax return an error.
+func TestFetchAndSaveRemoteResources_MacroRejected(t *testing.T) {
 	content := `---
 engine: copilot
 on: issues
@@ -980,11 +983,12 @@ resources:
 
 	tmpDir := t.TempDir()
 	err := fetchAndSaveRemoteResources(content, spec, tmpDir, false, false, nil)
-	require.NoError(t, err, "should not error when all resources are macros")
+	require.Error(t, err, "should error when resources contain macro syntax")
+	assert.Contains(t, err.Error(), "${{", "error should mention the disallowed syntax")
 
 	entries, readErr := os.ReadDir(tmpDir)
 	require.NoError(t, readErr)
-	assert.Empty(t, entries, "no files should be created when all resources are macros")
+	assert.Empty(t, entries, "no files should be created when resources contain macros")
 }
 
 // TestFetchAndSaveRemoteResources_SkipExistingWithoutForce verifies that an existing resource

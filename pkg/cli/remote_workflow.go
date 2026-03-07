@@ -771,20 +771,21 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 }
 
 // extractResources extracts file paths from the top-level "resources" frontmatter field.
-// Entries that contain GitHub Actions expression syntax (e.g. "${{") are silently skipped.
-func extractResources(content string) []string {
+// Returns an error if any entry contains GitHub Actions expression syntax (e.g. "${{"),
+// since macros are not permitted in resource paths.
+func extractResources(content string) ([]string, error) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
 		remoteWorkflowLog.Printf("Failed to extract frontmatter for resources: %v", err)
-		return nil
+		return nil, nil
 	}
 	if result.Frontmatter == nil {
-		return nil
+		return nil, nil
 	}
 
 	resourcesField, exists := result.Frontmatter["resources"]
 	if !exists {
-		return nil
+		return nil, nil
 	}
 
 	var paths []string
@@ -799,23 +800,22 @@ func extractResources(content string) []string {
 		paths = v
 	}
 
-	// Filter out GitHub Actions expression syntax (e.g. "${{ vars.FILE }}")
-	filtered := make([]string, 0, len(paths))
+	// Reject entries that contain GitHub Actions expression syntax — macros are not allowed.
 	for _, p := range paths {
-		if !strings.Contains(p, "${{") {
-			filtered = append(filtered, p)
+		if strings.Contains(p, "${{") {
+			return nil, fmt.Errorf("resources entry %q contains GitHub Actions expression syntax (${{) which is not allowed; use static paths only", p)
 		}
 	}
 
-	return filtered
+	return paths, nil
 }
 
 // fetchAndSaveRemoteResources fetches files listed in the top-level "resources" frontmatter
 // field from the same remote repository and saves them locally. Resources are resolved as
 // relative paths from the same directory as the source workflow in the remote repo.
 //
-// Entries containing GitHub Actions expression syntax (e.g. "${{") are silently skipped.
-// Download failures are non-fatal (best-effort).
+// GitHub Actions expression syntax (e.g. "${{") is not allowed in resource paths and will
+// cause an error. Download failures for individual files are non-fatal (best-effort).
 func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	if spec.RepoSlug == "" {
 		return nil
@@ -838,7 +838,10 @@ func fetchAndSaveRemoteResources(content string, spec *WorkflowSpec, targetDir s
 		spec.Version = ref
 	}
 
-	resourcePaths := extractResources(content)
+	resourcePaths, err := extractResources(content)
+	if err != nil {
+		return err
+	}
 	if len(resourcePaths) == 0 {
 		return nil
 	}
