@@ -11,16 +11,7 @@ SideRepoOps is a development pattern where you run agentic workflows from a sepa
 
 ## When to Use SideRepoOps
 
-**Getting Started**: SideRepoOps is ideal when you're new to agentic workflows and want a low-risk way to experiment. You can test automation without adding files to your main repository or worrying about breaking existing workflows.
-
-**Key Benefits**:
-- **Zero friction** - No changes needed to your main repository
-- **Clean separation** - AI-generated issues stay separate from organic development  
-- **Private workflows** - Store sensitive automation logic in a private repository
-- **Safe experimentation** - Perfect for testing and learning before production deployment
-- **Centralized automation** - Manage workflows for repositories you don't directly control
-
-Use SideRepoOps for workflow experimentation, creating a centralized automation hub, or managing automation for multiple repositories.
+SideRepoOps is ideal when you're new to agentic workflows and want a low-risk way to experiment — no changes needed to your main repository, AI-generated issues stay separate from organic development, and sensitive automation logic remains in a private repository. Use it for workflow experimentation, centralized automation across multiple repositories, or managing workflows for repositories you don't directly control.
 
 ## How It Differs from MultiRepoOps
 
@@ -43,8 +34,6 @@ While [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) runs workflows **from** yo
 │    workflows/   │          │  - docs/         │
 └─────────────────┘          └──────────────────┘
 ```
-
-In SideRepoOps, workflows run in GitHub Actions **on the side repository** but perform operations (create issues, PRs, comments) **on the main repository** using cross-repository authentication.
 
 > [!TIP]
 > Testing with TrialOps
@@ -392,17 +381,8 @@ safe-outputs:
 
 This creates a feedback loop where the side repository tracks automation effectiveness.
 
-## Related Patterns
+## Related
 
-- **[MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)** - Coordinate work across multiple repositories from main repo
-- **[Orchestration](/gh-aw/patterns/orchestration/)** - Orchestrate multi-issue initiatives
-- **[IssueOps](/gh-aw/patterns/issue-ops/)** - Issue-driven automation patterns
+**Patterns**: [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) · [Orchestration](/gh-aw/patterns/orchestration/) · [IssueOps](/gh-aw/patterns/issue-ops/)
 
-## Related Documentation
-
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout and target-repo configuration
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
-- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API toolsets
-- [Authentication](/gh-aw/reference/auth/) - Token types and precedence
-- [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and security
-- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Sharing workflows
+**Reference**: [Cross-Repository Operations](/gh-aw/reference/cross-repository/) · [Safe Outputs](/gh-aw/reference/safe-outputs/) · [GitHub Tools](/gh-aw/reference/github-tools/) · [Authentication](/gh-aw/reference/auth/) · [Reusing Workflows](/gh-aw/guides/packaging-imports/)
