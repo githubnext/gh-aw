@@ -637,7 +637,7 @@ describe("git patch integration tests", () => {
       };
     }
 
-    it("should remove auth extraheader from git config after a successful fetch", async () => {
+    it("should not write auth extraheader to git config during a successful fetch", async () => {
       // Set up a feature branch, push a first commit, then add a second commit so
       // incremental mode has something new to patch.
       execGit(["checkout", "-b", "auth-cleanup-success"], { cwd: workingRepo });
@@ -660,7 +660,7 @@ describe("git patch integration tests", () => {
 
         expect(result.success).toBe(true);
 
-        // Verify the extraheader was removed from git config
+        // Verify the extraheader was never written to git config (auth is passed via env vars)
         const configCheck = spawnSync("git", ["config", "--local", "--get", "http.https://github.example.com/.extraheader"], { cwd: workingRepo, encoding: "utf8" });
         // exit status 1 means the key does not exist — that is what we want
         expect(configCheck.status).toBe(1);
@@ -669,7 +669,7 @@ describe("git patch integration tests", () => {
       }
     });
 
-    it("should remove auth extraheader from git config even when fetch fails", async () => {
+    it("should not write auth extraheader to git config even when fetch fails", async () => {
       // Create a local-only branch (fetch will fail because it's not on origin)
       execGit(["checkout", "-b", "auth-cleanup-failure"], { cwd: workingRepo });
       fs.writeFileSync(path.join(workingRepo, "auth-fail.txt"), "auth fail test\n");
@@ -685,7 +685,7 @@ describe("git patch integration tests", () => {
         expect(result.success).toBe(false);
         expect(result.error).toContain("Cannot generate incremental patch");
 
-        // Verify the extraheader was removed even though the fetch failed
+        // Verify the extraheader was never written to git config (auth is passed via env vars)
         const configCheck = spawnSync("git", ["config", "--local", "--get", "http.https://github.example.com/.extraheader"], { cwd: workingRepo, encoding: "utf8" });
         // exit status 1 means the key does not exist — that is what we want
         expect(configCheck.status).toBe(1);
