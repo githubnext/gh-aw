@@ -602,10 +602,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Check total size (approximation: sum of all file sizes + 20% overhead for git diff format)
+    // Check total size. The effective limit allows 20% overhead to account for
+    // git diff format overhead (headers, context lines, metadata). This mirrors
+    // the same calculation in push_repo_memory.cjs. The totalSize is the raw
+    // sum of file sizes; it is compared against the overhead-adjusted limit.
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     const totalSizeKb = Math.ceil(totalSize / 1024);
-    const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
     const effectiveMaxKb = Math.floor(effectiveMaxPatchSize / 1024);
 
     server.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
@@ -618,8 +620,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             text: JSON.stringify({
               result: "error",
               error:
-                `Total memory size (${totalSizeKb} KB, ${totalSize} bytes) exceeds the maximum allowed patch size ` +
-                `(${effectiveMaxKb} KB, ${effectiveMaxPatchSize} bytes, configured limit: ${maxPatchSizeKb} KB with 20% overhead allowance).\n\n` +
+                `Total memory size (${totalSizeKb} KB) exceeds the allowed limit of ${effectiveMaxKb} KB ` +
+                `(configured limit: ${Math.floor(maxPatchSize / 1024)} KB with 20% overhead for git diff format).\n\n` +
                 `Please reduce the total size of files in '${memoryDir}' before the workflow completes. ` +
                 `Consider: summarizing notes instead of keeping full history, removing outdated entries, or compressing data. ` +
                 `Then call push_repo_memory again to verify the size is within limits.`,
@@ -636,7 +638,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total (limit: ${effectiveMaxKb} KB).`,
+            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total (limit: ${effectiveMaxKb} KB with 20% overhead).`,
           }),
         },
       ],
