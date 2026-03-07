@@ -1112,3 +1112,275 @@ resources:
 	assert.Empty(t, tracker.CreatedFiles, "pre-existing file must not appear in CreatedFiles")
 	assert.Empty(t, tracker.ModifiedFiles, "pre-existing file must not appear in ModifiedFiles")
 }
+
+// --- fetchAndSaveDispatchWorkflowsFromParsedFile tests ---
+//
+// These tests verify that dispatch workflows discovered via parsed (compiled) workflow data are
+// handled correctly — including the key shared agentic workflow scenario where dispatch-workflow
+// config comes from an imported shared workflow rather than from the main workflow's own frontmatter.
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_EmptyRepoSlug verifies that a local
+// (non-remote) workflow is a no-op.
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_EmptyRepoSlug(t *testing.T) {
+	tmpDir := t.TempDir()
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: ""},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
+
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "no files should be created for local workflows")
+}
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_InvalidRepoSlug verifies that an invalid
+// RepoSlug (not owner/repo format) is a no-op.
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_InvalidRepoSlug(t *testing.T) {
+	tmpDir := t.TempDir()
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "not-valid"},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "nonexistent.md"), spec, tmpDir, false, false, nil)
+
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "no files should be created for invalid RepoSlug")
+}
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_ParseFailure verifies that a missing or
+// unparseable workflow file is handled silently (best-effort no-op).
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_ParseFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	// Point to a file that does not exist — ParseWorkflowFile will fail.
+	fetchAndSaveDispatchWorkflowsFromParsedFile(filepath.Join(tmpDir, "does-not-exist.md"), spec, tmpDir, false, false, nil)
+
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "parse failures must not create any files")
+}
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_NoDispatchWorkflows verifies that a
+// workflow with no safe-outputs dispatch-workflow config is a no-op.
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_NoDispatchWorkflows(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	mainPath := filepath.Join(workflowsDir, "my-workflow.md")
+	mainContent := `---
+on: issues
+engine: copilot
+permissions:
+  issues: read
+  contents: read
+---
+
+# Workflow with no dispatch-workflow
+`
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+
+	// Only the main workflow itself should be in the directory.
+	entries, err := os.ReadDir(workflowsDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1, "only the main workflow file should exist")
+}
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_SharedWorkflow_SkipExisting is the key
+// shared agentic workflow test: the dispatch-workflow list comes from an *imported* shared
+// workflow, and the referenced dispatch workflow file already exists locally.
+//
+// Setup:
+//
+//	.github/workflows/
+//	  main.md          — imports shared/dispatch-helper.md
+//	  shared/
+//	    dispatch-helper.md  — shared workflow; defines safe-outputs.dispatch-workflow
+//	  triage-issue.md  — dispatch workflow that already exists locally
+//
+// Expected: fetchAndSaveDispatchWorkflowsFromParsedFile discovers "triage-issue" via the
+// parsed (merged) safe-outputs config, finds the file already present, and skips without
+// modifying it.
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_SharedWorkflow_SkipExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	// Shared workflow defines the dispatch-workflow config (no 'on:' field → treated as shared).
+	sharedPath := filepath.Join(sharedDir, "dispatch-helper.md")
+	sharedContent := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - triage-issue
+---
+
+Shared helper that configures dispatch-workflow.
+`
+	require.NoError(t, os.WriteFile(sharedPath, []byte(sharedContent), 0644))
+
+	// Main workflow imports the shared workflow and provides its own triggers.
+	mainPath := filepath.Join(workflowsDir, "main.md")
+	mainContent := `---
+on: issues
+engine: copilot
+permissions:
+  issues: write
+  contents: read
+imports:
+  - shared/dispatch-helper.md
+---
+
+# Main Workflow
+
+Process incoming issues.
+`
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
+
+	// The dispatch workflow file already exists locally with known content.
+	existingContent := []byte("# Triage Issue workflow")
+	triagePath := filepath.Join(workflowsDir, "triage-issue.md")
+	require.NoError(t, os.WriteFile(triagePath, existingContent, 0644))
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "v1.0.0"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+
+	// The pre-existing dispatch workflow must not be modified.
+	got, err := os.ReadFile(triagePath)
+	require.NoError(t, err)
+	assert.Equal(t, existingContent, got, "pre-existing dispatch workflow file must not be modified")
+}
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_SharedWorkflow_TrackerNoOpOnExisting verifies
+// that a pre-existing dispatch workflow discovered via a shared workflow import does NOT appear
+// in the tracker's created or modified lists when force=false.
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_SharedWorkflow_TrackerNoOpOnExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	// Shared workflow with dispatch-workflow config.
+	sharedPath := filepath.Join(sharedDir, "dispatch-helper.md")
+	sharedContent := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - triage-issue
+---
+
+Shared dispatch configuration.
+`
+	require.NoError(t, os.WriteFile(sharedPath, []byte(sharedContent), 0644))
+
+	// Main workflow imports the shared workflow.
+	mainPath := filepath.Join(workflowsDir, "main.md")
+	mainContent := `---
+on: issues
+engine: copilot
+permissions:
+  issues: write
+  contents: read
+imports:
+  - shared/dispatch-helper.md
+---
+
+# Main Workflow
+`
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
+
+	// Dispatch workflow already on disk.
+	triagePath := filepath.Join(workflowsDir, "triage-issue.md")
+	require.NoError(t, os.WriteFile(triagePath, []byte("# Triage"), 0644))
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         workflowsDir,
+	}
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "v1.0.0"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, tracker)
+
+	assert.Empty(t, tracker.CreatedFiles, "pre-existing dispatch workflow must not appear in CreatedFiles")
+	assert.Empty(t, tracker.ModifiedFiles, "pre-existing dispatch workflow must not appear in ModifiedFiles")
+}
+
+// TestFetchAndSaveDispatchWorkflowsFromParsedFile_SharedWorkflow_MacroWorkflowSkipped verifies
+// that workflow names containing GitHub Actions expression syntax (${{) in the merged
+// dispatch-workflow list are silently skipped.
+func TestFetchAndSaveDispatchWorkflowsFromParsedFile_SharedWorkflow_MacroWorkflowSkipped(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	// Shared workflow whose dispatch-workflow list contains a macro-valued entry.
+	sharedPath := filepath.Join(sharedDir, "dispatch-helper.md")
+	sharedContent := `---
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - static-workflow
+      - ${{ vars.DYNAMIC_WORKFLOW }}
+---
+
+Shared dispatch helper with mixed static and macro workflow names.
+`
+	require.NoError(t, os.WriteFile(sharedPath, []byte(sharedContent), 0644))
+
+	// Main workflow.
+	mainPath := filepath.Join(workflowsDir, "main.md")
+	mainContent := `---
+on: issues
+engine: copilot
+permissions:
+  issues: write
+  contents: read
+imports:
+  - shared/dispatch-helper.md
+---
+
+# Main Workflow
+`
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
+
+	// Pre-create static-workflow.md so the fetch is skipped without a network call.
+	staticPath := filepath.Join(workflowsDir, "static-workflow.md")
+	require.NoError(t, os.WriteFile(staticPath, []byte("# Static"), 0644))
+
+	spec := &WorkflowSpec{
+		RepoSpec:     RepoSpec{RepoSlug: "github/gh-aw", Version: "v1.0.0"},
+		WorkflowPath: ".github/workflows/main.md",
+	}
+
+	fetchAndSaveDispatchWorkflowsFromParsedFile(mainPath, spec, workflowsDir, false, false, nil)
+
+	// No file named after the macro entry should have been created.
+	macroFile := filepath.Join(workflowsDir, "${{ vars.DYNAMIC_WORKFLOW }}.md")
+	_, err := os.Stat(macroFile)
+	assert.True(t, os.IsNotExist(err), "macro-valued dispatch workflow must not create a file")
+}
