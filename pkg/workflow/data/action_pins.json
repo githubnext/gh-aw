@@ -105,6 +105,11 @@
       "version": "v6.19.2",
       "sha": "10e90e3645eae34f1e60eeb005ba3a3d33f178e8"
     },
+    "docker/build-push-action@v7": {
+      "repo": "docker/build-push-action",
+      "version": "v7",
+      "sha": "d08e5c354a6adb9ed34480a06d141179aa583294"
+    },
     "docker/login-action@v3.7.0": {
       "repo": "docker/login-action",
       "version": "v3.7.0",
@@ -119,6 +124,11 @@
       "repo": "docker/metadata-action",
       "version": "v5.10.0",
       "sha": "c299e40c65443455700f0fdfc63efafe5b349051"
+    },
+    "docker/metadata-action@v6": {
+      "repo": "docker/metadata-action",
+      "version": "v6",
+      "sha": "030e881283bb7a6894de51c315a6bfe6a94e05cf"
     },
     "docker/setup-buildx-action@v3.12.0": {
       "repo": "docker/setup-buildx-action",
@@ -135,10 +145,10 @@
       "version": "v1.21.0",
       "sha": "3580539ceec3dc05b0ed51e9e10b08eb7a7c2bb4"
     },
-    "github/codeql-action/upload-sarif@v4.32.5": {
+    "github/codeql-action/upload-sarif@v4.32.6": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.32.5",
-      "sha": "9c6c5ab400c838ab09eec30bfeded23893cf60cc"
+      "version": "v4.32.6",
+      "sha": "fb0994ef1c058010acf1efccff928b0a83b1ed54"
     },
     "github/stale-repos@v9.0.1": {
       "repo": "github/stale-repos",
@@ -155,25 +165,25 @@
       "version": "v2.10.3",
       "sha": "9cd1b7bf3f36d5a3c3b17abc3545bfb5481912ea"
     },
+    "microsoft/apm-action@v1": {
+      "repo": "microsoft/apm-action",
+      "version": "v1",
+      "sha": "92d6dc8046ad61b340662adefd2f997bf93d2987"
+    },
     "oven-sh/setup-bun@v2.1.3": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.1.3",
       "sha": "ecf28ddc73e819eb6fa29df6b34ef8921c743461"
     },
-    "ruby/setup-ruby@v1.289.0": {
+    "ruby/setup-ruby@v1.290.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.289.0",
-      "sha": "19a43a6a2428d455dbd1b85344698725179c9d8c"
+      "version": "v1.290.0",
+      "sha": "6ca151fd1bfcfd6fe0c4eb6837eb0584d0134a0c"
     },
     "super-linter/super-linter@v8.5.0": {
       "repo": "super-linter/super-linter",
       "version": "v8.5.0",
       "sha": "61abc07d755095a68f4987d1c2c3d1d64408f1f9"
-    },
-    "microsoft/apm-action@v1": {
-      "repo": "microsoft/apm-action",
-      "version": "v1",
-      "sha": "92d6dc8046ad61b340662adefd2f997bf93d2987"
     }
   }
 }
