@@ -447,6 +447,7 @@ describe("safe_outputs_handlers", () => {
       expect(handlers.uploadAssetHandler).toBeDefined();
       expect(handlers.createPullRequestHandler).toBeDefined();
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
+      expect(handlers.pushRepoMemoryHandler).toBeDefined();
       expect(handlers.addCommentHandler).toBeDefined();
     });
 
@@ -504,6 +505,142 @@ describe("safe_outputs_handlers", () => {
       const longBody = "a".repeat(70000);
 
       expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
+    });
+  });
+
+  describe("pushRepoMemoryHandler", () => {
+    let memoryDir;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      memoryDir = `/tmp/test-repo-memory-${testId}`;
+    });
+
+    afterEach(() => {
+      try {
+        if (fs.existsSync(memoryDir)) {
+          fs.rmSync(memoryDir, { recursive: true, force: true });
+        }
+      } catch (_error) {
+        // Ignore cleanup errors
+      }
+    });
+
+    function makeHandlersWithMemory(overrides = {}) {
+      const memConf = {
+        id: "default",
+        dir: memoryDir,
+        max_file_size: 1024, // 1 KB
+        max_patch_size: 2048, // 2 KB
+        max_file_count: 5,
+        ...overrides,
+      };
+      return createHandlers(mockServer, mockAppendSafeOutput, {
+        push_repo_memory: { memories: [memConf] },
+      });
+    }
+
+    it("should return success when no repo-memory is configured", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {});
+      const result = h.pushRepoMemoryHandler({});
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(data.message).toContain("No repo-memory configured");
+    });
+
+    it("should return error for unknown memory_id", () => {
+      const h = makeHandlersWithMemory();
+      fs.mkdirSync(memoryDir, { recursive: true });
+      const result = h.pushRepoMemoryHandler({ memory_id: "nonexistent" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("error");
+      expect(data.error).toContain("'nonexistent' not found");
+      expect(data.error).toContain("default");
+    });
+
+    it("should return success when memory directory does not exist yet", () => {
+      const h = makeHandlersWithMemory();
+      // memoryDir not created
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(data.message).toContain("does not exist yet");
+    });
+
+    it("should return success for valid files within limits", () => {
+      const h = makeHandlersWithMemory();
+      fs.mkdirSync(memoryDir, { recursive: true });
+      fs.writeFileSync(path.join(memoryDir, "state.json"), "x".repeat(100));
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+      expect(data.message).toContain("validation passed");
+    });
+
+    it("should return error when a file exceeds max_file_size", () => {
+      const h = makeHandlersWithMemory({ max_file_size: 100 });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      fs.writeFileSync(path.join(memoryDir, "big.json"), "x".repeat(200));
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("error");
+      expect(data.error).toContain("big.json");
+      expect(data.error).toContain("200 bytes");
+    });
+
+    it("should return error when file count exceeds max_file_count", () => {
+      const h = makeHandlersWithMemory({ max_file_count: 2 });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      for (let i = 0; i < 3; i++) {
+        fs.writeFileSync(path.join(memoryDir, `file${i}.json`), "x".repeat(10));
+      }
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("error");
+      expect(data.error).toContain("Too many files");
+      expect(data.error).toContain("3 files");
+    });
+
+    it("should return error when total size exceeds effective max_patch_size", () => {
+      // max_patch_size = 500 bytes, effective limit = floor(500 * 1.2) = 600 bytes
+      const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      // Write two files totaling 650 bytes (above the 600 byte effective limit)
+      fs.writeFileSync(path.join(memoryDir, "a.json"), "x".repeat(350));
+      fs.writeFileSync(path.join(memoryDir, "b.json"), "x".repeat(300));
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("error");
+      expect(data.error).toContain("exceeds the allowed limit");
+      expect(data.error).toContain("push_repo_memory again");
+    });
+
+    it("should use 'default' memory_id when memory_id is not specified", () => {
+      const h = makeHandlersWithMemory();
+      fs.mkdirSync(memoryDir, { recursive: true });
+      fs.writeFileSync(path.join(memoryDir, "notes.md"), "hello");
+      const result = h.pushRepoMemoryHandler({}); // no memory_id
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("success");
+    });
+
+    it("should scan files recursively in subdirectories", () => {
+      // max_patch_size = 500 bytes, effective limit = 600 bytes
+      const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
+      const subDir = path.join(memoryDir, "history");
+      fs.mkdirSync(subDir, { recursive: true });
+      // Write a nested file that pushes total above effective limit
+      fs.writeFileSync(path.join(subDir, "log.jsonl"), "x".repeat(700));
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.result).toBe("error");
+      // The nested file path should appear correctly
+      expect(data.error).toContain("exceeds the allowed limit");
     });
   });
 });

@@ -363,7 +363,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_issue":{"expires":48,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_issue":{"expires":48,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":51200,"max_patch_size":10240}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -508,6 +508,21 @@ jobs:
                 "type": "object"
               },
               "name": "missing_data"
+            },
+            {
+              "description": "Validate repo-memory files are within configured size limits before the workflow completes. Call this after writing files to memory to check that the total size is within limits. Returns an error if files are too large, with guidance on how to reduce memory size so the memory can be saved successfully.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "memory_id": {
+                    "description": "Memory identifier to validate. Defaults to 'default' if not specified.",
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "name": "push_repo_memory"
             }
           ]
           GH_AW_SAFE_OUTPUTS_TOOLS_EOF
