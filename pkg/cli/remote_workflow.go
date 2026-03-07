@@ -800,6 +800,9 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 				}
 				continue
 			}
+			// Capture whether file exists before writing (for correct tracker classification).
+			_, ymlFileExistsErr := os.Stat(ymlLocalPath)
+			ymlFileExists := ymlFileExistsErr == nil
 			if writeErr := os.WriteFile(ymlLocalPath, ymlContent, 0600); writeErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", ymlRemotePath, writeErr)))
@@ -810,7 +813,7 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow (.yml): "+ymlLocalPath))
 			}
 			if tracker != nil {
-				if _, statErr := os.Stat(ymlLocalPath); statErr == nil {
+				if ymlFileExists {
 					tracker.TrackModified(ymlLocalPath)
 				} else {
 					tracker.TrackCreated(ymlLocalPath)
@@ -1210,6 +1213,9 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 				}
 				continue
 			}
+			// Capture whether file exists before writing (for correct tracker classification).
+			_, ymlFileExistsErr := os.Stat(ymlLocalPath)
+			ymlFileExists := ymlFileExistsErr == nil
 			if writeErr := os.WriteFile(ymlLocalPath, ymlContent, 0600); writeErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write dispatch workflow %s: %v", ymlRemotePath, writeErr)))
@@ -1220,7 +1226,7 @@ func fetchAndSaveDispatchWorkflowsFromParsedFile(destFile string, spec *Workflow
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched dispatch workflow (.yml, from import): "+ymlLocalPath))
 			}
 			if tracker != nil {
-				if _, statErr := os.Stat(ymlLocalPath); statErr == nil {
+				if ymlFileExists {
 					tracker.TrackModified(ymlLocalPath)
 				} else {
 					tracker.TrackCreated(ymlLocalPath)

@@ -371,7 +371,7 @@ Ensure proper audience validation and trust policies are configured.`
 	}
 
 	// Validate resources field — GitHub Actions expression syntax is not allowed.
-	log.Print("Validating resources field")
+	log.Printf("Validating resources field")
 	if workflowData.ParsedFrontmatter != nil {
 		for _, r := range workflowData.ParsedFrontmatter.Resources {
 			if strings.Contains(r, "${{") {

@@ -524,6 +524,11 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		fetchAndSaveDispatchWorkflowsFromParsedFile(destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
 	}
 
+	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
+	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
+	// compiled before the main workflow can be validated.
+	compileDispatchWorkflowDependencies(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
+
 	// Compile the workflow
 	if tracker != nil {
 		if err := compileWorkflowWithTracking(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
