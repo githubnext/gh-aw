@@ -28,7 +28,7 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"88e71e22b573468f6464e7c650c955b2a9acb1114525099be57c44ba2209bd2b"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"88e71e22b573468f6464e7c650c955b2a9acb1114525099be57c44ba2209bd2b","strict":true}
 
 name: "Documentation Unbloat"
 "on":
@@ -97,7 +97,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

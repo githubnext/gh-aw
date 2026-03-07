@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mcp/serena-go.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"94c758fe26224b557e793dbf2a020c24db55906e549a9e2f81e4c1cefd47d242"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"94c758fe26224b557e793dbf2a020c24db55906e549a9e2f81e4c1cefd47d242","strict":true}
 
 name: "Terminal Stylist"
 "on":
@@ -81,7 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

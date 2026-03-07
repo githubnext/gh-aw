@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7cb844c9c9c32229b2755637af132ad41de3ddbda8eff01a2f5a5f753fb303a6"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7cb844c9c9c32229b2755637af132ad41de3ddbda8eff01a2f5a5f753fb303a6","strict":true}
 
 name: "Schema Consistency Checker"
 "on":
@@ -81,7 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

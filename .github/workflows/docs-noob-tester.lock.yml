@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/docs-server-lifecycle.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e8b3b6fdeb5e2a00c46175267f7a516ef828264d884f2aa2b29474d0ce2b2592"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e8b3b6fdeb5e2a00c46175267f7a516ef828264d884f2aa2b29474d0ce2b2592","strict":true}
 
 name: "Documentation Noob Tester"
 "on":
@@ -80,7 +80,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

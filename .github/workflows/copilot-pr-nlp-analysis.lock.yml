@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7b5ea7e48c0e812dc34e0645f3a65f1696e700b9ce7b6b4d41bc5efc60d2e804"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7b5ea7e48c0e812dc34e0645f3a65f1696e700b9ce7b6b4d41bc5efc60d2e804","strict":true}
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":
@@ -83,7 +83,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

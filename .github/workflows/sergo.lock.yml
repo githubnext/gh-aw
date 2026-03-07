@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"02bf772df769e1b8dcee8170592780e7f1203860768210b7bf353632372b9d86"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"02bf772df769e1b8dcee8170592780e7f1203860768210b7bf353632372b9d86","strict":true}
 
 name: "Sergo - Serena Go Expert"
 "on":
@@ -82,7 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

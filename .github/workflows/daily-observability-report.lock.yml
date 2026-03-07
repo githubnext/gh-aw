@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1b990129663822b2a2ec35c48272d37d9b5fd2588701da99710163ff9f98f551"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1b990129663822b2a2ec35c48272d37d9b5fd2588701da99710163ff9f98f551","strict":true}
 
 name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 "on":
@@ -83,7 +83,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

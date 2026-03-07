@@ -23,7 +23,7 @@
 #
 # Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec234868e45fe0e4849c2b73f9ef1181d4d0e9072b1f6beaef8b2d7d403860f4"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec234868e45fe0e4849c2b73f9ef1181d4d0e9072b1f6beaef8b2d7d403860f4","strict":true}
 
 name: "Workflow Craft Agent"
 "on":
@@ -88,7 +88,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

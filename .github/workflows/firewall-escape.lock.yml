@@ -23,7 +23,7 @@
 #
 # Security testing to find escape paths in the AWF (Agent Workflow Firewall)
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"74e501e0d13e7e5a3b2d21418bc8460f5c0023998ac599caa303fec99234b69e"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"74e501e0d13e7e5a3b2d21418bc8460f5c0023998ac599caa303fec99234b69e","strict":true}
 
 name: "The Great Escapi"
 "on":
@@ -89,7 +89,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

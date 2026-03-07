@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0daf3e3fd70f487864a1ae11dafd92fb015aed0e0bd633ce78a72118bac22825"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0daf3e3fd70f487864a1ae11dafd92fb015aed0e0bd633ce78a72118bac22825","strict":true}
 
 name: "Smoke Gemini"
 "on":
@@ -98,7 +98,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: ""
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

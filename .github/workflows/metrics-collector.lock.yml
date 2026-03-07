@@ -23,7 +23,7 @@
 #
 # Collects daily performance metrics for the agent ecosystem and stores them in repo-memory
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b5f384f27d5b48e0c6e4600f71718bafab6244d85c1bf0e04afeadeef6c76147"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b5f384f27d5b48e0c6e4600f71718bafab6244d85c1bf0e04afeadeef6c76147","strict":true}
 
 name: "Metrics Collector - Infrastructure Agent"
 "on":
@@ -79,7 +79,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

@@ -23,7 +23,7 @@
 #
 # Automates PR categorization, risk assessment, and prioritization for agent-created pull requests
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"94a5ac625c0b7b109a6b1fbcbd0f959c3b8b63a5bbd1db2a0bae2cacb3ef9d24"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"94a5ac625c0b7b109a6b1fbcbd0f959c3b8b63a5bbd1db2a0bae2cacb3ef9d24","strict":true}
 
 name: "PR Triage Agent"
 "on":
@@ -76,7 +76,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}

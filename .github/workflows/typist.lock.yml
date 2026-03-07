@@ -28,7 +28,7 @@
 #     - shared/mcp/serena-go.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a84f1d31ef089afc1ac4110815e97c8509584a617fb3384a318fe01d5e960c67"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a84f1d31ef089afc1ac4110815e97c8509584a617fb3384a318fe01d5e960c67","strict":true}
 
 name: "Typist - Go Type Analysis"
 "on":
@@ -81,7 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

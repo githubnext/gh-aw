@@ -23,7 +23,7 @@
 #
 # Automatically fixes code scanning alerts by creating pull requests with remediation
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"356d127ca6b12cd898b6897498aa23822d2a75188b7e7564bc8b833190056a4b"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"356d127ca6b12cd898b6897498aa23822d2a75188b7e7564bc8b833190056a4b","strict":true}
 
 name: "Code Scanning Fixer"
 "on":
@@ -76,7 +76,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

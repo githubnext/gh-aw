@@ -23,7 +23,7 @@
 #
 # Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"403d9936fc6249000fae23cde6a8f3c8cc9247d18a0878db821aa3fa2766b340"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"403d9936fc6249000fae23cde6a8f3c8cc9247d18a0878db821aa3fa2766b340","strict":true}
 
 name: "Grumpy Code Reviewer 🔥"
 "on":
@@ -93,7 +93,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}

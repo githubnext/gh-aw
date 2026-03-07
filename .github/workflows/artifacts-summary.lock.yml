@@ -28,7 +28,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec4bf7cb905b85ccdcc95c21b2ed16912b1c6737fcbfcecb1cbc252559791663"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ec4bf7cb905b85ccdcc95c21b2ed16912b1c6737fcbfcecb1cbc252559791663","strict":true}
 
 name: "Artifacts Summary"
 "on":
@@ -81,7 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

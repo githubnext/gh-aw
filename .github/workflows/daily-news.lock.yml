@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1ac39a8230fd053ed51356e22c975e01f92adacbc0b2c86481e600549aa107d7"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1ac39a8230fd053ed51356e22c975e01f92adacbc0b2c86481e600549aa107d7","strict":true}
 
 name: "Daily News"
 "on":
@@ -83,7 +83,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

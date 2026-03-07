@@ -23,7 +23,7 @@
 #
 # Fix critical vulnerabilities before audit deadline with full tracking and reporting
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"01738ba16ae7253d0909165ffb3f971ef84f616ce8f131598481ca66c9c0827f"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"01738ba16ae7253d0909165ffb3f971ef84f616ce8f131598481ca66c9c0827f","strict":true}
 
 name: "Security Compliance Campaign"
 "on":
@@ -89,7 +89,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

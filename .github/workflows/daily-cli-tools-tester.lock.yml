@@ -23,7 +23,7 @@
 #
 # Daily exploratory testing of audit, logs, and compile tools in gh-aw CLI
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"58157c3361534be3a0e560ec4352c03e1c40abb58017d361979084761537bfc0"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"58157c3361534be3a0e560ec4352c03e1c40abb58017d361979084761537bfc0","strict":true}
 
 name: "Daily CLI Tools Exploratory Tester"
 "on":
@@ -77,7 +77,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

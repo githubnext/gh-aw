@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c9f371e2c9f855df56da69aa6fa020ab7f3762c68248c087fdbb48e2615c6bc2"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c9f371e2c9f855df56da69aa6fa020ab7f3762c68248c087fdbb48e2615c6bc2","strict":true}
 
 name: "Functional Pragmatist"
 "on":
@@ -80,7 +80,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

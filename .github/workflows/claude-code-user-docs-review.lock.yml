@@ -23,7 +23,7 @@
 #
 # Reviews project documentation from the perspective of a Claude Code user who does not use GitHub Copilot or Copilot CLI
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5686ea2651d50165672d00ee1181e76e2493c8a1eed6993edfe9a0b6da21d0cd"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5686ea2651d50165672d00ee1181e76e2493c8a1eed6993edfe9a0b6da21d0cd","strict":true}
 
 name: "Claude Code User Documentation Review"
 "on":
@@ -77,7 +77,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

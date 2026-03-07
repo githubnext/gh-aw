@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a6d0e46b1953d18e70a4029c7369fb96273432fdd02f2f5ca890a750bcfeb2b1"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a6d0e46b1953d18e70a4029c7369fb96273432fdd02f2f5ca890a750bcfeb2b1","strict":true}
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":
@@ -82,7 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
-          GH_AW_COMPILED_STRICT: "false"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
