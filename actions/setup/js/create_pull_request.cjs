@@ -427,10 +427,10 @@ async function main(config = {}) {
     /** @type {{ manifestFilesFound: string[], protectedPathsFound: string[] } | null} */
     let manifestProtectionFallback = null;
     if (!isEmpty) {
-      const manifestFiles = Array.isArray(config["manifest-files"]) ? config["manifest-files"] : [];
-      const protectedPathPrefixes = Array.isArray(config["protected-path-prefixes"]) ? config["protected-path-prefixes"] : [];
-      // manifest-files-policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
-      const policy = config["manifest-files-policy"];
+      const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
+      const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
+      // manifest_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
+      const policy = config.manifest_files_policy;
       const isAllowed = policy === "allowed";
       const isFallback = policy === "fallback-to-issue";
       if (!isAllowed) {
