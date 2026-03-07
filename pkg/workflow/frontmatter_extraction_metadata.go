@@ -360,9 +360,8 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 }
 
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
-// configuration from frontmatter. Supports two formats:
+// configuration from frontmatter. Supports array format only:
 //   - Array format: ["org/pkg1", "org/pkg2"]
-//   - Object format: { "apm": ["org/pkg1", "org/pkg2"] }
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
@@ -371,26 +370,15 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		return nil
 	}
 
-	var packages []string
+	depsArray, ok := value.([]any)
+	if !ok {
+		return nil
+	}
 
-	switch v := value.(type) {
-	case []any:
-		// Simple array format: ["org/pkg1", "org/pkg2"]
-		for _, item := range v {
-			if s, ok := item.(string); ok && s != "" {
-				packages = append(packages, s)
-			}
-		}
-	case map[string]any:
-		// Object format: { "apm": ["org/pkg1", "org/pkg2"] }
-		if apmVal, hasAPM := v["apm"]; hasAPM {
-			if apmArray, ok := apmVal.([]any); ok {
-				for _, item := range apmArray {
-					if s, ok := item.(string); ok && s != "" {
-						packages = append(packages, s)
-					}
-				}
-			}
+	var packages []string
+	for _, item := range depsArray {
+		if s, ok := item.(string); ok && s != "" {
+			packages = append(packages, s)
 		}
 	}
 

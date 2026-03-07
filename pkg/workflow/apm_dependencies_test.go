@@ -46,18 +46,6 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 			},
 		},
 		{
-			name: "Object format with apm key",
-			frontmatter: map[string]any{
-				"dependencies": map[string]any{
-					"apm": []any{
-						"microsoft/apm-sample-package",
-						"acme/custom-tools",
-					},
-				},
-			},
-			expectedDeps: []string{"microsoft/apm-sample-package", "acme/custom-tools"},
-		},
-		{
 			name: "Empty array",
 			frontmatter: map[string]any{
 				"dependencies": []any{},
@@ -65,7 +53,7 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 			expectedDeps: nil,
 		},
 		{
-			name: "Non-array, non-map value is ignored",
+			name: "Non-array value is ignored",
 			frontmatter: map[string]any{
 				"dependencies": "microsoft/apm-sample-package",
 			},

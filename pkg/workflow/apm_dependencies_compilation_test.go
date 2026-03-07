@@ -97,48 +97,6 @@ Test with multiple APM dependencies
 		"Lock file should include third dependency")
 }
 
-func TestAPMDependenciesCompilationObjectFormat(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "apm-deps-object-test")
-
-	workflow := `---
-engine: copilot
-on: workflow_dispatch
-permissions:
-  issues: read
-  pull-requests: read
-dependencies:
-  apm:
-    - microsoft/apm-sample-package
-    - acme/custom-tools
----
-
-Test APM object format
-`
-
-	testFile := filepath.Join(tmpDir, "test-apm-object.md")
-	err := os.WriteFile(testFile, []byte(workflow), 0644)
-	require.NoError(t, err, "Failed to write test file")
-
-	compiler := NewCompiler()
-	err = compiler.CompileWorkflow(testFile)
-	require.NoError(t, err, "Compilation should succeed with object format")
-
-	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
-	content, err := os.ReadFile(lockFile)
-	require.NoError(t, err, "Failed to read lock file")
-
-	lockContent := string(content)
-
-	assert.Contains(t, lockContent, "Install APM dependencies",
-		"Lock file should contain APM dependencies step name")
-	assert.Contains(t, lockContent, "microsoft/apm-action",
-		"Lock file should reference the microsoft/apm-action action")
-	assert.Contains(t, lockContent, "- microsoft/apm-sample-package",
-		"Lock file should include first package")
-	assert.Contains(t, lockContent, "- acme/custom-tools",
-		"Lock file should include second package")
-}
-
 func TestAPMDependenciesCompilationNoDependencies(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "apm-deps-none-test")
 

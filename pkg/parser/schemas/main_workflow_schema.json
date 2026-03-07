@@ -7518,41 +7518,14 @@
       ]
     },
     "dependencies": {
-      "description": "APM (Agent Package Manager) dependencies to install before workflow execution. When specified, a microsoft/apm-action setup step is emitted. Supports array format (list of package slugs) and object format with an 'apm' sub-key.",
-      "examples": [
-        ["microsoft/apm-sample-package", "acme/custom-tools"],
-        {
-          "apm": ["microsoft/apm-sample-package", "acme/custom-tools"]
-        }
-      ],
-      "oneOf": [
-        {
-          "type": "array",
-          "description": "List of APM package slugs to install (e.g., 'org/package').",
-          "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-            "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-          }
-        },
-        {
-          "type": "object",
-          "description": "APM dependency configuration with 'apm' sub-key.",
-          "required": ["apm"],
-          "properties": {
-            "apm": {
-              "type": "array",
-              "description": "List of APM package slugs to install.",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-                "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-              }
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
+      "description": "List of APM package references to install (e.g., 'org/repo' or 'org/repo/path/to/skill').",
+      "examples": [["microsoft/apm-sample-package", "acme/custom-tools"]],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+      }
     }
   },
   "additionalProperties": false,
