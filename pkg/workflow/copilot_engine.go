@@ -110,6 +110,13 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	return []string{logsFolder}
 }
 
+// GetAgentManifestFiles returns Copilot-specific instruction files that should be
+// treated as security-sensitive manifests.  Modifying these files could redirect
+// the AI agent's behaviour in subsequent runs.
+func (e *CopilotEngine) GetAgentManifestFiles() []string {
+	return []string{"AGENTS.md"}
+}
+
 // GetExecutionSteps is implemented in copilot_engine_execution.go
 
 // RenderMCPConfig is implemented in copilot_mcp.go

@@ -137,20 +137,21 @@ async function main(config = {}) {
       core.info("Patch size validation passed");
     }
 
-    // Check for manifest file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md)
+    // Check for manifest file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
     // By default, manifest file modifications are refused to prevent supply chain attacks.
-    // Set allow-manifest-files: true to allow all changes.
-    // Set allow-manifest-files: "fallback-as-issue" to create a review issue instead of pushing.
-    // NOTE: fallback-as-issue detection is done here but issue creation is deferred until after
+    // Set manifest-files: allowed to allow all changes.
+    // Set manifest-files: fallback-to-issue to create a review issue instead of pushing.
+    // NOTE: fallback-to-issue detection is done here but issue creation is deferred until after
     // the PR metadata (repoParts, prTitle, pullNumber) has been resolved below.
     /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
     let protectedFilesForFallback = null;
     if (!isEmpty) {
       const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
       const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      const allowManifestFiles = config.allow_manifest_files;
-      const isAllowed = allowManifestFiles === true || allowManifestFiles === "true";
-      const isFallback = allowManifestFiles === "fallback-as-issue";
+      // manifest_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
+      const policy = config.manifest_files_policy;
+      const isAllowed = policy === "allowed";
+      const isFallback = policy === "fallback-to-issue";
       if (!isAllowed) {
         const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
         const { protectedPathsFound } = checkForProtectedPaths(patchContent, protectedPathPrefixes);
@@ -159,9 +160,9 @@ async function main(config = {}) {
           if (isFallback) {
             // Store for deferred issue creation (needs PR metadata resolved first)
             protectedFilesForFallback = allFound;
-            core.warning(`Manifest file protection triggered (fallback-as-issue): ${allFound.join(", ")}. Will create review issue instead of pushing.`);
+            core.warning(`Manifest file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pushing.`);
           } else {
-            const msg = `Cannot push to pull request branch: patch modifies protected files (${allFound.join(", ")}). Set allow-manifest-files: true to allow this, or allow-manifest-files: "fallback-as-issue" to create a review issue instead.`;
+            const msg = `Cannot push to pull request branch: patch modifies protected files (${allFound.join(", ")}). Set manifest-files: allowed to allow this, or manifest-files: fallback-to-issue to create a review issue instead.`;
             core.error(msg);
             return { success: false, error: msg };
           }
@@ -329,7 +330,7 @@ async function main(config = {}) {
       core.info(`✓ Labels validation passed: ${envLabels.join(", ")}`);
     }
 
-    // Deferred manifest file protection – fallback-as-issue path.
+    // Deferred manifest file protection – fallback-to-issue path.
     // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
     if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
       const runUrl = buildWorkflowRunUrl(context, context.repo);
@@ -360,7 +361,7 @@ async function main(config = {}) {
         `git am --3way /tmp/agent-artifacts-${runId}/${patchFileName}\n` +
         `git push origin ${branchName}\n` +
         `\`\`\`\n\n` +
-        `To allow the agent to push to the pull request branch directly in future runs, add \`allow-manifest-files: true\` to your workflow configuration.`;
+        `To allow the agent to push to the pull request branch directly in future runs, add \`manifest-files: allowed\` to your workflow configuration.`;
 
       try {
         const { data: issue } = await githubClient.rest.issues.create({

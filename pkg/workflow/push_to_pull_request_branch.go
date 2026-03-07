@@ -20,7 +20,8 @@ type PushToPullRequestBranchConfig struct {
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
-	AllowManifestFiles             *string  `yaml:"allow-manifest-files,omitempty"`                // Controls manifest-file protection. "true" allows all changes; "false" (default) hard-blocks; "fallback-as-issue" creates a review issue instead of pushing.
+	AllowManifestFiles             *string  `yaml:"allow-manifest-files,omitempty"`                // Deprecated: use manifest-files instead.
+	ManifestFilesPolicy            *string  `yaml:"manifest-files,omitempty"`                      // Controls manifest-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -135,14 +136,34 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			// Parse allowed-repos for cross-repository push
 			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
 
-			// Parse allow-manifest-files: accepts bool, "fallback-as-issue", or omitted (default deny).
-			// Use preprocessBoolOrEnumFieldAsString to convert bool → string in-place, then read the
-			// string value.  This keeps the parsing logic consistent with create-pull-request.
-			if err := preprocessBoolOrEnumFieldAsString(configMap, "allow-manifest-files", []string{"fallback-as-issue"}, pushToPullRequestBranchLog); err != nil {
-				pushToPullRequestBranchLog.Printf("Invalid allow-manifest-files value: %v", err)
-				// Fall through with default (nil = deny)
-			} else if strVal, ok := configMap["allow-manifest-files"].(string); ok {
-				pushToBranchConfig.AllowManifestFiles = &strVal
+			// Parse manifest-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
+			// Also accept legacy allow-manifest-files and migrate it to the new field.
+			manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
+			if _, newSet := configMap["manifest-files"]; !newSet {
+				if legacy, ok := configMap["allow-manifest-files"]; ok {
+					switch v := legacy.(type) {
+					case bool:
+						if v {
+							configMap["manifest-files"] = "allowed"
+						} else {
+							configMap["manifest-files"] = "blocked"
+						}
+					case string:
+						switch v {
+						case "true":
+							configMap["manifest-files"] = "allowed"
+						case "fallback-as-issue", "fallback-to-issue":
+							configMap["manifest-files"] = "fallback-to-issue"
+						default:
+							configMap["manifest-files"] = "blocked"
+						}
+					}
+					pushToPullRequestBranchLog.Printf("Migrated legacy allow-manifest-files value to manifest-files: %v → %v", legacy, configMap["manifest-files"])
+				}
+			}
+			validateStringEnumField(configMap, "manifest-files", manifestFilesEnums, pushToPullRequestBranchLog)
+			if strVal, ok := configMap["manifest-files"].(string); ok {
+				pushToBranchConfig.ManifestFilesPolicy = &strVal
 			}
 
 			// Parse common base fields with default max of 0 (no limit)

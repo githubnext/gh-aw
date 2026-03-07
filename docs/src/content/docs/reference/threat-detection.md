@@ -290,6 +290,63 @@ Reasons:
 
 If the detection process itself fails (e.g., network issues, tool errors), the workflow stops and safe outputs are not applied. This fail-safe approach prevents potentially malicious content from being processed.
 
+## Supply Chain Protection (Manifest File Protection)
+
+Beyond AI-powered threat detection, GitHub Agentic Workflows includes a static, rule-based protection layer that guards against **supply chain attacks** — cases where an AI agent could (intentionally or accidentally) modify files that control how software is built, tested, or deployed.
+
+### The Threat
+
+An AI agent operating in a repository can be tricked (through prompt injection or misconfigured tasks) into modifying:
+
+- **Dependency manifests** (`package.json`, `go.mod`, `requirements.txt`, `Gemfile`, `pom.xml`, etc.) — changing what third-party code is installed.
+- **CI/CD configuration** (`.github/workflows/*.yml`, `.github/dependabot.yml`, etc.) — altering how and when pipelines run, potentially exfiltrating secrets or bypassing security checks.
+- **Agent instruction files** (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, etc.) — redirecting the AI agent's behaviour on subsequent runs.
+
+### Default Remediation
+
+Manifest file protection is **enabled by default** for `create-pull-request` and `push-to-pull-request-branch`. Any patch that touches a protected file or directory causes the safe output to fail with a clear error:
+
+```
+Cannot create pull request: patch modifies protected files (package.json).
+Set manifest-files: allowed in your workflow to allow this, or
+manifest-files: fallback-to-issue to create a review issue instead.
+```
+
+This error is also surfaced as a **🛡️ Manifest File Protection Triggered** section in the agent failure issue or comment created by the conclusion job.
+
+### Policy Options
+
+Configure how each safe output handles manifest file changes using the `manifest-files` field:
+
+| Value | Behaviour |
+|-------|-----------|
+| `blocked` (default) | Hard-block: the safe output fails with an error message |
+| `allowed` | No restriction — all manifest file changes are permitted |
+| `fallback-to-issue` | Create a review issue instead of a PR / push, so a human can inspect and apply the changes manually |
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    manifest-files: fallback-to-issue  # human review required for manifest changes
+
+  push-to-pull-request-branch:
+    manifest-files: fallback-to-issue  # create issue instead of pushing manifest changes
+```
+
+### Protected Files
+
+The protection list is composed of three sources:
+
+1. **Runtime dependency manifests** — one entry per supported package manager (npm, Go, Python, Ruby, Java, Rust, Elixir, Haskell, .NET, Bun, Deno, uv).
+2. **Engine instruction files** — added automatically based on the active AI engine:
+   - **Copilot**: `AGENTS.md`
+   - **Claude**: `CLAUDE.md`; directory prefix `.claude/`
+   - **Codex**: `AGENTS.md`; directory prefix `.codex/`
+3. **Repository security configuration** — the `.github/` path prefix (covers all GitHub Actions workflows, CODEOWNERS, Dependabot config, and other repository-level security settings).
+
+> [!TIP]
+> If your workflow is explicitly designed to update dependencies or CI configuration, set `manifest-files: allowed` for that safe output. In repositories where human oversight is preferred, `manifest-files: fallback-to-issue` provides a middle ground: the agent performs all other operations normally, and a review issue is created for runs that involve protected files.
+
 ## Troubleshooting
 
 | Issue | Solution |

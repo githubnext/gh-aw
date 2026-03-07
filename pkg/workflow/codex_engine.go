@@ -137,6 +137,19 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	}
 }
 
+// GetAgentManifestFiles returns Codex-specific instruction files that should be
+// treated as security-sensitive manifests.  AGENTS.md is the standard OpenAI
+// Codex agent-instruction file; modifying it can redirect agent behaviour.
+func (e *CodexEngine) GetAgentManifestFiles() []string {
+	return []string{"AGENTS.md"}
+}
+
+// GetAgentManifestPathPrefixes returns Codex-specific config directory prefixes.
+// The .codex/ directory can contain agent configuration and task-specific settings.
+func (e *CodexEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".codex/"}
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""

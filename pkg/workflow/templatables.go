@@ -70,45 +70,25 @@ func preprocessBoolFieldAsString(configData map[string]any, fieldName string, lo
 	return nil
 }
 
-// preprocessBoolOrEnumFieldAsString converts the value of a config field that
-// accepts a boolean OR a specific set of string enum values.  Like
-// preprocessBoolFieldAsString it converts literal booleans to "true"/"false"
-// so that the target struct field can be typed as *string.  In addition it
-// accepts any string listed in allowedStrings as a valid value.
-//
-// allowedStrings should contain only the special enum values for this field
-// (e.g. ["fallback-as-issue"]) — "true" and "false" are handled automatically
-// for the boolean case and do not need to be listed here.
-//
-// GitHub Actions expression strings (e.g. "${{ inputs.flag }}") are also
-// accepted unchanged.
-func preprocessBoolOrEnumFieldAsString(configData map[string]any, fieldName string, allowedStrings []string, log *logger.Logger) error {
+// validateStringEnumField checks that a config field, if present, contains one
+// of the allowed string values.  Non-string values and unrecognised strings are
+// removed from the map (treated as absent) and a warning is logged.  Use this
+// for fields that are pure string enums with no boolean shorthand.
+func validateStringEnumField(configData map[string]any, fieldName string, allowed []string, log *logger.Logger) {
 	if configData == nil {
-		return nil
+		return
 	}
-	if val, exists := configData[fieldName]; exists {
-		switch v := val.(type) {
-		case bool:
-			if v {
-				configData[fieldName] = "true"
-			} else {
-				configData[fieldName] = "false"
-			}
-			if log != nil {
-				log.Printf("Converted %s bool to string before unmarshaling", fieldName)
-			}
-		case string:
-			if strings.HasPrefix(v, "${{") && strings.HasSuffix(v, "}}") {
-				// GitHub Actions expression – accepted unchanged
-				return nil
-			}
-			if slices.Contains(allowedStrings, v) {
-				return nil
-			}
-			return fmt.Errorf("field %q must be a boolean, one of %v, or a GitHub Actions expression, got string %q", fieldName, allowedStrings, v)
+	val, exists := configData[fieldName]
+	if !exists || val == nil {
+		return
+	}
+	strVal, ok := val.(string)
+	if !ok || !slices.Contains(allowed, strVal) {
+		if log != nil {
+			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
 		}
+		delete(configData, fieldName)
 	}
-	return nil
 }
 
 // buildTemplatableBoolEnvVar returns a YAML environment variable entry for a

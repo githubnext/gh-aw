@@ -418,31 +418,31 @@ async function main(config = {}) {
       core.info("Patch size validation passed");
     }
 
-    // Check for manifest file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md)
+    // Check for manifest file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
     // By default, manifest file modifications are refused to prevent supply chain attacks.
-    // Set allow-manifest-files: true to allow all changes.
-    // Set allow-manifest-files: "fallback-as-issue" to push the branch but create a review issue
+    // Set manifest-files: allowed to allow all changes.
+    // Set manifest-files: fallback-to-issue to push the branch but create a review issue
     // instead of a pull request, so a human can carefully review the manifest changes first.
     /** @type {{ manifestFilesFound: string[], protectedPathsFound: string[] } | null} */
     let manifestProtectionFallback = null;
     if (!isEmpty) {
       const manifestFiles = Array.isArray(config.manifest_files) ? config.manifest_files : [];
       const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      // allow_manifest_files is now a string: "true" = allow, "fallback-as-issue" = fallback, else = deny
-      const allowManifestFiles = config.allow_manifest_files;
-      const isAllowed = allowManifestFiles === true || allowManifestFiles === "true";
-      const isFallback = allowManifestFiles === "fallback-as-issue";
+      // manifest_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
+      const policy = config.manifest_files_policy;
+      const isAllowed = policy === "allowed";
+      const isFallback = policy === "fallback-to-issue";
       if (!isAllowed) {
         const { hasManifestFiles, manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
         const { hasProtectedPaths, protectedPathsFound } = checkForProtectedPaths(patchContent, protectedPathPrefixes);
         const allFound = [...manifestFilesFound, ...protectedPathsFound];
         if (allFound.length > 0) {
           if (isFallback) {
-            // Record for fallback-as-issue handling below; let patch application proceed
+            // Record for fallback-to-issue handling below; let patch application proceed
             manifestProtectionFallback = { manifestFilesFound, protectedPathsFound };
-            core.warning(`Manifest file protection triggered (fallback-as-issue): ${allFound.join(", ")}. Will create review issue instead of pull request.`);
+            core.warning(`Manifest file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pull request.`);
           } else {
-            const message = `Cannot create pull request: patch modifies protected files (${allFound.join(", ")}). Set allow-manifest-files: true in your workflow to allow this, or allow-manifest-files: "fallback-as-issue" to create a review issue instead.`;
+            const message = `Cannot create pull request: patch modifies protected files (${allFound.join(", ")}). Set manifest-files: allowed in your workflow to allow this, or manifest-files: fallback-to-issue to create a review issue instead.`;
             core.error(message);
             return { success: false, error: message };
           }
@@ -946,7 +946,7 @@ ${patchPreview}`;
         `> These files may affect project dependencies, CI/CD pipelines, or agent behaviour. **Please review the changes carefully** before creating the pull request.\n` +
         `>\n` +
         `> **[Click here to create the pull request once you have reviewed the changes](${createPrUrl})**\n\n` +
-        `To allow the agent to create this as a pull request directly in future runs, add \`allow-manifest-files: true\` to your workflow configuration.`;
+        `To allow the agent to create this as a pull request directly in future runs, add \`manifest-files: allowed\` to your workflow configuration.`;
 
       try {
         const { data: issue } = await githubClient.rest.issues.create({

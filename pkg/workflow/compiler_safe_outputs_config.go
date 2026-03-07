@@ -47,6 +47,29 @@ func getEffectiveFooterString(localFooter *string, globalFooter *bool) *string {
 	return nil
 }
 
+// manifestFilesPolicyOrNil returns the effective manifest-files policy string.
+// It prefers ManifestFilesPolicy (new field); if that is nil it falls back to
+// AllowManifestFiles (deprecated field) and migrates the value on the fly.
+// Returns nil when neither field is set (runtime default: "blocked").
+func manifestFilesPolicyOrNil(newPolicy *string, legacyAllow *string) *string {
+	if newPolicy != nil {
+		return newPolicy
+	}
+	if legacyAllow != nil {
+		var migrated string
+		switch *legacyAllow {
+		case "true":
+			migrated = "allowed"
+		case "fallback-as-issue", "fallback-to-issue":
+			migrated = "fallback-to-issue"
+		default:
+			migrated = "blocked"
+		}
+		return &migrated
+	}
+	return nil
+}
+
 // handlerConfigBuilder provides a fluent API for building handler configurations
 type handlerConfigBuilder struct {
 	config map[string]any
@@ -481,7 +504,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
 			AddIfNotEmpty("base_branch", c.BaseBranch).
-			AddStringPtr("allow_manifest_files", c.AllowManifestFiles).
+			AddStringPtr("manifest_files_policy", manifestFilesPolicyOrNil(c.ManifestFilesPolicy, c.AllowManifestFiles)).
 			AddStringSlice("manifest_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes())
 		return builder.Build()
@@ -507,7 +530,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
-			AddStringPtr("allow_manifest_files", c.AllowManifestFiles).
+			AddStringPtr("manifest_files_policy", manifestFilesPolicyOrNil(c.ManifestFilesPolicy, c.AllowManifestFiles)).
 			AddStringSlice("manifest_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			Build()
@@ -719,6 +742,13 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	compilerSafeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
 	config := make(map[string]map[string]any)
 
+	// Collect engine-specific manifest files and path prefixes (AgentFileProvider interface).
+	// These are merged with the global runtime-derived lists so that engine-specific
+	// instruction files (e.g. CLAUDE.md, .claude/, AGENTS.md) are automatically protected.
+	extraManifestFiles, extraPathPrefixes := c.getEngineAgentFileInfo(data)
+	fullManifestFiles := getAllManifestFiles(extraManifestFiles...)
+	fullPathPrefixes := getProtectedPathPrefixes(extraPathPrefixes...)
+
 	// Build configuration for each handler using the registry
 	for handlerName, builder := range handlerRegistry {
 		handlerConfig := builder(data.SafeOutputs)
@@ -726,6 +756,11 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// 1. It returns a non-nil config (explicitly enabled, even if empty)
 		// 2. For auto-enabled handlers, include even with empty config
 		if handlerConfig != nil {
+			// Augment manifest protection with engine-specific files for handlers that use it.
+			if _, hasManifest := handlerConfig["manifest_files"]; hasManifest {
+				handlerConfig["manifest_files"] = fullManifestFiles
+				handlerConfig["protected_path_prefixes"] = fullPathPrefixes
+			}
 			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
 			config[handlerName] = handlerConfig
 		}
@@ -748,4 +783,26 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	}
 }
 
-// addAllSafeOutputConfigEnvVars adds environment variables for all enabled safe output types
+// getEngineAgentFileInfo returns the engine-specific manifest filenames and path prefixes
+// by type-asserting the active engine to AgentFileProvider.  Returns empty slices when
+// the engine is not set or does not implement the interface.
+func (c *Compiler) getEngineAgentFileInfo(data *WorkflowData) (manifestFiles []string, pathPrefixes []string) {
+	if data == nil || data.EngineConfig == nil {
+		return nil, nil
+	}
+	engine, err := c.engineRegistry.GetEngine(data.EngineConfig.ID)
+	if err != nil {
+		compilerSafeOutputsConfigLog.Printf("Engine lookup failed for %q: %v — skipping agent manifest file injection", data.EngineConfig.ID, err)
+		return nil, nil
+	}
+	if engine == nil {
+		return nil, nil
+	}
+	provider, ok := engine.(AgentFileProvider)
+	if !ok {
+		return nil, nil
+	}
+	compilerSafeOutputsConfigLog.Printf("Engine %s provides AgentFileProvider: files=%v, prefixes=%v",
+		data.EngineConfig.ID, provider.GetAgentManifestFiles(), provider.GetAgentManifestPathPrefixes())
+	return provider.GetAgentManifestFiles(), provider.GetAgentManifestPathPrefixes()
+}

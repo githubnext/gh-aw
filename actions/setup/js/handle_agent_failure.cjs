@@ -352,10 +352,10 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     let yamlSnippet = "```yaml\nsafe-outputs:\n";
     for (const type of blockedTypes) {
       const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
-      yamlSnippet += `  ${yamlKey}:\n    allow-manifest-files: true\n`;
+      yamlSnippet += `  ${yamlKey}:\n    manifest-files: allowed\n`;
     }
     yamlSnippet += "```\n";
-    context += "\nTo allow manifest file modifications, add `allow-manifest-files: true` to the safe output configuration:\n";
+    context += "\nTo allow manifest file modifications, add `manifest-files: allowed` to the safe output configuration:\n";
     context += yamlSnippet;
   }
 

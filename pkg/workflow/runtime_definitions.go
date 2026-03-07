@@ -182,28 +182,14 @@ func init() {
 }
 
 // getAllManifestFiles returns the deduplicated union of all manifest file names
-// across all known runtimes, plus extra security-sensitive filenames.
+// across all known runtimes, plus any additionally-provided filenames.
 // These are matched by basename only (no path comparison).
-func getAllManifestFiles() []string {
-	seen := make(map[string]bool)
-	var result []string
+func getAllManifestFiles(extra ...string) []string {
+	var files []string
 	for _, runtime := range knownRuntimes {
-		for _, f := range runtime.ManifestFiles {
-			if !seen[f] {
-				seen[f] = true
-				result = append(result, f)
-			}
-		}
+		files = append(files, runtime.ManifestFiles...)
 	}
-	// AGENTS.md is a GitHub Copilot agent instruction file; modifying it can
-	// redirect AI agents and is treated the same as a dependency manifest.
-	for _, extra := range []string{"AGENTS.md"} {
-		if !seen[extra] {
-			seen[extra] = true
-			result = append(result, extra)
-		}
-	}
-	return result
+	return mergeUnique(files, extra...)
 }
 
 // getProtectedPathPrefixes returns path prefixes (relative to repo root) whose
@@ -213,8 +199,28 @@ func getAllManifestFiles() []string {
 //
 // ".github/" covers workflow definitions, CODEOWNERS, Dependabot config, and
 // other repository-level security-sensitive configuration.
-func getProtectedPathPrefixes() []string {
-	return []string{".github/"}
+func getProtectedPathPrefixes(extra ...string) []string {
+	return mergeUnique([]string{".github/"}, extra...)
+}
+
+// mergeUnique returns a deduplicated slice that starts with base and appends any
+// items from extra that are not already present in base.  Order is preserved.
+func mergeUnique(base []string, extra ...string) []string {
+	seen := make(map[string]bool, len(base)+len(extra))
+	result := make([]string, 0, len(base)+len(extra))
+	for _, v := range base {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	for _, v := range extra {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // findRuntimeByID finds a runtime configuration by its ID
