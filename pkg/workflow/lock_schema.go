@@ -16,8 +16,10 @@ var lockSchemaLog = logger.New("workflow:lock_schema")
 type LockSchemaVersion string
 
 const (
-	// LockSchemaV1 is the current lock file schema version
+	// LockSchemaV1 is the legacy lock file schema version (no strict field)
 	LockSchemaV1 LockSchemaVersion = "v1"
+	// LockSchemaV2 is the current lock file schema version (adds strict field)
+	LockSchemaV2 LockSchemaVersion = "v2"
 )
 
 // LockMetadata represents the structured metadata embedded in lock files
@@ -26,11 +28,13 @@ type LockMetadata struct {
 	FrontmatterHash string            `json:"frontmatter_hash,omitempty"`
 	StopTime        string            `json:"stop_time,omitempty"`
 	CompilerVersion string            `json:"compiler_version,omitempty"`
+	Strict          bool              `json:"strict,omitempty"`
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
 var SupportedSchemaVersions = []LockSchemaVersion{
 	LockSchemaV1,
+	LockSchemaV2,
 }
 
 // IsSchemaVersionSupported checks if a schema version is supported
@@ -114,11 +118,12 @@ func formatSupportedVersions() string {
 
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
-func GenerateLockMetadata(frontmatterHash string, stopTime string) *LockMetadata {
+func GenerateLockMetadata(frontmatterHash string, stopTime string, strict bool) *LockMetadata {
 	metadata := &LockMetadata{
-		SchemaVersion:   LockSchemaV1,
+		SchemaVersion:   LockSchemaV2,
 		FrontmatterHash: frontmatterHash,
 		StopTime:        stopTime,
+		Strict:          strict,
 	}
 
 	// Include compiler version only for release builds

@@ -7,6 +7,9 @@ sidebar:
 
 **GitHub lockdown mode** is [a security feature of the GitHub MCP server](https://github.com/github/github-mcp-server/blob/main/docs/server-configuration.md#lockdown-mode) that filters content in public repositories to only surface items (issues, pull requests, comments, discussions, etc.) from users with **push access** to the repository. This protects agentic workflows from processing potentially malicious or misleading content from untrusted users.
 
+> [!IMPORTANT]
+> Workflows running on public repositories must be compiled with strict mode enabled. If `strict: false` is set in the frontmatter, the workflow will fail at runtime on public repositories. See [Strict Mode](/gh-aw/reference/frontmatter/#strict-mode-strict) for details.
+
 To enable lockdown mode for your workflow:
 
 1. **Set `lockdown: true` in your workflow frontmatter**

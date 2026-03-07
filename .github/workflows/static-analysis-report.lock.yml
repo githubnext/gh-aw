@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6e704ad580181ed88b36b117249a9b0079ae21982ff1e28edffa187b14b3262c"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6e704ad580181ed88b36b117249a9b0079ae21982ff1e28edffa187b14b3262c","strict":true}
 
 name: "Static Analysis Report"
 "on":
@@ -71,7 +71,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "2.1.70"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Static Analysis Report"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -308,7 +309,7 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
       - name: Build gh-aw Docker image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
           platforms: linux/amd64
@@ -370,7 +371,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.70
+        run: npm install -g @anthropic-ai/claude-code@latest
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

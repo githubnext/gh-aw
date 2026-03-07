@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a6d0e46b1953d18e70a4029c7369fb96273432fdd02f2f5ca890a750bcfeb2b1"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"a6d0e46b1953d18e70a4029c7369fb96273432fdd02f2f5ca890a750bcfeb2b1","strict":true}
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":
@@ -72,7 +72,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.111.0"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "DeepReport - Intelligence Gathering Agent"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -82,6 +82,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -332,7 +333,7 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
       - name: Build gh-aw Docker image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
           platforms: linux/amd64
@@ -403,7 +404,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.111.0
+        run: npm install -g @openai/codex@latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server

@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -238,11 +241,9 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 		// Only resolve SHA if we're using the cache
 		resolvedSHA, err := resolveRefToSHA(owner, repo, ref)
 		if err != nil {
-			// If the error is an authentication error, propagate it immediately
-			lowerErr := strings.ToLower(err.Error())
-			if strings.Contains(lowerErr, "auth") || strings.Contains(lowerErr, "unauthoriz") || strings.Contains(lowerErr, "forbidden") || strings.Contains(lowerErr, "token") || strings.Contains(lowerErr, "permission denied") {
-				return "", fmt.Errorf("failed to resolve ref to SHA due to authentication error: %w", err)
-			}
+			// SHA resolution failure (including auth errors) only means we cannot cache; the
+			// actual file download will be attempted below and may succeed via git fallback for
+			// public repositories. Do not propagate this error - just skip caching.
 			remoteLog.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
 			// Continue without caching if SHA resolution fails
 		} else {
@@ -398,6 +399,14 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	remoteLog.Printf("Attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
+	// First, try via raw.githubusercontent.com — no auth required for public repos and
+	// no dependency on git being installed.
+	content, rawErr := downloadFileViaRawURL(owner, repo, path, ref)
+	if rawErr == nil {
+		return content, nil
+	}
+	remoteLog.Printf("Raw URL download failed for %s/%s/%s@%s, trying git archive: %v", owner, repo, path, ref, rawErr)
+
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
 	githubHost := GetGitHubHostForRepo(owner, repo)
@@ -414,12 +423,42 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 	}
 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
-	content, err := fileutil.ExtractFileFromTar(archiveOutput, path)
+	content, err = fileutil.ExtractFileFromTar(archiveOutput, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract file from git archive: %w", err)
 	}
 
 	remoteLog.Printf("Successfully downloaded file via git archive: %s/%s/%s@%s", owner, repo, path, ref)
+	return content, nil
+}
+
+// downloadFileViaRawURL fetches a file using the raw.githubusercontent.com URL.
+// This requires no authentication for public repositories and no git installation.
+func downloadFileViaRawURL(owner, repo, filePath, ref string) ([]byte, error) {
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filePath)
+	remoteLog.Printf("Attempting raw URL download: %s", rawURL)
+
+	// Use a client with a timeout to prevent indefinite hangs on slow/unresponsive hosts.
+	rawClient := &http.Client{Timeout: 30 * time.Second}
+
+	// #nosec G107 -- rawURL is constructed from workflow import configuration authored by
+	// the developer; the owner, repo, filePath, and ref are user-supplied workflow spec fields.
+	resp, err := rawClient.Get(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("raw URL request failed for %s: %w", rawURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("raw URL returned HTTP %d for %s", resp.StatusCode, rawURL)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read raw URL response body for %s: %w", rawURL, err)
+	}
+
+	remoteLog.Printf("Successfully downloaded file via raw URL: %s", rawURL)
 	return content, nil
 }
 
@@ -541,6 +580,13 @@ func resolveRemoteSymlinks(owner, repo, filePath, ref string) (string, error) {
 
 	client, err := api.DefaultRESTClient()
 	if err != nil {
+		// When auth is unavailable (e.g., running inside an agentic workflow without credentials),
+		// symlink resolution cannot proceed. Return a descriptive error so the caller can skip
+		// symlink resolution and proceed without it.
+		if gitutil.IsAuthError(err.Error()) {
+			remoteLog.Printf("REST client creation failed due to auth error, skipping symlink resolution for %s/%s/%s@%s", owner, repo, filePath, ref)
+			return "", fmt.Errorf("skipping symlink resolution: no auth available for %s/%s/%s@%s", owner, repo, filePath, ref)
+		}
 		return "", fmt.Errorf("failed to create REST client: %w", err)
 	}
 
@@ -627,6 +673,21 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 	// Create REST client
 	client, err := api.DefaultRESTClient()
 	if err != nil {
+		// When the REST client cannot be created due to missing auth (e.g., running inside an
+		// agentic workflow without gh CLI credentials), fall back to git-based download so that
+		// public repositories are still accessible without authentication.
+		if gitutil.IsAuthError(err.Error()) {
+			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
+			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
+			if gitErr != nil {
+				// Both REST (auth error) and git fallback failed. Return the original auth error
+				// so callers and tests can detect the auth-unavailable condition and skip/handle
+				// it gracefully (git fails too in unauthenticated environments for private/invalid repos).
+				remoteLog.Printf("Git fallback also failed for %s/%s/%s@%s: %v", owner, repo, path, ref, gitErr)
+				return nil, fmt.Errorf("failed to fetch file content: %w", err)
+			}
+			return content, nil
+		}
 		return nil, fmt.Errorf("failed to create REST client: %w", err)
 	}
 

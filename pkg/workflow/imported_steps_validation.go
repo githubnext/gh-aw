@@ -31,10 +31,9 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var importedStepsValidationLog = logger.New("workflow:imported_steps_validation")
+var importedStepsValidationLog = newValidationLogger("imported_steps")
 
 // validateImportedStepsNoAgenticSecrets validates that engine steps don't use agentic engine secrets
 // This validation is now a no-op since custom engine support has been removed.

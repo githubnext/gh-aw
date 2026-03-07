@@ -25,7 +25,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fcaeacfaaa62a6775511b360ff105863e4d913c99f71eab55489bcd96db114f0","stop_time":"2026-03-03 16:27:58"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fcaeacfaaa62a6775511b360ff105863e4d913c99f71eab55489bcd96db114f0","stop_time":"2026-03-03 16:27:58","strict":true}
 #
 # Effective stop-time: 2026-03-03 16:27:58
 
@@ -81,7 +81,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: "gpt-5.1-codex-mini"
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -91,6 +91,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -367,7 +368,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server

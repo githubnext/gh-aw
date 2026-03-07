@@ -3,11 +3,9 @@ package workflow
 import (
 	"errors"
 	"regexp"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var secretsValidationLog = logger.New("workflow:secrets_validation")
+var secretsValidationLog = newValidationLogger("secrets")
 
 // secretsExpressionPattern matches GitHub Actions secrets expressions for jobs.secrets validation.
 // Pattern matches: ${{ secrets.NAME }} or ${{ secrets.NAME1 || secrets.NAME2 }}

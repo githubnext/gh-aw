@@ -29,7 +29,7 @@
 #     - shared/jqschema.md
 #     - shared/safe-output-app.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"30ae52017856bedddf21f6ea82fde8c336122be8d203aea1514f1cb2b3ce4268"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"30ae52017856bedddf21f6ea82fde8c336122be8d203aea1514f1cb2b3ce4268","strict":true}
 
 name: "Changeset Generator"
 "on":
@@ -89,7 +89,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: "gpt-5.1-codex-mini"
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.111.0"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Changeset Generator"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -99,6 +99,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -375,7 +376,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.111.0
+        run: npm install -g @openai/codex@latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server

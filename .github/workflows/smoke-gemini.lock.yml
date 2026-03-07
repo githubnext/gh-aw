@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0daf3e3fd70f487864a1ae11dafd92fb015aed0e0bd633ce78a72118bac22825"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0daf3e3fd70f487864a1ae11dafd92fb015aed0e0bd633ce78a72118bac22825","strict":true}
 
 name: "Smoke Gemini"
 "on":
@@ -98,6 +98,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: ""
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -388,7 +389,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Gemini CLI
-        run: npm install -g --silent @google/gemini-cli@0.31.0
+        run: npm install -g @google/gemini-cli@latest
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

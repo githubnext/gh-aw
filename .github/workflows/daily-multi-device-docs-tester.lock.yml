@@ -28,7 +28,7 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8f84bb2f90e6a52e64d8b619fa2b429f3d8bc1150ab7268f650c93dca9c16473"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8f84bb2f90e6a52e64d8b619fa2b429f3d8bc1150ab7268f650c93dca9c16473","strict":true}
 
 name: "Multi-Device Docs Tester"
 "on":
@@ -77,7 +77,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "2.1.70"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -87,6 +87,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -334,7 +335,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.70
+        run: npm install -g @anthropic-ai/claude-code@latest
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

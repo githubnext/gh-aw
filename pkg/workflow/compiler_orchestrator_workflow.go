@@ -172,6 +172,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		ParsedTools:           NewTools(toolsResult.tools),
 		Runtimes:              toolsResult.runtimes,
 		PluginInfo:            toolsResult.pluginInfo,
+		APMDependencies:       toolsResult.apmDependencies,
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,

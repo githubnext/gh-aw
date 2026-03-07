@@ -3,7 +3,11 @@ package stringutil
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var identifiersLog = logger.New("stringutil:identifiers")
 
 // NormalizeWorkflowName removes .md and .lock.yml extensions from workflow names.
 // This is used to standardize workflow identifiers regardless of the file format.
@@ -75,7 +79,9 @@ func MarkdownToLockFile(mdPath string) string {
 	}
 
 	cleaned := filepath.Clean(mdPath)
-	return strings.TrimSuffix(cleaned, ".md") + ".lock.yml"
+	lockPath := strings.TrimSuffix(cleaned, ".md") + ".lock.yml"
+	identifiersLog.Printf("MarkdownToLockFile: %s -> %s", mdPath, lockPath)
+	return lockPath
 }
 
 // LockFileToMarkdown converts a compiled lock file path back to its markdown source path.
@@ -97,5 +103,7 @@ func LockFileToMarkdown(lockPath string) string {
 	}
 
 	cleaned := filepath.Clean(lockPath)
-	return strings.TrimSuffix(cleaned, ".lock.yml") + ".md"
+	mdPath := strings.TrimSuffix(cleaned, ".lock.yml") + ".md"
+	identifiersLog.Printf("LockFileToMarkdown: %s -> %s", lockPath, mdPath)
+	return mdPath
 }

@@ -23,7 +23,7 @@
 #
 # The Cookie Monster of issues - assigns issues to Copilot coding agent one at a time
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2ababe1bdc7d094c401b9491ec0f362786fabd31e1e5fc1025db33681912136a"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2ababe1bdc7d094c401b9491ec0f362786fabd31e1e5fc1025db33681912136a","strict":true}
 
 name: "Issue Monster"
 "on":
@@ -75,7 +75,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: "gpt-5.1-codex-mini"
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Issue Monster"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -85,6 +85,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -329,7 +330,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Download container images

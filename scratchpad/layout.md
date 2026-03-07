@@ -196,10 +196,10 @@ const AgenticWorkflowsMCPServerID = "agenticworkflows"
 ````
 ### Default Versions
 ````go
-const DefaultCopilotVersion Version = "0.0.420"
-const DefaultClaudeCodeVersion Version = "2.1.63"
-const DefaultCodexVersion Version = "0.106.0"
-const DefaultGeminiVersion Version = "0.31.0"
+const DefaultCopilotVersion Version = "latest"
+const DefaultClaudeCodeVersion Version = "latest"
+const DefaultCodexVersion Version = "latest"
+const DefaultGeminiVersion Version = "latest"
 const DefaultGitHubMCPServerVersion Version = "v0.31.0"
 const DefaultFirewallVersion Version = "v0.23.0"
 const DefaultMCPGatewayVersion Version = "v0.1.6"

@@ -1,6 +1,12 @@
 package workflow
 
 import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -142,4 +148,884 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	}
 
 	return job, nil
+}
+
+var safeOutputsPermissionsLog = logger.New("workflow:safe_outputs_permissions")
+
+// oidcVaultActions is the list of known GitHub Actions that require id-token: write
+// to authenticate with secret vaults or cloud providers via OIDC (OpenID Connect).
+// Inclusion criteria: actions that use the GitHub OIDC token to authenticate to
+// external cloud providers or secret management systems. Add new entries when
+// a well-known action is identified that exchanges an OIDC JWT for cloud credentials.
+var oidcVaultActions = []string{
+	"aws-actions/configure-aws-credentials", // AWS OIDC / Secrets Manager
+	"azure/login",                           // Azure Key Vault / OIDC
+	"google-github-actions/auth",            // GCP Secret Manager / OIDC
+	"hashicorp/vault-action",                // HashiCorp Vault
+	"cyberark/conjur-action",                // CyberArk Conjur
+}
+
+// stepsRequireIDToken returns true if any of the provided steps use a known
+// OIDC/secret-vault action that requires the id-token: write permission.
+func stepsRequireIDToken(steps []any) bool {
+	for _, step := range steps {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		uses, ok := stepMap["uses"].(string)
+		if !ok || uses == "" {
+			continue
+		}
+		// Strip the @version suffix before matching
+		actionRef, _, _ := strings.Cut(uses, "@")
+		if slices.Contains(oidcVaultActions, actionRef) {
+			return true
+		}
+	}
+	return false
+}
+
+// ComputePermissionsForSafeOutputs computes the minimal required permissions
+// based on the configured safe-outputs. This function is used by both the
+// consolidated safe outputs job and the conclusion job to ensure they only
+// request the permissions they actually need.
+//
+// This implements the principle of least privilege by only including
+// permissions that are required by the configured safe outputs.
+func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissions {
+	if safeOutputs == nil {
+		safeOutputsPermissionsLog.Print("No safe outputs configured, returning empty permissions")
+		return NewPermissions()
+	}
+
+	permissions := NewPermissions()
+
+	// Merge permissions for all handler-managed types
+	if safeOutputs.CreateIssues != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for create-issue")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.CreateDiscussions != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for create-discussion")
+		permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
+	}
+	if safeOutputs.AddComments != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
+		permissions.Merge(buildAddCommentPermissions(safeOutputs.AddComments))
+	}
+	if safeOutputs.CloseIssues != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.CloseDiscussions != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for close-discussion")
+		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+	}
+	if safeOutputs.AddLabels != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for add-labels")
+		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+	}
+	if safeOutputs.RemoveLabels != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for remove-labels")
+		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+	}
+	if safeOutputs.UpdateIssues != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for update-issue")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.UpdateDiscussions != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for update-discussion")
+		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+	}
+	if safeOutputs.LinkSubIssue != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for link-sub-issue")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.UpdateRelease != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for update-release")
+		permissions.Merge(NewPermissionsContentsWrite())
+	}
+	if safeOutputs.CreatePullRequestReviewComments != nil || safeOutputs.SubmitPullRequestReview != nil ||
+		safeOutputs.ReplyToPullRequestReviewComment != nil || safeOutputs.ResolvePullRequestReviewThread != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for PR review operations")
+		permissions.Merge(NewPermissionsContentsReadPRWrite())
+	}
+	if safeOutputs.CreatePullRequests != nil {
+		// Check fallback-as-issue setting to determine permissions
+		if getFallbackAsIssue(safeOutputs.CreatePullRequests) {
+			safeOutputsPermissionsLog.Print("Adding permissions for create-pull-request with fallback-as-issue")
+			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
+		} else {
+			safeOutputsPermissionsLog.Print("Adding permissions for create-pull-request")
+			permissions.Merge(NewPermissionsContentsWritePRWrite())
+		}
+	}
+	if safeOutputs.PushToPullRequestBranch != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch")
+		permissions.Merge(NewPermissionsContentsWritePRWrite())
+	}
+	if safeOutputs.UpdatePullRequests != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")
+		permissions.Merge(NewPermissionsContentsReadPRWrite())
+	}
+	if safeOutputs.ClosePullRequests != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for close-pull-request")
+		permissions.Merge(NewPermissionsContentsReadPRWrite())
+	}
+	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for mark-pull-request-as-ready-for-review")
+		permissions.Merge(NewPermissionsContentsReadPRWrite())
+	}
+	if safeOutputs.HideComment != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for hide-comment")
+		// Check if discussions permission should be excluded (discussions: false)
+		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+		// Note: Hiding comments (issue/PR/discussion) only needs issues:write, not pull_requests:write
+		if safeOutputs.HideComment.Discussions != nil && !*safeOutputs.HideComment.Discussions {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		} else {
+			permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
+		}
+	}
+	if safeOutputs.DispatchWorkflow != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for dispatch-workflow")
+		permissions.Merge(NewPermissionsActionsWrite())
+	}
+	// Project-related types
+	if safeOutputs.CreateProjects != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for create-project")
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+	if safeOutputs.UpdateProjects != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for update-project")
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+	if safeOutputs.CreateProjectStatusUpdates != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for create-project-status-update")
+		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
+	}
+	if safeOutputs.AssignToAgent != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for assign-to-agent")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.CreateAgentSessions != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for create-agent-session")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.CreateCodeScanningAlerts != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for create-code-scanning-alert")
+		permissions.Merge(NewPermissionsContentsReadSecurityEventsWrite())
+	}
+	if safeOutputs.AutofixCodeScanningAlert != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for autofix-code-scanning-alert")
+		permissions.Merge(NewPermissionsContentsReadSecurityEventsWriteActionsRead())
+	}
+	if safeOutputs.AssignToUser != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for assign-to-user")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.UnassignFromUser != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for unassign-from-user")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.AssignMilestone != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for assign-milestone")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.SetIssueType != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for set-issue-type")
+		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	}
+	if safeOutputs.AddReviewer != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for add-reviewer")
+		permissions.Merge(NewPermissionsContentsReadPRWrite())
+	}
+	if safeOutputs.UploadAssets != nil {
+		safeOutputsPermissionsLog.Print("Adding permissions for upload-asset")
+		permissions.Merge(NewPermissionsContentsWrite())
+	}
+
+	// NoOp and MissingTool don't require write permissions beyond what's already included
+	// They only need to comment if add-comment is already configured
+
+	// Handle id-token permission for OIDC/secret vault actions in user-provided steps.
+	// Explicit "none" disables auto-detection; explicit "write" always adds it;
+	// otherwise auto-detect from the steps list.
+	if safeOutputs.IDToken != nil && *safeOutputs.IDToken == "none" {
+		safeOutputsPermissionsLog.Print("id-token permission explicitly disabled (none)")
+	} else if safeOutputs.IDToken != nil && *safeOutputs.IDToken == "write" {
+		safeOutputsPermissionsLog.Print("id-token: write explicitly requested")
+		permissions.Set(PermissionIdToken, PermissionWrite)
+	} else if stepsRequireIDToken(safeOutputs.Steps) {
+		safeOutputsPermissionsLog.Print("Auto-detected OIDC/vault action in steps; adding id-token: write")
+		permissions.Set(PermissionIdToken, PermissionWrite)
+	}
+
+	safeOutputsPermissionsLog.Printf("Computed permissions with %d scopes", len(permissions.permissions))
+	return permissions
+}
+
+// SafeOutputsConfigFromKeys builds a minimal SafeOutputsConfig from a list of safe-output
+// key names (e.g. "create-issue", "add-comment"). Only the fields needed for permission
+// computation are populated. This is used by external callers (e.g. the interactive wizard)
+// that want to call ComputePermissionsForSafeOutputs without constructing a full config.
+func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
+	config := &SafeOutputsConfig{}
+	for _, key := range keys {
+		switch key {
+		case "create-issue":
+			config.CreateIssues = &CreateIssuesConfig{}
+		case "create-agent-session":
+			config.CreateAgentSessions = &CreateAgentSessionConfig{}
+		case "create-discussion":
+			config.CreateDiscussions = &CreateDiscussionsConfig{}
+		case "update-discussion":
+			config.UpdateDiscussions = &UpdateDiscussionsConfig{}
+		case "close-discussion":
+			config.CloseDiscussions = &CloseDiscussionsConfig{}
+		case "add-comment":
+			config.AddComments = &AddCommentsConfig{}
+		case "close-issue":
+			config.CloseIssues = &CloseIssuesConfig{}
+		case "close-pull-request":
+			config.ClosePullRequests = &ClosePullRequestsConfig{}
+		case "create-pull-request":
+			config.CreatePullRequests = &CreatePullRequestsConfig{}
+		case "create-pull-request-review-comment":
+			config.CreatePullRequestReviewComments = &CreatePullRequestReviewCommentsConfig{}
+		case "submit-pull-request-review":
+			config.SubmitPullRequestReview = &SubmitPullRequestReviewConfig{}
+		case "reply-to-pull-request-review-comment":
+			config.ReplyToPullRequestReviewComment = &ReplyToPullRequestReviewCommentConfig{}
+		case "resolve-pull-request-review-thread":
+			config.ResolvePullRequestReviewThread = &ResolvePullRequestReviewThreadConfig{}
+		case "create-code-scanning-alert":
+			config.CreateCodeScanningAlerts = &CreateCodeScanningAlertsConfig{}
+		case "autofix-code-scanning-alert":
+			config.AutofixCodeScanningAlert = &AutofixCodeScanningAlertConfig{}
+		case "add-labels":
+			config.AddLabels = &AddLabelsConfig{}
+		case "remove-labels":
+			config.RemoveLabels = &RemoveLabelsConfig{}
+		case "add-reviewer":
+			config.AddReviewer = &AddReviewerConfig{}
+		case "assign-milestone":
+			config.AssignMilestone = &AssignMilestoneConfig{}
+		case "assign-to-agent":
+			config.AssignToAgent = &AssignToAgentConfig{}
+		case "assign-to-user":
+			config.AssignToUser = &AssignToUserConfig{}
+		case "unassign-from-user":
+			config.UnassignFromUser = &UnassignFromUserConfig{}
+		case "update-issue":
+			config.UpdateIssues = &UpdateIssuesConfig{}
+		case "update-pull-request":
+			config.UpdatePullRequests = &UpdatePullRequestsConfig{}
+		case "push-to-pull-request-branch":
+			config.PushToPullRequestBranch = &PushToPullRequestBranchConfig{}
+		case "upload-asset":
+			config.UploadAssets = &UploadAssetsConfig{}
+		case "update-release":
+			config.UpdateRelease = &UpdateReleaseConfig{}
+		case "hide-comment":
+			config.HideComment = &HideCommentConfig{}
+		case "link-sub-issue":
+			config.LinkSubIssue = &LinkSubIssueConfig{}
+		case "update-project":
+			config.UpdateProjects = &UpdateProjectConfig{}
+		case "create-project":
+			config.CreateProjects = &CreateProjectsConfig{}
+		case "create-project-status-update":
+			config.CreateProjectStatusUpdates = &CreateProjectStatusUpdateConfig{}
+		case "mark-pull-request-as-ready-for-review":
+			config.MarkPullRequestAsReadyForReview = &MarkPullRequestAsReadyForReviewConfig{}
+		}
+	}
+	return config
+}
+
+var safeOutputsStepsLog = logger.New("workflow:safe_outputs_steps")
+
+// ========================================
+// Safe Output Step Builders
+// ========================================
+
+// buildCustomActionStep creates a step that uses a custom action reference
+// instead of inline JavaScript via actions/github-script
+func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScriptStepConfig, scriptName string) []string {
+	safeOutputsStepsLog.Printf("Building custom action step: %s (scriptName=%s, actionMode=%s)", config.StepName, scriptName, c.actionMode)
+
+	var steps []string
+
+	// Get the action path from the script registry
+	actionPath := DefaultScriptRegistry.GetActionPath(scriptName)
+	if actionPath == "" {
+		safeOutputsStepsLog.Printf("WARNING: No action path found for script %s, falling back to inline mode", scriptName)
+		// Set ScriptFile for inline mode fallback
+		config.ScriptFile = scriptName + ".cjs"
+		return c.buildGitHubScriptStep(data, config)
+	}
+
+	// Resolve the action reference based on mode
+	actionRef := c.resolveActionReference(actionPath, data)
+	if actionRef == "" {
+		safeOutputsStepsLog.Printf("WARNING: Could not resolve action reference for %s, falling back to inline mode", actionPath)
+		// Set ScriptFile for inline mode fallback
+		config.ScriptFile = scriptName + ".cjs"
+		return c.buildGitHubScriptStep(data, config)
+	}
+
+	// Add artifact download steps before the custom action step
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Step name and metadata
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, config.CustomEnvVars...)
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for inputs (replaces github-token in actions/github-script)
+	steps = append(steps, "        with:\n")
+
+	// Map github-token to token input for custom actions
+	c.addCustomActionGitHubToken(&steps, data, config)
+
+	return steps
+}
+
+// addCustomActionGitHubToken adds a GitHub token as action input.
+// The token precedence depends on the tokenType flags:
+// - UseCopilotCodingAgentToken: customToken > SafeOutputs.GitHubToken > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// - UseCopilotRequestsToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN
+// - Default: customToken > SafeOutputs.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, config GitHubScriptStepConfig) {
+	var token string
+
+	// Get safe-outputs level token
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := config.CustomToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
+	// Agent token mode: use full precedence chain for agent assignment
+	if config.UseCopilotCodingAgentToken {
+		token = getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
+	} else if config.UseCopilotRequestsToken {
+		// Copilot mode: use getEffectiveCopilotRequestsToken with safe-outputs token precedence
+		token = getEffectiveCopilotRequestsToken(effectiveCustomToken)
+	} else {
+		// Standard mode: use safe output token chain
+		token = getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+	}
+
+	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
+}
+
+// GitHubScriptStepConfig holds configuration for building a GitHub Script step
+type GitHubScriptStepConfig struct {
+	// Step metadata
+	StepName string // e.g., "Create Output Issue"
+	StepID   string // e.g., "create_issue"
+
+	// Main job reference for agent output
+	MainJobName string
+
+	// Environment variables specific to this safe output type
+	// These are added after GH_AW_AGENT_OUTPUT
+	CustomEnvVars []string
+
+	// JavaScript script constant to format and include (for inline mode)
+	Script string
+
+	// ScriptFile is the .cjs filename to require (e.g., "noop.cjs")
+	// If empty, Script will be inlined instead
+	ScriptFile string
+
+	// CustomToken configuration (passed to addSafeOutputGitHubTokenForConfig or addSafeOutputCopilotGitHubTokenForConfig)
+	CustomToken string
+
+	// UseCopilotRequestsToken indicates whether to use the Copilot token preference chain
+	// custom token > COPILOT_GITHUB_TOKEN
+	// This should be true for Copilot-related operations like creating agent tasks,
+	// assigning copilot to issues, or adding copilot as PR reviewer
+	UseCopilotRequestsToken bool
+
+	// UseCopilotCodingAgentToken indicates whether to use the agent token preference chain
+	// (config token > GH_AW_AGENT_TOKEN)
+	// This should be true for agent assignment operations (assign-to-agent)
+	UseCopilotCodingAgentToken bool
+}
+
+// buildGitHubScriptStep creates a GitHub Script step with common scaffolding
+// This extracts the repeated pattern found across safe output job builders
+func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
+	safeOutputsStepsLog.Printf("Building GitHub Script step: %s (useCopilotRequestsToken=%v, useCopilotCodingAgentToken=%v)", config.StepName, config.UseCopilotRequestsToken, config.UseCopilotCodingAgentToken)
+
+	var steps []string
+
+	// Add artifact download steps before the GitHub Script step
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Step name and metadata
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+
+	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
+	// instead of directly from job outputs which may be masked by GitHub Actions
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+
+	// Add custom environment variables specific to this safe output type
+	steps = append(steps, config.CustomEnvVars...)
+
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for github-token
+	steps = append(steps, "        with:\n")
+	if config.UseCopilotCodingAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.CustomToken)
+	} else if config.UseCopilotRequestsToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.CustomToken)
+	} else {
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.CustomToken)
+	}
+
+	steps = append(steps, "          script: |\n")
+
+	// Use require() if ScriptFile is specified, otherwise inline the script
+	if config.ScriptFile != "" {
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
+		steps = append(steps, "            await main();\n")
+	} else {
+		// Add the formatted JavaScript script (inline)
+		formattedScript := FormatJavaScriptForYAML(config.Script)
+		steps = append(steps, formattedScript...)
+	}
+
+	return steps
+}
+
+// buildGitHubScriptStepWithoutDownload creates a GitHub Script step without artifact download steps
+// This is useful when multiple script steps are needed in the same job and artifact downloads
+// should only happen once at the beginning
+func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, config GitHubScriptStepConfig) []string {
+	safeOutputsStepsLog.Printf("Building GitHub Script step without download: %s", config.StepName)
+
+	var steps []string
+
+	// Step name and metadata (no artifact download steps)
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+
+	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
+	// instead of directly from job outputs which may be masked by GitHub Actions
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+
+	// Add custom environment variables specific to this safe output type
+	steps = append(steps, config.CustomEnvVars...)
+
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for github-token
+	steps = append(steps, "        with:\n")
+	if config.UseCopilotCodingAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.CustomToken)
+	} else if config.UseCopilotRequestsToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.CustomToken)
+	} else {
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.CustomToken)
+	}
+
+	steps = append(steps, "          script: |\n")
+
+	// Use require() if ScriptFile is specified, otherwise inline the script
+	if config.ScriptFile != "" {
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
+		steps = append(steps, "            await main();\n")
+	} else {
+		// Add the formatted JavaScript script (inline)
+		formattedScript := FormatJavaScriptForYAML(config.Script)
+		steps = append(steps, formattedScript...)
+	}
+
+	return steps
+}
+
+// buildAgentOutputDownloadSteps creates steps to download the agent output artifact
+// and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs.
+// GH_AW_AGENT_OUTPUT is only set when the artifact was actually downloaded successfully.
+func buildAgentOutputDownloadSteps() []string {
+	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName:     "agent-output",                // Use hyphenated name without extension
+		ArtifactFilename: constants.AgentOutputFilename, // Filename inside the artifact directory
+		DownloadPath:     "/tmp/gh-aw/safeoutputs/",
+		SetupEnvStep:     true,
+		EnvVarName:       "GH_AW_AGENT_OUTPUT",
+		StepName:         "Download agent output artifact",
+		StepID:           "download-agent-output",
+	})
+}
+
+var safeOutputsEnvLog = logger.New("workflow:safe_outputs_env")
+
+// ========================================
+// Safe Output Environment Variables
+// ========================================
+
+// applySafeOutputEnvToMap adds safe-output related environment variables to an env map
+// This extracts the duplicated safe-output env setup logic across all engines (copilot, codex, claude, custom)
+func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
+	if data.SafeOutputs == nil {
+		return
+	}
+
+	safeOutputsEnvLog.Printf("Applying safe output env vars: trial_mode=%t, staged=%t", data.TrialMode, data.SafeOutputs.Staged)
+
+	env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+
+	// Add staged flag if specified
+	if data.TrialMode || data.SafeOutputs.Staged {
+		env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
+	}
+	if data.TrialMode && data.TrialLogicalRepo != "" {
+		env["GH_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
+	}
+
+	// Add branch name if upload assets is configured
+	if data.SafeOutputs.UploadAssets != nil {
+		safeOutputsEnvLog.Printf("Adding upload assets env vars: branch=%s", data.SafeOutputs.UploadAssets.BranchName)
+		env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+		env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
+		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+	}
+}
+
+// applySafeOutputEnvToSlice adds safe-output related environment variables to a YAML string slice
+// This is for engines that build YAML line-by-line (like Claude)
+func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+
+	*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
+
+	// Add staged flag if specified
+	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+		*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+	}
+	if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q", workflowData.TrialLogicalRepo))
+	}
+
+	// Add branch name if upload assets is configured
+	if workflowData.SafeOutputs.UploadAssets != nil {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
+	}
+}
+
+// buildWorkflowMetadataEnvVars builds workflow name and source environment variables
+// This extracts the duplicated workflow metadata setup logic from safe-output job builders
+func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []string {
+	var customEnvVars []string
+
+	// Add workflow name
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+
+	// Add workflow source and source URL if present
+	if workflowSource != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", workflowSource))
+		sourceURL := buildSourceURL(workflowSource)
+		if sourceURL != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+		}
+	}
+
+	return customEnvVars
+}
+
+// buildWorkflowMetadataEnvVarsWithTrackerID builds workflow metadata env vars including tracker-id
+func buildWorkflowMetadataEnvVarsWithTrackerID(workflowName string, workflowSource string, trackerID string) []string {
+	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
+
+	// Add tracker-id if present
+	if trackerID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", trackerID))
+	}
+
+	return customEnvVars
+}
+
+// buildSafeOutputJobEnvVars builds environment variables for safe-output jobs with staged/target repo handling
+// This extracts the duplicated env setup logic in safe-output job builders (create_issue, add_comment, etc.)
+func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged bool, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Pass the staged flag if it's set to true
+	if trialMode || staged {
+		safeOutputsEnvLog.Printf("Setting staged flag: trial_mode=%t, staged=%t", trialMode, staged)
+		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
+	// Set GH_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	if targetRepoSlug != "" {
+		safeOutputsEnvLog.Printf("Setting target repo slug from config: %s", targetRepoSlug)
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
+	} else if trialMode && trialLogicalRepoSlug != "" {
+		safeOutputsEnvLog.Printf("Setting target repo slug from trial mode: %s", trialLogicalRepoSlug)
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", trialLogicalRepoSlug))
+	}
+
+	return customEnvVars
+}
+
+// buildStandardSafeOutputEnvVars builds the standard set of environment variables
+// that all safe-output job builders need: metadata + staged/target repo handling
+// This reduces duplication in safe-output job builders
+func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Add workflow metadata (name, source, and tracker-id)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+
+	// Add engine metadata (id, version, model) for XML comment marker
+	customEnvVars = append(customEnvVars, buildEngineMetadataEnvVars(data.EngineConfig)...)
+
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		targetRepoSlug,
+	)...)
+
+	// Add messages config if present
+	if data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			safeOutputsEnvLog.Printf("Warning: failed to serialize messages config: %v", err)
+		} else if messagesJSON != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+		}
+	}
+
+	return customEnvVars
+}
+
+// buildStepLevelSafeOutputEnvVars builds environment variables for consolidated safe output steps
+// This excludes variables that are already set at the job level in consolidated jobs
+func (c *Compiler) buildStepLevelSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Only add target repo slug if it's different from the job-level setting
+	// (i.e., this step has a specific target-repo config that overrides the global trial mode target)
+	if targetRepoSlug != "" {
+		// Step-specific target repo overrides job-level setting
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
+	} else if !c.trialMode && data.SafeOutputs.Staged {
+		// Step needs staged flag but there's no job-level target repo (not in trial mode)
+		// Job level only sets this if trialMode is true
+		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
+	// Note: The following are now set at job level and should NOT be included here:
+	// - GH_AW_WORKFLOW_NAME
+	// - GH_AW_WORKFLOW_SOURCE
+	// - GH_AW_WORKFLOW_SOURCE_URL
+	// - GH_AW_TRACKER_ID
+	// - GH_AW_ENGINE_ID
+	// - GH_AW_ENGINE_VERSION
+	// - GH_AW_ENGINE_MODEL
+	// - GH_AW_SAFE_OUTPUTS_STAGED (if in trial mode)
+	// - GH_AW_TARGET_REPO_SLUG (if in trial mode and no step override)
+	// - GH_AW_SAFE_OUTPUT_MESSAGES
+
+	return customEnvVars
+}
+
+// buildEngineMetadataEnvVars builds engine metadata environment variables (id, version, model)
+// These are used by the JavaScript footer generation to create XML comment markers for traceability
+func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
+	var customEnvVars []string
+
+	if engineConfig == nil {
+		return customEnvVars
+	}
+
+	safeOutputsEnvLog.Printf("Building engine metadata env vars: id=%s, version=%s", engineConfig.ID, engineConfig.Version)
+
+	// Add engine ID if present
+	if engineConfig.ID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_ID: %q\n", engineConfig.ID))
+	}
+
+	// Add engine version if present
+	if engineConfig.Version != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_VERSION: %q\n", engineConfig.Version))
+	}
+
+	// Add engine model if present
+	if engineConfig.Model != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: %q\n", engineConfig.Model))
+	}
+
+	return customEnvVars
+}
+
+// ========================================
+// Safe Output Environment Helpers
+// ========================================
+
+// addCustomSafeOutputEnvVars adds custom environment variables to safe output job steps
+func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowData) {
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
+		for key, value := range data.SafeOutputs.Env {
+			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, value))
+		}
+	}
+}
+
+// addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
+// Uses precedence: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// If app is configured, use app token
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+		return
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := configToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
+	// Get effective token
+	effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
+// addSafeOutputCopilotGitHubTokenForConfig adds github-token to the with section for Copilot-related operations
+// Uses precedence: config token > safe-outputs global github-token > COPILOT_GITHUB_TOKEN
+func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// If app is configured, use app token
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+		return
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := configToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
+	// Get effective token
+	effectiveToken := getEffectiveCopilotRequestsToken(effectiveCustomToken)
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
+// addSafeOutputAgentGitHubTokenForConfig adds github-token to the with section for agent assignment operations
+// Uses precedence: config token > safe-outputs token > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// This is specifically for assign-to-agent operations which require elevated permissions.
+//
+// Note: GitHub App tokens are intentionally NOT used here, even when github-app: is configured.
+// The Copilot assignment API only accepts PATs (fine-grained or classic), not GitHub App
+// installation tokens. Callers must provide an explicit github-token or rely on GH_AW_AGENT_TOKEN.
+func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	// Get safe-outputs level token
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := configToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
+	// Get effective token - falls back to ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+	// when no explicit token is provided. GitHub App tokens are never used here because the
+	// Copilot assignment API rejects them.
+	effectiveToken := getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
+// buildTitlePrefixEnvVar builds a title-prefix environment variable line for safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_ISSUE_TITLE_PREFIX" or "GH_AW_DISCUSSION_TITLE_PREFIX".
+// Returns an empty slice if titlePrefix is empty.
+func buildTitlePrefixEnvVar(envVarName string, titlePrefix string) []string {
+	if titlePrefix == "" {
+		return nil
+	}
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, titlePrefix)}
+}
+
+// buildLabelsEnvVar builds a labels environment variable line for safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_ISSUE_LABELS" or "GH_AW_PR_LABELS".
+// Returns an empty slice if labels is empty.
+func buildLabelsEnvVar(envVarName string, labels []string) []string {
+	if len(labels) == 0 {
+		return nil
+	}
+	labelsStr := strings.Join(labels, ",")
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, labelsStr)}
+}
+
+// buildCategoryEnvVar builds a category environment variable line for discussion safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_DISCUSSION_CATEGORY".
+// Returns an empty slice if category is empty.
+func buildCategoryEnvVar(envVarName string, category string) []string {
+	if category == "" {
+		return nil
+	}
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, category)}
+}
+
+// buildAllowedReposEnvVar builds an allowed-repos environment variable line for safe-output jobs.
+// envVarName should be the full env var name like "GH_AW_ALLOWED_REPOS".
+// Returns an empty slice if allowedRepos is empty.
+func buildAllowedReposEnvVar(envVarName string, allowedRepos []string) []string {
+	if len(allowedRepos) == 0 {
+		return nil
+	}
+	reposStr := strings.Join(allowedRepos, ",")
+	return []string{fmt.Sprintf("          %s: %q\n", envVarName, reposStr)}
 }

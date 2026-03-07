@@ -16,6 +16,24 @@ import (
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
 
+// effectiveStrictMode computes the effective strict mode for a workflow.
+// Priority: CLI flag (c.strictMode) > frontmatter strict field > default (true).
+// This should be used when emitting metadata/env vars to correctly reflect the
+// workflow's strictness as inferred from the source (frontmatter).
+func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
+	if c.strictMode {
+		// CLI flag takes precedence
+		return true
+	}
+	if strictVal, exists := frontmatter["strict"]; exists {
+		if strictBool, ok := strictVal.(bool); ok {
+			return strictBool
+		}
+	}
+	// Default: strict mode is on when no explicit setting
+	return true
+}
+
 // buildJobsAndValidate builds all workflow jobs and validates their dependencies.
 // It resets the job manager, builds jobs from the workflow data, and performs
 // dependency and duplicate step validation.
@@ -118,7 +136,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
 		yaml.WriteString("#\n")
-		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime)
+		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter))
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails
@@ -615,6 +633,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
+	// Always include strict mode flag for lockdown validation.
+	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
+	// Use effectiveStrictMode to infer strictness from the source (frontmatter), not just the CLI flag.
+	fmt.Fprintf(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", c.effectiveStrictMode(data.RawFrontmatter))
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
 	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.
 	githubTool, hasGitHub := data.Tools["github"]

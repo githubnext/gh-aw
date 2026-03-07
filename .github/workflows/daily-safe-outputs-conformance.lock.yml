@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"21aed5a790b18a69e43b11e8b77c34a541af72fe195f21731240765cc3554c83"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"21aed5a790b18a69e43b11e8b77c34a541af72fe195f21731240765cc3554c83","strict":true}
 
 name: "Daily Safe Outputs Conformance Checker"
 "on":
@@ -71,7 +71,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "2.1.70"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Safe Outputs Conformance Checker"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -315,7 +316,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.70
+        run: npm install -g @anthropic-ai/claude-code@latest
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

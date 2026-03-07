@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"69c42ab10b276922ff8a54f27c02a0dacef4ccf036124cd8aeba296e1e7062b2"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"69c42ab10b276922ff8a54f27c02a0dacef4ccf036124cd8aeba296e1e7062b2","strict":true}
 
 name: "Organization Health Report"
 "on":
@@ -73,7 +73,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Organization Health Report"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -83,6 +83,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -365,7 +366,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Download container images

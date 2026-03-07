@@ -835,3 +835,54 @@ Please analyze the repository.
 	// Should still have engine: claude (original)
 	assert.Contains(t, contentStr, "engine: claude", "original engine should be preserved")
 }
+
+// TestAddPublicWorkflowUnauthenticated verifies that gh aw add works for a public
+// repository even when no GitHub auth tokens are present. This tests the raw-URL
+// fallback path that is used when api.DefaultRESTClient() fails due to missing auth,
+// which is the scenario that occurs when running inside an agentic workflow without
+// gh CLI credentials configured.
+func TestAddPublicWorkflowUnauthenticated(t *testing.T) {
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Build a minimal environment that deliberately excludes all auth tokens.
+	// This reproduces the "authentication token not found" failure that occurs
+	// when gh aw add is invoked inside an agentic workflow without gh auth.
+	var filteredEnv []string
+	for _, e := range os.Environ() {
+		switch {
+		case strings.HasPrefix(e, "GITHUB_TOKEN="),
+			strings.HasPrefix(e, "GH_TOKEN="),
+			strings.HasPrefix(e, "GITHUB_ENTERPRISE_TOKEN="),
+			strings.HasPrefix(e, "GH_ENTERPRISE_TOKEN="):
+			// Exclude all GitHub auth tokens to simulate the unauthenticated environment
+		default:
+			filteredEnv = append(filteredEnv, e)
+		}
+	}
+
+	// Use github/gh-aw with an explicit path spec (owner/repo/path/file.md@version).
+	// The file exists at v0.45.5 and the github org allows unauthenticated raw URL access
+	// for public repos (verified by TestDownloadFileFromGitHubUnauthenticated).
+	workflowSpec := "github/gh-aw/.github/workflows/github-mcp-tools-report.md@v0.45.5"
+
+	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--verbose")
+	cmd.Dir = setup.tempDir
+	cmd.Env = filteredEnv
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "gh aw add should succeed for a public repo without auth tokens: %s", outputStr)
+
+	// Verify the workflow file was downloaded and written
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+	info, err := os.Stat(workflowsDir)
+	require.NoError(t, err, ".github/workflows directory should exist after add")
+	assert.True(t, info.IsDir(), ".github/workflows should be a directory")
+
+	workflowFile := filepath.Join(workflowsDir, "github-mcp-tools-report.md")
+	_, err = os.Stat(workflowFile)
+	require.NoError(t, err, "downloaded workflow file should exist at %s", workflowFile)
+}

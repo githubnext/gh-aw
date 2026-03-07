@@ -326,11 +326,11 @@ async function main(config = {}, githubClient = null) {
   /**
    * Message handler function that processes a single create_project message
    * @param {Object} message - The create_project message to process
-   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string}>} temporaryIdMap - Unified map of temporary IDs
    * @param {Object} resolvedTemporaryIds - Plain object version of temporaryIdMap for backward compatibility
+   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string}>|null} temporaryIdMap - Unified map of temporary IDs
    * @returns {Promise<Object>} Result with success/error status
    */
-  return async function handleCreateProject(message, temporaryIdMap, resolvedTemporaryIds = {}) {
+  return async function handleCreateProject(message, resolvedTemporaryIds = {}, temporaryIdMap = null) {
     // Check max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping create_project: max count of ${maxCount} reached`);
@@ -370,8 +370,9 @@ async function main(config = {}, githubClient = null) {
 
           // Check if it's a valid temporary ID
           if (isTemporaryId(tempIdWithoutHash)) {
-            // Look up in the unified temporaryIdMap
-            const resolved = temporaryIdMap.get(normalizeTemporaryId(tempIdWithoutHash));
+            // Look up in the unified temporaryIdMap (Map) or resolvedTemporaryIds (plain object)
+            const normalizedKey = normalizeTemporaryId(tempIdWithoutHash);
+            const resolved = temporaryIdMap instanceof Map ? temporaryIdMap.get(normalizedKey) : resolvedTemporaryIds[normalizedKey];
 
             if (resolved && resolved.repo && resolved.number) {
               // Build the proper GitHub issue URL
@@ -459,6 +460,13 @@ async function main(config = {}, githubClient = null) {
 
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
 
+      // Store temporary ID mapping so subsequent operations can reference this project
+      const normalizedTempId = normalizeTemporaryId(temporaryId ?? "");
+      if (temporaryIdMap instanceof Map) {
+        temporaryIdMap.set(normalizedTempId, { projectUrl: projectInfo.projectUrl });
+      }
+      core.info(`Stored temporary ID mapping: ${temporaryId} -> ${projectInfo.projectUrl}`);
+
       // Create configured views if any
       if (configuredViews.length > 0) {
         core.info(`Creating ${configuredViews.length} configured view(s) on project: ${projectInfo.projectUrl}`);
@@ -488,6 +496,7 @@ async function main(config = {}, githubClient = null) {
         projectTitle: projectInfo.projectTitle,
         projectUrl: projectInfo.projectUrl,
         itemId: projectInfo.itemId,
+        temporaryId,
       };
     } catch (err) {
       // prettier-ignore

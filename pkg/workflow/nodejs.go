@@ -52,7 +52,7 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 	if isGlobal {
 		globalFlag = "-g "
 	}
-	installCmd := fmt.Sprintf("npm install %s--silent %s@%s", globalFlag, packageName, version)
+	installCmd := fmt.Sprintf("npm install %s%s@%s", globalFlag, packageName, version)
 	steps = append(steps, GitHubActionStep{
 		"      - name: " + stepName,
 		"        run: " + installCmd,

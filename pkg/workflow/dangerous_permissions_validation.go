@@ -3,11 +3,9 @@ package workflow
 import (
 	"fmt"
 	"strings"
-
-	"github.com/github/gh-aw/pkg/logger"
 )
 
-var dangerousPermissionsLog = logger.New("workflow:dangerous_permissions_validation")
+var dangerousPermissionsLog = newValidationLogger("dangerous_permissions")
 
 // validateDangerousPermissions validates that write permissions are not used.
 //

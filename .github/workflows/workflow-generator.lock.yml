@@ -23,7 +23,7 @@
 #
 # Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"43b3ac4dc74d732a6ae6dfd8e6577f9b1783197374933e17e0cfc71c9baa12a4"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"43b3ac4dc74d732a6ae6dfd8e6577f9b1783197374933e17e0cfc71c9baa12a4","strict":true}
 
 name: "Workflow Generator"
 "on":
@@ -76,7 +76,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Workflow Generator"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -86,6 +86,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -345,7 +346,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Download container images

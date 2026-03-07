@@ -245,6 +245,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for dependencies (APM) feature
+	if workflowData.APMDependencies != nil && len(workflowData.APMDependencies.Packages) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dependencies (APM)"))
+		c.IncrementWarningCount()
+	}
+
 	// Emit experimental warning for rate-limit feature
 	if workflowData.RateLimit != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: rate-limit"))

@@ -52,7 +52,7 @@ esac
 TARBALL_NAME="copilot-${PLATFORM}-${ARCH_NAME}.tar.gz"
 
 # Build download URLs
-if [ -z "$VERSION" ]; then
+if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
   BASE_URL="https://github.com/${COPILOT_REPO}/releases/latest/download"
 else
   # Prefix version with 'v' if not already present

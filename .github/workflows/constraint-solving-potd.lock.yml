@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8b8e7739047a7e1a0c6540f7574b93437f0a2b7607c424e28a72fd5745c56be5"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8b8e7739047a7e1a0c6540f7574b93437f0a2b7607c424e28a72fd5745c56be5","strict":true}
 
 name: "Constraint Solving — Problem of the Day"
 "on":
@@ -66,7 +66,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Constraint Solving — Problem of the Day"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -76,6 +76,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -301,7 +302,7 @@ jobs:
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server

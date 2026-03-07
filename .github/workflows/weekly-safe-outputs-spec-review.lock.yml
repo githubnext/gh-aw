@@ -23,7 +23,7 @@
 #
 # Reviews changes to the Safe Outputs specification and ensures the conformance checker script is up to date
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8c2101979950b517597aa3c9a241c7dbe762d2db9cc38c38b4fd4a70faa990a4"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8c2101979950b517597aa3c9a241c7dbe762d2db9cc38c38b4fd4a70faa990a4","strict":true}
 
 name: "Weekly Safe Outputs Specification Review"
 "on":
@@ -67,7 +67,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Weekly Safe Outputs Specification Review"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -77,6 +77,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -306,7 +307,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Download container images

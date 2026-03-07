@@ -600,4 +600,117 @@ describe("create_project_status_update", () => {
     // Cleanup
     delete process.env.GH_AW_PROJECT_URL;
   });
+
+  it("should resolve a temporary project ID from temporaryIdMap", async () => {
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        organization: {
+          projectV2: {
+            id: "PVT_test123",
+            number: 42,
+            title: "Test Project",
+            url: "https://github.com/orgs/test-org/projects/42",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        createProjectV2StatusUpdate: {
+          statusUpdate: {
+            id: "PVTSU_test123",
+            body: "Test status update",
+            bodyHTML: "<p>Test status update</p>",
+            startDate: "2025-01-01",
+            targetDate: "2025-12-31",
+            status: "ON_TRACK",
+            createdAt: "2025-01-06T12:00:00Z",
+          },
+        },
+      });
+
+    const handler = await main({ max: 10 });
+
+    const temporaryIdMap = new Map();
+    temporaryIdMap.set("aw_abc12345", { projectUrl: "https://github.com/orgs/test-org/projects/42" });
+
+    const result = await handler(
+      {
+        project: "aw_abc12345",
+        body: "Test status update",
+        status: "ON_TRACK",
+        start_date: "2025-01-01",
+        target_date: "2025-12-31",
+      },
+      Object.fromEntries(temporaryIdMap),
+      temporaryIdMap
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.status_update_id).toBe("PVTSU_test123");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved temporary project ID aw_abc12345"));
+  });
+
+  it("should resolve a temporary project ID with hash prefix from temporaryIdMap", async () => {
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        organization: {
+          projectV2: {
+            id: "PVT_test123",
+            number: 42,
+            title: "Test Project",
+            url: "https://github.com/orgs/test-org/projects/42",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        createProjectV2StatusUpdate: {
+          statusUpdate: {
+            id: "PVTSU_test123",
+            body: "Test status update",
+            bodyHTML: "<p>Test status update</p>",
+            startDate: "2025-01-01",
+            targetDate: "2025-12-31",
+            status: "ON_TRACK",
+            createdAt: "2025-01-06T12:00:00Z",
+          },
+        },
+      });
+
+    const handler = await main({ max: 10 });
+
+    const temporaryIdMap = new Map();
+    temporaryIdMap.set("aw_abc12345", { projectUrl: "https://github.com/orgs/test-org/projects/42" });
+
+    const result = await handler(
+      {
+        project: "#aw_abc12345",
+        body: "Test status update",
+      },
+      Object.fromEntries(temporaryIdMap),
+      temporaryIdMap
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.status_update_id).toBe("PVTSU_test123");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved temporary project ID #aw_abc12345"));
+  });
+
+  it("should return error when temporary project ID is not found in temporaryIdMap", async () => {
+    const handler = await main({ max: 10 });
+
+    const temporaryIdMap = new Map();
+
+    const result = await handler(
+      {
+        project: "aw_notfound",
+        body: "Test status update",
+      },
+      Object.fromEntries(temporaryIdMap),
+      temporaryIdMap
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("aw_notfound");
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("aw_notfound"));
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
 });

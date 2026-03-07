@@ -21,7 +21,8 @@ func IsAuthError(errMsg string) bool {
 		strings.Contains(lowerMsg, "not logged into") ||
 		strings.Contains(lowerMsg, "unauthorized") ||
 		strings.Contains(lowerMsg, "forbidden") ||
-		strings.Contains(lowerMsg, "permission denied")
+		strings.Contains(lowerMsg, "permission denied") ||
+		strings.Contains(lowerMsg, "saml enforcement")
 	if isAuth {
 		log.Print("Detected authentication error")
 	}

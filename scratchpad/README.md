@@ -37,7 +37,7 @@ This directory contains design specifications and implementation documentation f
 | Document | Status | Description |
 |----------|--------|-------------|
 | [mdflow Syntax Comparison](./mdflow-comparison.md) | ✅ Documented | Detailed comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, execution patterns, and more |
-| [Gastown Multi-Agent Orchestration](./gastown.md) | ✅ Documented | Deep analysis of Gastown's multi-agent coordination patterns and mapping to gh-aw concepts: persistent state, workflow composition, crash recovery, agent communication, and implementation recommendations |
+| [Gastown Multi-Agent Orchestration](./gastown.md) | ✅ Documented | Detailed analysis of Gastown's multi-agent coordination patterns and mapping to gh-aw concepts: persistent state, workflow composition, crash recovery, agent communication, and implementation recommendations |
 
 ## Statistical Analysis & Reports
 

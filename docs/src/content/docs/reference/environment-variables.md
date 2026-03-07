@@ -80,6 +80,24 @@ safe-outputs:
 ---
 ```
 
+## Agent Step Summary (`GITHUB_STEP_SUMMARY`)
+
+Agents can write markdown content to the `$GITHUB_STEP_SUMMARY` environment variable to publish a formatted summary visible in the GitHub Actions run view.
+
+Inside the AWF sandbox, `$GITHUB_STEP_SUMMARY` is redirected to a file at `/tmp/gh-aw/agent-step-summary.md`. After agent execution completes, the framework automatically appends the contents of that file to the real GitHub step summary. Secret redaction runs before the content is published.
+
+> [!NOTE]
+> The first 2000 characters of the summary are appended. If the content is longer, a `[truncated: ...]` notice is included. Write your most important content first.
+
+Example: an agent writing a brief analysis result to the step summary:
+
+```bash
+echo "## Analysis complete" >> "$GITHUB_STEP_SUMMARY"
+echo "Found 3 issues across 12 files." >> "$GITHUB_STEP_SUMMARY"
+```
+
+The output appears in the **Summary** tab of the GitHub Actions workflow run.
+
 ## Precedence Rules
 
 Environment variables follow a **most-specific-wins** model, consistent with GitHub Actions. Variables at more specific scopes completely override variables with the same name at less specific scopes.

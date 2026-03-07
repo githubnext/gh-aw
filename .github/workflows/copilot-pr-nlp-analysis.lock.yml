@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7b5ea7e48c0e812dc34e0645f3a65f1696e700b9ce7b6b4d41bc5efc60d2e804"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"7b5ea7e48c0e812dc34e0645f3a65f1696e700b9ce7b6b4d41bc5efc60d2e804","strict":true}
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":
@@ -73,7 +73,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.0.422"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Copilot PR Conversation NLP Analysis"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -83,6 +83,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -400,7 +401,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.422
+        run: /opt/gh-aw/actions/install_copilot_cli.sh latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server

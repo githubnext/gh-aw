@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b0d2bc9b08bd9968ab2dfacf004f1df93a0d83e2137a45bb5d634ba4ffefab44"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b0d2bc9b08bd9968ab2dfacf004f1df93a0d83e2137a45bb5d634ba4ffefab44","strict":true}
 
 name: "Smoke Codex"
 "on":
@@ -88,7 +88,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.111.0"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Smoke Codex"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -98,6 +98,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -400,7 +401,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.111.0
+        run: npm install -g @openai/codex@latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server

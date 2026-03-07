@@ -33,8 +33,10 @@ This command:
 Only required secrets are prompted for. Optional secrets are not shown.
 
 For full details, including precedence rules, see the GitHub Tokens
-reference in the documentation.`,
-		Example: `  gh aw secrets bootstrap                        # Check and set up all required secrets
+reference in the documentation.
+
+Examples:
+  gh aw secrets bootstrap                        # Check and set up all required secrets
   gh aw secrets bootstrap --non-interactive      # Display missing secrets without prompting
   gh aw secrets bootstrap --engine copilot       # Check secrets for a specific engine`,
 		RunE: func(cmd *cobra.Command, args []string) error {

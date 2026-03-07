@@ -72,5 +72,14 @@ type ImportSpec struct {
 // ProcessImportsFromFrontmatterWithSource processes imports field from frontmatter with source tracking
 // This version includes the workflow file path and YAML content for better error reporting
 func ProcessImportsFromFrontmatterWithSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
-	return processImportsFromFrontmatterWithManifestAndSource(frontmatter, baseDir, cache, workflowFilePath, yamlContent)
+	importLog.Printf("Processing imports: workflowFile=%s, baseDir=%s", workflowFilePath, baseDir)
+	result, err := processImportsFromFrontmatterWithManifestAndSource(frontmatter, baseDir, cache, workflowFilePath, yamlContent)
+	if err != nil {
+		importLog.Printf("Import processing failed for %s: %v", workflowFilePath, err)
+		return result, err
+	}
+	if result != nil {
+		importLog.Printf("Import processing complete: importedFiles=%d, mergedTools=%d bytes", len(result.ImportedFiles), len(result.MergedTools))
+	}
+	return result, nil
 }

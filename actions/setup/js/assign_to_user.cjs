@@ -23,9 +23,9 @@ const HANDLER_TYPE = "assign_to_user";
  */
 async function main(config = {}) {
   // Extract configuration
-  const allowedAssignees = config.allowed || [];
-  const blockedAssignees = config.blocked || [];
-  const maxCount = config.max || 10;
+  const allowedAssignees = config.allowed ?? [];
+  const blockedAssignees = config.blocked ?? [];
+  const maxCount = config.max ?? 10;
   const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);

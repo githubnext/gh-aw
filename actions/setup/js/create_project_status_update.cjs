@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
@@ -308,11 +309,11 @@ async function main(config = {}, githubClient = null) {
   /**
    * Message handler function that processes a single create_project_status_update message
    * @param {Object} message - The create_project_status_update message to process
-   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string}>} temporaryIdMap - Unified map of temporary IDs
    * @param {Object} resolvedTemporaryIds - Plain object version of temporaryIdMap for backward compatibility
+   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string}>|null} temporaryIdMap - Unified map of temporary IDs
    * @returns {Promise<Object>} Result with success/error status and status update details
    */
-  return async function handleCreateProjectStatusUpdate(message, temporaryIdMap, resolvedTemporaryIds = {}) {
+  return async function handleCreateProjectStatusUpdate(message, resolvedTemporaryIds = {}, temporaryIdMap = null) {
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping create-project-status-update: max count of ${maxCount} reached`);
@@ -328,7 +329,8 @@ async function main(config = {}, githubClient = null) {
 
     // Validate that project field is explicitly provided in the message
     // The project field is required in agent output messages and must be a full GitHub project URL
-    const effectiveProjectUrl = output.project;
+    // or a temporary project ID (e.g., aw_abc123 or #aw_abc123) from create_project
+    let effectiveProjectUrl = output.project;
 
     if (!effectiveProjectUrl || typeof effectiveProjectUrl !== "string" || effectiveProjectUrl.trim() === "") {
       core.error('Missing required "project" field. The agent must explicitly include the project URL in the output message: {"type": "create_project_status_update", "project": "https://github.com/orgs/myorg/projects/42", "body": "..."}');
@@ -336,6 +338,24 @@ async function main(config = {}, githubClient = null) {
         success: false,
         error: "Missing required field: project",
       };
+    }
+
+    // Resolve temporary project ID if present
+    const projectStr = effectiveProjectUrl.trim();
+    const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
+    if (isTemporaryId(projectWithoutHash)) {
+      const normalizedId = normalizeTemporaryId(projectWithoutHash);
+      const resolved = temporaryIdMap instanceof Map ? temporaryIdMap.get(normalizedId) : resolvedTemporaryIds[normalizedId];
+      if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
+        core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
+        effectiveProjectUrl = resolved.projectUrl;
+      } else {
+        core.error(`Temporary project ID '${projectStr}' not found. Ensure create_project was called before create_project_status_update.`);
+        return {
+          success: false,
+          error: `${ERR_NOT_FOUND}: Temporary project ID '${projectStr}' not found. Ensure create_project was called before create_project_status_update.`,
+        };
+      }
     }
 
     if (!output.body) {

@@ -52,11 +52,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
 
-var templateInjectionValidationLog = logger.New("workflow:template_injection_validation")
+var templateInjectionValidationLog = newValidationLogger("template_injection")
 
 // Pre-compiled regex patterns for template injection detection
 var (

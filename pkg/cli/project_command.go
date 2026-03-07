@@ -65,7 +65,7 @@ The project can optionally be linked to a specific repository.
 
 Authentication Requirements:
   The default GITHUB_TOKEN cannot create projects. You must use additional authentication.
-  See https://github.github.com/gh-aw/reference/auth/.
+  See https://github.github.com/gh-aw/reference/auth-projects/.
 
 Project Setup:
   Use --with-project-setup to automatically create:

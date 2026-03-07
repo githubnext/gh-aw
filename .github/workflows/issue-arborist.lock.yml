@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/jqschema.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1f2a33fe267f0f46c6ccc56a29048e0710ca193557b58f725e47657db011d73c"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1f2a33fe267f0f46c6ccc56a29048e0710ca193557b58f725e47657db011d73c","strict":true}
 
 name: "Issue Arborist"
 "on":
@@ -71,7 +71,7 @@ jobs:
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
           GH_AW_INFO_VERSION: ""
-          GH_AW_INFO_AGENT_VERSION: "0.111.0"
+          GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Issue Arborist"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -81,6 +81,7 @@ jobs:
           GH_AW_INFO_AWF_VERSION: "v0.23.0"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
           GITHUB_MCP_LOCKDOWN_EXPLICIT: "true"
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -324,7 +325,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.111.0
+        run: npm install -g @openai/codex@latest
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Download container images

@@ -18,7 +18,8 @@ var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
 type toolsProcessingResult struct {
 	tools                 map[string]any
 	runtimes              map[string]any
-	pluginInfo            *PluginInfo // Consolidated plugin information
+	pluginInfo            *PluginInfo          // Consolidated plugin information
+	apmDependencies       *APMDependenciesInfo // APM (Agent Package Manager) dependencies
 	toolsTimeout          int
 	toolsStartupTimeout   int
 	markdownContent       string
@@ -205,6 +206,12 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
+	// Extract APM dependencies from frontmatter
+	apmDependencies := extractAPMDependenciesFromFrontmatter(result.Frontmatter)
+	if apmDependencies != nil {
+		orchestratorToolsLog.Printf("Extracted %d APM dependencies from frontmatter", len(apmDependencies.Packages))
+	}
+
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 
@@ -335,6 +342,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		tools:                 tools,
 		runtimes:              runtimes,
 		pluginInfo:            pluginInfo,
+		apmDependencies:       apmDependencies,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,
 		markdownContent:       markdownContent,

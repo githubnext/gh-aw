@@ -89,6 +89,15 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 			frontmatterContent: "engine: xyz123\n",
 			wantEmpty:          true,
 		},
+		{
+			// Full end-to-end: path is the oneOf container, message contains nested path,
+			// frontmatter has a permission level typo.
+			name:               "nested oneOf enum violation extracts sub-path and suggests Did you mean",
+			errorMessage:       "'oneOf' failed, none matched\n  - at '/permissions': got object, want string\n  - at '/permissions/contents': value must be one of 'read', 'write', 'none'",
+			jsonPath:           "/permissions",
+			frontmatterContent: "permissions:\n  contents: raed\n",
+			wantContains:       []string{"Did you mean", "read"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -409,9 +418,39 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 			wantValue: "copilot",
 		},
 		{
-			name:      "nested path returns empty",
+			name:      "nested path - child not in yaml returns empty",
 			yaml:      "engine: copilot\n",
 			path:      "/permissions/issues",
+			wantValue: "",
+		},
+		{
+			name:      "nested path - extracts value under parent key",
+			yaml:      "permissions:\n  contents: raed\n  issues: write\n",
+			path:      "/permissions/contents",
+			wantValue: "raed",
+		},
+		{
+			name:      "nested path - second child key",
+			yaml:      "permissions:\n  contents: read\n  issues: neno\n",
+			path:      "/permissions/issues",
+			wantValue: "neno",
+		},
+		{
+			name:      "nested path - single-quoted value",
+			yaml:      "permissions:\n  contents: 'raed'\n",
+			path:      "/permissions/contents",
+			wantValue: "raed",
+		},
+		{
+			name:      "nested path - double-quoted value",
+			yaml:      "permissions:\n  contents: \"raed\"\n",
+			path:      "/permissions/contents",
+			wantValue: "raed",
+		},
+		{
+			name:      "three-level path returns empty",
+			yaml:      "a:\n  b:\n    c: value\n",
+			path:      "/a/b/c",
 			wantValue: "",
 		},
 		{
@@ -426,6 +465,27 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 			path:      "/timeout-minutes",
 			wantValue: "",
 		},
+		{
+			name:      "top-level key with only nested block returns empty - no inline scalar value",
+			yaml:      "permissions:\n  contents: raed\n",
+			path:      "/permissions",
+			wantValue: "",
+		},
+		{
+			// Ensures column-0 anchoring: a nested key with the same name must not
+			// satisfy a top-level path request.
+			name:      "indented key with same name does not match top-level path",
+			yaml:      "parent:\n  engine: nested-value\nengine: top-value\n",
+			path:      "/engine",
+			wantValue: "top-value",
+		},
+		{
+			// Grandchild key must not be returned for a direct-child path.
+			name:      "nested path - grandchild key not returned for child path",
+			yaml:      "permissions:\n  nested:\n    contents: grandchild\n  contents: direct\n",
+			path:      "/permissions/contents",
+			wantValue: "direct",
+		},
 	}
 
 	for _, tt := range tests {
@@ -438,7 +498,51 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 	}
 }
 
-// TestGenerateExampleFromSchemaWithExamples tests that schema examples array is preferred over generic fallback
+// TestExtractEnumConstraintPath tests that the correct JSON path is extracted from
+// enum constraint messages, including nested paths embedded in oneOf error messages.
+func TestExtractEnumConstraintPath(t *testing.T) {
+	tests := []struct {
+		name         string
+		errorMessage string
+		fallbackPath string
+		wantPath     string
+	}{
+		{
+			name:         "simple enum error uses fallback path",
+			errorMessage: "value must be one of 'claude', 'copilot'",
+			fallbackPath: "/engine",
+			wantPath:     "/engine",
+		},
+		{
+			name:         "nested enum constraint extracted from oneOf message",
+			errorMessage: "'oneOf' failed, none matched\n  - at '/permissions': got object, want string\n  - at '/permissions/contents': value must be one of 'read', 'write', 'none'",
+			fallbackPath: "/permissions",
+			wantPath:     "/permissions/contents",
+		},
+		{
+			name:         "nested path with issues scope",
+			errorMessage: "  - at '/permissions/issues': value must be one of 'read', 'write', 'none'",
+			fallbackPath: "/permissions",
+			wantPath:     "/permissions/issues",
+		},
+		{
+			name:         "no enum path pattern uses fallback",
+			errorMessage: "got object, want string",
+			fallbackPath: "/engine",
+			wantPath:     "/engine",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractEnumConstraintPath(tt.errorMessage, tt.fallbackPath)
+			if result != tt.wantPath {
+				t.Errorf("extractEnumConstraintPath() = %q, want %q", result, tt.wantPath)
+			}
+		})
+	}
+}
+
 func TestGenerateExampleFromSchemaWithExamples(t *testing.T) {
 	tests := []struct {
 		name         string

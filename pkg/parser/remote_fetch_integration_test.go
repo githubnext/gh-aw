@@ -270,3 +270,46 @@ func TestDownloadIncludeFromWorkflowSpecWithCache(t *testing.T) {
 	t.Logf("First download path: %s", path1)
 	t.Logf("Second download path: %s", path2)
 }
+
+// TestDownloadFileFromGitHubUnauthenticated verifies that downloadFileFromGitHub
+// falls back to raw URL / git-based download when api.DefaultRESTClient() fails because
+// no auth token is available. This reproduces the scenario that occurs when running
+// gh aw add inside an agentic workflow without gh CLI credentials configured.
+func TestDownloadFileFromGitHubUnauthenticated(t *testing.T) {
+	// Clear all GitHub auth tokens to simulate the agentic-workflow environment
+	// where gh auth is not configured.
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_ENTERPRISE_TOKEN", "")
+	t.Setenv("GH_ENTERPRISE_TOKEN", "")
+
+	owner := "github"
+	repo := "gitignore"
+	path := "Go.gitignore"
+	ref := "main"
+
+	content, err := downloadFileFromGitHub(owner, repo, path, ref)
+	// If the REST client unexpectedly succeeds (e.g., gh config file has a token),
+	// that is also fine – the point is that the file is returned without error.
+	if err != nil {
+		// Skip only when the network or git executable is genuinely unavailable.
+		// Avoid matching on "git" alone because it would also match "gitignore".
+		errStr := err.Error()
+		if strings.Contains(errStr, `executable file not found`) ||
+			strings.Contains(errStr, "failed to clone repository") ||
+			strings.Contains(errStr, "connection refused") ||
+			strings.Contains(errStr, "no route to host") ||
+			strings.Contains(errStr, "dial tcp") {
+			t.Skipf("Skipping test: download fallback unavailable (%v)", err)
+		}
+		t.Fatalf("Expected successful download via raw URL / git fallback for public repo, got: %v", err)
+	}
+
+	require.NotEmpty(t, content, "downloaded content should not be empty")
+
+	// Sanity-check: Go.gitignore should contain typical Go patterns
+	contentStr := string(content)
+	assert.True(t,
+		strings.Contains(contentStr, "*.exe") || strings.Contains(contentStr, "# Binaries"),
+		"Go.gitignore content looks unexpected: %s", contentStr[:min(len(contentStr), 200)])
+}

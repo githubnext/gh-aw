@@ -71,12 +71,25 @@ name: test
 			expectError:    true,
 		},
 		{
-			name: "future version",
-			content: `# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"future"}
+			name: "v2 with strict field",
+			content: `# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"abc","strict":true}
 name: test
 `,
 			expectMetadata: &LockMetadata{
-				SchemaVersion:   "v2",
+				SchemaVersion:   LockSchemaV2,
+				FrontmatterHash: "abc",
+				Strict:          true,
+			},
+			expectLegacy: false,
+			expectError:  false,
+		},
+		{
+			name: "future version (v3)",
+			content: `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"future"}
+name: test
+`,
+			expectMetadata: &LockMetadata{
+				SchemaVersion:   "v3",
 				FrontmatterHash: "future",
 			},
 			expectLegacy: false,
@@ -114,6 +127,7 @@ name: test
 				assert.Equal(t, tt.expectMetadata.SchemaVersion, metadata.SchemaVersion, "Schema version mismatch")
 				assert.Equal(t, tt.expectMetadata.FrontmatterHash, metadata.FrontmatterHash, "Frontmatter hash mismatch")
 				assert.Equal(t, tt.expectMetadata.CompilerVersion, metadata.CompilerVersion, "Compiler version mismatch")
+				assert.Equal(t, tt.expectMetadata.Strict, metadata.Strict, "Strict flag mismatch")
 			} else if !tt.expectError {
 				assert.Nil(t, metadata, "Expected nil metadata")
 			}
@@ -138,6 +152,14 @@ name: test
 			expectError: false,
 		},
 		{
+			name: "valid v2 schema",
+			content: `# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"abc","strict":true}
+name: test
+`,
+			lockPath:    "test-v2.lock.yml",
+			expectError: false,
+		},
+		{
 			name: "legacy format is accepted",
 			content: `# frontmatter-hash: 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
 name: test
@@ -147,12 +169,12 @@ name: test
 		},
 		{
 			name: "unsupported future version fails",
-			content: `# gh-aw-metadata: {"schema_version":"v2"}
+			content: `# gh-aw-metadata: {"schema_version":"v3"}
 name: test
 `,
 			lockPath:    "future.lock.yml",
 			expectError: true,
-			errorText:   "unsupported schema version 'v2'",
+			errorText:   "unsupported schema version 'v3'",
 		},
 		{
 			name: "missing metadata fails",
@@ -202,8 +224,13 @@ func TestIsSchemaVersionSupported(t *testing.T) {
 			supported: true,
 		},
 		{
-			name:      "v2 is not supported",
-			version:   "v2",
+			name:      "v2 is supported",
+			version:   LockSchemaV2,
+			supported: true,
+		},
+		{
+			name:      "v3 is not supported",
+			version:   "v3",
 			supported: false,
 		},
 		{
@@ -240,13 +267,26 @@ func TestGenerateLockMetadata(t *testing.T) {
 	SetVersion("dev")
 	hash := "abcd1234"
 	stopTime := "2026-02-17 20:00:00"
-	metadata := GenerateLockMetadata(hash, stopTime)
+	metadata := GenerateLockMetadata(hash, stopTime, false)
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, LockSchemaV2, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
 	assert.Empty(t, metadata.CompilerVersion, "Dev builds should not include version")
+	assert.False(t, metadata.Strict, "Non-strict build should have Strict=false")
+}
+
+func TestGenerateLockMetadataStrict(t *testing.T) {
+	hash := "abcd1234"
+	stopTime := "2026-02-17 20:00:00"
+	metadata := GenerateLockMetadata(hash, stopTime, true)
+
+	assert.NotNil(t, metadata, "Metadata should be created")
+	assert.Equal(t, LockSchemaV2, metadata.SchemaVersion, "Should use v2 schema version")
+	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
+	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
+	assert.True(t, metadata.Strict, "Strict build should have Strict=true")
 }
 
 func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
@@ -263,10 +303,10 @@ func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
 	SetVersion("v0.1.2")
 	hash := "abcd1234"
 	stopTime := "2026-02-17 20:00:00"
-	metadata := GenerateLockMetadata(hash, stopTime)
+	metadata := GenerateLockMetadata(hash, stopTime, false)
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, LockSchemaV2, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
 	assert.Equal(t, "v0.1.2", metadata.CompilerVersion, "Release builds should include version")
@@ -274,19 +314,20 @@ func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
 
 func TestGenerateLockMetadataWithoutStopTime(t *testing.T) {
 	hash := "abcd1234"
-	metadata := GenerateLockMetadata(hash, "")
+	metadata := GenerateLockMetadata(hash, "", false)
 
 	assert.NotNil(t, metadata, "Metadata should be created")
-	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, LockSchemaV2, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Empty(t, metadata.StopTime, "Stop time should be empty")
 }
 
 func TestLockMetadataToJSON(t *testing.T) {
 	tests := []struct {
-		name     string
-		metadata *LockMetadata
-		contains []string
+		name        string
+		metadata    *LockMetadata
+		contains    []string
+		notContains []string
 	}{
 		{
 			name: "basic metadata",
@@ -298,6 +339,7 @@ func TestLockMetadataToJSON(t *testing.T) {
 				`"schema_version":"v1"`,
 				`"frontmatter_hash":"test123"`,
 			},
+			notContains: []string{`"strict"`},
 		},
 		{
 			name: "metadata with empty hash",
@@ -322,6 +364,32 @@ func TestLockMetadataToJSON(t *testing.T) {
 				`"compiler_version":"v0.1.2"`,
 			},
 		},
+		{
+			name: "v2 metadata with strict=true",
+			metadata: &LockMetadata{
+				SchemaVersion:   LockSchemaV2,
+				FrontmatterHash: "test123",
+				Strict:          true,
+			},
+			contains: []string{
+				`"schema_version":"v2"`,
+				`"frontmatter_hash":"test123"`,
+				`"strict":true`,
+			},
+		},
+		{
+			name: "v2 metadata with strict=false omits strict field",
+			metadata: &LockMetadata{
+				SchemaVersion:   LockSchemaV2,
+				FrontmatterHash: "test123",
+				Strict:          false,
+			},
+			contains: []string{
+				`"schema_version":"v2"`,
+				`"frontmatter_hash":"test123"`,
+			},
+			notContains: []string{`"strict"`},
+		},
 	}
 
 	for _, tt := range tests {
@@ -331,6 +399,9 @@ func TestLockMetadataToJSON(t *testing.T) {
 
 			for _, expected := range tt.contains {
 				assert.Contains(t, json, expected, "JSON should contain expected field")
+			}
+			for _, unexpected := range tt.notContains {
+				assert.NotContains(t, json, unexpected, "JSON should not contain unexpected field")
 			}
 		})
 	}
@@ -453,6 +524,7 @@ func TestFormatSupportedVersions(t *testing.T) {
 	formatted := formatSupportedVersions()
 	assert.NotEmpty(t, formatted, "Should format versions")
 	assert.Contains(t, formatted, "v1", "Should include v1")
+	assert.Contains(t, formatted, "v2", "Should include v2")
 }
 
 func TestLockMetadataJSONCompact(t *testing.T) {
@@ -470,8 +542,8 @@ func TestLockMetadataJSONCompact(t *testing.T) {
 
 func TestSchemaVersionAsString(t *testing.T) {
 	// Verify LockSchemaVersion can be used as string
-	version := LockSchemaV1
-	assert.Equal(t, "v1", string(version))
+	assert.Equal(t, "v1", string(LockSchemaV1))
+	assert.Equal(t, "v2", string(LockSchemaV2))
 }
 
 func TestExtractMetadataWithStopTime(t *testing.T) {

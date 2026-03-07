@@ -1,5 +1,9 @@
 package cli
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var fixCodemodsLog = logger.New("cli:fix_codemods")
+
 // Codemod represents a single code transformation that can be applied to workflow files
 type Codemod struct {
 	ID           string // Unique identifier for the codemod
@@ -17,7 +21,7 @@ type CodemodResult struct {
 
 // GetAllCodemods returns all available codemods in the registry
 func GetAllCodemods() []Codemod {
-	return []Codemod{
+	codemods := []Codemod{
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
@@ -45,4 +49,6 @@ func GetAllCodemods() []Codemod {
 		getSerenaLocalModeCodemod(),           // Replace tools.serena mode: local with mode: docker
 		getGitHubAppCodemod(),                 // Rename deprecated 'app' to 'github-app'
 	}
+	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
+	return codemods
 }

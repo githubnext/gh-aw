@@ -46,9 +46,13 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 	if strings.Contains(strings.ToLower(errorMessage), "value must be one of") {
 		schemaSuggestionsLog.Print("Detected enum constraint violation")
 		enumValues := extractEnumValuesFromError(errorMessage)
-		userValue := extractYAMLValueAtPath(frontmatterContent, jsonPath)
+		// For oneOf errors, the path points to the container (e.g., "/permissions") but
+		// the enum constraint is on a nested field (e.g., "/permissions/contents").
+		// Try to extract the actual sub-path from the message.
+		actualPath := extractEnumConstraintPath(errorMessage, jsonPath)
+		userValue := extractYAMLValueAtPath(frontmatterContent, actualPath)
 		if userValue != "" && len(enumValues) > 0 {
-			closest := FindClosestMatches(userValue, enumValues, maxClosestMatches)
+			closest := sliceutil.Deduplicate(FindClosestMatches(userValue, enumValues, maxClosestMatches))
 			if len(closest) == 1 {
 				return fmt.Sprintf("Did you mean '%s'?", closest[0])
 			} else if len(closest) > 1 {
@@ -468,36 +472,127 @@ func extractEnumValuesFromError(errorMessage string) []string {
 	return values
 }
 
-// extractYAMLValueAtPath extracts the scalar value at a simple top-level JSON path
-// (e.g., "/engine") from raw YAML frontmatter content.
-// Only top-level paths are supported; nested paths return an empty string.
+// extractYAMLValueAtPath extracts the scalar value at a JSON path from raw YAML frontmatter.
+// Supports top-level paths ("/field") and two-level nested paths ("/parent/child").
+// Deeper paths return an empty string.
 func extractYAMLValueAtPath(yamlContent, jsonPath string) string {
 	if yamlContent == "" || jsonPath == "" {
 		return ""
 	}
-	// Only handle simple top-level paths like "/engine" (one slash, one segment)
-	if strings.Count(jsonPath, "/") != 1 {
+	segments := strings.SplitN(strings.TrimPrefix(jsonPath, "/"), "/", 3)
+	switch len(segments) {
+	case 1:
+		return extractTopLevelYAMLValue(yamlContent, segments[0])
+	case 2:
+		return extractNestedYAMLValue(yamlContent, segments[0], segments[1])
+	default:
 		return ""
 	}
-	fieldName := strings.TrimPrefix(jsonPath, "/")
+}
+
+// extractTopLevelYAMLValue extracts the scalar value of a top-level key from raw YAML.
+// Uses horizontal-only whitespace between the colon and value to avoid matching multi-line blocks.
+// Only keys at column 0 (no indentation) are matched, preventing false matches against
+// nested keys with the same name.
+func extractTopLevelYAMLValue(yamlContent, fieldName string) string {
 	escapedField := regexp.QuoteMeta(fieldName)
 
-	// Try single-quoted value: field: 'value'
-	reSingle := regexp.MustCompile(`(?m)^\s*` + escapedField + `\s*:\s*'([^'\n]+)'`)
+	// Try single-quoted value: field: 'value'  (anchored to column 0, no leading whitespace)
+	reSingle := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*'([^'\n]+)'`)
 	if match := reSingle.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try double-quoted value: field: "value"
-	reDouble := regexp.MustCompile(`(?m)^\s*` + escapedField + `\s*:\s*"([^"\n]+)"`)
+	reDouble := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*"([^"\n]+)"`)
 	if match := reDouble.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try unquoted value: field: value
-	reUnquoted := regexp.MustCompile(`(?m)^\s*` + escapedField + `\s*:\s*([^'"\n#][^\n#]*?)(?:\s*#.*)?$`)
+	reUnquoted := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
 	if match := reUnquoted.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	return ""
+}
+
+// extractNestedYAMLValue extracts the scalar value of a direct child key under a parent key in raw YAML.
+// It finds the parent key's block (by indentation), determines the direct-child indent level from
+// the first non-blank line inside the block, and only matches keys at that exact indent level.
+// This prevents false matches against grandchildren that share the same key name.
+func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
+	lines := strings.Split(yamlContent, "\n")
+
+	escapedParent := regexp.QuoteMeta(parentKey)
+	parentPattern := regexp.MustCompile(`^(\s*)` + escapedParent + `[ \t]*:`)
+	escapedChild := regexp.QuoteMeta(childKey)
+
+	parentIndent := -1
+	childIndent := -1 // indent of direct children (set on first non-blank line inside the block)
+	inParentBlock := false
+
+	for _, line := range lines {
+		if !inParentBlock {
+			if match := parentPattern.FindStringSubmatch(line); match != nil {
+				parentIndent = len(match[1])
+				inParentBlock = true
+			}
+			continue
+		}
+
+		// Inside parent block: skip blank lines
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+		// Left parent block if indentation returned to parent level or less
+		if lineIndent <= parentIndent {
+			break
+		}
+
+		// Establish the direct-child indentation from the first non-blank child line
+		if childIndent == -1 {
+			childIndent = lineIndent
+		}
+
+		// Only match keys at the direct-child indent level (not grandchildren deeper)
+		if lineIndent != childIndent {
+			continue
+		}
+
+		// Try to match child key with its value (single-quoted, double-quoted, unquoted).
+		childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
+		reSingle := regexp.MustCompile(childPrefix + `'([^'\n]+)'`)
+		if match := reSingle.FindStringSubmatch(line); len(match) >= 2 {
+			return strings.TrimSpace(match[1])
+		}
+		reDouble := regexp.MustCompile(childPrefix + `"([^"\n]+)"`)
+		if match := reDouble.FindStringSubmatch(line); len(match) >= 2 {
+			return strings.TrimSpace(match[1])
+		}
+		reUnquoted := regexp.MustCompile(childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
+		if match := reUnquoted.FindStringSubmatch(line); len(match) >= 2 {
+			return strings.TrimSpace(match[1])
+		}
+	}
+
+	return ""
+}
+
+// extractEnumConstraintPath finds the JSON path of an enum constraint violation in an error message.
+// For simple errors like "value must be one of 'a', 'b'", it returns the provided fallbackPath.
+// For oneOf errors that contain a nested sub-path such as:
+//
+//	"- at '/permissions/contents': value must be one of 'read', 'write', 'none'"
+//
+// it extracts "/permissions/contents" as the actual constraint path.
+var enumConstraintPathPattern = regexp.MustCompile(`at '(/[^']+)':\s*value must be one of`)
+
+func extractEnumConstraintPath(errorMessage, fallbackPath string) string {
+	if match := enumConstraintPathPattern.FindStringSubmatch(errorMessage); len(match) >= 2 {
+		return match[1]
+	}
+	return fallbackPath
 }
 
 // collectSchemaPropertyPaths recursively collects all (fieldName, parentPath) pairs from a JSON schema document.
