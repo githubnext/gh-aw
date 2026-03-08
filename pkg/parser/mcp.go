@@ -159,6 +159,10 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			// Parse mcp-scripts configuration to determine enabled tools
 			if mcpScriptsMap, ok := mcpScriptsSection.(map[string]any); ok {
 				for toolName := range mcpScriptsMap {
+					// Skip non-tool metadata keys like "mode"
+					if toolName == "mode" {
+						continue
+					}
 					config.Allowed = append(config.Allowed, toolName)
 				}
 			}
