@@ -106,6 +106,24 @@ func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
 			},
 			shouldHaveGitHubToken: false,
 		},
+		{
+			name: "create-pull-request with github-app - uses minted app token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+					"create-pull-request": map[string]any{
+						"max":           5,
+						"allowed-repos": []any{"Org/repo-a"},
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
+			shouldHaveGitHubToken:   true,
+		},
 	}
 
 	for _, tt := range tests {
