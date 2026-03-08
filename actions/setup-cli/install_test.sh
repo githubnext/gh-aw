@@ -115,7 +115,7 @@ test_version_mismatch_detection() {
   echo "Test 7: Verify version mismatch detection after gh extension install"
   
   # Check if script detects when installed version differs from requested version
-  if grep -q 'INSTALLED_VERSION.*!=.*VERSION\|VERSION.*!=.*INSTALLED_VERSION' "$SCRIPT_PATH" && \
+  if grep -q 'INSTALLED_VERSION.*!=.*VERSION' "$SCRIPT_PATH" && \
      grep -q 'Version mismatch' "$SCRIPT_PATH"; then
     print_result "Script detects version mismatch after gh extension install" "PASS"
   else
