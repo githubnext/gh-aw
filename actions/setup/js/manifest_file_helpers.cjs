@@ -1,5 +1,7 @@
 // @ts-check
 
+/** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
+
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
  * Parses "diff --git a/<path> b/<path>" headers to determine which files were modified.
@@ -100,8 +102,7 @@ function checkForProtectedPaths(patchContent, pathPrefixes) {
  * Checks all files in a patch against an allowlist of glob patterns.
  * When `allowed-files` is configured, it acts as a strict allowlist: every file
  * touched by the patch must match at least one pattern; files that do not match
- * are returned as disallowed.  Protected-files checks are completely bypassed
- * when this function is used.
+ * are returned as disallowed.
  *
  * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
  * any characters including `/`).  Each changed file is tested as its full path
@@ -138,7 +139,7 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
  * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
  *
  * @param {string} patchContent - The git patch content
- * @param {{ allowed_files?: string[], protected_files?: string[], protected_path_prefixes?: string[], protected_files_policy?: string }} config
+ * @param {HandlerConfig} config
  * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
  */
 function checkFileProtection(patchContent, config) {

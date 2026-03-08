@@ -5287,7 +5287,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of glob patterns for files that are exempt from protected-file protection. Takes priority over the protected-files policy. Use to allow specific files (e.g. go.mod) without disabling all protected-file checks. Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "List of glob patterns for files that are exempt from protected-file protection. Acts as a strict allowlist checked independently of the protected-files policy; both checks must pass for a file to be allowed. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false,
@@ -6328,7 +6328,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of glob patterns for files that are exempt from protected-file protection. Takes priority over the protected-files policy. Use to allow specific files (e.g. go.mod) without disabling all protected-file checks. Supports * (any characters except /) and ** (any characters including /)."
+                  "description": "List of glob patterns for files that are exempt from protected-file protection. Acts as a strict allowlist checked independently of the protected-files policy; both checks must pass for a file to be allowed. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false

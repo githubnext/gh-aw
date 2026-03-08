@@ -115,7 +115,7 @@ When protected file protection triggers and is set to `blocked`, the 🛡️ **P
 
 ### Exempting Specific Files with `allowed-files`
 
-When a workflow is designed to modify only specific files, use `allowed-files` to define a strict allowlist. When set, every file touched by the patch must match at least one pattern — any file outside the list is refused. The `protected-files` policy is completely bypassed when `allowed-files` is configured.
+When a workflow is designed to modify only specific files, use `allowed-files` to define a strict allowlist. When set, every file touched by the patch must match at least one pattern — any file outside the list is refused. The `allowed-files` and `protected-files` checks are **orthogonal**: both run independently and both must pass. To modify a protected file, it must both match `allowed-files` **and** `protected-files` must be set to `allowed`.
 
 ```yaml wrap
 safe-outputs:
@@ -140,7 +140,7 @@ Patterns support `*` (any characters except `/`) and `**` (any characters includ
 | `**/package.json` | `package.json` at any path depth |
 
 > [!NOTE]
-> When `allowed-files` is set, it acts as a strict allowlist: only the listed files may be modified. Any file outside the list is refused and `protected-files` is ignored. When `allowed-files` is not set, the `protected-files` policy applies as usual.
+> When `allowed-files` is set, it acts as a strict scope filter: only files matching the patterns may be modified, and any file outside the list is always refused. Files that *do* match are still subject to the `protected-files` policy, which runs independently. To modify a protected file, it must both match `allowed-files` **and** `protected-files` must be set to `allowed`. When `allowed-files` is not set, only the `protected-files` policy applies.
 
 > [!WARNING]
 > `allowed-files` should enumerate exactly the files the workflow legitimately manages. Overly broad patterns (e.g., `**`) disable all protection.

@@ -21,7 +21,7 @@ type PushToPullRequestBranchConfig struct {
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
-	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // List of glob patterns for files that are exempt from protected-file protection. Takes priority over protected-files.
+	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
