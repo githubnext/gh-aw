@@ -143,7 +143,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				pushToBranchConfig.ManifestFilesPolicy = &strVal
 			}
 
-			// Parse allowed-files: list of glob patterns for files exempt from protection
+			// Parse allowed-files: list of glob patterns forming a strict allowlist of eligible files
 			pushToBranchConfig.AllowedFiles = ParseStringArrayFromConfig(configMap, "allowed-files", pushToPullRequestBranchLog)
 
 			// Parse common base fields with default max of 0 (no limit)
