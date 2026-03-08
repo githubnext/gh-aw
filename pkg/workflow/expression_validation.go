@@ -77,6 +77,13 @@ var (
 	stringLiteralRegex = regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$")
 	// numberLiteralRegex matches integer and decimal number literals (with optional leading minus)
 	numberLiteralRegex = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
+
+	// exprPartSplitRe splits expressions on dots and brackets (e.g., "github.event.issue" -> ["github", "event", "issue"])
+	// Used in validateExpressionForDangerousProps to parse property access patterns
+	exprPartSplitRe = regexp.MustCompile(`[.\[\]]+`)
+	// exprNumericPartRe matches numeric indices (e.g., "0" in "assets[0]")
+	// Used to filter out array indices when checking for dangerous property names
+	exprNumericPartRe = regexp.MustCompile(`^\d+$`)
 )
 
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
@@ -209,11 +216,11 @@ func validateExpressionForDangerousProps(expression string) error {
 	// Split expression into parts handling both dot notation (e.g., "github.event.issue")
 	// and bracket notation (e.g., "release.assets[0].id")
 	// Filter out numeric indices (e.g., "0" in "assets[0]")
-	parts := regexp.MustCompile(`[.\[\]]+`).Split(trimmed, -1)
+	parts := exprPartSplitRe.Split(trimmed, -1)
 
 	for _, part := range parts {
 		// Skip empty parts and numeric indices
-		if part == "" || regexp.MustCompile(`^\d+$`).MatchString(part) {
+		if part == "" || exprNumericPartRe.MatchString(part) {
 			continue
 		}
 
