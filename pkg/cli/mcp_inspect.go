@@ -66,6 +66,9 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
+	mcpInspectLog.Printf("Workflow parsed: name=%s, has_safe_inputs=%t",
+		workflowData.Name, workflowData.SafeInputs != nil)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow parsed successfully"))
 	}
@@ -82,8 +85,11 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to extract MCP configurations: %w", err)
 	}
 
+	mcpInspectLog.Printf("Extracted %d MCP configs (server_filter=%q)", len(mcpConfigs), serverFilter)
+
 	// Filter out safe-outputs MCP servers for inspection
 	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
+	mcpInspectLog.Printf("After filtering safe-outputs: %d MCP configs remain", len(mcpConfigs))
 
 	// Start mcp-scripts server if present
 	var mcpScriptsServerCmd *exec.Cmd
@@ -95,11 +101,13 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start mcp-scripts server: %v", err)))
 			}
+			mcpInspectLog.Printf("Failed to start safe-inputs server: %v", err)
 		} else {
 			mcpScriptsServerCmd = serverCmd
 			mcpScriptsTmpDir = tmpDir
 			// Add mcp-scripts config to the list of MCP servers to inspect
 			mcpConfigs = append(mcpConfigs, *config)
+			mcpInspectLog.Print("Safe-inputs server started successfully")
 		}
 	}
 

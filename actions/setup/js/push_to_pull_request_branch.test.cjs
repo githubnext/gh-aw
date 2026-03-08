@@ -1046,6 +1046,125 @@ index 0000000..abc1234
       expect(typeof module.main).toBe("function");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // allowed-files strict allowlist
+  // ──────────────────────────────────────────────────────
+
+  describe("allowed-files strict allowlist", () => {
+    /**
+     * Helper to create a patch that touches only the given file path(s).
+     * Produces minimal but valid `diff --git` headers so extractPathsFromPatch works.
+     */
+    function createPatchWithFiles(...filePaths) {
+      const diffs = filePaths
+        .map(
+          p => `diff --git a/${p} b/${p}
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/${p}
+@@ -0,0 +1 @@
++content
+`
+        )
+        .join("\n");
+      return `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+${diffs}
+--
+2.34.1
+`;
+    }
+
+    it("should reject files outside the allowed-files allowlist", async () => {
+      const patchPath = createPatchFile(createPatchWithFiles("src/index.js"));
+
+      const module = await loadModule();
+      const handler = await module.main({ allowed_files: [".changeset/**"] });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("outside the allowed-files list");
+      expect(result.error).toContain("src/index.js");
+    });
+
+    it("should accept files that match the allowed-files pattern", async () => {
+      const patchPath = createPatchFile(createPatchWithFiles(".changeset/my-feature-fix.md"));
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({ allowed_files: [".changeset/**"] });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should still block a protected file when it is in the allowlist but protected-files: allowed is not set", async () => {
+      // allowed-files and protected-files are orthogonal: both checks must pass.
+      // Matching the allowlist does NOT bypass the protected-files policy.
+      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+
+      const module = await loadModule();
+      const handler = await module.main({
+        allowed_files: ["package.json"],
+        protected_files: ["package.json"],
+        protected_files_policy: "blocked",
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("protected files");
+      expect(result.error).toContain("package.json");
+    });
+
+    it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
+      // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
+      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({
+        allowed_files: ["package.json"],
+        protected_files: ["package.json"],
+        protected_files_policy: "allowed",
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should block a protected file when no allowed-files list is configured", async () => {
+      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+
+      const module = await loadModule();
+      const handler = await module.main({
+        protected_files: ["package.json"],
+        protected_files_policy: "blocked",
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("protected files");
+      expect(result.error).toContain("package.json");
+    });
+
+    it("should reject a mixed patch where at least one file is outside the allowlist", async () => {
+      const patchPath = createPatchFile(createPatchWithFiles(".changeset/my-fix.md", "src/index.js"));
+
+      const module = await loadModule();
+      const handler = await module.main({ allowed_files: [".changeset/**"] });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("outside the allowed-files list");
+      expect(result.error).toContain("src/index.js");
+      expect(result.error).not.toContain(".changeset/my-fix.md");
+    });
+  });
 });
 
 // ──────────────────────────────────────────────────────

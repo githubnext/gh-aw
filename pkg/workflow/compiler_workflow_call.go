@@ -32,11 +32,16 @@ func (c *Compiler) injectWorkflowCallOutputs(onSection string, safeOutputs *Safe
 		return onSection
 	}
 
+	workflowCallLog.Print("Injecting workflow_call outputs for safe-output results")
+
 	// Build the auto-generated outputs map based on configured safe output types
 	generatedOutputs := buildWorkflowCallOutputsMap(safeOutputs)
 	if len(generatedOutputs) == 0 {
+		workflowCallLog.Print("No workflow_call outputs to inject (no safe-output types configured)")
 		return onSection
 	}
+
+	workflowCallLog.Printf("Generated %d workflow_call outputs to inject", len(generatedOutputs))
 
 	// Parse the on section YAML
 	var onData map[string]any
@@ -87,6 +92,7 @@ func (c *Compiler) injectWorkflowCallOutputs(onSection string, safeOutputs *Safe
 		}
 	}
 
+	workflowCallLog.Printf("Merged workflow_call outputs: total=%d", len(mergedOutputs))
 	workflowCallMap["outputs"] = mergedOutputs
 	onMap["workflow_call"] = workflowCallMap
 
@@ -104,6 +110,12 @@ func (c *Compiler) injectWorkflowCallOutputs(onSection string, safeOutputs *Safe
 // buildWorkflowCallOutputsMap constructs the outputs map for on.workflow_call.outputs
 // based on which safe output types are configured.
 func buildWorkflowCallOutputsMap(safeOutputs *SafeOutputsConfig) map[string]workflowCallOutputEntry {
+	workflowCallLog.Printf("Building workflow_call outputs map: create_issues=%t, create_prs=%t, add_comments=%t, push_to_pr=%t",
+		safeOutputs.CreateIssues != nil,
+		safeOutputs.CreatePullRequests != nil,
+		safeOutputs.AddComments != nil,
+		safeOutputs.PushToPullRequestBranch != nil)
+
 	outputs := make(map[string]workflowCallOutputEntry)
 
 	if safeOutputs.CreateIssues != nil {

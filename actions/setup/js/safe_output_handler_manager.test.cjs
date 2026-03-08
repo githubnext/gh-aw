@@ -20,6 +20,7 @@ describe("Safe Output Handler Manager", () => {
     // Clean up environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
     delete process.env.GH_AW_TRACKER_LABEL;
+    delete process.env.GH_AW_SAFE_OUTPUT_JOBS;
   });
 
   describe("loadConfig", () => {
@@ -216,6 +217,91 @@ describe("Safe Output Handler Manager", () => {
 
       // Should have logged a warning
       expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'unknown_type'"));
+    });
+
+    it("should skip custom safe output job types gracefully without error", async () => {
+      // Set up custom safe output jobs (e.g., send_slack_message handled by a dedicated job step)
+      process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
+        send_slack_message: "message_url",
+      });
+
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+        { type: "send_slack_message", channel: "#alerts", text: "Hello" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+
+      // Only create_issue handler is available; send_slack_message is a custom job
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+
+      // First message should succeed
+      expect(result.results[0].success).toBe(true);
+      expect(result.results[0].type).toBe("create_issue");
+
+      // Custom job message should be skipped gracefully (not an error)
+      expect(result.results[1].success).toBe(false);
+      expect(result.results[1].type).toBe("send_slack_message");
+      expect(result.results[1].skipped).toBe(true);
+      expect(result.results[1].reason).toBe("Handled by custom safe output job");
+      expect(result.results[1].error).toBeUndefined();
+
+      // Should NOT have logged a "No handler loaded" warning
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'send_slack_message'"));
+    });
+
+    it("should skip multiple custom safe output job types gracefully", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
+        send_slack_message: "message_url",
+        notion_add_comment: "comment_url",
+      });
+
+      const messages = [
+        { type: "send_slack_message", channel: "#alerts", text: "Hello" },
+        { type: "notion_add_comment", page_id: "abc123", text: "Note" },
+        { type: "create_issue", title: "Issue" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(3);
+
+      // Custom job types should be skipped gracefully
+      expect(result.results[0].skipped).toBe(true);
+      expect(result.results[0].reason).toBe("Handled by custom safe output job");
+      expect(result.results[1].skipped).toBe(true);
+      expect(result.results[1].reason).toBe("Handled by custom safe output job");
+
+      // create_issue should succeed
+      expect(result.results[2].success).toBe(true);
+    });
+
+    it("should still warn for unknown types not in custom job types", async () => {
+      process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
+        send_slack_message: "message_url",
+      });
+
+      const messages = [{ type: "completely_unknown_type", data: "test" }];
+
+      const handlers = new Map();
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results[0].error).toContain("No handler loaded");
+      expect(result.results[0].skipped).toBeUndefined();
+
+      // Should have logged a warning for truly unknown types
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'completely_unknown_type'"));
     });
 
     it("should handle handler errors gracefully", async () => {

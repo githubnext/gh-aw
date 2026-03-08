@@ -23,7 +23,7 @@
 #
 # Orchestrator workflow for campaign 'security-alert-burndown'
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"44e9ad89fc3f881e52e25ebc92ed461a8df570529c59e8a155cfb0e503531a80","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4cabee9e7e0a3b1a2f3c07dce2b2a763a9e8aeadbb3e8228389b45f8255ac805","strict":true}
 
 name: "Security Alert Burndown"
 "on":
@@ -297,12 +297,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |-
-
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/campaign_discovery.cjs');
-            await main();
+          script: "const fs = require(\"fs\");\nconst path = require(\"path\");\n\nconst campaignId = process.env.GH_AW_CAMPAIGN_ID;\nconst trackerLabel = process.env.GH_AW_TRACKER_LABEL;\nconst discoveryRepos = process.env.GH_AW_DISCOVERY_REPOS;\nconst cursorPath = process.env.GH_AW_CURSOR_PATH;\nconst maxItems = parseInt(process.env.GH_AW_MAX_DISCOVERY_ITEMS ?? \"50\", 10);\nconst maxPages = parseInt(process.env.GH_AW_MAX_DISCOVERY_PAGES ?? \"3\", 10);\nconst projectUrl = process.env.GH_AW_PROJECT_URL;\nconst workflows = (process.env.GH_AW_WORKFLOWS ?? \"\").split(\",\").map(w => w.trim()).filter(Boolean);\n\nif (!campaignId || !trackerLabel || !discoveryRepos) {\n  core.setFailed(\"Missing required environment variables: GH_AW_CAMPAIGN_ID, GH_AW_TRACKER_LABEL, GH_AW_DISCOVERY_REPOS\");\n  return;\n}\n\nconst repos = discoveryRepos.split(\",\").map(r => r.trim()).filter(Boolean);\nconst allItems = [];\n\nfor (const repoPath of repos) {\n  const parts = repoPath.split(\"/\");\n  if (parts.length !== 2) { core.warning(`Invalid repo format: \"${repoPath}\" — skipping`); continue; }\n  const [owner, repo] = parts;\n  let page = 1;\n  while (page <= maxPages && allItems.length < maxItems) {\n    const perPage = Math.min(30, maxItems - allItems.length);\n    try {\n      const response = await github.rest.issues.listForRepo({ owner, repo, labels: trackerLabel, state: \"all\", sort: \"updated\", direction: \"desc\", per_page: perPage, page });\n      if (response.data.length === 0) break;\n      for (const item of response.data) {\n        if (allItems.length >= maxItems) break;\n        allItems.push({ id: item.id, number: item.number, title: item.title, state: item.state, html_url: item.html_url, created_at: item.created_at, updated_at: item.updated_at, labels: item.labels.map(l => typeof l === \"string\" ? l : (l.name ?? \"\")), repo: `${owner}/${repo}`, is_pr: !!item.pull_request });\n      }\n      if (response.data.length < perPage) break;\n      page++;\n    } catch (err) { core.error(`Failed to search ${owner}/${repo} page ${page}: ${err.message}`); break; }\n  }\n}\n\nconst GH_AW_TMP_DIR = \"/tmp/gh-aw\";\nconst discoveryOutputPath = path.join(GH_AW_TMP_DIR, \"campaign-discovery.json\");\nconst discoveryData = { campaign_id: campaignId, timestamp: new Date().toISOString(), tracker_label: trackerLabel, project_url: projectUrl, workflows, items_count: allItems.length, items: allItems };\ntry {\n  fs.mkdirSync(GH_AW_TMP_DIR, { recursive: true });\n  fs.writeFileSync(discoveryOutputPath, JSON.stringify(discoveryData, null, 2));\n} catch (err) { core.warning(`Failed to write discovery data: ${err.message}`); }\n\ncore.setOutput(\"items_count\", String(allItems.length));\ncore.setOutput(\"campaign_id\", campaignId);\ncore.setOutput(\"discovery_file\", discoveryOutputPath);\ncore.info(`✓ Campaign discovery complete: ${allItems.length} item(s) found for campaign \"${campaignId}\"`);"
 
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (campaigns)

@@ -24,6 +24,9 @@ safe-outputs:
     title-prefix: "[instructions] "
     labels: [documentation, automation, instructions]
     draft: false
+    allowed-files:
+      - .github/aw/**
+    protected-files: allowed
 
 tools:
   cache-memory: true
