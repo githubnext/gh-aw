@@ -1304,7 +1304,11 @@ Create an issue with your final analysis.
 - **Permission Separation**: The main job doesn't need `issues: write` permission
 - **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
 - **Job Dependencies**: Issue creation only happens after the coding agent completes successfully
-- **Output Variables**: The created issue number and URL are available to downstream jobs
+- **Output Variables**: The safe-outputs job emits named step outputs for the first successful result of each type:
+  - `create-issue` → `created_issue_number`, `created_issue_url`
+  - `create-pull-request` → `created_pr_number`, `created_pr_url`
+  - `add-comment` → `comment_id`, `comment_url`
+  - `push-to-pull-request-branch` → `push_commit_sha`, `push_commit_url`
 
 ## Trigger Patterns
 
@@ -1809,7 +1813,11 @@ Create an issue with your final analysis.
 - **Permission Separation**: The main job doesn't need `issues: write` permission
 - **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
 - **Job Dependencies**: Issue creation only happens after the coding agent completes successfully
-- **Output Variables**: The created issue number and URL are available to downstream jobs
+- **Output Variables**: The safe-outputs job emits named step outputs for the first successful result of each type:
+  - `create-issue` → `created_issue_number`, `created_issue_url`
+  - `create-pull-request` → `created_pr_number`, `created_pr_url`
+  - `add-comment` → `comment_id`, `comment_url`
+  - `push-to-pull-request-branch` → `push_commit_sha`, `push_commit_url`
 
 ### Automatic Pull Request Creation
 
