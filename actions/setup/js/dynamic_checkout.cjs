@@ -108,13 +108,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
     try {
       await exec.exec("git", ["checkout", "-B", baseBranch, `origin/${baseBranch}`]);
     } catch {
-      // Try 'master' if 'main' doesn't exist
-      if (baseBranch === "main") {
-        core.info("main branch not found, trying master");
-        await exec.exec("git", ["checkout", "-B", "master", "origin/master"]);
-      } else {
-        throw new Error(`Base branch ${baseBranch} not found in ${repoSlug}`);
-      }
+      throw new Error(`Base branch ${baseBranch} not found in ${repoSlug}`);
     }
 
     // Clean up any local changes
