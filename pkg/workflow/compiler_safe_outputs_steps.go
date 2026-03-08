@@ -10,25 +10,27 @@ import (
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
 // computeEffectivePRCheckoutToken returns the token to use for PR checkout and git operations.
-// For GitHub App configurations, returns the minted app token expression.
-// For PAT configurations, applies precedence: create-pull-request token > push-to-pull-request-branch token > safe-outputs token > default fallback.
+// Applies the following precedence (highest to lowest):
+//  1. Per-config PAT: create-pull-request.github-token
+//  2. Per-config PAT: push-to-pull-request-branch.github-token
+//  3. GitHub App minted token (if a github-app is configured)
+//  4. safe-outputs level PAT: safe-outputs.github-token
+//  5. Default fallback via getEffectiveSafeOutputGitHubToken()
+//
+// Per-config tokens take precedence over the GitHub App so that individual operations
+// can override the app-wide authentication with a dedicated PAT when needed.
+//
 // This is used by buildSharedPRCheckoutSteps and buildHandlerManagerStep to ensure consistent token handling.
 //
 // Returns:
 //   - token: the effective GitHub Actions token expression to use for git operations
-//   - isCustom: true when a custom non-default token was explicitly configured (app or PAT)
+//   - isCustom: true when a custom non-default token was explicitly configured (per-config PAT, app, or safe-outputs PAT)
 func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCustom bool) {
 	if safeOutputs == nil {
 		return getEffectiveSafeOutputGitHubToken(""), false
 	}
 
-	// GitHub App takes precedence: use the minted app token
-	if safeOutputs.GitHubApp != nil {
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
-	}
-
-	// PAT precedence: create-pull-request token > push-to-pull-request-branch token > safe-outputs token
+	// Per-config PAT tokens take highest precedence (overrides GitHub App)
 	var createPRToken string
 	if safeOutputs.CreatePullRequests != nil {
 		createPRToken = safeOutputs.CreatePullRequests.GitHubToken
@@ -37,16 +39,23 @@ func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token stri
 	if safeOutputs.PushToPullRequestBranch != nil {
 		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
 	}
-	effectiveCustomToken := createPRToken
-	if effectiveCustomToken == "" {
-		effectiveCustomToken = pushToPRBranchToken
+	perConfigToken := createPRToken
+	if perConfigToken == "" {
+		perConfigToken = pushToPRBranchToken
 	}
-	if effectiveCustomToken == "" {
-		effectiveCustomToken = safeOutputs.GitHubToken
+	if perConfigToken != "" {
+		return getEffectiveSafeOutputGitHubToken(perConfigToken), true
 	}
 
-	if effectiveCustomToken != "" {
-		return getEffectiveSafeOutputGitHubToken(effectiveCustomToken), true
+	// GitHub App token takes precedence over the safe-outputs level PAT
+	if safeOutputs.GitHubApp != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
+	}
+
+	// safe-outputs level PAT as final custom option
+	if safeOutputs.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.GitHubToken), true
 	}
 
 	// No custom token - fall back to default

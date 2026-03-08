@@ -124,6 +124,25 @@ func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
 			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
 			shouldHaveGitHubToken:   true,
 		},
+		{
+			name: "per-config github-token overrides github-app token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+					"create-pull-request": map[string]any{
+						"github-token":  "${{ secrets.CREATE_PR_PAT }}",
+						"max":           5,
+						"allowed-repos": []any{"Org/repo-a"},
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
 	}
 
 	for _, tt := range tests {
