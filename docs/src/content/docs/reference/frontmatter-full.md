@@ -1511,7 +1511,7 @@ tools:
     # Guard policy: minimum required integrity level for repository access. Restricts
     # the agent to users with at least the specified permission level.
     # (optional)
-    min-integrity: "reader"
+    min-integrity: "unapproved"
 
     # GitHub App configuration for token minting. When configured, a GitHub App
     # installation access token is minted at workflow start and used instead of the

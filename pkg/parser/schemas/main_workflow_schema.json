@@ -3037,7 +3037,7 @@
                 "min-integrity": {
                   "type": "string",
                   "description": "Guard policy: minimum required integrity level for repository access. Restricts the agent to users with at least the specified permission level.",
-                  "enum": ["reader", "writer", "maintainer", "admin"]
+                  "enum": ["none", "unapproved", "approved", "merged"]
                 },
                 "github-app": {
                   "type": "object",

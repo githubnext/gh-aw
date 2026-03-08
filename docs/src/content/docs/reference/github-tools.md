@@ -69,7 +69,7 @@ tools:
     mode: remote
     toolsets: [default]
     repos: "all"
-    min-integrity: reader
+    min-integrity: unapproved
 ```
 
 Both `repos` and `min-integrity` are required when either is specified.
@@ -96,7 +96,7 @@ tools:
       - "myorg/*"
       - "partner/shared-repo"
       - "myorg/api-*"
-    min-integrity: writer
+    min-integrity: approved
 ```
 
 ### `min-integrity`
@@ -106,8 +106,8 @@ Sets the minimum integrity level required for repository access:
 | Level | Description |
 |-------|-------------|
 | `none` | No integrity requirements |
-| `reader` | Read-level integrity |
-| `writer` | Write-level integrity |
+| `unapproved` | Unapproved-level integrity |
+| `approved` | Approved-level integrity |
 | `merged` | Merged-level integrity |
 
 ### Examples
@@ -131,7 +131,7 @@ tools:
     repos:
       - "frontend-org/*"
       - "backend-org/*"
-    min-integrity: writer
+    min-integrity: approved
 ```
 
 ## Lockdown Mode for Public Repositories
