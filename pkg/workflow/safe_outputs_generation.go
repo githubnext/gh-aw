@@ -132,14 +132,17 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 			continue
 		}
 
-		// Determine which file to use - priority: .lock.yml > .yml
+		// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
 		var extension string
 		if fileResult.lockExists {
 			extension = ".lock.yml"
 		} else if fileResult.ymlExists {
 			extension = ".yml"
+		} else if fileResult.mdExists {
+			// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
+			extension = ".lock.yml"
 		} else {
-			safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (only .md exists, needs compilation)", workflowName)
+			safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
 			continue
 		}
 
@@ -1314,17 +1317,23 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				continue
 			}
 
-			// Determine which file to use - priority: .lock.yml > .yml
+			// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
 			var workflowPath string
 			var extension string
+			var useMD bool
 			if fileResult.lockExists {
 				workflowPath = fileResult.lockPath
 				extension = ".lock.yml"
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
 				extension = ".yml"
+			} else if fileResult.mdExists {
+				// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
+				workflowPath = fileResult.mdPath
+				extension = ".lock.yml"
+				useMD = true
 			} else {
-				safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (only .md exists, needs compilation)", workflowName)
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
 				// Continue with empty inputs
 				tool := generateDispatchWorkflowTool(workflowName, make(map[string]any))
 				filteredTools = append(filteredTools, tool)
@@ -1335,9 +1344,15 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 			data.SafeOutputs.DispatchWorkflow.WorkflowFiles[workflowName] = extension
 
 			// Extract workflow_dispatch inputs
-			workflowInputs, err := extractWorkflowDispatchInputs(workflowPath)
-			if err != nil {
-				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, err)
+			var workflowInputs map[string]any
+			var inputsErr error
+			if useMD {
+				workflowInputs, inputsErr = extractMDWorkflowDispatchInputs(workflowPath)
+			} else {
+				workflowInputs, inputsErr = extractWorkflowDispatchInputs(workflowPath)
+			}
+			if inputsErr != nil {
+				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, inputsErr)
 				// Continue with empty inputs
 				workflowInputs = make(map[string]any)
 			}
