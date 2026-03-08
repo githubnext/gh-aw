@@ -155,7 +155,10 @@ function getBlockedDomains(logsDir) {
       // Check if request was blocked
       const isBlocked = isRequestBlocked(entry.decision, entry.status);
       if (isBlocked) {
-        const sanitizedDomain = extractAndSanitizeDomain(entry.domain);
+        // When domain is "-" (iptables-dropped traffic not visible to Squid),
+        // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
+        const domainField = entry.domain !== "-" ? entry.domain : entry.destIpPort;
+        const sanitizedDomain = extractAndSanitizeDomain(domainField);
         if (sanitizedDomain && sanitizedDomain !== "-") {
           blockedDomainsSet.add(sanitizedDomain);
         }

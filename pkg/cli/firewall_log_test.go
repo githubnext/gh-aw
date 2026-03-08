@@ -453,6 +453,76 @@ func TestParseFirewallLogPartialMissingFields(t *testing.T) {
 	}
 }
 
+func TestParseFirewallLogIptablesDropped(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Simulate iptables-dropped traffic: domain="-" but destIPPort has the actual destination.
+	// This occurs when iptables drops packets before they reach the Squid proxy, so Squid
+	// only sees the IP layer info and logs domain as "-".
+	testLogContent := `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+1761332531.123 172.30.0.20:35289 - 8.8.8.8:53 - - 0 NONE_NONE:HIER_NONE - "-"
+1761332532.456 172.30.0.20:35290 - 1.2.3.4:443 - - 0 NONE_NONE:HIER_NONE - "-"
+1761332533.789 172.30.0.20:35291 - 1.2.3.4:443 - - 0 NONE_NONE:HIER_NONE - "-"
+1761332534.012 172.30.0.20:35292 - - - - 0 NONE_NONE:HIER_NONE - "-"
+`
+
+	// Write test log file
+	logPath := filepath.Join(tempDir, "firewall.log")
+	err := os.WriteFile(logPath, []byte(testLogContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test firewall.log: %v", err)
+	}
+
+	// Test parsing
+	analysis, err := parseFirewallLog(logPath, false)
+	if err != nil {
+		t.Fatalf("Failed to parse firewall log: %v", err)
+	}
+
+	if analysis.TotalRequests != 5 {
+		t.Errorf("TotalRequests: got %d, want 5", analysis.TotalRequests)
+	}
+	if analysis.AllowedRequests != 1 {
+		t.Errorf("AllowedRequests: got %d, want 1", analysis.AllowedRequests)
+	}
+	if analysis.BlockedRequests != 4 {
+		t.Errorf("BlockedRequests: got %d, want 4", analysis.BlockedRequests)
+	}
+
+	// Iptables-dropped entries with destIPPort should use destIPPort as the key
+	if stats, ok := analysis.RequestsByDomain["8.8.8.8:53"]; !ok {
+		t.Error("8.8.8.8:53 should be in RequestsByDomain (iptables-dropped fallback)")
+	} else if stats.Blocked != 1 {
+		t.Errorf("8.8.8.8:53 Blocked: got %d, want 1", stats.Blocked)
+	}
+
+	if stats, ok := analysis.RequestsByDomain["1.2.3.4:443"]; !ok {
+		t.Error("1.2.3.4:443 should be in RequestsByDomain (iptables-dropped fallback)")
+	} else if stats.Blocked != 2 {
+		t.Errorf("1.2.3.4:443 Blocked: got %d, want 2", stats.Blocked)
+	}
+
+	// "-" should only appear for entries where both domain and destIPPort are "-"
+	if stats, ok := analysis.RequestsByDomain["-"]; !ok {
+		t.Error("\"-\" should be in RequestsByDomain for truly-unknown entries")
+	} else if stats.Blocked != 1 {
+		t.Errorf("\"-\" Blocked: got %d, want 1", stats.Blocked)
+	}
+
+	// BlockedDomains should include the real IPs, not just "-"
+	blockedSet := make(map[string]bool)
+	for _, d := range analysis.BlockedDomains {
+		blockedSet[d] = true
+	}
+	if !blockedSet["8.8.8.8:53"] {
+		t.Error("BlockedDomains should contain 8.8.8.8:53 (iptables-dropped fallback)")
+	}
+	if !blockedSet["1.2.3.4:443"] {
+		t.Error("BlockedDomains should contain 1.2.3.4:443 (iptables-dropped fallback)")
+	}
+}
+
 func TestAnalyzeMultipleFirewallLogs(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
