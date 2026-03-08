@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Python Script Handler for Safe-Inputs
+ * Python Script Handler for MCP Scripts
  *
  * This module provides a handler for executing Python scripts in mcp-scripts tools.
  * It uses a Pythonic approach for passing inputs via JSON on stdin.

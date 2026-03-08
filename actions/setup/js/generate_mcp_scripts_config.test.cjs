@@ -39,7 +39,7 @@ describe("generateMCPScriptsConfig", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("mcp_scripts_port", "3000");
 
     // Verify info message was logged
-    expect(mockCore.info).toHaveBeenCalledWith("Safe Inputs MCP server will run on port 3000");
+    expect(mockCore.info).toHaveBeenCalledWith("MCP Scripts server will run on port 3000");
   });
 
   it("should generate different API keys on each call", () => {

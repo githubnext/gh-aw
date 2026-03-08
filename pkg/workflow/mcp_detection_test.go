@@ -186,7 +186,7 @@ func TestHasMCPServers_EdgeCases(t *testing.T) {
 			Features: map[string]any{},
 		}
 		result := HasMCPServers(workflowData)
-		// Safe-inputs feature flag is optional now, so this should return true
-		assert.True(t, result, "Safe-inputs without feature flag should still return true")
+		// MCP Scripts feature flag is optional now, so this should return true
+		assert.True(t, result, "MCP Scripts without feature flag should still return true")
 	})
 }

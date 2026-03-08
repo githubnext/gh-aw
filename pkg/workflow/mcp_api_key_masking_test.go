@@ -70,7 +70,7 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 	}
 }
 
-// TestMCPScriptsAPIKeyImmediateMasking verifies that the Safe Inputs API key
+// TestMCPScriptsAPIKeyImmediateMasking verifies that the MCP Scripts API key
 // is masked immediately after generation, before any other operations.
 func TestMCPScriptsAPIKeyImmediateMasking(t *testing.T) {
 	workflowData := &WorkflowData{
@@ -96,9 +96,9 @@ func TestMCPScriptsAPIKeyImmediateMasking(t *testing.T) {
 	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
 	output := yaml.String()
 
-	// Find the Safe Inputs config generation section
+	// Find the MCP Scripts config generation section
 	configStart := strings.Index(output, "Generate MCP Scripts Server Config")
-	require.Greater(t, configStart, -1, "Should find Safe Inputs config generation step")
+	require.Greater(t, configStart, -1, "Should find MCP Scripts config generation step")
 
 	// Extract just the run script for this step
 	runStart := strings.Index(output[configStart:], "run: |")

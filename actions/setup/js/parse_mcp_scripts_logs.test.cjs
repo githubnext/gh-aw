@@ -153,7 +153,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("=== Safe Inputs MCP Server Logs ===");
+      expect(summary).toContain("=== MCP Scripts Server Logs ===");
       expect(summary).toContain("Total entries: 2");
       expect(summary).toContain("Startup events: 2");
     });
@@ -222,7 +222,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
       const logEntries = [];
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("=== Safe Inputs MCP Server Logs ===");
+      expect(summary).toContain("=== MCP Scripts Server Logs ===");
       expect(summary).toContain("Total entries: 0");
     });
 
@@ -276,7 +276,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       expect(summary).toContain("<details>");
       expect(summary).toContain("</details>");
-      expect(summary).toContain("<summary>Safe Inputs MCP Server Logs</summary>");
+      expect(summary).toContain("<summary>MCP Scripts Server Logs</summary>");
       expect(summary).toContain("**Statistics**");
       expect(summary).toContain("| Metric | Count |");
       expect(summary).toContain("| Total Log Entries | 3 |");
@@ -400,7 +400,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 1 mcp-scripts log file"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Parsing mcp-scripts log: server.log"));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("=== Safe Inputs MCP Server Logs ==="));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("=== MCP Scripts Server Logs ==="));
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();

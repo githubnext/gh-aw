@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Safe Inputs MCP Server with HTTP Transport
+ * MCP Scripts Server with HTTP Transport
  *
  * This module extends the mcp-scripts MCP server to support HTTP transport
  * using the StreamableHTTPServerTransport from the MCP SDK.
@@ -129,7 +129,7 @@ async function startHttpServer(configPath, options = {}) {
 
   const logger = createLogger("mcp-scripts-startup");
 
-  logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
+  logger.debug(`=== Starting MCP Scripts HTTP Server ===`);
   logger.debug(`Configuration file: ${configPath}`);
   logger.debug(`Port: ${port}`);
   logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
@@ -249,7 +249,7 @@ async function startHttpServer(configPath, options = {}) {
     // Start listening
     logger.debug(`Attempting to bind to port ${port}...`);
     httpServer.listen(port, () => {
-      logger.debug(`=== Safe Inputs MCP HTTP Server Started Successfully ===`);
+      logger.debug(`=== MCP Scripts HTTP Server Started Successfully ===`);
       logger.debug(`HTTP server listening on http://localhost:${port}`);
       logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
       logger.debug(`Server name: ${config.serverName || "mcpscripts"}`);
@@ -293,7 +293,7 @@ async function startHttpServer(configPath, options = {}) {
   } catch (error) {
     // Log detailed error information for startup failures
     const errorLogger = createLogger("mcp-scripts-startup-error");
-    errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
+    errorLogger.debug(`=== FATAL ERROR: Failed to start MCP Scripts HTTP Server ===`);
     if (error && typeof error === "object") {
       if ("constructor" in error && error.constructor) {
         errorLogger.debug(`Error type: ${error.constructor.name}`);

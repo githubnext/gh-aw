@@ -119,7 +119,7 @@ func TestIsMCPScriptsEnabledWithEnv(t *testing.T) {
 		},
 	}
 
-	// Safe-inputs are enabled by default when configured, environment variable no longer needed
+	// MCP Scripts are enabled by default when configured, environment variable no longer needed
 	t.Run("with tools - enabled regardless of GH_AW_FEATURES", func(t *testing.T) {
 		t.Setenv("GH_AW_FEATURES", "mcp-scripts")
 		result := IsMCPScriptsEnabled(configWithTools, nil)

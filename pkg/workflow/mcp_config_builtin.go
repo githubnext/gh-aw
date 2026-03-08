@@ -69,7 +69,7 @@
 //   - mcp_renderer.go: Main renderer that calls these functions
 //   - mcp_setup_generator.go: Generates setup steps for these servers
 //   - safe_outputs.go: Safe-outputs configuration and validation
-//   - mcp_scripts.go: Safe-inputs configuration (similar pattern)
+//   - mcp_scripts.go: MCP Scripts configuration (similar pattern)
 //
 // Example safe-outputs config:
 //

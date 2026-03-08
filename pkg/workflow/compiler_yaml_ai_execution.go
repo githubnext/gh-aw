@@ -58,7 +58,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder) {
 	compilerYamlLog.Print("Generating mcp-scripts log parsing step")
 
-	yaml.WriteString("      - name: Parse Safe Inputs logs for step summary\n")
+	yaml.WriteString("      - name: Parse MCP Scripts logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")

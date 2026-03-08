@@ -30,7 +30,7 @@
 //   - GitHub: Local (Docker) or remote (hosted) GitHub API access
 //   - Playwright: Browser automation with domain restrictions
 //   - Safe-outputs: Controlled output storage for AI agents
-//   - Safe-inputs: Custom tool execution with secret passthrough
+//   - MCP Scripts: Custom tool execution with secret passthrough
 //   - Cache-memory: Memory/knowledge base management
 //   - Agentic-workflows: Workflow execution via gh-aw extension
 //   - Serena: Local search functionality
@@ -348,9 +348,9 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 }
 
-// RenderMCPScriptsMCP generates the Safe Inputs MCP server configuration
+// RenderMCPScriptsMCP generates the MCP Scripts server configuration
 func (r *MCPConfigRendererUnified) RenderMCPScriptsMCP(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) {
-	mcpRendererLog.Printf("Rendering Safe Inputs MCP: format=%s", r.options.Format)
+	mcpRendererLog.Printf("Rendering MCP Scripts: format=%s", r.options.Format)
 
 	if r.options.Format == "toml" {
 		r.renderMCPScriptsTOML(yaml, mcpScripts, workflowData)
@@ -361,7 +361,7 @@ func (r *MCPConfigRendererUnified) RenderMCPScriptsMCP(yaml *strings.Builder, mc
 	renderMCPScriptsMCPConfigWithOptions(yaml, mcpScripts, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
 }
 
-// renderMCPScriptsTOML generates Safe Inputs MCP configuration in TOML format
+// renderMCPScriptsTOML generates MCP Scripts configuration in TOML format
 // Uses HTTP transport exclusively
 func (r *MCPConfigRendererUnified) renderMCPScriptsTOML(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")

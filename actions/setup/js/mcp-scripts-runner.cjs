@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Safe Inputs Script Runner
+ * MCP Scripts Runner
  *
  * Provides the main execution harness for generated mcp-script JavaScript tools.
  * Generated .cjs files export an `execute(inputs)` function and delegate to this

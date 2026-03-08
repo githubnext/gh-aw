@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Safe Inputs Configuration Loader
+ * MCP Scripts Configuration Loader
  *
  * This module provides utilities for loading and validating mcp-scripts
  * configuration from JSON files.

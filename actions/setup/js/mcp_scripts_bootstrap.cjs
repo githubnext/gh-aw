@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Safe Inputs Bootstrap Module
+ * MCP Scripts Bootstrap Module
  *
  * This module provides shared bootstrap logic for mcp-scripts MCP servers.
  * It handles configuration loading, tool handler loading, and cleanup that is

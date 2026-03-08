@@ -789,7 +789,7 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("**File Operations:**");
       expect(result.markdown).toContain("**Builtin:**");
       expect(result.markdown).toContain("**Safe Outputs:**");
-      expect(result.markdown).toContain("**Safe Inputs:**");
+      expect(result.markdown).toContain("**MCP Scripts:**");
       expect(result.markdown).toContain("**Git/GitHub:**");
       expect(result.markdown).toContain("**Playwright:**");
       expect(result.markdown).toContain("**Serena:**");
@@ -943,7 +943,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = formatInitializationSummary(initEntry);
 
-      expect(result.markdown).toContain("**Safe Inputs:**");
+      expect(result.markdown).toContain("**MCP Scripts:**");
       expect(result.markdown).toContain("get_data");
       expect(result.markdown).toContain("query_database");
       expect(result.markdown).toContain("fetch_config");

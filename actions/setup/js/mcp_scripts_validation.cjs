@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Safe Inputs Validation Helpers
+ * MCP Scripts Validation Helpers
  *
  * This module provides validation utilities for mcp-scripts MCP server.
  */

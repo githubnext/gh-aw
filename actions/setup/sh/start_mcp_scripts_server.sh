@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start Safe Inputs MCP HTTP Server
+# Start MCP Scripts HTTP Server
 # This script starts the mcp-scripts MCP server and waits for it to become ready
 
 set -e
@@ -75,7 +75,7 @@ mkdir -p /tmp/gh-aw/mcp-scripts/logs
 
 # Create initial server.log file for artifact upload
 {
-  echo "Safe Inputs MCP Server Log"
+  echo "MCP Scripts Server Log"
   echo "Start time: $(date)"
   echo "==========================================="
   echo ""
@@ -100,10 +100,10 @@ for i in {1..10}; do
   
   # Check if server is responding
   if curl -s -f "http://localhost:$GH_AW_MCP_SCRIPTS_PORT/health" > /dev/null 2>&1; then
-    echo "Safe Inputs MCP server is ready (attempt $i/10)"
+    echo "MCP Scripts server is ready (attempt $i/10)"
     
     # Print the startup log for debugging
-    echo "::notice::Safe Inputs MCP Server Startup Log"
+    echo "::notice::MCP Scripts Server Startup Log"
     echo "::group::Server Log Contents"
     cat /tmp/gh-aw/mcp-scripts/logs/server.log
     echo "::endgroup::"
@@ -112,7 +112,7 @@ for i in {1..10}; do
   fi
   
   if [ "$i" -eq 10 ]; then
-    echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
+    echo "ERROR: MCP Scripts server failed to start after 10 seconds"
     echo "Process status: $(pgrep -f 'mcp-server.cjs' || echo 'not running')"
     echo "Server log contents:"
     cat /tmp/gh-aw/mcp-scripts/logs/server.log

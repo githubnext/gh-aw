@@ -1498,7 +1498,7 @@
     },
     "mcp-scripts": {
       "type": "object",
-      "desc": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."
+      "desc": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."
     },
     "runtimes": {
       "type": "object",

@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Safe Inputs Tool Factory
+ * MCP Scripts Tool Factory
  *
  * This module provides a factory function for creating tool configuration objects
  * for different handler types (JavaScript, Shell, Python).

@@ -11,8 +11,8 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-// TestMCPGatewayMCPScriptsEnvVarsConditional tests that Safe Inputs environment variables
-// are only included in the MCP gateway step when Safe Inputs is actually configured
+// TestMCPGatewayMCPScriptsEnvVarsConditional tests that MCP Scripts environment variables
+// are only included in the MCP gateway step when MCP Scripts is actually configured
 func TestMCPGatewayMCPScriptsEnvVarsConditional(t *testing.T) {
 	tests := []struct {
 		name                    string
@@ -21,7 +21,7 @@ func TestMCPGatewayMCPScriptsEnvVarsConditional(t *testing.T) {
 		description             string
 	}{
 		{
-			name: "No Safe Inputs - Should Not Include Env Vars",
+			name: "No MCP Scripts - Should Not Include Env Vars",
 			workflowContent: `---
 on: workflow_dispatch
 engine: copilot
@@ -33,10 +33,10 @@ tools:
 Test workflow without mcp-scripts
 `,
 			expectMCPScriptsEnvVars: false,
-			description:             "When mcp-scripts is not configured, the MCP gateway should not reference Safe Inputs env vars",
+			description:             "When mcp-scripts is not configured, the MCP gateway should not reference MCP Scripts env vars",
 		},
 		{
-			name: "With Safe Inputs - Should Include Env Vars",
+			name: "With MCP Scripts - Should Include Env Vars",
 			workflowContent: `---
 on: workflow_dispatch
 engine: copilot
@@ -53,10 +53,10 @@ mcp-scripts:
 Test workflow with mcp-scripts
 `,
 			expectMCPScriptsEnvVars: true,
-			description:             "When mcp-scripts is configured, the MCP gateway should reference Safe Inputs env vars",
+			description:             "When mcp-scripts is configured, the MCP gateway should reference MCP Scripts env vars",
 		},
 		{
-			name: "Claude Engine Without Safe Inputs",
+			name: "Claude Engine Without MCP Scripts",
 			workflowContent: `---
 on: workflow_dispatch
 engine: claude
@@ -68,10 +68,10 @@ tools:
 Test Claude workflow without mcp-scripts
 `,
 			expectMCPScriptsEnvVars: false,
-			description:             "Claude engine without mcp-scripts should not include Safe Inputs env vars",
+			description:             "Claude engine without mcp-scripts should not include MCP Scripts env vars",
 		},
 		{
-			name: "Codex Engine With Safe Inputs",
+			name: "Codex Engine With MCP Scripts",
 			workflowContent: `---
 on: workflow_dispatch
 engine: codex
@@ -85,7 +85,7 @@ mcp-scripts:
 Test Codex workflow with mcp-scripts
 `,
 			expectMCPScriptsEnvVars: true,
-			description:             "Codex engine with mcp-scripts should include Safe Inputs env vars",
+			description:             "Codex engine with mcp-scripts should include MCP Scripts env vars",
 		},
 	}
 
@@ -133,11 +133,11 @@ Test Codex workflow with mcp-scripts
 				mcpGatewaySection = yamlStr[startIdx:]
 			}
 
-			// Check for Safe Inputs env vars in the env section
+			// Check for MCP Scripts env vars in the env section
 			hasEnvVarsInEnvSection := strings.Contains(mcpGatewaySection, "GH_AW_MCP_SCRIPTS_PORT:") &&
 				strings.Contains(mcpGatewaySection, "GH_AW_MCP_SCRIPTS_API_KEY:")
 
-			// Check for Safe Inputs env vars in the Docker command
+			// Check for MCP Scripts env vars in the Docker command
 			hasEnvVarsInDockerCmd := strings.Contains(mcpGatewaySection, "-e GH_AW_MCP_SCRIPTS_PORT") &&
 				strings.Contains(mcpGatewaySection, "-e GH_AW_MCP_SCRIPTS_API_KEY")
 
@@ -161,9 +161,9 @@ Test Codex workflow with mcp-scripts
 }
 
 // TestMCPGatewayMCPScriptsValidation tests that the workflow fails validation
-// if Safe Inputs env vars are referenced but the mcp-scripts-start step doesn't exist
+// if MCP Scripts env vars are referenced but the mcp-scripts-start step doesn't exist
 func TestMCPGatewayMCPScriptsValidation(t *testing.T) {
 	t.Skip("This test is for future validation logic - not implemented yet")
-	// This would test that if someone manually adds Safe Inputs to MCP tools list
+	// This would test that if someone manually adds MCP Scripts to MCP tools list
 	// without actually configuring mcp-scripts, validation catches the error
 }

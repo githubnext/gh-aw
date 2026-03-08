@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * JavaScript Handler for Safe-Inputs
+ * JavaScript Handler for MCP Scripts
  *
  * This module provides a handler for executing JavaScript (.cjs) files in mcp-scripts tools.
  * It executes JavaScript handlers in a separate Node.js process for isolation.

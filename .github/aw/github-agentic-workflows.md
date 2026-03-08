@@ -1110,7 +1110,7 @@ The YAML frontmatter supports these fields:
               run: echo "Custom threat check"
       ```
 
-- **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, Python, or Go scripts (object)
+- **`mcp-scripts:`** - Define custom lightweight MCP tools as JavaScript, shell, Python, or Go scripts (object)
   - Tools mounted in MCP server with access to specified secrets
   - Each tool requires `description` and one of: `script` (JavaScript), `run` (shell), `py` (Python), or `go` (Go)
   - Tool configuration properties:
@@ -1124,7 +1124,7 @@ The YAML frontmatter supports these fields:
     - `timeout:` - Execution timeout in seconds (default: 60)
   - Example:
     ```yaml
-    safe-inputs:
+    mcp-scripts:
       search-issues:
         description: "Search GitHub issues using API"
         inputs:

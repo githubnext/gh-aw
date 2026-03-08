@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Generates configuration for the Safe Inputs MCP HTTP server
+ * Generates configuration for the MCP Scripts HTTP server
  * @param {object} params - Parameters for config generation
  * @param {typeof import("@actions/core")} params.core - GitHub Actions core library
  * @param {typeof import("crypto")} params.crypto - Node.js crypto library
@@ -22,7 +22,7 @@ function generateMCPScriptsConfig({ core, crypto }) {
   core.setOutput("mcp_scripts_api_key", apiKey);
   core.setOutput("mcp_scripts_port", port.toString());
 
-  core.info(`Safe Inputs MCP server will run on port ${port}`);
+  core.info(`MCP Scripts server will run on port ${port}`);
 
   return { apiKey, port };
 }

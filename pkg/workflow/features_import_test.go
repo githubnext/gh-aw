@@ -76,7 +76,7 @@ This workflow should have merged features.
 
 	// Verify mcp-scripts feature from import is recognized (comment mentioning mcp-scripts if enabled)
 	if !strings.Contains(workflowData, "mcp-scripts") && !strings.Contains(workflowData, "mcp_scripts") {
-		// Safe-inputs feature may be mentioned in comments or configuration
+		// MCP Scripts feature may be mentioned in comments or configuration
 		t.Logf("Note: mcp-scripts feature may not generate visible output in lock file")
 	}
 

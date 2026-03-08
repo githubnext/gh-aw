@@ -18,7 +18,7 @@
 // Environment variable categories:
 //   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN, GITHUB_MCP_LOCKDOWN
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
-//   - Safe Inputs: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
+//   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)
 //   - Playwright: Secrets from custom args expressions
 //   - HTTP MCP: Custom secrets from headers and env sections
@@ -37,7 +37,7 @@
 //   - mcp_setup_generator.go: Uses collected env vars in gateway setup
 //   - mcp_github_config.go: GitHub-specific token and configuration
 //   - safe_outputs.go: Safe outputs configuration
-//   - mcp_scripts.go: Safe inputs configuration
+//   - mcp_scripts.go: MCP Scripts configuration
 //
 // Example usage:
 //

@@ -173,7 +173,7 @@ func NewMCPInspectSubcommand() *cobra.Command {
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
 
-Safe-inputs servers are automatically detected and inspected when present in the workflow.
+MCP Scripts servers are automatically detected and inspected when present in the workflow.
 
 The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")

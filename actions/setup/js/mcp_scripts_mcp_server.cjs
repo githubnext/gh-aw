@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Safe Inputs MCP Server Module
+ * MCP Scripts Server Module
  *
  * This module provides a reusable MCP server for mcp-scripts configuration.
  * It uses the mcp_server_core module for JSON-RPC handling and tool registration.

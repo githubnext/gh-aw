@@ -67,7 +67,7 @@ Test mcp-scripts HTTP transport for Codex
 
 	// Verify HTTP transport in TOML config (not stdio)
 	if !strings.Contains(yamlStr, "[mcp_servers.mcpscripts]") {
-		t.Error("Safe-inputs MCP server config section not found")
+		t.Error("MCP Scripts server config section not found")
 	}
 
 	// Should have explicit type field

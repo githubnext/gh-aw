@@ -47,7 +47,7 @@
 //   - mcp_environment.go: Environment variable collection
 //   - mcp_renderer.go: MCP configuration YAML rendering
 //   - safe_outputs.go: Safe outputs server configuration
-//   - mcp_scripts.go: Safe inputs server configuration
+//   - mcp_scripts.go: MCP Scripts server configuration
 //
 // Example workflow setup:
 //   - Download Docker images
@@ -303,7 +303,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// For stdio mode, we only write the files but don't start the HTTP server
 	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
 		// Step 1: Write config files (JavaScript files are now copied by actions/setup)
-		yaml.WriteString("      - name: Setup Safe Inputs Config\n")
+		yaml.WriteString("      - name: Setup MCP Scripts Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /opt/gh-aw/mcp-scripts/logs\n")
 
@@ -328,7 +328,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Step 2: Generate tool files (js/py/sh)
-		yaml.WriteString("      - name: Setup Safe Inputs Tool Files\n")
+		yaml.WriteString("      - name: Setup MCP Scripts Tool Files\n")
 		yaml.WriteString("        run: |\n")
 
 		// Generate individual tool files (sorted by name for stable code generation)
@@ -396,7 +396,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("            echo \"mcp_scripts_port=${PORT}\"\n")
 		yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          echo \"Safe Inputs MCP server will run on port ${PORT}\"\n")
+		yaml.WriteString("          echo \"MCP Scripts server will run on port ${PORT}\"\n")
 		yaml.WriteString("          \n")
 
 		// Step 4: Start the HTTP server in the background

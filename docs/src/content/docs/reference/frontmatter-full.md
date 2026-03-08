@@ -4554,7 +4554,7 @@ strict: true
 # (optional)
 private: true
 
-# Safe inputs configuration for defining custom lightweight MCP tools as
+# MCP Scripts configuration for defining custom lightweight MCP tools as
 # JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
 # and have access to secrets specified by the user. Only one of 'script'
 # (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.

@@ -979,7 +979,7 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup Safe Inputs Config
+      - name: Setup MCP Scripts Config
         run: |
           mkdir -p /opt/gh-aw/mcp-scripts/logs
           cat > /opt/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_EOF'
@@ -1030,7 +1030,7 @@ jobs:
           GH_AW_MCP_SCRIPTS_SERVER_EOF
           chmod +x /opt/gh-aw/mcp-scripts/mcp-server.cjs
           
-      - name: Setup Safe Inputs Tool Files
+      - name: Setup MCP Scripts Tool Files
         run: |
           cat > /opt/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_EOF'
           #!/bin/bash
@@ -1062,7 +1062,7 @@ jobs:
             echo "mcp_scripts_port=${PORT}"
           } >> "$GITHUB_OUTPUT"
           
-          echo "Safe Inputs MCP server will run on port ${PORT}"
+          echo "MCP Scripts server will run on port ${PORT}"
           
       - name: Start MCP Scripts HTTP Server
         id: mcp-scripts-start
@@ -1365,7 +1365,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_codex_log.cjs');
             await main();
-      - name: Parse Safe Inputs logs for step summary
+      - name: Parse MCP Scripts logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:

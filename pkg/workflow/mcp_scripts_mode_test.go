@@ -82,7 +82,7 @@ Test mcp-scripts HTTP mode
 
 			// Verify HTTP configuration in MCP setup
 			if !strings.Contains(yamlStr, `"mcpscripts"`) {
-				t.Error("Safe-inputs MCP server config not found")
+				t.Error("MCP Scripts server config not found")
 			}
 
 			// Should use HTTP transport

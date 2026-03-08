@@ -110,7 +110,7 @@ function generatePlainTextSummary(logEntries) {
   const lines = [];
 
   // Header
-  lines.push("=== Safe Inputs MCP Server Logs ===");
+  lines.push("=== MCP Scripts Server Logs ===");
   lines.push("");
 
   // Count events by type
@@ -259,7 +259,7 @@ function generateMCPScriptsSummary(logEntries) {
 
   // Wrap entire section in a details tag
   summary.push("<details>");
-  summary.push("<summary>Safe Inputs MCP Server Logs</summary>\n");
+  summary.push("<summary>MCP Scripts Server Logs</summary>\n");
 
   // Statistics
   summary.push("**Statistics**\n");

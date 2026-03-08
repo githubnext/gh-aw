@@ -60,7 +60,7 @@ func HasMCPScripts(mcpScripts *MCPScriptsConfig) bool {
 }
 
 // IsMCPScriptsEnabled checks if mcp-scripts are configured.
-// Safe-inputs are enabled by default when configured in the workflow.
+// MCP Scripts are enabled by default when configured in the workflow.
 // The workflowData parameter is kept for backward compatibility but is not used.
 func IsMCPScriptsEnabled(mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) bool {
 	return HasMCPScripts(mcpScripts)
