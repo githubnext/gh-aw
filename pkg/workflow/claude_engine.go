@@ -358,6 +358,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
 	}
 
+	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
+	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
+	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+	if isFirewallEnabled(workflowData) {
+		maps.Copy(env, getGitIdentityEnvVars())
+	}
+
 	// Set timeout environment variables for Claude Code
 	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeout
 	startupTimeoutMs := int(constants.DefaultMCPStartupTimeout / time.Millisecond)
