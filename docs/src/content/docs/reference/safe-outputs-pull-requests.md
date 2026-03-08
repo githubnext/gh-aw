@@ -132,7 +132,7 @@ Patterns support `*` (any characters except `/`) and `**` (any characters includ
 
 | Pattern | Matches |
 |---------|---------|
-| `go.mod` | Exactly `go.mod` at any path (full path comparison) |
+| `go.mod` | Exactly `go.mod` at the repository root (full path comparison) |
 | `*.json` | Any JSON file at the root (e.g. `package.json`) |
 | `go.*` | `go.mod`, `go.sum`, etc. at the root |
 | `.github/**` | All files under `.github/` at any depth |
