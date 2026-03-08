@@ -35,6 +35,11 @@ import (
 
 var concurrencyValidationLog = newValidationLogger("concurrency")
 
+var (
+	concurrencyExpressionPattern = regexp.MustCompile(`\$\{\{([^}]*)\}\}`)
+	concurrencyGroupPattern      = regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)
+)
+
 // validateConcurrencyGroupExpression validates the syntax of a custom concurrency group expression.
 // It checks for common syntactic errors that would cause runtime failures:
 //   - Unbalanced ${{ }} braces
@@ -125,8 +130,7 @@ func validateBalancedBraces(group string) error {
 // validateExpressionSyntax validates the syntax of expressions within ${{ }}
 func validateExpressionSyntax(group string) error {
 	// Pattern to extract content between ${{ and }}
-	expressionPattern := regexp.MustCompile(`\$\{\{([^}]*)\}\}`)
-	matches := expressionPattern.FindAllStringSubmatch(group, -1)
+	matches := concurrencyExpressionPattern.FindAllStringSubmatch(group, -1)
 
 	concurrencyValidationLog.Printf("Found %d expression(s) to validate", len(matches))
 
@@ -300,8 +304,7 @@ func containsLogicalOperators(expr string) bool {
 func extractConcurrencyGroupFromYAML(concurrencyYAML string) string {
 	// First, check if it's object format with explicit "group:" field
 	// Pattern: group: "value" or group: 'value' or group: value (at start of line or after spaces)
-	groupPattern := regexp.MustCompile(`(?m)^\s*group:\s*["']?([^"'\n]+?)["']?\s*$`)
-	matches := groupPattern.FindStringSubmatch(concurrencyYAML)
+	matches := concurrencyGroupPattern.FindStringSubmatch(concurrencyYAML)
 	if len(matches) > 1 {
 		return strings.TrimSpace(matches[1])
 	}

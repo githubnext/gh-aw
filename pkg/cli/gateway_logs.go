@@ -334,6 +334,8 @@ func parseGatewayLogs(logDir string, verbose bool) (*GatewayMetrics, error) {
 	}
 
 	scanner := bufio.NewScanner(file)
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
 	lineNum := 0
 
 	for scanner.Scan() {
@@ -775,6 +777,8 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
+		buf := make([]byte, maxScannerBufferSize)
+		scanner.Buffer(buf, maxScannerBufferSize)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {

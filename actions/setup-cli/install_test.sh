@@ -109,6 +109,20 @@ test_checksum_validation() {
   fi
 }
 
+# Test 7: Verify version mismatch detection after gh extension install
+test_version_mismatch_detection() {
+  echo ""
+  echo "Test 7: Verify version mismatch detection after gh extension install"
+  
+  # Check if script detects when installed version differs from requested version
+  if grep -q 'INSTALLED_VERSION.*!=.*VERSION' "$SCRIPT_PATH" && \
+     grep -q 'Version mismatch' "$SCRIPT_PATH"; then
+    print_result "Script detects version mismatch after gh extension install" "PASS"
+  else
+    print_result "Script missing version mismatch detection (gh extension install may install wrong version)" "FAIL"
+  fi
+}
+
 # Run all tests
 echo "========================================="
 echo "Testing setup-cli action install.sh"
@@ -120,6 +134,7 @@ test_input_version
 test_gh_install
 test_version_pinning
 test_checksum_validation
+test_version_mismatch_detection
 
 # Summary
 echo ""

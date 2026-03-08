@@ -926,6 +926,11 @@ async function main() {
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
+      const failedItems = processingResult.results
+        .filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled)
+        .map(r => `  - ${r.type}: ${r.error || "Unknown error"}`)
+        .join("\n");
+      core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
     }
     if (cancelledCount > 0) {
       core.warning(`${cancelledCount} message(s) were cancelled because a code push operation failed`);

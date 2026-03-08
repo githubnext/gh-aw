@@ -13,6 +13,15 @@ import (
 
 var copilotCodingAgentLog = logger.New("cli:copilot_agent")
 
+// agentLogPatterns contains patterns that indicate GitHub Copilot coding agent (not Copilot CLI)
+var agentLogPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)github.*copilot.*agent`),
+	regexp.MustCompile(`(?i)copilot-swe-agent`),
+	regexp.MustCompile(`(?i)@github/copilot-swe-agent`),
+	regexp.MustCompile(`(?i)agent.*task.*execution`),
+	regexp.MustCompile(`(?i)copilot.*agent.*v\d+\.\d+`),
+}
+
 // CopilotCodingAgentDetector contains heuristics to detect if a workflow run was executed by GitHub Copilot coding agent
 type CopilotCodingAgentDetector struct {
 	runDir       string
@@ -97,15 +106,6 @@ func (d *CopilotCodingAgentDetector) hasAgentWorkflowPath() bool {
 
 // hasAgentLogPatterns checks log files for patterns specific to GitHub Copilot coding agent
 func (d *CopilotCodingAgentDetector) hasAgentLogPatterns() bool {
-	// Patterns that indicate GitHub Copilot coding agent (not Copilot CLI)
-	agentPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)github.*copilot.*agent`),
-		regexp.MustCompile(`(?i)copilot-swe-agent`),
-		regexp.MustCompile(`(?i)@github/copilot-swe-agent`),
-		regexp.MustCompile(`(?i)agent.*task.*execution`),
-		regexp.MustCompile(`(?i)copilot.*agent.*v\d+\.\d+`),
-	}
-
 	found := false
 	// Check log files for agent-specific patterns
 	_ = filepath.Walk(d.runDir, func(path string, info os.FileInfo, err error) error {
@@ -121,7 +121,7 @@ func (d *CopilotCodingAgentDetector) hasAgentLogPatterns() bool {
 				return nil
 			}
 
-			for _, pattern := range agentPatterns {
+			for _, pattern := range agentLogPatterns {
 				if pattern.MatchString(content) {
 					if d.verbose {
 						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(

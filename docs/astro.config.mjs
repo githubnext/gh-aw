@@ -293,6 +293,7 @@ export default defineConfig({
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
 						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
+						{ label: 'Cost Management', link: '/reference/cost-management/' },
 						{ label: 'Copilot Agent Files', link: '/reference/copilot-custom-agents/' },
 						{ label: 'Cross-Repository', link: '/reference/cross-repository/' },
 						{ label: 'Custom Safe Outputs', link: '/reference/custom-safe-outputs/' },

@@ -108,13 +108,6 @@ import (
 
 var mcpBuiltinLog = logger.New("workflow:mcp-config-builtin")
 
-// renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
-// This is a shared function used by both Claude and Custom engines
-func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	mcpBuiltinLog.Print("Rendering Safe Outputs MCP configuration")
-	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false, workflowData)
-}
-
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
 // Now uses HTTP transport instead of stdio, similar to safe-inputs
 // The server is started in a separate step before the agent job
