@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus } = require("./check_permissions_utils.cjs");
+const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot } = require("./check_permissions_utils.cjs");
 
 async function main() {
   const { eventName } = context;
@@ -68,7 +68,7 @@ async function main() {
     if (allowedBots && allowedBots.length > 0) {
       core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
 
-      if (allowedBots.includes(actor)) {
+      if (isAllowedBot(actor, allowedBots)) {
         core.info(`Actor '${actor}' is in the allowed bots list`);
 
         // Verify the bot is active/installed on the repository
