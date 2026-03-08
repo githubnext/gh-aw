@@ -24,6 +24,8 @@ safe-outputs:
     title-prefix: "[instructions] "
     labels: [documentation, automation, instructions]
     draft: false
+    allowed-files:
+      - .github/aw/github-agentic-workflows.md
 
 tools:
   cache-memory: true
