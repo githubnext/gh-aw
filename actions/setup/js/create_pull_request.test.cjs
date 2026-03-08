@@ -370,9 +370,9 @@ ${diffs}
     expect(result.error).not.toContain(".github/aw/github-agentic-workflows.md");
   });
 
-  it("should bypass protected-files when allowed-files is configured and file matches", async () => {
-    // .github/ is a protected path prefix, but when allowed_files is set and the file
-    // matches, protected-files is bypassed entirely
+  it("should still enforce protected-files when allowed-files matches (orthogonal checks)", async () => {
+    // allowed-files and protected-files are orthogonal: both checks must pass.
+    // Matching the allowlist does NOT bypass the protected-files policy.
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
 
     const { main } = require("./create_pull_request.cjs");
@@ -383,8 +383,25 @@ ${diffs}
     });
     const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
 
-    // Should not be blocked by protected-files — either succeeds or fails for other reasons
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("protected files");
+  });
+
+  it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
+    // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      allowed_files: [".github/aw/**"],
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "allowed",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    // Should not be blocked by either check
     expect(result.error || "").not.toContain("protected files");
+    expect(result.error || "").not.toContain("outside the allowed-files list");
   });
 
   it("should still enforce protected-files when allowed-files is not set", async () => {

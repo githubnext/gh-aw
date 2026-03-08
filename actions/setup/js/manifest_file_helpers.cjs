@@ -129,25 +129,29 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
  * Evaluates a patch against the configured file-protection policy and returns a
  * single structured result, eliminating nested branching in callers.
  *
- * Resolution order:
- * 1. If `allowed_files` is set → strict allowlist check; `protected-files` is bypassed.
- * 2. If `protected_files_policy === "allowed"` → no restriction.
- * 3. Otherwise → manifest + path-prefix check, honouring `fallback-to-issue`.
+ * The two checks are orthogonal and both must pass:
+ * 1. If `allowed_files` is set → every file must match at least one pattern (deny if not).
+ * 2. `protected-files` policy applies independently: "allowed" = skip, "fallback-to-issue"
+ *    = create review issue, default ("blocked") = deny.
+ *
+ * To allow an agent to write protected files, set both `allowed-files` (strict scope) and
+ * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
  *
  * @param {string} patchContent - The git patch content
  * @param {{ allowed_files?: string[], protected_files?: string[], protected_path_prefixes?: string[], protected_files_policy?: string }} config
  * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
  */
 function checkFileProtection(patchContent, config) {
+  // Step 1: allowlist check (if configured)
   const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
   if (allowedFilePatterns.length > 0) {
     const { disallowedFiles } = checkAllowedFiles(patchContent, allowedFilePatterns);
     if (disallowedFiles.length > 0) {
       return { action: "deny", source: "allowlist", files: disallowedFiles };
     }
-    return { action: "allow" };
   }
 
+  // Step 2: protected-files check (independent of allowlist)
   if (config.protected_files_policy === "allowed") {
     return { action: "allow" };
   }

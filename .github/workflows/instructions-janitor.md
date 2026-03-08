@@ -26,6 +26,7 @@ safe-outputs:
     draft: false
     allowed-files:
       - .github/aw/**
+    protected-files: allowed
 
 tools:
   cache-memory: true

@@ -1103,9 +1103,26 @@ ${diffs}
       expect(result.success).toBe(true);
     });
 
-    it("should bypass protected-files check when file is in the allowlist", async () => {
-      // package.json would normally be blocked by protected-files, but
-      // when allowed_files is set and it matches, protected-files is bypassed entirely
+    it("should still block a protected file when it is in the allowlist but protected-files: allowed is not set", async () => {
+      // allowed-files and protected-files are orthogonal: both checks must pass.
+      // Matching the allowlist does NOT bypass the protected-files policy.
+      const patchPath = createPatchFile(createPatchWithFiles("package.json"));
+
+      const module = await loadModule();
+      const handler = await module.main({
+        allowed_files: ["package.json"],
+        protected_files: ["package.json"],
+        protected_files_policy: "blocked",
+      });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("protected files");
+      expect(result.error).toContain("package.json");
+    });
+
+    it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
+      // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
       const patchPath = createPatchFile(createPatchWithFiles("package.json"));
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
@@ -1113,7 +1130,7 @@ ${diffs}
       const handler = await module.main({
         allowed_files: ["package.json"],
         protected_files: ["package.json"],
-        protected_files_policy: "blocked",
+        protected_files_policy: "allowed",
       });
       const result = await handler({ patch_path: patchPath }, {});
 

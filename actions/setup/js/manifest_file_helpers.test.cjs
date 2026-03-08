@@ -316,7 +316,7 @@ index abc..def 100644
       expect(result.disallowedFiles).not.toContain(".changeset/patch-fix.md");
     });
 
-    it("should allow protected files when they are in the allowlist (protected-files bypassed)", () => {
+    it("should not flag a protected file that is in the allowlist", () => {
       const patch = `diff --git a/.github/aw/instructions.md b/.github/aw/instructions.md\nindex abc..def 100644\n`;
       const result = checkAllowedFiles(patch, [".github/aw/instructions.md"]);
       expect(result.hasDisallowedFiles).toBe(false);
