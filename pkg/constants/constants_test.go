@@ -320,7 +320,7 @@ func TestFeatureFlagConstants(t *testing.T) {
 		value    FeatureFlag
 		expected string
 	}{
-		{"SafeInputsFeatureFlag", SafeInputsFeatureFlag, "safe-inputs"},
+		{"MCPScriptsFeatureFlag", MCPScriptsFeatureFlag, "mcp-scripts"},
 		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
 		{"DisableXPIAPromptFeatureFlag", DisableXPIAPromptFeatureFlag, "disable-xpia-prompt"},
 	}
@@ -342,9 +342,9 @@ func TestFeatureFlagType(t *testing.T) {
 	}
 
 	// Test that constants can be assigned to FeatureFlag variables
-	safeInputsFlag := SafeInputsFeatureFlag
-	if safeInputsFlag != "safe-inputs" {
-		t.Errorf("SafeInputsFeatureFlag assignment failed: got %q, want %q", safeInputsFlag, "safe-inputs")
+	mcpScriptsFlag := MCPScriptsFeatureFlag
+	if mcpScriptsFlag != "mcp-scripts" {
+		t.Errorf("MCPScriptsFeatureFlag assignment failed: got %q, want %q", mcpScriptsFlag, "mcp-scripts")
 	}
 }
 

@@ -85,40 +85,40 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	// Filter out safe-outputs MCP servers for inspection
 	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
 
-	// Start safe-inputs server if present
-	var safeInputsServerCmd *exec.Cmd
-	var safeInputsTmpDir string
-	if workflowData != nil && workflowData.SafeInputs != nil && len(workflowData.SafeInputs.Tools) > 0 {
-		// Start safe-inputs server and add it to the list of MCP configs
-		config, serverCmd, tmpDir, err := startSafeInputsServer(workflowData.SafeInputs, verbose)
+	// Start mcp-scripts server if present
+	var mcpScriptsServerCmd *exec.Cmd
+	var mcpScriptsTmpDir string
+	if workflowData != nil && workflowData.MCPScripts != nil && len(workflowData.MCPScripts.Tools) > 0 {
+		// Start mcp-scripts server and add it to the list of MCP configs
+		config, serverCmd, tmpDir, err := startMCPScriptsServer(workflowData.MCPScripts, verbose)
 		if err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start safe-inputs server: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start mcp-scripts server: %v", err)))
 			}
 		} else {
-			safeInputsServerCmd = serverCmd
-			safeInputsTmpDir = tmpDir
-			// Add safe-inputs config to the list of MCP servers to inspect
+			mcpScriptsServerCmd = serverCmd
+			mcpScriptsTmpDir = tmpDir
+			// Add mcp-scripts config to the list of MCP servers to inspect
 			mcpConfigs = append(mcpConfigs, *config)
 		}
 	}
 
-	// Cleanup safe-inputs server when done
-	if safeInputsServerCmd != nil {
+	// Cleanup mcp-scripts server when done
+	if mcpScriptsServerCmd != nil {
 		defer func() {
-			if safeInputsServerCmd.Process != nil {
+			if mcpScriptsServerCmd.Process != nil {
 				// Try graceful shutdown first
-				if err := safeInputsServerCmd.Process.Signal(os.Interrupt); err != nil && verbose {
+				if err := mcpScriptsServerCmd.Process.Signal(os.Interrupt); err != nil && verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
 				}
 				// Wait a moment for graceful shutdown
 				time.Sleep(500 * time.Millisecond)
 				// Attempt force kill (may fail if process already exited gracefully, which is fine)
-				_ = safeInputsServerCmd.Process.Kill()
+				_ = mcpScriptsServerCmd.Process.Kill()
 			}
 			// Cleanup temporary directory
-			if safeInputsTmpDir != "" {
-				if err := os.RemoveAll(safeInputsTmpDir); err != nil && verbose {
+			if mcpScriptsTmpDir != "" {
+				if err := os.RemoveAll(mcpScriptsTmpDir); err != nil && verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup temporary directory: %v", err)))
 				}
 			}
@@ -191,7 +191,7 @@ Examples:
 The command will:
 - Parse the workflow file to extract MCP server configurations
 - Start each MCP server (stdio, docker, http)
-- Automatically start and inspect safe-inputs server if present
+- Automatically start and inspect mcp-scripts server if present
 - Query available tools, resources, and roots
 - Validate required secrets are available  
 - Display results in formatted tables with error details`,

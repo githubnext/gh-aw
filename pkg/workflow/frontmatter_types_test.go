@@ -479,7 +479,7 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 					"max": 5,
 				},
 			},
-			"safe-inputs": map[string]any{
+			"mcp-scripts": map[string]any{
 				"mode": "http",
 			},
 		}
@@ -499,8 +499,8 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 		if config.SafeOutputs == nil {
 			t.Error("SafeOutputs should be strongly typed")
 		}
-		if config.SafeInputs == nil {
-			t.Error("SafeInputs should be strongly typed")
+		if config.MCPScripts == nil {
+			t.Error("MCPScripts should be strongly typed")
 		}
 
 		// Convert back and verify they're preserved
@@ -514,8 +514,8 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 		if reconstructed["safe-outputs"] == nil {
 			t.Error("safe-outputs should be preserved in ToMap")
 		}
-		if reconstructed["safe-inputs"] == nil {
-			t.Error("safe-inputs should be preserved in ToMap")
+		if reconstructed["mcp-scripts"] == nil {
+			t.Error("mcp-scripts should be preserved in ToMap")
 		}
 	})
 }

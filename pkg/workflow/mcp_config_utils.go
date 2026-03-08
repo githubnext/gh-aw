@@ -33,7 +33,7 @@
 // Related files:
 //   - mcp_renderer.go: Uses URL rewriting for HTTP MCP servers
 //   - safe_outputs.go: Safe outputs HTTP server configuration
-//   - safe_inputs.go: Safe inputs HTTP server configuration
+//   - mcp_scripts.go: Safe inputs HTTP server configuration
 //
 // Example:
 //

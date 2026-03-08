@@ -15,13 +15,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSafeInputsStepCodeGenerationStability verifies that the MCP setup step code generation
-// for safe-inputs produces stable, deterministic output when called multiple times.
+// TestMCPScriptsStepCodeGenerationStability verifies that the MCP setup step code generation
+// for mcp-scripts produces stable, deterministic output when called multiple times.
 // This test ensures that tools are sorted before generating cat commands.
-func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
+func TestMCPScriptsStepCodeGenerationStability(t *testing.T) {
 	// Create a config with multiple tools to ensure sorting is tested
-	safeInputsConfig := &SafeInputsConfig{
-		Tools: map[string]*SafeInputToolConfig{
+	mcpScriptsConfig := &MCPScriptsConfig{
+		Tools: map[string]*MCPScriptToolConfig{
 			"zebra-shell": {
 				Name:        "zebra-shell",
 				Description: "A shell tool that starts with Z",
@@ -46,10 +46,10 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	}
 
 	workflowData := &WorkflowData{
-		SafeInputs: safeInputsConfig,
+		MCPScripts: mcpScriptsConfig,
 		Tools:      make(map[string]any),
 		Features: map[string]any{
-			"safe-inputs": true, // Feature flag is optional now
+			"mcp-scripts": true, // Feature flag is optional now
 		},
 	}
 

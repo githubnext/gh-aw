@@ -230,7 +230,7 @@ const (
 	// DefaultMCPGatewayPort is the default port for the MCP gateway HTTP service
 	DefaultMCPGatewayPort = 80
 
-	// DefaultMCPServerPort is the default port for MCP servers (safe-inputs server)
+	// DefaultMCPServerPort is the default port for MCP servers (mcp-scripts server)
 	DefaultMCPServerPort = 3000
 
 	// DefaultMCPInspectorPort is the default port for the MCP inspector (safe-outputs server)
@@ -615,19 +615,19 @@ func (m MCPServerID) String() string {
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
 const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
 
-// SafeInputsMCPServerID is the identifier for the safe-inputs MCP server
-const SafeInputsMCPServerID MCPServerID = "safeinputs"
+// MCPScriptsMCPServerID is the identifier for the mcp-scripts MCP server
+const MCPScriptsMCPServerID MCPServerID = "mcpscripts"
 
-// SafeInputsMCPVersion is the version of the safe-inputs MCP server
-const SafeInputsMCPVersion = "1.0.0"
+// MCPScriptsMCPVersion is the version of the mcp-scripts MCP server
+const MCPScriptsMCPVersion = "1.0.0"
 
 // AgenticWorkflowsMCPServerID is the identifier for the agentic-workflows MCP server
 const AgenticWorkflowsMCPServerID MCPServerID = "agenticworkflows"
 
 // Feature flag identifiers
 const (
-	// SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
-	SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
+	// MCPScriptsFeatureFlag is the name of the feature flag for mcp-scripts
+	MCPScriptsFeatureFlag FeatureFlag = "mcp-scripts"
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt

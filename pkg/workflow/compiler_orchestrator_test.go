@@ -522,7 +522,7 @@ run-name: Test Run
 env:
   NODE_ENV: production
 features:
-  safe-inputs: true
+  mcp-scripts: true
 if: github.event_name == 'push'
 runs-on: ubuntu-latest
 environment: staging

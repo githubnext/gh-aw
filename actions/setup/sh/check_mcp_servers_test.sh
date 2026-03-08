@@ -226,7 +226,7 @@ test_server_without_url() {
     "safeinputs": {
       "type": "stdio",
       "command": "gh",
-      "args": ["aw", "mcp-server", "--mode", "safe-inputs"]
+      "args": ["aw", "mcp-server", "--mode", "mcp-scripts"]
     }
   },
   "gateway": {
@@ -263,7 +263,7 @@ test_mixed_servers() {
     "safeinputs": {
       "type": "stdio",
       "command": "gh",
-      "args": ["aw", "mcp-server", "--mode", "safe-inputs"]
+      "args": ["aw", "mcp-server", "--mode", "mcp-scripts"]
     },
     "github": {
       "type": "http",

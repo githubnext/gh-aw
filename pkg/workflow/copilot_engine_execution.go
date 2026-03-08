@@ -96,7 +96,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add tool permission arguments based on configuration
-	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData)
+	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData)
 	if len(toolArgs) > 0 {
 		copilotExecLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
@@ -330,10 +330,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		}
 	}
 
-	// Add safe-inputs secrets to env for passthrough to MCP servers
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		for varName, secretExpr := range safeInputsSecrets {
+	// Add mcp-scripts secrets to env for passthrough to MCP servers
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName, secretExpr := range mcpScriptsSecrets {
 			// Only add if not already in env
 			if _, exists := env[varName]; !exists {
 				env[varName] = secretExpr
@@ -349,7 +349,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
-	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeInputs, workflowData, "        ")
+	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")
 	if toolArgsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(toolArgsComment, "\n"), "\n")

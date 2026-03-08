@@ -18,7 +18,7 @@ type ImportsResult struct {
 	MergedMCPServers    string           // Merged mcp-servers configuration from all imports
 	MergedEngines       []string         // Merged engine configurations from all imports
 	MergedSafeOutputs   []string         // Merged safe-outputs configurations from all imports
-	MergedSafeInputs    []string         // Merged safe-inputs configurations from all imports
+	MergedMCPScripts    []string         // Merged mcp-scripts configurations from all imports
 	MergedMarkdown      string           // Only contains imports WITH inputs (for compile-time substitution)
 	ImportPaths         []string         // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
 	MergedSteps         string           // Merged steps configuration from all imports (excluding copilot-setup-steps)

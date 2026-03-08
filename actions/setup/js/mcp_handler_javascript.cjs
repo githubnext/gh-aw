@@ -3,7 +3,7 @@
 /**
  * JavaScript Handler for Safe-Inputs
  *
- * This module provides a handler for executing JavaScript (.cjs) files in safe-inputs tools.
+ * This module provides a handler for executing JavaScript (.cjs) files in mcp-scripts tools.
  * It executes JavaScript handlers in a separate Node.js process for isolation.
  */
 

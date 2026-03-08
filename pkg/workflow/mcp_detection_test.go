@@ -89,11 +89,11 @@ func TestHasMCPServers(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "workflow with safe-inputs enabled",
+			name: "workflow with mcp-scripts enabled",
 			workflowData: &WorkflowData{
 				Tools: map[string]any{},
-				SafeInputs: &SafeInputsConfig{
-					Tools: map[string]*SafeInputToolConfig{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
 						"test-tool": {
 							Name: "test-tool",
 							Run:  "echo test",
@@ -101,7 +101,7 @@ func TestHasMCPServers(t *testing.T) {
 					},
 				},
 				Features: map[string]any{
-					"safe-inputs": true,
+					"mcp-scripts": true,
 				},
 			},
 			expected: true,
@@ -172,11 +172,11 @@ func TestHasMCPServers_EdgeCases(t *testing.T) {
 		assert.False(t, result, "Safe-outputs with no fields should return false")
 	})
 
-	t.Run("safe-inputs without feature flag", func(t *testing.T) {
+	t.Run("mcp-scripts without feature flag", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{},
-			SafeInputs: &SafeInputsConfig{
-				Tools: map[string]*SafeInputToolConfig{
+			MCPScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
 					"test-tool": {
 						Name: "test-tool",
 						Run:  "echo test",

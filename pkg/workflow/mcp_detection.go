@@ -35,8 +35,8 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 		return true
 	}
 
-	// Check if safe-inputs is configured and feature flag is enabled (adds safe-inputs MCP server)
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+	// Check if mcp-scripts is configured and feature flag is enabled (adds mcp-scripts MCP server)
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
 		return true
 	}
 

@@ -28,7 +28,7 @@ safe-outputs:
     max: 10
 timeout-minutes: 30
 imports:
-  - shared/github-queries-safe-input.md
+  - shared/github-queries-mcp-script.md
   - shared/reporting.md
 ---
 
@@ -60,7 +60,7 @@ Review all daily report discussions from the last 24 hours and:
 
 ### Step 0.1: Verify GitHub Discussions Access
 
-1. Test the `github-discussion-query` safe-input tool by running a simple query:
+1. Test the `github-discussion-query` mcp-script tool by running a simple query:
    ```
    github-discussion-query with limit: 1, jq: "."
    ```
@@ -102,7 +102,7 @@ Review all daily report discussions from the last 24 hours and:
 
 ### Step 1.1: Query Recent Discussions
 
-Use the `github-discussion-query` safe-input tool to find all daily report discussions created in the last 24-48 hours. Call the tool with appropriate parameters:
+Use the `github-discussion-query` mcp-script tool to find all daily report discussions created in the last 24-48 hours. Call the tool with appropriate parameters:
 
 ```
 github-discussion-query with limit: 100, jq: "."

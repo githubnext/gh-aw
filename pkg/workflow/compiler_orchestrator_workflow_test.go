@@ -142,7 +142,7 @@ func TestExtractYAMLSections_AllSections(t *testing.T) {
 		},
 		"run-name":        "Test Run ${{ github.run_id }}",
 		"env":             map[string]any{"NODE_ENV": "production"},
-		"features":        map[string]any{"safe-inputs": true},
+		"features":        map[string]any{"mcp-scripts": true},
 		"if":              "github.event_name == 'push'",
 		"timeout-minutes": 30,
 		"runs-on":         "ubuntu-latest",
@@ -172,7 +172,7 @@ func TestExtractYAMLSections_AllSections(t *testing.T) {
 	assert.NotEmpty(t, workflowData.Env)
 	assert.Contains(t, workflowData.Env, "NODE_ENV")
 	assert.NotEmpty(t, workflowData.Features)
-	assert.Contains(t, workflowData.Features, "safe-inputs")
+	assert.Contains(t, workflowData.Features, "mcp-scripts")
 	assert.NotEmpty(t, workflowData.If)
 	assert.Contains(t, workflowData.If, "github.event_name")
 	assert.NotEmpty(t, workflowData.TimeoutMinutes)

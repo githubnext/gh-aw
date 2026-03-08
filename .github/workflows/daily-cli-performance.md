@@ -57,7 +57,7 @@ This workflow imports `shared/go-make.md` which provides:
 - **safeinputs-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
 - **safeinputs-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
 
-**IMPORTANT**: Always use these safe-input tools for Go and Make commands instead of running them directly via bash.
+**IMPORTANT**: Always use these mcp-script tools for Go and Make commands instead of running them directly via bash.
 
 ## Phase 1: Run Performance Benchmarks
 

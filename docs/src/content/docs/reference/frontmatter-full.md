@@ -4559,7 +4559,7 @@ private: true
 # and have access to secrets specified by the user. Only one of 'script'
 # (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
-safe-inputs:
+mcp-scripts:
   {}
 
 # Runtime environment version overrides. Allows customizing runtime versions

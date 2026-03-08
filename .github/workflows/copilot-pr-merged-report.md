@@ -75,7 +75,7 @@ echo "Looking for PRs merged since: $DATE_24H_AGO"
 
 **Step 1.2: Search for Merged Copilot PRs**
 
-Use the `safeinputs-gh` safe-input tool to search for merged PRs from Copilot:
+Use the `safeinputs-gh` mcp-script tool to search for merged PRs from Copilot:
 ```
 safeinputs-gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
 ```
@@ -263,7 +263,7 @@ A successful report:
 - ✅ Creates discussion in "audits" category
 - ✅ Completes within 10-minute timeout
 
-Begin your analysis now. Use the `gh` safe-input tool for all GitHub CLI operations.
+Begin your analysis now. Use the `gh` mcp-script tool for all GitHub CLI operations.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 

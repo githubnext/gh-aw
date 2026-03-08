@@ -625,9 +625,9 @@ function formatInitializationSummary(initEntry, options = {}) {
         // Extract the tool name without the prefix for cleaner display
         const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
         categories["Safe Outputs"].push(toolName);
-      } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+      } else if (tool.startsWith("safeinputs-") || tool.startsWith("mcp_scripts-")) {
         // Extract the tool name without the prefix for cleaner display
-        const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+        const toolName = tool.replace(/^safeinputs-|^mcp_scripts-/, "");
         categories["Safe Inputs"].push(toolName);
       } else if (tool.startsWith("mcp__github__")) {
         categories["Git/GitHub"].push(formatMcpName(tool));

@@ -447,7 +447,7 @@ func TestGetAllCodemods(t *testing.T) {
 		"timeout-minutes-migration",
 		"network-firewall-migration",
 		"command-to-slash-command-migration",
-		"safe-inputs-mode-removal",
+		"mcp-scripts-mode-removal",
 	}
 
 	foundIDs := make(map[string]bool)
@@ -545,16 +545,16 @@ This is a test workflow with slash command.
 	}
 }
 
-func TestFixCommand_SafeInputsModeRemoval(t *testing.T) {
+func TestFixCommand_MCPScriptsModeRemoval(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
 
-	// Create a workflow with deprecated safe-inputs.mode field
+	// Create a workflow with deprecated mcp-scripts.mode field
 	content := `---
 on: workflow_dispatch
 engine: copilot
-safe-inputs:
+mcp-scripts:
   mode: http
   test-tool:
     description: Test tool
@@ -564,17 +564,17 @@ safe-inputs:
 
 # Test Workflow
 
-This is a test workflow with safe-inputs mode field.
+This is a test workflow with mcp-scripts mode field.
 `
 
 	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Get the safe-inputs mode removal codemod
-	modeCodemod := getCodemodByID("safe-inputs-mode-removal")
+	// Get the mcp-scripts mode removal codemod
+	modeCodemod := getCodemodByID("mcp-scripts-mode-removal")
 	if modeCodemod == nil {
-		t.Fatal("safe-inputs-mode-removal codemod not found")
+		t.Fatal("mcp-scripts-mode-removal codemod not found")
 	}
 
 	// Process the file
@@ -602,9 +602,9 @@ This is a test workflow with safe-inputs mode field.
 		t.Errorf("Expected mode field to be removed, but it still exists:\n%s", updatedStr)
 	}
 
-	// Verify safe-inputs block and test-tool are preserved
-	if !strings.Contains(updatedStr, "safe-inputs:") {
-		t.Error("Expected safe-inputs block to be preserved")
+	// Verify mcp-scripts block and test-tool are preserved
+	if !strings.Contains(updatedStr, "mcp-scripts:") {
+		t.Error("Expected mcp-scripts block to be preserved")
 	}
 
 	if !strings.Contains(updatedStr, "test-tool:") {

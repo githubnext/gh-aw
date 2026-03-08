@@ -70,12 +70,12 @@ func TestSafeOutputsAPIKeyImmediateMasking(t *testing.T) {
 	}
 }
 
-// TestSafeInputsAPIKeyImmediateMasking verifies that the Safe Inputs API key
+// TestMCPScriptsAPIKeyImmediateMasking verifies that the Safe Inputs API key
 // is masked immediately after generation, before any other operations.
-func TestSafeInputsAPIKeyImmediateMasking(t *testing.T) {
+func TestMCPScriptsAPIKeyImmediateMasking(t *testing.T) {
 	workflowData := &WorkflowData{
-		SafeInputs: &SafeInputsConfig{
-			Tools: map[string]*SafeInputToolConfig{
+		MCPScripts: &MCPScriptsConfig{
+			Tools: map[string]*MCPScriptToolConfig{
 				"test-tool": {
 					Name:        "test-tool",
 					Description: "Test tool",
@@ -85,7 +85,7 @@ func TestSafeInputsAPIKeyImmediateMasking(t *testing.T) {
 		},
 		Tools: map[string]any{},
 		Features: map[string]any{
-			"safe-inputs": true,
+			"mcp-scripts": true,
 		},
 	}
 
@@ -97,7 +97,7 @@ func TestSafeInputsAPIKeyImmediateMasking(t *testing.T) {
 	output := yaml.String()
 
 	// Find the Safe Inputs config generation section
-	configStart := strings.Index(output, "Generate Safe Inputs MCP Server Config")
+	configStart := strings.Index(output, "Generate MCP Scripts Server Config")
 	require.Greater(t, configStart, -1, "Should find Safe Inputs config generation step")
 
 	// Extract just the run script for this step
@@ -186,8 +186,8 @@ func TestAPIKeyMaskingNoEmptyDeclaration(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{},
 		},
-		SafeInputs: &SafeInputsConfig{
-			Tools: map[string]*SafeInputToolConfig{
+		MCPScripts: &MCPScriptsConfig{
+			Tools: map[string]*MCPScriptToolConfig{
 				"test": {Name: "test", Run: "echo test"},
 			},
 		},
@@ -198,7 +198,7 @@ func TestAPIKeyMaskingNoEmptyDeclaration(t *testing.T) {
 			},
 		},
 		Features: map[string]any{
-			"safe-inputs": true,
+			"mcp-scripts": true,
 		},
 	}
 

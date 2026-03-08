@@ -3,7 +3,7 @@
 /**
  * Shell Script Handler for Safe-Inputs
  *
- * This module provides a handler for executing shell scripts in safe-inputs tools.
+ * This module provides a handler for executing shell scripts in mcp-scripts tools.
  * It follows GitHub Actions conventions for passing inputs and reading outputs.
  */
 

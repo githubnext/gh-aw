@@ -396,7 +396,7 @@ Custom server types MUST be registered in the `customSchemas` field at the top l
     "apiKey": "secret"
   },
   "customSchemas": {
-    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
   }
 }
 ```
@@ -433,7 +433,7 @@ When a server configuration includes a `type` field with a value not in `["stdio
     "apiKey": "secret"
   },
   "customSchemas": {
-    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
   }
 }
 ```

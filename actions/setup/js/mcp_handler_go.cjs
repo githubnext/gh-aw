@@ -3,7 +3,7 @@
 /**
  * Go Script Handler for Safe-Inputs
  *
- * This module provides a handler for executing Go scripts in safe-inputs tools.
+ * This module provides a handler for executing Go scripts in mcp-scripts tools.
  * It uses `go run` to execute Go source files with inputs via JSON on stdin.
  */
 

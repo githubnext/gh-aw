@@ -233,9 +233,9 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
-	// Emit experimental warning for safe-inputs feature
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: safe-inputs"))
+	// Emit experimental warning for mcp-scripts feature
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: mcp-scripts"))
 		c.IncrementWarningCount()
 	}
 

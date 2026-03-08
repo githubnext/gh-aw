@@ -40,7 +40,7 @@ Include the following frontmatter fields in the hash computation:
 - `mcp-servers` - MCP server configurations
 - `network` - Network access permissions
 - `safe-outputs` - Safe output configurations
-- `safe-inputs` - Safe input configurations
+- `mcp-scripts` - Safe input configurations
 
 **Runtime Configuration:**
 - `runtimes` - Runtime version specifications (Node.js, Python, etc.)
@@ -79,7 +79,7 @@ For each workflow in BFS order:
 2. Merge with accumulated frontmatter using these rules:
    - **Replace**: `engine`, `on`, `tracker-id`, `description`, `timeout-minutes`
    - **Deep merge**: `tools`, `mcp-servers`, `network`, `permissions`, `runtimes`, `cache`, `services`
-   - **Append**: `steps`, `post-steps`, `safe-outputs`, `safe-inputs`, `jobs`
+   - **Append**: `steps`, `post-steps`, `safe-outputs`, `mcp-scripts`, `jobs`
    - **Union**: `labels`, `bots` (deduplicated)
    - **Track**: `imports` (list of all imported paths)
 
@@ -115,7 +115,7 @@ The canonical JSON includes all frontmatter fields plus version information:
   "permissions": {"actions": "read", "contents": "read"},
   "post-steps": [],
   "runtimes": {"node": {"version": "20"}},
-  "safe-inputs": {},
+  "mcp-scripts": {},
   "safe-outputs": {"create-discussion": {"category": "audits"}},
   "services": {},
   "steps": [],
