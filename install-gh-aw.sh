@@ -254,20 +254,26 @@ if [ "$TRY_GH_INSTALL" = true ] && command -v gh &> /dev/null; then
         if gh aw version &> /dev/null; then
             INSTALLED_VERSION=$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
             
-            # Verify the installed version matches the requested version (if specific version was requested)
-            if [ "$VERSION" != "latest" ] && [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" != "$VERSION" ]; then
-                print_warning "Version mismatch: requested $VERSION but gh extension install installed $INSTALLED_VERSION"
-                print_info "Falling back to manual installation to install the correct version..."
+            # Ensure we could parse an installed version; empty means verification failed
+            if [ -z "$INSTALLED_VERSION" ]; then
+                print_warning "gh extension install completed but the installed gh-aw version could not be determined"
+                print_info "Falling back to manual installation..."
             else
-                print_success "Successfully installed gh-aw using gh extension install"
-                print_info "Installed version: $INSTALLED_VERSION"
-                
-                # Set output for GitHub Actions
-                if [ -n "${GITHUB_OUTPUT}" ]; then
-                    echo "installed_version=${INSTALLED_VERSION}" >> "${GITHUB_OUTPUT}"
+                # Verify the installed version matches the requested version (if specific version was requested)
+                if [ "$VERSION" != "latest" ] && [ "$INSTALLED_VERSION" != "$VERSION" ]; then
+                    print_warning "Version mismatch: requested $VERSION but gh extension install installed $INSTALLED_VERSION"
+                    print_info "Falling back to manual installation to install the correct version..."
+                else
+                    print_success "Successfully installed gh-aw using gh extension install"
+                    print_info "Installed version: $INSTALLED_VERSION"
+                    
+                    # Set output for GitHub Actions
+                    if [ -n "${GITHUB_OUTPUT}" ]; then
+                        echo "installed_version=${INSTALLED_VERSION}" >> "${GITHUB_OUTPUT}"
+                    fi
+                    
+                    exit 0
                 fi
-                
-                exit 0
             fi
         else
             print_warning "gh extension install completed but verification failed"
