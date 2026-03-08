@@ -7,7 +7,7 @@
 >
 > This was originally intended as a pull request, but the patch modifies protected files: {files}.
 >
-> The push was rejected because the GitHub App does not have `workflows` permission to push these changes. A human must create the pull request manually.
+> The push was rejected because GitHub Actions does not have `workflows` permission to push these changes, and is never allowed to make such changes, or other authorization being used does not have this permission. A human must create the pull request manually.
 
 To create a pull request with the changes:
 
