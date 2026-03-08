@@ -75,6 +75,23 @@ Use this field for internal tooling, sensitive automation, or workflows that dep
 > [!NOTE]
 > The `private:` field only blocks installation via `gh aw add`. It does not affect the visibility of the workflow file itself — that is controlled by your repository's access settings.
 
+### Resources (`resources:`)
+
+Declares additional workflow or action files to fetch alongside this workflow when running `gh aw add`. Use this field when the workflow depends on companion workflows or custom actions stored in the same directory.
+
+```yaml wrap
+resources:
+  - triage-issue.md          # companion workflow
+  - label-issue.md           # companion workflow
+  - shared/helper-action.yml # supporting GitHub Action
+```
+
+Entries are relative paths from the workflow's location in the source repository. GitHub Actions expression syntax (`${{`) is not allowed in resource paths.
+
+When a user runs `gh aw add` to install this workflow, each listed file is also downloaded and placed alongside the main workflow in the target repository. This ensures companion workflows and custom actions the main workflow depends on are available after installation.
+
+In addition to files explicitly listed in `resources:`, `gh aw add` automatically fetches workflows referenced in the [`dispatch-workflow`](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) safe output.
+
 ### Labels (`labels:`)
 
 Optional array of strings for categorizing and organizing workflows. Labels are displayed in `gh aw status` command output and can be filtered using the `--label` flag.

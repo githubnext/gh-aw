@@ -37,6 +37,11 @@ gh aw add githubnext/agentics/workflows/ci-doctor.md # explicit path
 
 Use `--name`, `--pr`, `--force`, `--engine`, or `--verbose` flags to customize installation. The `source` field is automatically added to workflow frontmatter for tracking origin and enabling updates.
 
+When installing a workflow, `gh aw add` also automatically fetches:
+
+- Workflows referenced in the workflow's [`dispatch-workflow`](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) safe output.
+- Files declared in the workflow's [`resources:`](/gh-aw/reference/frontmatter/#resources-resources) frontmatter field (companion workflows, custom actions).
+
 > [!NOTE]
 > Check carefully that the workflow comes from a trusted source and is appropriate for your use in your repository. Review the workflow's content and understand what it does before adding it to your repository.
 

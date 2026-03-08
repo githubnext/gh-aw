@@ -1025,6 +1025,9 @@ When using `target: "*"`, the agent must provide `discussion_number` in the outp
 
 Triggers other workflows in the same repository using GitHub's `workflow_dispatch` event. This enables orchestration patterns, such as orchestrator workflows that coordinate multiple worker workflows.
 
+> [!NOTE]
+> When installing a workflow with `gh aw add`, workflows listed in `dispatch-workflow` are automatically fetched and added to the target repository alongside the main workflow.
+
 **Shorthand Syntax:**
 
 ```yaml wrap
