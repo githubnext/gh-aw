@@ -61,11 +61,15 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 		// Build wiki note text (non-empty only when wiki mode is enabled)
 		wikiNoteText := ""
 		if memory.Wiki {
+			repoMemoryPromptLog.Print("Wiki mode enabled for repo memory")
 			wikiNoteText = "\n\n> **GitHub Wiki**: This memory is backed by the GitHub Wiki for this repository. " +
 				"Files use GitHub Wiki Markdown syntax. Follow GitHub Wiki conventions when creating or editing pages " +
 				"(e.g., use standard Markdown headers, use `[[Page Name]]` syntax for internal wiki links, " +
 				"name page files with spaces replaced by hyphens or use the wiki page title as the filename)."
 		}
+
+		repoMemoryPromptLog.Printf("Built single repo memory prompt section: branch=%s, has_constraints=%t, wiki=%t",
+			memory.BranchName, len(constraintsText) > 2, memory.Wiki)
 
 		return &PromptSection{
 			Content: repoMemoryPromptFile,
@@ -123,6 +127,7 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 
 	// If not all the same, build a union of all extensions
 	if !allSame {
+		repoMemoryPromptLog.Print("Memories have different allowed extensions, building union set")
 		extensionSet := make(map[string]bool)
 		for _, mem := range config.Memories {
 			for _, ext := range mem.AllowedExtensions {
@@ -137,6 +142,9 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 		sort.Strings(allExtensions)
 		allowedExtsText = strings.Join(allExtensions, "`, `")
 	}
+
+	repoMemoryPromptLog.Printf("Built multi repo memory prompt section: memories=%d, extensions=%q, all_same_exts=%t",
+		len(config.Memories), allowedExtsText, allSame)
 
 	return &PromptSection{
 		Content: repoMemoryPromptMultiFile,

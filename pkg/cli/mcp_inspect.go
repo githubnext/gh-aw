@@ -66,6 +66,9 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
+	mcpInspectLog.Printf("Workflow parsed: name=%s, has_safe_inputs=%t",
+		workflowData.Name, workflowData.SafeInputs != nil)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow parsed successfully"))
 	}
@@ -82,24 +85,30 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to extract MCP configurations: %w", err)
 	}
 
+	mcpInspectLog.Printf("Extracted %d MCP configs (server_filter=%q)", len(mcpConfigs), serverFilter)
+
 	// Filter out safe-outputs MCP servers for inspection
 	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
+	mcpInspectLog.Printf("After filtering safe-outputs: %d MCP configs remain", len(mcpConfigs))
 
 	// Start safe-inputs server if present
 	var safeInputsServerCmd *exec.Cmd
 	var safeInputsTmpDir string
 	if workflowData != nil && workflowData.SafeInputs != nil && len(workflowData.SafeInputs.Tools) > 0 {
+		mcpInspectLog.Printf("Starting safe-inputs server: tools=%d", len(workflowData.SafeInputs.Tools))
 		// Start safe-inputs server and add it to the list of MCP configs
 		config, serverCmd, tmpDir, err := startSafeInputsServer(workflowData.SafeInputs, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start safe-inputs server: %v", err)))
 			}
+			mcpInspectLog.Printf("Failed to start safe-inputs server: %v", err)
 		} else {
 			safeInputsServerCmd = serverCmd
 			safeInputsTmpDir = tmpDir
 			// Add safe-inputs config to the list of MCP servers to inspect
 			mcpConfigs = append(mcpConfigs, *config)
+			mcpInspectLog.Print("Safe-inputs server started successfully")
 		}
 	}
 
