@@ -165,7 +165,7 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 		// even if we can't update the local branch.
 		addInteractiveLog.Printf("Failed to update local branch: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
-		fmt.Fprintln(os.Stderr, "You may need to run 'git pull' manually before running the workflow.")
+		fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
 	}
 
 	return nil
