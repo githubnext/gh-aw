@@ -56,13 +56,13 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
   describe("parseMCPScriptsLogLine", () => {
     it("should parse valid mcp-scripts log line with standard format", () => {
-      const line = "[2025-12-31T15:43:54.123Z] [mcp-scripts-server] Starting Safe Inputs MCP Server";
+      const line = "[2025-12-31T15:43:54.123Z] [mcp-scripts-server] Starting mcp-scripts MCP Server";
       const result = parseMCPScriptsLogLine(line);
 
       expect(result).not.toBeNull();
       expect(result.timestamp).toBe("2025-12-31T15:43:54.123Z");
       expect(result.serverName).toBe("mcp-scripts-server");
-      expect(result.message).toBe("Starting Safe Inputs MCP Server");
+      expect(result.message).toBe("Starting mcp-scripts MCP Server");
       expect(result.raw).toBe(false);
     });
 
@@ -147,7 +147,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
   describe("generatePlainTextSummary", () => {
     it("should generate summary with startup events", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.123Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false },
+        { timestamp: "2025-12-31T15:43:54.123Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
         { timestamp: "2025-12-31T15:43:54.456Z", serverName: "mcp-scripts", message: "Server started successfully", raw: false },
       ];
 
@@ -201,7 +201,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
     it("should generate summary with mixed event types", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false },
+        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
         { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Registering tool: create_issue", raw: false },
         { timestamp: "2025-12-31T15:44:10.000Z", serverName: "mcp-scripts", message: "Calling handler for tool: create_issue", raw: false },
         { timestamp: "2025-12-31T15:44:10.500Z", serverName: "mcp-scripts", message: "Handler returned successfully", raw: false },
@@ -228,7 +228,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
     it("should include full logs in plain text summary", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false },
+        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
         { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Server started successfully", raw: false },
         { timestamp: null, serverName: null, message: "Unparsed log line", raw: true },
       ];
@@ -236,7 +236,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
       const summary = generatePlainTextSummary(logEntries);
 
       expect(summary).toContain("Full Logs (first 5000 lines):");
-      expect(summary).toContain("[mcp-scripts] Starting Safe Inputs MCP Server");
+      expect(summary).toContain("[mcp-scripts] Starting mcp-scripts MCP Server");
       expect(summary).toContain("[mcp-scripts] Server started successfully");
       expect(summary).toContain("Unparsed log line");
     });
@@ -267,7 +267,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
   describe("generateMCPScriptsSummary", () => {
     it("should generate markdown summary with details/summary structure", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false },
+        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
         { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Registering tool: create_issue", raw: false },
         { timestamp: "2025-12-31T15:44:10.000Z", serverName: "mcp-scripts", message: "Calling handler for tool: create_issue", raw: false },
       ];
@@ -317,7 +317,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
     it("should generate markdown summary with full logs section", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false },
+        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
         { timestamp: null, serverName: null, message: "Unparsed log line", raw: true },
       ];
 
@@ -326,7 +326,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
       expect(summary).toContain("**Full Logs**");
       expect(summary).toContain("<summary>View full mcp-scripts logs</summary>");
       expect(summary).toContain("```");
-      expect(summary).toContain("[2025-12-31T15:43:54.000Z] [mcp-scripts] Starting Safe Inputs MCP Server");
+      expect(summary).toContain("[2025-12-31T15:43:54.000Z] [mcp-scripts] Starting mcp-scripts MCP Server");
       expect(summary).toContain("Unparsed log line");
     });
 
@@ -344,7 +344,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
     });
 
     it("should not show tool executions section when no tools called", () => {
-      const logEntries = [{ timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false }];
+      const logEntries = [{ timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false }];
 
       const summary = generateMCPScriptsSummary(logEntries);
 
@@ -352,7 +352,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
     });
 
     it("should not show errors section when no errors", () => {
-      const logEntries = [{ timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting Safe Inputs MCP Server", raw: false }];
+      const logEntries = [{ timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false }];
 
       const summary = generateMCPScriptsSummary(logEntries);
 
@@ -389,7 +389,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
     });
 
     it("should process log files and generate summaries", async () => {
-      const logContent = "[2025-12-31T15:43:54.000Z] [mcp-scripts] Starting Safe Inputs MCP Server\n[2025-12-31T15:43:55.000Z] [mcp-scripts] Registering tool: create_issue\n";
+      const logContent = "[2025-12-31T15:43:54.000Z] [mcp-scripts] Starting mcp-scripts MCP Server\n[2025-12-31T15:43:55.000Z] [mcp-scripts] Registering tool: create_issue\n";
 
       // Mock fs functions
       vi.spyOn(fs, "existsSync").mockReturnValue(true);
