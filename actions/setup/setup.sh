@@ -176,7 +176,7 @@ for file in "${MCP_SCRIPTS_FILES[@]}"; do
     echo "Copied mcp-scripts: ${file}"
     MCP_SCRIPTS_COUNT=$((MCP_SCRIPTS_COUNT + 1))
   else
-    echo "::error::Safe-inputs file not found: ${file}"
+    echo "::error::MCP Scripts file not found: ${file}"
     MCP_SCRIPTS_MISSING+=("${file}")
   fi
 done

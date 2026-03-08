@@ -5,7 +5,7 @@ sidebar:
   order: 750
 ---
 
-The [`mcp-scripts:`](/gh-aw/reference/glossary/#mcp-scripts) (validated user input tools) element allows you to define custom [MCP](/gh-aw/reference/glossary/#mcp-model-context-protocol) (Model Context Protocol) tools directly in your workflow [frontmatter](/gh-aw/reference/glossary/#frontmatter) using JavaScript, shell scripts, or Python. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
+The [`mcp-scripts:`](/gh-aw/reference/glossary/#mcp-scripts) element allows you to define custom [MCP](/gh-aw/reference/glossary/#mcp-model-context-protocol) (Model Context Protocol) tools directly in your workflow [frontmatter](/gh-aw/reference/glossary/#frontmatter) using JavaScript, shell scripts, or Python. These tools are generated at runtime and run as an HTTP MCP server **on the GitHub Actions runner, outside the agent container**. The agent reaches the server via `host.docker.internal`, keeping tool execution isolated from the AI sandbox while still providing controlled secret access.
 
 ## Quick Start
 
@@ -334,7 +334,7 @@ Analyze provided text using the `analyze-text` tool and create a discussion with
 
 ## Security Considerations
 
-Tools provide secret isolation (only specified env vars), process isolation (separate execution), and output sanitization (large outputs saved to files). Only predefined tools are available to agents.
+MCP Scripts tools run on the GitHub Actions **runner host** — outside the agent container — so they can access the runner's file system and environment but are isolated from the AI's own execution environment. Tools also provide secret isolation (only specified env vars are forwarded), process isolation (separate execution), and output sanitization (large outputs saved to files). Only predefined tools are available to agents.
 
 ## Comparison with Other Options
 

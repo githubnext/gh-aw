@@ -46,10 +46,10 @@ func collectMCPScriptsSecrets(mcpScripts *MCPScriptsConfig) map[string]string {
 	return secrets
 }
 
-// renderMCPScriptsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
+// renderMCPScriptsMCPConfigWithOptions generates the MCP Scripts server configuration with engine-specific options
 // Always uses HTTP transport mode
 func renderMCPScriptsMCPConfigWithOptions(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
-	mcpScriptsRendererLog.Printf("Rendering Safe Inputs MCP config: includeCopilotFields=%t, isLast=%t",
+	mcpScriptsRendererLog.Printf("Rendering MCP Scripts config: includeCopilotFields=%t, isLast=%t",
 		includeCopilotFields, isLast)
 
 	yaml.WriteString("              \"" + constants.MCPScriptsMCPServerID.String() + "\": {\n")
@@ -63,7 +63,7 @@ func renderMCPScriptsMCPConfigWithOptions(yaml *strings.Builder, mcpScripts *MCP
 	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
 		host = "localhost"
-		mcpScriptsRendererLog.Print("Agent disabled, using localhost for Safe Inputs MCP server")
+		mcpScriptsRendererLog.Print("Agent disabled, using localhost for MCP Scripts server")
 	}
 
 	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
