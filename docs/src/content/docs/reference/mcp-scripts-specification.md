@@ -1,11 +1,11 @@
 ---
-title: Safe Inputs Specification
-description: Formal specification for Safe Inputs custom MCP tools following W3C conventions
+title: MCP Scripts Specification
+description: Formal specification for MCP Scripts custom MCP tools following W3C conventions
 sidebar:
   order: 1360
 ---
 
-# Safe Inputs Specification
+# MCP Scripts Specification
 
 **Version**: 1.1.0  
 **Status**: Draft Specification  
@@ -17,7 +17,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines Safe Inputs, an extension to the MCP Gateway that enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go. Safe Inputs provides ephemeral, containerized tool execution with controlled secret access through a standardized MCP tools interface. Tool execution is stateless and session-independent, providing process isolation and security boundaries for custom functionality.
+This specification defines MCP Scripts, an extension to the MCP Gateway that enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go. MCP Scripts provides ephemeral, containerized tool execution with controlled secret access through a standardized MCP tools interface. Tool execution is stateless and session-independent, providing process isolation and security boundaries for custom functionality.
 
 ## Status of This Document
 
@@ -44,7 +44,7 @@ This document is governed by the GitHub Agentic Workflows project specifications
 
 ### 1.1 Purpose
 
-Safe Inputs enables developers to define custom MCP tools inline in workflow frontmatter without requiring external MCP server implementations. It solves the following problems:
+MCP Scripts enables developers to define custom MCP tools inline in workflow frontmatter without requiring external MCP server implementations. It solves the following problems:
 
 - **Rapid Tool Development**: Define tools directly in workflow without creating separate services
 - **Secret Isolation**: Provide controlled access to secrets through explicit environment variable mapping
@@ -56,7 +56,7 @@ Safe Inputs enables developers to define custom MCP tools inline in workflow fro
 
 This specification covers:
 
-- Safe Inputs configuration format in workflow frontmatter
+- MCP Scripts configuration format in workflow frontmatter
 - Tool definition structure and validation rules
 - Supported implementation languages and their execution models
 - Secret access and environment variable handling
@@ -74,7 +74,7 @@ This specification does NOT cover:
 
 ### 1.3 Design Goals
 
-Safe Inputs is designed for:
+MCP Scripts is designed for:
 
 - **Developer Convenience**: Minimal configuration overhead for common tool patterns
 - **Security by Default**: Explicit secret access, process isolation, output sanitization
@@ -84,7 +84,7 @@ Safe Inputs is designed for:
 
 ### 1.4 Relationship to MCP Gateway
 
-Safe Inputs is an **extension** to the MCP Gateway Specification. The MCP Gateway allows additional fields in its configuration format, and Safe Inputs leverages this extensibility to provide inline tool definitions. Safe Inputs configurations are processed during workflow compilation and translated into MCP server configurations that are gatewayed by the MCP Gateway infrastructure.
+MCP Scripts is an **extension** to the MCP Gateway Specification. The MCP Gateway allows additional fields in its configuration format, and MCP Scripts leverages this extensibility to provide inline tool definitions. MCP Scripts configurations are processed during workflow compilation and translated into MCP server configurations that are gatewayed by the MCP Gateway infrastructure.
 
 ---
 
@@ -92,9 +92,9 @@ Safe Inputs is an **extension** to the MCP Gateway Specification. The MCP Gatewa
 
 ### 2.1 Conformance Classes
 
-A **conforming Safe Inputs implementation** is one that satisfies all MUST, REQUIRED, and SHALL requirements in this specification.
+A **conforming MCP Scripts implementation** is one that satisfies all MUST, REQUIRED, and SHALL requirements in this specification.
 
-A **partially conforming Safe Inputs implementation** is one that satisfies all MUST requirements for JavaScript tools but MAY lack support for Shell, Python, or Go implementations.
+A **partially conforming MCP Scripts implementation** is one that satisfies all MUST requirements for JavaScript tools but MAY lack support for Shell, Python, or Go implementations.
 
 ### 2.2 Requirements Notation
 
@@ -122,7 +122,7 @@ Implementations MUST support:
                        │ Compilation
                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Safe Inputs MCP Server                     │
+│              MCP Scripts Server                     │
 │  ┌───────────────────────────────────────────────────┐  │
 │  │  Tool Registry & Configuration Loader             │  │
 │  └───────────────────────────────────────────────────┘  │
@@ -142,10 +142,10 @@ Implementations MUST support:
 
 ### 3.2 Execution Model
 
-Safe Inputs operates with the following execution model:
+MCP Scripts operates with the following execution model:
 
 1. **Compilation Phase**: Workflow frontmatter is parsed and validated
-2. **Server Startup**: Safe Inputs MCP server starts with tool configurations
+2. **Server Startup**: MCP Scripts server starts with tool configurations
 3. **Tool Registration**: Each tool is registered with the MCP server
 4. **Invocation**: Agent invokes tool via MCP protocol (HTTP transport)
 5. **Execution**: Tool handler executes in appropriate runtime environment
@@ -154,14 +154,14 @@ Safe Inputs operates with the following execution model:
 
 ### 3.3 Transport Model
 
-Safe Inputs MUST use HTTP transport for MCP communication. The transport architecture is:
+MCP Scripts MUST use HTTP transport for MCP communication. The transport architecture is:
 
 - **Client → Gateway**: HTTP with JSON-RPC payloads
-- **Gateway → Safe Inputs Server**: HTTP with JSON-RPC payloads
-- **Safe Inputs Server**: HTTP server on configurable port (default: 3000)
+- **Gateway → MCP Scripts Server**: HTTP with JSON-RPC payloads
+- **MCP Scripts Server**: HTTP server on configurable port (default: 3000)
 - **Authentication**: API key-based authentication via Authorization header
 
-Stdio transport is NOT supported for Safe Inputs.
+Stdio transport is NOT supported for MCP Scripts.
 
 ---
 
@@ -169,7 +169,7 @@ Stdio transport is NOT supported for Safe Inputs.
 
 ### 4.1 Frontmatter Structure
 
-Safe Inputs configuration MUST be defined in the `mcp-scripts:` section of workflow frontmatter:
+MCP Scripts configuration MUST be defined in the `mcp-scripts:` section of workflow frontmatter:
 
 ```yaml
 mcp-scripts:
@@ -350,7 +350,7 @@ Implementations SHOULD validate:
 
 ### 5.1 Invocation Flow
 
-1. Agent sends JSON-RPC request to Safe Inputs MCP server
+1. Agent sends JSON-RPC request to MCP Scripts server
 2. Server validates request format and authentication
 3. Server validates tool inputs against schema
 4. Server dispatches to appropriate language handler
@@ -769,16 +769,16 @@ Implementations MUST:
 
 ### 9.1 Configuration Extension
 
-Safe Inputs extends the MCP Gateway configuration format. During workflow compilation:
+MCP Scripts extends the MCP Gateway configuration format. During workflow compilation:
 
-1. Safe Inputs tools are compiled into MCP server configuration
+1. MCP Scripts tools are compiled into MCP server configuration
 2. Configuration is passed to MCP Gateway as additional server
-3. Gateway routes requests to Safe Inputs MCP server
-4. Safe Inputs server handles tool execution
+3. Gateway routes requests to MCP Scripts server
+4. MCP Scripts server handles tool execution
 
 ### 9.2 Gateway Communication
 
-Safe Inputs MCP server MUST:
+MCP Scripts server MUST:
 
 1. Expose HTTP endpoint for MCP communication
 2. Accept JSON-RPC requests from gateway
@@ -787,7 +787,7 @@ Safe Inputs MCP server MUST:
 
 ### 9.3 Configuration Generation
 
-At compilation time, Safe Inputs generates:
+At compilation time, MCP Scripts generates:
 
 ```json
 {
@@ -807,7 +807,7 @@ This configuration is merged with other MCP servers and passed to gateway.
 
 ### 9.4 Server Lifecycle
 
-Safe Inputs MCP server:
+MCP Scripts server:
 
 1. **Startup**: Server starts during workflow initialization
 2. **Tool Registration**: All tools are registered at startup

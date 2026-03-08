@@ -1,5 +1,5 @@
 ---
-title: Safe Inputs
+title: MCP Scripts
 description: Define custom MCP tools inline as JavaScript or shell scripts with secret access, providing lightweight tool creation without external dependencies.
 sidebar:
   order: 750
@@ -25,7 +25,7 @@ The agent can now call `greet-user` with a `name` parameter.
 
 ## Tool Definition
 
-Each safe-input tool requires a unique name and configuration:
+Each mcp-script tool requires a unique name and configuration:
 
 ```yaml wrap
 mcp-scripts:
@@ -293,7 +293,7 @@ Secrets using `${{ secrets.* }}` are masked in logs.
 
 When output exceeds 500 characters, it's saved to a file. The agent receives the file path, size, and JSON schema preview (if applicable).
 
-## Importing Safe Inputs
+## Importing MCP Scripts
 
 Import tools from shared workflows using `imports:`. Local tool definitions override imported ones on name conflicts:
 
@@ -338,7 +338,7 @@ Tools provide secret isolation (only specified env vars), process isolation (sep
 
 ## Comparison with Other Options
 
-| Feature | Safe Inputs | Custom MCP Servers | Bash Tool |
+| Feature | MCP Scripts | Custom MCP Servers | Bash Tool |
 |---------|-------------|-------------------|-----------|
 | Setup | Inline in frontmatter | External service | Simple commands |
 | Languages | JavaScript, Shell, Python | Any language | Shell only |
@@ -354,7 +354,7 @@ Tools provide secret isolation (only specified env vars), process isolation (sep
 
 ## Related Documentation
 
-- [Safe Inputs Specification](/gh-aw/reference/mcp-scripts-specification/) - Formal W3C-style specification
+- [MCP Scripts Specification](/gh-aw/reference/mcp-scripts-specification/) - Formal W3C-style specification
 - [Tools](/gh-aw/reference/tools/) - Other tool configuration options
 - [Imports](/gh-aw/reference/imports/) - Importing shared workflows
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Automated post-workflow actions

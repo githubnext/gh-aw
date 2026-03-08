@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json",
-  "title": "Safe Inputs Configuration",
-  "description": "Configuration schema for Safe Inputs custom MCP tools as defined in the Safe Inputs Specification v1.1.0. Safe Inputs enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go.",
+  "title": "MCP Scripts Configuration",
+  "description": "Configuration schema for MCP Scripts custom MCP tools as defined in the MCP Scripts Specification v1.1.0. MCP Scripts enables inline definition of custom MCP tools directly in workflow frontmatter using JavaScript, shell scripts, Python, or Go.",
   "type": "object",
   "patternProperties": {
     "^[a-zA-Z][a-zA-Z0-9_-]*$": {
@@ -17,7 +17,7 @@
       "properties": {
         "description": {
           "type": "string",
-          "description": "Human-readable description of what the tool does. This is shown to the agent for tool selection. Required field per Safe Inputs Specification section 4.2.",
+          "description": "Human-readable description of what the tool does. This is shown to the agent for tool selection. Required field per MCP Scripts Specification section 4.2.",
           "minLength": 1
         },
         "inputs": {

@@ -22,7 +22,7 @@ GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
 | **Sandbox Agent** | `sandbox.agent.env` | Sandbox runtime | Sandbox configuration |
 | **Sandbox MCP** | `sandbox.mcp.env` | Model Context Protocol (MCP) gateway | MCP debugging |
 | **MCP Tools** | `tools.<name>.env` | MCP server process | MCP server secrets |
-| **Safe Inputs** | `mcp-scripts.<name>.env` | Safe-input execution | Tool-specific tokens |
+| **MCP Scripts** | `mcp-scripts.<name>.env` | MCP script execution | Tool-specific tokens |
 | **Safe Outputs Global** | `safe-outputs.env` | All safe-output jobs | Shared safe-output config |
 | **Safe Outputs Job** | `safe-outputs.jobs.<name>.env` | Specific safe-output job | Job-specific config |
 | **GitHub Actions Step** | `githubActionsStep.env` | Pre-defined steps | Step configuration |
@@ -145,5 +145,5 @@ jobs:
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
 - [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration
-- [Safe Inputs](/gh-aw/reference/mcp-scripts/) - Safe input tool configuration
+- [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables) - GitHub Actions documentation
