@@ -131,28 +131,6 @@ The `agentic-workflows` tool exposes the same operations as the CLI (`logs`, `au
 2. Deep-dive into individual runs with the `audit` tool (equivalent to `gh aw audit <run-id>`).
 3. Propose or directly apply frontmatter changes (cheaper model, tighter `skip-if-match`, lower `rate-limit`) via a pull request.
 
-### Example Optimizer Workflow
-
-```aw wrap
-description: Weekly review of workflow costs and automatic optimization suggestions
-on:
-  schedule: weekly on monday
-permissions:
-  contents: write
-  actions: read
-  pull-requests: write
-tools:
-  agentic-workflows:
-safe-outputs:
-  create-pull-request:
-    max: 3
-```
-
-In the prompt, instruct the agent to:
-- Retrieve aggregate metrics (`logs` tool, past 7 days).
-- Flag any workflow whose average run time exceeds a threshold or whose token count is unusually high.
-- Open a pull request that applies targeted changes: a lighter `engine.model`, a stricter `skip-if-match` filter, or a `rate-limit` block.
-
 ### What to Optimize Automatically
 
 | Signal | Automatic action |
