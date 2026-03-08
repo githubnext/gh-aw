@@ -10,32 +10,6 @@ import (
 
 var safeInputsRendererLog = logger.New("workflow:safe_inputs_renderer")
 
-// getSafeInputsEnvVars returns the list of environment variables needed for safe-inputs
-func getSafeInputsEnvVars(safeInputs *SafeInputsConfig) []string {
-	envVars := []string{}
-	seen := make(map[string]bool)
-
-	if safeInputs == nil {
-		safeInputsRendererLog.Print("No safe-inputs configuration provided")
-		return envVars
-	}
-
-	safeInputsRendererLog.Printf("Collecting environment variables from %d safe-inputs tools", len(safeInputs.Tools))
-
-	for _, toolConfig := range safeInputs.Tools {
-		for envName := range toolConfig.Env {
-			if !seen[envName] {
-				envVars = append(envVars, envName)
-				seen[envName] = true
-			}
-		}
-	}
-
-	sort.Strings(envVars)
-	safeInputsRendererLog.Printf("Collected %d unique environment variables", len(envVars))
-	return envVars
-}
-
 // collectSafeInputsSecrets collects all secrets from safe-inputs configuration
 func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 	secrets := make(map[string]string)

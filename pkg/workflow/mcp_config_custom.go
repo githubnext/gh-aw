@@ -16,32 +16,6 @@ import (
 
 var mcpCustomLog = logger.New("workflow:mcp-config-custom")
 
-// renderCustomMCPConfigWrapper generates custom MCP server configuration wrapper
-// This is a shared function used by both Claude and Custom engines
-func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	mcpCustomLog.Printf("Rendering custom MCP config wrapper for tool: %s", toolName)
-	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
-
-	// Use the shared MCP config renderer with JSON format
-	renderer := MCPConfigRenderer{
-		IndentLevel: "                ",
-		Format:      "json",
-	}
-
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
-	if err != nil {
-		return err
-	}
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-
-	return nil
-}
-
 // renderCustomMCPConfigWrapperWithContext generates custom MCP server configuration wrapper with workflow context
 // This version includes workflowData to determine if localhost URLs should be rewritten
 func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
