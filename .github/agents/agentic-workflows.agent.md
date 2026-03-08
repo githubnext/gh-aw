@@ -170,6 +170,7 @@ gh aw compile --validate
 ## Important Notes
 
 - Always reference the instructions file at https://github.com/github/gh-aw/blob/main/.github/aw/github-agentic-workflows.md for complete documentation
+- Follow the [Workflow Status Message Style Guide](https://github.com/github/gh-aw/blob/main/.github/aw/messages.md) when writing `run-started`, `run-success`, and `run-failure` messages
 - Use the MCP tool `agentic-workflows` when running in GitHub Copilot Cloud
 - Workflows must be compiled to `.lock.yml` files before running in GitHub Actions
 - **Bash tools are enabled by default** - Don't restrict bash commands unnecessarily since workflows are sandboxed by the AWF
