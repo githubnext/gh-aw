@@ -11,6 +11,9 @@ import (
 
 var secretMaskingLog = logger.New("workflow:secret_masking")
 
+// secretReferencePattern matches ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
+var secretReferencePattern = regexp.MustCompile(`secrets\.([A-Z][A-Z0-9_]*)`)
+
 // escapeSingleQuote escapes single quotes and backslashes in a string to prevent injection
 // when embedding data in single-quoted YAML strings
 func escapeSingleQuote(s string) string {
@@ -28,9 +31,7 @@ func CollectSecretReferences(yamlContent string) []string {
 
 	// Pattern to match ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
 	// This matches both with and without the ${{ }} wrapper
-	secretPattern := regexp.MustCompile(`secrets\.([A-Z][A-Z0-9_]*)`)
-
-	matches := secretPattern.FindAllStringSubmatch(yamlContent, -1)
+	matches := secretReferencePattern.FindAllStringSubmatch(yamlContent, -1)
 	for _, match := range matches {
 		if len(match) > 1 {
 			secretsMap[match[1]] = true
