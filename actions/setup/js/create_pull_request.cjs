@@ -257,10 +257,17 @@ async function main(config = {}) {
     const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
 
+    // Resolve base branch for this target repository
+    // Use config value if set, otherwise resolve dynamically for the specific target repo
+    // Dynamic resolution is needed for issue_comment events on PRs where the base branch
+    // is not available in GitHub Actions expressions and requires an API call
+    // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
+    let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+
     // Multi-repo support: Switch checkout to target repo if different from current
     // This enables creating PRs in multiple repos from a single workflow run
     if (checkoutManager && itemRepo) {
-      const switchResult = await checkoutManager.switchTo(itemRepo, { baseBranch: configBaseBranch });
+      const switchResult = await checkoutManager.switchTo(itemRepo, { baseBranch });
       if (!switchResult.success) {
         core.warning(`Failed to switch to repository ${itemRepo}: ${switchResult.error}`);
         return {
@@ -272,12 +279,6 @@ async function main(config = {}) {
         core.info(`Switched checkout to repository: ${itemRepo}`);
       }
     }
-
-    // Resolve base branch for this target repository
-    // Use config value if set, otherwise resolve dynamically for the specific target repo
-    // Dynamic resolution is needed for issue_comment events on PRs where the base branch
-    // is not available in GitHub Actions expressions and requires an API call
-    let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
 
     // SECURITY: Sanitize dynamically resolved base branch to prevent shell injection
     const originalBaseBranch = baseBranch;

@@ -167,6 +167,40 @@ describe("checkoutRepo slug validation", () => {
       expect(result.error).not.toContain("Invalid repository slug");
     }
   });
+
+  it("should fail with error when specified branch does not exist, not silently fall back", async () => {
+    // Simulate git checkout failing for the specified branch
+    let callCount = 0;
+    mockExec.exec = vi.fn().mockImplementation((_cmd, args) => {
+      if (args && args[0] === "checkout") {
+        throw new Error("fatal: Remote branch develop not found");
+      }
+      return Promise.resolve(0);
+    });
+
+    const result = await checkoutRepo("owner/repo", "fake-token", { baseBranch: "develop" });
+
+    // Should fail with an error about the branch, NOT silently fall back to master
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("develop");
+    expect(result.error).not.toContain("master");
+  });
+
+  it("should fail with error when 'main' branch does not exist, not silently fall back to master", async () => {
+    // Simulate git checkout failing for 'main' - previously this would silently try 'master'
+    mockExec.exec = vi.fn().mockImplementation((_cmd, args) => {
+      if (args && args[0] === "checkout") {
+        throw new Error("fatal: Remote branch main not found");
+      }
+      return Promise.resolve(0);
+    });
+
+    const result = await checkoutRepo("owner/repo", "fake-token", { baseBranch: "main" });
+
+    // Should fail rather than silently trying 'master'
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("main");
+  });
 });
 
 describe("getCurrentCheckoutRepo URL parsing", () => {
