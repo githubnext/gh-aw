@@ -25,7 +25,7 @@ safe-outputs:
     labels: [documentation, automation, instructions]
     draft: false
     allowed-files:
-      - .github/aw/github-agentic-workflows.md
+      - .github/aw/**
 
 tools:
   cache-memory: true
