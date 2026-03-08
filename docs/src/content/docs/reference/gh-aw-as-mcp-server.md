@@ -9,19 +9,6 @@ The `gh aw mcp-server` command exposes the GitHub Agentic Workflows CLI commands
 
 This allows your chat system or other workflows to interact with GitHub Agentic Workflows, check their status, download logs, and perform audits programmatically, all while respecting repository permissions and security best practices.
 
-Start the server:
-
-```bash wrap
-gh aw mcp-server
-```
-
-Or configure for any Model Context Protocol (MCP) host:
-
-```yaml wrap
-command: gh
-args: [aw, mcp-server]
-```
-
 ## Configuration Options
 
 ### HTTP Server Mode
@@ -64,37 +51,23 @@ Restricted tools (logs, audit) require:
 - Minimum role: write, maintain, or admin
 - Permission check via GitHub API: `GET /repos/{owner}/{repo}/collaborators/{username}/permission`
 
-## Configuring with GitHub Copilot Agent
+## Configuring in Editors
 
-Configure GitHub Copilot Agent to use gh-aw MCP server:
+The MCP server uses stdio transport by default. Most editors accept a `command` and `args` pair to launch it. Run `gh aw init` for automatic setup, or add the configuration manually to your editor's MCP config file.
 
-```bash wrap
-gh aw init
-```
-
-This creates `.github/workflows/copilot-setup-steps.yml` that sets up Go, GitHub CLI, and gh-aw extension before agent sessions start, making workflow management tools available to the agent. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
-
-## Configuring with Copilot CLI
-
-To add the MCP server in the interactive Copilot CLI session, start `copilot` and run:
-
-```text
-/mcp add github-agentic-workflows gh aw mcp-server
-```
-
-## Configuring with VS Code
-
-Configure VS Code Copilot Chat to use gh-aw MCP server:
+### Quick Setup
 
 ```bash wrap
 gh aw init
 ```
 
-This creates `.vscode/mcp.json` and `.github/workflows/copilot-setup-steps.yml`. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
+`gh aw init` creates `.vscode/mcp.json` and `.github/workflows/copilot-setup-steps.yml` so the server is available in VS Code Copilot Chat and GitHub Copilot Agent sessions. Use `gh aw init --no-mcp` to skip MCP configuration.
 
-Alternatively, create `.vscode/mcp.json` manually:
+### VS Code
 
-```json wrap
+Create or update `.vscode/mcp.json` in your repository:
+
+```json title=".vscode/mcp.json"
 {
   "servers": {
     "github-agentic-workflows": {
@@ -107,6 +80,126 @@ Alternatively, create `.vscode/mcp.json` manually:
 ```
 
 Reload VS Code after making changes.
+
+### Cursor
+
+Add the server to `~/.cursor/mcp.json` (create the file if it does not exist):
+
+```json title="~/.cursor/mcp.json"
+{
+  "mcpServers": {
+    "github-agentic-workflows": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"]
+    }
+  }
+}
+```
+
+Restart Cursor after saving the file.
+
+### Windsurf
+
+Add the server to `~/.codeium/windsurf/mcp_config.json`:
+
+```json title="~/.codeium/windsurf/mcp_config.json"
+{
+  "mcpServers": {
+    "github-agentic-workflows": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"]
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Locate your Claude Desktop configuration file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add the server to the `mcpServers` object:
+
+```json title="claude_desktop_config.json"
+{
+  "mcpServers": {
+    "github-agentic-workflows": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"],
+      "env": {
+        "GITHUB_ACTOR": "YOUR_GITHUB_USERNAME"
+      }
+    }
+  }
+}
+```
+
+Replace `YOUR_GITHUB_USERNAME` with your GitHub username. Restart Claude Desktop after saving.
+
+### Copilot CLI
+
+To add the MCP server in the interactive Copilot CLI session, start `copilot` and run:
+
+```text
+/mcp add github-agentic-workflows gh aw mcp-server
+```
+
+### Any MCP Host (Generic)
+
+For any MCP-compatible host that accepts a `command` and `args`:
+
+```yaml wrap
+command: gh
+args: [aw, mcp-server]
+```
+
+Or in JSON format:
+
+```json wrap
+{
+  "command": "gh",
+  "args": ["aw", "mcp-server"]
+}
+```
+
+### Docker-based Setup
+
+If `gh` is not installed locally, use the `ghcr.io/github/gh-aw` Docker image. The image ships with the GitHub CLI and gh-aw pre-installed.
+
+```json wrap
+{
+  "command": "docker",
+  "args": [
+    "run", "--rm", "-i",
+    "-e", "GITHUB_TOKEN",
+    "-e", "GITHUB_ACTOR",
+    "ghcr.io/github/gh-aw:latest",
+    "mcp-server"
+  ]
+}
+```
+
+Pass your GitHub token via the `GITHUB_TOKEN` environment variable. Add `--validate-actor` to the `args` array to enforce permission checks based on `GITHUB_ACTOR`.
+
+## Configuring the Custom Agent
+
+The `agentic-workflows` custom agent provides specialized instructions for creating, updating, importing, and debugging agentic workflows. It works with VS Code Agent Mode, GitHub Copilot Chat, and the Copilot CLI.
+
+Install the agent with:
+
+```bash wrap
+gh aw init
+```
+
+This creates `.github/agents/agentic-workflows.agent.md` in your repository. Once installed, invoke it from any supported editor:
+
+```text wrap
+/agent agentic-workflows create a workflow that triages issues
+```
+
+See [GH-AW Agent](/gh-aw/reference/custom-agent-for-aw/) for the full list of available commands and usage examples.
 
 ## Available Tools
 
