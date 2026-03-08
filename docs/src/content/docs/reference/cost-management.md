@@ -119,6 +119,52 @@ schedule: daily on weekdays
 
 One scheduled run per weekday = five agent invocations per week. See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy schedule syntax.
 
+## Agentic Cost Optimization
+
+Agentic workflows can inspect and optimize other agentic workflows automatically. A scheduled meta-agent reads aggregate run data through the `agentic-workflows` MCP tool, identifies expensive or inefficient workflows, and applies changes — closing the optimization loop without manual intervention.
+
+### How It Works
+
+The `agentic-workflows` tool exposes the same operations as the CLI (`logs`, `audit`, `status`) to any workflow agent. A meta-agent can:
+
+1. Fetch aggregate cost and token data with the `logs` tool (equivalent to `gh aw logs`).
+2. Deep-dive into individual runs with the `audit` tool (equivalent to `gh aw audit <run-id>`).
+3. Propose or directly apply frontmatter changes (cheaper model, tighter `skip-if-match`, lower `rate-limit`) via a pull request.
+
+### Example Optimizer Workflow
+
+```aw wrap
+description: Weekly review of workflow costs and automatic optimization suggestions
+on:
+  schedule: weekly on monday
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+tools:
+  agentic-workflows:
+safe-outputs:
+  create-pull-request:
+    max: 3
+```
+
+In the prompt, instruct the agent to:
+- Retrieve aggregate metrics (`logs` tool, past 7 days).
+- Flag any workflow whose average run time exceeds a threshold or whose token count is unusually high.
+- Open a pull request that applies targeted changes: a lighter `engine.model`, a stricter `skip-if-match` filter, or a `rate-limit` block.
+
+### What to Optimize Automatically
+
+| Signal | Automatic action |
+|--------|-----------------|
+| High token count per run | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
+| Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
+| Long queue times due to concurrency | Lower `rate-limit.max` or add a `concurrency` group |
+| Workflow running too often | Change trigger to `schedule` or add `workflow_dispatch` |
+
+> [!NOTE]
+> The `agentic-workflows` tool requires `actions: read` permission and is configured under the `tools:` frontmatter key. See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
+
 ## Common Scenario Estimates
 
 These are rough estimates to help with budgeting. Actual costs vary by prompt size, tool usage, model, and provider pricing.
@@ -140,4 +186,5 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Cron schedule format
+- [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) - `agentic-workflows` tool for self-inspection
 - [FAQ](/gh-aw/reference/faq/) - Common questions including cost and billing
