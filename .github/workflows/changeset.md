@@ -19,6 +19,8 @@ strict: true
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
+    allowed-files:
+      - .changeset/**
   update-pull-request:
     title: false
     operation: append

@@ -149,6 +149,20 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
 
+// GetAgentManifestFiles returns Claude-specific instruction files that should be
+// treated as security-sensitive manifests.  Modifying CLAUDE.md can change the
+// agent's instructions, guidelines, or permissions on the next run.
+func (e *ClaudeEngine) GetAgentManifestFiles() []string {
+	return []string{"CLAUDE.md"}
+}
+
+// GetAgentManifestPathPrefixes returns Claude-specific config directory prefixes.
+// The .claude/ directory contains settings, custom commands, and other engine
+// configuration that could affect agent behaviour.
+func (e *ClaudeEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".claude/"}
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
@@ -342,6 +356,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
 		env["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
+	}
+
+	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
+	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
+	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+	if isFirewallEnabled(workflowData) {
+		maps.Copy(env, getGitIdentityEnvVars())
 	}
 
 	// Set timeout environment variables for Claude Code

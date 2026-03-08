@@ -21,16 +21,6 @@ func getPlaywrightDockerImageVersion(playwrightConfig *PlaywrightToolConfig) str
 	return playwrightDockerImageVersion
 }
 
-// generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
-func generatePlaywrightDockerArgs(playwrightConfig *PlaywrightToolConfig) PlaywrightDockerArgs {
-	args := PlaywrightDockerArgs{
-		ImageVersion:      getPlaywrightDockerImageVersion(playwrightConfig),
-		MCPPackageVersion: string(constants.DefaultPlaywrightMCPVersion),
-	}
-	log.Printf("Playwright Docker args: image_version=%s, mcp_package_version=%s", args.ImageVersion, args.MCPPackageVersion)
-	return args
-}
-
 // extractExpressionsFromPlaywrightArgs extracts all GitHub Actions expressions from playwright arguments
 // Returns a map of environment variable names to their original expressions
 // Uses the same ExpressionExtractor as used for shell script security

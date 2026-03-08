@@ -137,6 +137,19 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	}
 }
 
+// GetAgentManifestFiles returns Codex-specific instruction files that should be
+// treated as security-sensitive manifests.  AGENTS.md is the standard OpenAI
+// Codex agent-instruction file; modifying it can redirect agent behaviour.
+func (e *CodexEngine) GetAgentManifestFiles() []string {
+	return []string{"AGENTS.md"}
+}
+
+// GetAgentManifestPathPrefixes returns Codex-specific config directory prefixes.
+// The .codex/ directory can contain agent configuration and task-specific settings.
+func (e *CodexEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".codex/"}
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
@@ -274,6 +287,13 @@ mkdir -p "$CODEX_HOME/logs"
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
+
+	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
+	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
+	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+	if firewallEnabled {
+		maps.Copy(env, getGitIdentityEnvVars())
+	}
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {

@@ -252,8 +252,12 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 		// Determine if request was allowed or blocked
 		isAllowed := isRequestAllowed(entry.Decision, entry.Status)
 
-		// Extract domain (remove port)
+		// Extract domain - when domain is "-" (iptables-dropped traffic not visible to Squid),
+		// fall back to dest IP:port so blocked requests show their actual destination instead of "-"
 		domain := entry.Domain
+		if domain == "-" && entry.DestIPPort != "-" {
+			domain = entry.DestIPPort
+		}
 
 		if isAllowed {
 			analysis.AllowedRequests++

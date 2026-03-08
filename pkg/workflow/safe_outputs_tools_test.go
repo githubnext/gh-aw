@@ -339,6 +339,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"create_project",
 		"create_project_status_update",
 		"autofix_code_scanning_alert",
+		"push_repo_memory",
 		"missing_tool",
 		"missing_data",
 		"noop",

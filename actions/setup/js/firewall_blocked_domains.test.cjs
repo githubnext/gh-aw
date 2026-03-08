@@ -230,7 +230,34 @@ describe("firewall_blocked_domains.cjs", () => {
 
       const result = getBlockedDomains(logsDir);
 
-      expect(result).toEqual(["blocked.example.com"]);
+      // The iptables-dropped entry uses destIpPort (140.82.112.22) as fallback
+      expect(result).toContain("blocked.example.com");
+      expect(result).toContain("140.82.112.22");
+    });
+
+    it("should use destIpPort as fallback when domain is placeholder", () => {
+      const logsDir = path.join(testDir, "logs-iptables");
+      fs.mkdirSync(logsDir, { recursive: true });
+
+      // Simulate iptables-dropped traffic: domain="-", destIpPort has actual destination
+      const logContent = [
+        '1761332530.474 172.30.0.20:35288 - 8.8.8.8:53 - - 0 NONE_NONE:HIER_NONE - "-"', // iptables-dropped DNS query
+        '1761332530.475 172.30.0.20:35289 - 1.2.3.4:443 - - 0 NONE_NONE:HIER_NONE - "-"', // iptables-dropped HTTPS
+        '1761332530.476 172.30.0.20:35290 - - - - 0 NONE_NONE:HIER_NONE - "-"', // truly unknown (both domain and destIpPort are "-")
+        '1761332530.477 172.30.0.20:35291 allowed.example.com:443 5.5.5.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT allowed.example.com:443 "-"', // allowed request
+      ].join("\n");
+
+      fs.writeFileSync(path.join(logsDir, "access.log"), logContent);
+
+      const result = getBlockedDomains(logsDir);
+
+      // iptables-dropped entries should use destIpPort as domain identifier
+      expect(result).toContain("8.8.8.8");
+      expect(result).toContain("1.2.3.4");
+      // truly unknown (both domain and destIpPort are "-") should be excluded
+      expect(result).not.toContain("-");
+      // allowed domains should not appear
+      expect(result).not.toContain("allowed.example.com");
     });
 
     it("should handle invalid log lines gracefully", () => {

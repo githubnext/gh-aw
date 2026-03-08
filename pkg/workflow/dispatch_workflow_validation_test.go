@@ -176,9 +176,10 @@ This workflow tries to dispatch to itself.
 	assert.Contains(t, errMsg, "workflow_dispatch", "Should suggest workflow_dispatch alternative")
 }
 
-// TestDispatchWorkflowErrorMessage_MustCompile tests that uncompiled workflow
-// error message includes compilation instructions
-func TestDispatchWorkflowErrorMessage_MustCompile(t *testing.T) {
+// TestDispatchWorkflowBatchAware_MDWithDispatch tests that a workflow that only has a .md file
+// (no .lock.yml) is accepted as a valid same-batch dispatch target when the .md has
+// workflow_dispatch in its 'on:' section.
+func TestDispatchWorkflowBatchAware_MDWithDispatch(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
 	tmpDir := t.TempDir()
@@ -190,7 +191,7 @@ func TestDispatchWorkflowErrorMessage_MustCompile(t *testing.T) {
 	err = os.MkdirAll(workflowsDir, 0755)
 	require.NoError(t, err, "Failed to create workflows directory")
 
-	// Create an uncompiled workflow (only .md file, no .lock.yml)
+	// Create a target workflow that only has .md (no .lock.yml) with workflow_dispatch trigger
 	targetWorkflow := `---
 on: workflow_dispatch
 engine: copilot
@@ -200,13 +201,13 @@ permissions:
 
 # Target Workflow
 
-This workflow needs to be compiled.
+This workflow is a same-batch compilation target.
 `
 	targetFile := filepath.Join(workflowsDir, "target.md")
 	err = os.WriteFile(targetFile, []byte(targetWorkflow), 0644)
 	require.NoError(t, err, "Failed to write target workflow")
 
-	// Create a dispatcher workflow that references the uncompiled workflow
+	// Create a dispatcher workflow that references the .md-only target
 	dispatcherWorkflow := `---
 on: issues
 engine: copilot
@@ -221,7 +222,7 @@ safe-outputs:
 
 # Dispatcher Workflow
 
-This workflow references an uncompiled workflow.
+This workflow dispatches to a same-batch target.
 `
 	dispatcherFile := filepath.Join(awDir, "dispatcher.md")
 	err = os.WriteFile(dispatcherFile, []byte(dispatcherWorkflow), 0644)
@@ -238,20 +239,75 @@ This workflow references an uncompiled workflow.
 	workflowData, err := compiler.ParseWorkflowFile("dispatcher.md")
 	require.NoError(t, err, "Failed to parse workflow")
 
-	// Validate the workflow - should fail with enhanced error message
+	// Validation should succeed: .md exists with workflow_dispatch (same-batch target)
 	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
-	require.Error(t, err, "Validation should fail for uncompiled workflow")
+	assert.NoError(t, err, "Validation should pass for .md-only same-batch target with workflow_dispatch")
+}
 
-	// Verify enhanced error message content
-	errMsg := err.Error()
-	assert.Contains(t, errMsg, "must be compiled first", "Should state the requirement")
-	assert.Contains(t, errMsg, "target", "Should mention workflow name")
-	assert.Contains(t, errMsg, "source file exists", "Should acknowledge file exists")
-	assert.Contains(t, errMsg, "compiled .lock.yml file is missing", "Should explain what's missing")
-	assert.Contains(t, errMsg, "To fix:", "Should include fix instructions header")
-	assert.Contains(t, errMsg, "gh aw compile target", "Should show exact compilation command")
-	assert.Contains(t, errMsg, "Commit the generated .lock.yml", "Should mention committing")
-	assert.Contains(t, errMsg, ".gitignore", "Should warn about gitignore")
+// TestDispatchWorkflowBatchAware_MDWithoutDispatch tests that a workflow that only has a .md file
+// (no .lock.yml) and does NOT have workflow_dispatch in its 'on:' section fails validation.
+func TestDispatchWorkflowBatchAware_MDWithoutDispatch(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+
+	err := os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create aw directory")
+	err = os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a target workflow that only has .md (no .lock.yml) WITHOUT workflow_dispatch
+	targetWorkflow := `---
+on: issues
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Target Workflow
+
+This workflow does not support workflow_dispatch.
+`
+	targetFile := filepath.Join(workflowsDir, "target.md")
+	err = os.WriteFile(targetFile, []byte(targetWorkflow), 0644)
+	require.NoError(t, err, "Failed to write target workflow")
+
+	// Create a dispatcher workflow that references the .md-only target
+	dispatcherWorkflow := `---
+on: issues
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target
+    max: 1
+---
+
+# Dispatcher Workflow
+`
+	dispatcherFile := filepath.Join(awDir, "dispatcher.md")
+	err = os.WriteFile(dispatcherFile, []byte(dispatcherWorkflow), 0644)
+	require.NoError(t, err, "Failed to write dispatcher workflow")
+
+	// Change to the aw directory
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(awDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	// Parse the dispatcher workflow
+	workflowData, err := compiler.ParseWorkflowFile("dispatcher.md")
+	require.NoError(t, err, "Failed to parse workflow")
+
+	// Validation should fail: .md exists but lacks workflow_dispatch
+	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
+	require.Error(t, err, "Validation should fail when .md target lacks workflow_dispatch")
+	assert.Contains(t, err.Error(), "does not support workflow_dispatch trigger", "Should explain missing trigger")
 }
 
 // TestDispatchWorkflowErrorMessage_MultipleErrors tests that multiple errors

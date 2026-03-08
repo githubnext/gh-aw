@@ -368,6 +368,16 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
 			}
 		}
+		// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
+		// available locally. Workflow names using GitHub Actions expression syntax are skipped.
+		if err := fetchAndSaveRemoteDispatchWorkflows(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+			return err
+		}
+		// Fetch files listed in the 'resources:' frontmatter field (additional workflow or
+		// action files that should be present alongside this workflow).
+		if err := fetchAndSaveRemoteResources(string(sourceContent), workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker); err != nil {
+			return err
+		}
 	} else if sourceInfo != nil && sourceInfo.IsLocal {
 		// For local workflows, collect and copy include dependencies from local paths
 		// The source directory is derived from the workflow's path
@@ -506,6 +516,18 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 			fmt.Fprintln(os.Stderr, "")
 		}
 	}
+
+	// For remote workflows: now that the main workflow and all its imports are on disk,
+	// parse the fully merged safe-outputs configuration to discover any dispatch workflows
+	// that originate from imported shared workflows (not visible in the raw frontmatter).
+	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
+		fetchAndSaveDispatchWorkflowsFromParsedFile(destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
+	}
+
+	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
+	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
+	// compiled before the main workflow can be validated.
+	compileDispatchWorkflowDependencies(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
 
 	// Compile the workflow
 	if tracker != nil {

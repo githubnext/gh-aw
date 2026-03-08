@@ -121,7 +121,52 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 	return nil
 }
 
-// addSourceToWorkflow adds the source field to the workflow's frontmatter.
+// compileDispatchWorkflowDependencies compiles any dispatch-workflow .md dependencies of
+// workflowFile that are present locally but lack a corresponding .lock.yml. This must be
+// called before compiling the main workflow, because the dispatch-workflow validator
+// requires every referenced .md workflow to have an up-to-date .lock.yml.
+func compileDispatchWorkflowDependencies(workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
+	// Parse the merged safe-outputs to get the canonical list of dispatch-workflow names.
+	compiler := workflow.NewCompiler()
+	data, err := compiler.ParseWorkflowFile(workflowFile)
+	if err != nil || data == nil || data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil {
+		return
+	}
+
+	workflowsDir := filepath.Dir(workflowFile)
+
+	for _, name := range data.SafeOutputs.DispatchWorkflow.Workflows {
+		mdPath := filepath.Join(workflowsDir, name+".md")
+		lockPath := stringutil.MarkdownToLockFile(mdPath)
+
+		// Only compile if the .md is present but the .lock.yml is absent.
+		if _, mdErr := os.Stat(mdPath); mdErr != nil {
+			continue // .md doesn't exist locally
+		}
+		if _, lockErr := os.Stat(lockPath); lockErr == nil {
+			continue // .lock.yml already exists, nothing to do
+		}
+
+		addWorkflowCompilationLog.Printf("Compiling dispatch-workflow dependency: %s", mdPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling dispatch-workflow dependency: "+mdPath))
+		}
+
+		var compileErr error
+		if tracker != nil {
+			compileErr = compileWorkflowWithTracking(mdPath, verbose, quiet, engineOverride, tracker)
+		} else {
+			compileErr = compileWorkflow(mdPath, verbose, quiet, engineOverride)
+		}
+		if compileErr != nil {
+			// Best-effort: log and continue so the main workflow can still give a clear error.
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile dispatch-workflow dependency %s: %v", mdPath, compileErr)))
+			}
+		}
+	}
+}
+
 // This function preserves the existing frontmatter formatting while adding the source field.
 func addSourceToWorkflow(content, source string) (string, error) {
 	// Use shared frontmatter logic that preserves formatting

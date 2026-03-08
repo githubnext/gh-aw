@@ -12,6 +12,9 @@ var secretsValidationLog = newValidationLogger("secrets")
 // This is the same pattern used in the github_token schema definition ($defs/github_token).
 var secretsExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*\s*\}\}$`)
 
+// secretNamePattern validates that a secret name follows environment variable naming conventions
+var secretNamePattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
 // validateSecretsExpression validates that a value is a proper GitHub Actions secrets expression.
 // Returns an error if the value is not in the format: ${{ secrets.NAME }} or ${{ secrets.NAME || secrets.NAME2 }}
 // Note: This function intentionally does not accept the secret key name as a parameter to prevent
@@ -29,7 +32,6 @@ func validateSecretsExpression(value string) error {
 func validateSecretReferences(secrets []string) error {
 	secretsValidationLog.Printf("Validating secret references: checking %d secrets", len(secrets))
 	// Secret names must be valid environment variable names
-	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 	for _, secret := range secrets {
 		if !secretNamePattern.MatchString(secret) {

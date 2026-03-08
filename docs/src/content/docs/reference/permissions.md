@@ -18,32 +18,15 @@ safe-outputs:
 
 ## Permission Model
 
-### Security-First Design
+Agentic workflows follow a principle of least privilege: the main job runs read-only, and all write operations happen in separate [safe outputs](/gh-aw/reference/safe-outputs/) jobs with sanitized content.
 
-Agentic workflows follow a principle of least privilege:
+This separation provides an audit trail, limits blast radius if an agent misbehaves, supports compliance approval gates, and defends against prompt injection. Safe outputs add one extra job but provide critical safety guarantees.
 
-- **Read-only by default**: Main job runs with minimal read permissions only
-- **Write through safe outputs**: Write operations happen in separate jobs with sanitized content
-- **No direct write permissions**: Use safe-outputs instead of `write` permissions in the main job
-
-This model prevents AI agents from accidentally or maliciously modifying repository content during execution.
-
-### Why This Model?
-
-AI agents require careful security controls:
-
-- **Audit Trail**: Separating read (agent) from write (safe outputs) provides clear accountability for all changes
-- **Blast Radius Containment**: If an agent misbehaves, it cannot modify code, merge PRs, or delete resources
-- **Compliance**: Many organizations require approval workflows for automated changes - safe outputs provide the approval gate
-- **Defense in Depth**: Even if prompt injection occurs, the agent cannot perform destructive actions
-
-This model trades convenience for security. Safe outputs add one extra job but provide critical safety guarantees.
-
-### Permission Scopes
+## Permission Scopes
 
 Key permissions include `contents` (code access), `issues` (issue management), `pull-requests` (PR management), `discussions`, `actions` (workflow control), `checks`, `deployments`, `packages`, `pages`, and `statuses`. Each has read and write levels. See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) for the complete list.
 
-#### Special Permission: `id-token`
+### Special Permission: `id-token`
 
 The `id-token` permission controls access to GitHub's OIDC token service for [OpenID Connect (OIDC) authentication](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) with cloud providers (AWS, GCP, Azure).
 
@@ -61,8 +44,6 @@ permissions:
 This permission is safe to use and does not require safe-outputs, even in strict mode.
 
 ## Configuration
-
-### Basic Configuration
 
 Specify individual permission levels:
 
@@ -116,10 +97,6 @@ permissions: read-all
 manual-approval: production
 ```
 
-## Safe Outputs
-
-Write operations use safe outputs instead of direct API access. This provides content sanitization, rate limiting, audit trails, and security isolation by separating write permissions from AI execution. See [Safe Outputs](/gh-aw/reference/safe-outputs/) for details.
-
 ## Permission Validation
 
 Run `gh aw compile workflow.md` to validate permissions. Common errors include undefined permissions, direct write permissions in the main job (use safe outputs instead), and insufficient permissions for declared tools. Use `--strict` mode to enforce read-only permissions and require explicit network configuration.
@@ -155,20 +132,9 @@ gh aw fix workflow.md --write
 This automatically converts all write permissions to read permissions.
 
 > [!TIP]
-> Use Safe Outputs Instead
-> For workflows that need to make changes to your repository, use [safe outputs](/gh-aw/reference/safe-outputs/) instead of write permissions. Safe outputs provide a secure way to create issues, pull requests, and comments without granting direct write access to the AI agent.
-   :::
+> For workflows that need to make changes to your repository, use [safe outputs](/gh-aw/reference/safe-outputs/) instead of write permissions.
 
-#### Scope
-
-This validation applies to:
-- Top-level workflow `permissions:` configuration
-
-This validation does **not** apply to:
-- Custom jobs (defined in `jobs:` section)
-- Safe outputs jobs (defined in `safe-outputs.job:` section)
-
-Custom jobs and safe outputs jobs can have their own permission requirements based on their specific needs.
+This validation applies only to the top-level `permissions:` configuration. Custom jobs (`jobs:`) and safe outputs jobs (`safe-outputs.job:`) can have their own permission requirements.
 
 ### Tool-Specific Requirements
 

@@ -120,6 +120,18 @@
         ]
       ]
     },
+    "resources": {
+      "type": "array",
+      "description": "Optional list of additional workflow or action files that should be fetched alongside this workflow when running 'gh aw add'. Entries are relative paths (from the same directory as this workflow in the source repository) to agentic workflow .md files or GitHub Actions .yml/.yaml files. GitHub Actions expression syntax (${{) is not allowed in resource paths.",
+      "items": {
+        "type": "string",
+        "description": "Relative path to a workflow .md file or action .yml/.yaml file. Must be a static path; GitHub Actions expression syntax (${{) is not allowed.",
+        "not": {
+          "pattern": "\\$\\{\\{"
+        }
+      },
+      "examples": [["triage-issue.md", "label-issue.md"], ["my-custom-action.yml"], ["shared/helper-action.yml", "close-stale.md"]]
+    },
     "inlined-imports": {
       "type": "boolean",
       "default": false,
@@ -3025,7 +3037,7 @@
                 "min-integrity": {
                   "type": "string",
                   "description": "Guard policy: minimum required integrity level for repository access. Restricts the agent to users with at least the specified permission level.",
-                  "enum": ["reader", "writer", "maintainer", "admin"]
+                  "enum": ["none", "unapproved", "approved", "merged"]
                 },
                 "github-app": {
                   "type": "object",
@@ -5263,6 +5275,19 @@
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
+                },
+                "protected-files": {
+                  "type": "string",
+                  "enum": ["blocked", "allowed", "fallback-to-issue"],
+                  "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR, so a human can review the manifest changes before merging.",
+                  "default": "blocked"
+                },
+                "allowed-files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of glob patterns for files that are exempt from protected-file protection. Acts as a strict allowlist checked independently of the protected-files policy; both checks must pass for a file to be allowed. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false,
@@ -6291,6 +6316,19 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "protected-files": {
+                  "type": "string",
+                  "enum": ["blocked", "allowed", "fallback-to-issue"],
+                  "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing to the PR branch, so a human can review the changes before applying.",
+                  "default": "blocked"
+                },
+                "allowed-files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of glob patterns for files that are exempt from protected-file protection. Acts as a strict allowlist checked independently of the protected-files policy; both checks must pass for a file to be allowed. To modify a protected file, it must both match allowed-files and be permitted by protected-files (e.g. protected-files: allowed). Supports * (any characters except /) and ** (any characters including /)."
                 }
               },
               "additionalProperties": false

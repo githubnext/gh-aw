@@ -163,19 +163,24 @@ const originalMain = function() {
         // Determine if request was allowed or blocked
         const isAllowed = isRequestAllowed(entry.decision, entry.status);
 
+        // When domain is "-" (iptables-dropped traffic not visible to Squid),
+        // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
+        const domainKey =
+          entry.domain !== "-" ? entry.domain : entry.destIpPort !== "-" ? entry.destIpPort : "-";
+
         if (isAllowed) {
           allowedRequests++;
-          allowedDomains.add(entry.domain);
+          allowedDomains.add(domainKey);
         } else {
           blockedRequests++;
-          blockedDomains.add(entry.domain);
+          blockedDomains.add(domainKey);
         }
 
         // Track request count per domain
-        if (!requestsByDomain.has(entry.domain)) {
-          requestsByDomain.set(entry.domain, { allowed: 0, blocked: 0 });
+        if (!requestsByDomain.has(domainKey)) {
+          requestsByDomain.set(domainKey, { allowed: 0, blocked: 0 });
         }
-        const domainStats = requestsByDomain.get(entry.domain);
+        const domainStats = requestsByDomain.get(domainKey);
         if (isAllowed) {
           domainStats.allowed++;
         } else {

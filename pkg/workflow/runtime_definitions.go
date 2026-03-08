@@ -17,6 +17,7 @@ type Runtime struct {
 	DefaultVersion  string            // Default version to use
 	Commands        []string          // Commands that indicate this runtime is needed
 	ExtraWithFields map[string]string // Additional 'with' fields for the action
+	ManifestFiles   []string          // Package manifest file names for this runtime (matched by filename, no path)
 }
 
 // RuntimeRequirement represents a detected runtime requirement
@@ -38,6 +39,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "bun-version",
 		DefaultVersion: string(constants.DefaultBunVersion),
 		Commands:       []string{"bun", "bunx"},
+		ManifestFiles:  []string{"package.json", "bun.lockb", "bunfig.toml"},
 	},
 	{
 		ID:             "deno",
@@ -47,6 +49,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "deno-version",
 		DefaultVersion: string(constants.DefaultDenoVersion),
 		Commands:       []string{"deno"},
+		ManifestFiles:  []string{"deno.json", "deno.jsonc", "deno.lock"},
 	},
 	{
 		ID:             "dotnet",
@@ -56,6 +59,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "dotnet-version",
 		DefaultVersion: string(constants.DefaultDotNetVersion),
 		Commands:       []string{"dotnet"},
+		ManifestFiles:  []string{"global.json", "NuGet.Config", "Directory.Packages.props"},
 	},
 	{
 		ID:             "elixir",
@@ -68,6 +72,7 @@ var knownRuntimes = []*Runtime{
 		ExtraWithFields: map[string]string{
 			"otp-version": "27",
 		},
+		ManifestFiles: []string{"mix.exs", "mix.lock"},
 	},
 	{
 		ID:             "go",
@@ -80,6 +85,7 @@ var knownRuntimes = []*Runtime{
 		ExtraWithFields: map[string]string{
 			"cache": "false", // Disable caching to prevent cache poisoning in agentic workflows
 		},
+		ManifestFiles: []string{"go.mod", "go.sum"},
 	},
 	{
 		ID:             "haskell",
@@ -89,6 +95,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "ghc-version",
 		DefaultVersion: string(constants.DefaultHaskellVersion),
 		Commands:       []string{"ghc", "ghci", "cabal", "stack"},
+		ManifestFiles:  []string{"stack.yaml", "stack.yaml.lock"},
 	},
 	{
 		ID:             "java",
@@ -101,6 +108,7 @@ var knownRuntimes = []*Runtime{
 		ExtraWithFields: map[string]string{
 			"distribution": "temurin",
 		},
+		ManifestFiles: []string{"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradle.properties"},
 	},
 	{
 		ID:             "node",
@@ -113,6 +121,7 @@ var knownRuntimes = []*Runtime{
 		ExtraWithFields: map[string]string{
 			"package-manager-cache": "false", // Disable caching by default to prevent cache poisoning in release workflows
 		},
+		ManifestFiles: []string{"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json"},
 	},
 	{
 		ID:             "python",
@@ -122,6 +131,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "python-version",
 		DefaultVersion: string(constants.DefaultPythonVersion),
 		Commands:       []string{"python", "python3", "pip", "pip3"},
+		ManifestFiles:  []string{"requirements.txt", "Pipfile", "Pipfile.lock", "pyproject.toml", "setup.py", "setup.cfg"},
 	},
 	{
 		ID:             "ruby",
@@ -131,6 +141,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "ruby-version",
 		DefaultVersion: string(constants.DefaultRubyVersion),
 		Commands:       []string{"ruby", "gem", "bundle"},
+		ManifestFiles:  []string{"Gemfile", "Gemfile.lock"},
 	},
 	{
 		ID:             "uv",
@@ -140,6 +151,7 @@ var knownRuntimes = []*Runtime{
 		VersionField:   "version",
 		DefaultVersion: "", // Uses latest
 		Commands:       []string{"uv", "uvx"},
+		ManifestFiles:  []string{"pyproject.toml", "uv.lock"},
 	},
 }
 
@@ -167,6 +179,49 @@ func init() {
 		actionRepoToRuntime[runtime.ActionRepo] = runtime
 	}
 	runtimeDefLog.Printf("Built action repo to runtime mapping: total_actions=%d", len(actionRepoToRuntime))
+}
+
+// getAllManifestFiles returns the deduplicated union of all manifest file names
+// across all known runtimes, plus any additionally-provided filenames.
+// These are matched by basename only (no path comparison).
+func getAllManifestFiles(extra ...string) []string {
+	var files []string
+	for _, runtime := range knownRuntimes {
+		files = append(files, runtime.ManifestFiles...)
+	}
+	return mergeUnique(files, extra...)
+}
+
+// getProtectedPathPrefixes returns path prefixes (relative to repo root) whose
+// contents are always protected regardless of file basename.  Any file whose
+// path in the diff starts with one of these prefixes is considered a protected
+// file and will trigger the same manifest-file protection logic.
+//
+// ".github/" covers workflow definitions, CODEOWNERS, Dependabot config, and
+// other repository-level security-sensitive configuration.
+// ".agents/" covers generic agent instruction and configuration files.
+func getProtectedPathPrefixes(extra ...string) []string {
+	return mergeUnique([]string{".github/", ".agents/"}, extra...)
+}
+
+// mergeUnique returns a deduplicated slice that starts with base and appends any
+// items from extra that are not already present in base.  Order is preserved.
+func mergeUnique(base []string, extra ...string) []string {
+	seen := make(map[string]bool, len(base)+len(extra))
+	result := make([]string, 0, len(base)+len(extra))
+	for _, v := range base {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	for _, v := range extra {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // findRuntimeByID finds a runtime configuration by its ID

@@ -113,6 +113,11 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 		return err
 	}
 
+	// Step 7b: Offer schedule frequency selection for scheduled workflows
+	if err := config.selectScheduleFrequency(); err != nil {
+		return err
+	}
+
 	// Step 8: Confirm with user
 	var secretName, secretValue string
 	if config.hasWriteAccess {

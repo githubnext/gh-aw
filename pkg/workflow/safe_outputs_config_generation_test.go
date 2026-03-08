@@ -453,3 +453,96 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 	_, hasAllowedRepos := prConfig["allowed_repos"]
 	assert.False(t, hasAllowedRepos, "allowed_repos should not be present when not configured")
 }
+
+// TestGenerateSafeOutputsConfigRepoMemory tests that generateSafeOutputsConfig includes
+// push_repo_memory configuration with the expected memories entries when RepoMemoryConfig is present.
+func TestGenerateSafeOutputsConfigRepoMemory(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{
+					ID:           "default",
+					MaxFileSize:  5120,
+					MaxPatchSize: 20480,
+					MaxFileCount: 50,
+				},
+				{
+					ID:           "notes",
+					MaxFileSize:  2048,
+					MaxPatchSize: 8192,
+					MaxFileCount: 20,
+				},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	pushRepoMemory, ok := parsed["push_repo_memory"].(map[string]any)
+	require.True(t, ok, "Expected push_repo_memory key in config")
+
+	memories, ok := pushRepoMemory["memories"].([]any)
+	require.True(t, ok, "Expected memories to be an array")
+	require.Len(t, memories, 2, "Expected 2 memory entries")
+
+	// Check first memory entry
+	mem0, ok := memories[0].(map[string]any)
+	require.True(t, ok, "First memory entry should be a map")
+	assert.Equal(t, "default", mem0["id"], "First memory id should match")
+	assert.Equal(t, "/tmp/gh-aw/repo-memory/default", mem0["dir"], "First memory dir should be correct")
+	assert.InDelta(t, float64(5120), mem0["max_file_size"], 0.0001, "First memory max_file_size should match")
+	assert.InDelta(t, float64(20480), mem0["max_patch_size"], 0.0001, "First memory max_patch_size should match")
+	assert.InDelta(t, float64(50), mem0["max_file_count"], 0.0001, "First memory max_file_count should match")
+
+	// Check second memory entry
+	mem1, ok := memories[1].(map[string]any)
+	require.True(t, ok, "Second memory entry should be a map")
+	assert.Equal(t, "notes", mem1["id"], "Second memory id should match")
+	assert.Equal(t, "/tmp/gh-aw/repo-memory/notes", mem1["dir"], "Second memory dir should be correct")
+	assert.InDelta(t, float64(2048), mem1["max_file_size"], 0.0001, "Second memory max_file_size should match")
+}
+
+// TestGenerateSafeOutputsConfigNoRepoMemory tests that push_repo_memory is absent
+// from the config when RepoMemoryConfig is not present.
+func TestGenerateSafeOutputsConfigNoRepoMemory(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+		RepoMemoryConfig: nil,
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	_, hasPushRepoMemory := parsed["push_repo_memory"]
+	assert.False(t, hasPushRepoMemory, "push_repo_memory should not be present when RepoMemoryConfig is nil")
+}
+
+// TestGenerateSafeOutputsConfigEmptyRepoMemory tests that push_repo_memory is absent
+// from the config when RepoMemoryConfig has no memories.
+func TestGenerateSafeOutputsConfigEmptyRepoMemory(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{},
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	_, hasPushRepoMemory := parsed["push_repo_memory"]
+	assert.False(t, hasPushRepoMemory, "push_repo_memory should not be present when Memories slice is empty")
+}

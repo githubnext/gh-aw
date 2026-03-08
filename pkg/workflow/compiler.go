@@ -370,6 +370,17 @@ Ensure proper audience validation and trust policies are configured.`
 		}
 	}
 
+	// Validate resources field — GitHub Actions expression syntax is not allowed.
+	log.Printf("Validating resources field")
+	if workflowData.ParsedFrontmatter != nil {
+		for _, r := range workflowData.ParsedFrontmatter.Resources {
+			if strings.Contains(r, "${{") {
+				return formatCompilerError(markdownPath, "error",
+					fmt.Sprintf("resources entry %q contains GitHub Actions expression syntax (${{) which is not allowed; use static paths only", r), nil)
+			}
+		}
+	}
+
 	// Validate dispatch-workflow configuration (independent of agentic-workflows tool)
 	log.Print("Validating dispatch-workflow configuration")
 	if err := c.validateDispatchWorkflow(workflowData, markdownPath); err != nil {

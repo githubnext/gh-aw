@@ -1,6 +1,27 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 describe("git_helpers.cjs", () => {
+  let originalCore;
+
+  beforeEach(() => {
+    // Save existing core and provide a minimal no-op stub if not already set,
+    // matching the guarantee that shim.cjs provides in production.
+    originalCore = global.core;
+    if (!global.core) {
+      global.core = {
+        debug: () => {},
+        info: () => {},
+        warning: () => {},
+        error: () => {},
+        setFailed: () => {},
+      };
+    }
+  });
+
+  afterEach(() => {
+    global.core = originalCore;
+  });
+
   describe("execGitSync", () => {
     it("should export execGitSync function", async () => {
       const { execGitSync } = await import("./git_helpers.cjs");
@@ -66,6 +87,59 @@ describe("git_helpers.cjs", () => {
       const result = execGitSync(["--version"]);
       expect(typeof result).toBe("string");
       expect(result).toContain("git version");
+    });
+
+    it("should not call core.error when suppressLogs is true", async () => {
+      const { execGitSync } = await import("./git_helpers.cjs");
+
+      const errorLogs = [];
+      const debugLogs = [];
+      const originalCore = global.core;
+      global.core = {
+        debug: msg => debugLogs.push(msg),
+        error: msg => errorLogs.push(msg),
+      };
+
+      try {
+        // Use an invalid git command that will fail
+        try {
+          execGitSync(["rev-parse", "nonexistent-branch-that-does-not-exist"], { suppressLogs: true });
+        } catch (e) {
+          // Expected to fail
+        }
+
+        // core.error should NOT have been called
+        expect(errorLogs).toHaveLength(0);
+        // core.debug should have captured the failure details including exit status
+        expect(debugLogs.some(log => log.includes("Git command failed (expected)"))).toBe(true);
+        expect(debugLogs.some(log => log.includes("Exit status:"))).toBe(true);
+      } finally {
+        global.core = originalCore;
+      }
+    });
+
+    it("should call core.error when suppressLogs is false (default)", async () => {
+      const { execGitSync } = await import("./git_helpers.cjs");
+
+      const errorLogs = [];
+      const originalCore = global.core;
+      global.core = {
+        debug: () => {},
+        error: msg => errorLogs.push(msg),
+      };
+
+      try {
+        try {
+          execGitSync(["rev-parse", "nonexistent-branch-that-does-not-exist"]);
+        } catch (e) {
+          // Expected to fail
+        }
+
+        // core.error should have been called
+        expect(errorLogs.length).toBeGreaterThan(0);
+      } finally {
+        global.core = originalCore;
+      }
     });
 
     it("should redact credentials from logged commands", async () => {

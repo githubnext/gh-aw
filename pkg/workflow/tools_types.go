@@ -268,10 +268,10 @@ type GitHubIntegrityLevel string
 const (
 	// GitHubIntegrityNone allows access with no integrity requirements
 	GitHubIntegrityNone GitHubIntegrityLevel = "none"
-	// GitHubIntegrityReader requires read-level integrity
-	GitHubIntegrityReader GitHubIntegrityLevel = "reader"
-	// GitHubIntegrityWriter requires write-level integrity
-	GitHubIntegrityWriter GitHubIntegrityLevel = "writer"
+	// GitHubIntegrityUnapproved requires unapproved-level integrity
+	GitHubIntegrityUnapproved GitHubIntegrityLevel = "unapproved"
+	// GitHubIntegrityApproved requires approved-level integrity
+	GitHubIntegrityApproved GitHubIntegrityLevel = "approved"
 	// GitHubIntegrityMerged requires merged-level integrity
 	GitHubIntegrityMerged GitHubIntegrityLevel = "merged"
 )

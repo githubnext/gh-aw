@@ -20,6 +20,8 @@ type PushToPullRequestBranchConfig struct {
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
+	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
+	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
 }
 
 // buildCheckoutRepository generates a checkout step with optional target repository and custom token
@@ -133,6 +135,16 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 			// Parse allowed-repos for cross-repository push
 			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+
+			// Parse protected-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
+			manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
+			validateStringEnumField(configMap, "protected-files", manifestFilesEnums, pushToPullRequestBranchLog)
+			if strVal, ok := configMap["protected-files"].(string); ok {
+				pushToBranchConfig.ManifestFilesPolicy = &strVal
+			}
+
+			// Parse allowed-files: list of glob patterns forming a strict allowlist of eligible files
+			pushToBranchConfig.AllowedFiles = ParseStringArrayFromConfig(configMap, "allowed-files", pushToPullRequestBranchLog)
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig, 0)

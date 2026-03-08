@@ -1267,5 +1267,20 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "push_repo_memory",
+    "description": "Validate repo-memory files are within configured size limits before the workflow completes. Call this after writing files to memory to check that the total size is within limits. Returns an error if files are too large, with guidance on how to reduce memory size so the memory can be saved successfully.",
+    "inputSchema": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "memory_id": {
+          "type": "string",
+          "description": "Memory identifier to validate. Defaults to 'default' if not specified."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

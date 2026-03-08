@@ -42,10 +42,13 @@ Based on the provided JSON schema, the implementation supports:
   - `"owner/prefix*"` - Repositories with name prefix under owner
 
 **Integrity Levels:**
-- `"none"` - No min-integrity requirements
-- `"reader"` - Read-level integrity
-- `"writer"` - Write-level integrity
-- `"merged"` - Merged-level integrity
+
+Integrity levels are based on the combination of the `author_association` field associated with GitHub objects and whether an object is reachable from the main branch:
+
+- `"merged"` - Objects reachable from the main branch (highest integrity, regardless of authorship)
+- `"approved"` - Objects with `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR`
+- `"unapproved"` - Objects with `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`
+- `"none"` - Objects with `author_association` of `FIRST_TIMER` or `NONE` (lowest integrity)
 
 ### 3. Frontmatter Syntax
 
@@ -56,7 +59,7 @@ tools:
     mode: remote
     toolsets: [default]
     repos: "all"
-    min-integrity: reader
+    min-integrity: unapproved
 ```
 
 **With Repository Patterns:**
@@ -69,7 +72,7 @@ tools:
       - "myorg/*"
       - "partner/shared-repo"
       - "docs/api-*"
-    min-integrity: writer
+    min-integrity: approved
 ```
 
 **Public Repositories Only:**
@@ -89,7 +92,7 @@ tools:
 
 2. **Validation** (`tools_validation.go`):
    - Validates repos format (all/public or valid patterns)
-   - Validates min-integrity level (none/reader/writer/merged)
+   - Validates min-integrity level (none/unapproved/approved/merged)
    - Validates repository pattern syntax (lowercase, valid characters, wildcard placement)
    - Called during workflow compilation
 
@@ -173,7 +176,7 @@ The design supports future MCP servers (Jira, WorkIQ) through:
 - Empty arrays not allowed
 
 **Integrity Levels:**
-- Must be one of: `none`, `reader`, `writer`, `merged`
+- Must be one of: `none`, `unapproved`, `approved`, `merged`
 - Case-sensitive
 
 **Required Fields:**
@@ -192,7 +195,7 @@ invalid guard policy: repository pattern 'Owner/Repo' must be lowercase
 invalid guard policy: repository pattern 'owner/re*po' has wildcard in the middle.
 Wildcards only allowed at the end (e.g., 'prefix*')
 
-invalid guard policy: 'github.min-integrity' must be one of: 'none', 'reader', 'writer', 'merged'.
+invalid guard policy: 'github.min-integrity' must be one of: 'none', 'unapproved', 'approved', 'merged'.
 Got: 'admin'
 ```
 
@@ -207,7 +210,7 @@ tools:
     toolsets: [default]
     repos:
       - "myorg/*"
-    min-integrity: reader
+    min-integrity: unapproved
 ```
 
 ### Example 2: Multiple Organizations
@@ -221,7 +224,7 @@ tools:
       - "frontend-org/*"
       - "backend-org/*"
       - "shared/infrastructure"
-    min-integrity: writer
+    min-integrity: approved
 ```
 
 ### Example 3: Public Repositories Only
@@ -245,7 +248,7 @@ tools:
     repos:
       - "myorg/api-*"     # Matches api-gateway, api-service, etc.
       - "myorg/web-*"     # Matches web-frontend, web-backend, etc.
-    min-integrity: writer
+    min-integrity: approved
 ```
 
 ## Testing Strategy

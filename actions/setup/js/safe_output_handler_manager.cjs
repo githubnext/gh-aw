@@ -20,6 +20,7 @@ const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
+const { loadCustomSafeOutputJobTypes } = require("./safe_output_helpers.cjs");
 
 /**
  * Handler map configuration
@@ -244,6 +245,13 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   /** @type {Array<{type: string, error: string}>} */
   const codePushFailures = [];
 
+  // Load custom safe output job types (from GH_AW_SAFE_OUTPUT_JOBS env var)
+  // These are processed by dedicated custom job steps, not by this handler manager
+  const customJobTypes = loadCustomSafeOutputJobTypes();
+  if (customJobTypes.size > 0) {
+    core.info(`Loaded ${customJobTypes.size} custom safe output job type(s): ${[...customJobTypes].join(", ")}`);
+  }
+
   core.info(`Processing ${messages.length} message(s) in order of appearance...`);
 
   // Process messages in order of appearance
@@ -283,6 +291,20 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           success: false,
           skipped: true,
           reason: "Handled by standalone step",
+        });
+        continue;
+      }
+
+      // Check if this message type is handled by a custom safe output job
+      if (customJobTypes.has(messageType)) {
+        // Silently skip - this is handled by a custom safe output job step
+        core.debug(`Message ${i + 1} (${messageType}) will be handled by custom safe output job`);
+        results.push({
+          type: messageType,
+          messageIndex: i,
+          success: false,
+          skipped: true,
+          reason: "Handled by custom safe output job",
         });
         continue;
       }
@@ -899,6 +921,7 @@ async function main() {
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
+    const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
 
     core.info(`\n=== Processing Summary ===`);
@@ -916,6 +939,11 @@ async function main() {
       const standaloneTypes = [...new Set(skippedStandaloneResults.map(r => r.type))];
       core.info(`  Types: ${standaloneTypes.join(", ")}`);
     }
+    if (skippedCustomJobResults.length > 0) {
+      core.info(`Skipped (custom safe output job): ${skippedCustomJobResults.length}`);
+      const customJobTypesList = [...new Set(skippedCustomJobResults.map(r => r.type))];
+      core.info(`  Types: ${customJobTypesList.join(", ")}`);
+    }
     if (skippedNoHandlerResults.length > 0) {
       core.warning(`Skipped (no handler): ${skippedNoHandlerResults.length}`);
       const noHandlerTypes = [...new Set(skippedNoHandlerResults.map(r => r.type))];
@@ -926,6 +954,11 @@ async function main() {
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
+      const failedItems = processingResult.results
+        .filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled)
+        .map(r => `  - ${r.type}: ${r.error || "Unknown error"}`)
+        .join("\n");
+      core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
     }
     if (cancelledCount > 0) {
       core.warning(`${cancelledCount} message(s) were cancelled because a code push operation failed`);

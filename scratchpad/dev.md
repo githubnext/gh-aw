@@ -1706,7 +1706,7 @@ tools:
     mode: remote
     toolsets: [default]
     repos: "all"            # "all", "public", or array of patterns
-    min-integrity: reader   # none | reader | writer | merged
+    min-integrity: unapproved   # none | unapproved | approved | merged
 ```
 
 Both `repos` and `min-integrity` are required when either is specified under `github:`.
@@ -1721,7 +1721,13 @@ Pattern validation rules:
 - Wildcards are only permitted at the end of the repo name segment
 - Empty arrays are not allowed
 
-**Integrity Levels**: `none` | `reader` | `writer` | `merged` (case-sensitive)
+**Integrity Levels**: `none` | `unapproved` | `approved` | `merged` (case-sensitive)
+
+Integrity levels are determined by the `author_association` field and main branch reachability:
+- `merged`: Objects reachable from the main branch (highest integrity)
+- `approved`: `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR`
+- `unapproved`: `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`
+- `none`: `author_association` of `FIRST_TIMER` or `NONE` (lowest integrity)
 
 **Validation Location**: `pkg/workflow/tools_validation.go` — `validateGitHubGuardPolicy()` runs during workflow compilation via `compiler_orchestrator_workflow.go` and `compiler_string_api.go`.
 

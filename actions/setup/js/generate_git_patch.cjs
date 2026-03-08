@@ -20,18 +20,28 @@ function debugLog(message) {
 }
 
 /**
- * Sanitize a branch name for use as a patch filename
- * Replaces path separators and special characters with dashes
- * @param {string} branchName - The branch name to sanitize
- * @returns {string} The sanitized branch name safe for use in a filename
+ * Sanitize a string for use as a patch filename component.
+ * Replaces path separators and special characters with dashes.
+ * @param {string} value - The value to sanitize
+ * @param {string} fallback - Fallback value when input is empty or nullish
+ * @returns {string} The sanitized string safe for use in a filename
  */
-function sanitizeBranchNameForPatch(branchName) {
-  if (!branchName) return "unknown";
-  return branchName
+function sanitizeForFilename(value, fallback) {
+  if (!value) return fallback;
+  return value
     .replace(/[/\\:*?"<>|]/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase();
+}
+
+/**
+ * Sanitize a branch name for use as a patch filename
+ * @param {string} branchName - The branch name to sanitize
+ * @returns {string} The sanitized branch name safe for use in a filename
+ */
+function sanitizeBranchNameForPatch(branchName) {
+  return sanitizeForFilename(branchName, "unknown");
 }
 
 /**
@@ -50,12 +60,7 @@ function getPatchPath(branchName) {
  * @returns {string} The sanitized slug safe for use in a filename
  */
 function sanitizeRepoSlugForPatch(repoSlug) {
-  if (!repoSlug) return "";
-  return repoSlug
-    .replace(/[/\\:*?"<>|]/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
+  return sanitizeForFilename(repoSlug, "");
 }
 
 /**
@@ -167,7 +172,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           } catch (fetchError) {
             // In incremental mode, we MUST have origin/branchName - no fallback
             debugLog(`Strategy 1 (incremental): Fetch failed - ${getErrorMessage(fetchError)}`);
-            errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName}. ` + `This typically happens when the remote branch doesn't exist yet or was force-pushed. ` + `Error: ${getErrorMessage(fetchError)}`;
+            errorMessage = `Cannot generate incremental patch: failed to fetch origin/${branchName}. This typically happens when the remote branch doesn't exist yet or was force-pushed. Error: ${getErrorMessage(fetchError)}`;
             // Don't try other strategies in incremental mode
             return {
               success: false,

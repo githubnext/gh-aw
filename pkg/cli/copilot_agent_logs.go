@@ -7,6 +7,17 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+var (
+	agentTurnPattern     = regexp.MustCompile(`(?i)task.*iteration|agent.*turn|step.*\d+`)
+	agentToolCallPattern = regexp.MustCompile(`(?i)tool.*call|executing.*tool|calling.*(\w+)`)
+	toolNamePatterns     = []*regexp.Regexp{
+		regexp.MustCompile(`(?i)tool[:\s]+([a-zA-Z0-9_-]+)`),
+		regexp.MustCompile(`(?i)calling[:\s]+([a-zA-Z0-9_-]+)`),
+		regexp.MustCompile(`(?i)executing[:\s]+([a-zA-Z0-9_-]+)`),
+		regexp.MustCompile(`(?i)using[:\s]+tool[:\s]+([a-zA-Z0-9_-]+)`),
+	}
+)
+
 // ParseCopilotCodingAgentLogMetrics extracts metrics from GitHub Copilot coding agent logs
 // This is different from Copilot CLI logs and requires specialized parsing
 func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow.LogMetrics {
@@ -20,11 +31,6 @@ func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow
 	var currentSequence []string
 	turns := 0
 
-	// GitHub Copilot coding agent log patterns
-	// These patterns are designed to match the specific log format of the agent
-	turnPattern := regexp.MustCompile(`(?i)task.*iteration|agent.*turn|step.*\d+`)
-	toolCallPattern := regexp.MustCompile(`(?i)tool.*call|executing.*tool|calling.*(\w+)`)
-
 	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
@@ -32,7 +38,7 @@ func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow
 		}
 
 		// Count turns based on agent iteration patterns
-		if turnPattern.MatchString(line) {
+		if agentTurnPattern.MatchString(line) {
 			turns++
 			// Start of a new turn, save previous sequence if any
 			if len(currentSequence) > 0 {
@@ -42,7 +48,7 @@ func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow
 		}
 
 		// Extract tool calls from agent logs
-		if matches := toolCallPattern.FindStringSubmatch(line); len(matches) > 1 {
+		if matches := agentToolCallPattern.FindStringSubmatch(line); len(matches) > 1 {
 			toolName := extractToolName(line)
 			if toolName != "" {
 				// Track tool call
@@ -97,14 +103,7 @@ func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow
 // extractToolName extracts a tool name from a log line
 func extractToolName(line string) string {
 	// Try to extract tool name from various patterns
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)tool[:\s]+([a-zA-Z0-9_-]+)`),
-		regexp.MustCompile(`(?i)calling[:\s]+([a-zA-Z0-9_-]+)`),
-		regexp.MustCompile(`(?i)executing[:\s]+([a-zA-Z0-9_-]+)`),
-		regexp.MustCompile(`(?i)using[:\s]+tool[:\s]+([a-zA-Z0-9_-]+)`),
-	}
-
-	for _, pattern := range patterns {
+	for _, pattern := range toolNamePatterns {
 		if matches := pattern.FindStringSubmatch(line); len(matches) > 1 {
 			return strings.TrimSpace(matches[1])
 		}

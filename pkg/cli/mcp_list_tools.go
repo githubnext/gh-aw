@@ -56,6 +56,8 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		return err
 	}
 
+	mcpListToolsLog.Printf("Found %d MCP configs in workflow, searching for server: %s", len(mcpConfigs), mcpServerName)
+
 	// Find the specific MCP server
 	var targetConfig *parser.MCPServerConfig
 	for _, config := range mcpConfigs {
@@ -66,6 +68,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	}
 
 	if targetConfig == nil {
+		mcpListToolsLog.Printf("MCP server %q not found in workflow %q", mcpServerName, filepath.Base(workflowPath))
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP server '%s' not found in workflow '%s'", mcpServerName, filepath.Base(workflowPath))))
 
 		// Show available servers
@@ -77,6 +80,8 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		return nil
 	}
 
+	mcpListToolsLog.Printf("Found MCP server: name=%s, type=%s", targetConfig.Name, targetConfig.Type)
+
 	// Connect to the MCP server and get its tools
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📡 Connecting to MCP server: %s (%s)",
 		targetConfig.Name,
@@ -86,6 +91,8 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	if err != nil {
 		return fmt.Errorf("failed to connect to MCP server '%s': %w", mcpServerName, err)
 	}
+
+	mcpListToolsLog.Printf("Connected to MCP server: tools=%d", len(info.Tools))
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully connected to MCP server"))

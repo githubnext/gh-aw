@@ -29,6 +29,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -67,6 +68,27 @@ func preprocessBoolFieldAsString(configData map[string]any, fieldName string, lo
 		}
 	}
 	return nil
+}
+
+// validateStringEnumField checks that a config field, if present, contains one
+// of the allowed string values.  Non-string values and unrecognised strings are
+// removed from the map (treated as absent) and a warning is logged.  Use this
+// for fields that are pure string enums with no boolean shorthand.
+func validateStringEnumField(configData map[string]any, fieldName string, allowed []string, log *logger.Logger) {
+	if configData == nil {
+		return
+	}
+	val, exists := configData[fieldName]
+	if !exists || val == nil {
+		return
+	}
+	strVal, ok := val.(string)
+	if !ok || !slices.Contains(allowed, strVal) {
+		if log != nil {
+			log.Printf("Invalid %s value %v (must be one of %v), ignoring", fieldName, val, allowed)
+		}
+		delete(configData, fieldName)
+	}
 }
 
 // buildTemplatableBoolEnvVar returns a YAML environment variable entry for a

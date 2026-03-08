@@ -4,13 +4,16 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { updateActivationCommentWithCommit } = require("./update_activation_comment.cjs");
+const { updateActivationCommentWithCommit, updateActivationComment } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { checkFileProtection } = require("./manifest_file_helpers.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -133,6 +136,27 @@ async function main(config = {}) {
       }
 
       core.info("Patch size validation passed");
+    }
+
+    // Check file protection: allowlist (strict) or protected-files policy.
+    // Fallback-to-issue detection is deferred until after PR metadata is resolved below.
+    /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
+    let protectedFilesForFallback = null;
+    if (!isEmpty) {
+      const protection = checkFileProtection(patchContent, config);
+      if (protection.action === "deny") {
+        const filesStr = protection.files.join(", ");
+        const msg =
+          protection.source === "allowlist"
+            ? `Cannot push to pull request branch: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
+            : `Cannot push to pull request branch: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+        core.error(msg);
+        return { success: false, error: msg };
+      }
+      if (protection.action === "fallback") {
+        protectedFilesForFallback = protection.files;
+        core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
+      }
     }
 
     if (isEmpty) {
@@ -293,6 +317,50 @@ async function main(config = {}) {
     }
     if (envLabels.length > 0) {
       core.info(`✓ Labels validation passed: ${envLabels.join(", ")}`);
+    }
+
+    // Deferred protected file protection – fallback-to-issue path.
+    // Create a review issue now that we have repoParts, pullNumber, and prTitle available.
+    if (protectedFilesForFallback && protectedFilesForFallback.length > 0) {
+      const runUrl = buildWorkflowRunUrl(context, context.repo);
+      const runId = context.runId;
+      const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const prUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/pull/${pullNumber}`;
+      const issueTitle = `[gh-aw] Protected Files: ${prTitle || `PR #${pullNumber}`}`;
+      const templatePath = "/opt/gh-aw/prompts/manifest_protection_push_to_pr_fallback.md";
+      const template = fs.readFileSync(templatePath, "utf8");
+      const issueBody = renderTemplate(template, {
+        files: protectedFilesForFallback.map(f => `\`${f}\``).join(", "),
+        pull_number: pullNumber,
+        pr_url: prUrl,
+        run_url: runUrl,
+        run_id: runId,
+        branch_name: branchName,
+        patch_file_name: patchFileName,
+      });
+
+      try {
+        const { data: issue } = await githubClient.rest.issues.create({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          title: issueTitle,
+          body: issueBody,
+          labels: ["agentic-workflows"],
+        });
+        core.info(`Created manifest-protection review issue #${issue.number}: ${issue.html_url}`);
+        await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+        return {
+          success: true,
+          fallback_used: true,
+          issue_number: issue.number,
+          issue_url: issue.html_url,
+        };
+      } catch (issueError) {
+        const error = `Manifest file protection: failed to create review issue. Error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+        core.error(error);
+        return { success: false, error };
+      }
     }
 
     const hasChanges = !isEmpty;

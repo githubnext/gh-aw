@@ -1,6 +1,9 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 
 const require = createRequire(import.meta.url);
 
@@ -233,5 +236,185 @@ describe("create_pull_request - security: branch name sanitization", () => {
 
     expect(normalizeBranchName("Feature/MyBranch")).toBe("feature/mybranch");
     expect(normalizeBranchName("UPPERCASE")).toBe("uppercase");
+  });
+});
+
+// ──────────────────────────────────────────────────────
+// allowed-files strict allowlist
+// ──────────────────────────────────────────────────────
+
+describe("create_pull_request - allowed-files strict allowlist", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-allowed-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" }),
+    };
+
+    // Clear module cache so globals are picked up fresh
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  /**
+   * Creates a minimal git patch touching the given file paths.
+   */
+  function createPatchWithFiles(...filePaths) {
+    const diffs = filePaths
+      .map(
+        p => `diff --git a/${p} b/${p}
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/${p}
+@@ -0,0 +1 @@
++content
+`
+      )
+      .join("\n");
+    return `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+${diffs}
+--
+2.34.1
+`;
+  }
+
+  function writePatch(content) {
+    const p = path.join(tempDir, "test.patch");
+    fs.writeFileSync(p, content);
+    return p;
+  }
+
+  it("should reject files outside the allowed-files allowlist", async () => {
+    const patchPath = writePatch(createPatchWithFiles("src/index.js"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allowed_files: [".github/aw/**"] });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("outside the allowed-files list");
+    expect(result.error).toContain("src/index.js");
+  });
+
+  it("should reject a mixed patch where some files are outside the allowlist", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/github-agentic-workflows.md", "src/index.js"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allowed_files: [".github/aw/**"] });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("outside the allowed-files list");
+    expect(result.error).toContain("src/index.js");
+    expect(result.error).not.toContain(".github/aw/github-agentic-workflows.md");
+  });
+
+  it("should still enforce protected-files when allowed-files matches (orthogonal checks)", async () => {
+    // allowed-files and protected-files are orthogonal: both checks must pass.
+    // Matching the allowlist does NOT bypass the protected-files policy.
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      allowed_files: [".github/aw/**"],
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "blocked",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("protected files");
+  });
+
+  it("should allow a protected file when both allowed-files matches and protected-files: allowed is set", async () => {
+    // Both checks are satisfied explicitly: allowlist scope + protected-files permission.
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      allowed_files: [".github/aw/**"],
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "allowed",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    // Should not be blocked by either check
+    expect(result.error || "").not.toContain("protected files");
+    expect(result.error || "").not.toContain("outside the allowed-files list");
+  });
+
+  it("should still enforce protected-files when allowed-files is not set", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "blocked",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("protected files");
   });
 });

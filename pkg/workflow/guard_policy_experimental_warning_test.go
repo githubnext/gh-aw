@@ -29,7 +29,7 @@ engine: copilot
 tools:
   github:
     repos: all
-    min-integrity: reader
+    min-integrity: unapproved
 permissions:
   contents: read
 ---
@@ -77,7 +77,7 @@ tools:
   github:
     repos:
       - owner/repo
-    min-integrity: writer
+    min-integrity: approved
 permissions:
   contents: read
 ---

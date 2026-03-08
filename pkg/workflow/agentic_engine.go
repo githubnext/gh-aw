@@ -194,6 +194,24 @@ type ModelEnvVarProvider interface {
 	GetModelEnvVarName() string
 }
 
+// AgentFileProvider is an optional interface implemented by engines that have
+// engine-specific instruction or configuration files that should be treated as
+// security-sensitive manifests.  The compiler uses these lists to extend the
+// global manifest-file protection so that engine-specific files (e.g. CLAUDE.md,
+// .claude/) are automatically protected alongside dependency manifests.
+type AgentFileProvider interface {
+	// GetAgentManifestFiles returns the basenames of files that are specific to
+	// this engine's instruction / configuration format (e.g. "CLAUDE.md").
+	// Matching is by filename only, regardless of directory depth.
+	GetAgentManifestFiles() []string
+
+	// GetAgentManifestPathPrefixes returns path prefixes (relative to the repo
+	// root) for directories that contain engine-specific configuration.
+	// Any file whose diff path starts with one of these prefixes is treated as a
+	// protected file (e.g. ".claude/").
+	GetAgentManifestPathPrefixes() []string
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
@@ -325,6 +343,18 @@ func (e *BaseEngine) GetLogParserScriptId() string {
 // Engines can override this to provide custom MCP server configuration
 func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	// Default implementation does nothing - engines that support MCP should override this
+	return nil
+}
+
+// GetAgentManifestFiles returns nil by default (no engine-specific manifest files).
+// Engines with dedicated instruction files (e.g. CLAUDE.md, AGENTS.md) should override this.
+func (e *BaseEngine) GetAgentManifestFiles() []string {
+	return nil
+}
+
+// GetAgentManifestPathPrefixes returns nil by default (no engine-specific config directories).
+// Engines with a dedicated config directory (e.g. .claude/) should override this.
+func (e *BaseEngine) GetAgentManifestPathPrefixes() []string {
 	return nil
 }
 

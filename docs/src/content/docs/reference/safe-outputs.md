@@ -32,13 +32,13 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Pull Requests
 
-- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
+- [**Create PR**](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
 - [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
 - [**Close PR**](#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
 - [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
 - [**Reply to PR Review Comment**](#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
 - [**Resolve PR Review Thread**](#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
-- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
+- [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
 
 ### Labels, Assignments & Reviews
 
@@ -677,46 +677,18 @@ Exposes outputs: `status-update-id`, `project-id`, `status`.
 
 ### Pull Request Creation (`create-pull-request:`)
 
-Creates PRs with code changes. By default, falls back to creating an issue if PR creation fails (e.g., org settings block it). Set `fallback-as-issue: false` to disable this fallback and avoid requiring `issues: write` permission. `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).
+Creates PRs with code changes. Includes configurable [Protected Files](/gh-aw/reference/safe-outputs-pull-requests/#protected-files) against supply chain attacks.
 
-Multiple PRs per run are supported by setting `max` higher than 1. Each PR is created from its own branch with an independent patch, so concurrent calls do not conflict.
-
-```yaml wrap
-safe-outputs:
-  create-pull-request:
-    title-prefix: "[ai] "         # prefix for titles
-    labels: [automation]          # labels to attach
-    reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
-    draft: true                   # create as draft (default: true)
-    max: 3                        # max PRs per run (default: 1)
-    expires: 14                   # auto-close after 14 days (same-repo only)
-    if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
-    target-repo: "owner/repo"     # cross-repository
-    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
-    fallback-as-issue: false      # disable issue fallback (default: true)
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
-```
-
-The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
-
-**Example use case:** A workflow in `org/engineering` that creates PRs in `org/docs` targeting the `vnext` branch for feature documentation:
+See the full reference: [Safe Outputs (Pull Requests) — create-pull-request](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request)
 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    target-repo: "org/docs"
-    base-branch: "vnext"
-    draft: true
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
+    title-prefix: "[ai] "
+    labels: [automation]
+    reviewers: [user1, copilot]
+    protected-files: fallback-to-issue  # create review issue if protected files modified, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 ```
-
-PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings. By default (`fallback-as-issue: true`), fallback creates an issue with branch link and requires `issues: write` permission. Set `fallback-as-issue: false` to disable fallback and only require `contents: write` + `pull-requests: write`.
-
-When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
-
-By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to configure CI triggers.
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -840,11 +812,9 @@ safe-outputs:
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
-Pushes changes to a PR's branch. Validates via `title-prefix` and `labels` to ensure only approved PRs receive changes. Multiple pushes per run are supported by setting `max` higher than 1.
+Pushes changes to a PR's branch. Includes configurable [Protected Files](/gh-aw/reference/safe-outputs-pull-requests/#protected-files) against supply chain attacks.
 
-:::caution[Fork PRs Not Supported]
-This safe output **cannot push to PRs from forks**. Fork PRs will fail early with a clear error message. This is a security restriction—the workflow does not have write access to fork repositories.
-:::
+See the full reference: [Safe Outputs (Pull Requests) — push-to-pull-request-branch](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch)
 
 ```yaml wrap
 safe-outputs:
@@ -852,19 +822,10 @@ safe-outputs:
     target: "*"                 # "triggering" (default), "*", or number
     title-prefix: "[bot] "      # require title prefix
     labels: [automated]         # require all labels
-    max: 3                      # max pushes per run (default: 1)
-    if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-    github-token-for-extra-empty-commit: ${{ secrets.CI_TOKEN }} # optional token to push empty commit triggering CI
+    protected-files: fallback-to-issue  # create review issue if protected files modified
 ```
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
-
-Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger CI. See [Triggering CI](/gh-aw/reference/triggering-ci/) for how to enable automatic CI triggers.
-
-#### Fail-Fast on Code Push Failure
-
-If `push-to-pull-request-branch` (or `create-pull-request`) fails, the safe-output pipeline cancels all remaining non-code-push outputs. Each cancelled output is marked with an explicit reason such as "Cancelled: code push operation failed". The failure details appear in the agent failure issue or comment generated by the conclusion job.
 
 ### Release Updates (`update-release:`)
 
@@ -1063,6 +1024,9 @@ When using `target: "*"`, the agent must provide `discussion_number` in the outp
 ### Workflow Dispatch (`dispatch-workflow:`)
 
 Triggers other workflows in the same repository using GitHub's `workflow_dispatch` event. This enables orchestration patterns, such as orchestrator workflows that coordinate multiple worker workflows.
+
+> [!NOTE]
+> When installing a workflow with `gh aw add`, workflows listed in `dispatch-workflow` are automatically fetched and added to the target repository alongside the main workflow.
 
 **Shorthand Syntax:**
 

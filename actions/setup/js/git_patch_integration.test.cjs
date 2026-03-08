@@ -11,12 +11,21 @@
  * These tests require git to be installed and create temporary git repos.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
 import os from "os";
 import { generateGitPatch } from "./generate_git_patch.cjs";
+
+// generateGitPatch uses execGitSync from git_helpers.cjs which calls core.debug / core.error
+// as GitHub Actions globals. Provide a no-op mock so these tests work outside of Actions.
+global.core = {
+  debug: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+};
 
 /**
  * Execute git command safely with args array

@@ -8,6 +8,7 @@
  */
 const { sanitizeIncomingText, writeRedactedDomainsLog } = require("./sanitize_incoming_text.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseAllowedBots, isAllowedBot } = require("./check_permissions_utils.cjs");
 
 async function main() {
   let text = "";
@@ -33,11 +34,8 @@ async function main() {
   } catch (permError) {
     core.warning(`Permission check failed for actor '${actor}': ${getErrorMessage(permError)}`);
     // Check if actor is in the allowed bots list (configured via on.bots in frontmatter)
-    const allowedBots =
-      process.env.GH_AW_ALLOWED_BOTS?.split(",")
-        .map(b => b.trim())
-        .filter(b => b) ?? [];
-    if (allowedBots.includes(actor)) {
+    const allowedBots = parseAllowedBots();
+    if (isAllowedBot(actor, allowedBots)) {
       core.info(`Actor '${actor}' is in the allowed bots list, treating as 'write' access`);
       permission = "write";
     } else {

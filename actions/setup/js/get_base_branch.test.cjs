@@ -99,4 +99,115 @@ describe("getBaseBranch", () => {
     const result3 = await getBaseBranch();
     expect(result3).toBe("custom-branch");
   });
+
+  it("should return context.payload.repository.default_branch without an API call", async () => {
+    const mockGetRepo = vi.fn();
+    global.github = {
+      rest: { repos: { get: mockGetRepo } },
+    };
+    global.context = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      eventName: "push",
+      payload: { repository: { default_branch: "trunk" } },
+    };
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+    const result = await getBaseBranch();
+
+    expect(result).toBe("trunk");
+    expect(mockGetRepo).not.toHaveBeenCalled();
+  });
+
+  it("should query GitHub API for repo default branch when payload does not have it", async () => {
+    const mockGetRepo = vi.fn().mockResolvedValue({ data: { default_branch: "master" } });
+    global.github = {
+      rest: {
+        repos: {
+          get: mockGetRepo,
+        },
+      },
+    };
+    global.context = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      eventName: "workflow_dispatch",
+      payload: {},
+    };
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+    const result = await getBaseBranch();
+
+    expect(mockGetRepo).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo" });
+    expect(result).toBe("master");
+  });
+
+  it("should use repos.get() for targetRepo (cross-repo) even when payload has default_branch", async () => {
+    const mockGetRepo = vi.fn().mockResolvedValue({ data: { default_branch: "develop" } });
+    global.github = {
+      rest: { repos: { get: mockGetRepo } },
+    };
+    global.context = {
+      repo: { owner: "workflow-owner", repo: "workflow-repo" },
+      eventName: "issue_comment",
+      payload: { repository: { default_branch: "main" } },
+    };
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+    // targetRepo differs from the workflow repo - must use API, not payload
+    const result = await getBaseBranch({ owner: "target-owner", repo: "target-repo" });
+
+    expect(mockGetRepo).toHaveBeenCalledWith({ owner: "target-owner", repo: "target-repo" });
+    expect(result).toBe("develop");
+  });
+
+  it("should use targetRepo for API default branch lookup", async () => {
+    const mockGetRepo = vi.fn().mockResolvedValue({ data: { default_branch: "develop" } });
+    global.github = {
+      rest: {
+        repos: {
+          get: mockGetRepo,
+        },
+      },
+    };
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+    const result = await getBaseBranch({ owner: "target-owner", repo: "target-repo" });
+
+    expect(mockGetRepo).toHaveBeenCalledWith({ owner: "target-owner", repo: "target-repo" });
+    expect(result).toBe("develop");
+  });
+
+  it("should fall through to DEFAULT_BRANCH when API lookup for repo default branch fails", async () => {
+    const mockWarning = vi.fn();
+    global.github = {
+      rest: {
+        repos: {
+          get: vi.fn().mockRejectedValue(new Error("API error")),
+        },
+      },
+    };
+    global.core = { warning: mockWarning };
+    process.env.DEFAULT_BRANCH = "trunk";
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+    const result = await getBaseBranch({ owner: "owner", repo: "repo" });
+
+    expect(result).toBe("trunk");
+    expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch repository default branch"));
+  });
+
+  it("should fall through to hardcoded main when API lookup fails and no DEFAULT_BRANCH set", async () => {
+    global.github = {
+      rest: {
+        repos: {
+          get: vi.fn().mockRejectedValue(new Error("API error")),
+        },
+      },
+    };
+    global.core = { warning: vi.fn() };
+
+    const { getBaseBranch } = await import("./get_base_branch.cjs");
+    const result = await getBaseBranch({ owner: "owner", repo: "repo" });
+
+    expect(result).toBe("main");
+  });
 });

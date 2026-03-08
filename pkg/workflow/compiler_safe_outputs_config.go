@@ -480,7 +480,11 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
-			AddIfNotEmpty("base_branch", c.BaseBranch)
+			AddIfNotEmpty("base_branch", c.BaseBranch).
+			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
+			AddStringSlice("protected_files", getAllManifestFiles()).
+			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddStringSlice("allowed_files", c.AllowedFiles)
 		return builder.Build()
 	},
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
@@ -504,6 +508,10 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
+			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
+			AddStringSlice("protected_files", getAllManifestFiles()).
+			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddStringSlice("allowed_files", c.AllowedFiles).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
@@ -713,6 +721,13 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	compilerSafeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
 	config := make(map[string]map[string]any)
 
+	// Collect engine-specific manifest files and path prefixes (AgentFileProvider interface).
+	// These are merged with the global runtime-derived lists so that engine-specific
+	// instruction files (e.g. CLAUDE.md, .claude/, AGENTS.md) are automatically protected.
+	extraManifestFiles, extraPathPrefixes := c.getEngineAgentFileInfo(data)
+	fullManifestFiles := getAllManifestFiles(extraManifestFiles...)
+	fullPathPrefixes := getProtectedPathPrefixes(extraPathPrefixes...)
+
 	// Build configuration for each handler using the registry
 	for handlerName, builder := range handlerRegistry {
 		handlerConfig := builder(data.SafeOutputs)
@@ -720,6 +735,11 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// 1. It returns a non-nil config (explicitly enabled, even if empty)
 		// 2. For auto-enabled handlers, include even with empty config
 		if handlerConfig != nil {
+			// Augment protected-files protection with engine-specific files for handlers that use it.
+			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
+				handlerConfig["protected_files"] = fullManifestFiles
+				handlerConfig["protected_path_prefixes"] = fullPathPrefixes
+			}
 			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
 			config[handlerName] = handlerConfig
 		}
@@ -742,4 +762,26 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	}
 }
 
-// addAllSafeOutputConfigEnvVars adds environment variables for all enabled safe output types
+// getEngineAgentFileInfo returns the engine-specific manifest filenames and path prefixes
+// by type-asserting the active engine to AgentFileProvider.  Returns empty slices when
+// the engine is not set or does not implement the interface.
+func (c *Compiler) getEngineAgentFileInfo(data *WorkflowData) (manifestFiles []string, pathPrefixes []string) {
+	if data == nil || data.EngineConfig == nil {
+		return nil, nil
+	}
+	engine, err := c.engineRegistry.GetEngine(data.EngineConfig.ID)
+	if err != nil {
+		compilerSafeOutputsConfigLog.Printf("Engine lookup failed for %q: %v — skipping agent manifest file injection", data.EngineConfig.ID, err)
+		return nil, nil
+	}
+	if engine == nil {
+		return nil, nil
+	}
+	provider, ok := engine.(AgentFileProvider)
+	if !ok {
+		return nil, nil
+	}
+	compilerSafeOutputsConfigLog.Printf("Engine %s provides AgentFileProvider: files=%v, prefixes=%v",
+		data.EngineConfig.ID, provider.GetAgentManifestFiles(), provider.GetAgentManifestPathPrefixes())
+	return provider.GetAgentManifestFiles(), provider.GetAgentManifestPathPrefixes()
+}

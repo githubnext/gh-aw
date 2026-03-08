@@ -32,6 +32,8 @@ type CreatePullRequestsConfig struct {
 	Footer                         *string  `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool    `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
+	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" pushes the branch but creates a review issue.
+	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration
@@ -80,6 +82,12 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			createPRLog.Printf("Invalid %s value: %v", field, err)
 			return nil
 		}
+	}
+
+	// Pre-process protected-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
+	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
+	if configData != nil {
+		validateStringEnumField(configData, "protected-files", manifestFilesEnums, createPRLog)
 	}
 
 	// Pre-process templatable int fields

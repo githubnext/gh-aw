@@ -303,6 +303,8 @@ function buildForkContextHint() {
 
 /**
  * Build a context string describing code-push failures for inclusion in failure issue/comment bodies.
+ * Manifest file protection refusals are separated from other push failures to give them a dedicated
+ * section with clearer remediation instructions.
  * @param {string} codePushFailureErrors - Newline-separated list of "type:error" entries
  * @param {{number: number, html_url: string, head_sha?: string, mergeable?: boolean | null, mergeable_state?: string, updated_at?: string} | null} pullRequest - PR info if available
  * @returns {string} Formatted context string, or empty string if no failures
@@ -312,59 +314,107 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null) 
     return "";
   }
 
-  let context = "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.";
-  if (pullRequest) {
-    context += `\n\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
-
-    // Add PR state diagnostics
-    const workflowSha = process.env.GITHUB_SHA || "";
-    const prDetails = [];
-
-    // Check for merge conflicts
-    if (pullRequest.mergeable === false) {
-      prDetails.push("❌ **Merge conflicts detected** - the PR has conflicts that need resolution");
-    } else if (pullRequest.mergeable_state === "dirty") {
-      prDetails.push("❌ **PR is in dirty state** - likely has merge conflicts");
-    } else if (pullRequest.mergeable_state === "blocked") {
-      prDetails.push("⚠️ **PR is blocked** - required status checks or reviews may be missing");
-    } else if (pullRequest.mergeable_state === "behind") {
-      prDetails.push("⚠️ **PR is behind base branch** - may need to be updated");
-    }
-
-    // Check if branch was updated since workflow started
-    if (workflowSha && pullRequest.head_sha && workflowSha !== pullRequest.head_sha) {
-      prDetails.push(`⚠️ **Branch was updated** - workflow started at \`${workflowSha.substring(0, 7)}\`, PR head is now \`${pullRequest.head_sha.substring(0, 7)}\``);
-    }
-
-    // Add SHA info for debugging
-    if (pullRequest.head_sha) {
-      prDetails.push(`**PR head SHA:** \`${pullRequest.head_sha.substring(0, 7)}\``);
-    }
-    if (workflowSha) {
-      prDetails.push(`**Workflow SHA:** \`${workflowSha.substring(0, 7)}\``);
-    }
-    if (pullRequest.mergeable_state && pullRequest.mergeable_state !== "unknown") {
-      prDetails.push(`**Mergeable state:** ${pullRequest.mergeable_state}`);
-    }
-
-    if (prDetails.length > 0) {
-      context += "\n\n**PR State at Push Time:**\n";
-      for (const detail of prDetails) {
-        context += `- ${detail}\n`;
-      }
-    }
-  }
-  context += "\n**Code Push Errors:**\n";
+  // Split errors into protected-file protection refusals and other push failures
+  const manifestErrors = [];
+  const otherErrors = [];
   const errorLines = codePushFailureErrors.split("\n").filter(line => line.trim());
   for (const errorLine of errorLines) {
     const colonIndex = errorLine.indexOf(":");
     if (colonIndex !== -1) {
       const type = errorLine.substring(0, colonIndex);
       const error = errorLine.substring(colonIndex + 1);
-      context += `- \`${type}\`: ${error}\n`;
+      if (error.includes("manifest files") || error.includes("protected files")) {
+        manifestErrors.push({ type, error });
+      } else {
+        otherErrors.push({ type, error });
+      }
     }
   }
-  context += "\n";
+
+  let context = "";
+
+  // Protected file protection section — shown before generic failures
+  if (manifestErrors.length > 0) {
+    context +=
+      "\n**🛡️ Protected Files**: The code push was refused because the patch modifies protected files (package manifests, agent instruction files, or repository security configuration). " +
+      "This protection guards against unintended supply chain changes.\n";
+    if (pullRequest) {
+      context += `\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})\n`;
+    }
+    context += "\n**Blocked Operations:**\n";
+    for (const { type, error } of manifestErrors) {
+      context += `- \`${type}\`: ${error}\n`;
+    }
+    // Build a dynamic YAML snippet listing only the safe output types that were actually blocked
+    const typeToYamlKey = {
+      create_pull_request: "create-pull-request",
+      push_to_pull_request_branch: "push-to-pull-request-branch",
+    };
+    const blockedTypes = [...new Set(manifestErrors.map(e => e.type))];
+    let yamlSnippet = "```yaml\nsafe-outputs:\n";
+    for (const type of blockedTypes) {
+      const yamlKey = typeToYamlKey[type] || type.replace(/_/g, "-");
+      yamlSnippet += `  ${yamlKey}:\n    protected-files: fallback-to-issue\n`;
+    }
+    yamlSnippet += "```\n";
+    context += "\nTo review and apply these changes manually, configure `protected-files: fallback-to-issue` — the agent will create a review issue with instructions instead of blocking:\n";
+    context += yamlSnippet;
+  }
+
+  // Generic code-push failure section
+  if (otherErrors.length > 0) {
+    context += "\n**⚠️ Code Push Failed**: A code push safe output failed, and subsequent safe outputs were cancelled.";
+    if (pullRequest) {
+      context += `\n\n**Target Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})`;
+
+      // Add PR state diagnostics
+      const workflowSha = process.env.GITHUB_SHA || "";
+      const prDetails = [];
+
+      // Check for merge conflicts
+      if (pullRequest.mergeable === false) {
+        prDetails.push("❌ **Merge conflicts detected** - the PR has conflicts that need resolution");
+      } else if (pullRequest.mergeable_state === "dirty") {
+        prDetails.push("❌ **PR is in dirty state** - likely has merge conflicts");
+      } else if (pullRequest.mergeable_state === "blocked") {
+        prDetails.push("⚠️ **PR is blocked** - required status checks or reviews may be missing");
+      } else if (pullRequest.mergeable_state === "behind") {
+        prDetails.push("⚠️ **PR is behind base branch** - may need to be updated");
+      }
+
+      // Check if branch was updated since workflow started
+      if (workflowSha && pullRequest.head_sha && workflowSha !== pullRequest.head_sha) {
+        prDetails.push(`⚠️ **Branch was updated** - workflow started at \`${workflowSha.substring(0, 7)}\`, PR head is now \`${pullRequest.head_sha.substring(0, 7)}\``);
+      }
+
+      // Add SHA info for debugging
+      if (pullRequest.head_sha) {
+        prDetails.push(`**PR head SHA:** \`${pullRequest.head_sha.substring(0, 7)}\``);
+      }
+      if (workflowSha) {
+        prDetails.push(`**Workflow SHA:** \`${workflowSha.substring(0, 7)}\``);
+      }
+      if (pullRequest.mergeable_state && pullRequest.mergeable_state !== "unknown") {
+        prDetails.push(`**Mergeable state:** ${pullRequest.mergeable_state}`);
+      }
+
+      if (prDetails.length > 0) {
+        context += "\n\n**PR State at Push Time:**\n";
+        for (const detail of prDetails) {
+          context += `- ${detail}\n`;
+        }
+      }
+    }
+    context += "\n**Code Push Errors:**\n";
+    for (const { type, error } of otherErrors) {
+      context += `- \`${type}\`: ${error}\n`;
+    }
+    context += "\n";
+  } else if (manifestErrors.length > 0) {
+    // Only manifest errors — ensure trailing newline
+    context += "\n";
+  }
+
   return context;
 }
 
@@ -907,4 +957,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, buildCodePushFailureContext };

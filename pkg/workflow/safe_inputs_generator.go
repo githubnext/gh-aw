@@ -391,9 +391,3 @@ func GenerateSafeInputShellToolScriptForInspector(toolConfig *SafeInputToolConfi
 func GenerateSafeInputPythonToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
 	return generateSafeInputPythonToolScript(toolConfig)
 }
-
-// GenerateSafeInputGoToolScriptForInspector generates a Go script tool handler
-// This is a public wrapper for use by the CLI inspector command
-func GenerateSafeInputGoToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
-	return generateSafeInputGoToolScript(toolConfig)
-}

@@ -127,7 +127,7 @@ async function main() {
   // This is necessary because checkout was configured with sparse-checkout
   core.info(`Disabling sparse checkout...`);
   try {
-    execGitSync(["sparse-checkout", "disable"], { stdio: "pipe" });
+    execGitSync(["sparse-checkout", "disable"], { stdio: "pipe", suppressLogs: true });
   } catch (error) {
     // Ignore if sparse checkout wasn't enabled
     core.info("Sparse checkout was not enabled or already disabled");
@@ -140,7 +140,7 @@ async function main() {
 
     // Try to fetch the branch
     try {
-      execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe" });
+      execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", suppressLogs: true });
       execGitSync(["checkout", branchName], { stdio: "inherit" });
       core.info(`Checked out existing branch: ${branchName}`);
     } catch (fetchError) {
@@ -377,10 +377,10 @@ async function main() {
     // Pull with merge strategy (ours wins on conflicts)
     core.info(`Pulling latest changes from ${branchName}...`);
     try {
-      execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit" });
+      execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit", suppressLogs: true });
     } catch (error) {
       // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
-      core.warning(`Pull failed (this may be expected): ${getErrorMessage(error)}`);
+      core.info(`Pull failed (this is expected when branch does not exist yet): ${getErrorMessage(error)}`);
     }
 
     // Push changes
