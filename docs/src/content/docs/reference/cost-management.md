@@ -18,7 +18,7 @@ Every workflow job consumes Actions compute time billed at standard [GitHub Acti
 | Pre-activation / detection | Validates the trigger, runs membership checks, evaluates `skip-if-match` conditions | 10–30 seconds |
 | Agent | Runs the AI engine and executes tools | 1–15 minutes |
 
-Detection runs on every trigger regardless of whether the agent job proceeds, so high-frequency triggers multiply Actions minutes quickly even when the agent is skipped.
+Each job also incurs approximately 1.5 minutes of runner setup overhead on top of its execution time.
 
 ### Inference Costs
 
@@ -114,12 +114,10 @@ See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) and [Conc
 Scheduled workflows fire at a fixed cadence, making cost easy to estimate and cap:
 
 ```aw wrap
-on:
-  schedule:
-    - cron: '0 9 * * 1'  # Monday 9 AM UTC
+schedule: daily on weekdays
 ```
 
-One scheduled run per week = one agent invocation per week. See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for cron format.
+One scheduled run per weekday = five agent invocations per week. See [Schedule Syntax](/gh-aw/reference/schedule-syntax/) for the full fuzzy schedule syntax.
 
 ## Common Scenario Estimates
 
