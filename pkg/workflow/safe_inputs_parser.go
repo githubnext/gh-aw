@@ -59,12 +59,6 @@ func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
 }
 
-// IsSafeInputsHTTPMode checks if safe-inputs is configured to use HTTP mode
-// Note: All safe-inputs configurations now use HTTP mode exclusively
-func IsSafeInputsHTTPMode(safeInputs *SafeInputsConfig) bool {
-	return safeInputs != nil
-}
-
 // IsSafeInputsEnabled checks if safe-inputs are configured.
 // Safe-inputs are enabled by default when configured in the workflow.
 // The workflowData parameter is kept for backward compatibility but is not used.
@@ -204,26 +198,6 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 	}
 
 	return config, len(config.Tools) > 0
-}
-
-// ParseSafeInputs parses safe-inputs configuration from frontmatter (standalone function for testing)
-func ParseSafeInputs(frontmatter map[string]any) *SafeInputsConfig {
-	if frontmatter == nil {
-		return nil
-	}
-
-	safeInputs, exists := frontmatter["safe-inputs"]
-	if !exists {
-		return nil
-	}
-
-	safeInputsMap, ok := safeInputs.(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	config, _ := parseSafeInputsMap(safeInputsMap)
-	return config
 }
 
 // extractSafeInputsConfig extracts safe-inputs configuration from frontmatter

@@ -65,14 +65,6 @@ import (
 
 var mcpPlaywrightLog = logger.New("workflow:mcp_config_playwright_renderer")
 
-// renderPlaywrightMCPConfig generates the Playwright MCP server configuration
-// Uses Docker container to launch Playwright MCP for consistent browser environment
-// This is a shared function used by both Claude and Custom engines
-func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool) {
-	mcpPlaywrightLog.Print("Rendering Playwright MCP configuration")
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, isLast, false, false)
-}
-
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
