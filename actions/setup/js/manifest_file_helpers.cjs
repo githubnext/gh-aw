@@ -96,4 +96,28 @@ function checkForProtectedPaths(patchContent, pathPrefixes) {
   return { hasProtectedPaths: found.length > 0, protectedPathsFound: found };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths };
+/**
+ * Filters a list of protected file entries by removing entries that match at least one
+ * of the given allowed-files glob patterns.  Entries may be either basenames (from manifest
+ * file checks) or full paths (from path-prefix checks).  Glob matching supports `*` (matches
+ * any characters except `/`) and `**` (matches any characters including `/`).
+ *
+ * When `allowedFilePatterns` is empty or absent, the original list is returned unchanged.
+ *
+ * @param {string[]} protectedEntries - Mixed list of basenames and full paths that triggered protection
+ * @param {string[]} allowedFilePatterns - Glob patterns for files exempt from protection (e.g. ["go.mod", ".github/**"])
+ * @returns {string[]} Entries that are still protected after applying the allowed-files filter
+ */
+function filterAllowedFiles(protectedEntries, allowedFilePatterns) {
+  if (!allowedFilePatterns || allowedFilePatterns.length === 0) {
+    return protectedEntries;
+  }
+  if (!protectedEntries || protectedEntries.length === 0) {
+    return [];
+  }
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = allowedFilePatterns.map(p => globPatternToRegex(p));
+  return protectedEntries.filter(entry => !compiledPatterns.some(re => re.test(entry)));
+}
+
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, filterAllowedFiles };
