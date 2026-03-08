@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { extractFilenamesFromPatch, checkForManifestFiles } = require("./manifest_file_helpers.cjs");
+const { extractFilenamesFromPatch, checkForManifestFiles, checkAllowedFiles } = require("./manifest_file_helpers.cjs");
 
 describe("manifest_file_helpers", () => {
   describe("extractFilenamesFromPatch", () => {
@@ -277,6 +277,62 @@ index abc..def 100644
 `;
       const basenameResult = checkForManifestFiles(patch, ["AGENTS.md"]);
       expect(basenameResult.hasManifestFiles).toBe(true);
+    });
+  });
+
+  describe("checkAllowedFiles", () => {
+    it("should return no disallowed files when patterns is empty", () => {
+      const patch = `diff --git a/src/index.js b/src/index.js\n`;
+      const result = checkAllowedFiles(patch, []);
+      expect(result.hasDisallowedFiles).toBe(false);
+      expect(result.disallowedFiles).toEqual([]);
+    });
+
+    it("should return no disallowed files for empty patch", () => {
+      const result = checkAllowedFiles("", [".changeset/**"]);
+      expect(result.hasDisallowedFiles).toBe(false);
+      expect(result.disallowedFiles).toEqual([]);
+    });
+
+    it("should allow all files when all match the allowlist", () => {
+      const patch = `diff --git a/.changeset/patch-fix.md b/.changeset/patch-fix.md\nindex abc..def 100644\n`;
+      const result = checkAllowedFiles(patch, [".changeset/**"]);
+      expect(result.hasDisallowedFiles).toBe(false);
+      expect(result.disallowedFiles).toEqual([]);
+    });
+
+    it("should flag files not matching any allowed pattern", () => {
+      const patch = `diff --git a/src/index.js b/src/index.js\nindex abc..def 100644\n`;
+      const result = checkAllowedFiles(patch, [".changeset/**"]);
+      expect(result.hasDisallowedFiles).toBe(true);
+      expect(result.disallowedFiles).toContain("src/index.js");
+    });
+
+    it("should flag only the file outside the allowlist when mixed", () => {
+      const patch = [`diff --git a/.changeset/patch-fix.md b/.changeset/patch-fix.md`, `index abc..def 100644`, `diff --git a/src/index.js b/src/index.js`, `index abc..def 100644`].join("\n");
+      const result = checkAllowedFiles(patch, [".changeset/**"]);
+      expect(result.hasDisallowedFiles).toBe(true);
+      expect(result.disallowedFiles).toContain("src/index.js");
+      expect(result.disallowedFiles).not.toContain(".changeset/patch-fix.md");
+    });
+
+    it("should allow protected files when they are in the allowlist (protected-files bypassed)", () => {
+      const patch = `diff --git a/.github/aw/instructions.md b/.github/aw/instructions.md\nindex abc..def 100644\n`;
+      const result = checkAllowedFiles(patch, [".github/aw/instructions.md"]);
+      expect(result.hasDisallowedFiles).toBe(false);
+    });
+
+    it("should flag protected files not in the allowlist", () => {
+      const patch = `diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\nindex abc..def 100644\n`;
+      const result = checkAllowedFiles(patch, [".github/aw/instructions.md"]);
+      expect(result.hasDisallowedFiles).toBe(true);
+      expect(result.disallowedFiles).toContain(".github/workflows/ci.yml");
+    });
+
+    it("should support ** glob for deep path matching", () => {
+      const patch = `diff --git a/.changeset/deep/nested/entry.md b/.changeset/deep/nested/entry.md\nindex abc..def 100644\n`;
+      const result = checkAllowedFiles(patch, [".changeset/**"]);
+      expect(result.hasDisallowedFiles).toBe(false);
     });
   });
 });

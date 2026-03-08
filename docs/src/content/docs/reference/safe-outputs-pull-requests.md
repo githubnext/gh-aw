@@ -115,38 +115,35 @@ When protected file protection triggers and is set to `blocked`, the 🛡️ **P
 
 ### Exempting Specific Files with `allowed-files`
 
-When a workflow intentionally manages certain protected files, use `allowed-files` to exempt them without disabling all protection. Files matching any pattern in `allowed-files` bypass the `protected-files` policy entirely.
+When a workflow is designed to modify only specific files, use `allowed-files` to define a strict allowlist. When set, every file touched by the patch must match at least one pattern — any file outside the list is refused. The `protected-files` policy is completely bypassed when `allowed-files` is configured.
 
 ```yaml wrap
 safe-outputs:
   push-to-pull-request-branch:
     allowed-files:
-      - go.mod             # allow dependency updates to go.mod
-      - go.sum             # and the accompanying checksum file
-      - .github/dependabot.yml  # allow Dependabot configuration updates
+      - .changeset/**      # only changeset files may be pushed
 
   create-pull-request:
     allowed-files:
-      - package.json       # allow package.json changes
-      - "*.lock"           # allow any lockfile changes
+      - .github/aw/instructions.md  # only this one file may be modified
 ```
 
 Patterns support `*` (any characters except `/`) and `**` (any characters including `/`):
 
 | Pattern | Matches |
 |---------|---------|
-| `go.mod` | Exactly `go.mod` anywhere (basename match) |
-| `*.json` | Any JSON file in the root (e.g. `package.json`) |
-| `go.*` | `go.mod`, `go.sum`, etc. |
+| `go.mod` | Exactly `go.mod` at any path (full path comparison) |
+| `*.json` | Any JSON file at the root (e.g. `package.json`) |
+| `go.*` | `go.mod`, `go.sum`, etc. at the root |
 | `.github/**` | All files under `.github/` at any depth |
 | `.github/workflows/*.yml` | Only YAML files directly in `.github/workflows/` |
 | `**/package.json` | `package.json` at any path depth |
 
 > [!NOTE]
-> `allowed-files` takes priority over `protected-files`. A file matching an `allowed-files` pattern is always permitted, regardless of the `protected-files` policy.
+> When `allowed-files` is set, it acts as a strict allowlist: only the listed files may be modified. Any file outside the list is refused and `protected-files` is ignored. When `allowed-files` is not set, the `protected-files` policy applies as usual.
 
 > [!WARNING]
-> `allowed-files` should list only the files the workflow legitimately manages. Listing broad patterns (e.g., `.github/**`) defeats the supply-chain protections for those paths.
+> `allowed-files` should enumerate exactly the files the workflow legitimately manages. Overly broad patterns (e.g., `**`) disable all protection.
 
 ### Protected Files
 

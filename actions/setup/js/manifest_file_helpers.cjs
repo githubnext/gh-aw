@@ -97,27 +97,32 @@ function checkForProtectedPaths(patchContent, pathPrefixes) {
 }
 
 /**
- * Filters a list of protected file entries by removing entries that match at least one
- * of the given allowed-files glob patterns.  Entries may be either basenames (from manifest
- * file checks) or full paths (from path-prefix checks).  Glob matching supports `*` (matches
- * any characters except `/`) and `**` (matches any characters including `/`).
+ * Checks all files in a patch against an allowlist of glob patterns.
+ * When `allowed-files` is configured, it acts as a strict allowlist: every file
+ * touched by the patch must match at least one pattern; files that do not match
+ * are returned as disallowed.  Protected-files checks are completely bypassed
+ * when this function is used.
  *
- * When `allowedFilePatterns` is empty or absent, the original list is returned unchanged.
+ * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
+ * any characters including `/`).  Each changed file is tested as its full path
+ * (e.g. `.github/workflows/ci.yml`) against the provided patterns.
  *
- * @param {string[]} protectedEntries - Mixed list of basenames and full paths that triggered protection
- * @param {string[]} allowedFilePatterns - Glob patterns for files exempt from protection (e.g. ["go.mod", ".github/**"])
- * @returns {string[]} Entries that are still protected after applying the allowed-files filter
+ * @param {string} patchContent - The git patch content
+ * @param {string[]} allowedFilePatterns - Glob patterns for files permitted by the allowlist
+ * @returns {{ hasDisallowedFiles: boolean, disallowedFiles: string[] }}
  */
-function filterAllowedFiles(protectedEntries, allowedFilePatterns) {
+function checkAllowedFiles(patchContent, allowedFilePatterns) {
   if (!allowedFilePatterns || allowedFilePatterns.length === 0) {
-    return protectedEntries;
+    return { hasDisallowedFiles: false, disallowedFiles: [] };
   }
-  if (!protectedEntries || protectedEntries.length === 0) {
-    return [];
+  const allPaths = extractPathsFromPatch(patchContent);
+  if (allPaths.length === 0) {
+    return { hasDisallowedFiles: false, disallowedFiles: [] };
   }
   const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
   const compiledPatterns = allowedFilePatterns.map(p => globPatternToRegex(p));
-  return protectedEntries.filter(entry => !compiledPatterns.some(re => re.test(entry)));
+  const disallowedFiles = allPaths.filter(p => !compiledPatterns.some(re => re.test(p)));
+  return { hasDisallowedFiles: disallowedFiles.length > 0, disallowedFiles };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, filterAllowedFiles };
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles };
