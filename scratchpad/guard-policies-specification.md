@@ -42,10 +42,13 @@ Based on the provided JSON schema, the implementation supports:
   - `"owner/prefix*"` - Repositories with name prefix under owner
 
 **Integrity Levels:**
-- `"none"` - No min-integrity requirements
-- `"unapproved"` - Unapproved-level integrity
-- `"approved"` - Approved-level integrity
-- `"merged"` - Merged-level integrity
+
+Integrity levels are based on the combination of the `author_association` field associated with GitHub objects and whether an object is reachable from the main branch:
+
+- `"merged"` - Objects reachable from the main branch (highest integrity, regardless of authorship)
+- `"approved"` - Objects with `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR`
+- `"unapproved"` - Objects with `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`
+- `"none"` - Objects with `author_association` of `FIRST_TIMER` or `NONE` (lowest integrity)
 
 ### 3. Frontmatter Syntax
 

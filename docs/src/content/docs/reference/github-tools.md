@@ -101,14 +101,24 @@ tools:
 
 ### `min-integrity`
 
-Sets the minimum integrity level required for repository access:
+Sets the minimum integrity level required for repository access.
 
-| Level | Description |
-|-------|-------------|
-| `none` | No integrity requirements |
-| `unapproved` | Unapproved-level integrity |
-| `approved` | Approved-level integrity |
-| `merged` | Merged-level integrity |
+#### Integrity Level Definitions
+
+Integrity levels are determined based on the combination of the `author_association` field associated with GitHub objects (issues, pull requests, comments, etc.) and whether an object is reachable from the main branch:
+
+| Level | Criteria |
+|-------|----------|
+| `merged` | Objects reachable from the main branch (regardless of authorship) |
+| `approved` | Objects with `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR` |
+| `unapproved` | Objects with `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` |
+| `none` | Objects with `author_association` of `FIRST_TIMER` or `NONE` |
+
+**How it works:**
+- **Merged content** has the highest integrity because it has been reviewed and merged into the main branch
+- **Approved contributors** (owners, members, collaborators) have established trust relationships with the repository
+- **Unapproved contributors** have made contributions but lack formal repository access
+- **None level** includes first-time interactions and users with no prior contribution history
 
 ### Examples
 

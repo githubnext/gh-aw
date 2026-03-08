@@ -1723,6 +1723,12 @@ Pattern validation rules:
 
 **Integrity Levels**: `none` | `unapproved` | `approved` | `merged` (case-sensitive)
 
+Integrity levels are determined by the `author_association` field and main branch reachability:
+- `merged`: Objects reachable from the main branch (highest integrity)
+- `approved`: `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR`
+- `unapproved`: `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`
+- `none`: `author_association` of `FIRST_TIMER` or `NONE` (lowest integrity)
+
 **Validation Location**: `pkg/workflow/tools_validation.go` — `validateGitHubGuardPolicy()` runs during workflow compilation via `compiler_orchestrator_workflow.go` and `compiler_string_api.go`.
 
 **Extensibility**: The `MCPServerConfig` struct holds a `GuardPolicies map[string]any` field for future MCP servers (e.g., Jira, WorkIQ) that need server-specific policy schemas.
