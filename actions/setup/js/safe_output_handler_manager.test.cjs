@@ -973,4 +973,45 @@ describe("Safe Output Handler Manager", () => {
       expect(result.codePushFailures).toHaveLength(0);
     });
   });
+
+  describe("output emission via emitSafeOutputActionOutputs", () => {
+    it("processMessages result includes create_issue result with number and url for emission", async () => {
+      const messages = [{ type: "create_issue", title: "My Issue" }];
+      const mockHandler = vi.fn().mockResolvedValue({ number: 42, url: "https://github.com/owner/repo/issues/42" });
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      const issueResult = result.results.find(r => r.type === "create_issue" && r.success);
+      expect(issueResult).toBeDefined();
+      expect(issueResult.result.number).toBe(42);
+      expect(issueResult.result.url).toBe("https://github.com/owner/repo/issues/42");
+    });
+
+    it("processMessages result with failed create_issue does not include success result for emission", async () => {
+      const messages = [{ type: "create_issue", title: "Failing Issue" }];
+      const mockHandler = vi.fn().mockRejectedValue(new Error("API error"));
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      const successfulIssueResult = result.results.find(r => r.type === "create_issue" && r.success);
+      expect(successfulIssueResult).toBeUndefined();
+    });
+
+    it("core.setOutput is called with created_issue_number when create_issue succeeds", async () => {
+      const messages = [{ type: "create_issue", title: "My Issue" }];
+      const mockHandler = vi.fn().mockResolvedValue({ number: 7, url: "https://github.com/owner/repo/issues/7" });
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      // Simulate what main() does: call emitSafeOutputActionOutputs with the result
+      const { emitSafeOutputActionOutputs } = await import("./safe_outputs_action_outputs.cjs");
+      emitSafeOutputActionOutputs(result);
+
+      expect(global.core.setOutput).toHaveBeenCalledWith("created_issue_number", "7");
+      expect(global.core.setOutput).toHaveBeenCalledWith("created_issue_url", "https://github.com/owner/repo/issues/7");
+    });
+  });
 });
