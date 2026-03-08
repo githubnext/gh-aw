@@ -77,7 +77,7 @@ Missing-tool errors typically appear in this format:
 
 ```
 Error: Tool 'github:read_issue' not found
-Error: missing tool configuration for safeinputs-gh
+Error: missing tool configuration for mcpscripts-gh
 ```
 
 To identify which tools are missing:
@@ -194,7 +194,7 @@ Analyze repository issues and provide insights.
 
 ### Configuring MCP Scripts and Safe-Outputs
 
-**Problem**: Workflow fails with missing safeinputs-gh or safe-output errors.
+**Problem**: Workflow fails with missing mcpscripts-gh or safe-output errors.
 
 **Solution**: Configure mcp-scripts and safe-outputs in the workflow.
 
@@ -303,7 +303,7 @@ The DeepReport Intelligence Briefing (Discussion #7277) identified several workf
 
 1. **Weekly Issue Summary workflow** - Failed in recent runs
 2. **Dev workflow** - Missing GitHub MCP read_issue capability (Run #20435819459)
-3. **Daily Copilot PR Merged workflow** - Missing safeinputs-gh tool
+3. **Daily Copilot PR Merged workflow** - Missing mcpscripts-gh tool
 
 ### Investigation
 
@@ -318,7 +318,7 @@ The DeepReport Intelligence Briefing (Discussion #7277) identified several workf
 - The workflow attempted to read issue information without GitHub MCP toolset
 
 **Daily Copilot PR Merged**:
-- Error: "missing tool configuration for safeinputs-gh"
+- Error: "missing tool configuration for mcpscripts-gh"
 - Root cause: MCP Scripts action not set up in workflow
 - PR merge data not being passed securely to agent
 

@@ -378,7 +378,7 @@ describe("add_comment", () => {
 
       const message = {
         type: "add_comment",
-        body: "## Smoke Test: Copilot Safe Inputs\n\n✅ Test passed",
+        body: "## Smoke Test: Copilot MCP Scripts\n\n✅ Test passed",
       };
 
       const result = await handler(message, {});

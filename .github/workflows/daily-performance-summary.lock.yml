@@ -31,7 +31,7 @@
 #
 # gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c18fdbf83211c18b0c1841b7350de90b0a4b88a7a5a0a0c2026345fc6054c691","strict":true}
 
-name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 "on":
   schedule:
   - cron: "26 19 * * *"
@@ -43,7 +43,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+run-name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 
 jobs:
   activation:
@@ -74,7 +74,7 @@ jobs:
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
-          GH_AW_INFO_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_INFO_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -1517,7 +1517,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           WORKFLOW_DESCRIPTION: "Daily project performance summary (90-day window) with trend charts using mcp-scripts"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
@@ -1653,7 +1653,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1667,7 +1667,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1681,7 +1681,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1705,7 +1705,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1733,7 +1733,7 @@ jobs:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_TRACKER_ID: "daily-performance-summary"
       GH_AW_WORKFLOW_ID: "daily-performance-summary"
-      GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+      GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
@@ -1901,7 +1901,7 @@ jobs:
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
           GH_AW_ENGINE_ID: "copilot"
         with:

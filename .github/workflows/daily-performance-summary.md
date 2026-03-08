@@ -34,7 +34,7 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Project Performance Summary Generator (Using Safe Inputs)
+# Daily Project Performance Summary Generator (Using MCP Scripts)
 
 You are an expert analyst that generates comprehensive daily performance summaries using **mcp-script tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
 

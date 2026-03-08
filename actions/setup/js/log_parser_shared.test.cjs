@@ -938,7 +938,7 @@ describe("log_parser_shared.cjs", () => {
       const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
 
       const initEntry = {
-        tools: ["safeinputs-get_data", "safeinputs-query_database", "mcp_scripts-fetch_config"],
+        tools: ["safeinputs-get_data", "safeinputs-query_database", "mcp_scripts-fetch_config", "mcpscripts-query_issues"],
       };
 
       const result = formatInitializationSummary(initEntry);
@@ -947,9 +947,11 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("get_data");
       expect(result.markdown).toContain("query_database");
       expect(result.markdown).toContain("fetch_config");
+      expect(result.markdown).toContain("query_issues");
       // Should NOT contain the prefix in output
       expect(result.markdown).not.toContain("safeinputs-");
       expect(result.markdown).not.toContain("mcp_scripts-");
+      expect(result.markdown).not.toContain("mcpscripts-");
     });
   });
 
