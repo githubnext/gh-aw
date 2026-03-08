@@ -125,4 +125,44 @@ function checkAllowedFiles(patchContent, allowedFilePatterns) {
   return { hasDisallowedFiles: disallowedFiles.length > 0, disallowedFiles };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles };
+/**
+ * Evaluates a patch against the configured file-protection policy and returns a
+ * single structured result, eliminating nested branching in callers.
+ *
+ * Resolution order:
+ * 1. If `allowed_files` is set → strict allowlist check; `protected-files` is bypassed.
+ * 2. If `protected_files_policy === "allowed"` → no restriction.
+ * 3. Otherwise → manifest + path-prefix check, honouring `fallback-to-issue`.
+ *
+ * @param {string} patchContent - The git patch content
+ * @param {{ allowed_files?: string[], protected_files?: string[], protected_path_prefixes?: string[], protected_files_policy?: string }} config
+ * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
+ */
+function checkFileProtection(patchContent, config) {
+  const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
+  if (allowedFilePatterns.length > 0) {
+    const { disallowedFiles } = checkAllowedFiles(patchContent, allowedFilePatterns);
+    if (disallowedFiles.length > 0) {
+      return { action: "deny", source: "allowlist", files: disallowedFiles };
+    }
+    return { action: "allow" };
+  }
+
+  if (config.protected_files_policy === "allowed") {
+    return { action: "allow" };
+  }
+
+  const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
+  const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
+  const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
+  const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
+  const allFound = [...manifestFilesFound, ...protectedPathsFound];
+
+  if (allFound.length === 0) {
+    return { action: "allow" };
+  }
+
+  return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
+}
+
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkFileProtection };
