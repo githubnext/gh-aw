@@ -1137,7 +1137,7 @@ func TestRepoMemoryNonWikiPromptSection(t *testing.T) {
 	wikiNote := section.EnvVars["GH_AW_WIKI_NOTE"]
 	// Non-wiki mode should use a GitHub expression that evaluates to empty string.
 	// This ensures __GH_AW_WIKI_NOTE__ is always substituted via expression interpolation.
-	assert.Equal(t, "${{ '' }}", wikiNote, "Non-wiki mode should use empty string expression for GH_AW_WIKI_NOTE")
+	assert.Equal(t, ghaEmptyStringExpr, wikiNote, "Non-wiki mode should use empty string expression for GH_AW_WIKI_NOTE")
 }
 
 // TestRepoMemoryWikiPushAllowedRepos tests that wiki mode sets REPO_MEMORY_ALLOWED_REPOS
