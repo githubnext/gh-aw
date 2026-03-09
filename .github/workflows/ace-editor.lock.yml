@@ -80,6 +80,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "ACE Editor Session"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Generates an ACE editor session link when invoked with /ace command on pull request comments"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses GitHub Copilot CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

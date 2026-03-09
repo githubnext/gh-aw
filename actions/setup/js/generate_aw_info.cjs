@@ -54,6 +54,8 @@ async function main(core, ctx) {
     version: process.env.GH_AW_INFO_VERSION || "",
     agent_version: process.env.GH_AW_INFO_AGENT_VERSION || "",
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",
+    workflow_description: process.env.GH_AW_INFO_WORKFLOW_DESCRIPTION || "",
+    engine_description: process.env.GH_AW_INFO_ENGINE_DESCRIPTION || "",
     experimental: process.env.GH_AW_INFO_EXPERIMENTAL === "true",
     supports_tools_allowlist: process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST === "true",
     run_id: ctx.runId,

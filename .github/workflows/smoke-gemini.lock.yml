@@ -90,6 +90,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: ""
           GH_AW_INFO_WORKFLOW_NAME: "Smoke Gemini"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Smoke test workflow that validates Gemini engine functionality twice daily"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Google Gemini CLI with headless mode and LLM gateway support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

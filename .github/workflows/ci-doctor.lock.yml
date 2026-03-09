@@ -83,6 +83,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "CI Failure Doctor"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses GitHub Copilot CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

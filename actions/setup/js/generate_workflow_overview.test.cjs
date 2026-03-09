@@ -54,6 +54,7 @@ describe("generate_workflow_overview.cjs", () => {
       engine_id: "copilot",
       engine_name: "GitHub Copilot",
       model: "gpt-4",
+      workflow_name: "My Test Workflow",
       firewall_enabled: true,
       awf_version: "1.0.0",
       allowed_domains: [],
@@ -66,6 +67,9 @@ describe("generate_workflow_overview.cjs", () => {
     expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryArg).toContain("## 🤖 My Test Workflow");
+    expect(summaryArg).toContain("| **Agent** | GitHub Copilot |");
+    expect(summaryArg).toContain("| **Model** | gpt-4 |");
     expect(summaryArg).toContain("<details>");
     expect(summaryArg).toContain("<summary>Run details</summary>");
     expect(summaryArg).toContain("#### Engine Configuration");
@@ -76,6 +80,55 @@ describe("generate_workflow_overview.cjs", () => {
     expect(summaryArg).toContain("| Firewall | ✅ Enabled |");
     expect(summaryArg).toContain("| Firewall Version | 1.0.0 |");
     expect(summaryArg).toContain("</details>");
+  });
+
+  it("should show workflow description when present", async () => {
+    const awInfo = {
+      engine_id: "copilot",
+      engine_name: "GitHub Copilot",
+      model: "gpt-4",
+      workflow_name: "My Test Workflow",
+      workflow_description: "Analyzes PRs for breaking changes",
+      firewall_enabled: false,
+    };
+    fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
+
+    await generateWorkflowOverview(mockCore);
+
+    const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryArg).toContain("## 🤖 My Test Workflow");
+    expect(summaryArg).toContain("Analyzes PRs for breaking changes");
+  });
+
+  it("should show engine description in run details when present", async () => {
+    const awInfo = {
+      engine_id: "claude",
+      engine_name: "Claude Code",
+      engine_description: "Uses Claude Code with full MCP tool support and allow-listing",
+      model: "claude-sonnet",
+      workflow_name: "My Workflow",
+      firewall_enabled: false,
+    };
+    fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
+
+    await generateWorkflowOverview(mockCore);
+
+    const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryArg).toContain("_Uses Claude Code with full MCP tool support and allow-listing_");
+  });
+
+  it("should fall back to default title when workflow_name is missing", async () => {
+    const awInfo = {
+      engine_id: "copilot",
+      engine_name: "GitHub Copilot",
+      firewall_enabled: false,
+    };
+    fs.writeFileSync(awInfoPath, JSON.stringify(awInfo));
+
+    await generateWorkflowOverview(mockCore);
+
+    const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryArg).toContain("## 🤖 Agentic Workflow");
   });
 
   it("should handle missing optional fields with defaults", async () => {
@@ -90,6 +143,8 @@ describe("generate_workflow_overview.cjs", () => {
     await generateWorkflowOverview(mockCore);
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryArg).toContain("## 🤖 Agentic Workflow");
+    expect(summaryArg).toContain("| **Model** | (default) |");
     expect(summaryArg).toContain("| Model | (default) |");
     expect(summaryArg).toContain("| Firewall | ❌ Disabled |");
     expect(summaryArg).toContain("| Firewall Version | (latest) |");

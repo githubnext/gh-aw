@@ -78,6 +78,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Copilot Session Insights"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot coding agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses Claude Code with full MCP tool support and allow-listing"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

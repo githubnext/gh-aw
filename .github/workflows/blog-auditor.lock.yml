@@ -73,6 +73,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Blog Auditor"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Verifies that the GitHub Next Agentic Workflows blog page is accessible and contains expected content"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses Claude Code with full MCP tool support and allow-listing"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

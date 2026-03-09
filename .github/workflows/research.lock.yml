@@ -76,6 +76,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Basic Research Agent"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Performs web research on any topic using Tavily search and creates a discussion with findings"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses GitHub Copilot CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

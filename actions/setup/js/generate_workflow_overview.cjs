@@ -28,7 +28,23 @@ async function generateWorkflowOverview(core) {
   }
 
   // Build summary using string concatenation to avoid YAML parsing issues with template literals
-  const summary =
+
+  // Workflow title (shown at top level, not inside a collapsible section)
+  const title = awInfo.workflow_name || "Agentic Workflow";
+  let summary = `## 🤖 ${title}\n\n`;
+
+  // Workflow description (if available)
+  if (awInfo.workflow_description) {
+    summary += `${awInfo.workflow_description}\n\n`;
+  }
+
+  // Agent and model info (key info shown prominently, not hidden in collapsible)
+  const engineName = awInfo.engine_name || awInfo.engine_id || "Unknown";
+  const model = awInfo.model || "(default)";
+  summary += "| | |\n" + "|:--|:--|\n" + `| **Agent** | ${engineName} |\n` + `| **Model** | ${model} |\n` + "\n";
+
+  // Collapsible run details section for technical configuration
+  summary +=
     "<details>\n" +
     "<summary>Run details</summary>\n\n" +
     "#### Engine Configuration\n" +
@@ -36,7 +52,14 @@ async function generateWorkflowOverview(core) {
     "|----------|-------|\n" +
     `| Engine ID | ${awInfo.engine_id} |\n` +
     `| Engine Name | ${awInfo.engine_name} |\n` +
-    `| Model | ${awInfo.model || "(default)"} |\n` +
+    `| Model | ${awInfo.model || "(default)"} |\n`;
+
+  // Engine description (if available)
+  if (awInfo.engine_description) {
+    summary += "\n" + `_${awInfo.engine_description}_\n`;
+  }
+
+  summary +=
     "\n" +
     "#### Network Configuration\n" +
     "| Property | Value |\n" +

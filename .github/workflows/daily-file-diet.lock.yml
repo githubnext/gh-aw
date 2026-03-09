@@ -76,6 +76,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Daily File Diet"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the healthy size threshold"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses GitHub Copilot CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

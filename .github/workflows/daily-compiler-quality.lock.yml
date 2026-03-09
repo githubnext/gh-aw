@@ -73,6 +73,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Compiler Quality Check"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses GitHub Copilot CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

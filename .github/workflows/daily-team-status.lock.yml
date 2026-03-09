@@ -82,6 +82,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Team Status"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "This workflow created daily team status reporter creating upbeat activity summaries.\nGathers recent repository activity (issues, PRs, releases, code changes)\nand generates engaging GitHub issues with productivity insights, community\nhighlights, and project recommendations. Uses a positive, encouraging tone with\nmoderate emoji usage to boost team morale."
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses GitHub Copilot CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

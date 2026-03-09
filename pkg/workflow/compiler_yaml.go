@@ -625,6 +625,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		fmt.Fprintf(yaml, "          GH_AW_INFO_CLI_VERSION: \"%s\"\n", c.version)
 	}
 	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", data.Name)
+	// JSON-encode description to handle special characters and newlines safely as a YAML double-quoted string
+	descriptionJSON, _ := json.Marshal(data.Description)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_DESCRIPTION: %s\n", string(descriptionJSON))
+	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_DESCRIPTION: \"%s\"\n", engine.GetDescription())
 	fmt.Fprintf(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", engine.IsExperimental())
 	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.SupportsToolsAllowlist())
 	fmt.Fprintf(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", stagedValue)

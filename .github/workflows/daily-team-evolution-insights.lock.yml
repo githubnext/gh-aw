@@ -73,6 +73,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Team Evolution Insights"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Daily analysis of repository changes to extract insights about team evolution and working patterns"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses Claude Code with full MCP tool support and allow-listing"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

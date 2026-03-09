@@ -73,6 +73,8 @@ jobs:
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
           GH_AW_INFO_WORKFLOW_NAME: "Duplicate Code Detector"
+          GH_AW_INFO_WORKFLOW_DESCRIPTION: "Identifies duplicate code patterns across the codebase and suggests refactoring opportunities"
+          GH_AW_INFO_ENGINE_DESCRIPTION: "Uses OpenAI Codex CLI with MCP server support"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
