@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-03-01 · Source: [Issue #19025](https://github.com/github/gh-aw/issues/19025)
+> Last updated: 2026-03-09 · Source: [Issue #20166](https://github.com/github/gh-aw/issues/20166)
 
 ## Overview
 
