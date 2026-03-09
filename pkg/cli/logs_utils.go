@@ -38,6 +38,8 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 		return nil, fmt.Errorf("failed to glob .lock.yml files: %w", err)
 	}
 
+	logsUtilsLog.Printf("Found %d .lock.yml file(s) in %s", len(files), workflowsDir)
+
 	for _, file := range files {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading workflow file: "+file))
@@ -64,6 +66,7 @@ func getAgenticWorkflowNames(verbose bool) ([]string, error) {
 					name = strings.Trim(name, `"'`)
 					if name != "" {
 						workflowNames = append(workflowNames, name)
+						logsUtilsLog.Printf("Discovered workflow name: %s (from %s)", name, file)
 						if verbose {
 							fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found agentic workflow: "+name))
 						}

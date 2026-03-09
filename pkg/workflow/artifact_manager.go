@@ -87,6 +87,7 @@ type ArtifactFile struct {
 
 // NewArtifactManager creates a new artifact manager
 func NewArtifactManager() *ArtifactManager {
+	artifactManagerLog.Print("Creating new artifact manager")
 	return &ArtifactManager{
 		uploads:   make(map[string][]*ArtifactUpload),
 		downloads: make(map[string][]*ArtifactDownload),

@@ -121,6 +121,7 @@ func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool,
 	// Update GitHub Actions versions in actions-lock.json.
 	// By default all actions are updated to the latest major version.
 	// Pass --disable-release-bump to revert to only forcing updates for core (actions/*) actions.
+	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", allowMajor, disableReleaseBump)
 	if err := UpdateActions(allowMajor, verbose, disableReleaseBump); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
@@ -128,10 +129,12 @@ func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool,
 
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
+	updateLog.Print("Updating action references in workflow .md files")
 	if err := UpdateActionsInWorkflowFiles(workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
 	}
 
+	updateLog.Printf("Update process complete: had_error=%v", firstErr != nil)
 	return firstErr
 }
