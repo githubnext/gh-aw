@@ -95,11 +95,10 @@ concurrency:
 
 This generates a unique job-level concurrency group per dispatched run, preventing fan-out cancellations while preserving the per-workflow concurrency group at the workflow level.
 
-`job-discriminator` can be combined with an explicit `group`:
+Example usage:
 
 ```yaml wrap
 concurrency:
-  group: gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}
   job-discriminator: ${{ inputs.finding_id }}
 ```
 
