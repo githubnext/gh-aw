@@ -904,6 +904,15 @@ concurrency:
   # (optional)
   cancel-in-progress: true
 
+  # Additional discriminator expression appended to compiler-generated job-level
+  # concurrency groups (agent, output jobs). Use this in fan-out patterns where
+  # multiple workflow instances are dispatched concurrently with different inputs,
+  # to prevent job-level concurrency groups from colliding and causing cancellations.
+  # Supports GitHub Actions expressions. Stripped from the compiled lock file
+  # (gh-aw extension, not a GitHub Actions field).
+  # (optional)
+  job-discriminator: "${{ inputs.finding_id }}"
+
 # Environment variables for the workflow
 # (optional)
 # This field supports multiple formats (oneOf):
