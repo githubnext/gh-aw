@@ -67,6 +67,13 @@ A service that implements the Model Context Protocol to provide specific capabil
 
 Capabilities that an AI agent can use during workflow execution. Tools are configured in the frontmatter and include GitHub operations ([`github:`](/gh-aw/reference/github-tools/)), file editing (`edit:`), web access (`web-fetch:`, `web-search:`), shell commands (`bash:`), browser automation ([`playwright:`](/gh-aw/reference/playwright/)), and custom MCP servers.
 
+### Guard Policy
+
+An experimental access control configuration for the GitHub MCP server that restricts which repositories and content integrity levels the agent can read. Configured via `tools.github.repos` (repository scope: `"all"`, `"public"`, or a list of patterns) and `tools.github.min-integrity` (minimum required integrity level). Both fields are required when either is specified. Integrity levels by trust: `merged` (content reachable from the main branch) > `approved` (owners, members, collaborators) > `unapproved` (contributors) > `none` (first-time users). See [GitHub Tools Reference](/gh-aw/reference/github-tools/#guard-policies).
+
+> [!NOTE]
+> Guard policy fields are experimental and may change in future releases. Using either field emits a compilation warning.
+
 ## Security and Outputs
 
 ### MCP Scripts
@@ -156,6 +163,14 @@ A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric chara
 ### Update Issue
 
 A safe output capability (`update-issue:`) for modifying existing issues without creating new ones. Each updatable field (`status`, `title`, `body`) must be explicitly enabled. Body updates accept an `operation` field: `append` (default), `prepend`, `replace`, or `replace-island` (updates a specific section delimited by HTML comments). Supports cross-repository issue updates. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-updates-update-issue).
+
+### Protected Files
+
+A security mechanism on `create-pull-request` and `push-to-pull-request-branch` safe outputs that prevents AI agents from modifying sensitive repository files. By default, protects dependency manifests (e.g., `package.json`, `go.mod`), GitHub Actions workflow files, and lock files. Configured via `protected-files:` with three policies: `blocked` (default — fails with error), `allowed` (no restriction), or `fallback-to-issue` (creates a review issue for human inspection instead of applying changes). See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#protected-files).
+
+### Allowed Files
+
+A strict scope filter for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, only files matching those patterns may be modified — any other file is refused. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#exempting-specific-files-with-allowed-files).
 
 ## Workflow Components
 
