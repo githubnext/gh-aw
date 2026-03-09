@@ -9,7 +9,7 @@ const setupShContent = readFileSync(SETUP_SH, "utf8");
 
 /**
  * Parse a bash array from setup.sh, e.g.:
- *   SAFE_INPUTS_FILES=(
+ *   MCP_SCRIPTS_FILES=(
  *     "file1.cjs"
  *     "file2.cjs"
  *   )
@@ -55,23 +55,23 @@ function collectTransitiveDeps(rootFiles) {
   return visited;
 }
 
-const safeInputsFiles = parseSetupShArray("SAFE_INPUTS_FILES");
+const mcpScriptsFiles = parseSetupShArray("MCP_SCRIPTS_FILES");
 const safeOutputsFiles = parseSetupShArray("SAFE_OUTPUTS_FILES");
 
 // safe-outputs-mcp-server.cjs is the entry point copied separately as mcp-server.cjs
 // Its deps must also be covered by SAFE_OUTPUTS_FILES
 const safeOutputsRoots = [...safeOutputsFiles, "safe-outputs-mcp-server.cjs"];
 
-describe("setup.sh SAFE_INPUTS_FILES", () => {
+describe("setup.sh MCP_SCRIPTS_FILES", () => {
   it("contains all transitive local dependencies", () => {
-    const listed = new Set(safeInputsFiles);
-    const allDeps = collectTransitiveDeps(safeInputsFiles);
+    const listed = new Set(mcpScriptsFiles);
+    const allDeps = collectTransitiveDeps(mcpScriptsFiles);
     const missing = [...allDeps].filter(f => !listed.has(f));
     expect(missing).toEqual([]);
   });
 
   it("all listed files exist in js/", () => {
-    const missing = safeInputsFiles.filter(f => !existsSync(resolve(__dirname, f)));
+    const missing = mcpScriptsFiles.filter(f => !existsSync(resolve(__dirname, f)));
     expect(missing).toEqual([]);
   });
 });

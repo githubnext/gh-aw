@@ -54,11 +54,11 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("            await main();\n")
 }
 
-// generateSafeInputsLogParsing generates a step that parses safe-inputs logs and adds them to the step summary
-func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
-	compilerYamlLog.Print("Generating safe-inputs log parsing step")
+// generateMCPScriptsLogParsing generates a step that parses mcp-scripts logs and adds them to the step summary
+func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating mcp-scripts log parsing step")
 
-	yaml.WriteString("      - name: Parse Safe Inputs logs for step summary\n")
+	yaml.WriteString("      - name: Parse MCP Scripts logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
@@ -67,8 +67,8 @@ func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
-	// Load safe-inputs log parser script from external file using require()
-	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
+	// Load mcp-scripts log parser script from external file using require()
+	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/parse_mcp_scripts_logs.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }
 

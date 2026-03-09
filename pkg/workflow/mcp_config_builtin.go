@@ -69,7 +69,7 @@
 //   - mcp_renderer.go: Main renderer that calls these functions
 //   - mcp_setup_generator.go: Generates setup steps for these servers
 //   - safe_outputs.go: Safe-outputs configuration and validation
-//   - safe_inputs.go: Safe-inputs configuration (similar pattern)
+//   - mcp_scripts.go: MCP Scripts configuration (similar pattern)
 //
 // Example safe-outputs config:
 //
@@ -109,7 +109,7 @@ import (
 var mcpBuiltinLog = logger.New("workflow:mcp-config-builtin")
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
-// Now uses HTTP transport instead of stdio, similar to safe-inputs
+// Now uses HTTP transport instead of stdio, similar to mcp-scripts
 // The server is started in a separate step before the agent job
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	mcpBuiltinLog.Printf("Rendering Safe Outputs MCP config with options: isLast=%v, includeCopilotFields=%v", isLast, includeCopilotFields)

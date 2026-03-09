@@ -131,7 +131,7 @@ Shared workflow files (without `on:` field) can define:
 - `mcp-servers:` - Model Context Protocol server configurations
 - `services:` - Docker services for workflow execution
 - `safe-outputs:` - Safe output handlers and configuration
-- `safe-inputs:` - Safe input configurations
+- `mcp-scripts:` - MCP Scripts configurations
 - `network:` - Network permission specifications
 - `permissions:` - GitHub Actions permissions (validated, not merged)
 - `runtimes:` - Runtime version overrides (node, python, go, etc.)

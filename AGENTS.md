@@ -905,7 +905,7 @@ if engine.IsValid() {
 **Available semantic types in `pkg/constants`**:
 - `LineLength` - Character counts for formatting (e.g., `MaxExpressionLineLength`)
 - `Version` - Software version strings (e.g., `DefaultCopilotVersion`)
-- `FeatureFlag` - Feature flag identifiers (e.g., `SafeInputsFeatureFlag`)
+- `FeatureFlag` - Feature flag identifiers (e.g., `MCPScriptsFeatureFlag`)
 - `URL` - URL strings (e.g., `DefaultMCPRegistryURL`)
 - `ModelName` - AI model names (e.g., `DefaultCopilotDetectionModel`)
 - `JobName` - GitHub Actions job identifiers (e.g., `AgentJobName`)
@@ -955,7 +955,7 @@ The `FrontmatterConfig` struct in `pkg/workflow/frontmatter_types.go` is gradual
 - `Tools *ToolsConfig` - Tool and MCP server configurations
 - `Network *NetworkPermissions` - Network access permissions
 - `SafeOutputs *SafeOutputsConfig` - Safe output configurations
-- `SafeInputs *SafeInputsConfig` - Safe input configurations
+- `MCPScripts *MCPScriptsConfig` - MCP Scripts configurations
 - `Sandbox *SandboxConfig` - Sandbox environment configuration
 - `RuntimesTyped *RuntimesConfig` - Runtime version overrides (node, python, go, uv, bun, deno)
 - `PermissionsTyped *PermissionsConfig` - GitHub Actions permissions (shorthand + detailed)

@@ -65,14 +65,14 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 		geminiLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
 	}
 
-	// Add safe-inputs secret names
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		for varName := range safeInputsSecrets {
+	// Add mcp-scripts secret names
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName := range mcpScriptsSecrets {
 			secrets = append(secrets, varName)
 		}
-		if len(safeInputsSecrets) > 0 {
-			geminiLog.Printf("Added %d safe-inputs secrets", len(safeInputsSecrets))
+		if len(mcpScriptsSecrets) > 0 {
+			geminiLog.Printf("Added %d mcp-scripts secrets", len(mcpScriptsSecrets))
 		}
 	}
 

@@ -31,7 +31,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
-const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
+const { validateRequiredFields } = require("./mcp_scripts_validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 

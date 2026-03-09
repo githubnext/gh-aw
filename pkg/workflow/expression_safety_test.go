@@ -730,7 +730,7 @@ func TestValidateExpressionForDangerousProps(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "allow_safe_inputs",
+			name:        "allow_mcp_scripts",
 			expression:  "inputs.repository",
 			expectError: false,
 		},

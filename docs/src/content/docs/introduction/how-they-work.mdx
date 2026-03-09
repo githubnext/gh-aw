@@ -50,9 +50,9 @@ flowchart LR
 
 Workflows run with minimal permissions (no write access by default), use tool allowlists, and process outputs through a [safety layer](/gh-aw/introduction/architecture/) before applying changes. Critical actions can require human approval. For detailed security documentation, see the [Security Architecture](/gh-aw/introduction/architecture/) page.
 
-## Safe Inputs and Safe Outputs
+## MCP Scripts and Safe Outputs
 
-- **[Safe inputs](/gh-aw/reference/safe-inputs/)** (validated user input tools) - Custom MCP tools defined inline to prevent injection attacks
+- **[MCP Scripts](/gh-aw/reference/mcp-scripts/)** (custom inline tools) - Custom MCP tools defined inline in workflow frontmatter
 - **[Safe outputs](/gh-aw/reference/safe-outputs/)** (validated GitHub operations) - Pre-approved actions the AI can request without write permissions
 
 ## Regenerating the Lock File

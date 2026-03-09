@@ -97,7 +97,7 @@ The AWF controls network access, sandboxing, and command execution. Look for:
 - Target repositories being expanded (`target-repo:`)
 - Label or permission restrictions being removed
 
-**Safe Inputs (`safe-inputs:` field)**
+**MCP Scripts (`mcp-scripts:` field)**
 - New scripts being added with secret access
 - Environment variables exposing sensitive data
 - External command execution in scripts

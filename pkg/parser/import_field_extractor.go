@@ -30,7 +30,7 @@ type importAccumulator struct {
 	jobsBuilder              strings.Builder // Jobs from imported YAML workflows
 	engines                  []string
 	safeOutputs              []string
-	safeInputs               []string
+	mcpScripts               []string
 	bots                     []string
 	botsSet                  map[string]bool
 	plugins                  []string
@@ -65,7 +65,7 @@ func newImportAccumulator() *importAccumulator {
 
 // extractAllImportFields extracts all frontmatter fields from a single imported file
 // and accumulates the results. Handles tools, engines, mcp-servers, safe-outputs,
-// safe-inputs, steps, runtimes, services, network, permissions, secret-masking, bots,
+// mcp-scripts, steps, runtimes, services, network, permissions, secret-masking, bots,
 // skip-roles, skip-bots, plugins, post-steps, labels, cache, and features.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
@@ -123,10 +123,10 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		acc.safeOutputs = append(acc.safeOutputs, safeOutputsContent)
 	}
 
-	// Extract safe-inputs from imported file
-	safeInputsContent, err := extractFrontmatterField(string(content), "safe-inputs", "{}")
-	if err == nil && safeInputsContent != "" && safeInputsContent != "{}" {
-		acc.safeInputs = append(acc.safeInputs, safeInputsContent)
+	// Extract mcp-scripts from imported file
+	mcpScriptsContent, err := extractFrontmatterField(string(content), "mcp-scripts", "{}")
+	if err == nil && mcpScriptsContent != "" && mcpScriptsContent != "{}" {
+		acc.mcpScripts = append(acc.mcpScripts, mcpScriptsContent)
 	}
 
 	// Extract steps from imported file
@@ -284,7 +284,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedMCPServers:    acc.mcpServersBuilder.String(),
 		MergedEngines:       acc.engines,
 		MergedSafeOutputs:   acc.safeOutputs,
-		MergedSafeInputs:    acc.safeInputs,
+		MergedMCPScripts:    acc.mcpScripts,
 		MergedMarkdown:      acc.markdownBuilder.String(),
 		ImportPaths:         acc.importPaths,
 		MergedSteps:         acc.stepsBuilder.String(),

@@ -416,7 +416,7 @@ gh aw upgrade --audit --json               # Dependency audit in JSON format
 
 #### `mcp`
 
-Manage MCP (Model Context Protocol) servers in workflows. `mcp inspect` auto-detects safe-inputs.
+Manage MCP (Model Context Protocol) servers in workflows. `mcp inspect` auto-detects mcp-scripts.
 
 ```bash wrap
 gh aw mcp list workflow                    # List servers for workflow

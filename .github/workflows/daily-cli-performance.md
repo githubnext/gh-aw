@@ -54,16 +54,16 @@ Run daily performance benchmarks for workflow compilation, store results in cach
 ## Available Safe-Input Tools
 
 This workflow imports `shared/go-make.md` which provides:
-- **safeinputs-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
-- **safeinputs-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
+- **mcpscripts-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
+- **mcpscripts-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
 
-**IMPORTANT**: Always use these safe-input tools for Go and Make commands instead of running them directly via bash.
+**IMPORTANT**: Always use these mcp-script tools for Go and Make commands instead of running them directly via bash.
 
 ## Phase 1: Run Performance Benchmarks
 
 ### 1.1 Run Compilation Benchmarks
 
-Run the benchmark suite and capture results using the **safeinputs-make** tool:
+Run the benchmark suite and capture results using the **mcpscripts-make** tool:
 
 **Step 1**: Create directory for results
 
@@ -71,9 +71,9 @@ Run the benchmark suite and capture results using the **safeinputs-make** tool:
 mkdir -p /tmp/gh-aw/benchmarks
 ```
 
-**Step 2**: Run benchmarks using safeinputs-make
+**Step 2**: Run benchmarks using mcpscripts-make
 
-Use the **safeinputs-make** tool with args: "bench-performance" to run the critical performance benchmark suite.
+Use the **mcpscripts-make** tool with args: "bench-performance" to run the critical performance benchmark suite.
 
 This will execute `make bench-performance` which runs targeted performance benchmarks and saves results to `bench_performance.txt`.
 

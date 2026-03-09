@@ -6,7 +6,7 @@
  * Provides minimal `global.core` and `global.context` shims so that modules
  * written for the GitHub Actions `github-script` context (which rely on the
  * built-in `core` and `context` globals) work correctly when executed as plain
- * Node.js processes, such as inside the safe-outputs and safe-inputs MCP servers.
+ * Node.js processes, such as inside the safe-outputs and mcp-scripts MCP servers.
  *
  * When `global.core` / `global.context` is already set (i.e. running inside
  * `github-script`) the respective block is a no-op.

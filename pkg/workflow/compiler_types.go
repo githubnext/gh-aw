@@ -408,7 +408,7 @@ type WorkflowData struct {
 	NetworkPermissions    *NetworkPermissions  // parsed network permissions
 	SandboxConfig         *SandboxConfig       // parsed sandbox configuration (AWF or SRT)
 	SafeOutputs           *SafeOutputsConfig   // output configuration for automatic output routes
-	SafeInputs            *SafeInputsConfig    // safe-inputs configuration for custom MCP tools
+	MCPScripts            *MCPScriptsConfig    // mcp-scripts configuration for custom MCP tools
 	Roles                 []string             // permission levels required to trigger workflow
 	Bots                  []string             // allow list of bot identifiers that can trigger workflow
 	RateLimit             *RateLimitConfig     // rate limiting configuration for workflow triggers

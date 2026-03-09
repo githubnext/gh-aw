@@ -142,23 +142,27 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		}
 	}
 
-	// Check for safe-inputs configuration (built-in MCP)
-	if safeInputsSection, hasSafeInputs := frontmatter["safe-inputs"]; hasSafeInputs {
-		mcpLog.Print("Found safe-inputs configuration")
+	// Check for mcp-scripts configuration (built-in MCP)
+	if mcpScriptsSection, hasMCPScripts := frontmatter["mcp-scripts"]; hasMCPScripts {
+		mcpLog.Print("Found mcp-scripts configuration")
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains(constants.SafeInputsMCPServerID.String(), strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.MCPScriptsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "http",
 					Command: "",
 					Env:     make(map[string]string),
 				},
-				Name: constants.SafeInputsMCPServerID.String(),
+				Name: constants.MCPScriptsMCPServerID.String(),
 			}
 
-			// Parse safe-inputs configuration to determine enabled tools
-			if safeInputsMap, ok := safeInputsSection.(map[string]any); ok {
-				for toolName := range safeInputsMap {
+			// Parse mcp-scripts configuration to determine enabled tools
+			if mcpScriptsMap, ok := mcpScriptsSection.(map[string]any); ok {
+				for toolName := range mcpScriptsMap {
+					// Skip non-tool metadata keys like "mode"
+					if toolName == "mode" {
+						continue
+					}
 					config.Allowed = append(config.Allowed, toolName)
 				}
 			}

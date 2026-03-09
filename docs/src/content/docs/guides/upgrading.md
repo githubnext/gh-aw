@@ -83,7 +83,8 @@ The upgrade automatically applies codemods to fix deprecated fields in all workf
 |---------|---------------|---------|
 | **sandbox-false-to-agent-false** | Converts `sandbox: false` to `sandbox.agent: false` | `sandbox: false` → `sandbox: { agent: false }` |
 | **network-firewall-migration** | Removes deprecated `network.firewall` field | Deletes `firewall: mandatory` |
-| **safe-inputs-mode-removal** | Removes deprecated `safe-inputs.mode` field | Deletes `mode: auto` |
+| **mcp-scripts-mode-removal** | Removes deprecated `mcp-scripts.mode` field | Deletes `mode: auto` |
+| **safe-inputs-to-mcp-scripts** | Renames `safe-inputs:` to `mcp-scripts:` | `safe-inputs:` → `mcp-scripts:` |
 | **schedule-at-to-around-migration** | Converts `daily at TIME` to `daily around TIME` | `daily at 10:00` → `daily around 10:00` |
 | **delete-schema-file** | Deletes deprecated schema file | Removes `.github/aw/schemas/agentic-workflow.json` |
 | **delete-old-agents** | Deletes old `.agent.md` files moved to `.github/aw/` | Removes outdated agent files |
@@ -102,7 +103,7 @@ Processing workflow: daily-team-status
   ✓ Applied schedule-at-to-around-migration
   ✓ Applied timeout-minutes-migration
 Processing workflow: issue-triage
-  ✓ Applied safe-inputs-mode-removal
+  ✓ Applied mcp-scripts-mode-removal
 All workflows processed.
 Compiling all workflows...
 ✓ Compiled 3 workflow(s)
@@ -142,7 +143,7 @@ Review changes with `git diff .github/workflows/` to verify that deprecated fiel
 
 ### Common Changes
 
-Typical migrations include `sandbox: false` → `sandbox.agent: false`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `safe-inputs.mode` fields. Use `git diff --word-diff` for detailed comparison.
+Typical migrations include `sandbox: false` → `sandbox.agent: false`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `mcp-scripts.mode` fields. Use `git diff --word-diff` for detailed comparison.
 
 ## Step 5: Verify Compilation
 

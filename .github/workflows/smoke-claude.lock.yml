@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/gh.md
 #     - shared/github-mcp-app.md
-#     - shared/github-queries-safe-input.md
+#     - shared/github-queries-mcp-script.md
 #     - shared/go-make.md
 #     - shared/mcp-pagination.md
 #     - shared/mcp/tavily.md
@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"db18e693a8f2c6dae969b17dfe2e0c3a3f7ea10e8e1292e71b8674294e5dfc6b","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ce1db450f8ac78040e972a4a41fe2c780e51d97c7d931f9ec7f883a6ae8006d7","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -348,17 +348,17 @@ jobs:
           
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+          **IMPORTANT**: Always use the `mcpscripts-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `mcpscripts-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
           
           **Correct**:
           ```
-          Use the safeinputs-gh tool with args: "pr list --limit 5"
-          Use the safeinputs-gh tool with args: "issue view 123"
+          Use the mcpscripts-gh tool with args: "pr list --limit 5"
+          Use the mcpscripts-gh tool with args: "issue view 123"
           ```
           
           **Incorrect**:
           ```
-          Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
+          Use the gh mcp-script tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use mcpscripts-gh)
           Run: gh pr list --limit 5  ❌ (No authentication in bash)
           Execute bash: gh issue view 123  ❌ (No authentication in bash)
           ```
@@ -443,21 +443,21 @@ jobs:
           
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          **IMPORTANT**: Always use the `safeinputs-go` and `safeinputs-make` tools for Go and Make commands instead of running them directly via bash. These safe-input tools provide consistent execution and proper logging.
+          **IMPORTANT**: Always use the `mcpscripts-go` and `mcpscripts-make` tools for Go and Make commands instead of running them directly via bash. These mcp-script tools provide consistent execution and proper logging.
           
           **Correct**:
           ```
-          Use the safeinputs-go tool with args: "test ./..."
-          Use the safeinputs-make tool with args: "build"
-          Use the safeinputs-make tool with args: "lint"
-          Use the safeinputs-make tool with args: "test-unit"
+          Use the mcpscripts-go tool with args: "test ./..."
+          Use the mcpscripts-make tool with args: "build"
+          Use the mcpscripts-make tool with args: "lint"
+          Use the mcpscripts-make tool with args: "test-unit"
           ```
           
           **Incorrect**:
           ```
-          Use the go safe-input tool with args: "test ./..."  ❌ (Wrong tool name - use safeinputs-go)
-          Run: go test ./...  ❌ (Use safeinputs-go instead)
-          Execute bash: make build  ❌ (Use safeinputs-make instead)
+          Use the go mcp-script tool with args: "test ./..."  ❌ (Wrong tool name - use mcpscripts-go)
+          Run: go test ./...  ❌ (Use mcpscripts-go instead)
+          Execute bash: make build  ❌ (Use mcpscripts-make instead)
           ```
           
           
@@ -473,17 +473,17 @@ jobs:
           ## Test Requirements
           
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
-          2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
+          2. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
           3. **Serena MCP Testing**: 
-             - Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools or the safeinputs-go/safeinputs-make tools from the go-make shared workflow)
+             - Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools or the mcpscripts-go/mcpscripts-make tools from the go-make shared workflow)
              - After initialization, use the `find_symbol` tool to search for symbols (find which tool to call) and verify that at least 3 symbols are found in the results
-          4. **Make Build Testing**: Use the `safeinputs-make` tool to build the project (use args: "build") and verify it succeeds
+          4. **Make Build Testing**: Use the `mcpscripts-make` tool to build the project (use args: "build") and verify it succeeds
           5. **Playwright Testing**: Use the playwright tools to navigate to https://github.com and verify the page title contains "GitHub" (do NOT try to install playwright - use the provided MCP tools)
           6. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
           7. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
           8. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           9. **Discussion Interaction Testing**: 
-             - Use the `github-discussion-query` safe-input tool with params: `limit=1, jq=".[0]"` to get the latest discussion from __GH_AW_GITHUB_REPOSITORY__
+             - Use the `github-discussion-query` mcp-script tool with params: `limit=1, jq=".[0]"` to get the latest discussion from __GH_AW_GITHUB_REPOSITORY__
              - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
              - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, comic-book style comment stating that the smoke test agent was here
           10. **Agentic Workflows MCP Testing**: 
@@ -1589,18 +1589,18 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup Safe Inputs Config
+      - name: Setup MCP Scripts Config
         run: |
-          mkdir -p /opt/gh-aw/safe-inputs/logs
-          cat > /opt/gh-aw/safe-inputs/tools.json << 'GH_AW_SAFE_INPUTS_TOOLS_EOF'
+          mkdir -p /opt/gh-aw/mcp-scripts/logs
+          cat > /opt/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_EOF'
           {
-            "serverName": "safeinputs",
+            "serverName": "mcpscripts",
             "version": "1.0.0",
-            "logDir": "/opt/gh-aw/safe-inputs/logs",
+            "logDir": "/opt/gh-aw/mcp-scripts/logs",
             "tools": [
               {
                 "name": "gh",
-                "description": "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
                     "args": {
@@ -1708,7 +1708,7 @@ jobs:
               },
               {
                 "name": "go",
-                "description": "Execute any Go command. This tool is accessible as 'safeinputs-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
                     "args": {
@@ -1726,7 +1726,7 @@ jobs:
               },
               {
                 "name": "make",
-                "description": "Execute any Make target. This tool is accessible as 'safeinputs-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
                     "args": {
@@ -1744,30 +1744,30 @@ jobs:
               }
             ]
           }
-          GH_AW_SAFE_INPUTS_TOOLS_EOF
-          cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << 'GH_AW_SAFE_INPUTS_SERVER_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_EOF
+          cat > /opt/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_EOF'
             const path = require("path");
-            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+            const port = parseInt(process.env.GH_AW_MCP_SCRIPTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_MCP_SCRIPTS_API_KEY || "";
             startHttpServer(configPath, {
               port: port,
               stateless: true,
-              logDir: "/opt/gh-aw/safe-inputs/logs"
+              logDir: "/opt/gh-aw/mcp-scripts/logs"
             }).catch(error => {
-              console.error("Failed to start safe-inputs HTTP server:", error);
+              console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_SAFE_INPUTS_SERVER_EOF
-          chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs
+          GH_AW_MCP_SCRIPTS_SERVER_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/mcp-server.cjs
           
-      - name: Setup Safe Inputs Tool Files
+      - name: Setup MCP Scripts Tool Files
         run: |
-          cat > /opt/gh-aw/safe-inputs/gh.sh << 'GH_AW_SAFE_INPUTS_SH_GH_EOF'
+          cat > /opt/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: gh
-          # Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          # Auto-generated mcp-script tool: gh
+          # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
           
           set -euo pipefail
           
@@ -1775,11 +1775,11 @@ jobs:
           echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
           GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
-          GH_AW_SAFE_INPUTS_SH_GH_EOF
-          chmod +x /opt/gh-aw/safe-inputs/gh.sh
-          cat > /opt/gh-aw/safe-inputs/github-discussion-query.sh << 'GH_AW_SAFE_INPUTS_SH_GITHUB-DISCUSSION-QUERY_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GH_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/gh.sh
+          cat > /opt/gh-aw/mcp-scripts/github-discussion-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: github-discussion-query
+          # Auto-generated mcp-script tool: github-discussion-query
           # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
           
           set -euo pipefail
@@ -1912,11 +1912,11 @@ jobs:
           EOF
           fi
           
-          GH_AW_SAFE_INPUTS_SH_GITHUB-DISCUSSION-QUERY_EOF
-          chmod +x /opt/gh-aw/safe-inputs/github-discussion-query.sh
-          cat > /opt/gh-aw/safe-inputs/github-issue-query.sh << 'GH_AW_SAFE_INPUTS_SH_GITHUB-ISSUE-QUERY_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/github-discussion-query.sh
+          cat > /opt/gh-aw/mcp-scripts/github-issue-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: github-issue-query
+          # Auto-generated mcp-script tool: github-issue-query
           # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
           
           set -euo pipefail
@@ -1993,11 +1993,11 @@ jobs:
           fi
           
           
-          GH_AW_SAFE_INPUTS_SH_GITHUB-ISSUE-QUERY_EOF
-          chmod +x /opt/gh-aw/safe-inputs/github-issue-query.sh
-          cat > /opt/gh-aw/safe-inputs/github-pr-query.sh << 'GH_AW_SAFE_INPUTS_SH_GITHUB-PR-QUERY_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/github-issue-query.sh
+          cat > /opt/gh-aw/mcp-scripts/github-pr-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: github-pr-query
+          # Auto-generated mcp-script tool: github-pr-query
           # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
           
           set -euo pipefail
@@ -2080,12 +2080,12 @@ jobs:
           fi
           
           
-          GH_AW_SAFE_INPUTS_SH_GITHUB-PR-QUERY_EOF
-          chmod +x /opt/gh-aw/safe-inputs/github-pr-query.sh
-          cat > /opt/gh-aw/safe-inputs/go.sh << 'GH_AW_SAFE_INPUTS_SH_GO_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/github-pr-query.sh
+          cat > /opt/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: go
-          # Execute any Go command. This tool is accessible as 'safeinputs-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          # Auto-generated mcp-script tool: go
+          # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
           
           set -euo pipefail
           
@@ -2093,23 +2093,23 @@ jobs:
           go $INPUT_ARGS
           
           
-          GH_AW_SAFE_INPUTS_SH_GO_EOF
-          chmod +x /opt/gh-aw/safe-inputs/go.sh
-          cat > /opt/gh-aw/safe-inputs/make.sh << 'GH_AW_SAFE_INPUTS_SH_MAKE_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GO_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/go.sh
+          cat > /opt/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: make
-          # Execute any Make target. This tool is accessible as 'safeinputs-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          # Auto-generated mcp-script tool: make
+          # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
           
           set -euo pipefail
           
           echo "make $INPUT_ARGS"
           make $INPUT_ARGS
           
-          GH_AW_SAFE_INPUTS_SH_MAKE_EOF
-          chmod +x /opt/gh-aw/safe-inputs/make.sh
+          GH_AW_MCP_SCRIPTS_SH_MAKE_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/make.sh
           
-      - name: Generate Safe Inputs MCP Server Config
-        id: safe-inputs-config
+      - name: Generate MCP Scripts Server Config
+        id: mcp-scripts-config
         run: |
           # Generate a secure random API key (360 bits of entropy, 40+ chars)
           # Mask immediately to prevent timing vulnerabilities
@@ -2120,35 +2120,35 @@ jobs:
           
           # Set outputs for next steps
           {
-            echo "safe_inputs_api_key=${API_KEY}"
-            echo "safe_inputs_port=${PORT}"
+            echo "mcp_scripts_api_key=${API_KEY}"
+            echo "mcp_scripts_port=${PORT}"
           } >> "$GITHUB_OUTPUT"
           
-          echo "Safe Inputs MCP server will run on port ${PORT}"
+          echo "MCP Scripts server will run on port ${PORT}"
           
-      - name: Start Safe Inputs MCP HTTP Server
-        id: safe-inputs-start
+      - name: Start MCP Scripts HTTP Server
+        id: mcp-scripts-start
         env:
           DEBUG: '*'
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_port }}
+          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_DEBUG: 1
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
-          export GH_AW_SAFE_INPUTS_PORT
-          export GH_AW_SAFE_INPUTS_API_KEY
+          export GH_AW_MCP_SCRIPTS_PORT
+          export GH_AW_MCP_SCRIPTS_API_KEY
           
-          bash /opt/gh-aw/actions/start_safe_inputs_server.sh
+          bash /opt/gh-aw/actions/start_mcp_scripts_server.sh
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
+          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-start.outputs.api_key }}
+          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
@@ -2175,7 +2175,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="claude"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.8'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.8'
           
           cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -2200,6 +2200,13 @@ jobs:
                   "GITHUB_TOOLSETS": "repos,pull_requests"
                 }
               },
+              "mcpscripts": {
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT",
+                "headers": {
+                  "Authorization": "$GH_AW_MCP_SCRIPTS_API_KEY"
+                }
+              },
               "playwright": {
                 "container": "mcr.microsoft.com/playwright/mcp",
                 "args": [
@@ -2216,13 +2223,6 @@ jobs:
                   "--no-sandbox"
                 ],
                 "mounts": ["/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw"]
-              },
-              "safeinputs": {
-                "type": "http",
-                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
-                "headers": {
-                  "Authorization": "$GH_AW_SAFE_INPUTS_API_KEY"
-                }
               },
               "safeoutputs": {
                 "type": "http",
@@ -2480,14 +2480,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_claude_log.cjs');
             await main();
-      - name: Parse Safe Inputs logs for step summary
+      - name: Parse MCP Scripts logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_scripts_logs.cjs');
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
@@ -2528,7 +2528,7 @@ jobs:
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/mcp-logs/
-            /tmp/gh-aw/safe-inputs/logs/
+            /tmp/gh-aw/mcp-scripts/logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/

@@ -69,9 +69,9 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ## Security and Outputs
 
-### Safe Inputs
+### MCP Scripts
 
-Custom MCP tools defined inline in workflow frontmatter using JavaScript or shell scripts. Enables lightweight tool creation without external dependencies while maintaining controlled secret access. Tools are generated at runtime and mounted as an MCP server with typed input parameters, default values, and environment variables. Configured via `safe-inputs:` section.
+Custom MCP tools defined inline in workflow frontmatter using JavaScript or shell scripts. Enables lightweight tool creation without external dependencies while maintaining controlled secret access. Tools are generated at runtime and mounted as an MCP server with typed input parameters, default values, and environment variables. Configured via `mcp-scripts:` section.
 
 ### SARIF
 
@@ -399,7 +399,7 @@ For detailed documentation on specific topics, see:
 
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/)
 - [Tools Reference](/gh-aw/reference/tools/)
-- [Safe Inputs Reference](/gh-aw/reference/safe-inputs/)
+- [MCP Scripts Reference](/gh-aw/reference/mcp-scripts/)
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Using MCPs Guide](/gh-aw/guides/mcps/)
 - [Security Guide](/gh-aw/introduction/architecture/)

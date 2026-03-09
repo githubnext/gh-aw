@@ -64,7 +64,7 @@ This action copies files from `actions/setup/`, including:
 
 ### Shell Scripts (7 files from `sh/`)
 - `create_gh_aw_tmp_dir.sh` - Creates temporary directory structure
-- `start_safe_inputs_server.sh` - Starts safe-inputs HTTP server
+- `start_mcp_scripts_server.sh` - Starts MCP Scripts HTTP server
 - `print_prompt_summary.sh` - Prints prompt summary to logs
 - `generate_git_patch.sh` - Generates git patches
 - `create_cache_memory_dir.sh` - Creates cache-memory directory

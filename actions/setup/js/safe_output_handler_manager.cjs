@@ -21,6 +21,7 @@ const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes } = require("./safe_output_helpers.cjs");
+const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 
 /**
  * Handler map configuration
@@ -1016,6 +1017,10 @@ async function main() {
     if (codePushFailureCount > 0) {
       core.info(`Exported ${codePushFailureCount} code push failure(s)`);
     }
+
+    // Emit named action outputs (e.g. created_issue_number, created_issue_url)
+    // for the first successful result of each safe output type.
+    emitSafeOutputActionOutputs(processingResult);
 
     // Ensure the manifest file always exists for artifact upload (even if no items were created).
     // Skip in staged mode — no real items were created so no manifest should be emitted.

@@ -21,17 +21,17 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Daily project performance summary (90-day window) with trend charts using safe-inputs
+# Daily project performance summary (90-day window) with trend charts using mcp-scripts
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/github-queries-safe-input.md
+#     - shared/github-queries-mcp-script.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e122dc205e62037c58443024bb7827fc2c4474c74536e2043be657fe4d9c79a2","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c18fdbf83211c18b0c1841b7350de90b0a4b88a7a5a0a0c2026345fc6054c691","strict":true}
 
-name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 "on":
   schedule:
   - cron: "26 19 * * *"
@@ -43,7 +43,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+run-name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 
 jobs:
   activation:
@@ -74,7 +74,7 @@ jobs:
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_INFO_VERSION: ""
           GH_AW_INFO_AGENT_VERSION: "latest"
-          GH_AW_INFO_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_INFO_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -175,7 +175,7 @@ jobs:
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/github-queries-safe-input.md}}
+          {{#runtime-import .github/workflows/shared/github-queries-mcp-script.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
@@ -745,14 +745,14 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup Safe Inputs Config
+      - name: Setup MCP Scripts Config
         run: |
-          mkdir -p /opt/gh-aw/safe-inputs/logs
-          cat > /opt/gh-aw/safe-inputs/tools.json << 'GH_AW_SAFE_INPUTS_TOOLS_EOF'
+          mkdir -p /opt/gh-aw/mcp-scripts/logs
+          cat > /opt/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_EOF'
           {
-            "serverName": "safeinputs",
+            "serverName": "mcpscripts",
             "version": "1.0.0",
-            "logDir": "/opt/gh-aw/safe-inputs/logs",
+            "logDir": "/opt/gh-aw/mcp-scripts/logs",
             "tools": [
               {
                 "name": "github-discussion-query",
@@ -842,29 +842,29 @@ jobs:
               }
             ]
           }
-          GH_AW_SAFE_INPUTS_TOOLS_EOF
-          cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << 'GH_AW_SAFE_INPUTS_SERVER_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_EOF
+          cat > /opt/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_EOF'
             const path = require("path");
-            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+            const port = parseInt(process.env.GH_AW_MCP_SCRIPTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_MCP_SCRIPTS_API_KEY || "";
             startHttpServer(configPath, {
               port: port,
               stateless: true,
-              logDir: "/opt/gh-aw/safe-inputs/logs"
+              logDir: "/opt/gh-aw/mcp-scripts/logs"
             }).catch(error => {
-              console.error("Failed to start safe-inputs HTTP server:", error);
+              console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_SAFE_INPUTS_SERVER_EOF
-          chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs
+          GH_AW_MCP_SCRIPTS_SERVER_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/mcp-server.cjs
           
-      - name: Setup Safe Inputs Tool Files
+      - name: Setup MCP Scripts Tool Files
         run: |
-          cat > /opt/gh-aw/safe-inputs/github-discussion-query.sh << 'GH_AW_SAFE_INPUTS_SH_GITHUB-DISCUSSION-QUERY_EOF'
+          cat > /opt/gh-aw/mcp-scripts/github-discussion-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: github-discussion-query
+          # Auto-generated mcp-script tool: github-discussion-query
           # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
           
           set -euo pipefail
@@ -997,11 +997,11 @@ jobs:
           EOF
           fi
           
-          GH_AW_SAFE_INPUTS_SH_GITHUB-DISCUSSION-QUERY_EOF
-          chmod +x /opt/gh-aw/safe-inputs/github-discussion-query.sh
-          cat > /opt/gh-aw/safe-inputs/github-issue-query.sh << 'GH_AW_SAFE_INPUTS_SH_GITHUB-ISSUE-QUERY_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/github-discussion-query.sh
+          cat > /opt/gh-aw/mcp-scripts/github-issue-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: github-issue-query
+          # Auto-generated mcp-script tool: github-issue-query
           # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
           
           set -euo pipefail
@@ -1078,11 +1078,11 @@ jobs:
           fi
           
           
-          GH_AW_SAFE_INPUTS_SH_GITHUB-ISSUE-QUERY_EOF
-          chmod +x /opt/gh-aw/safe-inputs/github-issue-query.sh
-          cat > /opt/gh-aw/safe-inputs/github-pr-query.sh << 'GH_AW_SAFE_INPUTS_SH_GITHUB-PR-QUERY_EOF'
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/github-issue-query.sh
+          cat > /opt/gh-aw/mcp-scripts/github-pr-query.sh << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_EOF'
           #!/bin/bash
-          # Auto-generated safe-input tool: github-pr-query
+          # Auto-generated mcp-script tool: github-pr-query
           # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
           
           set -euo pipefail
@@ -1165,11 +1165,11 @@ jobs:
           fi
           
           
-          GH_AW_SAFE_INPUTS_SH_GITHUB-PR-QUERY_EOF
-          chmod +x /opt/gh-aw/safe-inputs/github-pr-query.sh
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_EOF
+          chmod +x /opt/gh-aw/mcp-scripts/github-pr-query.sh
           
-      - name: Generate Safe Inputs MCP Server Config
-        id: safe-inputs-config
+      - name: Generate MCP Scripts Server Config
+        id: mcp-scripts-config
         run: |
           # Generate a secure random API key (360 bits of entropy, 40+ chars)
           # Mask immediately to prevent timing vulnerabilities
@@ -1180,26 +1180,26 @@ jobs:
           
           # Set outputs for next steps
           {
-            echo "safe_inputs_api_key=${API_KEY}"
-            echo "safe_inputs_port=${PORT}"
+            echo "mcp_scripts_api_key=${API_KEY}"
+            echo "mcp_scripts_port=${PORT}"
           } >> "$GITHUB_OUTPUT"
           
-          echo "Safe Inputs MCP server will run on port ${PORT}"
+          echo "MCP Scripts server will run on port ${PORT}"
           
-      - name: Start Safe Inputs MCP HTTP Server
-        id: safe-inputs-start
+      - name: Start MCP Scripts HTTP Server
+        id: mcp-scripts-start
         env:
           DEBUG: '*'
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_port }}
+          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
-          export GH_AW_SAFE_INPUTS_PORT
-          export GH_AW_SAFE_INPUTS_API_KEY
+          export GH_AW_MCP_SCRIPTS_PORT
+          export GH_AW_MCP_SCRIPTS_API_KEY
           
-          bash /opt/gh-aw/actions/start_safe_inputs_server.sh
+          bash /opt/gh-aw/actions/start_mcp_scripts_server.sh
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
@@ -1207,8 +1207,8 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
+          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-start.outputs.api_key }}
+          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
@@ -1231,7 +1231,7 @@ jobs:
           export DEBUG="*"
           
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_TOKEN -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.8'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_TOKEN -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.1.8'
           
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -1247,11 +1247,11 @@ jobs:
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"
                 }
               },
-              "safeinputs": {
+              "mcpscripts": {
                 "type": "http",
-                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
+                "url": "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT",
                 "headers": {
-                  "Authorization": "\${GH_AW_SAFE_INPUTS_API_KEY}"
+                  "Authorization": "\${GH_AW_MCP_SCRIPTS_API_KEY}"
                 }
               },
               "safeoutputs": {
@@ -1419,14 +1419,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
             await main();
-      - name: Parse Safe Inputs logs for step summary
+      - name: Parse MCP Scripts logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_mcp_scripts_logs.cjs');
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
@@ -1476,7 +1476,7 @@ jobs:
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/mcp-logs/
-            /tmp/gh-aw/safe-inputs/logs/
+            /tmp/gh-aw/mcp-scripts/logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
@@ -1517,8 +1517,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
-          WORKFLOW_DESCRIPTION: "Daily project performance summary (90-day window) with trend charts using safe-inputs"
+          WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
+          WORKFLOW_DESCRIPTION: "Daily project performance summary (90-day window) with trend charts using mcp-scripts"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
           script: |
@@ -1653,7 +1653,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1667,7 +1667,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1681,7 +1681,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1705,7 +1705,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1733,7 +1733,7 @@ jobs:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_TRACKER_ID: "daily-performance-summary"
       GH_AW_WORKFLOW_ID: "daily-performance-summary"
-      GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+      GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
@@ -1901,7 +1901,7 @@ jobs:
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using MCP Scripts)"
           GH_AW_TRACKER_ID: "daily-performance-summary"
           GH_AW_ENGINE_ID: "copilot"
         with:

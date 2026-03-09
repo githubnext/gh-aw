@@ -67,17 +67,7 @@ tools:
     toolsets: [default]  # Expands to: context, repos, issues, pull_requests (action-friendly)
 ```
 
-Toolsets remain stable across MCP server versions, while individual tool names may change.
-
-**Common toolset combinations:**
-
-| Use Case | Toolsets |
-|----------|----------|
-| General workflows | `[default]` |
-| Issue/PR management | `[default, discussions]` |
-| CI/CD workflows | `[default, actions]` |
-| Security scanning | `[default, code_security]` |
-| Full access | `[all]` |
+Toolsets remain stable across MCP server versions, while individual tool names may change. See [Available Toolsets](#available-toolsets) for the full list.
 
 ### Allowed Pattern (Custom MCP Servers)
 
@@ -111,39 +101,9 @@ The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`. W
 
 ### Operating Modes
 
-GitHub MCP supports two modes. Choose based on your requirements:
+Remote mode (`mode: remote`) connects to a hosted server for faster startup with no Docker required. Local mode (`mode: local`) runs in Docker, enabling version pinning for offline or restricted environments. See [Remote vs Local Mode](/gh-aw/reference/github-tools/#remote-vs-local-mode).
 
-**Remote Mode (Recommended):**
-```yaml wrap
-tools:
-  github:
-    mode: remote
-    toolsets: [default]
-```
-Remote mode connects to the hosted GitHub MCP server with faster startup and no Docker requirement.
-
-**Local Mode (Docker-based):**
-```yaml wrap
-tools:
-  github:
-    mode: local
-    toolsets: [default]
-    version: "sha-09deac4"
-```
-Local mode runs the MCP server in a Docker container, useful for pinning specific versions or offline environments.
-
-### Read-Only Mode
-
-The GitHub MCP server always operates in read-only mode. `read-only: true` is the default and the only allowed value — setting `read-only: false` causes a compilation error.
-
-```yaml wrap
-tools:
-  github:
-    read-only: true   # Always enforced; setting false is not permitted
-    toolsets: [repos, issues]
-```
-
-Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which execute in a separate, permission-controlled job after the agent completes.
+The GitHub MCP server always operates read-only. Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which run in a separate permission-controlled job.
 
 ## MCP Registry
 
@@ -163,8 +123,6 @@ gh aw mcp add my-workflow makenotion/notion-mcp-server --tool-id my-notion
 ```
 
 The command searches the registry, adds the server configuration, and recompiles the workflow.
-
-### Registry-based Configuration
 
 Reference registry servers directly in your workflow:
 
@@ -237,30 +195,7 @@ safe-outputs:
 Analyze issue #${{ github.event.issue.number }} and add a comment with category, related issues, and suggested labels.
 ```
 
-### Example 2: PR Review with Actions Data
-
-```aw wrap
----
-on:
-  pull_request:
-    types: [opened, synchronize]
-permissions:
-  contents: read
-  pull-requests: read
-  actions: read
-tools:
-  github:
-    toolsets: [default, actions]
-safe-outputs:
-  add-comment:
----
-
-# PR Review Agent
-
-Review PR #${{ github.event.pull_request.number }}, check workflow runs, analyze code changes, and provide feedback.
-```
-
-### Example 3: Multi-Service Integration
+### Example 2: Multi-Service Integration
 
 ```aw wrap
 ---
@@ -313,12 +248,8 @@ gh aw compile my-workflow --validate --strict
 
 ## Next Steps
 
-Continue learning with these resources:
-
 - [Using MCPs](/gh-aw/guides/mcps/) - Complete MCP configuration reference
 - [Tools Reference](/gh-aw/reference/tools/) - All available tools and options
 - [Security Guide](/gh-aw/introduction/architecture/) - MCP security best practices
 - [CLI Commands](/gh-aw/setup/cli/) - Full CLI documentation including `mcp` commands
-- [Imports](/gh-aw/reference/imports/) - Modularize configurations with shared MCP files
-
-Explore shared MCP configurations in `.github/workflows/shared/mcp/` for ready-to-use integrations with popular services.
+- [Imports](/gh-aw/reference/imports/) - Shared MCP configurations in `.github/workflows/shared/mcp/`

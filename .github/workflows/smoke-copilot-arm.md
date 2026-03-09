@@ -19,7 +19,7 @@ runs-on: ubuntu-24.04-arm
 imports:
   - shared/gh.md
   - shared/reporting.md
-  - shared/github-queries-safe-input.md
+  - shared/github-queries-mcp-script.md
 network:
   allowed:
     - defaults
@@ -120,7 +120,7 @@ strict: true
 
 1. **Architecture Verification**: Run `uname -m` to confirm you are running on an ARM64 (aarch64) host. Report the architecture.
 2. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-3. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
+3. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
 4. **Serena MCP Testing**:
    - Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
    - After initialization, use the `find_symbol` tool to search for symbols (find which tool to call) and verify that at least 3 symbols are found in the results
@@ -128,7 +128,7 @@ strict: true
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-arm-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot ARM64 at $(date)" (create the directory if it doesn't exist)
 7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 8. **Discussion Interaction Testing**:
-   - Use the `github-discussion-query` safe-input tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
+   - Use the `github-discussion-query` mcp-script tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
    - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
    - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, playful comment stating that the ARM64 smoke test agent was here
 9. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project on ARM64 (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.

@@ -31,6 +31,61 @@ The agent job invokes an AI engine (Copilot, Claude, Codex, or a custom engine) 
 > [!NOTE]
 > For Copilot, inference is charged to the individual account owning `COPILOT_GITHUB_TOKEN`, not to the repository or organization running the workflow. Use a dedicated service account and monitor its premium request usage to track spend per workflow.
 
+## Monitoring Costs with `gh aw logs`
+
+The `gh aw logs` command downloads workflow run data and surfaces per-run metrics including elapsed duration, token usage, and estimated inference cost. Use it to see exactly what your workflows are consuming before deciding what to optimize.
+
+### View recent run durations
+
+```bash
+# Overview table for all agentic workflows (last 10 runs)
+gh aw logs
+
+# Narrow to a single workflow
+gh aw logs issue-triage-agent
+
+# Last 30 days for Copilot workflows
+gh aw logs --engine copilot --start-date -30d
+```
+
+The overview table includes a **Duration** column showing elapsed wall-clock time per run. Because GitHub Actions bills compute time by the minute (rounded up per job), duration is the primary indicator of Actions spend.
+
+### Export metrics as JSON
+
+Use `--json` to get structured output suitable for scripting or trend analysis:
+
+```bash
+# Write JSON to a file for further processing
+gh aw logs --start-date -1w --json > /tmp/logs.json
+
+# List per-run duration, tokens, and cost across all workflows
+gh aw logs --start-date -30d --json | \
+  jq '.runs[] | {workflow: .workflow_name, duration: .duration, cost: .estimated_cost}'
+
+# Total cost grouped by workflow over the past 30 days
+gh aw logs --start-date -30d --json | \
+  jq '[.runs[]] | group_by(.workflow_name) |
+  map({workflow: .[0].workflow_name, runs: length, total_cost: (map(.estimated_cost) | add // 0)})'
+```
+
+The JSON output includes `duration`, `token_usage`, `estimated_cost`, `workflow_name`, and `agent` (the engine ID) for each run under `.runs[]`.
+
+### Use inside a workflow agent
+
+The `agentic-workflows` MCP tool exposes the same `logs` operation so that a workflow agent can collect cost data programmatically. Add `tools: agentic-workflows:` to any workflow that needs to read run metrics:
+
+```aw wrap
+description: Weekly Actions minutes cost report
+on: weekly
+permissions:
+  actions: read
+engine: copilot
+tools:
+  agentic-workflows:
+```
+
+The agent then calls the `logs` tool with `start_date: "-7d"` to retrieve duration and cost data for all recent runs, enabling automated reporting or optimization.
+
 ## Trigger Frequency and Cost Risk
 
 The primary cost lever for most workflows is how often they run. Some events are inherently high-frequency:
@@ -58,14 +113,14 @@ The most effective cost reduction is skipping the agent job entirely when it is 
 on:
   issues:
     types: [opened]
-skip-if-match: 'label:duplicate OR label:wont-fix'
+  skip-if-match: 'label:duplicate OR label:wont-fix'
 ```
 
 ```aw wrap
 on:
   issues:
     types: [labeled]
-skip-if-no-match: 'label:needs-triage'
+  skip-if-no-match: 'label:needs-triage'
 ```
 
 Use these to filter out noise before incurring inference costs. See [Triggers](/gh-aw/reference/triggers/) for the full syntax.
@@ -155,7 +210,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 | On-demand via slash command | User-controlled | Varies | Varies |
 
 > [!TIP]
-> Use `gh aw audit <run-id>` to inspect token usage and cost for individual runs, and `gh aw logs` for aggregate metrics across recent runs. Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to track spend by workflow.
+> Use `gh aw audit <run-id>` to deep-dive into token usage and cost for a single run. Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
 
 ## Related Documentation
 

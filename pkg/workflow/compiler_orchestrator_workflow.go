@@ -110,7 +110,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge services
 	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
 
-	// Extract additional configurations (cache, safe-inputs, safe-outputs, etc.)
+	// Extract additional configurations (cache, mcp-scripts, safe-outputs, etc.)
 	if err := c.extractAdditionalConfigurations(
 		result.Frontmatter,
 		toolsResult.tools,
@@ -482,7 +482,7 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 	return result
 }
 
-// extractAdditionalConfigurations extracts cache-memory, repo-memory, safe-inputs, and safe-outputs configurations
+// extractAdditionalConfigurations extracts cache-memory, repo-memory, mcp-scripts, and safe-outputs configurations
 func (c *Compiler) extractAdditionalConfigurations(
 	frontmatter map[string]any,
 	tools map[string]any,
@@ -512,7 +512,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
-	// Extract and process safe-inputs and safe-outputs
+	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
 
@@ -532,12 +532,12 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
-	// Extract safe-inputs configuration
-	workflowData.SafeInputs = c.extractSafeInputsConfig(frontmatter)
+	// Extract mcp-scripts configuration
+	workflowData.MCPScripts = c.extractMCPScriptsConfig(frontmatter)
 
-	// Merge safe-inputs from imports
-	if len(importsResult.MergedSafeInputs) > 0 {
-		workflowData.SafeInputs = c.mergeSafeInputs(workflowData.SafeInputs, importsResult.MergedSafeInputs)
+	// Merge mcp-scripts from imports
+	if len(importsResult.MergedMCPScripts) > 0 {
+		workflowData.MCPScripts = c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
 	}
 
 	// Extract safe-jobs from safe-outputs.jobs location

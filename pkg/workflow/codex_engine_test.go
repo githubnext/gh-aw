@@ -618,18 +618,18 @@ func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 	}
 }
 
-// TestCodexEngineSafeInputsSecrets verifies that safe-inputs secrets are passed to the execution step
-func TestCodexEngineSafeInputsSecrets(t *testing.T) {
+// TestCodexEngineMCPScriptsSecrets verifies that mcp-scripts secrets are passed to the execution step
+func TestCodexEngineMCPScriptsSecrets(t *testing.T) {
 	engine := NewCodexEngine()
 
-	// Create workflow data with safe-inputs that have env secrets
+	// Create workflow data with mcp-scripts that have env secrets
 	workflowData := &WorkflowData{
-		Name: "test-workflow-with-safe-inputs",
+		Name: "test-workflow-with-mcp-scripts",
 		Features: map[string]any{
-			"safe-inputs": true, // Feature flag is optional now
+			"mcp-scripts": true, // Feature flag is optional now
 		},
-		SafeInputs: &SafeInputsConfig{
-			Tools: map[string]*SafeInputToolConfig{
+		MCPScripts: &MCPScriptsConfig{
+			Tools: map[string]*MCPScriptToolConfig{
 				"gh": {
 					Name:        "gh",
 					Description: "Execute gh CLI command",

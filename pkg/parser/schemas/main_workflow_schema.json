@@ -7319,9 +7319,9 @@
       "description": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'. A workflow with private: true is not meant to be shared outside its repository.",
       "examples": [true, false]
     },
-    "safe-inputs": {
+    "mcp-scripts": {
       "type": "object",
-      "description": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
+      "description": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
       "patternProperties": {
         "^([a-ln-z][a-z0-9_-]*|m[a-np-z][a-z0-9_-]*|mo[a-ce-z][a-z0-9_-]*|mod[a-df-z][a-z0-9_-]*|mode[a-z0-9_-]+)$": {
           "type": "object",

@@ -1,7 +1,7 @@
 ---
-safe-inputs:
+mcp-scripts:
   go:
-    description: "Execute any Go command. This tool is accessible as 'safeinputs-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    description: "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
     inputs:
       args:
         type: string
@@ -12,7 +12,7 @@ safe-inputs:
       go $INPUT_ARGS
 
   make:
-    description: "Execute any Make target. This tool is accessible as 'safeinputs-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    description: "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
     inputs:
       args:
         type: string
@@ -23,25 +23,25 @@ safe-inputs:
       make $INPUT_ARGS
 ---
 
-**IMPORTANT**: Always use the `safeinputs-go` and `safeinputs-make` tools for Go and Make commands instead of running them directly via bash. These safe-input tools provide consistent execution and proper logging.
+**IMPORTANT**: Always use the `mcpscripts-go` and `mcpscripts-make` tools for Go and Make commands instead of running them directly via bash. These mcp-script tools provide consistent execution and proper logging.
 
 **Correct**:
 ```
-Use the safeinputs-go tool with args: "test ./..."
-Use the safeinputs-make tool with args: "build"
-Use the safeinputs-make tool with args: "lint"
-Use the safeinputs-make tool with args: "test-unit"
+Use the mcpscripts-go tool with args: "test ./..."
+Use the mcpscripts-make tool with args: "build"
+Use the mcpscripts-make tool with args: "lint"
+Use the mcpscripts-make tool with args: "test-unit"
 ```
 
 **Incorrect**:
 ```
-Use the go safe-input tool with args: "test ./..."  ❌ (Wrong tool name - use safeinputs-go)
-Run: go test ./...  ❌ (Use safeinputs-go instead)
-Execute bash: make build  ❌ (Use safeinputs-make instead)
+Use the go mcp-script tool with args: "test ./..."  ❌ (Wrong tool name - use mcpscripts-go)
+Run: go test ./...  ❌ (Use mcpscripts-go instead)
+Execute bash: make build  ❌ (Use mcpscripts-make instead)
 ```
 
 <!--
-## safeinputs-go and safeinputs-make Tools
+## mcpscripts-go and mcpscripts-make Tools
 
 Safe-input tools that wrap Go and Make commands for consistent execution in agentic workflows.
 
@@ -54,32 +54,32 @@ imports:
 
 ### Invocation
 
-#### safeinputs-go
+#### mcpscripts-go
 
-The tool is accessible as `safeinputs-go` (or `safeinputs_go` after normalization). Provide go CLI arguments via the `args` parameter:
+The tool is accessible as `mcpscripts-go` (or `mcpscripts_go` after normalization). Provide go CLI arguments via the `args` parameter:
 
 ```
-safeinputs-go with args: "test ./..."
-safeinputs-go with args: "build ./cmd/gh-aw"
-safeinputs-go with args: "mod tidy"
-safeinputs-go with args: "fmt ./..."
-safeinputs-go with args: "vet ./..."
-safeinputs-go with args: "test -v -run TestCompile ./pkg/cli"
+mcpscripts-go with args: "test ./..."
+mcpscripts-go with args: "build ./cmd/gh-aw"
+mcpscripts-go with args: "mod tidy"
+mcpscripts-go with args: "fmt ./..."
+mcpscripts-go with args: "vet ./..."
+mcpscripts-go with args: "test -v -run TestCompile ./pkg/cli"
 ```
 
 The tool executes: `go <args>`
 
-#### safeinputs-make
+#### mcpscripts-make
 
-The tool is accessible as `safeinputs-make` (or `safeinputs_make` after normalization). Provide make target(s) via the `args` parameter:
+The tool is accessible as `mcpscripts-make` (or `mcpscripts_make` after normalization). Provide make target(s) via the `args` parameter:
 
 ```
-safeinputs-make with args: "build"
-safeinputs-make with args: "test-unit"
-safeinputs-make with args: "lint"
-safeinputs-make with args: "recompile"
-safeinputs-make with args: "fmt lint build"
-safeinputs-make with args: "agent-finish"
+mcpscripts-make with args: "build"
+mcpscripts-make with args: "test-unit"
+mcpscripts-make with args: "lint"
+mcpscripts-make with args: "recompile"
+mcpscripts-make with args: "fmt lint build"
+mcpscripts-make with args: "agent-finish"
 ```
 
 The tool executes: `make <args>`

@@ -1,5 +1,5 @@
 ---
-description: Daily project performance summary (90-day window) with trend charts using safe-inputs
+description: Daily project performance summary (90-day window) with trend charts using mcp-scripts
 on:
   schedule: daily
   workflow_dispatch:
@@ -27,23 +27,23 @@ safe-outputs:
     max: 10
 timeout-minutes: 30
 imports:
-  - shared/github-queries-safe-input.md
+  - shared/github-queries-mcp-script.md
   - shared/trending-charts-simple.md
   - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Project Performance Summary Generator (Using Safe Inputs)
+# Daily Project Performance Summary Generator (Using MCP Scripts)
 
-You are an expert analyst that generates comprehensive daily performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
+You are an expert analyst that generates comprehensive daily performance summaries using **mcp-script tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
 
-**IMPORTANT**: This workflow uses safe-input tools imported from `shared/github-queries-safe-input.md`. All data gathering MUST be done through these tools.
+**IMPORTANT**: This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`. All data gathering MUST be done through these tools.
 
 ## Mission
 
 Generate a daily performance summary analyzing the last 90 days of project activity:
-1. **Use safe-input tools** to query PRs, issues, and discussions
+1. **Use mcp-script tools** to query PRs, issues, and discussions
 2. Calculate key performance metrics (velocity, resolution times, activity levels)
 3. Generate trend charts showing project activity and performance
 4. Create a discussion with the comprehensive performance report
@@ -57,7 +57,7 @@ Generate a daily performance summary analyzing the last 90 days of project activ
 
 ## Phase 1: Gather Data Using Safe-Input Tools
 
-**CRITICAL**: Use the safe-input tools to query GitHub data. These tools are imported from `shared/github-queries-safe-input.md` and provide the same functionality as the previous Skillz-based approach.
+**CRITICAL**: Use the mcp-script tools to query GitHub data. These tools are imported from `shared/github-queries-mcp-script.md` and provide the same functionality as the previous Skillz-based approach.
 
 ### Available Safe-Input Tools
 
@@ -68,7 +68,7 @@ The following tools are available for querying GitHub data:
 
 ### 1.1 Query Pull Requests
 
-**Use the `github-pr-query` safe-input tool** to get PR data:
+**Use the `github-pr-query` mcp-script tool** to get PR data:
 
 ```
 github-pr-query with state: "all", limit: 1000, jq: "."
@@ -82,7 +82,7 @@ The tool provides:
 
 ### 1.2 Query Issues
 
-**Use the `github-issue-query` safe-input tool** to get issue data:
+**Use the `github-issue-query` mcp-script tool** to get issue data:
 
 ```
 github-issue-query with state: "all", limit: 1000, jq: "."
@@ -96,7 +96,7 @@ The tool provides:
 
 ### 1.3 Query Discussions
 
-**Use the `github-discussion-query` safe-input tool** to get discussion data:
+**Use the `github-discussion-query` mcp-script tool** to get discussion data:
 
 ```
 github-discussion-query with limit: 1000, jq: "."
@@ -477,7 +477,7 @@ Create a new discussion with the comprehensive performance report.
 ## Success Criteria
 
 A successful run will:
-- ✅ **Query data using safe-input tools** (github-pr-query, github-issue-query, github-discussion-query)
+- ✅ **Query data using mcp-script tools** (github-pr-query, github-issue-query, github-discussion-query)
 - ✅ Calculate comprehensive performance metrics from tool output
 - ✅ Generate 3 high-quality trend charts
 - ✅ Upload charts as assets
@@ -486,13 +486,13 @@ A successful run will:
 
 ## Safe-Input Tools Usage Reminder
 
-This workflow uses safe-input tools imported from `shared/github-queries-safe-input.md`:
+This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`:
 1. Tools are defined in the shared workflow with shell script implementations
 2. Each tool supports jq-based filtering for efficient data querying
 3. Tools are authenticated with `GITHUB_TOKEN` for GitHub API access
 4. Call tools with parameters like: `github-pr-query with state: "all", limit: 1000, jq: "."`
 
-Begin your analysis now. **Use the safe-input tools** to gather data, run Python analysis, generate charts, and create the discussion report.
+Begin your analysis now. **Use the mcp-script tools** to gather data, run Python analysis, generate charts, and create the discussion report.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 

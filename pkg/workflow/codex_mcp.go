@@ -62,11 +62,11 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			if hasSafeOutputs {
 				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			}
-		case "safe-inputs":
-			// Add safe-inputs MCP server if safe-inputs are configured and feature flag is enabled
-			hasSafeInputs := workflowData != nil && IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
-			if hasSafeInputs {
-				renderer.RenderSafeInputsMCP(yaml, workflowData.SafeInputs, workflowData)
+		case "mcp-scripts":
+			// Add mcp-scripts MCP server if mcp-scripts are configured and feature flag is enabled
+			hasMCPScripts := workflowData != nil && IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData)
+			if hasMCPScripts {
+				renderer.RenderMCPScriptsMCP(yaml, workflowData.MCPScripts, workflowData)
 			}
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
@@ -147,9 +147,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer := createJSONRenderer(isLast)
 				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			},
-			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
+			RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
 				renderer := createJSONRenderer(isLast)
-				renderer.RenderSafeInputsMCP(yaml, safeInputs, workflowData)
+				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)

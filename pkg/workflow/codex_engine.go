@@ -63,10 +63,10 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
 	}
 
-	// Add safe-inputs secret names
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		for varName := range safeInputsSecrets {
+	// Add mcp-scripts secret names
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName := range mcpScriptsSecrets {
 			secrets = append(secrets, varName)
 		}
 	}
@@ -329,10 +329,10 @@ mkdir -p "$CODEX_HOME/logs"
 		codexEngineLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
-	// Add safe-inputs secrets to env for passthrough to MCP servers
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		for varName, secretExpr := range safeInputsSecrets {
+	// Add mcp-scripts secrets to env for passthrough to MCP servers
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName, secretExpr := range mcpScriptsSecrets {
 			// Only add if not already in env
 			if _, exists := env[varName]; !exists {
 				env[varName] = secretExpr

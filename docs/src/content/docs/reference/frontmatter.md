@@ -486,9 +486,9 @@ network:
     - "api.example.com"    # Custom domain
 ```
 
-### Safe Inputs (`safe-inputs:`)
+### MCP Scripts (`mcp-scripts:`)
 
-Enables defining custom MCP tools inline using JavaScript or shell scripts. See [Safe Inputs](/gh-aw/reference/safe-inputs/) for complete documentation on creating custom tools with controlled secret access.
+Enables defining custom MCP tools inline using JavaScript or shell scripts. See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for complete documentation on creating custom tools with controlled secret access.
 
 ### Safe Outputs (`safe-outputs:`)
 

@@ -22,7 +22,7 @@ func TestFeaturesMergeWithImports(t *testing.T) {
 	sharedFeaturesPath := filepath.Join(tempDir, "shared-features.md")
 	sharedFeaturesContent := `---
 features:
-  safe-inputs: true
+  mcp-scripts: true
   experimental-feature: true
 ---
 
@@ -74,10 +74,10 @@ This workflow should have merged features.
 	// The compiled workflow should contain evidence that all features are available
 	// Features affect workflow behavior, so we verify they were processed
 
-	// Verify safe-inputs feature from import is recognized (comment mentioning safe-inputs if enabled)
-	if !strings.Contains(workflowData, "safe-inputs") && !strings.Contains(workflowData, "safe_inputs") {
-		// Safe-inputs feature may be mentioned in comments or configuration
-		t.Logf("Note: safe-inputs feature may not generate visible output in lock file")
+	// Verify mcp-scripts feature from import is recognized (comment mentioning mcp-scripts if enabled)
+	if !strings.Contains(workflowData, "mcp-scripts") && !strings.Contains(workflowData, "mcp_scripts") {
+		// MCP Scripts feature may be mentioned in comments or configuration
+		t.Logf("Note: mcp-scripts feature may not generate visible output in lock file")
 	}
 
 	// The workflow should compile without error (which validates features were processed)
