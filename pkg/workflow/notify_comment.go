@@ -197,6 +197,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"false\"\n")
 	}
 
+	// Pass report-failure-as-issue configuration flag (defaults to true if not specified)
+	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailureAsIssue != nil && !*data.SafeOutputs.ReportFailureAsIssue {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"false\"\n")
+	} else {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_FAILURE_REPORT_AS_ISSUE: \"true\"\n")
+	}
+
 	// Pass timeout minutes value so the failure handler can provide an actionable hint when timed out
 	timeoutValue := strings.TrimPrefix(data.TimeoutMinutes, "timeout-minutes: ")
 	if timeoutValue != "" {

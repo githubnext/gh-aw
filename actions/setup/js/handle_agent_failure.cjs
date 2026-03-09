@@ -543,6 +543,7 @@ async function main() {
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
+    const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -614,6 +615,12 @@ async function main() {
     // If we only have noop outputs, skip failure handling - this is a successful no-action scenario
     if (hasOnlyNoopOutputs) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
+      return;
+    }
+
+    // Check if failure issue reporting is disabled
+    if (!reportFailureAsIssue) {
+      core.info("Failure issue reporting is disabled (report-failure-as-issue: false), skipping failure issue creation");
       return;
     }
 

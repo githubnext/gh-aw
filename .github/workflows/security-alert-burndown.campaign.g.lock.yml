@@ -1491,6 +1491,7 @@ jobs:
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_campaigns: ${{ needs.push_repo_memory.outputs.validation_failed_campaigns }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_campaigns: ${{ needs.push_repo_memory.outputs.validation_error_campaigns }}
           GH_AW_GROUP_REPORTS: "false"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_TIMEOUT_MINUTES: "20"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

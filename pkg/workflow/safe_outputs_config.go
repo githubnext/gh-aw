@@ -461,6 +461,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle report-failure-as-issue flag
+			if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
+				if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
+					config.ReportFailureAsIssue = &reportFailureAsIssueBool
+					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
+				}
+			}
+
 			// Handle max-bot-mentions (templatable integer)
 			if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
 				safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)

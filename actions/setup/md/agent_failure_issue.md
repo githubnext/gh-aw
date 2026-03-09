@@ -8,14 +8,31 @@
 
 ### Action Required
 
-**Option 1: Assign this issue to Copilot**
+**Option 1: Debug using any coding agent**
+
+Use this prompt with any coding agent (GitHub Copilot, Claude, Gemini, etc.):
+
+````
+Debug the agentic workflow failure using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
+
+The failed workflow run is at {run_url}
+````
+
+**Option 2: Assign this issue to Copilot**
 
 Assign this issue to Copilot using the `agentic-workflows` sub-agent to automatically debug and fix the workflow failure.
 
-**Option 2: Manually invoke the agent**
+**Option 3: Manually invoke the agent**
 
 Debug this workflow failure using your favorite Agent CLI and the `agentic-workflows` prompt.
 
 - Start your agent
 - Load the `agentic-workflows` prompt from `.github/agents/agentic-workflows.agent.md` or <https://github.com/github/gh-aw/blob/main/.github/agents/agentic-workflows.agent.md>
 - Type `debug the agentic workflow {workflow_id} failure in {run_url}`
+
+> [!TIP]
+> To stop a workflow from creating failure issues, set `report-failure-as-issue: false` in its frontmatter:
+> ```yaml
+> safe-outputs:
+>   report-failure-as-issue: false
+> ```

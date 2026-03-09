@@ -7171,6 +7171,12 @@
           "default": false,
           "examples": [false, true]
         },
+        "report-failure-as-issue": {
+          "type": "boolean",
+          "description": "When false, disables creating failure tracking issues when workflows fail. Useful for workflows where failures are expected or handled elsewhere. Defaults to true.",
+          "default": true,
+          "examples": [false, true]
+        },
         "max-bot-mentions": {
           "description": "Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456') allowed in output before all of them are neutralized. Default: 10. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').",
           "oneOf": [
