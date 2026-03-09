@@ -122,12 +122,20 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` new                      # Interactive mode
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow          # Create template file
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow.md       # Same as above (.md extension stripped)
-  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --force  # Overwrite if exists`,
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --force  # Overwrite if exists
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --engine copilot  # Create template with specific engine`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		forceFlag, _ := cmd.Flags().GetBool("force")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		interactiveFlag, _ := cmd.Flags().GetBool("interactive")
+		engineOverride, _ := cmd.Flags().GetString("engine")
+
+		if engineOverride != "" {
+			if err := validateEngine(engineOverride); err != nil {
+				return err
+			}
+		}
 
 		// If no arguments provided or interactive flag is set, use interactive mode
 		if len(args) == 0 || interactiveFlag {
@@ -147,7 +155,7 @@ Examples:
 
 		// Template mode with workflow name
 		workflowName := args[0]
-		return cli.NewWorkflow(workflowName, verbose, forceFlag)
+		return cli.NewWorkflow(workflowName, verbose, forceFlag, engineOverride)
 	},
 }
 
@@ -360,7 +368,8 @@ Examples:
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
   gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
   gh aw run daily-perf-improver --push  # Commit and push workflow files before running
-  gh aw run daily-perf-improver --dry-run  # Validate without actually running`,
+  gh aw run daily-perf-improver --dry-run  # Validate without actually running
+  gh aw run daily-perf-improver --json  # Output results in JSON format`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
@@ -372,6 +381,7 @@ Examples:
 		inputs, _ := cmd.Flags().GetStringArray("raw-field")
 		push, _ := cmd.Flags().GetBool("push")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		jsonOutput, _ := cmd.Flags().GetBool("json")
 
 		if err := validateEngine(engineOverride); err != nil {
 			return err
@@ -409,6 +419,7 @@ Examples:
 			Inputs:         inputs,
 			Verbose:        verboseFlag,
 			DryRun:         dryRun,
+			JSON:           jsonOutput,
 		})
 	},
 }
@@ -623,6 +634,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to new command
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
+	newCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	cli.RegisterEngineFlagCompletion(newCmd)
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
@@ -681,6 +694,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
+	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

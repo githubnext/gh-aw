@@ -226,8 +226,8 @@ func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowD
 }
 
 // NewWorkflow creates a new workflow markdown file with template content
-func NewWorkflow(workflowName string, verbose bool, force bool) error {
-	commandsLog.Printf("Creating new workflow: name=%s, force=%v", workflowName, force)
+func NewWorkflow(workflowName string, verbose bool, force bool, engine string) error {
+	commandsLog.Printf("Creating new workflow: name=%s, force=%v, engine=%s", workflowName, force, engine)
 
 	// Normalize the workflow name by removing .md extension if present
 	// This ensures consistent behavior whether user provides "my-workflow" or "my-workflow.md"
@@ -277,7 +277,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	}
 
 	// Create the template content
-	template := createWorkflowTemplate(workflowName)
+	template := createWorkflowTemplate(workflowName, engine)
 
 	// Write the template to file with restrictive permissions (owner-only)
 	if err := os.WriteFile(destFile, []byte(template), 0600); err != nil {
@@ -291,7 +291,11 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 }
 
 // createWorkflowTemplate generates a concise workflow template with essential options
-func createWorkflowTemplate(workflowName string) string {
+func createWorkflowTemplate(workflowName string, engine string) string {
+	engineLine := ""
+	if engine != "" {
+		engineLine = "\n# AI engine to use for this workflow\nengine: " + engine + "\n"
+	}
 	return `---
 # Trigger - when should this workflow run?
 on:
@@ -313,7 +317,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-
+` + engineLine + `
 # Tools - GitHub API access via toolsets (context, repos, issues, pull_requests)
 # tools:
 #   github:

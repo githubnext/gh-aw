@@ -468,7 +468,7 @@ func TestNewWorkflow(t *testing.T) {
 			}
 
 			// Run the function
-			err := NewWorkflow(test.workflowName, false, test.force)
+			err := NewWorkflow(test.workflowName, false, test.force, "")
 
 			// Check error expectation
 			if test.expectedError && err == nil {

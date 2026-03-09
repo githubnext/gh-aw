@@ -59,7 +59,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.example.com/owner/repo/actions/runs/1234567890  # Audit from GitHub Enterprise
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 -o ./audit-reports  # Custom output directory
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 -v  # Verbose output
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md`,
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --repo owner/repo  # Audit run from a specific repository`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runIDOrURL := args[0]
@@ -75,6 +76,17 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			parse, _ := cmd.Flags().GetBool("parse")
+			repoFlag, _ := cmd.Flags().GetString("repo")
+
+			// If --repo is provided and owner/repo were not parsed from a URL, apply them
+			if repoFlag != "" && components.Owner == "" {
+				parts := strings.SplitN(repoFlag, "/", 2)
+				if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+					return fmt.Errorf("invalid repository format '%s': expected 'owner/repo'", repoFlag)
+				}
+				components.Owner = parts[0]
+				components.Repo = parts[1]
+			}
 
 			return AuditWorkflowRun(
 				cmd.Context(),
@@ -95,6 +107,7 @@ Examples:
 	// Add flags to audit command
 	addOutputFlag(cmd, defaultLogsOutputDir)
 	addJSONFlag(cmd)
+	addRepoFlag(cmd)
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 
 	// Register completions for audit command

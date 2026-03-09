@@ -41,6 +41,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` list                              # List all workflows in current repo
   ` + string(constants.CLIExtensionPrefix) + ` list --repo github/gh-aw          # List workflows from github/gh-aw repo
   ` + string(constants.CLIExtensionPrefix) + ` list --repo org/repo --path workflows  # List from custom path
+  ` + string(constants.CLIExtensionPrefix) + ` list --dir custom/workflows        # List from custom local directory
   ` + string(constants.CLIExtensionPrefix) + ` list ci-                           # List workflows with 'ci-' in name
   ` + string(constants.CLIExtensionPrefix) + ` list --repo github/gh-aw ci-      # List workflows from github/gh-aw with 'ci-' in name
   ` + string(constants.CLIExtensionPrefix) + ` list --json                        # Output in JSON format
@@ -53,9 +54,16 @@ Examples:
 
 			repo, _ := cmd.Flags().GetString("repo")
 			path, _ := cmd.Flags().GetString("path")
+			dir, _ := cmd.Flags().GetString("dir")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			jsonFlag, _ := cmd.Flags().GetBool("json")
 			labelFilter, _ := cmd.Flags().GetString("label")
+
+			// --dir overrides the local workflow directory when no remote repo is specified.
+			// When --repo is set, --path is used for the remote repository path instead.
+			if dir != "" && repo == "" {
+				path = dir
+			}
 			return RunListWorkflows(repo, path, pattern, verbose, jsonFlag, labelFilter)
 		},
 	}
@@ -64,9 +72,11 @@ Examples:
 	addJSONFlag(cmd)
 	cmd.Flags().String("label", "", "Filter workflows by label")
 	cmd.Flags().String("path", ".github/workflows", "Path to workflows directory in the repository")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 
 	// Register completions for list command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
 }
@@ -94,7 +104,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 				fmt.Fprintf(os.Stderr, "Filtering by pattern: %s\n", pattern)
 			}
 		}
-		mdFiles, err = getMarkdownWorkflowFiles("")
+		mdFiles, err = getMarkdownWorkflowFiles(path)
 	}
 
 	if err != nil {
