@@ -107,6 +107,7 @@ async function main(config = {}) {
     // Check if we're in a pull request context, or an issue comment context on a PR
     const isPRContext =
       context.eventName === "pull_request" ||
+      context.eventName === "pull_request_target" ||
       context.eventName === "pull_request_review" ||
       context.eventName === "pull_request_review_comment" ||
       (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
