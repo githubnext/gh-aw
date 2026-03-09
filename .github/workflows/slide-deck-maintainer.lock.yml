@@ -23,7 +23,7 @@
 #
 # Maintains the gh-aw slide deck by scanning repository content and detecting layout issues using Playwright
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"0b3d7f1cb6dbc12d69cb6f2f524b6c7eaec295bbc300df932437af7677e97e6c","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"52aa9f9c22b63de50f98ab9bb986ccbfaf180e62d4cf90d4c55c5b235fe07769","strict":true}
 
 name: "Slide Deck Maintainer"
 "on":
@@ -269,7 +269,7 @@ jobs:
       issues: read
       pull-requests: read
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.focus || github.run_id }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""

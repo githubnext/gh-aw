@@ -29,7 +29,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cb88eff6090a5e966484e7a4dd6f39dcd1b246e1547c910ce2695d7faf605d00","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cb8216252ac0aead193e61a5e172c70364c2d476bc496fc28e876f124903323c","strict":true}
 
 name: "Stale Repository Identifier"
 "on":
@@ -280,7 +280,7 @@ jobs:
       issues: read
       pull-requests: read
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.organization || github.run_id }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
