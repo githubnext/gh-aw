@@ -95,3 +95,59 @@ fi
 echo ""
 
 echo "🎉 All validation tests passed!"
+
+# Test 5: Prompt with __GH_AW_WIKI_NOTE__ placeholder (fallback should apply, not fail)
+echo "Test 5: Prompt with unsubstituted __GH_AW_WIKI_NOTE__ (fallback should apply)"
+cat > "$TEST_DIR/prompt_wiki_note.txt" << 'EOF'
+<system>
+# Repo Memory
+You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/`
+where you can read and write files that are stored in a git branch.__GH_AW_WIKI_NOTE__
+</system>
+
+# User Task
+Do something useful.
+EOF
+
+export GH_AW_PROMPT="$TEST_DIR/prompt_wiki_note.txt"
+OUTPUT=$(bash "$SCRIPT_PATH" 2>&1)
+STATUS=$?
+if [ $STATUS -eq 0 ]; then
+    echo "✅ Test 5 passed: Prompt with __GH_AW_WIKI_NOTE__ handled by fallback"
+    if echo "$OUTPUT" | grep -q "Warning.*__GH_AW_WIKI_NOTE__"; then
+        echo "   (fallback warning message shown as expected)"
+    fi
+    # Verify __GH_AW_WIKI_NOTE__ was actually removed from the file
+    if grep -q "__GH_AW_WIKI_NOTE__" "$TEST_DIR/prompt_wiki_note.txt"; then
+        echo "❌ Test 5 failed: __GH_AW_WIKI_NOTE__ was not removed by fallback"
+        exit 1
+    fi
+else
+    echo "❌ Test 5 failed: Prompt with __GH_AW_WIKI_NOTE__ caused unexpected failure"
+    echo "Output: $OUTPUT"
+    exit 1
+fi
+echo ""
+
+# Test 6: Prompt with OTHER unreplaced placeholder (should still fail)
+echo "Test 6: Prompt with other unreplaced placeholder (should still fail)"
+cat > "$TEST_DIR/prompt_other_placeholder.txt" << 'EOF'
+<system>
+# System Instructions
+Memory directory: __GH_AW_MEMORY_DIR__
+</system>
+
+# User Task
+Do something useful.
+EOF
+
+export GH_AW_PROMPT="$TEST_DIR/prompt_other_placeholder.txt"
+if bash "$SCRIPT_PATH" 2>&1; then
+    echo "❌ Test 6 failed: Prompt with __GH_AW_MEMORY_DIR__ was accepted"
+    exit 1
+else
+    echo "✅ Test 6 passed: Prompt with other unreplaced placeholder rejected"
+fi
+echo ""
+
+echo "🎉 All validation tests passed!"

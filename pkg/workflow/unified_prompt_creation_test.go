@@ -561,6 +561,76 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	assert.Less(t, systemClosePos, userPos, "User task should be after system tag closes")
 }
 
+// TestGenerateUnifiedPromptCreationStep_WikiNoteInSubstitution verifies that GH_AW_WIKI_NOTE
+// is always present in the placeholder substitution step for repo-memory, regardless of wiki mode.
+// Regression test for: __GH_AW_WIKI_NOTE__ placeholder not substituted when Wiki is disabled.
+func TestGenerateUnifiedPromptCreationStep_WikiNoteInSubstitution(t *testing.T) {
+	tests := []struct {
+		name          string
+		wiki          bool
+		expectEmpty   bool
+		expectContain string
+	}{
+		{
+			name:        "non-wiki mode has empty GH_AW_WIKI_NOTE in substitution",
+			wiki:        false,
+			expectEmpty: true,
+		},
+		{
+			name:          "wiki mode has non-empty GH_AW_WIKI_NOTE in substitution",
+			wiki:          true,
+			expectEmpty:   false,
+			expectContain: "GitHub Wiki",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := &Compiler{}
+			data := &WorkflowData{
+				ParsedTools: NewTools(map[string]any{}),
+				RepoMemoryConfig: &RepoMemoryConfig{
+					Memories: []RepoMemoryEntry{
+						{ID: "default", BranchName: "memory/default", Wiki: tt.wiki},
+					},
+				},
+			}
+
+			builtinSections := compiler.collectPromptSections(data)
+			userPromptChunks := []string{"# User Task"}
+
+			var yamlBuf strings.Builder
+			allExpressionMappings := compiler.generateUnifiedPromptCreationStep(&yamlBuf, builtinSections, userPromptChunks, nil, data)
+
+			require.NotEmpty(t, allExpressionMappings, "Expected non-empty expression mappings")
+
+			// Verify GH_AW_WIKI_NOTE is always in the substitution mappings
+			var wikiNoteMapping *ExpressionMapping
+			for _, m := range allExpressionMappings {
+				if m.EnvVar == "GH_AW_WIKI_NOTE" {
+					wikiNoteMapping = m
+					break
+				}
+			}
+			require.NotNil(t, wikiNoteMapping, "GH_AW_WIKI_NOTE must be present in substitution mappings (required to substitute __GH_AW_WIKI_NOTE__ in repo_memory_prompt.md)")
+
+			// Verify the substitution step YAML contains the env var
+			var substYaml strings.Builder
+			generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+			substOutput := substYaml.String()
+
+			assert.Contains(t, substOutput, "GH_AW_WIKI_NOTE:", "Substitution step must declare GH_AW_WIKI_NOTE env var")
+			assert.Contains(t, substOutput, "GH_AW_WIKI_NOTE: process.env.GH_AW_WIKI_NOTE", "Substitution step must pass GH_AW_WIKI_NOTE to substitutePlaceholders")
+
+			if tt.expectEmpty {
+				assert.Contains(t, substOutput, "GH_AW_WIKI_NOTE: ''", "Non-wiki mode should have empty GH_AW_WIKI_NOTE env var")
+			} else {
+				assert.Contains(t, substOutput, tt.expectContain, "Wiki mode should have wiki note content in GH_AW_WIKI_NOTE env var")
+			}
+		})
+	}
+}
+
 // TestGenerateUnifiedPromptCreationStep_PRContextConditional tests that PR context uses shell conditions
 func TestGenerateUnifiedPromptCreationStep_PRContextConditional(t *testing.T) {
 	compiler := &Compiler{
