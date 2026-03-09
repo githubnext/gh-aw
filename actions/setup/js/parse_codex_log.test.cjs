@@ -658,4 +658,107 @@ github.list_pull_requests(...) success in 123ms:
       expect(errorsIndex).toBeLessThan(reasoningIndex);
     });
   });
+
+  describe("session preview (logEntries always populated)", () => {
+    let extractCodexModel;
+
+    beforeEach(async () => {
+      const module = await import("./parse_codex_log.cjs");
+      extractCodexModel = module.extractCodexModel;
+    });
+
+    it("should always include a system init entry", () => {
+      const result = parseCodexLog("thinking\nsome thinking here");
+
+      const initEntry = result.logEntries.find(e => e.type === "system" && e.subtype === "init");
+      expect(initEntry).toBeDefined();
+    });
+
+    it("should extract model from Codex log header", () => {
+      const logContent = `OpenAI Codex v1.0
+--------
+workdir: /tmp/test
+model: o4-mini
+provider: openai`;
+
+      const model = extractCodexModel(logContent);
+      expect(model).toBe("o4-mini");
+    });
+
+    it("should include model in system init entry when present in log", () => {
+      const logContent = `model: gpt-4o
+thinking
+Some analysis here`;
+
+      const result = parseCodexLog(logContent);
+
+      const initEntry = result.logEntries.find(e => e.type === "system" && e.subtype === "init");
+      expect(initEntry).toBeDefined();
+      expect(initEntry.model).toBe("gpt-4o");
+    });
+
+    it("should still include system init entry when model is absent from log", () => {
+      const logContent = `thinking
+Some analysis here`;
+
+      const result = parseCodexLog(logContent);
+
+      const initEntry = result.logEntries.find(e => e.type === "system" && e.subtype === "init");
+      expect(initEntry).toBeDefined();
+      expect(initEntry.model).toBeUndefined();
+    });
+
+    it("should add error messages as assistant entries when there are no tool calls", () => {
+      const logContent = `model: o4-mini
+ERROR: cyber_policy_violation`;
+
+      const result = parseCodexLog(logContent);
+
+      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
+      expect(assistantEntries.length).toBeGreaterThan(0);
+      const textContent = assistantEntries.flatMap(e => e.message?.content || []).find(c => c.type === "text");
+      expect(textContent).toBeDefined();
+      expect(textContent.text).toContain("cyber_policy_violation");
+    });
+
+    it("should add reconnect count as assistant entry when no tool calls and reconnects occurred", () => {
+      const logContent = `Reconnecting... 1/3 (connection lost)
+Reconnecting... 2/3 (connection lost)
+ERROR: connection lost`;
+
+      const result = parseCodexLog(logContent);
+
+      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
+      const textContents = assistantEntries.flatMap(e => e.message?.content || []).filter(c => c.type === "text");
+      const reconnectEntry = textContents.find(c => c.text.includes("Reconnect attempts:"));
+      expect(reconnectEntry).toBeDefined();
+      expect(reconnectEntry.text).toContain("2/3");
+    });
+
+    it("should not add error assistant entries when tool calls are present", () => {
+      const logContent = `ERROR: some error
+tool github.list_issues({})
+github.list_issues(...) success in 50ms:
+{"items":[]}`;
+
+      const result = parseCodexLog(logContent);
+
+      const assistantEntries = result.logEntries.filter(e => e.type === "assistant");
+      const toolUseEntries = assistantEntries.filter(e => e.message?.content?.some(c => c.type === "tool_use"));
+      expect(toolUseEntries.length).toBeGreaterThan(0);
+
+      // Error messages should NOT be added as extra assistant text entries
+      const errorTextEntries = assistantEntries.filter(e => e.message?.content?.some(c => c.type === "text" && c.text.includes("some error")));
+      expect(errorTextEntries.length).toBe(0);
+    });
+
+    it("should have non-empty logEntries for a failed run with only error output", () => {
+      const logContent = `model: o4-mini
+ERROR: This user's access to o4-mini has been temporarily limited`;
+
+      const result = parseCodexLog(logContent);
+
+      expect(result.logEntries.length).toBeGreaterThan(0);
+    });
+  });
 });
