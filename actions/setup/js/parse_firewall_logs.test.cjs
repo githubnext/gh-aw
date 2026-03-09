@@ -4,7 +4,7 @@ import path from "path";
 const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } };
 ((global.core = mockCore),
   describe("parse_firewall_logs.cjs", () => {
-    let parseFirewallLogLine, isRequestAllowed, generateFirewallSummary;
+    let parseFirewallLogLine, isRequestAllowed, analyzeFirewallLogLines, generateFirewallSummary;
     (beforeEach(() => {
       vi.clearAllMocks();
       const scriptPath = path.join(process.cwd(), "parse_firewall_logs.cjs"),
@@ -13,9 +13,13 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
           .replace(/if \(typeof module === "undefined".*?\) \{[\s\S]*?main\(\);[\s\S]*?\}/g, "// main() execution disabled for testing")
           .replace(
             "// Export for testing",
-            "global.testParseFirewallLogLine = parseFirewallLogLine;\n        global.testIsRequestAllowed = isRequestAllowed;\n        global.testGenerateFirewallSummary = generateFirewallSummary;\n        // Export for testing"
+            "global.testParseFirewallLogLine = parseFirewallLogLine;\n        global.testIsRequestAllowed = isRequestAllowed;\n        global.testAnalyzeFirewallLogLines = analyzeFirewallLogLines;\n        global.testGenerateFirewallSummary = generateFirewallSummary;\n        // Export for testing"
           );
-      (eval(scriptForTesting), (parseFirewallLogLine = global.testParseFirewallLogLine), (isRequestAllowed = global.testIsRequestAllowed), (generateFirewallSummary = global.testGenerateFirewallSummary));
+      (eval(scriptForTesting),
+        (parseFirewallLogLine = global.testParseFirewallLogLine),
+        (isRequestAllowed = global.testIsRequestAllowed),
+        (analyzeFirewallLogLines = global.testAnalyzeFirewallLogLines),
+        (generateFirewallSummary = global.testGenerateFirewallSummary));
     }),
       describe("parseFirewallLogLine", () => {
         (test("should parse valid firewall log line", () => {
@@ -66,6 +70,50 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
         }),
           test("should deny request with NONE_NONE decision", () => {
             expect(isRequestAllowed("NONE_NONE:HIER_NONE", "0")).toBe(!1);
+          }));
+      }),
+      describe("analyzeFirewallLogLines", () => {
+        (test("should skip internal Squid error entries with -:- destination and count only real traffic", () => {
+          const lines = [
+            '1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+            '1773003475.167 172.30.0.30:50232 api.anthropic.com:443 18.64.224.91:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.anthropic.com:443 "-"',
+            '1773003477.068 ::1:35712 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+            '1773003480.123 172.30.0.30:50235 api.anthropic.com:443 18.64.224.91:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.anthropic.com:443 "-"',
+            '1773003481.456 ::1:41200 - - 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+          ];
+          const result = analyzeFirewallLogLines(lines);
+          (expect(result.totalRequests).toBe(2),
+            expect(result.allowedRequests).toBe(2),
+            expect(result.blockedRequests).toBe(0),
+            expect(result.requestsByDomain.has("-:-")).toBe(!1),
+            expect(result.requestsByDomain.get("api.anthropic.com:443").allowed).toBe(2));
+        }),
+          test("should not inflate blocked count with internal Squid error entries", () => {
+            // Reproduces the scenario described in the bug report (run 22831150866)
+            const lines = [
+              '1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+              '1773003472.028 ::1:52011 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+              '1773003475.167 172.30.0.30:50232 api.anthropic.com:443 18.64.224.91:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.anthropic.com:443 "-"',
+              '1773003475.168 172.30.0.30:50233 blocked.example.com:443 1.2.3.4:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+            ];
+            const result = analyzeFirewallLogLines(lines);
+            (expect(result.totalRequests).toBe(2),
+              expect(result.blockedRequests).toBe(1),
+              expect(result.allowedRequests).toBe(1),
+              expect(result.blockedDomains.has("-:-")).toBe(!1),
+              expect(result.blockedDomains.has("blocked.example.com:443")).toBe(!0));
+          }),
+          test("should not treat -:- as a real blocked destination (domain fallback fix)", () => {
+            // When domain="-" and destIpPort="-:-", should not fall back to "-:-" as domain key
+            const lines = ['1773003472.027 172.30.0.20:50000 - -:- 0.0 - 0 NONE_NONE:HIER_NONE - "-"'];
+            const result = analyzeFirewallLogLines(lines);
+            (expect(result.totalRequests).toBe(1), expect(result.requestsByDomain.has("-:-")).toBe(!1), expect(result.requestsByDomain.has("-")).toBe(!0));
+          }),
+          test("should still count iptables-dropped traffic with real destIpPort", () => {
+            // When domain="-" but destIpPort is a real IP:port (iptables-dropped), use destIpPort as key
+            const lines = ['1761332531.123 172.30.0.20:35289 - 8.8.8.8:53 - - 0 NONE_NONE:HIER_NONE - "-"', '1761332532.456 172.30.0.20:35290 - 1.2.3.4:443 - - 0 NONE_NONE:HIER_NONE - "-"'];
+            const result = analyzeFirewallLogLines(lines);
+            (expect(result.totalRequests).toBe(2), expect(result.blockedRequests).toBe(2), expect(result.requestsByDomain.get("8.8.8.8:53").blocked).toBe(1), expect(result.requestsByDomain.get("1.2.3.4:443").blocked).toBe(1));
           }));
       }),
       describe("generateFirewallSummary", () => {

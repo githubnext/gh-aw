@@ -12,6 +12,11 @@ import (
 
 var lockSchemaLog = logger.New("workflow:lock_schema")
 
+var (
+	lockMetadataPattern = regexp.MustCompile(`#\s*gh-aw-metadata:\s*(\{.+\})`)
+	lockHashPattern     = regexp.MustCompile(`#\s*frontmatter-hash:\s*([0-9a-f]{64})`)
+)
+
 // LockSchemaVersion represents a lock file schema version
 type LockSchemaVersion string
 
@@ -47,8 +52,7 @@ func IsSchemaVersionSupported(version LockSchemaVersion) bool {
 func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 	// Look for JSON metadata in comments (format: # gh-aw-metadata: {...})
 	// Use .+ to capture to end of line since metadata is single-line JSON
-	metadataPattern := regexp.MustCompile(`#\s*gh-aw-metadata:\s*(\{.+\})`)
-	matches := metadataPattern.FindStringSubmatch(content)
+	matches := lockMetadataPattern.FindStringSubmatch(content)
 
 	if len(matches) >= 2 {
 		jsonStr := matches[1]
@@ -61,8 +65,7 @@ func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
 	}
 
 	// Legacy format: look for frontmatter-hash without JSON metadata
-	hashPattern := regexp.MustCompile(`#\s*frontmatter-hash:\s*([0-9a-f]{64})`)
-	if matches := hashPattern.FindStringSubmatch(content); len(matches) >= 2 {
+	if matches := lockHashPattern.FindStringSubmatch(content); len(matches) >= 2 {
 		lockSchemaLog.Print("Legacy lock file detected (no schema version)")
 		// Return a minimal metadata struct with just the hash for legacy files
 		return &LockMetadata{FrontmatterHash: matches[1]}, true, nil

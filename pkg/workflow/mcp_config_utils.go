@@ -27,13 +27,13 @@
 //
 // Use cases:
 //   - Safe-outputs HTTP server accessed from firewall container
-//   - Safe-inputs HTTP server accessed from firewall container
+//   - MCP Scripts HTTP server accessed from firewall container
 //   - Custom HTTP MCP servers on localhost
 //
 // Related files:
 //   - mcp_renderer.go: Uses URL rewriting for HTTP MCP servers
 //   - safe_outputs.go: Safe outputs HTTP server configuration
-//   - safe_inputs.go: Safe inputs HTTP server configuration
+//   - mcp_scripts.go: MCP Scripts HTTP server configuration
 //
 // Example:
 //

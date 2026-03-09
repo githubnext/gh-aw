@@ -25,7 +25,31 @@ function parseAllowedBots() {
 }
 
 /**
- * Check if the actor is a bot and if it's active on the repository
+ * Canonicalize a bot/App identifier by stripping the [bot] suffix.
+ * Both "my-app" and "my-app[bot]" normalize to "my-app".
+ * @param {string} name - Bot identifier (with or without [bot] suffix)
+ * @returns {string} The base slug without [bot] suffix
+ */
+function canonicalizeBotIdentifier(name) {
+  return name.endsWith("[bot]") ? name.slice(0, -5) : name;
+}
+
+/**
+ * Check if an actor matches any entry in the allowed bots list,
+ * treating <slug> and <slug>[bot] as equivalent App identities.
+ * @param {string} actor - The runtime actor name
+ * @param {string[]} allowedBots - Array of allowed bot identifiers
+ * @returns {boolean}
+ */
+function isAllowedBot(actor, allowedBots) {
+  const canonicalActor = canonicalizeBotIdentifier(actor);
+  return allowedBots.some(bot => canonicalizeBotIdentifier(bot) === canonicalActor);
+}
+
+/**
+ * Check if the actor is a bot and if it's active on the repository.
+ * Accepts both <slug> and <slug>[bot] actor forms, since GitHub Apps
+ * may appear either way depending on the event context.
  * @param {string} actor - GitHub username to check
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -33,22 +57,21 @@ function parseAllowedBots() {
  */
 async function checkBotStatus(actor, owner, repo) {
   try {
-    // Check if the actor looks like a bot (ends with [bot])
-    const isBot = actor.endsWith("[bot]");
-
-    if (!isBot) {
-      return { isBot: false, isActive: false };
-    }
+    // GitHub Apps can appear as either <slug> or <slug>[bot].
+    // Treat both forms as a bot identity; always query the API with the [bot] form.
+    const actorHasBotSuffix = actor.endsWith("[bot]");
+    const actorForApi = actorHasBotSuffix ? actor : `${actor}[bot]`;
 
     core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
 
-    // Try to get the bot's permission level to verify it's installed/active on the repo
-    // GitHub Apps/bots that are installed on a repository show up in the collaborators
+    // Try to get the bot's permission level to verify it's installed/active on the repo.
+    // GitHub Apps/bots that are installed on a repository show up in the collaborators.
+    // Use the [bot]-suffixed form since that is how GitHub App identities are listed.
     try {
       const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
         owner,
         repo,
-        username: actor,
+        username: actorForApi,
       });
 
       core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
@@ -114,6 +137,8 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
 module.exports = {
   parseRequiredPermissions,
   parseAllowedBots,
+  canonicalizeBotIdentifier,
+  isAllowedBot,
   checkRepositoryPermission,
   checkBotStatus,
 };

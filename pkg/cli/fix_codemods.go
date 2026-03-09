@@ -25,7 +25,7 @@ func GetAllCodemods() []Codemod {
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
-		getSafeInputsModeCodemod(),
+		getMCPScriptsModeCodemod(),
 		getUploadAssetsCodemod(),
 		getWritePermissionsCodemod(),
 		getPermissionsReadCodemod(), // Fix permissions: read -> permissions: read-all
@@ -48,6 +48,7 @@ func GetAllCodemods() []Codemod {
 		getExpiresIntegerToStringCodemod(),    // Convert expires integer (days) to string with 'd' suffix
 		getSerenaLocalModeCodemod(),           // Replace tools.serena mode: local with mode: docker
 		getGitHubAppCodemod(),                 // Rename deprecated 'app' to 'github-app'
+		getSafeInputsToMCPScriptsCodemod(),    // Rename safe-inputs to mcp-scripts
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

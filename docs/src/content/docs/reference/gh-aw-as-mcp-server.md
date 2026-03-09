@@ -108,6 +108,25 @@ Alternatively, create `.vscode/mcp.json` manually:
 
 Reload VS Code after making changes.
 
+## Configuring with Docker
+
+If `gh` is not installed locally, use the `ghcr.io/github/gh-aw` Docker image. The image ships with the GitHub CLI and gh-aw pre-installed and uses `mcp-server` as the default command.
+
+```json wrap
+{
+  "command": "docker",
+  "args": [
+    "run", "--rm", "-i",
+    "-e", "GITHUB_TOKEN",
+    "-e", "GITHUB_ACTOR",
+    "ghcr.io/github/gh-aw:latest",
+    "mcp-server"
+  ]
+}
+```
+
+Pass your GitHub token via the `GITHUB_TOKEN` environment variable. Add `--validate-actor` to the `args` array to enforce permission checks based on `GITHUB_ACTOR`.
+
 ## Available Tools
 
 The MCP server exposes the following tools for workflow management:
@@ -263,7 +282,7 @@ Apply automatic codemod-style fixes to workflow files.
 - `timeout-minutes-migration`: Replaces `timeout_minutes` with `timeout-minutes`
 - `network-firewall-migration`: Removes deprecated `network.firewall` field
 - `sandbox-agent-false-removal`: Removes `sandbox.agent: false` (firewall now mandatory)
-- `safe-inputs-mode-removal`: Removes deprecated `safe-inputs.mode` field
+- `mcp-scripts-mode-removal`: Removes deprecated `mcp-scripts.mode` field
 
 **Returns:** Formatted text output showing:
 

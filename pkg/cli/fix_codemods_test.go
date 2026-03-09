@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 26
+	expectedCount := 27
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -70,7 +70,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"timeout-minutes-migration",
 		"network-firewall-migration",
 		"command-to-slash-command-migration",
-		"safe-inputs-mode-removal",
+		"mcp-scripts-mode-removal",
 		"upload-assets-to-upload-asset-migration",
 		"write-permissions-to-read-migration",
 		"permissions-read-to-read-all",
@@ -80,6 +80,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"delete-schema-file",
 		"grep-tool-removal",
 		"mcp-network-to-top-level-migration",
+		"safe-inputs-to-mcp-scripts",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -107,7 +108,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"timeout-minutes-migration",
 		"network-firewall-migration",
 		"command-to-slash-command-migration",
-		"safe-inputs-mode-removal",
+		"mcp-scripts-mode-removal",
 		"upload-assets-to-upload-asset-migration",
 		"write-permissions-to-read-migration",
 		"permissions-read-to-read-all",
@@ -130,6 +131,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"expires-integer-to-string",
 		"serena-local-to-docker",
 		"app-to-github-app",
+		"safe-inputs-to-mcp-scripts",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")

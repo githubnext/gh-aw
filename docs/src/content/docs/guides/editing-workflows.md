@@ -103,7 +103,7 @@ Any changes to the frontmatter configuration between `---` markers:
 - **Tools** (`tools:`): Tool configurations, MCP servers, allowed tools
 - **Network** (`network:`): Allowed domains, firewall rules
 - **Safe outputs** (`safe-outputs:`): Output types, threat detection
-- **Safe inputs** (`safe-inputs:`): Input validation rules
+- **MCP Scripts** (`mcp-scripts:`): Custom MCP tools defined inline
 - **Runtimes** (`runtimes:`): Node, Python, Go version overrides
 - **Imports** (`imports:`): Shared configuration files
 - **Custom jobs** (`jobs:`): Additional workflow jobs

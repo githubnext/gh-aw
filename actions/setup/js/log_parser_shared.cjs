@@ -597,7 +597,7 @@ function formatInitializationSummary(initEntry, options = {}) {
       "File Operations": [],
       Builtin: [],
       "Safe Outputs": [],
-      "Safe Inputs": [],
+      "MCP Scripts": [],
       "Git/GitHub": [],
       Playwright: [],
       Serena: [],
@@ -625,10 +625,10 @@ function formatInitializationSummary(initEntry, options = {}) {
         // Extract the tool name without the prefix for cleaner display
         const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
         categories["Safe Outputs"].push(toolName);
-      } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+      } else if (tool.startsWith("safeinputs-") || tool.startsWith("mcp_scripts-") || tool.startsWith("mcpscripts-")) {
         // Extract the tool name without the prefix for cleaner display
-        const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
-        categories["Safe Inputs"].push(toolName);
+        const toolName = tool.replace(/^safeinputs-|^mcp_scripts-|^mcpscripts-/, "");
+        categories["MCP Scripts"].push(toolName);
       } else if (tool.startsWith("mcp__github__")) {
         categories["Git/GitHub"].push(formatMcpName(tool));
       } else if (tool.startsWith("mcp__playwright__")) {

@@ -289,7 +289,7 @@ test_mixed_servers() {
   "mcpServers": {
     "safeinputs": {
       "command": "gh",
-      "args": ["aw", "mcp-server", "--mode", "safe-inputs"]
+      "args": ["aw", "mcp-server", "--mode", "mcp-scripts"]
     },
     "safeoutputs": {
       "command": "gh",

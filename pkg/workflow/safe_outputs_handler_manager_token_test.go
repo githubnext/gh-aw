@@ -9,6 +9,166 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestHandlerManagerGitHubTokenEnvVarForCrossRepo verifies that GITHUB_TOKEN is exposed as
+// an environment variable in the consolidated safe outputs handler step when create-pull-request
+// or push-to-pull-request-branch is configured with a custom token. This is required so that
+// the JavaScript handler's git CLI operations (dynamic checkout in multi-repo scenarios) can
+// authenticate with the custom token instead of the default repo-scoped GITHUB_TOKEN.
+func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
+	tests := []struct {
+		name                    string
+		frontmatter             map[string]any
+		expectedGitHubTokenLine string
+		shouldHaveGitHubToken   bool
+	}{
+		{
+			name: "create-pull-request with safe-outputs github-token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.CROSS_REPO_PAT }}",
+					"create-pull-request": map[string]any{
+						"max":           10,
+						"base-branch":   "main",
+						"allowed-repos": []any{"Org/repo-a", "Org/repo-b"},
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
+		{
+			name: "create-pull-request with per-config github-token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"create-pull-request": map[string]any{
+						"github-token":  "${{ secrets.PR_PAT }}",
+						"max":           5,
+						"allowed-repos": []any{"Org/repo-a"},
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.PR_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
+		{
+			name: "push-to-pull-request-branch with safe-outputs github-token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.PUSH_PAT }}",
+					"push-to-pull-request-branch": map[string]any{
+						"max": 3,
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.PUSH_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
+		{
+			name: "create-pull-request without custom token - no GITHUB_TOKEN override",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"create-pull-request": map[string]any{
+						"max": 1,
+					},
+				},
+			},
+			shouldHaveGitHubToken: false,
+		},
+		{
+			name: "push-to-pull-request-branch per-config token takes precedence over safe-outputs token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+					"push-to-pull-request-branch": map[string]any{
+						"github-token": "${{ secrets.PUSH_PAT }}",
+						"max":          2,
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.PUSH_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
+		{
+			name: "add-comment without patches - no GITHUB_TOKEN override",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.SOME_PAT }}",
+					"add-comment": map[string]any{
+						"max": 5,
+					},
+				},
+			},
+			shouldHaveGitHubToken: false,
+		},
+		{
+			name: "create-pull-request with github-app - uses minted app token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+					"create-pull-request": map[string]any{
+						"max":           5,
+						"allowed-repos": []any{"Org/repo-a"},
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
+			shouldHaveGitHubToken:   true,
+		},
+		{
+			name: "per-config github-token overrides github-app token",
+			frontmatter: map[string]any{
+				"name": "Test Workflow",
+				"safe-outputs": map[string]any{
+					"github-app": map[string]any{
+						"app-id":      "${{ vars.APP_ID }}",
+						"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+					},
+					"create-pull-request": map[string]any{
+						"github-token":  "${{ secrets.CREATE_PR_PAT }}",
+						"max":           5,
+						"allowed-repos": []any{"Org/repo-a"},
+					},
+				},
+			},
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
+			shouldHaveGitHubToken:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			workflowData := &WorkflowData{
+				Name:        "test-workflow",
+				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
+			}
+
+			steps := compiler.buildHandlerManagerStep(workflowData)
+			yamlStr := strings.Join(steps, "")
+
+			if tt.shouldHaveGitHubToken {
+				assert.Contains(t, yamlStr, tt.expectedGitHubTokenLine,
+					"Expected GITHUB_TOKEN env var %q to be set in handler manager step for cross-repo git operations",
+					tt.expectedGitHubTokenLine)
+			} else {
+				assert.NotContains(t, yamlStr, "GITHUB_TOKEN:",
+					"Expected GITHUB_TOKEN to NOT be explicitly set when no custom checkout token is configured")
+			}
+		})
+	}
+}
+
 // TestHandlerManagerProjectGitHubTokenEnvVar verifies that GH_AW_PROJECT_GITHUB_TOKEN
 // is exposed as an environment variable in the consolidated safe outputs handler step
 // when any project-related safe output is configured

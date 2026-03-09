@@ -191,8 +191,7 @@ async function main() {
 
   // Process each agent assignment
   const results = [];
-  for (let i = 0; i < itemsToProcess.length; i++) {
-    const item = itemsToProcess[i];
+  for (const [i, item] of itemsToProcess.entries()) {
     const agentName = item.agent ?? defaultAgent;
     // Model, custom agent, and custom instructions are only configurable via frontmatter defaults
     // They are NOT available as per-item overrides in the tool call
@@ -478,12 +477,7 @@ async function main() {
       let errorMessage = getErrorMessage(error);
 
       // Check if this is a token authentication error
-      const isAuthError =
-        errorMessage.includes("Bad credentials") ||
-        errorMessage.includes("Not Authenticated") ||
-        errorMessage.includes("Resource not accessible") ||
-        errorMessage.includes("Insufficient permissions") ||
-        errorMessage.includes("requires authentication");
+      const isAuthError = ["Bad credentials", "Not Authenticated", "Resource not accessible", "Insufficient permissions", "requires authentication"].some(msg => errorMessage.includes(msg));
 
       // If ignore-if-error is enabled and this is an auth error, log warning and skip
       if (ignoreIfError && isAuthError) {

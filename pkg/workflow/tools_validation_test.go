@@ -265,7 +265,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos":         "all",
-					"min-integrity": "reader",
+					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: false,
@@ -275,7 +275,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos":         "public",
-					"min-integrity": "writer",
+					"min-integrity": "approved",
 				},
 			},
 			shouldError: false,
@@ -304,7 +304,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "missing repos field",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"min-integrity": "reader",
+					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: true,
@@ -336,7 +336,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos":         "private",
-					"min-integrity": "reader",
+					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: true,
@@ -347,7 +347,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos":         []any{},
-					"min-integrity": "reader",
+					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: true,
@@ -358,7 +358,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos":         []any{"Owner/repo"},
-					"min-integrity": "reader",
+					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: true,
@@ -369,7 +369,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"repos":         []any{"just-a-name"},
-					"min-integrity": "reader",
+					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: true,

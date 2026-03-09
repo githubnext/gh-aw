@@ -108,15 +108,15 @@ func GetMCPLoggerScript() string {
 	return ""
 }
 
-func GetSafeInputsMCPServerHTTPScript() string {
+func GetMCPScriptsMCPServerHTTPScript() string {
 	return ""
 }
 
-func GetSafeInputsConfigLoaderScript() string {
+func GetMCPScriptsConfigLoaderScript() string {
 	return ""
 }
 
-func GetSafeInputsValidationScript() string {
+func GetMCPScriptsValidationScript() string {
 	return ""
 }
 

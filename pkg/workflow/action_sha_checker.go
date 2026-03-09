@@ -12,6 +12,10 @@ import (
 
 var actionSHACheckerLog = logger.New("workflow:action_sha_checker")
 
+// actionUsesPattern matches action references in lock files:
+// owner/repo@40-char-hex-sha with optional version comment
+var actionUsesPattern = regexp.MustCompile(`([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([0-9a-f]{40})(?:\s*#\s*([^\s]+))?`)
+
 // ActionUsage represents an action used in a workflow with its SHA
 type ActionUsage struct {
 	Repo    string // e.g., "actions/checkout"
@@ -47,16 +51,10 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 		return nil, fmt.Errorf("failed to parse lock file YAML: %w", err)
 	}
 
-	// Regular expression to match uses: owner/repo@sha with optional version comment
-	// This matches: owner/repo@40-char-hex-sha # version
-	// Captures: (1) repo, (2) sha, (3) version (optional)
-	usesPattern := regexp.MustCompile(`([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([0-9a-f]{40})(?:\s*#\s*([^\s]+))?`)
-
-	actions := make(map[string]ActionUsage) // Use map to deduplicate
-
 	// Convert to string and extract all uses fields
 	contentStr := string(content)
-	matches := usesPattern.FindAllStringSubmatch(contentStr, -1)
+	actions := make(map[string]ActionUsage) // Use map to deduplicate
+	matches := actionUsesPattern.FindAllStringSubmatch(contentStr, -1)
 
 	for _, match := range matches {
 		if len(match) >= 3 {

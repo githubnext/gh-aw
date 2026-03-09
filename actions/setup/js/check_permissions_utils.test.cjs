@@ -29,6 +29,8 @@ global.github = mockGithub;
 describe("check_permissions_utils", () => {
   let parseRequiredPermissions;
   let parseAllowedBots;
+  let canonicalizeBotIdentifier;
+  let isAllowedBot;
   let checkRepositoryPermission;
   let checkBotStatus;
   let originalEnv;
@@ -47,6 +49,8 @@ describe("check_permissions_utils", () => {
     const module = await import("./check_permissions_utils.cjs");
     parseRequiredPermissions = module.parseRequiredPermissions;
     parseAllowedBots = module.parseAllowedBots;
+    canonicalizeBotIdentifier = module.canonicalizeBotIdentifier;
+    isAllowedBot = module.isAllowedBot;
     checkRepositoryPermission = module.checkRepositoryPermission;
     checkBotStatus = module.checkBotStatus;
   });
@@ -97,6 +101,54 @@ describe("check_permissions_utils", () => {
       process.env.GH_AW_ALLOWED_BOTS = "dependabot[bot]";
       const result = parseAllowedBots();
       expect(result).toEqual(["dependabot[bot]"]);
+    });
+  });
+
+  describe("canonicalizeBotIdentifier", () => {
+    it("should strip [bot] suffix", () => {
+      expect(canonicalizeBotIdentifier("dependabot[bot]")).toBe("dependabot");
+    });
+
+    it("should return name unchanged when no [bot] suffix", () => {
+      expect(canonicalizeBotIdentifier("my-pipeline-app")).toBe("my-pipeline-app");
+    });
+
+    it("should handle names with [bot] suffix only once", () => {
+      expect(canonicalizeBotIdentifier("github-actions[bot]")).toBe("github-actions");
+    });
+  });
+
+  describe("isAllowedBot", () => {
+    it("should match exact slug to slug", () => {
+      expect(isAllowedBot("my-app", ["my-app"])).toBe(true);
+    });
+
+    it("should match slug to slug[bot]", () => {
+      expect(isAllowedBot("my-app[bot]", ["my-app"])).toBe(true);
+    });
+
+    it("should match slug[bot] to slug", () => {
+      expect(isAllowedBot("my-app", ["my-app[bot]"])).toBe(true);
+    });
+
+    it("should match slug[bot] to slug[bot]", () => {
+      expect(isAllowedBot("my-app[bot]", ["my-app[bot]"])).toBe(true);
+    });
+
+    it("should return false when actor is not in the list", () => {
+      expect(isAllowedBot("other-app", ["my-app"])).toBe(false);
+    });
+
+    it("should return false for empty allowed bots list", () => {
+      expect(isAllowedBot("my-app", [])).toBe(false);
+    });
+
+    it("should match against any entry in the list", () => {
+      expect(isAllowedBot("renovate[bot]", ["dependabot[bot]", "renovate", "github-actions[bot]"])).toBe(true);
+    });
+
+    it("should not match partial slug names", () => {
+      expect(isAllowedBot("my-app-extra[bot]", ["my-app"])).toBe(false);
     });
   });
 
@@ -287,15 +339,48 @@ describe("check_permissions_utils", () => {
       expect(mockCore.info).toHaveBeenCalledWith("Bot 'dependabot[bot]' is active with permission level: write");
     });
 
-    it("should return false for non-bot users", async () => {
-      const result = await checkBotStatus("regularuser", "testowner", "testrepo");
+    it("should identify active bot by slug without [bot] suffix", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      const result = await checkBotStatus("my-pipeline-app", "testowner", "testrepo");
 
       expect(result).toEqual({
-        isBot: false,
+        isBot: true,
+        isActive: true,
+      });
+
+      // API should be called with the [bot]-suffixed form
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        username: "my-pipeline-app[bot]",
+      });
+
+      expect(mockCore.info).toHaveBeenCalledWith("Checking if bot 'my-pipeline-app' is active on testowner/testrepo");
+      expect(mockCore.info).toHaveBeenCalledWith("Bot 'my-pipeline-app' is active with permission level: write");
+    });
+
+    it("should return inactive bot when slug without [bot] suffix is not installed", async () => {
+      const apiError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError);
+
+      const result = await checkBotStatus("my-pipeline-app", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: true,
         isActive: false,
       });
 
-      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+      // API should still be called with the [bot]-suffixed form
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        username: "my-pipeline-app[bot]",
+      });
+
+      expect(mockCore.warning).toHaveBeenCalledWith("Bot 'my-pipeline-app' is not active/installed on testowner/testrepo");
     });
 
     it("should handle 404 error for inactive bot", async () => {
@@ -357,7 +442,7 @@ describe("check_permissions_utils", () => {
       });
     });
 
-    it("should verify bot is installed on repository", async () => {
+    it("should verify bot is installed on repository using [bot] form", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "admin" },
       });

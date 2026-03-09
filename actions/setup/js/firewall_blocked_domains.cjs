@@ -152,12 +152,24 @@ function getBlockedDomains(logsDir) {
         continue;
       }
 
+      // Skip internal Squid error entries (client IP ::1, no domain, no destination)
+      // These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
+      // and are not actual external network requests.
+      // Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+      if (entry.clientIpPort.startsWith("::1:") && entry.domain === "-" && (entry.destIpPort === "-:-" || entry.destIpPort === "-")) {
+        continue;
+      }
+
       // Check if request was blocked
       const isBlocked = isRequestBlocked(entry.decision, entry.status);
       if (isBlocked) {
         // When domain is "-" (iptables-dropped traffic not visible to Squid),
         // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
-        const domainField = entry.domain !== "-" ? entry.domain : entry.destIpPort;
+        // Only fall back if destIpPort is a valid host:port (not "-" or "-:-" which are placeholder values)
+        let domainField = entry.domain;
+        if (domainField === "-" && entry.destIpPort !== "-" && entry.destIpPort !== "-:-") {
+          domainField = entry.destIpPort;
+        }
         const sanitizedDomain = extractAndSanitizeDomain(domainField);
         if (sanitizedDomain && sanitizedDomain !== "-") {
           blockedDomainsSet.add(sanitizedDomain);

@@ -647,12 +647,7 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    // Detect pre-agent failure: agent never produced output (artifact was not downloaded).
-    // When the artifact download succeeds, GH_AW_AGENT_OUTPUT is set; when it fails the
-    // env var is absent, indicating the agent did not reach output-production.
-    const isPreAgentFailure = agentConclusion === "failure" && !process.env.GH_AW_AGENT_OUTPUT;
-    const failureStage = isPreAgentFailure ? " (pre-agent)" : "";
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed${failureStage}`;
+    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
 
     core.info(`Checking for existing issue with title: "${issueTitle}"`);
 

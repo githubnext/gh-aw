@@ -10,7 +10,7 @@
 // Key responsibilities:
 //   - Collecting MCP-related environment variables from workflow configuration
 //   - Managing GitHub MCP server tokens (custom, default, and GitHub App tokens)
-//   - Handling safe-outputs and safe-inputs environment variables
+//   - Handling safe-outputs and mcp-scripts environment variables
 //   - Processing Playwright domain secrets
 //   - Extracting secrets from HTTP MCP server headers
 //   - Managing agentic-workflows GITHUB_TOKEN
@@ -18,7 +18,7 @@
 // Environment variable categories:
 //   - GitHub MCP: GITHUB_MCP_SERVER_TOKEN, GITHUB_MCP_LOCKDOWN
 //   - Safe Outputs: GH_AW_SAFE_OUTPUTS_*, GH_AW_ASSETS_*
-//   - Safe Inputs: GH_AW_SAFE_INPUTS_PORT, GH_AW_SAFE_INPUTS_API_KEY
+//   - MCP Scripts: GH_AW_MCP_SCRIPTS_PORT, GH_AW_MCP_SCRIPTS_API_KEY
 //   - Serena: GH_AW_SERENA_PORT (local mode only)
 //   - Playwright: Secrets from custom args expressions
 //   - HTTP MCP: Custom secrets from headers and env sections
@@ -37,7 +37,7 @@
 //   - mcp_setup_generator.go: Uses collected env vars in gateway setup
 //   - mcp_github_config.go: GitHub-specific token and configuration
 //   - safe_outputs.go: Safe outputs configuration
-//   - safe_inputs.go: Safe inputs configuration
+//   - mcp_scripts.go: MCP Scripts configuration
 //
 // Example usage:
 //
@@ -101,17 +101,17 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 	}
 
-	// Check for safe-inputs env vars
-	// Only add env vars if safe-inputs is actually enabled (has tools configured)
-	// This prevents referencing step outputs that don't exist when safe-inputs isn't used
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+	// Check for mcp-scripts env vars
+	// Only add env vars if mcp-scripts is actually enabled (has tools configured)
+	// This prevents referencing step outputs that don't exist when mcp-scripts isn't used
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
 		// Add server configuration env vars from step outputs
-		envVars["GH_AW_SAFE_INPUTS_PORT"] = "${{ steps.safe-inputs-start.outputs.port }}"
-		envVars["GH_AW_SAFE_INPUTS_API_KEY"] = "${{ steps.safe-inputs-start.outputs.api_key }}"
+		envVars["GH_AW_MCP_SCRIPTS_PORT"] = "${{ steps.mcp-scripts-start.outputs.port }}"
+		envVars["GH_AW_MCP_SCRIPTS_API_KEY"] = "${{ steps.mcp-scripts-start.outputs.api_key }}"
 
 		// Add tool-specific env vars (secrets passthrough)
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		maps.Copy(envVars, safeInputsSecrets)
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		maps.Copy(envVars, mcpScriptsSecrets)
 	}
 
 	// Check for safe-outputs env vars
@@ -146,7 +146,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// Skip standard tools that are handled above
 		if toolName == "github" || toolName == "playwright" || toolName == "serena" ||
 			toolName == "cache-memory" || toolName == "agentic-workflows" ||
-			toolName == "safe-outputs" || toolName == "safe-inputs" {
+			toolName == "safe-outputs" || toolName == "mcp-scripts" {
 			continue
 		}
 

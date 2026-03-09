@@ -14,100 +14,6 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
-// ========================================
-// Safe Output Configuration Generation
-// ========================================
-
-// generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job
-// Returns a map representing the tool definition in MCP format with name, description, and inputSchema
-func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) map[string]any {
-	safeOutputsConfigLog.Printf("Generating tool definition for custom job: %s", jobName)
-
-	// Build the tool definition
-	tool := map[string]any{
-		"name": jobName,
-	}
-
-	// Add description if present
-	if jobConfig.Description != "" {
-		tool["description"] = jobConfig.Description
-	} else {
-		// Provide a default description if none is specified
-		tool["description"] = fmt.Sprintf("Execute the %s custom job", jobName)
-	}
-
-	// Build the input schema
-	inputSchema := map[string]any{
-		"type":       "object",
-		"properties": make(map[string]any),
-	}
-
-	// Track required fields
-	var requiredFields []string
-
-	// Add each input to the schema
-	if len(jobConfig.Inputs) > 0 {
-		properties := inputSchema["properties"].(map[string]any)
-
-		for inputName, inputDef := range jobConfig.Inputs {
-			property := map[string]any{}
-
-			// Add description
-			if inputDef.Description != "" {
-				property["description"] = inputDef.Description
-			}
-
-			// Convert type to JSON Schema type
-			switch inputDef.Type {
-			case "choice":
-				// Choice inputs are strings with enum constraints
-				property["type"] = "string"
-				if len(inputDef.Options) > 0 {
-					property["enum"] = inputDef.Options
-				}
-			case "boolean":
-				property["type"] = "boolean"
-			case "number":
-				property["type"] = "number"
-			case "string", "":
-				// Default to string if type is not specified
-				property["type"] = "string"
-			default:
-				// For any unknown type, default to string
-				property["type"] = "string"
-			}
-
-			// Add default value if present
-			if inputDef.Default != nil {
-				property["default"] = inputDef.Default
-			}
-
-			// Track required fields
-			if inputDef.Required {
-				requiredFields = append(requiredFields, inputName)
-			}
-
-			properties[inputName] = property
-		}
-	}
-
-	// Add required fields array if any inputs are required
-	if len(requiredFields) > 0 {
-		sort.Strings(requiredFields)
-		inputSchema["required"] = requiredFields
-	}
-
-	// Prevent additional properties to maintain schema strictness
-	inputSchema["additionalProperties"] = false
-
-	tool["inputSchema"] = inputSchema
-
-	safeOutputsConfigLog.Printf("Generated tool definition for %s with %d inputs, %d required",
-		jobName, len(jobConfig.Inputs), len(requiredFields))
-
-	return tool
-}
-
 func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 	if data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil {
 		return
@@ -132,14 +38,17 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 			continue
 		}
 
-		// Determine which file to use - priority: .lock.yml > .yml
+		// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
 		var extension string
 		if fileResult.lockExists {
 			extension = ".lock.yml"
 		} else if fileResult.ymlExists {
 			extension = ".yml"
+		} else if fileResult.mdExists {
+			// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
+			extension = ".lock.yml"
 		} else {
-			safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (only .md exists, needs compilation)", workflowName)
+			safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
 			continue
 		}
 
@@ -1314,17 +1223,23 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 				continue
 			}
 
-			// Determine which file to use - priority: .lock.yml > .yml
+			// Determine which file to use - priority: .lock.yml > .yml > .md (batch target)
 			var workflowPath string
 			var extension string
+			var useMD bool
 			if fileResult.lockExists {
 				workflowPath = fileResult.lockPath
 				extension = ".lock.yml"
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
 				extension = ".yml"
+			} else if fileResult.mdExists {
+				// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml
+				workflowPath = fileResult.mdPath
+				extension = ".lock.yml"
+				useMD = true
 			} else {
-				safeOutputsConfigLog.Printf("Warning: workflow file not found for %s (only .md exists, needs compilation)", workflowName)
+				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
 				// Continue with empty inputs
 				tool := generateDispatchWorkflowTool(workflowName, make(map[string]any))
 				filteredTools = append(filteredTools, tool)
@@ -1335,9 +1250,15 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 			data.SafeOutputs.DispatchWorkflow.WorkflowFiles[workflowName] = extension
 
 			// Extract workflow_dispatch inputs
-			workflowInputs, err := extractWorkflowDispatchInputs(workflowPath)
-			if err != nil {
-				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, err)
+			var workflowInputs map[string]any
+			var inputsErr error
+			if useMD {
+				workflowInputs, inputsErr = extractMDWorkflowDispatchInputs(workflowPath)
+			} else {
+				workflowInputs, inputsErr = extractWorkflowDispatchInputs(workflowPath)
+			}
+			if inputsErr != nil {
+				safeOutputsConfigLog.Printf("Warning: failed to extract inputs for workflow %s from %s: %v", workflowName, workflowPath, inputsErr)
 				// Continue with empty inputs
 				workflowInputs = make(map[string]any)
 			}

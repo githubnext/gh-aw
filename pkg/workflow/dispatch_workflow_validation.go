@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
 
@@ -99,12 +100,26 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 				continue // Skip further validation for this workflow
 			}
 		} else {
-			// Only .md exists - needs to be compiled first
-			compileErr := fmt.Errorf("dispatch-workflow: workflow '%s' must be compiled first\n\nThe workflow source file exists at: %s\nBut the compiled .lock.yml file is missing.\n\nTo fix:\n1. Compile the workflow: gh aw compile %s\n2. Commit the generated .lock.yml file\n3. Ensure .lock.yml files are not in .gitignore", workflowName, fileResult.mdPath, workflowName)
-			if returnErr := collector.Add(compileErr); returnErr != nil {
-				return returnErr // Fail-fast mode
+			// Only .md exists — it may be a same-batch compilation target.
+			// Validate via the .md frontmatter so a second compile pass is not required.
+			mdHasDispatch, checkErr := mdHasWorkflowDispatch(fileResult.mdPath)
+			if checkErr != nil {
+				readErr := fmt.Errorf("dispatch-workflow: failed to read workflow source %s: %w", fileResult.mdPath, checkErr)
+				if returnErr := collector.Add(readErr); returnErr != nil {
+					return returnErr // Fail-fast mode
+				}
+				continue // Skip further validation for this workflow
 			}
-			continue // Skip further validation for this workflow
+			if !mdHasDispatch {
+				dispatchErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
+				if returnErr := collector.Add(dispatchErr); returnErr != nil {
+					return returnErr // Fail-fast mode
+				}
+				continue // Skip further validation for this workflow
+			}
+			// .md exists with workflow_dispatch — valid same-batch compilation target.
+			dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch (found .md source at %s with workflow_dispatch trigger)", workflowName, fileResult.mdPath)
+			continue // Trigger validated; skip YAML-specific checks below
 		}
 
 		// Parse the workflow YAML to check for workflow_dispatch trigger
@@ -127,28 +142,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			continue // Skip further validation for this workflow
 		}
 
-		// Check if workflow_dispatch is in the "on" section
-		hasWorkflowDispatch := false
-		switch on := onSection.(type) {
-		case string:
-			// Simple trigger like "on: push"
-			if on == "workflow_dispatch" {
-				hasWorkflowDispatch = true
-			}
-		case []any:
-			// Array of triggers like "on: [push, workflow_dispatch]"
-			for _, trigger := range on {
-				if triggerStr, ok := trigger.(string); ok && triggerStr == "workflow_dispatch" {
-					hasWorkflowDispatch = true
-					break
-				}
-			}
-		case map[string]any:
-			// Map of triggers like "on: { push: {}, workflow_dispatch: {} }"
-			_, hasWorkflowDispatch = on["workflow_dispatch"]
-		}
-
-		if !hasWorkflowDispatch {
+		if !containsWorkflowDispatch(onSection) {
 			dispatchErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
 			if returnErr := collector.Add(dispatchErr); returnErr != nil {
 				return returnErr // Fail-fast mode
@@ -295,4 +289,84 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	result.ymlExists = fileutil.FileExists(ymlPath)
 
 	return result, nil
+}
+
+// mdHasWorkflowDispatch reads a .md workflow file's frontmatter and reports whether
+// the workflow includes a workflow_dispatch trigger in its 'on:' section.
+// This is used to validate same-batch dispatch-workflow targets whose .lock.yml has
+// not yet been generated.
+func mdHasWorkflowDispatch(mdPath string) (bool, error) {
+	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir in findWorkflowFile
+	if err != nil {
+		return false, err
+	}
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil || result == nil {
+		return false, err
+	}
+	onSection, hasOn := result.Frontmatter["on"]
+	if !hasOn {
+		return false, nil
+	}
+	return containsWorkflowDispatch(onSection), nil
+}
+
+// extractMDWorkflowDispatchInputs reads a .md workflow file's frontmatter and extracts
+// the workflow_dispatch inputs schema, mirroring extractWorkflowDispatchInputs for .md sources.
+func extractMDWorkflowDispatchInputs(mdPath string) (map[string]any, error) {
+	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir in findWorkflowFile
+	if err != nil {
+		return nil, err
+	}
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil || result == nil {
+		return make(map[string]any), nil
+	}
+	onSection, hasOn := result.Frontmatter["on"]
+	if !hasOn {
+		return make(map[string]any), nil
+	}
+	onMap, ok := onSection.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil
+	}
+	workflowDispatch, hasWorkflowDispatch := onMap["workflow_dispatch"]
+	if !hasWorkflowDispatch {
+		return make(map[string]any), nil
+	}
+	workflowDispatchMap, ok := workflowDispatch.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil
+	}
+	inputs, hasInputs := workflowDispatchMap["inputs"]
+	if !hasInputs {
+		return make(map[string]any), nil
+	}
+	inputsMap, ok := inputs.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil
+	}
+	return inputsMap, nil
+}
+
+// containsWorkflowDispatch reports whether the given 'on:' section value includes
+// a workflow_dispatch trigger.  It handles the three GitHub Actions forms:
+//   - string:     "on: workflow_dispatch"
+//   - []any:      "on: [push, workflow_dispatch]"
+//   - map[string]any: "on:\n  workflow_dispatch: ..."
+func containsWorkflowDispatch(onSection any) bool {
+	switch on := onSection.(type) {
+	case string:
+		return on == "workflow_dispatch"
+	case []any:
+		for _, trigger := range on {
+			if triggerStr, ok := trigger.(string); ok && triggerStr == "workflow_dispatch" {
+				return true
+			}
+		}
+	case map[string]any:
+		_, ok := on["workflow_dispatch"]
+		return ok
+	}
+	return false
 }

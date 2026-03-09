@@ -109,7 +109,7 @@ KPI workflows are campaigns where the first-class output is a **metric** and an 
 **Inputs (when you need knobs):**
 
 - Use `workflow_dispatch` inputs for user-controlled parameters (e.g., target threshold, window size) and have a deterministic `steps:` block normalize those inputs into a JSON config the agent reads.
-- Use `safe-inputs:` when the agent needs a constrained, auditable tool to fetch privileged data (it’s not a human input mechanism).
+- Use `mcp-scripts:` when the agent needs a constrained, auditable tool to fetch privileged data (it’s not a human input mechanism).
 
 **Minimum viable KPI spec (keep it explicit):**
 

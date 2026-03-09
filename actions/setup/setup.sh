@@ -139,18 +139,18 @@ else
   echo "::warning::No markdown prompts directory found at ${MD_SOURCE_DIR}"
 fi
 
-# Copy safe-inputs files to their expected directory
-SAFE_INPUTS_DEST="/opt/gh-aw/safe-inputs"
-echo "Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
-create_dir "${SAFE_INPUTS_DEST}"
+# Copy mcp-scripts files to their expected directory
+MCP_SCRIPTS_DEST="/opt/gh-aw/mcp-scripts"
+echo "Copying mcp-scripts files to ${MCP_SCRIPTS_DEST}"
+create_dir "${MCP_SCRIPTS_DEST}"
 
-SAFE_INPUTS_FILES=(
-  "safe_inputs_bootstrap.cjs"
-  "safe_inputs_config_loader.cjs"
-  "safe_inputs_mcp_server.cjs"
-  "safe_inputs_mcp_server_http.cjs"
-  "safe_inputs_tool_factory.cjs"
-  "safe_inputs_validation.cjs"
+MCP_SCRIPTS_FILES=(
+  "mcp_scripts_bootstrap.cjs"
+  "mcp_scripts_config_loader.cjs"
+  "mcp_scripts_mcp_server.cjs"
+  "mcp_scripts_mcp_server_http.cjs"
+  "mcp_scripts_tool_factory.cjs"
+  "mcp_scripts_validation.cjs"
   "mcp_server_core.cjs"
   "mcp_logger.cjs"
   "mcp_http_transport.cjs"
@@ -159,39 +159,39 @@ SAFE_INPUTS_FILES=(
   "mcp_handler_go.cjs"
   "mcp_handler_javascript.cjs"
   "read_buffer.cjs"
-  "generate_safe_inputs_config.cjs"
+  "generate_mcp_scripts_config.cjs"
   "setup_globals.cjs"
   "error_helpers.cjs"
   "error_codes.cjs"
   "mcp_enhanced_errors.cjs"
   "shim.cjs"
-  "safe-inputs-runner.cjs"
+  "mcp-scripts-runner.cjs"
 )
 
-SAFE_INPUTS_COUNT=0
-SAFE_INPUTS_MISSING=()
-for file in "${SAFE_INPUTS_FILES[@]}"; do
+MCP_SCRIPTS_COUNT=0
+MCP_SCRIPTS_MISSING=()
+for file in "${MCP_SCRIPTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
-    cp "${JS_SOURCE_DIR}/${file}" "${SAFE_INPUTS_DEST}/${file}"
-    echo "Copied safe-inputs: ${file}"
-    SAFE_INPUTS_COUNT=$((SAFE_INPUTS_COUNT + 1))
+    cp "${JS_SOURCE_DIR}/${file}" "${MCP_SCRIPTS_DEST}/${file}"
+    echo "Copied mcp-scripts: ${file}"
+    MCP_SCRIPTS_COUNT=$((MCP_SCRIPTS_COUNT + 1))
   else
-    echo "::error::Safe-inputs file not found: ${file}"
-    SAFE_INPUTS_MISSING+=("${file}")
+    echo "::error::MCP Scripts file not found: ${file}"
+    MCP_SCRIPTS_MISSING+=("${file}")
   fi
 done
 
-if [ ${#SAFE_INPUTS_MISSING[@]} -gt 0 ]; then
-  echo "::error::Failed to copy ${#SAFE_INPUTS_MISSING[@]} required safe-inputs files:"
-  for missing_file in "${SAFE_INPUTS_MISSING[@]}"; do
+if [ ${#MCP_SCRIPTS_MISSING[@]} -gt 0 ]; then
+  echo "::error::Failed to copy ${#MCP_SCRIPTS_MISSING[@]} required mcp-scripts files:"
+  for missing_file in "${MCP_SCRIPTS_MISSING[@]}"; do
     echo "::error::  - ${missing_file}"
   done
   echo "::error::Expected location: ${JS_SOURCE_DIR}"
-  echo "::error::These files must exist in the repository for safe-inputs to work"
+  echo "::error::These files must exist in the repository for mcp-scripts to work"
   exit 1
 fi
 
-echo "Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
+echo "Successfully copied ${MCP_SCRIPTS_COUNT} mcp-scripts files to ${MCP_SCRIPTS_DEST}"
 
 # Copy safe-outputs files to their expected directory
 SAFE_OUTPUTS_DEST="/opt/gh-aw/safeoutputs"
@@ -214,7 +214,7 @@ SAFE_OUTPUTS_FILES=(
   "mcp_handler_go.cjs"
   "mcp_handler_javascript.cjs"
   "read_buffer.cjs"
-  "safe_inputs_validation.cjs"
+  "mcp_scripts_validation.cjs"
   "messages.cjs"
   "messages_core.cjs"
   "messages_footer.cjs"
@@ -340,7 +340,7 @@ fi
 # Set output
 if [ -n "${GITHUB_OUTPUT}" ]; then
   echo "files_copied=${FILE_COUNT}" >> "${GITHUB_OUTPUT}"
-  echo "safe_inputs_files_copied=${SAFE_INPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
+  echo "mcp_scripts_files_copied=${MCP_SCRIPTS_COUNT}" >> "${GITHUB_OUTPUT}"
   echo "safe_outputs_files_copied=${SAFE_OUTPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
   echo "prompt_files_copied=${PROMPT_COUNT}" >> "${GITHUB_OUTPUT}"
 else

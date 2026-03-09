@@ -79,6 +79,7 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 	// Skip this check if we can't determine the current repository (e.g., not in a git repo)
 	currentRepoSlug, repoErr := GetCurrentRepoSlug()
 	if repoErr == nil {
+		resolutionLog.Printf("Current repository: %s", currentRepoSlug)
 		// We successfully determined the current repository, check all workflow specs
 		for _, spec := range parsedSpecs {
 			// Skip local workflow specs
@@ -90,6 +91,8 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 				return nil, fmt.Errorf("cannot add workflows from the current repository (%s). The 'add' command is for installing workflows from other repositories", currentRepoSlug)
 			}
 		}
+	} else {
+		resolutionLog.Printf("Could not determine current repository: %v", repoErr)
 	}
 	// If we can't determine the current repository, proceed without the check
 
@@ -140,6 +143,9 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 			hasWorkflowDispatch = true
 		}
 
+		resolutionLog.Printf("Resolved workflow: spec=%s, engine=%s, has_dispatch=%t, content_size=%d bytes",
+			spec.String(), engine, workflowHasDispatch, len(fetched.Content))
+
 		resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
 			Spec:                spec,
 			Content:             fetched.Content,
@@ -150,6 +156,9 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 			IsPrivate:           isPrivate,
 		})
 	}
+
+	resolutionLog.Printf("Resolution complete: resolved=%d workflows, has_wildcard=%t, has_dispatch=%t",
+		len(resolvedWorkflows), hasWildcard, hasWorkflowDispatch)
 
 	return &ResolvedWorkflows{
 		Workflows:           resolvedWorkflows,

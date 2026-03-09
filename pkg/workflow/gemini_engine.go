@@ -65,14 +65,14 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 		geminiLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
 	}
 
-	// Add safe-inputs secret names
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		for varName := range safeInputsSecrets {
+	// Add mcp-scripts secret names
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName := range mcpScriptsSecrets {
 			secrets = append(secrets, varName)
 		}
-		if len(safeInputsSecrets) > 0 {
-			geminiLog.Printf("Added %d safe-inputs secrets", len(safeInputsSecrets))
+		if len(mcpScriptsSecrets) > 0 {
+			geminiLog.Printf("Added %d mcp-scripts secrets", len(mcpScriptsSecrets))
 		}
 	}
 
@@ -272,6 +272,11 @@ touch %s
 	// LLM gateway sidecar instead of the real googleapis.com endpoint.
 	if firewallEnabled {
 		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
+
+		// Set git identity environment variables so the first git commit succeeds inside the
+		// container. AWF's --env-all forwards these to the container, ensuring git does not
+		// rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+		maps.Copy(env, getGitIdentityEnvVars())
 	}
 
 	// Add safe outputs env

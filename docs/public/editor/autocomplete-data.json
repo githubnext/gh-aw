@@ -1496,9 +1496,9 @@
       "enum": [true, false],
       "leaf": true
     },
-    "safe-inputs": {
+    "mcp-scripts": {
       "type": "object",
-      "desc": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."
+      "desc": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."
     },
     "runtimes": {
       "type": "object",
@@ -1544,7 +1544,7 @@
     "rate-limit",
     "strict",
     "private",
-    "safe-inputs",
+    "mcp-scripts",
     "runtimes",
     "jobs"
   ]

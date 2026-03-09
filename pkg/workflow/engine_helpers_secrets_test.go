@@ -159,13 +159,13 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 		assert.Contains(t, secrets, "GITHUB_MCP_SERVER_TOKEN")
 	})
 
-	t.Run("includes safe-inputs secrets", func(t *testing.T) {
+	t.Run("includes mcp-scripts secrets", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools:       map[string]any{},
 			ParsedTools: &ToolsConfig{},
-			SafeInputs: &SafeInputsConfig{
+			MCPScripts: &MCPScriptsConfig{
 				Mode: "http",
-				Tools: map[string]*SafeInputToolConfig{
+				Tools: map[string]*MCPScriptToolConfig{
 					"api": {
 						Env: map[string]string{
 							"API_TOKEN": "${{ secrets.API_TOKEN }}",

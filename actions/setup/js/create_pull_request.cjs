@@ -23,7 +23,7 @@ const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { checkForManifestFiles, checkForProtectedPaths } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 
 /**
@@ -257,10 +257,17 @@ async function main(config = {}) {
     const { repo: itemRepo, repoParts } = repoResult;
     core.info(`Target repository: ${itemRepo}`);
 
+    // Resolve base branch for this target repository
+    // Use config value if set, otherwise resolve dynamically for the specific target repo
+    // Dynamic resolution is needed for issue_comment events on PRs where the base branch
+    // is not available in GitHub Actions expressions and requires an API call
+    // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
+    let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+
     // Multi-repo support: Switch checkout to target repo if different from current
     // This enables creating PRs in multiple repos from a single workflow run
     if (checkoutManager && itemRepo) {
-      const switchResult = await checkoutManager.switchTo(itemRepo, { baseBranch: configBaseBranch });
+      const switchResult = await checkoutManager.switchTo(itemRepo, { baseBranch });
       if (!switchResult.success) {
         core.warning(`Failed to switch to repository ${itemRepo}: ${switchResult.error}`);
         return {
@@ -272,12 +279,6 @@ async function main(config = {}) {
         core.info(`Switched checkout to repository: ${itemRepo}`);
       }
     }
-
-    // Resolve base branch for this target repository
-    // Use config value if set, otherwise resolve dynamically for the specific target repo
-    // Dynamic resolution is needed for issue_comment events on PRs where the base branch
-    // is not available in GitHub Actions expressions and requires an API call
-    let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
 
     // SECURITY: Sanitize dynamically resolved base branch to prevent shell injection
     const originalBaseBranch = baseBranch;
@@ -419,35 +420,25 @@ async function main(config = {}) {
       core.info("Patch size validation passed");
     }
 
-    // Check for protected file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
-    // By default, protected file modifications are refused to prevent supply chain attacks.
-    // Set protected-files: fallback-to-issue to push the branch but create a review issue
-    // instead of a pull request, so a human can carefully review the changes first.
-    // Set protected-files: allowed only when the workflow is explicitly designed to manage these files.
-    /** @type {{ manifestFilesFound: string[], protectedPathsFound: string[] } | null} */
+    // Check file protection: allowlist (strict) or protected-files policy.
+    /** @type {string[] | null} Protected files that trigger fallback-to-issue handling */
     let manifestProtectionFallback = null;
+    /** @type {unknown} */
+    let manifestProtectionPushFailedError = null;
     if (!isEmpty) {
-      const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
-      const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      // protected_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
-      const policy = config.protected_files_policy;
-      const isAllowed = policy === "allowed";
-      const isFallback = policy === "fallback-to-issue";
-      if (!isAllowed) {
-        const { hasManifestFiles, manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
-        const { hasProtectedPaths, protectedPathsFound } = checkForProtectedPaths(patchContent, protectedPathPrefixes);
-        const allFound = [...manifestFilesFound, ...protectedPathsFound];
-        if (allFound.length > 0) {
-          if (isFallback) {
-            // Record for fallback-to-issue handling below; let patch application proceed
-            manifestProtectionFallback = { manifestFilesFound, protectedPathsFound };
-            core.warning(`Protected file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pull request.`);
-          } else {
-            const message = `Cannot create pull request: patch modifies protected files (${allFound.join(", ")}). Set protected-files: fallback-to-issue to create a review issue instead.`;
-            core.error(message);
-            return { success: false, error: message };
-          }
-        }
+      const protection = checkFileProtection(patchContent, config);
+      if (protection.action === "deny") {
+        const filesStr = protection.files.join(", ");
+        const message =
+          protection.source === "allowlist"
+            ? `Cannot create pull request: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
+            : `Cannot create pull request: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+        core.error(message);
+        return { success: false, error: message };
+      }
+      if (protection.action === "fallback") {
+        manifestProtectionFallback = protection.files;
+        core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pull request.`);
       }
     }
 
@@ -748,7 +739,14 @@ async function main(config = {}) {
         // Push failed - create fallback issue instead of PR (if fallback is enabled)
         core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-        if (!fallbackAsIssue) {
+        if (manifestProtectionFallback) {
+          // Push failed specifically for a protected-file modification. Don't create
+          // a generic push-failed issue — fall through to the manifestProtectionFallback
+          // block below, which will create the proper protected-file review issue with
+          // patch artifact download instructions (since the branch was not pushed).
+          core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
+          manifestProtectionPushFailedError = pushError;
+        } else if (!fallbackAsIssue) {
           // Fallback is disabled - return error without creating issue
           core.error("fallback-as-issue is disabled - not creating fallback issue");
           const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
@@ -757,22 +755,21 @@ async function main(config = {}) {
             error,
             error_type: "push_failed",
           };
-        }
+        } else {
+          core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
-        core.warning("Git push operation failed - creating fallback issue instead of pull request");
+          const runUrl = buildWorkflowRunUrl(context, context.repo);
+          const runId = context.runId;
 
-        const runUrl = buildWorkflowRunUrl(context, context.repo);
-        const runId = context.runId;
+          // Read patch content for preview
+          let patchPreview = "";
+          if (patchFilePath && fs.existsSync(patchFilePath)) {
+            const patchContent = fs.readFileSync(patchFilePath, "utf8");
+            patchPreview = generatePatchPreview(patchContent);
+          }
 
-        // Read patch content for preview
-        let patchPreview = "";
-        if (patchFilePath && fs.existsSync(patchFilePath)) {
-          const patchContent = fs.readFileSync(patchFilePath, "utf8");
-          patchPreview = generatePatchPreview(patchContent);
-        }
-
-        const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
-        const fallbackBody = `${body}
+          const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+          const fallbackBody = `${body}
 
 ---
 
@@ -803,27 +800,27 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 \`\`\`
 ${patchPreview}`;
 
-        try {
-          const { data: issue } = await githubClient.rest.issues.create({
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            title: title,
-            body: fallbackBody,
-            labels: mergeFallbackIssueLabels(labels),
-          });
+          try {
+            const { data: issue } = await githubClient.rest.issues.create({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              title: title,
+              body: fallbackBody,
+              labels: mergeFallbackIssueLabels(labels),
+            });
 
-          core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+            core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
 
-          // Update the activation comment with issue link (if a comment was created)
-          //
-          // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
-          // in the same repo as the activation, so the global client has the correct context for updating the comment.
-          await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+            // Update the activation comment with issue link (if a comment was created)
+            //
+            // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
+            // in the same repo as the activation, so the global client has the correct context for updating the comment.
+            await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
-          // Write summary to GitHub Actions summary
-          await core.summary
-            .addRaw(
-              `
+            // Write summary to GitHub Actions summary
+            await core.summary
+              .addRaw(
+                `
 
 ## Push Failure Fallback
 - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
@@ -831,26 +828,27 @@ ${patchPreview}`;
 - **Patch Artifact:** Available in workflow run artifacts
 - **Note:** Push failed, created issue as fallback
 `
-            )
-            .write();
+              )
+              .write();
 
-          return {
-            success: true,
-            fallback_used: true,
-            push_failed: true,
-            issue_number: issue.number,
-            issue_url: issue.html_url,
-            branch_name: branchName,
-            repo: itemRepo,
-          };
-        } catch (issueError) {
-          const error = `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
-          core.error(error);
-          return {
-            success: false,
-            error,
-          };
-        }
+            return {
+              success: true,
+              fallback_used: true,
+              push_failed: true,
+              issue_number: issue.number,
+              issue_url: issue.html_url,
+              branch_name: branchName,
+              repo: itemRepo,
+            };
+          } catch (issueError) {
+            const error = `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+            core.error(error);
+            return {
+              success: false,
+              error,
+            };
+          }
+        } // end else (generic push-failed fallback)
       }
     } else {
       core.info("Skipping patch application (empty patch)");
@@ -926,24 +924,48 @@ ${patchPreview}`;
     }
 
     // Protected file protection – fallback-to-issue path:
-    // The patch has already been applied and pushed to the branch.  Instead of
-    // creating a pull request, we create a review issue that explains why the PR
-    // was not created and provides a PR intent URL so the reviewer can create it
-    // after manually inspecting the protected file changes.
+    // The patch has been applied (and pushed, unless manifestProtectionPushFailedError is set).
+    // Instead of creating a pull request, we create a review issue so a human can carefully
+    // inspect the protected file changes before merging.
+    // - Normal case (push succeeded): provides a GitHub compare URL to click and create the PR.
+    // - Push-failed case: push was rejected (e.g. missing `workflows` permission); provides
+    //   patch artifact download instructions instead of the compare URL.
     if (manifestProtectionFallback) {
-      const allFound = [...manifestProtectionFallback.manifestFilesFound, ...manifestProtectionFallback.protectedPathsFound];
-      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
-      const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
-      const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
+      const allFound = manifestProtectionFallback;
+      const filesFormatted = allFound.map(f => `\`${f}\``).join(", ");
 
-      const templatePath = "/opt/gh-aw/prompts/manifest_protection_create_pr_fallback.md";
-      const template = fs.readFileSync(templatePath, "utf8");
-      const fallbackBody = renderTemplate(template, {
-        body,
-        files: allFound.map(f => `\`${f}\``).join(", "),
-        create_pr_url: createPrUrl,
-      });
+      let fallbackBody;
+      if (manifestProtectionPushFailedError) {
+        // Push failed — branch not on remote, so compare URL is unavailable.
+        // Use the push-failed template with artifact download instructions.
+        const runId = context.runId;
+        const patchFileName = patchFilePath ? patchFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.patch";
+        const pushFailedTemplatePath = "/opt/gh-aw/prompts/manifest_protection_push_failed_fallback.md";
+        const pushFailedTemplate = fs.readFileSync(pushFailedTemplatePath, "utf8");
+        fallbackBody = renderTemplate(pushFailedTemplate, {
+          body,
+          files: filesFormatted,
+          run_id: String(runId),
+          branch_name: branchName,
+          base_branch: baseBranch,
+          patch_file: patchFileName,
+          title,
+          repo: `${repoParts.owner}/${repoParts.repo}`,
+        });
+      } else {
+        // Normal case — push succeeded, provide compare URL.
+        const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+        const encodedBase = baseBranch.split("/").map(encodeURIComponent).join("/");
+        const encodedHead = branchName.split("/").map(encodeURIComponent).join("/");
+        const createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
+        const templatePath = "/opt/gh-aw/prompts/manifest_protection_create_pr_fallback.md";
+        const template = fs.readFileSync(templatePath, "utf8");
+        fallbackBody = renderTemplate(template, {
+          body,
+          files: filesFormatted,
+          create_pr_url: createPrUrl,
+        });
+      }
 
       try {
         const { data: issue } = await githubClient.rest.issues.create({

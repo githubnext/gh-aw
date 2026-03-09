@@ -260,6 +260,30 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(result).not.toContain("allowed.example.com");
     });
 
+    it("should filter out internal Squid error entries (::1 client, -:- destination)", () => {
+      const logsDir = path.join(testDir, "logs-squid-internal");
+      fs.mkdirSync(logsDir, { recursive: true });
+
+      // Internal Squid error entries from localhost (::1) should be ignored
+      const logContent = [
+        '1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+        '1773003475.167 172.30.0.30:50232 api.anthropic.com:443 18.64.224.91:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.anthropic.com:443 "-"',
+        '1773003477.068 ::1:35712 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"',
+        '1773003480.123 172.30.0.30:50235 blocked.example.com:443 10.0.0.1:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+      ].join("\n");
+
+      fs.writeFileSync(path.join(logsDir, "access.log"), logContent);
+
+      const result = getBlockedDomains(logsDir);
+
+      // Real blocked domain should appear
+      expect(result).toContain("blocked.example.com");
+      // Internal Squid error entries should not appear as "-:-"
+      expect(result).not.toContain("-:-");
+      // Allowed domains should not appear
+      expect(result).not.toContain("api.anthropic.com");
+    });
+
     it("should handle invalid log lines gracefully", () => {
       const logsDir = path.join(testDir, "logs6");
       fs.mkdirSync(logsDir, { recursive: true });

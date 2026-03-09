@@ -11,7 +11,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { checkForManifestFiles, checkForProtectedPaths } = require("./manifest_file_helpers.cjs");
+const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 
@@ -138,36 +138,24 @@ async function main(config = {}) {
       core.info("Patch size validation passed");
     }
 
-    // Check for protected file modifications (e.g., package.json, go.mod, .github/ files, AGENTS.md, CLAUDE.md)
-    // By default, protected file modifications are refused to prevent supply chain attacks.
-    // Set protected-files: fallback-to-issue to create a review issue instead of pushing.
-    // Set protected-files: allowed only when the workflow is explicitly designed to manage these files.
-    // NOTE: fallback-to-issue detection is done here but issue creation is deferred until after
-    // the PR metadata (repoParts, prTitle, pullNumber) has been resolved below.
+    // Check file protection: allowlist (strict) or protected-files policy.
+    // Fallback-to-issue detection is deferred until after PR metadata is resolved below.
     /** @type {string[] | null} Protected files found in the patch (manifest basenames + path-prefix matches) */
     let protectedFilesForFallback = null;
     if (!isEmpty) {
-      const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
-      const protectedPathPrefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
-      // protected_files_policy is a string enum: "allowed" = allow, "fallback-to-issue" = fallback, "blocked" (default) = deny.
-      const policy = config.protected_files_policy;
-      const isAllowed = policy === "allowed";
-      const isFallback = policy === "fallback-to-issue";
-      if (!isAllowed) {
-        const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
-        const { protectedPathsFound } = checkForProtectedPaths(patchContent, protectedPathPrefixes);
-        const allFound = [...manifestFilesFound, ...protectedPathsFound];
-        if (allFound.length > 0) {
-          if (isFallback) {
-            // Store for deferred issue creation (needs PR metadata resolved first)
-            protectedFilesForFallback = allFound;
-            core.warning(`Protected file protection triggered (fallback-to-issue): ${allFound.join(", ")}. Will create review issue instead of pushing.`);
-          } else {
-            const msg = `Cannot push to pull request branch: patch modifies protected files (${allFound.join(", ")}). Set protected-files: fallback-to-issue to create a review issue instead.`;
-            core.error(msg);
-            return { success: false, error: msg };
-          }
-        }
+      const protection = checkFileProtection(patchContent, config);
+      if (protection.action === "deny") {
+        const filesStr = protection.files.join(", ");
+        const msg =
+          protection.source === "allowlist"
+            ? `Cannot push to pull request branch: patch modifies files outside the allowed-files list (${filesStr}). Add the files to the allowed-files configuration field or remove them from the patch.`
+            : `Cannot push to pull request branch: patch modifies protected files (${filesStr}). Add them to the allowed-files configuration field or set protected-files: fallback-to-issue to create a review issue instead.`;
+        core.error(msg);
+        return { success: false, error: msg };
+      }
+      if (protection.action === "fallback") {
+        protectedFilesForFallback = protection.files;
+        core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
       }
     }
 

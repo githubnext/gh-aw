@@ -545,9 +545,9 @@ func TestGenerateHeredocDelimiter(t *testing.T) {
 			expected: "GH_AW_FILE_123ABC_EOF",
 		},
 		{
-			name:     "safe inputs",
-			input:    "SAFE_INPUTS",
-			expected: "GH_AW_SAFE_INPUTS_EOF",
+			name:     "mcp-scripts",
+			input:    "MCP_SCRIPTS",
+			expected: "GH_AW_MCP_SCRIPTS_EOF",
 		},
 		{
 			name:     "JS file suffix",

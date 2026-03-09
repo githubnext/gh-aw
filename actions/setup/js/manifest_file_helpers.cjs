@@ -1,5 +1,7 @@
 // @ts-check
 
+/** @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig */
+
 /**
  * Extracts the unique set of file basenames (filename without directory path) changed in a git patch.
  * Parses "diff --git a/<path> b/<path>" headers to determine which files were modified.
@@ -96,4 +98,76 @@ function checkForProtectedPaths(patchContent, pathPrefixes) {
   return { hasProtectedPaths: found.length > 0, protectedPathsFound: found };
 }
 
-module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths };
+/**
+ * Checks all files in a patch against an allowlist of glob patterns.
+ * When `allowed-files` is configured, it acts as a strict allowlist: every file
+ * touched by the patch must match at least one pattern; files that do not match
+ * are returned as disallowed.
+ *
+ * Glob matching supports `*` (matches any characters except `/`) and `**` (matches
+ * any characters including `/`).  Each changed file is tested as its full path
+ * (e.g. `.github/workflows/ci.yml`) against the provided patterns.
+ *
+ * @param {string} patchContent - The git patch content
+ * @param {string[]} allowedFilePatterns - Glob patterns for files permitted by the allowlist
+ * @returns {{ hasDisallowedFiles: boolean, disallowedFiles: string[] }}
+ */
+function checkAllowedFiles(patchContent, allowedFilePatterns) {
+  if (!allowedFilePatterns || allowedFilePatterns.length === 0) {
+    return { hasDisallowedFiles: false, disallowedFiles: [] };
+  }
+  const allPaths = extractPathsFromPatch(patchContent);
+  if (allPaths.length === 0) {
+    return { hasDisallowedFiles: false, disallowedFiles: [] };
+  }
+  const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+  const compiledPatterns = allowedFilePatterns.map(p => globPatternToRegex(p));
+  const disallowedFiles = allPaths.filter(p => !compiledPatterns.some(re => re.test(p)));
+  return { hasDisallowedFiles: disallowedFiles.length > 0, disallowedFiles };
+}
+
+/**
+ * Evaluates a patch against the configured file-protection policy and returns a
+ * single structured result, eliminating nested branching in callers.
+ *
+ * The two checks are orthogonal and both must pass:
+ * 1. If `allowed_files` is set → every file must match at least one pattern (deny if not).
+ * 2. `protected-files` policy applies independently: "allowed" = skip, "fallback-to-issue"
+ *    = create review issue, default ("blocked") = deny.
+ *
+ * To allow an agent to write protected files, set both `allowed-files` (strict scope) and
+ * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
+ *
+ * @param {string} patchContent - The git patch content
+ * @param {HandlerConfig} config
+ * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
+ */
+function checkFileProtection(patchContent, config) {
+  // Step 1: allowlist check (if configured)
+  const allowedFilePatterns = Array.isArray(config.allowed_files) ? config.allowed_files : [];
+  if (allowedFilePatterns.length > 0) {
+    const { disallowedFiles } = checkAllowedFiles(patchContent, allowedFilePatterns);
+    if (disallowedFiles.length > 0) {
+      return { action: "deny", source: "allowlist", files: disallowedFiles };
+    }
+  }
+
+  // Step 2: protected-files check (independent of allowlist)
+  if (config.protected_files_policy === "allowed") {
+    return { action: "allow" };
+  }
+
+  const manifestFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
+  const prefixes = Array.isArray(config.protected_path_prefixes) ? config.protected_path_prefixes : [];
+  const { manifestFilesFound } = checkForManifestFiles(patchContent, manifestFiles);
+  const { protectedPathsFound } = checkForProtectedPaths(patchContent, prefixes);
+  const allFound = [...manifestFilesFound, ...protectedPathsFound];
+
+  if (allFound.length === 0) {
+    return { action: "allow" };
+  }
+
+  return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
+}
+
+module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkAllowedFiles, checkFileProtection };

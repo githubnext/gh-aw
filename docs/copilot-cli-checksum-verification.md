@@ -145,7 +145,7 @@ The following 73 workflows now use checksum-verified Copilot CLI installation:
 54. security-compliance.md
 55. slide-deck-maintainer.md
 56. smoke-copilot-no-firewall.md
-57. smoke-copilot-safe-inputs.md
+57. smoke-copilot-mcp-scripts.md
 58. smoke-copilot.md
 59. smoke-srt.md
 60. stale-repo-identifier.md
@@ -153,7 +153,7 @@ The following 73 workflows now use checksum-verified Copilot CLI installation:
 62. technical-doc-writer.md
 63. test-discussion-expires.md
 64. test-hide-older-comments.md
-65. test-python-safe-input.md
+65. test-python-mcp-script.md
 66. tidy.md
 67. video-analyzer.md
 68. weekly-issue-summary.md

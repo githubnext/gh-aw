@@ -30,7 +30,7 @@ describe("Safe Outputs MCP Error Message Validation", () => {
     registerTool = mcpCore.registerTool;
     handleMessage = mcpCore.handleMessage;
 
-    const validation = await import("./safe_inputs_validation.cjs");
+    const validation = await import("./mcp_scripts_validation.cjs");
     validateRequiredFields = validation.validateRequiredFields;
 
     // Load tools schema

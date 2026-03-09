@@ -303,7 +303,7 @@
     },
     {
       "mcpServers": {
-        "safe-inputs-server": {
+        "mcp-scripts-server": {
           "type": "safeinputs",
           "tools": {
             "greet-user": {
@@ -325,7 +325,7 @@
         "apiKey": "gateway-secret-token"
       },
       "customSchemas": {
-        "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+        "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
       }
     }
   ]

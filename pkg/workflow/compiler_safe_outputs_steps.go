@@ -9,6 +9,59 @@ import (
 
 var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs_steps")
 
+// computeEffectivePRCheckoutToken returns the token to use for PR checkout and git operations.
+// Applies the following precedence (highest to lowest):
+//  1. Per-config PAT: create-pull-request.github-token
+//  2. Per-config PAT: push-to-pull-request-branch.github-token
+//  3. GitHub App minted token (if a github-app is configured)
+//  4. safe-outputs level PAT: safe-outputs.github-token
+//  5. Default fallback via getEffectiveSafeOutputGitHubToken()
+//
+// Per-config tokens take precedence over the GitHub App so that individual operations
+// can override the app-wide authentication with a dedicated PAT when needed.
+//
+// This is used by buildSharedPRCheckoutSteps and buildHandlerManagerStep to ensure consistent token handling.
+//
+// Returns:
+//   - token: the effective GitHub Actions token expression to use for git operations
+//   - isCustom: true when a custom non-default token was explicitly configured (per-config PAT, app, or safe-outputs PAT)
+func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token string, isCustom bool) {
+	if safeOutputs == nil {
+		return getEffectiveSafeOutputGitHubToken(""), false
+	}
+
+	// Per-config PAT tokens take highest precedence (overrides GitHub App)
+	var createPRToken string
+	if safeOutputs.CreatePullRequests != nil {
+		createPRToken = safeOutputs.CreatePullRequests.GitHubToken
+	}
+	var pushToPRBranchToken string
+	if safeOutputs.PushToPullRequestBranch != nil {
+		pushToPRBranchToken = safeOutputs.PushToPullRequestBranch.GitHubToken
+	}
+	perConfigToken := createPRToken
+	if perConfigToken == "" {
+		perConfigToken = pushToPRBranchToken
+	}
+	if perConfigToken != "" {
+		return getEffectiveSafeOutputGitHubToken(perConfigToken), true
+	}
+
+	// GitHub App token takes precedence over the safe-outputs level PAT
+	if safeOutputs.GitHubApp != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
+	}
+
+	// safe-outputs level PAT as final custom option
+	if safeOutputs.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.GitHubToken), true
+	}
+
+	// No custom token - fall back to default
+	return getEffectiveSafeOutputGitHubToken(""), false
+}
+
 // computeEffectiveProjectToken computes the effective project token using the precedence:
 //  1. Per-config token (e.g., from update-project, create-project-status-update)
 //  2. Safe-outputs level token
@@ -127,44 +180,9 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	var steps []string
 
 	// Determine which token to use for checkout
-	var checkoutToken string
-	var gitRemoteToken string
-	if data.SafeOutputs.GitHubApp != nil {
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		checkoutToken = "${{ steps.safe-outputs-app-token.outputs.token }}" //nolint:gosec
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		gitRemoteToken = "${{ steps.safe-outputs-app-token.outputs.token }}"
-	} else {
-		// Use token precedence chain instead of hardcoded github.token
-		// Precedence: create-pull-request config token > push-to-pull-request-branch config token > safe-outputs token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-		var createPRToken string
-		if data.SafeOutputs.CreatePullRequests != nil {
-			createPRToken = data.SafeOutputs.CreatePullRequests.GitHubToken
-		}
-		var pushToPRBranchToken string
-		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			pushToPRBranchToken = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
-		}
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		// Choose the first non-empty custom token for precedence
-		// Priority: create-pull-request token > push-to-pull-request-branch token > safe-outputs token
-		effectiveCustomToken := createPRToken
-		if effectiveCustomToken == "" {
-			effectiveCustomToken = pushToPRBranchToken
-		}
-		if effectiveCustomToken == "" {
-			effectiveCustomToken = safeOutputsToken
-		}
-		// Get effective token (handles fallback to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
-		effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		checkoutToken = effectiveToken
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		gitRemoteToken = effectiveToken
-	}
+	// Uses computeEffectivePRCheckoutToken for consistent token resolution (GitHub App or PAT chain)
+	checkoutToken, _ := computeEffectivePRCheckoutToken(data.SafeOutputs)
+	gitRemoteToken := checkoutToken
 
 	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
 	var condition ConditionNode
@@ -364,6 +382,24 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 
 	if projectToken != "" {
 		steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", projectToken))
+	}
+
+	// When create-pull-request or push-to-pull-request-branch is configured with a custom token
+	// (including GitHub App), expose that token as GITHUB_TOKEN so that git CLI operations in
+	// the JavaScript handlers can authenticate. The create_pull_request.cjs handler reads
+	// process.env.GITHUB_TOKEN to enable dynamic repo checkout for multi-repo/cross-repo
+	// scenarios (allowed-repos). Without this, the handler falls back to the default
+	// repo-scoped token which lacks access to other repos.
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
+		gitToken, isCustom := computeEffectivePRCheckoutToken(data.SafeOutputs)
+		// Only override GITHUB_TOKEN when a custom token (app or PAT) is explicitly configured.
+		// When no custom token is set, the default repo-scoped GITHUB_TOKEN from GitHub Actions
+		// is already in the environment and overriding it with the same default is unnecessary.
+		if isCustom {
+			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+			steps = append(steps, fmt.Sprintf("          GITHUB_TOKEN: %s\n", gitToken))
+			consolidatedSafeOutputsStepsLog.Printf("Adding GITHUB_TOKEN env var for cross-repo git CLI operations")
+		}
 	}
 
 	// With section for github-token

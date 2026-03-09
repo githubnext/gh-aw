@@ -4,7 +4,7 @@
 //
 // This file generates the complete setup sequence for MCP servers in GitHub Actions
 // workflows. It orchestrates the initialization of all MCP tools including built-in
-// servers (GitHub, Playwright, safe-outputs, safe-inputs) and custom HTTP/stdio
+// servers (GitHub, Playwright, safe-outputs, mcp-scripts) and custom HTTP/stdio
 // MCP servers.
 //
 // Key responsibilities:
@@ -12,7 +12,7 @@
 //   - Generating Docker image download steps
 //   - Installing gh-aw extension for agentic-workflows tool
 //   - Setting up safe-outputs MCP server (config, API key, HTTP server)
-//   - Setting up safe-inputs MCP server (config, tool files, HTTP server)
+//   - Setting up mcp-scripts MCP server (config, tool files, HTTP server)
 //   - Starting Serena MCP server in local mode
 //   - Starting the MCP gateway with proper environment variables
 //   - Rendering MCP configuration for the selected AI engine
@@ -22,8 +22,8 @@
 //  2. Install gh-aw extension (if agentic-workflows enabled)
 //  3. Write safe-outputs config files (config.json, tools.json, validation.json)
 //  4. Generate and start safe-outputs HTTP server
-//  5. Setup safe-inputs config and tool files (JavaScript, Python, Shell, Go)
-//  6. Generate and start safe-inputs HTTP server
+//  5. Setup mcp-scripts config and tool files (JavaScript, Python, Shell, Go)
+//  6. Generate and start mcp-scripts HTTP server
 //  7. Start Serena local mode server
 //  8. Start MCP Gateway with all environment variables
 //  9. Render engine-specific MCP configuration
@@ -32,7 +32,7 @@
 //   - github: GitHub API access via MCP (local Docker or remote hosted)
 //   - playwright: Browser automation with Playwright
 //   - safe-outputs: Controlled output storage for AI agents
-//   - safe-inputs: Custom tool execution with secret passthrough
+//   - mcp-scripts: Custom tool execution with secret passthrough
 //   - cache-memory: Memory/knowledge base management
 //   - agentic-workflows: Workflow execution via gh-aw
 //   - serena: Local Serena search functionality
@@ -47,14 +47,14 @@
 //   - mcp_environment.go: Environment variable collection
 //   - mcp_renderer.go: MCP configuration YAML rendering
 //   - safe_outputs.go: Safe outputs server configuration
-//   - safe_inputs.go: Safe inputs server configuration
+//   - mcp_scripts.go: MCP Scripts server configuration
 //
 // Example workflow setup:
 //   - Download Docker images
 //   - Write safe-outputs config to /opt/gh-aw/safeoutputs/
 //   - Start safe-outputs HTTP server on port 3001
-//   - Write safe-inputs config to /opt/gh-aw/safe-inputs/
-//   - Start safe-inputs HTTP server on port 3000
+//   - Write mcp-scripts config to /opt/gh-aw/mcp-scripts/
+//   - Start mcp-scripts HTTP server on port 3000
 //   - Start MCP Gateway on port 80
 //   - Render MCP config based on engine (copilot/claude/codex/custom)
 package workflow
@@ -108,9 +108,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		mcpTools = append(mcpTools, "safe-outputs")
 	}
 
-	// Check if safe-inputs is configured and feature flag is enabled, add to MCP tools
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		mcpTools = append(mcpTools, "safe-inputs")
+	// Check if mcp-scripts is configured and feature flag is enabled, add to MCP tools
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpTools = append(mcpTools, "mcp-scripts")
 	}
 
 	// Populate dispatch-workflow file mappings before generating config
@@ -299,78 +299,78 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Write safe-inputs MCP server if configured and feature flag is enabled
+	// Write mcp-scripts MCP server if configured and feature flag is enabled
 	// For stdio mode, we only write the files but don't start the HTTP server
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
 		// Step 1: Write config files (JavaScript files are now copied by actions/setup)
-		yaml.WriteString("      - name: Setup Safe Inputs Config\n")
+		yaml.WriteString("      - name: Setup MCP Scripts Config\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p /opt/gh-aw/safe-inputs/logs\n")
+		yaml.WriteString("          mkdir -p /opt/gh-aw/mcp-scripts/logs\n")
 
 		// Generate the tools.json configuration file
-		toolsJSON := generateSafeInputsToolsConfig(workflowData.SafeInputs)
-		toolsDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_TOOLS")
-		yaml.WriteString("          cat > /opt/gh-aw/safe-inputs/tools.json << '" + toolsDelimiter + "'\n")
+		toolsJSON := generateMCPScriptsToolsConfig(workflowData.MCPScripts)
+		toolsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_TOOLS")
+		yaml.WriteString("          cat > /opt/gh-aw/mcp-scripts/tools.json << '" + toolsDelimiter + "'\n")
 		for line := range strings.SplitSeq(toolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          " + toolsDelimiter + "\n")
 
 		// Generate the MCP server entry point
-		safeInputsMCPServer := generateSafeInputsMCPServerScript(workflowData.SafeInputs)
-		serverDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_SERVER")
-		yaml.WriteString("          cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << '" + serverDelimiter + "'\n")
-		for _, line := range FormatJavaScriptForYAML(safeInputsMCPServer) {
+		mcpScriptsMCPServer := generateMCPScriptsMCPServerScript(workflowData.MCPScripts)
+		serverDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SERVER")
+		yaml.WriteString("          cat > /opt/gh-aw/mcp-scripts/mcp-server.cjs << '" + serverDelimiter + "'\n")
+		for _, line := range FormatJavaScriptForYAML(mcpScriptsMCPServer) {
 			yaml.WriteString(line)
 		}
 		yaml.WriteString("          " + serverDelimiter + "\n")
-		yaml.WriteString("          chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs\n")
+		yaml.WriteString("          chmod +x /opt/gh-aw/mcp-scripts/mcp-server.cjs\n")
 		yaml.WriteString("          \n")
 
 		// Step 2: Generate tool files (js/py/sh)
-		yaml.WriteString("      - name: Setup Safe Inputs Tool Files\n")
+		yaml.WriteString("      - name: Setup MCP Scripts Tool Files\n")
 		yaml.WriteString("        run: |\n")
 
 		// Generate individual tool files (sorted by name for stable code generation)
-		safeInputToolNames := sliceutil.MapToSlice(workflowData.SafeInputs.Tools)
-		sort.Strings(safeInputToolNames)
+		mcpScriptToolNames := sliceutil.MapToSlice(workflowData.MCPScripts.Tools)
+		sort.Strings(mcpScriptToolNames)
 
-		for _, toolName := range safeInputToolNames {
-			toolConfig := workflowData.SafeInputs.Tools[toolName]
+		for _, toolName := range mcpScriptToolNames {
+			toolConfig := workflowData.MCPScripts.Tools[toolName]
 			if toolConfig.Script != "" {
 				// JavaScript tool
-				toolScript := generateSafeInputJavaScriptToolScript(toolConfig)
-				jsDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_JS_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.cjs << '%s'\n", toolName, jsDelimiter)
+				toolScript := generateMCPScriptJavaScriptToolScript(toolConfig)
+				jsDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_JS_" + strings.ToUpper(toolName))
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.cjs << '%s'\n", toolName, jsDelimiter)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
 					yaml.WriteString(line)
 				}
 				fmt.Fprintf(yaml, "          %s\n", jsDelimiter)
 			} else if toolConfig.Run != "" {
 				// Shell script tool
-				toolScript := generateSafeInputShellToolScript(toolConfig)
-				shDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_SH_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.sh << '%s'\n", toolName, shDelimiter)
+				toolScript := generateMCPScriptShellToolScript(toolConfig)
+				shDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_SH_" + strings.ToUpper(toolName))
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.sh << '%s'\n", toolName, shDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", shDelimiter)
-				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/safe-inputs/%s.sh\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/mcp-scripts/%s.sh\n", toolName)
 			} else if toolConfig.Py != "" {
 				// Python script tool
-				toolScript := generateSafeInputPythonToolScript(toolConfig)
-				pyDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_PY_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.py << '%s'\n", toolName, pyDelimiter)
+				toolScript := generateMCPScriptPythonToolScript(toolConfig)
+				pyDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_PY_" + strings.ToUpper(toolName))
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.py << '%s'\n", toolName, pyDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
 				fmt.Fprintf(yaml, "          %s\n", pyDelimiter)
-				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/safe-inputs/%s.py\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x /opt/gh-aw/mcp-scripts/%s.py\n", toolName)
 			} else if toolConfig.Go != "" {
 				// Go script tool
-				toolScript := generateSafeInputGoToolScript(toolConfig)
-				goDelimiter := GenerateHeredocDelimiter("SAFE_INPUTS_GO_" + strings.ToUpper(toolName))
-				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/safe-inputs/%s.go << '%s'\n", toolName, goDelimiter)
+				toolScript := generateMCPScriptGoToolScript(toolConfig)
+				goDelimiter := GenerateHeredocDelimiter("MCP_SCRIPTS_GO_" + strings.ToUpper(toolName))
+				fmt.Fprintf(yaml, "          cat > /opt/gh-aw/mcp-scripts/%s.go << '%s'\n", toolName, goDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
@@ -380,8 +380,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Step 3: Generate API key and choose port for HTTP server
-		yaml.WriteString("      - name: Generate Safe Inputs MCP Server Config\n")
-		yaml.WriteString("        id: safe-inputs-config\n")
+		yaml.WriteString("      - name: Generate MCP Scripts Server Config\n")
+		yaml.WriteString("        id: mcp-scripts-config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
 		yaml.WriteString("          # Mask immediately to prevent timing vulnerabilities\n")
@@ -392,32 +392,32 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Set outputs for next steps\n")
 		yaml.WriteString("          {\n")
-		yaml.WriteString("            echo \"safe_inputs_api_key=${API_KEY}\"\n")
-		yaml.WriteString("            echo \"safe_inputs_port=${PORT}\"\n")
+		yaml.WriteString("            echo \"mcp_scripts_api_key=${API_KEY}\"\n")
+		yaml.WriteString("            echo \"mcp_scripts_port=${PORT}\"\n")
 		yaml.WriteString("          } >> \"$GITHUB_OUTPUT\"\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          echo \"Safe Inputs MCP server will run on port ${PORT}\"\n")
+		yaml.WriteString("          echo \"MCP Scripts server will run on port ${PORT}\"\n")
 		yaml.WriteString("          \n")
 
 		// Step 4: Start the HTTP server in the background
-		yaml.WriteString("      - name: Start Safe Inputs MCP HTTP Server\n")
-		yaml.WriteString("        id: safe-inputs-start\n")
+		yaml.WriteString("      - name: Start MCP Scripts HTTP Server\n")
+		yaml.WriteString("        id: mcp-scripts-start\n")
 
 		// Add env block with step outputs and tool-specific secrets
 		// Security: Pass step outputs through environment variables to prevent template injection
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          DEBUG: '*'\n")
-		yaml.WriteString("          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
-		yaml.WriteString("          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
+		yaml.WriteString("          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_port }}\n")
+		yaml.WriteString("          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}\n")
 
-		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-		if len(safeInputsSecrets) > 0 {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		if len(mcpScriptsSecrets) > 0 {
 			// Sort env var names for consistent output - using functional helper
-			envVarNames := sliceutil.MapToSlice(safeInputsSecrets)
+			envVarNames := sliceutil.MapToSlice(mcpScriptsSecrets)
 			sort.Strings(envVarNames)
 
 			for _, envVarName := range envVarNames {
-				secretExpr := safeInputsSecrets[envVarName]
+				secretExpr := mcpScriptsSecrets[envVarName]
 				fmt.Fprintf(yaml, "          %s: %s\n", envVarName, secretExpr)
 			}
 		}
@@ -425,12 +425,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
 		yaml.WriteString("          export DEBUG\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY\n")
+		yaml.WriteString("          export GH_AW_MCP_SCRIPTS_PORT\n")
+		yaml.WriteString("          export GH_AW_MCP_SCRIPTS_API_KEY\n")
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
-		yaml.WriteString("          bash /opt/gh-aw/actions/start_safe_inputs_server.sh\n")
+		yaml.WriteString("          bash /opt/gh-aw/actions/start_mcp_scripts_server.sh\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -624,10 +624,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	containerCmd.WriteString(" -e GITHUB_HEAD_REF")
 	containerCmd.WriteString(" -e GITHUB_BASE_REF")
 	// Environment variables used by safeinputs MCP server
-	// Only add if safe-inputs is actually enabled (has tools configured)
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		containerCmd.WriteString(" -e GH_AW_SAFE_INPUTS_PORT")
-		containerCmd.WriteString(" -e GH_AW_SAFE_INPUTS_API_KEY")
+	// Only add if mcp-scripts is actually enabled (has tools configured)
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		containerCmd.WriteString(" -e GH_AW_MCP_SCRIPTS_PORT")
+		containerCmd.WriteString(" -e GH_AW_MCP_SCRIPTS_API_KEY")
 	}
 	// Environment variables used by safeoutputs MCP server
 	// Only add if safe-outputs is actually enabled (has tools configured)
@@ -672,9 +672,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
 			addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = true
 		}
-		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-			addedEnvVars["GH_AW_SAFE_INPUTS_PORT"] = true
-			addedEnvVars["GH_AW_SAFE_INPUTS_API_KEY"] = true
+		if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+			addedEnvVars["GH_AW_MCP_SCRIPTS_PORT"] = true
+			addedEnvVars["GH_AW_MCP_SCRIPTS_API_KEY"] = true
 		}
 		if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 			addedEnvVars["GH_AW_SAFE_OUTPUTS_PORT"] = true

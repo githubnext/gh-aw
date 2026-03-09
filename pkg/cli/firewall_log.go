@@ -247,6 +247,14 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 			continue
 		}
 
+		// Skip internal Squid error entries (client IP ::1, no domain, no destination)
+		// These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
+		// and are not actual external network requests.
+		// Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+		if strings.HasPrefix(entry.ClientIPPort, "::1:") && entry.Domain == "-" && (entry.DestIPPort == "-:-" || entry.DestIPPort == "-") {
+			continue
+		}
+
 		analysis.TotalRequests++
 
 		// Determine if request was allowed or blocked
@@ -254,8 +262,9 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 
 		// Extract domain - when domain is "-" (iptables-dropped traffic not visible to Squid),
 		// fall back to dest IP:port so blocked requests show their actual destination instead of "-"
+		// Only fall back if destIPPort is a valid host:port (not "-" or "-:-" which are placeholder values)
 		domain := entry.Domain
-		if domain == "-" && entry.DestIPPort != "-" {
+		if domain == "-" && entry.DestIPPort != "-" && entry.DestIPPort != "-:-" {
 			domain = entry.DestIPPort
 		}
 

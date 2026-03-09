@@ -279,8 +279,8 @@ func (c *Compiler) getEngineBaseEnvVarKeys(engineID string) map[string]bool {
 	}
 	// Use a minimal WorkflowData so we get only the engine's unconditional secrets.
 	// GetRequiredSecretNames only adds extra secrets when non-nil MCP tools (ParsedTools.GitHub,
-	// ParsedTools.Playwright, etc.) are set, or when SafeInputs is populated. By passing empty
-	// Tools/ParsedTools and no SafeInputs we get just the base engine secrets (e.g.
+	// ParsedTools.Playwright, etc.) are set, or when MCPScripts is populated. By passing empty
+	// Tools/ParsedTools and no MCPScripts we get just the base engine secrets (e.g.
 	// COPILOT_GITHUB_TOKEN, ANTHROPIC_API_KEY) without any optional/conditional ones.
 	minimalData := &WorkflowData{
 		Tools:       map[string]any{},

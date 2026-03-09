@@ -631,12 +631,7 @@ func extractDispatchWorkflowNames(content string) []string {
 		return nil
 	}
 
-	safeOutputs, exists := result.Frontmatter["safe-outputs"]
-	if !exists {
-		return nil
-	}
-
-	safeOutputsMap, ok := safeOutputs.(map[string]any)
+	safeOutputsMap, ok := result.Frontmatter["safe-outputs"].(map[string]any)
 	if !ok {
 		return nil
 	}
@@ -652,32 +647,22 @@ func extractDispatchWorkflowNames(content string) []string {
 	case []any:
 		// Array format: dispatch-workflow: [name1, name2]
 		for _, item := range v {
-			if name, ok := item.(string); ok {
+			if name, ok := item.(string); ok && !strings.Contains(name, "${{") {
 				workflowNames = append(workflowNames, name)
 			}
 		}
 	case map[string]any:
 		// Map format: dispatch-workflow: {workflows: [name1, name2]}
-		if workflows, exists := v["workflows"]; exists {
-			if workflowsArray, ok := workflows.([]any); ok {
-				for _, item := range workflowsArray {
-					if name, ok := item.(string); ok {
-						workflowNames = append(workflowNames, name)
-					}
+		if workflowsArray, ok := v["workflows"].([]any); ok {
+			for _, item := range workflowsArray {
+				if name, ok := item.(string); ok && !strings.Contains(name, "${{") {
+					workflowNames = append(workflowNames, name)
 				}
 			}
 		}
 	}
 
-	// Filter out GitHub Actions expression syntax (e.g. "${{ vars.WORKFLOW }}")
-	filtered := make([]string, 0, len(workflowNames))
-	for _, name := range workflowNames {
-		if !strings.Contains(name, "${{") {
-			filtered = append(filtered, name)
-		}
-	}
-
-	return filtered
+	return workflowNames
 }
 
 // fetchAndSaveRemoteDispatchWorkflows fetches and saves the workflow files referenced in the

@@ -702,3 +702,95 @@ func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
 		t.Errorf("BlockedDomains: got %v, want [blocked.example.com:443]", analysis.BlockedDomains)
 	}
 }
+
+func TestParseFirewallLogInternalSquidErrorEntries(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Simulate internal Squid error entries interleaved with real traffic.
+	// These internal entries (client IP ::1, domain "-", destIPPort "-:-") are internal
+	// Squid connection errors (e.g., error:transaction-end-before-headers) and should be
+	// filtered out entirely and not counted as blocked external requests.
+	testLogContent := `1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+1773003475.167 172.30.0.30:50232 api.anthropic.com:443 18.64.224.91:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.anthropic.com:443 "-"
+1773003477.068 ::1:35712 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+1773003480.123 172.30.0.30:50235 api.anthropic.com:443 18.64.224.91:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.anthropic.com:443 "-"
+1773003481.456 ::1:41200 - - 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+`
+
+	// Write test log file
+	logPath := filepath.Join(tempDir, "firewall.log")
+	err := os.WriteFile(logPath, []byte(testLogContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test firewall.log: %v", err)
+	}
+
+	// Test parsing
+	analysis, err := parseFirewallLog(logPath, false)
+	if err != nil {
+		t.Fatalf("Failed to parse firewall log: %v", err)
+	}
+
+	// Internal Squid error entries should be filtered out entirely
+	// Only the 2 real allowed requests should be counted
+	if analysis.TotalRequests != 2 {
+		t.Errorf("TotalRequests: got %d, want 2 (internal Squid entries should be excluded)", analysis.TotalRequests)
+	}
+	if analysis.AllowedRequests != 2 {
+		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
+	}
+	if analysis.BlockedRequests != 0 {
+		t.Errorf("BlockedRequests: got %d, want 0 (internal Squid entries should not be counted as blocked)", analysis.BlockedRequests)
+	}
+
+	// "-:-" should not appear in blocked domains
+	for _, d := range analysis.BlockedDomains {
+		if d == "-:-" {
+			t.Error("BlockedDomains should not contain \"-:-\" (internal Squid error entries should be filtered out)")
+		}
+	}
+
+	// The real traffic should still be tracked
+	if stats, ok := analysis.RequestsByDomain["api.anthropic.com:443"]; !ok {
+		t.Error("api.anthropic.com:443 should be in RequestsByDomain")
+	} else if stats.Allowed != 2 {
+		t.Errorf("api.anthropic.com:443 Allowed: got %d, want 2", stats.Allowed)
+	}
+}
+
+func TestParseFirewallLogInternalSquidErrorEntriesDashDash(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Simulate internal Squid error entries where destIPPort is just "-" (not "-:-")
+	// These should also be filtered out
+	testLogContent := `1773003481.456 ::1:41200 - - 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+1773003482.123 172.30.0.30:50235 blocked.example.com:443 10.0.0.1:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"
+`
+
+	// Write test log file
+	logPath := filepath.Join(tempDir, "firewall.log")
+	err := os.WriteFile(logPath, []byte(testLogContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test firewall.log: %v", err)
+	}
+
+	// Test parsing
+	analysis, err := parseFirewallLog(logPath, false)
+	if err != nil {
+		t.Fatalf("Failed to parse firewall log: %v", err)
+	}
+
+	// Only the 1 real blocked request should be counted
+	if analysis.TotalRequests != 1 {
+		t.Errorf("TotalRequests: got %d, want 1 (internal Squid entry should be excluded)", analysis.TotalRequests)
+	}
+	if analysis.BlockedRequests != 1 {
+		t.Errorf("BlockedRequests: got %d, want 1", analysis.BlockedRequests)
+	}
+
+	// The real blocked domain should appear, not internal error entries
+	if len(analysis.BlockedDomains) != 1 || analysis.BlockedDomains[0] != "blocked.example.com:443" {
+		t.Errorf("BlockedDomains: got %v, want [blocked.example.com:443]", analysis.BlockedDomains)
+	}
+}

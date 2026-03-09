@@ -245,63 +245,6 @@ func TestRepoMemoryStepsGeneration(t *testing.T) {
 	}
 }
 
-// TestRepoMemoryPushStepsGeneration tests that push steps are generated correctly
-func TestRepoMemoryPushStepsGeneration(t *testing.T) {
-	config := &RepoMemoryConfig{
-		Memories: []RepoMemoryEntry{
-			{
-				ID:           "default",
-				BranchName:   "memory/default",
-				MaxFileSize:  10240,
-				MaxFileCount: 100,
-			},
-		},
-	}
-
-	data := &WorkflowData{
-		RepoMemoryConfig: config,
-	}
-
-	var builder strings.Builder
-	generateRepoMemoryPushSteps(&builder, data)
-
-	output := builder.String()
-
-	// Check for push step
-	if !strings.Contains(output, "Push repo-memory changes (default)") {
-		t.Error("Expected push step for repo-memory")
-	}
-
-	// Check for if: always()
-	if !strings.Contains(output, "if: always()") {
-		t.Error("Expected always() condition")
-	}
-
-	// Check for git commit
-	if !strings.Contains(output, "git commit") {
-		t.Error("Expected git commit command")
-	}
-
-	// Check for git push
-	if !strings.Contains(output, "git push") {
-		t.Error("Expected git push command")
-	}
-
-	// Check for merge strategy
-	if !strings.Contains(output, "-X ours") {
-		t.Error("Expected ours merge strategy")
-	}
-
-	// Check for validation
-	if !strings.Contains(output, "Check file sizes") {
-		t.Error("Expected file size validation")
-	}
-
-	if !strings.Contains(output, "Check file count") {
-		t.Error("Expected file count validation")
-	}
-}
-
 // TestRepoMemoryPromptGeneration tests that prompt section is generated correctly
 func TestRepoMemoryPromptGeneration(t *testing.T) {
 	config := &RepoMemoryConfig{

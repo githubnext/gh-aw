@@ -1270,6 +1270,35 @@ describe("assign_to_agent", () => {
     expect(lastGraphQLCall[1].targetRepoId).toBe("item-pull-request-repo-id");
   });
 
+  it("should reject per-item pull_request_repo not in allowed list", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/default-pr-repo";
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/allowed-pr-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+          pull_request_repo: "test-owner/not-allowed-repo",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock global PR repo lookup
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "default-pr-repo-id",
+        defaultBranchRef: { name: "main" },
+      },
+    });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
+  });
+
   it("should allow pull-request-repo without it being in allowed-pull-request-repos", async () => {
     // Set pull-request-repo but DO NOT set allowed-pull-request-repos
     // This tests that pull-request-repo is automatically allowed (like target-repo behavior)

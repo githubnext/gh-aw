@@ -46,39 +46,23 @@ async function main() {
       const content = fs.readFileSync(filePath, "utf8");
       const lines = content.split("\n").filter(line => line.trim());
 
-      for (const line of lines) {
-        const entry = parseFirewallLogLine(line);
-        if (!entry) {
-          continue;
+      const result = analyzeFirewallLogLines(lines);
+      totalRequests += result.totalRequests;
+      allowedRequests += result.allowedRequests;
+      blockedRequests += result.blockedRequests;
+      for (const domain of result.allowedDomains) {
+        allowedDomains.add(domain);
+      }
+      for (const domain of result.blockedDomains) {
+        blockedDomains.add(domain);
+      }
+      for (const [domain, stats] of result.requestsByDomain) {
+        if (!requestsByDomain.has(domain)) {
+          requestsByDomain.set(domain, { allowed: 0, blocked: 0 });
         }
-
-        totalRequests++;
-
-        // Determine if request was allowed or blocked
-        const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
-        // When domain is "-" (iptables-dropped traffic not visible to Squid),
-        // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
-        const domainKey = entry.domain !== "-" ? entry.domain : entry.destIpPort !== "-" ? entry.destIpPort : "-";
-
-        if (isAllowed) {
-          allowedRequests++;
-          allowedDomains.add(domainKey);
-        } else {
-          blockedRequests++;
-          blockedDomains.add(domainKey);
-        }
-
-        // Track request count per domain
-        if (!requestsByDomain.has(domainKey)) {
-          requestsByDomain.set(domainKey, { allowed: 0, blocked: 0 });
-        }
-        const domainStats = requestsByDomain.get(domainKey);
-        if (isAllowed) {
-          domainStats.allowed++;
-        } else {
-          domainStats.blocked++;
-        }
+        const existing = requestsByDomain.get(domain);
+        existing.allowed += stats.allowed;
+        existing.blocked += stats.blocked;
       }
     }
 
@@ -164,6 +148,67 @@ function isRequestAllowed(decision, status) {
 }
 
 /**
+ * Analyzes an array of raw log lines and returns aggregated request statistics.
+ * Internal Squid error entries (client IP ::1, no domain, no destination) are filtered out.
+ * @param {string[]} lines - Raw log lines to analyze
+ * @returns {{totalRequests: number, allowedRequests: number, blockedRequests: number, allowedDomains: Set<string>, blockedDomains: Set<string>, requestsByDomain: Map<string, {allowed: number, blocked: number}>}}
+ */
+function analyzeFirewallLogLines(lines) {
+  let totalRequests = 0;
+  let allowedRequests = 0;
+  let blockedRequests = 0;
+  const allowedDomains = new Set();
+  const blockedDomains = new Set();
+  const requestsByDomain = new Map();
+
+  for (const line of lines) {
+    const entry = parseFirewallLogLine(line);
+    if (!entry) {
+      continue;
+    }
+
+    // Skip internal Squid error entries (client IP ::1, no domain, no destination)
+    // These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
+    // and are not actual external network requests.
+    // Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+    if (entry.clientIpPort.startsWith("::1:") && entry.domain === "-" && (entry.destIpPort === "-:-" || entry.destIpPort === "-")) {
+      continue;
+    }
+
+    totalRequests++;
+
+    // Determine if request was allowed or blocked
+    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+    // When domain is "-" (iptables-dropped traffic not visible to Squid),
+    // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
+    // Only fall back if destIpPort is a valid host:port (not "-" or "-:-" which are placeholder values)
+    const domainKey = entry.domain !== "-" ? entry.domain : entry.destIpPort !== "-" && entry.destIpPort !== "-:-" ? entry.destIpPort : "-";
+
+    if (isAllowed) {
+      allowedRequests++;
+      allowedDomains.add(domainKey);
+    } else {
+      blockedRequests++;
+      blockedDomains.add(domainKey);
+    }
+
+    // Track request count per domain
+    if (!requestsByDomain.has(domainKey)) {
+      requestsByDomain.set(domainKey, { allowed: 0, blocked: 0 });
+    }
+    const domainStats = requestsByDomain.get(domainKey);
+    if (isAllowed) {
+      domainStats.allowed++;
+    } else {
+      domainStats.blocked++;
+    }
+  }
+
+  return { totalRequests, allowedRequests, blockedRequests, allowedDomains, blockedDomains, requestsByDomain };
+}
+
+/**
  * Generates markdown summary from firewall log analysis
  * Uses details/summary structure with basic stats in summary and domain table in details
  * @param {object} analysis - Analysis results
@@ -218,6 +263,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     parseFirewallLogLine,
     isRequestAllowed,
+    analyzeFirewallLogLines,
     generateFirewallSummary,
     main,
   };

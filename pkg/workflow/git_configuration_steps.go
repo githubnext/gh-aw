@@ -50,6 +50,23 @@ func (c *Compiler) generateGitConfigurationStepsWithToken(token string, targetRe
 	}
 }
 
+// getGitIdentityEnvVars returns a map of git identity environment variables.
+// These mirror the values set by generateGitConfigurationSteps so that git commits
+// work correctly inside the AWF sandbox container, which cannot read the host-side
+// ~/.gitconfig written by "Configure Git credentials".
+//
+// Git environment variables take precedence over gitconfig settings and are forwarded
+// into the container by AWF via --env-all, ensuring the first git commit succeeds
+// without the agent needing to self-configure.
+func getGitIdentityEnvVars() map[string]string {
+	return map[string]string{
+		"GIT_AUTHOR_NAME":     "github-actions[bot]",
+		"GIT_AUTHOR_EMAIL":    "github-actions[bot]@users.noreply.github.com",
+		"GIT_COMMITTER_NAME":  "github-actions[bot]",
+		"GIT_COMMITTER_EMAIL": "github-actions[bot]@users.noreply.github.com",
+	}
+}
+
 // generateGitCredentialsCleanerStep generates a step that removes git credentials from .git/config
 // This is a security measure to prevent credentials left by injected steps from being accessed by the agent
 func (c *Compiler) generateGitCredentialsCleanerStep() []string {

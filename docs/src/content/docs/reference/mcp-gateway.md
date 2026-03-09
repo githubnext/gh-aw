@@ -396,7 +396,7 @@ Custom server types MUST be registered in the `customSchemas` field at the top l
     "apiKey": "secret"
   },
   "customSchemas": {
-    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
   }
 }
 ```
@@ -433,7 +433,7 @@ When a server configuration includes a `type` field with a value not in `["stdio
     "apiKey": "secret"
   },
   "customSchemas": {
-    "safeinputs": "https://docs.github.com/gh-aw/schemas/safe-inputs-config.schema.json"
+    "safeinputs": "https://docs.github.com/gh-aw/schemas/mcp-scripts-config.schema.json"
   }
 }
 ```
@@ -1516,7 +1516,7 @@ Content-Type: application/json
   - Gateway MAY support custom server types beyond "stdio" and "http"
   - Custom types registered in top-level `customSchemas` field mapping type names to JSON Schema URLs
   - Custom server configurations validated against registered schemas
-  - Enables extensibility for specialized MCP server implementations (e.g., Safe Inputs)
+  - Enables extensibility for specialized MCP server implementations (e.g., MCP Scripts)
 - **Added**: `customSchemas` field to top-level configuration (Section 4.1.3a)
   - Maps custom type names to HTTPS URLs for JSON Schema validation
   - Supports empty string to skip validation for a custom type

@@ -8,6 +8,14 @@
 interface HandlerConfig {
   /** Maximum number of items this handler should process */
   max?: number;
+  /** Strict allowlist of glob patterns for files eligible for push/create. Checked independently of protected-files; both checks must pass. */
+  allowed_files?: string[];
+  /** List of filenames (basenames) whose presence in a patch triggers protected-file handling */
+  protected_files?: string[];
+  /** List of path prefixes that trigger protected-file handling when any changed file matches */
+  protected_path_prefixes?: string[];
+  /** Policy for how protected file matches are handled: "blocked" (default), "fallback-to-issue", or "allowed" */
+  protected_files_policy?: string;
   /** Additional handler-specific configuration properties */
   [key: string]: any;
 }

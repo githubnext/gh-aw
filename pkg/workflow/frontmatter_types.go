@@ -124,7 +124,7 @@ type FrontmatterConfig struct {
 	Runtimes         map[string]any     `json:"runtimes,omitempty"`    // Deprecated: use RuntimesTyped
 	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
 	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
-	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
+	MCPScripts       *MCPScriptsConfig  `json:"mcp-scripts,omitempty"`
 	PermissionsTyped *PermissionsConfig `json:"-"` // New typed field (not in JSON to avoid conflict)
 
 	// Event and trigger configuration
@@ -535,9 +535,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		// Convert SafeOutputsConfig to map - would need a ToMap method
 		result["safe-outputs"] = fc.SafeOutputs
 	}
-	if fc.SafeInputs != nil {
-		// Convert SafeInputsConfig to map - would need a ToMap method
-		result["safe-inputs"] = fc.SafeInputs
+	if fc.MCPScripts != nil {
+		// Convert MCPScriptsConfig to map - would need a ToMap method
+		result["mcp-scripts"] = fc.MCPScripts
 	}
 
 	// Event and trigger configuration

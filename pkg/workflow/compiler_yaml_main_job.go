@@ -339,17 +339,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Collect MCP logs path if any MCP tools were used
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-logs/")
 
-	// Collect SafeInputs logs path if safe-inputs is enabled
-	if IsSafeInputsEnabled(data.SafeInputs, data) {
-		artifactPaths = append(artifactPaths, "/tmp/gh-aw/safe-inputs/logs/")
+	// Collect MCPScripts logs path if mcp-scripts is enabled
+	if IsMCPScriptsEnabled(data.MCPScripts, data) {
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/mcp-scripts/logs/")
 	}
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
-	// parse safe-inputs logs for GITHUB_STEP_SUMMARY (if safe-inputs is enabled)
-	if IsSafeInputsEnabled(data.SafeInputs, data) {
-		c.generateSafeInputsLogParsing(yaml)
+	// parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
+	if IsMCPScriptsEnabled(data.MCPScripts, data) {
+		c.generateMCPScriptsLogParsing(yaml)
 	}
 
 	// parse MCP gateway logs for GITHUB_STEP_SUMMARY

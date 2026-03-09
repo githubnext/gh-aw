@@ -233,7 +233,7 @@ Use GitHub context like ${{ github.event.issue.number }}.
      ↓
 2. Activation Job
    - Validates permissions
-   - Processes safe-inputs
+   - Processes mcp-scripts
    - Sanitizes context
      ↓
 3. AI Agent Job
@@ -258,7 +258,7 @@ Use GitHub context like ${{ github.event.issue.number }}.
 |-----------|---------|---------------|
 | **Engine** | AI model to use | `engine: copilot`, `claude`, `codex` |
 | **Tools** | APIs available to agent | `tools:` section with MCP servers |
-| **Safe-Inputs** | Context passed to agent | `safe-inputs:` with GitHub expressions |
+| **MCP Scripts** | Context passed to agent | `mcp-scripts:` with GitHub expressions |
 | **Safe-Outputs** | Resources agent can create | `safe-outputs:` with allowed operations |
 | **Permissions** | GitHub token permissions | `permissions:` block |
 | **Network** | Allowed network access | `network:` with domain/ecosystem lists |
@@ -309,16 +309,19 @@ permissions:
 ### Safe-Input Errors
 
 **Symptoms**:
-- "missing tool configuration for safeinputs-gh"
+- "missing tool configuration for mcpscripts-gh"
 - Environment variable not available
 
-**Solution**: Configure safe-inputs:
+**Solution**: Configure mcp-scripts:
 
 ```yaml
-safe-inputs:
+mcp-scripts:
   issue:
-    title: ${{ github.event.issue.title }}
-    body: ${{ github.event.issue.body }}
+    script: |
+      return { title: process.env.ISSUE_TITLE, body: process.env.ISSUE_BODY };
+    env:
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
 ```
 
 ### Safe-Output Errors

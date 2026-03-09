@@ -39,12 +39,12 @@ Use this runbook when:
 ### Input/Secret Validation Failures
 
 **Symptoms**:
-- Safe-inputs action fails
+- MCP Scripts action fails
 - Environment variable not available
 - Template expression evaluation errors
 
 **Common Causes**:
-- Safe-inputs action not configured
+- MCP Scripts action not configured
 - Missing required secrets
 - Incorrect secret references
 
@@ -77,7 +77,7 @@ Missing-tool errors typically appear in this format:
 
 ```
 Error: Tool 'github:read_issue' not found
-Error: missing tool configuration for safeinputs-gh
+Error: missing tool configuration for mcpscripts-gh
 ```
 
 To identify which tools are missing:
@@ -192,19 +192,19 @@ tools:
 Analyze repository issues and provide insights.
 ```
 
-### Configuring Safe-Inputs and Safe-Outputs
+### Configuring MCP Scripts and Safe-Outputs
 
-**Problem**: Workflow fails with missing safeinputs-gh or safe-output errors.
+**Problem**: Workflow fails with missing mcpscripts-gh or safe-output errors.
 
-**Solution**: Configure safe-inputs and safe-outputs in the workflow.
+**Solution**: Configure mcp-scripts and safe-outputs in the workflow.
 
-#### Adding Safe-Inputs
+#### Adding MCP Scripts
 
-Safe-inputs securely pass GitHub context to AI agents:
+MCP Scripts securely pass GitHub context to AI agents:
 
 ```aw
 ---
-safe-inputs:
+mcp-scripts:
   issue:
     title: ${{ github.event.issue.title }}
     body: ${{ github.event.issue.body }}
@@ -212,7 +212,7 @@ safe-inputs:
 ---
 ```
 
-The safe-inputs are automatically made available to the agent as environment variables.
+The mcp-scripts are automatically made available to the agent as environment variables.
 
 #### Adding Safe-Outputs
 
@@ -230,7 +230,7 @@ safe-outputs:
 ---
 ```
 
-**Example**: Complete workflow with safe-inputs and safe-outputs
+**Example**: Complete workflow with mcp-scripts and safe-outputs
 
 ```aw
 ---
@@ -246,7 +246,7 @@ tools:
   github:
     mode: remote
     toolsets: [default]
-safe-inputs:
+mcp-scripts:
   issue:
     title: ${{ github.event.issue.title }}
     body: ${{ github.event.issue.body }}
@@ -303,7 +303,7 @@ The DeepReport Intelligence Briefing (Discussion #7277) identified several workf
 
 1. **Weekly Issue Summary workflow** - Failed in recent runs
 2. **Dev workflow** - Missing GitHub MCP read_issue capability (Run #20435819459)
-3. **Daily Copilot PR Merged workflow** - Missing safeinputs-gh tool
+3. **Daily Copilot PR Merged workflow** - Missing mcpscripts-gh tool
 
 ### Investigation
 
@@ -318,8 +318,8 @@ The DeepReport Intelligence Briefing (Discussion #7277) identified several workf
 - The workflow attempted to read issue information without GitHub MCP toolset
 
 **Daily Copilot PR Merged**:
-- Error: "missing tool configuration for safeinputs-gh"
-- Root cause: Safe-inputs action not set up in workflow
+- Error: "missing tool configuration for mcpscripts-gh"
+- Root cause: MCP Scripts action not set up in workflow
 - PR merge data not being passed securely to agent
 
 ### Resolution
@@ -340,10 +340,10 @@ tools:
 ```
 
 **Daily Copilot PR Merged**:
-Added safe-inputs configuration:
+Added mcp-scripts configuration:
 
 ```aw
-safe-inputs:
+mcp-scripts:
   pull_request:
     number: ${{ github.event.pull_request.number }}
     title: ${{ github.event.pull_request.title }}
@@ -353,7 +353,7 @@ safe-inputs:
 
 1. **MCP-first approach**: Always configure GitHub MCP server when workflows need GitHub API access
 2. **Permission planning**: Define required permissions upfront based on workflow operations
-3. **Safe-inputs for context**: Use safe-inputs to securely pass GitHub event context to agents
+3. **MCP Scripts for context**: Use mcp-scripts to securely pass GitHub event context to agents
 4. **Test after compilation**: Always test workflows manually after making configuration changes
 5. **Monitor systematically**: Use `gh aw logs` for regular workflow health monitoring
 
@@ -396,7 +396,7 @@ tools:
 ---
 ```
 
-**Issue-triggered workflow with safe-inputs**:
+**Issue-triggered workflow with mcp-scripts**:
 ```aw
 ---
 on:
@@ -405,7 +405,7 @@ on:
 permissions:
   contents: read
   issues: write
-safe-inputs:
+mcp-scripts:
   issue:
     title: ${{ github.event.issue.title }}
     body: ${{ github.event.issue.body }}

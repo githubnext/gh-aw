@@ -4,7 +4,7 @@
 //
 //  1. Tool Permission Arguments (computeCopilotToolArguments):
 //     Converts workflow tool configurations into --allow-tool flags for Copilot CLI.
-//     Handles bash/shell tools, edit tools, safe outputs, safe inputs, and MCP servers.
+//     Handles bash/shell tools, edit tools, safe outputs, mcp-scripts, and MCP servers.
 //     Supports granular permissions (e.g., "github(get_file)") and server-level wildcards.
 //
 //  2. Tool Argument Comments (generateCopilotToolArgumentsComment):
@@ -33,9 +33,9 @@ import (
 var copilotEngineToolsLog = logger.New("workflow:copilot_engine_tools")
 
 // computeCopilotToolArguments computes the --allow-tool arguments for Copilot CLI based on tool configurations.
-// It handles bash/shell tools, edit tools, safe outputs, safe inputs, and MCP server tools.
+// It handles bash/shell tools, edit tools, safe outputs, mcp-scripts, and MCP server tools.
 // Returns a sorted list of arguments ready to be passed to the Copilot CLI.
-func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData) []string {
+func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) []string {
 	copilotEngineToolsLog.Printf("Computing tool arguments: tools=%d", len(tools))
 	if tools == nil {
 		tools = make(map[string]any)
@@ -95,9 +95,9 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID.String())
 	}
 
-	// Handle safe_inputs MCP server - allow the server if safe inputs are configured and feature flag is enabled
-	if IsSafeInputsEnabled(safeInputs, workflowData) {
-		args = append(args, "--allow-tool", constants.SafeInputsMCPServerID.String())
+	// Handle mcp_scripts MCP server - allow the server if mcp-scripts are configured and feature flag is enabled
+	if IsMCPScriptsEnabled(mcpScripts, workflowData) {
+		args = append(args, "--allow-tool", constants.MCPScriptsMCPServerID.String())
 	}
 
 	// Handle web-fetch builtin tool (Copilot CLI uses web_fetch with underscore)
@@ -208,8 +208,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 // generateCopilotToolArgumentsComment generates a multi-line comment showing each tool argument.
 // This is used to document which tool permissions are being granted in the compiled workflow.
-func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, safeInputs *SafeInputsConfig, workflowData *WorkflowData, indent string) string {
-	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs, safeInputs, workflowData)
+func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData, indent string) string {
+	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs, mcpScripts, workflowData)
 	if len(toolArgs) == 0 {
 		return ""
 	}

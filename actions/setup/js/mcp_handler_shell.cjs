@@ -1,9 +1,9 @@
 // @ts-check
 
 /**
- * Shell Script Handler for Safe-Inputs
+ * Shell Script Handler for MCP Scripts
  *
- * This module provides a handler for executing shell scripts in safe-inputs tools.
+ * This module provides a handler for executing shell scripts in mcp-scripts tools.
  * It follows GitHub Actions conventions for passing inputs and reading outputs.
  */
 

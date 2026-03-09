@@ -49,9 +49,9 @@ func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer := createRenderer(isLast)
 				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			},
-			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
+			RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
 				renderer := createRenderer(isLast)
-				renderer.RenderSafeInputsMCP(yaml, safeInputs, workflowData)
+				renderer.RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
