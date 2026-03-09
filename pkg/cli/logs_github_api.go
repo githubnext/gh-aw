@@ -154,7 +154,7 @@ type ListWorkflowRunsOptions struct {
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
 func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", opts.WorkflowName, opts.Limit, opts.StartDate, opts.EndDate, opts.Ref)
-	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
+	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,path,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
 	if opts.WorkflowName != "" {
@@ -246,13 +246,25 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
 	}
 
-	var runs []WorkflowRun
-	if err := json.Unmarshal(output, &runs); err != nil {
+	// gh run list outputs "path" for the workflow file path, but WorkflowRun uses "workflowPath".
+	// Unmarshal via a helper struct so both fields are captured correctly.
+	var rawRuns []struct {
+		WorkflowRun
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(output, &rawRuns); err != nil {
 		// Stop spinner on parse error
 		if !opts.Verbose {
 			spinner.Stop()
 		}
 		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
+	}
+
+	runs := make([]WorkflowRun, len(rawRuns))
+	for i, raw := range rawRuns {
+		run := raw.WorkflowRun
+		run.WorkflowPath = raw.Path
+		runs[i] = run
 	}
 
 	// Stop spinner silently - don't show per-iteration messages
