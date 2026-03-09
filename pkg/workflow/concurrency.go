@@ -69,6 +69,12 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 
 	// Build the default concurrency configuration
 	groupValue := fmt.Sprintf("gh-aw-%s-${{ github.workflow }}", engineID)
+	// If the user specified a job-discriminator, append it so that concurrent
+	// runs with different inputs (fan-out pattern) do not share the same group.
+	if workflowData.ConcurrencyJobDiscriminator != "" {
+		concurrencyLog.Printf("Appending job discriminator to job-level concurrency group: %s", workflowData.ConcurrencyJobDiscriminator)
+		groupValue = fmt.Sprintf("%s-%s", groupValue, workflowData.ConcurrencyJobDiscriminator)
+	}
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
 
 	return concurrencyConfig

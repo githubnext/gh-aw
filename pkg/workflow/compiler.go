@@ -188,6 +188,13 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		}
 	}
 
+	// Validate concurrency.job-discriminator expression
+	if workflowData.ConcurrencyJobDiscriminator != "" {
+		if err := validateConcurrencyGroupExpression(workflowData.ConcurrencyJobDiscriminator); err != nil {
+			return formatCompilerError(markdownPath, "error", "concurrency.job-discriminator validation failed: "+err.Error(), err)
+		}
+	}
+
 	// Validate engine-level concurrency group expression
 	log.Printf("Validating engine-level concurrency configuration")
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {

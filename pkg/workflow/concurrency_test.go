@@ -474,6 +474,52 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			expected:    "",
 			description: "Rendered slash_command YAML (issue_comment + workflow_dispatch) should NOT get default concurrency (isIssueWorkflow detects it)",
 		},
+		{
+			name: "Job discriminator appended to default group for schedule workflow",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.finding_id }}"`,
+			description: "job-discriminator should be appended to the default group to prevent fan-out cancellations",
+		},
+		{
+			name: "Job discriminator appended when workflow_dispatch combined with schedule",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  workflow_dispatch:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ inputs.item_id }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.item_id }}"`,
+			description: "job-discriminator should be appended for mixed workflow_dispatch + schedule workflows",
+		},
+		{
+			name: "Job discriminator ignored when workflow has special triggers (no default group generated)",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  workflow_dispatch:",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
+			},
+			expected:    "",
+			description: "job-discriminator has no effect when no default job concurrency is generated (workflow_dispatch-only)",
+		},
+		{
+			name: "Job discriminator ignored when engine provides explicit concurrency",
+			workflowData: &WorkflowData{
+				On: "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig: &EngineConfig{
+					ID:          "copilot",
+					Concurrency: "concurrency:\n  group: \"engine-custom-group\"",
+				},
+				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
+			},
+			expected: `concurrency:
+  group: "engine-custom-group"`,
+			description: "job-discriminator does not modify explicitly set engine concurrency",
+		},
 	}
 
 	for _, tt := range tests {
