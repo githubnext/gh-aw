@@ -328,6 +328,46 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
+func TestParsePullRequestsConfigIntegerExpires(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"expires": 14,
+		},
+	}
+
+	result := compiler.parsePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// Integer expires values are in days and should be converted to hours
+	expectedHours := 14 * 24
+	if result.Expires != expectedHours {
+		t.Errorf("expected expires %d hours (14 days), got %d", expectedHours, result.Expires)
+	}
+}
+
+func TestParsePullRequestsConfigStringExpires(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"expires": "7d",
+		},
+	}
+
+	result := compiler.parsePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// String "7d" should be converted to 168 hours
+	expectedHours := 7 * 24
+	if result.Expires != expectedHours {
+		t.Errorf("expected expires %d hours (7 days), got %d", expectedHours, result.Expires)
+	}
+}
+
 func TestParseDiscussionsConfigWithHelpers(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{
