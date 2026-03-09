@@ -2611,6 +2611,9 @@ func TestBuildCustomJobsMapConcurrencyDefaultsCancelInProgress(t *testing.T) {
 			if !tt.wantCancelFalse && strings.Contains(job.Concurrency, "cancel-in-progress: false") {
 				t.Errorf("Did not expect 'cancel-in-progress: false' in concurrency, got: %q", job.Concurrency)
 			}
+			if !tt.wantCancelTrue && strings.Contains(job.Concurrency, "cancel-in-progress: true") {
+				t.Errorf("Did not expect 'cancel-in-progress: true' in concurrency, got: %q", job.Concurrency)
+			}
 		})
 	}
 }
