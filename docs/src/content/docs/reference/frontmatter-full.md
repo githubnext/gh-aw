@@ -2948,6 +2948,23 @@ safe-outputs:
     # (optional)
     github-token-for-extra-empty-commit: "example-value"
 
+    # Controls protected-file protection policy for this safe output. blocked
+    # (default): hard-block any patch that modifies package manifests (e.g.
+    # package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or
+    # .github/ files. allowed: allow all changes. fallback-to-issue: push the branch
+    # but create a review issue instead of a PR so a human can review before merging.
+    # (optional)
+    protected-files: "blocked"
+
+    # List of glob patterns for files the workflow is allowed to modify. Acts as a
+    # strict allowlist: every file in the patch must match at least one pattern. Runs
+    # independently of protected-files; both checks must pass. To modify a protected
+    # file it must both match allowed-files and have protected-files set to 'allowed'.
+    # Supports * (any characters except /) and ** (any characters including /).
+    # (optional)
+    allowed-files: []
+      # Array of strings
+
   # Option 2: Enable pull request creation with default configuration
   create-pull-request: null
 
@@ -3863,6 +3880,23 @@ safe-outputs:
     # target-repo) is always implicitly allowed.
     # (optional)
     allowed-repos: []
+      # Array of strings
+
+    # Controls protected-file protection policy for this safe output. blocked
+    # (default): hard-block any patch that modifies package manifests (e.g.
+    # package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or
+    # .github/ files. allowed: allow all changes. fallback-to-issue: create a review
+    # issue instead of pushing so a human can review before applying the changes.
+    # (optional)
+    protected-files: "blocked"
+
+    # List of glob patterns for files the workflow is allowed to modify. Acts as a
+    # strict allowlist: every file in the patch must match at least one pattern. Runs
+    # independently of protected-files; both checks must pass. To modify a protected
+    # file it must both match allowed-files and have protected-files set to 'allowed'.
+    # Supports * (any characters except /) and ** (any characters including /).
+    # (optional)
+    allowed-files: []
       # Array of strings
 
   # Enable AI agents to minimize (hide) comments on issues or pull requests based on
