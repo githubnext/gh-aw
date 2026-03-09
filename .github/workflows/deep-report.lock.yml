@@ -125,6 +125,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_WIKI_NOTE: ${{ '' }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           {
