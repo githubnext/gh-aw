@@ -39,9 +39,10 @@ If your project is organization-owned, use a fine-grained PAT or a GitHub App to
 
 - Use a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_WRITE_PROJECT_TOKEN&description=GitHub+Agentic+Workflows+-+Projects+authentication&contents=read&issues=read&pull_requests=read).
 - Configure:
+  - Resource owner: select the organization this project belongs to.
   - Repository access: select the repositories that will run the workflow.
-  - Repository permissions: `Contents: Read`, and optionally `Issues: Read` / `Pull requests: Read`.
-  - Organization permissions: `Projects: Read and write`.
+  - Repository permissions: `Contents: Read`, and optionally `Issues: Read` / `Pull requests: Read` (or `Read and write`).
+  - Organization permissions: `Projects: Read` (or `Read and write`).
 
 You can also use a GitHub App token if your organization standardizes on App-based auth.
 For organization projects, make sure the app has **Organization Projects: Read and write** permission.
