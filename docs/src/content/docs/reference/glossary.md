@@ -102,7 +102,7 @@ An optional field on safe output tool calls indicating the confidentiality level
 
 ### Staged Mode
 
-A preview mode where workflows simulate actions without making changes. The AI generates output showing what would happen, but no GitHub API write operations are performed. Use for testing before production runs.
+A preview mode where workflows simulate actions without making changes. The AI generates output showing what would happen, but no GitHub API write operations are performed. Use for testing before production runs. See [Staged Mode](/gh-aw/reference/staged-mode/) for details.
 
 ### Integrity
 

@@ -1349,8 +1349,36 @@ safe-outputs:
 
 **Variables**: `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
 
+## Staged Mode
+
+Staged mode lets you preview what safe outputs a workflow would create without actually creating anything. Every write operation is skipped; instead, a 🎭-labelled preview appears in the GitHub Actions step summary.
+
+Enable it globally by adding `staged: true` to the `safe-outputs:` block:
+
+```yaml wrap
+safe-outputs:
+  staged: true
+  create-issue:
+    title-prefix: "[ai] "
+    labels: [automation]
+```
+
+You can also scope staged mode to a specific output type by adding `staged: true` directly to that type while leaving the global setting at `false`:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    staged: true   # preview only
+  add-comment:     # executes normally
+```
+
+To disable staged mode and start creating real resources, remove the `staged: true` setting or set it to `false`.
+
+See [Staged Mode](/gh-aw/reference/staged-mode/) for the full guide, including the preview message format, per-type support table, custom message templates, and how to implement staged mode in [custom safe output jobs](/gh-aw/reference/custom-safe-outputs/#staged-mode-support).
+
 ## Related Documentation
 
+- [Staged Mode](/gh-aw/reference/staged-mode/) - Preview safe output operations without making changes
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Complete threat detection documentation and examples
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
