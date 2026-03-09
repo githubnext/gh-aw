@@ -52,6 +52,14 @@ async function main() {
           continue;
         }
 
+        // Skip internal Squid error entries (client IP ::1, no domain, no destination)
+        // These are internal Squid connection errors (e.g., error:transaction-end-before-headers)
+        // and are not actual external network requests.
+        // Example: 1773003472.027 ::1:52010 - -:- 0.0 - 0 NONE_NONE:HIER_NONE error:transaction-end-before-headers "-"
+        if (entry.clientIpPort.startsWith("::1:") && entry.domain === "-" && (entry.destIpPort === "-:-" || entry.destIpPort === "-")) {
+          continue;
+        }
+
         totalRequests++;
 
         // Determine if request was allowed or blocked
@@ -59,7 +67,8 @@ async function main() {
 
         // When domain is "-" (iptables-dropped traffic not visible to Squid),
         // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
-        const domainKey = entry.domain !== "-" ? entry.domain : entry.destIpPort !== "-" ? entry.destIpPort : "-";
+        // Only fall back if destIpPort is a valid host:port (not "-" or "-:-" which are placeholder values)
+        const domainKey = entry.domain !== "-" ? entry.domain : entry.destIpPort !== "-" && entry.destIpPort !== "-:-" ? entry.destIpPort : "-";
 
         if (isAllowed) {
           allowedRequests++;
