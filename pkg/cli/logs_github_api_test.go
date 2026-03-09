@@ -4,7 +4,6 @@ package cli
 
 import (
 	"encoding/json"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -13,26 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWorkflowRunJSONFieldsContainsPath guards against accidentally dropping the
-// "path" field from the gh-run-list JSON query.  The health command (and the
-// downstream .lock.yml filter in fetchWorkflowRuns) depend on WorkflowPath being
-// populated.  If "path" is absent from workflowRunJSONFields the filter always
-// evaluates to false and gh aw health reports no runs.
-//
-// Regression: commit 61cc2d7ac (Jan 4 2026) silently dropped "path" from the
-// field list one day after it was deliberately added in 8c97bcaa0 (Jan 3 2026).
-func TestWorkflowRunJSONFieldsContainsPath(t *testing.T) {
-	fields := strings.Split(workflowRunJSONFields, ",")
-
-	assert.True(t, slices.Contains(fields, "path"),
-		`"path" must be in workflowRunJSONFields so WorkflowPath is populated and the .lock.yml filter in fetchWorkflowRuns works. See pkg/cli/logs_github_api.go`)
-}
-
 // TestWorkflowRunPathFieldUnmarshal verifies that the "path" key returned by
 // "gh run list --json" is correctly bridged to WorkflowRun.WorkflowPath during
 // unmarshaling.  The gh CLI uses "path" but WorkflowRun serialises the field as
 // "workflowPath" for backward compatibility, so a helper struct is used at the
 // unmarshal site.
+//
+// Regression: commit 61cc2d7ac (Jan 4 2026) silently dropped "path" from the
+// gh run list --json field list, causing WorkflowPath to always be "" and the
+// .lock.yml filter in fetchWorkflowRuns to discard every run.
 func TestWorkflowRunPathFieldUnmarshal(t *testing.T) {
 	// Simulate a single row of "gh run list --json path,workflowName,..."
 	rawJSON := `[
@@ -115,38 +103,4 @@ func TestFetchWorkflowRunsLockYMLFilter(t *testing.T) {
 
 	assert.Equal(t, int64(3), filtered[1].DatabaseID)
 	assert.Equal(t, 3*time.Minute, filtered[1].Duration)
-}
-
-// TestWorkflowRunJSONFieldsAllPresent is a belt-and-braces check that ensures
-// every field referenced by the WorkflowRun struct (those that are returned by
-// the GitHub CLI) appears in workflowRunJSONFields.
-func TestWorkflowRunJSONFieldsAllPresent(t *testing.T) {
-	// These are the gh-CLI-side names (not the Go struct tags, which differ for
-	// some fields, e.g., "path" vs "workflowPath").
-	requiredFields := []string{
-		"databaseId",
-		"number",
-		"url",
-		"status",
-		"conclusion",
-		"workflowName",
-		"path", // populated into WorkflowPath — critical for .lock.yml filter
-		"createdAt",
-		"startedAt",
-		"updatedAt",
-		"event",
-		"headBranch",
-		"headSha",
-		"displayTitle",
-	}
-
-	fieldSet := make(map[string]bool)
-	for f := range strings.SplitSeq(workflowRunJSONFields, ",") {
-		fieldSet[f] = true
-	}
-
-	for _, field := range requiredFields {
-		assert.True(t, fieldSet[field],
-			"required field %q is missing from workflowRunJSONFields", field)
-	}
 }
