@@ -55,6 +55,14 @@ This issue helps you:
 
 </details>
 
+> [!TIP]
+> To stop a workflow from posting here, set \`report-as-issue: false\` in its frontmatter:
+> \`\`\`yaml
+> safe-outputs:
+>   noop:
+>     report-as-issue: false
+> \`\`\`
+
 ---
 
 > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.
