@@ -26,13 +26,6 @@ import (
 
 var logsGitHubAPILog = logger.New("cli:logs_github_api")
 
-// workflowRunJSONFields is the comma-separated list of fields requested from
-// "gh run list --json".  The "path" field is required so that WorkflowPath is
-// populated and the ".lock.yml" filter in fetchWorkflowRuns works correctly.
-// If you need to change this list, also update the corresponding test in
-// logs_github_api_test.go.
-const workflowRunJSONFields = "databaseId,number,url,status,conclusion,workflowName,path,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"
-
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
 func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 	logsGitHubAPILog.Printf("Fetching job statuses: runID=%d", runID)
@@ -161,7 +154,7 @@ type ListWorkflowRunsOptions struct {
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
 func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", opts.WorkflowName, opts.Limit, opts.StartDate, opts.EndDate, opts.Ref)
-	args := []string{"run", "list", "--json", workflowRunJSONFields}
+	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,path,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
 	if opts.WorkflowName != "" {
