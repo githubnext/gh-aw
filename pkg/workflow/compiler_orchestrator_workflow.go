@@ -292,6 +292,11 @@ func (c *Compiler) extractConcurrencySection(frontmatter map[string]any) string 
 			cleanMap[k] = v
 		}
 	}
+	// When job-discriminator is the only field, there is no user-specified workflow-level
+	// group to emit; return empty so the compiler can generate the default concurrency.
+	if len(cleanMap) == 0 {
+		return ""
+	}
 	// Use a minimal temporary frontmatter containing only the concurrency key to avoid
 	// copying the entire (potentially large) frontmatter map.
 	return c.extractTopLevelYAMLSection(map[string]any{"concurrency": cleanMap}, "concurrency")

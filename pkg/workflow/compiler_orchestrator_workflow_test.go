@@ -1667,6 +1667,16 @@ func TestExtractConcurrencySection(t *testing.T) {
 		assert.Contains(t, result, "group:", "group field should be present")
 		assert.NotContains(t, result, "job-discriminator", "no job-discriminator should appear")
 	})
+
+	t.Run("job-discriminator only (no group) returns empty string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"concurrency": map[string]any{
+				"job-discriminator": "${{ inputs.finding_id }}",
+			},
+		}
+		result := compiler.extractConcurrencySection(frontmatter)
+		assert.Empty(t, result, "when only job-discriminator is present the workflow-level concurrency should be empty (compiler generates defaults)")
+	})
 }
 
 // TestExtractYAMLSections_ConcurrencyJobDiscriminator verifies that extractYAMLSections

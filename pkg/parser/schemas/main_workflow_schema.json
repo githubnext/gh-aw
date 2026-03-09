@@ -1963,11 +1963,14 @@
               "examples": ["${{ inputs.finding_id }}", "${{ inputs.item_id }}", "${{ github.run_id }}"]
             }
           },
-          "required": ["group"],
+          "required": [],
           "examples": [
             {
               "group": "dev-workflow-${{ github.ref }}",
               "cancel-in-progress": true
+            },
+            {
+              "job-discriminator": "${{ inputs.finding_id }}"
             }
           ]
         }
