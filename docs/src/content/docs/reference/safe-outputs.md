@@ -448,13 +448,17 @@ Agent output includes `parent_issue_number` and `sub_issue_number`. Validation e
 
 ### Project Creation (`create-project:`)
 
-Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
+Creates new GitHub Projects V2 boards. Requires a write-capable PAT or GitHub App token ([project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication)); default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
+
+Use separate tokens as shown in ProjectOps examples:
+- `GH_AW_READ_PROJECT_TOKEN` for `tools.github` reads
+- `GH_AW_WRITE_PROJECT_TOKEN` for `safe-outputs` project writes
 
 ```yaml wrap
 safe-outputs:
   create-project:
     max: 1                              # max operations (default: 1)
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
     target-owner: "myorg"               # default target owner (optional)
     title-prefix: "Project"             # default title prefix (optional)
     views:                              # optional: auto-create views
@@ -504,14 +508,14 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 
 ### Project Board Updates (`update-project:`)
 
-Manages GitHub Projects boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
+Manages GitHub Projects boards. Requires a write-capable PAT or GitHub App token ([project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication)); default `GITHUB_TOKEN` lacks Projects v2 access. Update-only by default; set `create_if_missing: true` to create boards (requires appropriate token permissions).
 
 ```yaml wrap
 safe-outputs:
   update-project:
     project: "https://github.com/orgs/myorg/projects/42"  # required: target project URL
     max: 20                         # max operations (default: 10)
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
     views:                          # optional: auto-create views
       - name: "Sprint Board"
         layout: board
@@ -563,7 +567,7 @@ Project views can be created automatically by declaring them in the `views` arra
 ```yaml
 safe-outputs:
   update-project:
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
     views:
       - name: "Sprint Board"        # required: view name
         layout: board               # required: table, board, or roadmap
@@ -602,14 +606,14 @@ Views are created automatically during workflow execution. The workflow must inc
 
 ### Project Status Updates (`create-project-status-update:`)
 
-Creates status updates on GitHub Projects boards to communicate progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/))-default `GITHUB_TOKEN` lacks Projects v2 access.
+Creates status updates on GitHub Projects boards to communicate progress, findings, and trends. Status updates appear in the project's Updates tab and provide a historical record of execution. Requires a write-capable PAT or GitHub App token ([project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication)); default `GITHUB_TOKEN` lacks Projects v2 access.
 
 ```yaml wrap
 safe-outputs:
   create-project-status-update:
     project: "https://github.com/orgs/myorg/projects/73"  # required: target project URL
     max: 1                          # max updates per run (default: 1)
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
 ```
 
 **Configuration options:**

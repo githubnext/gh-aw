@@ -9,16 +9,54 @@ ProjectOps helps teams run project operations with less manual upkeep.
 
 It builds on [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects), which provides the core planning and tracking layer for issues and pull requests, and adds support for judgment-heavy decisions.
 
-It uses a clear control model: the agent reads project state through GitHub tools (`tools.github` with the `projects` toolset), and write actions run through [safe-outputs](/gh-aw/reference/safe-outputs/).
-ProjectOps is most useful when you want context-aware routing and field updates; for simple, rule-based transitions, [built-in automations](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) are usually enough.
+ProjectOps reads project state with GitHub tools and applies changes through [safe-outputs](/gh-aw/reference/safe-outputs/).
+It is most useful when you need context-aware routing and field updates. For simple, rule-based transitions, [built-in automations](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) are usually enough.
 
 In practice, this gives teams faster triage decisions, cleaner board state, stronger planning signals across related issues and pull requests, and more decision-ready status updates.
 
 ## Prerequisites
 
-1. **Create a Projects board** and copy the project URL.
-2. **Create PAT** by following instructions for [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/auth-projects/).
-3. **Define your field contract** up front (for example: Status, Priority, Team, Iteration, Target Date). See [Understanding fields](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields).
+1. **A Project board** and copy the project URL. See [Creating a project](https://docs.github.com/en/issues/planning-and-tracking-with-projects/creating-projects/creating-a-project#creating-a-project).
+2. **A Project token** (PAT or GitHub App token). See [Authentication for Project Operations](#authentication-for-project-operations).
+3. **A field contract** (for example: Status, Priority, Team, Iteration, Target Date). See [Understanding fields](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields).
+
+## Authentication for Project Operations
+
+Project operations need additional authentication because the default `GITHUB_TOKEN` is repository-scoped and cannot access Projects APIs for read/write project operations.
+
+### User-owned Projects
+
+If your project is user-owned, use a PAT and store it as a repository secret.
+
+- Use a [classic PAT](https://github.com/settings/tokens/new).
+- Required scopes:
+  - `project`
+  - `repo` (if private repositories are involved)
+
+### Organization-owned Projects
+
+If your project is organization-owned, use a fine-grained PAT or a GitHub App token and store it as a repository secret.
+
+- Use a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_WRITE_PROJECT_TOKEN&description=GitHub+Agentic+Workflows+-+Projects+authentication&contents=read&issues=read&pull_requests=read).
+- Configure:
+  - Repository access: select the repositories that will run the workflow.
+  - Repository permissions: `Contents: Read`, and optionally `Issues: Read` / `Pull requests: Read`.
+  - Organization permissions: `Projects: Read and write`.
+
+You can also use a GitHub App token if your organization standardizes on App-based auth.
+For organization projects, make sure the app has **Organization Projects: Read and write** permission.
+See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
+
+### Recommended secret layout
+
+Use separate read and write tokens so you can enforce least privilege:
+- `GH_AW_READ_PROJECT_TOKEN` for `tools.github` + `projects` toolset.
+- `GH_AW_WRITE_PROJECT_TOKEN` for safe-output writes like `update-project`.
+
+```bash wrap
+gh aw secrets set GH_AW_READ_PROJECT_TOKEN --value "<read-token>"
+gh aw secrets set GH_AW_WRITE_PROJECT_TOKEN --value "<write-token>"
+```
 
 ## How it works
 
@@ -34,16 +72,11 @@ ProjectOps combines two capability layers:
 
 Let's look at examples of these in action, starting with the [Project Board Summarizer](#project-board-summarizer) (read-only analysis), then moving to controlled write operations with the [Project Board Maintainer](#project-board-maintainer) example.
 
-### Project Board Summarizer
+## Examples
 
-Start with a regular project review that summarizes changes, flags blockers, and suggests updates without applying changes.
+### Project Board Summarizer (Read-only)
 
-Our project board might look like this:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/projectops-read-board_dark.png" />
-  <img alt="Example GitHub Projects board used for Project Board Summarizer" src="/gh-aw/images/projectops-read-board_light.png" />
-</picture>
+Let's start with a simple agentic workflow that reviews project board state and generates a summary without applying any changes.
 
 ```aw wrap
 ---
@@ -55,8 +88,8 @@ permissions:
   actions: read
 tools:
   github:
-    toolsets: [default, projects]
     github-token: ${{ secrets.GH_AW_READ_PROJECT_TOKEN }}
+    toolsets: [default, projects]
 ---
 
 # Project Board Summarizer
@@ -73,17 +106,23 @@ Return only:
 Read-only. Do not update the project.
 ```
 
-Running this workflow generates a concise summary of project status. We can find this in the GitHub Actions agent run output:
+Our project board might look like this:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/projectops-read-board_dark.png" />
+  <img alt="Example GitHub Projects board used for Project Board Summarizer" src="/gh-aw/images/projectops-read-board_light.png" />
+</picture>
+
+Running the agentic workflow generates a concise summary of project status. We can find this in the GitHub Actions agent run output:
 <picture>
   <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/projectops-read-summary_dark.png" />
   <img alt="Workflow summary output generated by Project Board Summarizer" src="/gh-aw/images/projectops-read-summary_light.png" />
 </picture>
 
-### Project Board Maintainer
+### Project Board Maintainer (Write)
 
-Let's write an agentic workflow that applies changes to a project board, starting with issue triage.
-
-This workflow runs on new issues, analyzes issue content and context, and decides whether to add the issue to the project board and how to set key fields.
+Let's write an agentic workflow that applies changes to a project board based on issue content and context.
+This workflow will run on new issues, analyze the issue and project state, and decide whether to add the issue to the project board and how to set key fields.
 
 ```aw wrap
 ---
@@ -95,28 +134,45 @@ permissions:
   actions: read
 tools:
   github:
+    github-token: ${{ secrets.GH_AW_READ_PROJECT_TOKEN }}
     toolsets: [default, projects]
-    github-token: ${{ secrets.READ_PROJECT_GITHUB_TOKEN }}
 safe-outputs:
   update-project:
-    project: https://github.com/orgs/ORG/projects/123456
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
+    project: https://github.com/orgs/my-mona-org/projects/1
     max: 1
-    github-token: ${{ secrets.WRITE_PROJECT_GITHUB_TOKEN }}
   add-comment:
     max: 1
 ---
 
 # Intelligent Issue Triage
 
-Analyze each new issue and decide whether it belongs on the portfolio board.
+Analyze each new issue in this repository and decide whether it belongs on the project board.
 
 Set structured fields only from allowed values:
 - Status: Needs Triage | Proposed | In Progress | Blocked
 - Priority: Low | Medium | High
 - Team: Platform | Docs | Product
 
-Post a short comment explaining your routing decision and any uncertainty.
+Post a short comment on the issue explaining your routing decision and any uncertainty.
 ```
+
+Once this workflow is compiled and running, it will automatically triage new issues with controlled write operations to the project board and issue comments.
+
+Let's create a new issue to see this in action:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/projectops-write-issue_dark.png" />
+  <img alt="Workflow summary output generated by Project Board Maintainer" src="/gh-aw/images/projectops-write-issue_light.png" />
+</picture>
+
+The Project Board Maintainer analyzes the issue content and context, then decides to add it to the project board with specific field values (for example, Status: Proposed, Priority: Medium, Team: Docs).
+It also posts a comment on the issue explaining the decision and any uncertainty.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/projectops-write-board_dark.png" />
+  <img alt="Workflow summary output generated by Project Board Maintainer" src="/gh-aw/images/projectops-write-board_light.png" />
+</picture>
 
 ## Best practices
 
@@ -129,4 +185,9 @@ In production, keep the loop simple: issue arrives, agent classifies and propose
 - Keep single-select values exact to avoid field drift.
 - If you only need simple event-based transitions, prefer [built-in GitHub Project workflows](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations).
 
-References: [Authentication (Projects)](/gh-aw/reference/auth-projects/), [Safe Outputs Reference](/gh-aw/reference/safe-outputs/), [Projects & Monitoring](/gh-aw/patterns/monitoring/), and [IssueOps](/gh-aw/patterns/issue-ops/).
+## Related documentation
+
+- **[Authentication for Project Operations](/gh-aw/patterns/project-ops/#authentication-for-project-operations)**
+- **[Safe Outputs Reference](/gh-aw/reference/safe-outputs/)**
+- **[Projects & Monitoring](/gh-aw/patterns/monitoring/)**
+- **[IssueOps](/gh-aw/patterns/issue-ops/)**

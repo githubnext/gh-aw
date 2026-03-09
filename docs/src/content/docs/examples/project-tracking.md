@@ -75,7 +75,7 @@ See [Safe Outputs: Project Board Updates](/gh-aw/reference/safe-outputs/#project
 
 ### Authentication
 
-See [Authentication (Projects)](/gh-aw/reference/auth-projects/).
+See [Project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication).
 
 ## Example: Issue Triage
 
@@ -283,6 +283,6 @@ Update the project item with the team field.
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe-outputs documentation
 - [update-project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed update-project configuration
 - [create-project-status-update](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update) - Status update configuration
-- [GitHub Projects Authentication](/gh-aw/reference/auth-projects/) - Token setup guide
+- [Project token authentication](/gh-aw/patterns/project-ops/#project-token-authentication) - Token setup guide
 - [Projects & Monitoring](/gh-aw/patterns/monitoring/) - Design pattern guide
 - [Orchestration](/gh-aw/patterns/orchestration/) - Design pattern guide
