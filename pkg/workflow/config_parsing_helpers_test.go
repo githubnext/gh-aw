@@ -328,43 +328,42 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
-func TestParsePullRequestsConfigIntegerExpires(t *testing.T) {
-	compiler := &Compiler{}
-	outputMap := map[string]any{
-		"create-pull-request": map[string]any{
-			"expires": 14,
+func TestParsePullRequestsConfigExpires(t *testing.T) {
+	tests := []struct {
+		name          string
+		expiresInput  any
+		expectedHours int
+	}{
+		{
+			name:          "integer days converted to hours",
+			expiresInput:  14,
+			expectedHours: 14 * 24,
+		},
+		{
+			name:          "string duration converted to hours",
+			expiresInput:  "7d",
+			expectedHours: 7 * 24,
 		},
 	}
 
-	result := compiler.parsePullRequestsConfig(outputMap)
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := &Compiler{}
+			outputMap := map[string]any{
+				"create-pull-request": map[string]any{
+					"expires": tt.expiresInput,
+				},
+			}
 
-	// Integer expires values are in days and should be converted to hours
-	expectedHours := 14 * 24
-	if result.Expires != expectedHours {
-		t.Errorf("expected expires %d hours (14 days), got %d", expectedHours, result.Expires)
-	}
-}
+			result := compiler.parsePullRequestsConfig(outputMap)
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
 
-func TestParsePullRequestsConfigStringExpires(t *testing.T) {
-	compiler := &Compiler{}
-	outputMap := map[string]any{
-		"create-pull-request": map[string]any{
-			"expires": "7d",
-		},
-	}
-
-	result := compiler.parsePullRequestsConfig(outputMap)
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-
-	// String "7d" should be converted to 168 hours
-	expectedHours := 7 * 24
-	if result.Expires != expectedHours {
-		t.Errorf("expected expires %d hours (7 days), got %d", expectedHours, result.Expires)
+			if result.Expires != tt.expectedHours {
+				t.Errorf("expected expires %d hours, got %d", tt.expectedHours, result.Expires)
+			}
+		})
 	}
 }
 
