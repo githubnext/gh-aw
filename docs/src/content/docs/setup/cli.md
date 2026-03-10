@@ -126,9 +126,23 @@ gh aw add ci-doctor --create-pull-request        # Create PR instead of commit
 Create a workflow template in `.github/workflows/`. Opens for editing automatically.
 
 ```bash wrap
-gh aw new                      # Interactive mode
-gh aw new my-custom-workflow   # Create template (.md extension optional)
-gh aw new my-workflow --force  # Overwrite if exists
+gh aw new                              # Interactive mode
+gh aw new my-custom-workflow           # Create template (.md extension optional)
+gh aw new my-workflow --force          # Overwrite if exists
+gh aw new my-workflow --engine claude  # Inject engine into frontmatter
+```
+
+**Options:** `--force`, `--engine/-e`
+
+When `--engine` is specified, the engine is injected into the generated frontmatter template:
+
+```yaml wrap
+---
+permissions:
+  contents: read
+engine: claude
+network: defaults
+...
 ```
 
 #### `secrets`
@@ -251,9 +265,12 @@ gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat 3 times
 gh aw run workflow --push                   # Auto-commit, push, and dispatch workflow
 gh aw run workflow --push --ref main        # Push to specific branch
+gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
-**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--auto-merge-prs`, `--enable-if-needed`
+**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--auto-merge-prs`, `--enable-if-needed`, `--json/-j`
+
+When `--json` is set, a JSON array of triggered workflow results is written to stdout.
 
 When `--push` is used, automatically recompiles outdated `.lock.yml` files, stages all transitive imports, and triggers workflow run after successful push. Without `--push`, warnings are displayed for missing or outdated lock files.
 
@@ -272,9 +289,12 @@ gh aw list                                  # List all workflows
 gh aw list ci-                              # Filter by pattern (case-insensitive)
 gh aw list --json                           # Output in JSON format
 gh aw list --label automation               # Filter by label
+gh aw list --dir custom/workflows           # List from custom directory
 ```
 
-**Options:** `--json`, `--label`
+**Options:** `--json`, `--label`, `--dir/-d`
+
+The `--dir` flag overrides the local workflow directory. It applies only when `--repo` is not set, consistent with other commands such as `validate`, `fix`, and `add`.
 
 Fast enumeration without GitHub API queries. For detailed status including enabled/disabled state and run information, use `status` instead.
 
@@ -322,7 +342,12 @@ gh aw audit https://github.com/owner/repo/actions/runs/123 # By workflow run URL
 gh aw audit https://github.com/owner/repo/actions/runs/123/job/456 # By job URL (extracts first failing step)
 gh aw audit https://github.com/owner/repo/actions/runs/123/job/456#step:7:1 # By step URL (extracts specific step)
 gh aw audit 12345678 --parse                              # Parse logs to markdown
+gh aw audit 12345678 --repo owner/repo                    # Specify repository for bare run ID
 ```
+
+**Options:** `--parse`, `--json`, `--repo/-r`
+
+The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
 Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (lockdown validation, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 

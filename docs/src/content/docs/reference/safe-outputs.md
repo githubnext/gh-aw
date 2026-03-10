@@ -1220,6 +1220,18 @@ jobs:
       - run: echo "Created issue ${{ needs.run-agent.outputs.created_issue_number }}"
 ```
 
+### Failure Issue Reporting (`report-failure-as-issue:`)
+
+Controls whether workflow failures are reported as GitHub issues (default: `true`). Set to `false` to suppress automatic failure issue creation for a specific workflow.
+
+```yaml wrap
+safe-outputs:
+  report-failure-as-issue: false
+  create-issue:
+```
+
+This mirrors the `noop.report-as-issue` pattern. Use this to silence noisy failure reports for workflows where failures are expected or handled externally.
+
 ### Group Reports (`group-reports:`)
 
 Controls whether failed workflow runs are grouped under a parent "[aw] Failed runs" issue. This is opt-in and defaults to `false`.
