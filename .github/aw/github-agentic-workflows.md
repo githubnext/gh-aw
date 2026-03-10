@@ -1071,6 +1071,9 @@ The YAML frontmatter supports these fields:
     - Patches exceeding this size are rejected to prevent accidental large changes
   - `group-reports:` - Group workflow failure reports as sub-issues (boolean, default: `false`)
     - When `true`, creates a parent `[aw] Failed runs` issue that tracks all workflow failures as sub-issues; useful for larger repositories
+  - `report-failure-as-issue:` - Control whether workflow failures are reported as GitHub issues (boolean, default: `true`)
+    - When `false`, suppresses automatic failure issue creation for this workflow
+    - Use to silence noisy failure reports for workflows where failures are expected or handled externally
   - `id-token:` - Override the id-token permission for the safe-outputs job (string: `"write"` or `"none"`)
     - `"write"`: force-enable `id-token: write` permission (required for OIDC authentication with cloud providers)
     - `"none"`: suppress automatic detection and prevent adding `id-token: write` even when vault/OIDC actions are detected in steps
@@ -1078,6 +1081,9 @@ The YAML frontmatter supports these fields:
   - `concurrency-group:` - Concurrency group for the safe-outputs job (string)
     - When set, the safe-outputs job uses this concurrency group with `cancel-in-progress: false`
     - Supports GitHub Actions expressions, e.g., `"safe-outputs-${{ github.repository }}"`
+  - `environment:` - Override the GitHub deployment environment for the safe-outputs job (string)
+    - Defaults to the top-level `environment:` field when not specified
+    - Use when the main job and safe-outputs job need different deployment environments for protection rules
   - `github-app:` - GitHub App credentials for minting installation access tokens (object)
     - When configured, generates a token from the app and uses it for all safe output operations (alternative to `github-token`)
     - Fields:
