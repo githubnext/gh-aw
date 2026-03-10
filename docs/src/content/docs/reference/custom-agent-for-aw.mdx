@@ -126,6 +126,20 @@ The agent can help with various debugging scenarios:
 /agent agentic-workflows debug agent output not creating issues
 ```
 
+### Self-Contained Debugging (Without Copilot)
+
+If your repository is not yet set up with the `agentic-workflows` agent, or if you prefer to use a different AI assistant, use the standalone debugging prompt by sharing its URL:
+
+```text wrap
+Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
+
+Run URL: https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+<CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/debug.md" label="Copy debug instructions" />
+
+The `debug.md` file is a self-contained prompt that works with any coding agent or AI assistant. It guides the agent to install `gh aw`, analyze the run logs, identify the root cause, and open a pull request with the fix.
+
 ## Other Agents and Chats
 
 The agent file can be loaded into other AI chat interfaces that support custom instructions. The agent is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.

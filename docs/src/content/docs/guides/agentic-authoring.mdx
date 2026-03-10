@@ -52,6 +52,34 @@ Migrate the release.md workflow from github/gh-aw to this repository.
 Adapt permissions and repository-specific references for our structure.
 ```
 
+## Debugging Workflows
+
+Use the agentic workflows agent to diagnose and fix failing workflow runs.
+
+### Through Copilot
+
+If your repository is [configured for agentic authoring](#configuring-your-repository), use the `agentic-workflows` agent in Copilot Chat:
+
+```text wrap
+/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+The agent audits the run, identifies the root cause (missing tools, permission errors, network blocks), and suggests targeted fixes.
+
+### Self-Contained (with URL)
+
+For any AI assistant or coding agent, share the URL to the standalone debugging prompt:
+
+```text wrap
+Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
+
+Run URL: https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+<CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/debug.md" label="Copy debug instructions" />
+
+The `debug.md` file is a self-contained prompt. The agent fetches it and follows the instructions to install the `gh aw` CLI, analyze logs, apply fixes, and open a pull request with the changes.
+
 ## Advanced Techniques
 
 ### Planner
