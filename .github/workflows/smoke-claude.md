@@ -49,6 +49,8 @@ tools:
   serena:
     languages:
       go: {}
+dependencies:
+  - microsoft/compliance-rules
 runtimes:
   go:
     version: "1.25"
