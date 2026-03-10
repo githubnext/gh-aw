@@ -203,13 +203,13 @@ Create a comprehensive markdown report with your findings:
 Use the following template for the discussion post:
 
 ```markdown
-# 🔐 Daily Secrets Analysis Report
+### 🔐 Daily Secrets Analysis Report
 
 **Date**: [Today's Date]  
 **Workflow Files Analyzed**: [TOTAL_WORKFLOWS]  
 **Run**: [Link to workflow run]
 
-## 📊 Executive Summary
+#### 📊 Executive Summary
 
 - **Total Secret References**: [SECRET_REFS] (`secrets.*`)
 - **GitHub Token References**: [TOKEN_REFS] (`github.token`)
@@ -217,35 +217,15 @@ Use the following template for the discussion post:
 - **Job-Level Usage**: [JOB_LEVEL] ([percentage]%)
 - **Step-Level Usage**: [STEP_LEVEL] ([percentage]%)
 
-## 🔑 Top 10 Secrets by Usage
-
-| Rank | Secret Name | Occurrences | Type |
-|------|-------------|-------------|------|
-| 1 | GITHUB_TOKEN | [count] | GitHub Token |
-| 2 | GH_AW_GITHUB_TOKEN | [count] | GitHub Token |
-| ... | ... | ... | ... |
-
-## 🛡️ Security Posture
-
-### Protection Mechanisms
+#### 🛡️ Security Posture
 
 ✅ **Redaction System**: [REDACTION_COUNT]/[TOTAL_WORKFLOWS] workflows have redaction steps  
 ✅ **Token Cascades**: [CASCADE_COUNT] instances of fallback chains  
 ✅ **Permission Blocks**: [PERMISSION_BLOCKS] explicit permission definitions  
 
-### Security Checks
-
 [Include results from Step 6 - template injection checks, secrets in outputs, etc.]
 
-## 📈 Trends
-
-[If historical data available, show changes from previous day]
-
-- Secret references: [change]
-- New secret types: [list any new secrets]
-- Removed secrets: [list any removed secrets]
-
-## 🎯 Key Findings
+#### 🎯 Key Findings
 
 [Summarize important findings, patterns, or anomalies]
 
@@ -253,18 +233,43 @@ Use the following template for the discussion post:
 2. **Finding 2**: Description
 3. **Finding 3**: Description
 
-## 💡 Recommendations
+#### 💡 Recommendations
 
 [Provide actionable recommendations based on analysis]
 
 1. **Recommendation 1**: Action to take
 2. **Recommendation 2**: Action to take
 
-## 📖 Reference Documentation
+<details>
+<summary><b>🔑 Top 10 Secrets by Usage</b></summary>
+
+| Rank | Secret Name | Occurrences | Type |
+|------|-------------|-------------|------|
+| 1 | GITHUB_TOKEN | [count] | GitHub Token |
+| 2 | GH_AW_GITHUB_TOKEN | [count] | GitHub Token |
+| ... | ... | ... | ... |
+
+</details>
+
+<details>
+<summary><b>📈 Trends</b></summary>
+
+[If historical data available, show changes from previous day]
+
+- Secret references: [change]
+- New secret types: [list any new secrets]
+- Removed secrets: [list any removed secrets]
+
+</details>
+
+<details>
+<summary><b>📖 Reference Documentation</b></summary>
 
 For detailed information about secret usage patterns, see:
 - Specification: [`scratchpad/secrets-yml.md`](https://github.com/github/gh-aw/blob/main/scratchpad/secrets-yml.md)
 - Redaction System: `actions/setup/js/redact_secrets.cjs`
+
+</details>
 
 ---
 

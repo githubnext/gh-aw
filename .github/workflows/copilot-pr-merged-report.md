@@ -150,9 +150,9 @@ For token usage information, we need to find the workflow run associated with th
 Create a concise report with the following structure:
 
 ```markdown
-# 🤖 Daily Copilot PR Merged Report - [DATE]
+### 🤖 Daily Copilot PR Merged Report - [DATE]
 
-## Summary
+#### Summary
 
 **Analysis Period**: Last 24 hours (merged PRs only)  
 **Total Merged PRs**: [count]  
@@ -160,19 +160,30 @@ Create a concise report with the following structure:
 **Total Lines Deleted**: [count]  
 **Net Code Change**: [+/- count] lines
 
-## Merged Pull Requests
+#### 💡 Insights
+
+[Provide 1-2 brief observations about the merged PRs, such as:]
+- Trends in code generation volume
+- Notable test coverage patterns
+- Any PRs with exceptional metrics (very large, many test files, etc.)
+
+<details>
+<summary><b>Merged Pull Requests</b></summary>
 
 | PR # | Title | Lines Added | Lines Deleted | Test Files | Merged At |
 |------|-------|-------------|---------------|------------|-----------|
 | [#123](url) | [title] | [count] | [count] | [count] | [time] |
 
-## Code Generation Metrics
+</details>
+
+<details>
+<summary><b>Code Generation Metrics</b></summary>
 
 - **Production Code**: [lines added - test lines added] lines
 - **Test Code**: [test lines added] lines
 - **Code-to-Test Ratio**: [ratio]
 
-## Test Coverage
+#### Test Coverage
 
 - **Total Test Files Modified/Added**: [count]
 - **Test File Types**:
@@ -180,7 +191,7 @@ Create a concise report with the following structure:
   - JavaScript tests (`*.test.js`): [count]
   - .NET tests (`*Tests.cs`, `*Test.cs`): [count]
 
-## Workflow Execution
+#### Workflow Execution
 
 - **Total Workflow Runs**: [count]
 - **Total Billable Time**: [milliseconds] ms ([minutes] min)
@@ -188,12 +199,7 @@ Create a concise report with the following structure:
 
 **Note**: Token consumption data is not directly available via GitHub API. Workflow execution time is used as a proxy for resource usage.
 
-## Insights
-
-[Provide 1-2 brief observations about the merged PRs, such as:]
-- Trends in code generation volume
-- Notable test coverage patterns
-- Any PRs with exceptional metrics (very large, many test files, etc.)
+</details>
 
 ---
 
@@ -232,7 +238,7 @@ Use the safe-outputs `create-discussion` functionality to publish the report:
 **No Merged PRs**:
 If no Copilot PRs were merged in the last 24 hours:
 ```markdown
-# 🤖 Daily Copilot PR Merged Report - [DATE]
+### 🤖 Daily Copilot PR Merged Report - [DATE]
 
 No Copilot coding agent pull requests were merged in the last 24 hours.
 
