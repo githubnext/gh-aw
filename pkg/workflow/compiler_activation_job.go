@@ -439,7 +439,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// github.action_repository points to the callee (platform) repo during workflow_call;
 	// for other event types the explicit event_name check short-circuits to falsy and we
 	// fall back to github.repository. This supports mixed triggers (e.g., workflow_call + workflow_dispatch).
-	if data != nil && hasWorkflowCallTrigger(data.On) {
+	//
+	// Skip when inlined-imports is enabled: content is embedded at compile time and no
+	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
+	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
 		return GenerateGitHubFolderCheckoutStep(
 			"${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}",

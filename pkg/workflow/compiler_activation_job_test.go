@@ -19,6 +19,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 		name             string
 		onSection        string
 		features         map[string]any
+		inlinedImports   bool   // whether InlinedImports is enabled in WorkflowData
 		wantRepository   string // expected repository: value ("" means field absent)
 		wantNil          bool   // whether nil is expected (action-tag skip)
 		wantGitHubSparse bool   // whether .github / .agents should be in sparse-checkout
@@ -45,6 +46,16 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
         required: true
         type: number`,
 			wantRepository:   workflowCallRepo,
+			wantGitHubSparse: true,
+			wantPersistFalse: true,
+			wantFetchDepth1:  true,
+		},
+		{
+			name: "workflow_call with inlined-imports - standard checkout without cross-repo expression",
+			onSection: `"on":
+  workflow_call:`,
+			inlinedImports:   true,
+			wantRepository:   "",
 			wantGitHubSparse: true,
 			wantPersistFalse: true,
 			wantFetchDepth1:  true,
@@ -84,8 +95,9 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 			c.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
-				On:       tt.onSection,
-				Features: tt.features,
+				On:             tt.onSection,
+				Features:       tt.features,
+				InlinedImports: tt.inlinedImports,
 			}
 
 			result := c.generateCheckoutGitHubFolderForActivation(data)
