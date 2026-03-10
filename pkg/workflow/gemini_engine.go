@@ -271,7 +271,11 @@ touch %s
 	} else {
 		env["GH_AW_PHASE"] = "agent"
 	}
-	env["GH_AW_VERSION"] = GetVersion()
+	if IsRelease() {
+		env["GH_AW_VERSION"] = GetVersion()
+	} else {
+		env["GH_AW_VERSION"] = "dev"
+	}
 
 	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
 	if HasMCPServers(workflowData) {
