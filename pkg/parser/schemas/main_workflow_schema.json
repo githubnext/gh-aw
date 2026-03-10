@@ -3660,6 +3660,12 @@
                   "maximum": 1000,
                   "description": "Maximum file count per commit (default: 100)"
                 },
+                "max-patch-size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 102400,
+                  "description": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 102400 = 100KB). The total size of the git diff must not exceed this value."
+                },
                 "description": {
                   "type": "string",
                   "description": "Optional description for the memory that will be shown in the agent prompt"
@@ -3744,6 +3750,12 @@
                     "minimum": 1,
                     "maximum": 1000,
                     "description": "Maximum file count per commit (default: 100)"
+                  },
+                  "max-patch-size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 102400,
+                    "description": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 102400 = 100KB). The total size of the git diff must not exceed this value."
                   },
                   "description": {
                     "type": "string",
