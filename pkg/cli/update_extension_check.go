@@ -15,77 +15,6 @@ import (
 
 var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 
-// ensureLatestExtensionVersion checks if the current release matches the latest release
-// and issues a warning if an update is needed. This function fails silently if the
-// release URL is not available or blocked.
-func ensureLatestExtensionVersion(verbose bool) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Checking for gh-aw extension updates..."))
-	}
-
-	// Get current version
-	currentVersion := GetVersion()
-	updateExtensionCheckLog.Printf("Current version: %s", currentVersion)
-
-	// Skip check for non-release versions (dev builds)
-	if !workflow.IsReleasedVersion(currentVersion) {
-		updateExtensionCheckLog.Print("Not a released version, skipping update check")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping version check (development build)"))
-		}
-		return nil
-	}
-
-	// Query GitHub API for latest release
-	latestVersion, err := getLatestRelease()
-	if err != nil {
-		// Fail silently - don't block upgrade if we can't check for updates
-		updateExtensionCheckLog.Printf("Failed to check for updates (silently ignoring): %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check for updates: %v", err)))
-		}
-		return nil
-	}
-
-	if latestVersion == "" {
-		updateExtensionCheckLog.Print("Could not determine latest version")
-		return nil
-	}
-
-	updateExtensionCheckLog.Printf("Latest version: %s", latestVersion)
-
-	// Normalize versions for comparison (remove 'v' prefix)
-	currentVersionNormalized := strings.TrimPrefix(currentVersion, "v")
-	latestVersionNormalized := strings.TrimPrefix(latestVersion, "v")
-
-	// Compare versions
-	if currentVersionNormalized == latestVersionNormalized {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension is up to date"))
-		}
-		updateExtensionCheckLog.Print("Extension is up to date")
-		return nil
-	}
-
-	// Check if we're on a newer version (development/prerelease)
-	if currentVersionNormalized > latestVersionNormalized {
-		updateExtensionCheckLog.Printf("Current version (%s) appears newer than latest release (%s)", currentVersion, latestVersion)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running a development or pre-release version"))
-		}
-		return nil
-	}
-
-	// A newer version is available - display warning message (not error)
-	updateExtensionCheckLog.Printf("Newer version available: %s (current: %s)", latestVersion, currentVersion)
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("A newer version of gh-aw is available: %s (current: %s)", latestVersion, currentVersion)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Consider upgrading with: gh extension upgrade github/gh-aw"))
-	fmt.Fprintln(os.Stderr, "")
-
-	return nil
-}
-
 // upgradeExtensionIfOutdated checks if a newer version of the gh-aw extension is available
 // and, if so, upgrades it automatically. Returns true if an upgrade was performed.
 //
@@ -124,14 +53,8 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, error) {
 	updateExtensionCheckLog.Printf("Latest version: %s", latestVersion)
 
 	// Ensure both versions have the 'v' prefix required by the semver package.
-	currentSV := currentVersion
-	if !strings.HasPrefix(currentSV, "v") {
-		currentSV = "v" + currentSV
-	}
-	latestSV := latestVersion
-	if !strings.HasPrefix(latestSV, "v") {
-		latestSV = "v" + latestSV
-	}
+	currentSV := "v" + strings.TrimPrefix(currentVersion, "v")
+	latestSV := "v" + strings.TrimPrefix(latestVersion, "v")
 
 	// Already on the latest (or newer) version – use proper semver comparison so
 	// that e.g. "0.10.0" is correctly treated as newer than "0.9.0".

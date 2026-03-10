@@ -329,10 +329,7 @@ func relaunchWithSameArgs(extraFlag string) error {
 
 	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
 	// the original slice backing array.
-	origArgs := os.Args[1:]
-	newArgs := make([]string, len(origArgs), len(origArgs)+1)
-	copy(newArgs, origArgs)
-	newArgs = append(newArgs, extraFlag)
+	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
 
 	cmd := exec.Command(exe, newArgs...)
