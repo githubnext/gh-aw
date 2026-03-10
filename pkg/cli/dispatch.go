@@ -55,6 +55,11 @@ func extractDispatchWorkflowNames(content string) []string {
 	return workflowNames
 }
 
+// fileDownloadFn is the type for a function that downloads a file from a GitHub repository.
+// It is used for dependency injection in fetchAndSaveRemoteDispatchWorkflows to allow tests
+// to provide a fast-failing mock instead of making real network calls.
+type fileDownloadFn func(owner, repo, path, ref string) ([]byte, error)
+
 // fetchAndSaveRemoteDispatchWorkflows fetches and saves the workflow files referenced in the
 // safe-outputs.dispatch-workflow configuration of a remote workflow. Each listed workflow name
 // (without extension) is resolved as a sibling file ("<name>.md") in the same directory as
@@ -66,7 +71,14 @@ func extractDispatchWorkflowNames(content string) []string {
 // If a target file already exists from a different source (different owner/repo in its
 // 'source:' frontmatter field, or no source field at all), an error is returned.
 // Files from the same source are silently skipped. Download failures are non-fatal.
-func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+//
+// An optional downloader function may be provided as the last argument to override the default
+// parser.DownloadFileFromGitHub implementation (used in tests to avoid real network calls).
+func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, downloaders ...fileDownloadFn) error {
+	downloader := fileDownloadFn(parser.DownloadFileFromGitHub)
+	if len(downloaders) > 0 && downloaders[0] != nil {
+		downloader = downloaders[0]
+	}
 	if spec.RepoSlug == "" {
 		return nil
 	}
@@ -154,13 +166,13 @@ func fetchAndSaveRemoteDispatchWorkflows(content string, spec *WorkflowSpec, tar
 
 		// Download from the source repository — try .md first, then .yml as fallback
 		// (the dispatch-workflow validator accepts either .md or .yml files locally).
-		workflowContent, err := parser.DownloadFileFromGitHub(owner, repo, remoteFilePath, ref)
+		workflowContent, err := downloader(owner, repo, remoteFilePath, ref)
 		if err != nil {
 			// .md not found — try .yml fallback (e.g. plain GitHub Actions workflow)
 			ymlRemotePath := path.Clean(strings.TrimSuffix(remoteFilePath, ".md") + ".yml")
 			ymlLocalPath := filepath.Join(targetDir, filepath.Clean(workflowName+".yml"))
 
-			ymlContent, ymlErr := parser.DownloadFileFromGitHub(owner, repo, ymlRemotePath, ref)
+			ymlContent, ymlErr := downloader(owner, repo, ymlRemotePath, ref)
 			if ymlErr != nil {
 				// Neither .md nor .yml found — best-effort, continue
 				if verbose {
