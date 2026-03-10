@@ -118,6 +118,54 @@ func TestErrNoArtifacts(t *testing.T) {
 	}
 }
 
+func TestIsNonZipArtifactError(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		expected bool
+	}{
+		{
+			name:     "zip: not a valid zip file",
+			output:   "error downloading github~gh-aw~39RTHX.dockerbuild: error extracting zip archive: zip: not a valid zip file",
+			expected: true,
+		},
+		{
+			name:     "error extracting zip archive",
+			output:   "error downloading some-artifact: error extracting zip archive: unexpected EOF",
+			expected: true,
+		},
+		{
+			name:     "both patterns present",
+			output:   "error extracting zip archive: zip: not a valid zip file",
+			expected: true,
+		},
+		{
+			name:     "unrelated error",
+			output:   "exit status 1: some other failure",
+			expected: false,
+		},
+		{
+			name:     "empty output",
+			output:   "",
+			expected: false,
+		},
+		{
+			name:     "no artifacts found",
+			output:   "no valid artifacts found",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isNonZipArtifactError([]byte(tt.output))
+			if result != tt.expected {
+				t.Errorf("isNonZipArtifactError(%q) = %v, want %v", tt.output, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestListWorkflowRunsWithPagination(t *testing.T) {
 	// Test that listWorkflowRunsWithPagination properly adds beforeDate filter
 	// Since we can't easily mock the GitHub CLI, we'll test with known auth issues

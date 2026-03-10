@@ -558,6 +558,15 @@ func listArtifacts(outputDir string) ([]string, error) {
 	return artifacts, nil
 }
 
+// isNonZipArtifactError reports whether the output from gh run download indicates
+// that the failure was caused by one or more non-zip artifacts (e.g. .dockerbuild files).
+// Such artifacts cannot be extracted as zip archives and should be skipped rather than
+// failing the entire download.
+func isNonZipArtifactError(output []byte) bool {
+	s := string(output)
+	return strings.Contains(s, "zip: not a valid zip file") || strings.Contains(s, "error extracting zip archive")
+}
+
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
 	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
@@ -612,6 +621,10 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 	cmd := workflow.ExecGH(ghArgs...)
 	output, err := cmd.CombinedOutput()
 
+	// skippedNonZipArtifacts is set when gh run download fails due to non-zip artifacts
+	// (e.g., .dockerbuild files). In that case we warn and continue with what was downloaded.
+	var skippedNonZipArtifacts bool
+
 	if err != nil {
 		// Stop spinner on error
 		if !verbose {
@@ -645,7 +658,27 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		if strings.Contains(err.Error(), "exit status 4") {
 			return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
-		return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
+		// Check if the error is due to non-zip artifacts (e.g., .dockerbuild files).
+		// The gh CLI fails when it encounters artifacts that are not valid zip archives.
+		// We warn and continue with any artifacts that were successfully downloaded.
+		if isNonZipArtifactError(output) {
+			// Show a concise warning; the raw output may be verbose so truncate it.
+			msg := string(output)
+			if len(msg) > 200 {
+				msg = msg[:200] + "..."
+			}
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Some artifacts could not be extracted (not a valid zip archive) and were skipped: "+msg))
+			skippedNonZipArtifacts = true
+		} else {
+			return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
+		}
+	}
+
+	if skippedNonZipArtifacts && fileutil.IsDirEmpty(outputDir) {
+		// All artifacts were non-zip (none could be extracted) so nothing was downloaded.
+		// Treat this the same as a run with no artifacts — the audit will rely solely on
+		// workflow logs rather than artifact content.
+		return ErrNoArtifacts
 	}
 
 	// Stop spinner with success message
