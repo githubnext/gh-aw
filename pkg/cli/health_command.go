@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -202,15 +204,10 @@ func displayHealthSummary(runs []WorkflowRun, config HealthConfig) error {
 		workflowHealths = append(workflowHealths, health)
 	}
 
-	// Sort by success rate (lowest first to highlight issues)
-	// Using a simple bubble sort for simplicity
-	for i := 0; i < len(workflowHealths); i++ {
-		for j := i + 1; j < len(workflowHealths); j++ {
-			if workflowHealths[i].SuccessRate > workflowHealths[j].SuccessRate {
-				workflowHealths[i], workflowHealths[j] = workflowHealths[j], workflowHealths[i]
-			}
-		}
-	}
+	// Sort by success rate ascending (lowest first to highlight issues)
+	slices.SortFunc(workflowHealths, func(a, b WorkflowHealth) int {
+		return cmp.Compare(a.SuccessRate, b.SuccessRate)
+	})
 
 	// Calculate summary
 	summary := CalculateHealthSummary(workflowHealths, fmt.Sprintf("Last %d Days", config.Days), config.Threshold)

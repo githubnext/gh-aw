@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -78,34 +79,21 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 
 	compileConfigLog.Printf("Sanitizing validation results: workflow_count=%d", len(results))
 
-	sanitized := make([]ValidationResult, len(results))
-	for i, result := range results {
-		sanitized[i] = ValidationResult{
-			Workflow:     result.Workflow,
-			Valid:        result.Valid,
-			CompiledFile: result.CompiledFile,
-			Errors:       make([]CompileValidationError, len(result.Errors)),
-			Warnings:     make([]CompileValidationError, len(result.Warnings)),
-		}
-
-		// Sanitize all error messages
-		for j, err := range result.Errors {
-			sanitized[i].Errors[j] = CompileValidationError{
-				Type:    err.Type,
-				Message: stringutil.SanitizeErrorMessage(err.Message),
-				Line:    err.Line,
-			}
-		}
-
-		// Sanitize all warning messages
-		for j, warn := range result.Warnings {
-			sanitized[i].Warnings[j] = CompileValidationError{
-				Type:    warn.Type,
-				Message: stringutil.SanitizeErrorMessage(warn.Message),
-				Line:    warn.Line,
-			}
+	sanitizeError := func(e CompileValidationError) CompileValidationError {
+		return CompileValidationError{
+			Type:    e.Type,
+			Message: stringutil.SanitizeErrorMessage(e.Message),
+			Line:    e.Line,
 		}
 	}
 
-	return sanitized
+	return sliceutil.Map(results, func(result ValidationResult) ValidationResult {
+		return ValidationResult{
+			Workflow:     result.Workflow,
+			Valid:        result.Valid,
+			CompiledFile: result.CompiledFile,
+			Errors:       sliceutil.Map(result.Errors, sanitizeError),
+			Warnings:     sliceutil.Map(result.Warnings, sanitizeError),
+		}
+	})
 }

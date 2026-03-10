@@ -1,12 +1,12 @@
 package cli
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -368,8 +368,8 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 	}
 
 	// Sort by total calls descending
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].TotalCalls > result[j].TotalCalls
+	slices.SortFunc(result, func(a, b ToolUsageSummary) int {
+		return cmp.Compare(b.TotalCalls, a.TotalCalls)
 	})
 
 	return result
@@ -453,8 +453,8 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 	)
 
 	// Sort by count descending
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Count > result[j].Count
+	slices.SortFunc(result, func(a, b MissingToolSummary) int {
+		return cmp.Compare(b.Count, a.Count)
 	})
 
 	return result
@@ -496,8 +496,8 @@ func buildMissingDataSummary(processedRuns []ProcessedRun) []MissingDataSummary 
 	)
 
 	// Sort by count descending
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Count > result[j].Count
+	slices.SortFunc(result, func(a, b MissingDataSummary) int {
+		return cmp.Compare(b.Count, a.Count)
 	})
 
 	return result
@@ -537,8 +537,8 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 	)
 
 	// Sort by count descending
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Count > result[j].Count
+	slices.SortFunc(result, func(a, b MCPFailureSummary) int {
+		return cmp.Compare(b.Count, a.Count)
 	})
 
 	return result
@@ -587,12 +587,12 @@ func convertDomainsToSortedSlices(allowedMap, blockedMap map[string]bool) (allow
 	for domain := range allowedMap {
 		allowed = append(allowed, domain)
 	}
-	sort.Strings(allowed)
+	slices.Sort(allowed)
 
 	for domain := range blockedMap {
 		blocked = append(blocked, domain)
 	}
-	sort.Strings(blocked)
+	slices.Sort(blocked)
 
 	return allowed, blocked
 }
@@ -704,7 +704,7 @@ func buildRedactedDomainsSummary(processedRuns []ProcessedRun) *RedactedDomainsL
 	for domain := range allDomainsSet {
 		allDomains = append(allDomains, domain)
 	}
-	sort.Strings(allDomains)
+	slices.Sort(allDomains)
 
 	return &RedactedDomainsLogSummary{
 		TotalDomains: len(allDomains),
@@ -825,16 +825,16 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 	}
 
 	// Sort summaries by server name, then tool name
-	sort.Slice(summaries, func(i, j int) bool {
-		if summaries[i].ServerName != summaries[j].ServerName {
-			return summaries[i].ServerName < summaries[j].ServerName
+	slices.SortFunc(summaries, func(a, b MCPToolSummary) int {
+		if a.ServerName != b.ServerName {
+			return cmp.Compare(a.ServerName, b.ServerName)
 		}
-		return summaries[i].ToolName < summaries[j].ToolName
+		return cmp.Compare(a.ToolName, b.ToolName)
 	})
 
 	// Sort servers by name
-	sort.Slice(servers, func(i, j int) bool {
-		return servers[i].ServerName < servers[j].ServerName
+	slices.SortFunc(servers, func(a, b MCPServerStats) int {
+		return cmp.Compare(a.ServerName, b.ServerName)
 	})
 
 	reportLog.Printf("Built MCP tool usage summary: %d tool summaries, %d servers, %d total tool calls",
