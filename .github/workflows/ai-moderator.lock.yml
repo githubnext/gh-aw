@@ -804,7 +804,7 @@ jobs:
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_VERSION: 3f30e4d
+          GH_AW_VERSION: f11a70f
           GITHUB_AW: true
           GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
