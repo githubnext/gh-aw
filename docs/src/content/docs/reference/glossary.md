@@ -128,6 +128,17 @@ Access controls defining workflow operations. Workflows follow least privilege, 
 
 Customizable messages workflows can display during execution. Configured in `safe-outputs.messages` with types `run-started`, `run-success`, `run-failure`, and `footer`. Supports GitHub context variables like `{workflow_name}` and `{run_url}`.
 
+### Failure Issue Reporting (`report-failure-as-issue:`)
+
+A `safe-outputs` option controlling whether workflow run failures are automatically reported as GitHub issues. Defaults to `true` when safe outputs are configured. Set to `false` to suppress failure issue creation for workflows where failures are expected or handled externally:
+
+```yaml
+safe-outputs:
+  report-failure-as-issue: false
+```
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+
 ### Upload Assets
 
 A safe output capability for uploading generated files (screenshots, charts, reports) to an orphaned git branch for persistent storage. The AI calls the `upload_asset` tool to register files, which are committed to a dedicated assets branch by a separate permission-controlled job. Assets are accessible via GitHub raw URLs. Commonly used for visual testing artifacts, data visualizations, and generated documentation.
