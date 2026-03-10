@@ -7224,6 +7224,31 @@
           "description": "Concurrency group for the safe-outputs job. When set, the safe-outputs job will use this concurrency group with cancel-in-progress: false. Supports GitHub Actions expressions.",
           "examples": ["my-workflow-safe-outputs", "safe-outputs-${{ github.repository }}"]
         },
+        "environment": {
+          "description": "Override the GitHub deployment environment for the safe-outputs job. When set, this environment is used instead of the top-level environment: field. When not set, the top-level environment: field is propagated automatically so that environment-scoped secrets are accessible in the safe-outputs job.",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Environment name as a string"
+            },
+            {
+              "type": "object",
+              "description": "Environment object with name and optional URL",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The name of the environment configured in the repo"
+                },
+                "url": {
+                  "type": "string",
+                  "description": "A deployment URL"
+                }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            }
+          ]
+        },
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"

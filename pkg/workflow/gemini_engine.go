@@ -248,8 +248,10 @@ touch %s
 
 	// Build environment variables
 	env := map[string]string{
-		"GEMINI_API_KEY":   "${{ secrets.GEMINI_API_KEY }}",
-		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}",
+		"GH_AW_PROMPT":   "/tmp/gh-aw/aw-prompts/prompt.txt",
+		// Tag the step as a GitHub AW agentic execution for discoverability by agents
+		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
@@ -262,6 +264,14 @@ touch %s
 		// Non-JSON debug lines are gracefully skipped by ParseLogMetrics.
 		"DEBUG": "gemini-cli:*",
 	}
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	// Include the compiler version so agents can identify which gh-aw version generated the workflow
+	if workflowData.IsDetectionRun {
+		env["GH_AW_PHASE"] = "detection"
+	} else {
+		env["GH_AW_PHASE"] = "agent"
+	}
+	env["GH_AW_VERSION"] = GetVersion()
 
 	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
 	if HasMCPServers(workflowData) {

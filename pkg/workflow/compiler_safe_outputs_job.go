@@ -338,10 +338,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		consolidatedSafeOutputsJobLog.Printf("Configuring safe_outputs job concurrency group: %s", data.SafeOutputs.ConcurrencyGroup)
 	}
 
+	// Determine the environment for the safe-outputs job.
+	// If safe-outputs.environment is explicitly set, use that override.
+	// Otherwise, propagate the top-level environment: field so that environment-scoped
+	// secrets (e.g. for GitHub App token minting) are accessible in this job.
+	safeOutputsEnvironment := resolveSafeOutputsEnvironment(data)
+
 	job := &Job{
 		Name:           "safe_outputs",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Environment:    c.indentYAMLLines(safeOutputsEnvironment, "    "),
 		Permissions:    permissions.RenderToYAML(),
 		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
 		Concurrency:    concurrency,
@@ -430,6 +437,17 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// is now handled as a separate job (see buildUploadAssetsJob)
 
 	return envVars
+}
+
+// resolveSafeOutputsEnvironment resolves the effective GitHub deployment environment for
+// safe-output jobs. If safe-outputs.environment is explicitly set, it takes precedence.
+// Otherwise the top-level environment: field is propagated so that environment-scoped
+// secrets are accessible in all safe-output jobs.
+func resolveSafeOutputsEnvironment(data *WorkflowData) string {
+	if data.SafeOutputs != nil && data.SafeOutputs.Environment != "" {
+		return data.SafeOutputs.Environment
+	}
+	return data.Environment
 }
 
 // buildDetectionSuccessCondition builds the condition to check if detection passed.

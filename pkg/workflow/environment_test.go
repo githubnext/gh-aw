@@ -4,10 +4,13 @@ package workflow
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/testutil"
 )
 
 func TestEnvironmentSupport(t *testing.T) {
@@ -218,5 +221,137 @@ This is a test.`
 
 	if !strings.Contains(yamlContent, expectedIndentedEnvironment) {
 		t.Errorf("Expected properly indented environment section, but got:\n%s", yamlContent)
+	}
+}
+
+// TestSafeOutputsEnvironmentPropagation verifies that the top-level environment: field is
+// propagated to the safe_outputs job so that environment-scoped secrets are accessible.
+func TestSafeOutputsEnvironmentPropagation(t *testing.T) {
+	tests := []struct {
+		name             string
+		frontmatter      string
+		expectEnvInSafe  bool
+		expectedEnvValue string
+	}{
+		{
+			name: "top-level environment propagated to safe_outputs job",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+environment: production
+safe-outputs:
+  add-comment: {}
+---
+
+# Test Workflow
+
+This is a test.`,
+			expectEnvInSafe:  true,
+			expectedEnvValue: "environment: production",
+		},
+		{
+			name: "safe-outputs environment overrides top-level environment",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+environment: production
+safe-outputs:
+  environment: staging
+  add-comment: {}
+---
+
+# Test Workflow
+
+This is a test.`,
+			expectEnvInSafe:  true,
+			expectedEnvValue: "environment: staging",
+		},
+		{
+			name: "no environment means safe_outputs has no environment",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  add-comment: {}
+---
+
+# Test Workflow
+
+This is a test.`,
+			expectEnvInSafe:  false,
+			expectedEnvValue: "",
+		},
+		{
+			name: "safe-outputs-only environment when no top-level environment",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  environment: dev
+  add-comment: {}
+---
+
+# Test Workflow
+
+This is a test.`,
+			expectEnvInSafe:  true,
+			expectedEnvValue: "environment: dev",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "safe-outputs-env-test")
+			workflowFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(workflowFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(workflowFile); err != nil {
+				t.Fatalf("CompileWorkflow() error: %v", err)
+			}
+
+			lockFile := stringutil.MarkdownToLockFile(workflowFile)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			yamlStr := string(lockContent)
+
+			// Find the safe_outputs job section
+			safeOutputsIdx := strings.Index(yamlStr, "  safe_outputs:\n")
+			if safeOutputsIdx == -1 {
+				t.Fatal("safe_outputs job not found in generated YAML")
+			}
+
+			// Find the next top-level job after safe_outputs (indented by 2 spaces)
+			nextJobIdx := len(yamlStr)
+			lines := strings.Split(yamlStr[safeOutputsIdx+len("  safe_outputs:\n"):], "\n")
+			offset := safeOutputsIdx + len("  safe_outputs:\n")
+			for _, line := range lines {
+				if line != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "  #") {
+					nextJobIdx = offset
+					break
+				}
+				offset += len(line) + 1
+			}
+
+			safeOutputsSection := yamlStr[safeOutputsIdx:nextJobIdx]
+
+			if tt.expectEnvInSafe {
+				if !strings.Contains(safeOutputsSection, tt.expectedEnvValue) {
+					t.Errorf("Expected safe_outputs job to contain %q, but got:\n%s", tt.expectedEnvValue, safeOutputsSection)
+				}
+			} else {
+				if strings.Contains(safeOutputsSection, "environment:") {
+					t.Errorf("Expected safe_outputs job to have no environment field, but found one in:\n%s", safeOutputsSection)
+				}
+			}
+		})
 	}
 }

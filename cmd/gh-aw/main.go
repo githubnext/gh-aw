@@ -103,8 +103,8 @@ For detailed help on any command, use:
 
 var newCmd = &cobra.Command{
 	Use:   "new [workflow]",
-	Short: "Create a new workflow Markdown file with example configuration",
-	Long: `Create a new workflow Markdown file with commented examples and explanations of all available options.
+	Short: "Create a new agentic workflow file with example configuration",
+	Long: `Create a new agentic workflow file with commented examples and explanations of all available options.
 
 When called without a workflow name (or with --interactive flag), launches an interactive wizard
 to guide you through creating a workflow with custom settings.
@@ -162,7 +162,7 @@ Examples:
 var removeCmd = &cobra.Command{
 	Use:   "remove [pattern]",
 	Short: "Remove agentic workflow files matching the given name prefix",
-	Long: `Remove workflow files matching the given workflow-id pattern.
+	Long: `Remove agentic workflow files matching the given workflow-id pattern.
 
 The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
@@ -224,7 +224,7 @@ Examples:
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow]...",
-	Short: "Compile workflow Markdown files (.md) into GitHub Actions workflows (.lock.yml)",
+	Short: "Compile agentic workflow files (.md) into GitHub Actions workflows (.lock.yml)",
 	Long: `Compile one or more agentic workflows to YAML workflows.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.
@@ -790,6 +790,30 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(hashCmd)
 	rootCmd.AddCommand(projectCmd)
+
+	// Fix help flag descriptions for all subcommands to be consistent with the
+	// root command ("Show help for gh aw" vs the Cobra default "help for [cmd]").
+	var fixSubCmdHelpFlags func(cmd *cobra.Command)
+	fixSubCmdHelpFlags = func(cmd *cobra.Command) {
+		cmd.InitDefaultHelpFlag()
+		if f := cmd.Flags().Lookup("help"); f != nil {
+			cmdPath := cmd.CommandPath()
+			// CommandPath() uses Name() which returns the first word of Use
+			// ("gh" from "gh aw"), so subcommand paths look like "gh compile".
+			// Replace the leading "gh " prefix with "gh aw " to match the root
+			// command's display name.
+			if strings.HasPrefix(cmdPath, "gh ") && !strings.HasPrefix(cmdPath, "gh aw") {
+				cmdPath = "gh aw " + cmdPath[3:]
+			}
+			f.Usage = "Show help for " + cmdPath
+		}
+		for _, sub := range cmd.Commands() {
+			fixSubCmdHelpFlags(sub)
+		}
+	}
+	for _, sub := range rootCmd.Commands() {
+		fixSubCmdHelpFlags(sub)
+	}
 }
 
 func main() {
