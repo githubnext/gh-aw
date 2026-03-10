@@ -103,7 +103,7 @@ steps:
   - name: Install npm dependencies
     run: npm ci
     working-directory: ./actions/setup/js
-  - name: Install dev dependencies
+  - name: Install development dependencies
     run: make deps-dev
 safe-outputs:
   create-pull-request:

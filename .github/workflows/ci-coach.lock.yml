@@ -30,7 +30,7 @@
 #     - shared/ci-data-analysis.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"5191e6c822b25fd810bcb75bbe5eaa6062a26a820ff6c01145e7e2b2507f0426","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6f14f1fb715e17ce47bed9125088f5ccf8a9bb4f290216f54c08eadf3743c2f1","strict":true}
 
 name: "CI Optimization Coach"
 "on":
@@ -320,7 +320,7 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
-      - name: Install dev dependencies
+      - name: Install development dependencies
         run: make deps-dev
       - name: Run linter
         run: make lint

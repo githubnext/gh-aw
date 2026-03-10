@@ -58,7 +58,7 @@ steps:
       go-version-file: go.mod
       cache: true
   
-  - name: Install dev dependencies
+  - name: Install development dependencies
     run: make deps-dev
   
   - name: Run linter

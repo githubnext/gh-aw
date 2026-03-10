@@ -27,7 +27,7 @@
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f715c77536157d46d383a993c4e231ed9f29a36b211b1b17df979aae0699f650","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4ecd3364560531e7322cfa5189d72debb01c4739af8c88b9fc59cca9da464025","strict":true}
 
 name: "CI Cleaner"
 "on":
@@ -333,7 +333,7 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
         working-directory: ./actions/setup/js
-      - name: Install dev dependencies
+      - name: Install development dependencies
         run: make deps-dev
 
       - name: Configure Git credentials

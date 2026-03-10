@@ -23,7 +23,7 @@
 #
 # Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c1ab537bf460e015b81437b1d7b086f0abfa3872ab893889dc7ca6173e4e0d73","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"33d1d81a54077cb3f7e4fcb3ea7aabbb6d8e4c5125c45d8e660e0b48836c2dec","strict":true}
 
 name: "Tidy"
 "on":
@@ -344,7 +344,7 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
-      - name: Install dev dependencies
+      - name: Install development dependencies
         run: make deps-dev
 
       - name: Configure Git credentials
