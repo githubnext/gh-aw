@@ -338,10 +338,20 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		consolidatedSafeOutputsJobLog.Printf("Configuring safe_outputs job concurrency group: %s", data.SafeOutputs.ConcurrencyGroup)
 	}
 
+	// Determine the environment for the safe-outputs job.
+	// If safe-outputs.environment is explicitly set, use that override.
+	// Otherwise, propagate the top-level environment: field so that environment-scoped
+	// secrets (e.g. for GitHub App token minting) are accessible in this job.
+	safeOutputsEnvironment := data.SafeOutputs.Environment
+	if safeOutputsEnvironment == "" {
+		safeOutputsEnvironment = data.Environment
+	}
+
 	job := &Job{
 		Name:           "safe_outputs",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Environment:    c.indentYAMLLines(safeOutputsEnvironment, "    "),
 		Permissions:    permissions.RenderToYAML(),
 		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
 		Concurrency:    concurrency,

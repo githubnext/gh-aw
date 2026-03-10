@@ -501,6 +501,7 @@ type SafeOutputsConfig struct {
 	Steps                           []any                                  `yaml:"steps,omitempty"`                     // User-provided steps injected after setup/checkout and before safe-output code
 	IDToken                         *string                                `yaml:"id-token,omitempty"`                  // Override id-token permission: "write" to force-add, "none" to disable auto-detection
 	ConcurrencyGroup                string                                 `yaml:"concurrency-group,omitempty"`         // Concurrency group for the safe-outputs job (cancel-in-progress is always false)
+	Environment                     string                                 `yaml:"environment,omitempty"`               // Override the GitHub deployment environment for the safe-outputs job (defaults to the top-level environment: field)
 	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                   // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
 }
 

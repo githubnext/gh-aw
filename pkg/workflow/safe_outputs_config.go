@@ -506,6 +506,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle environment configuration (override for safe-outputs job; falls back to top-level environment)
+			config.Environment = c.extractTopLevelYAMLSection(outputMap, "environment")
+			if config.Environment != "" {
+				safeOutputsConfigLog.Printf("Configured environment override for safe-outputs job: %s", config.Environment)
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
