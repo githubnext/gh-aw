@@ -127,23 +127,22 @@ func TestExtractAPMDependenciesFromFrontmatter(t *testing.T) {
 	}
 }
 
-func TestEngineToAPMTarget(t *testing.T) {
+func TestEngineGetAPMTarget(t *testing.T) {
 	tests := []struct {
-		engineID string
+		name     string
+		engine   CodingAgentEngine
 		expected string
 	}{
-		{engineID: "copilot", expected: "copilot"},
-		{engineID: "claude", expected: "claude"},
-		{engineID: "codex", expected: "all"},
-		{engineID: "gemini", expected: "all"},
-		{engineID: "custom", expected: "all"},
-		{engineID: "", expected: "all"},
+		{name: "copilot engine returns copilot", engine: NewCopilotEngine(), expected: "copilot"},
+		{name: "claude engine returns claude", engine: NewClaudeEngine(), expected: "claude"},
+		{name: "codex engine returns all", engine: NewCodexEngine(), expected: "all"},
+		{name: "gemini engine returns all", engine: NewGeminiEngine(), expected: "all"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.engineID, func(t *testing.T) {
-			result := EngineToAPMTarget(tt.engineID)
-			assert.Equal(t, tt.expected, result, "APM target should match for engine %s", tt.engineID)
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.engine.GetAPMTarget()
+			assert.Equal(t, tt.expected, result, "APM target should match for engine %s", tt.engine.GetID())
 		})
 	}
 }

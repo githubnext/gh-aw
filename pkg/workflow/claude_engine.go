@@ -40,6 +40,11 @@ func (e *ClaudeEngine) GetModelEnvVarName() string {
 	return constants.ClaudeCLIModelEnvVar
 }
 
+// GetAPMTarget returns "claude" so that apm-action packs Claude-specific primitives.
+func (e *ClaudeEngine) GetAPMTarget() string {
+	return "claude"
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Claude engine
 // This includes ANTHROPIC_API_KEY and optionally MCP_GATEWAY_API_KEY
 func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {

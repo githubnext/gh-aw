@@ -6,19 +6,6 @@ import (
 
 var apmDepsLog = logger.New("workflow:apm_dependencies")
 
-// EngineToAPMTarget maps an agentic engine ID to the corresponding APM target value.
-// Supported APM targets are "copilot", "claude", and "all".
-func EngineToAPMTarget(engineID string) string {
-	switch engineID {
-	case "copilot":
-		return "copilot"
-	case "claude":
-		return "claude"
-	default:
-		return "all"
-	}
-}
-
 // GenerateAPMPackStep generates the GitHub Actions step that installs APM packages and
 // packs them into a bundle in the activation job. The step always uses isolated:true because
 // the activation job has no repo context to preserve.

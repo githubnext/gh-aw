@@ -330,7 +330,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// The pack step runs after prompt generation and uploads as a separate "apm" artifact.
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
 		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
-		apmTarget := EngineToAPMTarget(engine.GetID())
+		apmTarget := engine.GetAPMTarget()
 		apmPackStep := GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
 		for _, line := range apmPackStep {
 			steps = append(steps, line+"\n")
