@@ -144,11 +144,21 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v",
 		verbose, workflowDir, noFix, noCompile, noActions)
 
-	// Step 0b: Ensure gh-aw extension is on the latest version
+	// Step 0b: Ensure gh-aw extension is on the latest version.
+	// If the extension was just upgraded, stop here and ask the user to re-run so
+	// that the freshly-installed binary (with the correct version string) is used for
+	// all subsequent steps such as lock-file compilation.
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
-	if err := ensureLatestExtensionVersion(verbose); err != nil {
-		upgradeLog.Printf("Extension version check failed: %v", err)
+	upgraded, err := upgradeExtensionIfOutdated(verbose)
+	if err != nil {
+		upgradeLog.Printf("Extension upgrade failed: %v", err)
 		return err
+	}
+	if upgraded {
+		upgradeLog.Print("Extension was upgraded; stopping current invocation so new binary is used on re-run")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please re-run 'gh aw upgrade' to complete the upgrade with the new version."))
+		return nil
 	}
 
 	// Step 1: Update dispatcher agent file (like init command)
