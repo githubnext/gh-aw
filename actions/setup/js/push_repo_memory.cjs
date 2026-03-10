@@ -351,6 +351,7 @@ async function main() {
     const effectiveMaxPatchSizeKb = Math.floor(effectiveMaxPatchSize / 1024);
     core.info(`Patch size: ${patchSizeKb} KB (${patchSizeBytes} bytes) (configured limit: ${maxPatchSizeKb} KB (${maxPatchSize} bytes), effective with 20% overhead: ${effectiveMaxPatchSizeKb} KB (${effectiveMaxPatchSize} bytes))`);
     if (patchSizeBytes > effectiveMaxPatchSize) {
+      core.setOutput("patch_size_exceeded", "true");
       core.setFailed(
         `Patch size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds maximum allowed size (${effectiveMaxPatchSizeKb} KB, ${effectiveMaxPatchSize} bytes, configured limit: ${maxPatchSizeKb} KB with 20% overhead allowance). Reduce the number or size of changes, or increase max-patch-size.`
       );

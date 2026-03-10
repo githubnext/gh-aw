@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 
 describe("handle_agent_failure", () => {
   let buildCodePushFailureContext;
+  let buildPushRepoMemoryFailureContext;
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -23,7 +24,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ buildCodePushFailureContext } = require("./handle_agent_failure.cjs"));
+    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -129,6 +130,103 @@ describe("handle_agent_failure", () => {
       const result = buildCodePushFailureContext(errors);
       expect(result).toContain("create-pull-request:");
       expect(result).toContain("push-to-pull-request-branch:");
+    });
+
+    // ──────────────────────────────────────────────────────
+    // Patch Size Exceeded
+    // ──────────────────────────────────────────────────────
+
+    it("shows patch size exceeded section for create_pull_request patch size error", () => {
+      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (1024 KB)";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("📦 Patch Size Exceeded");
+      expect(result).toContain("create-pull-request:");
+      expect(result).toContain("max-patch-size:");
+      expect(result).not.toContain("Code Push Failed");
+      expect(result).not.toContain("Protected Files");
+    });
+
+    it("shows patch size exceeded section for push_to_pull_request_branch patch size error", () => {
+      const errors = "push_to_pull_request_branch:Patch size (3072 KB) exceeds maximum allowed size (1024 KB)";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("📦 Patch Size Exceeded");
+      expect(result).toContain("push-to-pull-request-branch:");
+      expect(result).toContain("max-patch-size:");
+      expect(result).not.toContain("Code Push Failed");
+    });
+
+    it("shows patch size exceeded yaml snippet with both types when both have patch size errors", () => {
+      const errors = ["create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (1024 KB)", "push_to_pull_request_branch:Patch size (3072 KB) exceeds maximum allowed size (1024 KB)"].join("\n");
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("📦 Patch Size Exceeded");
+      expect(result).toContain("create-pull-request:");
+      expect(result).toContain("push-to-pull-request-branch:");
+      expect(result).toContain("max-patch-size:");
+    });
+
+    it("includes PR link in patch size exceeded section when PR is provided", () => {
+      const errors = "create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (1024 KB)";
+      const pullRequest = { number: 99, html_url: "https://github.com/owner/repo/pull/99" };
+      const result = buildCodePushFailureContext(errors, pullRequest);
+      expect(result).toContain("📦 Patch Size Exceeded");
+      expect(result).toContain("#99");
+      expect(result).toContain("https://github.com/owner/repo/pull/99");
+    });
+
+    it("does not show patch size section for generic errors", () => {
+      const errors = "push_to_pull_request_branch:Branch not found";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).not.toContain("📦 Patch Size Exceeded");
+    });
+
+    it("shows both patch size and generic sections when mixed", () => {
+      const errors = ["create_pull_request:Patch size (2048 KB) exceeds maximum allowed size (1024 KB)", "push_to_pull_request_branch:Branch not found"].join("\n");
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("📦 Patch Size Exceeded");
+      expect(result).toContain("Code Push Failed");
+      expect(result).toContain("Branch not found");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // buildPushRepoMemoryFailureContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildPushRepoMemoryFailureContext", () => {
+    it("returns empty string when no failure", () => {
+      expect(buildPushRepoMemoryFailureContext(false, [], "https://example.com/run")).toBe("");
+    });
+
+    it("shows generic failure message when failure but no patch size exceeded", () => {
+      const result = buildPushRepoMemoryFailureContext(true, [], "https://example.com/run");
+      expect(result).toContain("⚠️ Repo-Memory Push Failed");
+      expect(result).toContain("https://example.com/run");
+      expect(result).not.toContain("📦 Repo-Memory Patch Size Exceeded");
+    });
+
+    it("shows patch size exceeded message with front matter example when patch size exceeded", () => {
+      const result = buildPushRepoMemoryFailureContext(true, ["default"], "https://example.com/run");
+      expect(result).toContain("📦 Repo-Memory Patch Size Exceeded");
+      expect(result).toContain("`default`");
+      expect(result).toContain("max-patch-size:");
+      expect(result).toContain("repo-memory:");
+      expect(result).not.toContain("⚠️ Repo-Memory Push Failed");
+    });
+
+    it("includes all affected memory IDs in patch size exceeded message", () => {
+      const result = buildPushRepoMemoryFailureContext(true, ["default", "secondary"], "https://example.com/run");
+      expect(result).toContain("`default`");
+      expect(result).toContain("`secondary`");
+      expect(result).toContain("id: default");
+      expect(result).toContain("id: secondary");
+    });
+
+    it("shows yaml front matter snippet for each affected memory ID", () => {
+      const result = buildPushRepoMemoryFailureContext(true, ["my-memory"], "https://example.com/run");
+      expect(result).toContain("```yaml");
+      expect(result).toContain("repo-memory:");
+      expect(result).toContain("id: my-memory");
+      expect(result).toContain("max-patch-size: 51200");
     });
   });
 });

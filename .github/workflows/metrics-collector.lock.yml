@@ -646,6 +646,7 @@ jobs:
       group: "push-repo-memory-${{ github.repository }}"
       cancel-in-progress: false
     outputs:
+      patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}
       validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
       validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
     steps:
