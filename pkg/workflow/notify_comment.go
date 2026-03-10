@@ -415,6 +415,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Name:        "conclusion",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: permissions.RenderToYAML(),
 		Concurrency: concurrency,
 		Steps:       steps,

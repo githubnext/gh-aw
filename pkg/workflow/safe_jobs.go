@@ -166,7 +166,8 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		normalizedJobName := stringutil.NormalizeSafeOutputIdentifier(jobName)
 
 		job := &Job{
-			Name: normalizedJobName,
+			Name:        normalizedJobName,
+			Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		}
 
 		// Set custom job name if specified

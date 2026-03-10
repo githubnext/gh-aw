@@ -311,6 +311,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		Name:        string(constants.PreActivationJobName),
 		If:          jobIfCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
