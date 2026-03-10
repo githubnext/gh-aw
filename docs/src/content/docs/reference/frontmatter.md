@@ -151,9 +151,11 @@ Each plugin repository must be specified in `org/repo` format. The compiler gene
 
 ### APM Dependencies (`dependencies:`)
 
-Specifies [microsoft/apm](https://github.com/microsoft/apm) packages to install before workflow execution. When present, the compiler emits a step using the `microsoft/apm-action` action to install the listed packages.
+Specifies [microsoft/apm](https://github.com/microsoft/apm) packages to install before workflow execution. When present, the compiler resolves and packs dependencies in the activation job, then unpacks them in the agent job for faster, deterministic startup.
 
 APM (Agent Package Manager) manages AI agent primitives such as skills, prompts, instructions, agents, and hooks. Packages can depend on other packages and APM resolves the full dependency tree.
+
+**Simple array format** (most common):
 
 ```yaml wrap
 dependencies:
@@ -162,12 +164,22 @@ dependencies:
   - anthropics/skills/skills/frontend-design
 ```
 
+**Object format** with options:
+
+```yaml wrap
+dependencies:
+  packages:
+    - microsoft/apm-sample-package
+    - github/awesome-copilot/skills/review-and-refactor
+  isolated: true   # clear repo primitives before unpack (default: false)
+```
+
 Each entry is an APM package reference. Supported formats:
 
 - `owner/repo` — full APM package
 - `owner/repo/path/to/skill` — individual skill or primitive from a repository
 
-The compiler generates an `Install APM dependencies` step that runs after the engine CLI installation steps.
+The compiler emits a pack step in the activation job and a restore step in the agent job. The APM target is automatically inferred from the configured engine (`copilot`, `claude`, or `all` for other engines). The `isolated` flag controls whether existing `.github/` primitive directories are cleared before the bundle is unpacked in the agent job.
 
 ### Runtimes (`runtimes:`)
 
