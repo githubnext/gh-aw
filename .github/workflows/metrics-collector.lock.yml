@@ -467,7 +467,7 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_VERSION: f11a70f
+          GH_AW_VERSION: 0238dc8
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
