@@ -144,16 +144,10 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, error) {
 			return false, nil
 		}
 	} else {
-		// Fall back to normalised string comparison when versions are not valid semver.
-		currentNorm := strings.TrimPrefix(currentVersion, "v")
-		latestNorm := strings.TrimPrefix(latestVersion, "v")
-		if currentNorm >= latestNorm {
-			updateExtensionCheckLog.Print("Extension is already up to date (string comparison fallback)")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension is up to date"))
-			}
-			return false, nil
-		}
+		// Versions are not valid semver; skip unreliable string comparison and
+		// proceed with the upgrade to avoid incorrectly treating an outdated
+		// version as up to date (lexicographic comparison breaks for e.g. "0.9.0" vs "0.10.0").
+		updateExtensionCheckLog.Printf("Non-semver versions detected (current=%q, latest=%q); proceeding with upgrade", currentVersion, latestVersion)
 	}
 
 	// A newer version is available – upgrade automatically

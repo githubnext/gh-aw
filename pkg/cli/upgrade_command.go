@@ -165,7 +165,12 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		if upgraded {
 			upgradeLog.Print("Extension was upgraded; re-launching with new binary")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing upgrade with newly installed version..."))
-			return relaunchWithSameArgs("--skip-extension-upgrade")
+			if err := relaunchWithSameArgs("--skip-extension-upgrade"); err != nil {
+				return err
+			}
+			// The child process completed all upgrade steps (including any PR creation).
+			// Exit the parent so we do not repeat those steps.
+			os.Exit(0)
 		}
 	}
 
