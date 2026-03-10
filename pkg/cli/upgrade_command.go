@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -77,6 +80,7 @@ Examples:
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
+			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
 
 			// Handle audit mode
 			if auditFlag {
@@ -89,7 +93,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions); err != nil {
+			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
 				return err
 			}
 
@@ -112,6 +116,8 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
+	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
+	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	addJSONFlag(cmd)
 
 	// Register completions
@@ -140,25 +146,27 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v",
-		verbose, workflowDir, noFix, noCompile, noActions)
+func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
+		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
-	// If the extension was just upgraded, stop here and ask the user to re-run so
-	// that the freshly-installed binary (with the correct version string) is used for
-	// all subsequent steps such as lock-file compilation.
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
-	upgraded, err := upgradeExtensionIfOutdated(verbose)
-	if err != nil {
-		upgradeLog.Printf("Extension upgrade failed: %v", err)
-		return err
-	}
-	if upgraded {
-		upgradeLog.Print("Extension was upgraded; stopping current invocation so new binary is used on re-run")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please re-run 'gh aw upgrade' to complete the upgrade with the new version."))
-		return nil
+	// If the extension was just upgraded, re-launch the freshly-installed binary
+	// with the same flags so that all subsequent steps (e.g. lock-file compilation)
+	// use the correct new version string.  The hidden --skip-extension-upgrade flag
+	// prevents the re-launched process from entering this branch again.
+	if !skipExtensionUpgrade {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
+		upgraded, err := upgradeExtensionIfOutdated(verbose)
+		if err != nil {
+			upgradeLog.Printf("Extension upgrade failed: %v", err)
+			return err
+		}
+		if upgraded {
+			upgradeLog.Print("Extension was upgraded; re-launching with new binary")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing upgrade with newly installed version..."))
+			return relaunchWithSameArgs("--skip-extension-upgrade")
+		}
 	}
 
 	// Step 1: Update dispatcher agent file (like init command)
@@ -293,5 +301,47 @@ func updateAgentFiles(verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to upgrade copilot-setup-steps.yml: %v", err)))
 	}
 
+	return nil
+}
+
+// relaunchWithSameArgs re-executes the current binary with the original command-line
+// arguments plus the provided extraFlag. stdin/stdout/stderr are forwarded to the child
+// process. The function blocks until the child exits and returns its error.
+// It is used after a successful extension upgrade so that the freshly-installed binary
+// (which carries the new version string) handles all subsequent work.
+func relaunchWithSameArgs(extraFlag string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to determine executable path: %w", err)
+	}
+
+	// Resolve symlinks to ensure we exec the real binary, not a wrapper.
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	} else {
+		upgradeLog.Printf("Failed to resolve symlink for executable %s (using as-is): %v", exe, err)
+	}
+
+	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
+	// the original slice backing array.
+	origArgs := os.Args[1:]
+	newArgs := make([]string, len(origArgs), len(origArgs)+1)
+	copy(newArgs, origArgs)
+	newArgs = append(newArgs, extraFlag)
+	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
+
+	cmd := exec.Command(exe, newArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			// Preserve the child's exit code so the caller sees the real failure.
+			os.Exit(exitErr.ExitCode())
+		}
+		return err
+	}
 	return nil
 }

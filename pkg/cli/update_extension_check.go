@@ -90,9 +90,8 @@ func ensureLatestExtensionVersion(verbose bool) error {
 // and, if so, upgrades it automatically. Returns true if an upgrade was performed.
 //
 // When true is returned the CURRENTLY RUNNING PROCESS still has the old version baked in.
-// The caller must stop all further work that would embed version strings (e.g. lock-file
-// compilation) and ask the user to re-run the command so the freshly-installed binary is
-// used instead.
+// The caller should re-launch the freshly-installed binary so that subsequent work
+// (e.g. lock-file compilation) uses the correct new version string.
 func upgradeExtensionIfOutdated(verbose bool) (bool, error) {
 	currentVersion := GetVersion()
 	updateExtensionCheckLog.Printf("Checking if extension needs upgrade (current: %s)", currentVersion)
