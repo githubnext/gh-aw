@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4de9281fdf89dba8197d91de6339b21a8b01ddb1645d17de1f09b3a70fc4cf53","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fad22b344bd980cb8f5ad99e373faef34327027c4d9165767e10caf7af746e3b","strict":true}
 
 name: "Contribution Check"
 "on":

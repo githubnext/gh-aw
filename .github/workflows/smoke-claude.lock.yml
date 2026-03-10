@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"fd4bc5b1e0166bbc7c98ec4084946e4f439148b62374e3c861cb774ad300259f","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cf65ca18529a16d3f7278e9f39c60eee12cb0abe10843fcb1411350b7bba20b5","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -641,7 +641,7 @@ jobs:
         uses: microsoft/apm-action@92d6dc8046ad61b340662adefd2f997bf93d2987 # v1
         with:
           dependencies: |
-            - microsoft/compliance-rules
+            - microsoft/apm-sample-package
           isolated: 'true'
           pack: 'true'
           archive: 'true'

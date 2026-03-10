@@ -50,7 +50,7 @@ tools:
     languages:
       go: {}
 dependencies:
-  - microsoft/compliance-rules
+  - microsoft/apm-sample-package
 runtimes:
   go:
     version: "1.25"
