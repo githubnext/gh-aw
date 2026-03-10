@@ -1879,11 +1879,20 @@
             }
           },
           "secrets": {
-            "type": "object",
-            "description": "Secrets to pass to the reusable workflow. Values must be GitHub Actions expressions referencing secrets (e.g., ${{ secrets.MY_SECRET }} or ${{ secrets.SECRET1 || secrets.SECRET2 }}).",
-            "additionalProperties": {
-              "$ref": "#/$defs/github_token"
-            }
+            "oneOf": [
+              {
+                "type": "string",
+                "const": "inherit",
+                "description": "Pass all secrets from the caller workflow to the reusable workflow."
+              },
+              {
+                "type": "object",
+                "description": "Secrets to pass to the reusable workflow. Values must be GitHub Actions expressions referencing secrets (e.g., ${{ secrets.MY_SECRET }} or ${{ secrets.SECRET1 || secrets.SECRET2 }}).",
+                "additionalProperties": {
+                  "$ref": "#/$defs/github_token"
+                }
+              }
+            ]
           }
         }
       }

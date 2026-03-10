@@ -989,7 +989,54 @@ Test content`
 	}
 }
 
-// TestBuildJobsJobConditionExtraction tests that if conditions are properly extracted
+// TestBuildJobsWithReusableWorkflowSecretsInherit tests that secrets: inherit is correctly emitted
+// for reusable workflow call jobs.
+func TestBuildJobsWithReusableWorkflowSecretsInherit(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "reusable-workflow-secrets-inherit-test")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  call-other:
+    uses: owner/repo/.github/workflows/reusable.yml@main
+    secrets: inherit
+---
+
+# Test Workflow
+
+Test content`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	yamlStr := string(content)
+
+	if !strings.Contains(yamlStr, "uses: owner/repo/.github/workflows/reusable.yml@main") {
+		t.Error("Expected uses directive for reusable workflow")
+	}
+	if !strings.Contains(yamlStr, "secrets: inherit") {
+		t.Error("Expected 'secrets: inherit' directive")
+	}
+	if strings.Contains(yamlStr, "secrets:\n      ") {
+		t.Error("Should not emit secrets map when using inherit")
+	}
+}
+
 func TestBuildJobsJobConditionExtraction(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "job-condition-test")
 

@@ -34,9 +34,10 @@ type Job struct {
 	Outputs                    map[string]string
 
 	// Reusable workflow call properties
-	Uses    string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)
-	With    map[string]any    // Input parameters for reusable workflow
-	Secrets map[string]string // Secrets for reusable workflow
+	Uses           string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)
+	With           map[string]any    // Input parameters for reusable workflow
+	Secrets        map[string]string // Secrets for reusable workflow (explicit mappings)
+	SecretsInherit bool              // When true, emits "secrets: inherit" (passes all caller secrets)
 }
 
 // JobManager manages a collection of jobs and handles dependency validation
@@ -390,7 +391,9 @@ func (jm *JobManager) renderJob(job *Job) string {
 		}
 
 		// Add secrets if present
-		if len(job.Secrets) > 0 {
+		if job.SecretsInherit {
+			yaml.WriteString("    secrets: inherit\n")
+		} else if len(job.Secrets) > 0 {
 			yaml.WriteString("    secrets:\n")
 			// Sort secret keys for consistent output
 			secretKeys := make([]string, 0, len(job.Secrets))
