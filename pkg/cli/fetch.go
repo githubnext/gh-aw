@@ -98,36 +98,23 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	// Download the workflow file from GitHub
 	content, err := parser.DownloadFileFromGitHub(owner, repo, spec.WorkflowPath, ref)
 	if err != nil {
-		// Try with a workflows/ prefix if the direct path fails
+		// Try with common workflow directory prefixes if the direct path fails.
+		// This handles short workflow names without path separators (e.g. "my-workflow.md").
 		if !strings.HasPrefix(spec.WorkflowPath, "workflows/") && !strings.Contains(spec.WorkflowPath, "/") {
-			// Try workflows/filename.md
-			altPath := "workflows/" + spec.WorkflowPath
-			if !strings.HasSuffix(altPath, ".md") {
-				altPath += ".md"
-			}
-			remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
-			if altContent, altErr := parser.DownloadFileFromGitHub(owner, repo, altPath, ref); altErr == nil {
-				return &FetchedWorkflow{
-					Content:    altContent,
-					CommitSHA:  commitSHA,
-					IsLocal:    false,
-					SourcePath: altPath,
-				}, nil
-			}
-
-			// Try .github/workflows/filename.md
-			altPath = ".github/workflows/" + spec.WorkflowPath
-			if !strings.HasSuffix(altPath, ".md") {
-				altPath += ".md"
-			}
-			remoteWorkflowLog.Printf("Trying: %s", altPath)
-			if altContent, altErr := parser.DownloadFileFromGitHub(owner, repo, altPath, ref); altErr == nil {
-				return &FetchedWorkflow{
-					Content:    altContent,
-					CommitSHA:  commitSHA,
-					IsLocal:    false,
-					SourcePath: altPath,
-				}, nil
+			for _, prefix := range []string{"workflows/", ".github/workflows/"} {
+				altPath := prefix + spec.WorkflowPath
+				if !strings.HasSuffix(altPath, ".md") {
+					altPath += ".md"
+				}
+				remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
+				if altContent, altErr := parser.DownloadFileFromGitHub(owner, repo, altPath, ref); altErr == nil {
+					return &FetchedWorkflow{
+						Content:    altContent,
+						CommitSHA:  commitSHA,
+						IsLocal:    false,
+						SourcePath: altPath,
+					}, nil
+				}
 			}
 		}
 		return nil, fmt.Errorf("failed to download workflow from %s/%s/%s@%s: %w", owner, repo, spec.WorkflowPath, ref, err)
