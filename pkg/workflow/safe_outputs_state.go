@@ -1,0 +1,250 @@
+package workflow
+
+import (
+	"fmt"
+	"reflect"
+	"sort"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+// ========================================
+// Safe Output State Inspection
+// ========================================
+//
+// This file contains functions for querying, inspecting, and validating the
+// state of a SafeOutputsConfig. It uses reflection to check which tool types
+// are enabled without requiring a large switch statement.
+
+var safeOutputReflectionLog = logger.New("workflow:safe_outputs_config_helpers_reflection")
+
+// safeOutputFieldMapping maps struct field names to their tool names.
+// This map drives reflection-based checks across hasAnySafeOutputEnabled,
+// getEnabledSafeOutputToolNamesReflection, and hasNonBuiltinSafeOutputsEnabled.
+var safeOutputFieldMapping = map[string]string{
+	"CreateIssues":                    "create_issue",
+	"CreateAgentSessions":             "create_agent_session",
+	"CreateDiscussions":               "create_discussion",
+	"UpdateDiscussions":               "update_discussion",
+	"CloseDiscussions":                "close_discussion",
+	"CloseIssues":                     "close_issue",
+	"ClosePullRequests":               "close_pull_request",
+	"AddComments":                     "add_comment",
+	"CreatePullRequests":              "create_pull_request",
+	"CreatePullRequestReviewComments": "create_pull_request_review_comment",
+	"SubmitPullRequestReview":         "submit_pull_request_review",
+	"ReplyToPullRequestReviewComment": "reply_to_pull_request_review_comment",
+	"ResolvePullRequestReviewThread":  "resolve_pull_request_review_thread",
+	"CreateCodeScanningAlerts":        "create_code_scanning_alert",
+	"AutofixCodeScanningAlert":        "autofix_code_scanning_alert",
+	"AddLabels":                       "add_labels",
+	"RemoveLabels":                    "remove_labels",
+	"AddReviewer":                     "add_reviewer",
+	"AssignMilestone":                 "assign_milestone",
+	"AssignToAgent":                   "assign_to_agent",
+	"AssignToUser":                    "assign_to_user",
+	"UnassignFromUser":                "unassign_from_user",
+	"UpdateIssues":                    "update_issue",
+	"UpdatePullRequests":              "update_pull_request",
+	"PushToPullRequestBranch":         "push_to_pull_request_branch",
+	"UploadAssets":                    "upload_asset",
+	"UpdateRelease":                   "update_release",
+	"UpdateProjects":                  "update_project",
+	"CreateProjects":                  "create_project",
+	"CreateProjectStatusUpdates":      "create_project_status_update",
+	"LinkSubIssue":                    "link_sub_issue",
+	"HideComment":                     "hide_comment",
+	"DispatchWorkflow":                "dispatch_workflow",
+	"MissingTool":                     "missing_tool",
+	"MissingData":                     "missing_data",
+	"SetIssueType":                    "set_issue_type",
+	"NoOp":                            "noop",
+	"MarkPullRequestAsReadyForReview": "mark_pull_request_as_ready_for_review",
+}
+
+// hasAnySafeOutputEnabled uses reflection to check if any safe output field is non-nil.
+// It checks Jobs separately (map field) before falling back to pointer fields.
+func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+
+	safeOutputReflectionLog.Print("Checking if any safe outputs are enabled using reflection")
+
+	// Check Jobs separately as it's a map
+	if len(safeOutputs.Jobs) > 0 {
+		safeOutputReflectionLog.Printf("Found %d custom jobs enabled", len(safeOutputs.Jobs))
+		return true
+	}
+
+	// Use reflection to check all pointer fields
+	val := reflect.ValueOf(safeOutputs).Elem()
+	for fieldName := range safeOutputFieldMapping {
+		field := val.FieldByName(fieldName)
+		if field.IsValid() && !field.IsNil() {
+			safeOutputReflectionLog.Printf("Found enabled safe output field: %s", fieldName)
+			return true
+		}
+	}
+
+	safeOutputReflectionLog.Print("No safe outputs enabled")
+	return false
+}
+
+// getEnabledSafeOutputToolNamesReflection uses reflection to get enabled tool names.
+// Results are sorted for deterministic compilation output.
+//
+// NOTE: Reflection is used here to avoid a large switch statement that would need
+// updating every time a new safe-output type is added. The cost is acceptable
+// because this function is called infrequently (once per compilation).
+func getEnabledSafeOutputToolNamesReflection(safeOutputs *SafeOutputsConfig) []string {
+	if safeOutputs == nil {
+		return nil
+	}
+
+	safeOutputReflectionLog.Print("Getting enabled safe output tool names using reflection")
+	var tools []string
+
+	// Use reflection to check all pointer fields
+	val := reflect.ValueOf(safeOutputs).Elem()
+	for fieldName, toolName := range safeOutputFieldMapping {
+		field := val.FieldByName(fieldName)
+		if field.IsValid() && !field.IsNil() {
+			tools = append(tools, toolName)
+		}
+	}
+
+	// Add custom job tools
+	for jobName := range safeOutputs.Jobs {
+		tools = append(tools, jobName)
+		safeOutputReflectionLog.Printf("Added custom job tool: %s", jobName)
+	}
+
+	// Sort tools to ensure deterministic compilation
+	sort.Strings(tools)
+
+	safeOutputReflectionLog.Printf("Found %d enabled safe output tools", len(tools))
+	return tools
+}
+
+// builtinSafeOutputFields contains the struct field names for the built-in safe output types
+// that are excluded from the "non-builtin" check. These are: noop, missing-data, missing-tool.
+var builtinSafeOutputFields = map[string]bool{
+	"NoOp":        true,
+	"MissingData": true,
+	"MissingTool": true,
+}
+
+// nonBuiltinSafeOutputFieldNames is a pre-computed list of field names from safeOutputFieldMapping
+// that are not builtins, used by hasNonBuiltinSafeOutputsEnabled to avoid repeated map iterations.
+var nonBuiltinSafeOutputFieldNames = func() []string {
+	var fields []string
+	for fieldName := range safeOutputFieldMapping {
+		if !builtinSafeOutputFields[fieldName] {
+			fields = append(fields, fieldName)
+		}
+	}
+	return fields
+}()
+
+// hasNonBuiltinSafeOutputsEnabled checks if any non-builtin safe outputs are configured.
+// The builtin types (noop, missing-data, missing-tool) are excluded from this check
+// because they are always auto-enabled and do not represent a meaningful output action.
+func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+
+	// Custom safe-jobs are always non-builtin
+	if len(safeOutputs.Jobs) > 0 {
+		return true
+	}
+
+	// Check non-builtin pointer fields using the pre-computed list
+	val := reflect.ValueOf(safeOutputs).Elem()
+	for _, fieldName := range nonBuiltinSafeOutputFieldNames {
+		field := val.FieldByName(fieldName)
+		if field.IsValid() && !field.IsNil() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasSafeOutputsEnabled checks if any safe-outputs are enabled
+func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	enabled := hasAnySafeOutputEnabled(safeOutputs)
+
+	if safeOutputsConfigLog.Enabled() {
+		safeOutputsConfigLog.Printf("Safe outputs enabled check: %v", enabled)
+	}
+
+	return enabled
+}
+
+// GetEnabledSafeOutputToolNames returns a list of enabled safe output tool names.
+// NOTE: Tool names should NOT be included in agent prompts. The agent should query
+// the MCP server to discover available tools. This function is used for generating
+// the tools.json file that the MCP server provides, and for diagnostic logging.
+func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
+	tools := getEnabledSafeOutputToolNamesReflection(safeOutputs)
+
+	if safeOutputsConfigLog.Enabled() {
+		safeOutputsConfigLog.Printf("Enabled safe output tools: %v", tools)
+	}
+
+	return tools
+}
+
+// checkAllEnabledToolsPresent verifies that every tool in enabledTools has a matching entry
+// in filteredTools. This is a compiler error check: if a safe-output type is registered in
+// Go code but its definition is missing from safe-output-tools.json, it will not appear in
+// filteredTools and this function returns an error.
+//
+// Dispatch-workflow and custom-job tools are intentionally excluded from this check because
+// they are generated dynamically and are never part of the static tools JSON.
+func checkAllEnabledToolsPresent(enabledTools map[string]bool, filteredTools []map[string]any) error {
+	presentTools := make(map[string]bool, len(filteredTools))
+	for _, tool := range filteredTools {
+		if name, ok := tool["name"].(string); ok {
+			presentTools[name] = true
+		}
+	}
+
+	var missingTools []string
+	for toolName := range enabledTools {
+		if !presentTools[toolName] {
+			missingTools = append(missingTools, toolName)
+		}
+	}
+
+	if len(missingTools) == 0 {
+		return nil
+	}
+
+	sort.Strings(missingTools)
+	return fmt.Errorf("compiler error: safe-output tool(s) %v are registered but missing from safe-output-tools.json; please report this issue to the developer", missingTools)
+}
+
+// applyDefaultCreateIssue injects a default create-issues safe output when safe-outputs is configured
+// but has no non-builtin output types. The injected config uses the workflow ID as the label
+// and [workflowID] as the title prefix. The AutoInjectedCreateIssue flag is set so the prompt
+// generator can add a specific instruction for the agent.
+func applyDefaultCreateIssue(workflowData *WorkflowData) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+	if hasNonBuiltinSafeOutputsEnabled(workflowData.SafeOutputs) {
+		return
+	}
+
+	workflowID := workflowData.WorkflowID
+	safeOutputsConfigLog.Printf("Auto-injecting create-issues for workflow %q (no non-builtin safe outputs configured)", workflowID)
+	workflowData.SafeOutputs.CreateIssues = &CreateIssuesConfig{
+		BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
+		Labels:               []string{workflowID},
+		TitlePrefix:          fmt.Sprintf("[%s]", workflowID),
+	}
+	workflowData.SafeOutputs.AutoInjectedCreateIssue = true
+}
