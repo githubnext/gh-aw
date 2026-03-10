@@ -14,14 +14,14 @@
 
 set -e
 
-# Helper: create directories with sudo on macOS where /opt is root-owned
+# Helper: create directories, falling back to sudo when /opt (or similar) is root-owned
 create_dir() {
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    sudo mkdir -p "$1"
-    sudo chown -R "$(whoami)" "$1"
-  else
-    mkdir -p "$1"
+  if mkdir -p "$1" 2>/dev/null; then
+    return
   fi
+  # Fall back to sudo if regular mkdir fails (e.g., /opt is root-owned on Linux and macOS)
+  sudo mkdir -p "$1"
+  sudo chown -R "$(whoami)" "$1"
 }
 
 # Get destination from input or use default
