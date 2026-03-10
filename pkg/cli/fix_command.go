@@ -33,7 +33,7 @@ func NewFixCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fix [workflow]...",
 		Short: "Apply automatic codemod-style fixes to agentic workflow files",
-		Long: `Apply automatic codemod-style fixes to agentic workflow Markdown files.
+		Long: `Apply automatic codemod-style fixes to agentic workflow files.
 
 This command applies a registry of codemods that automatically update deprecated fields
 and migrate to new syntax. Codemods preserve formatting and comments as much as possible.

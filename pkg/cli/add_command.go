@@ -48,7 +48,7 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
 		Short: "Add agentic workflows from repositories to .github/workflows",
-		Long: `Add one or more workflows from repositories to .github/workflows.
+		Long: `Add one or more agentic workflows from repositories to .github/workflows.
 
 This command adds workflows directly without interactive prompts. Use 'add-wizard'
 for a guided setup that configures secrets, creates a pull request, and more.
