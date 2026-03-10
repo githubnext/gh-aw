@@ -345,6 +345,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",
 		"GH_AW_PROMPT":            "/tmp/gh-aw/aw-prompts/prompt.txt",
+		// Tag the step as a GitHub AW agentic execution for discoverability by agents
+		"GITHUB_AW": "true",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real

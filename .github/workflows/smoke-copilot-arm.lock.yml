@@ -1766,6 +1766,7 @@ jobs:
           GH_DEBUG: 1
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_AW: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -2013,6 +2014,7 @@ jobs:
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_AW: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SERVER_URL: ${{ github.server_url }}

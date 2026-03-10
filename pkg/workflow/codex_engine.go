@@ -275,8 +275,10 @@ mkdir -p "$CODEX_HOME/logs"
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real
 		// $GITHUB_STEP_SUMMARY after secret redaction.
-		"GITHUB_STEP_SUMMARY":          AgentStepSummaryPath,
-		"GH_AW_PROMPT":                 "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
+		// Tag the step as a GitHub AW agentic execution for discoverability by agents
+		"GITHUB_AW":                    "true",
 		"GH_AW_MCP_CONFIG":             "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
