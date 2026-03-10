@@ -261,6 +261,14 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	if workflowData.IsDetectionRun {
+		env["GH_AW_PHASE"] = "detection"
+	} else {
+		env["GH_AW_PHASE"] = "agent"
+	}
+	// Include the compiler version so agents can identify which gh-aw version generated the workflow
+	env["GH_AW_VERSION"] = GetVersion()
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {

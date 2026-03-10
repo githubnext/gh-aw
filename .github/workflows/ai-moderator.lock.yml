@@ -801,8 +801,10 @@ jobs:
           CODEX_HOME: /tmp/gh-aw/mcp-config
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_MODEL_AGENT_CODEX: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
+          GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_VERSION: 8831364-dirty
           GITHUB_AW: true
           GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com

@@ -354,6 +354,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 	}
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	// Include the compiler version so agents can identify which gh-aw version generated the workflow
+	if workflowData.IsDetectionRun {
+		env["GH_AW_PHASE"] = "detection"
+	} else {
+		env["GH_AW_PHASE"] = "agent"
+	}
+	env["GH_AW_VERSION"] = GetVersion()
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {

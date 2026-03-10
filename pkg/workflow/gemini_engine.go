@@ -264,6 +264,14 @@ touch %s
 		// Non-JSON debug lines are gracefully skipped by ParseLogMetrics.
 		"DEBUG": "gemini-cli:*",
 	}
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	// Include the compiler version so agents can identify which gh-aw version generated the workflow
+	if workflowData.IsDetectionRun {
+		env["GH_AW_PHASE"] = "detection"
+	} else {
+		env["GH_AW_PHASE"] = "agent"
+	}
+	env["GH_AW_VERSION"] = GetVersion()
 
 	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
 	if HasMCPServers(workflowData) {

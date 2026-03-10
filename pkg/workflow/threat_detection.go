@@ -356,10 +356,11 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		Tools: map[string]any{
 			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
 		},
-		SafeOutputs:  nil,
-		EngineConfig: detectionEngineConfig,
-		AI:           engineSetting,
-		Features:     data.Features,
+		SafeOutputs:    nil,
+		EngineConfig:   detectionEngineConfig,
+		AI:             engineSetting,
+		Features:       data.Features,
+		IsDetectionRun: true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: []string{}, // deny-all: no network access
 		},
