@@ -297,6 +297,38 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 	return lines
 }
 
+// GenerateGitHubFolderCheckoutStep generates YAML step lines for a sparse checkout of
+// the .github and .agents folders. This is used in the activation job to access workflow
+// configuration and runtime imports.
+//
+// Parameters:
+//   - repository: the repository to checkout. May be a literal "owner/repo" value or a
+//     GitHub Actions expression such as
+//     "${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}".
+//     Pass an empty string to omit the repository field and check out the current repository.
+//   - getActionPin: resolves an action reference to a pinned SHA form.
+//
+// Returns a slice of YAML lines (each ending with \n).
+func GenerateGitHubFolderCheckoutStep(repository string, getActionPin func(string) string) []string {
+	checkoutManagerLog.Printf("Generating .github/.agents folder checkout: repository=%q", repository)
+	var sb strings.Builder
+
+	sb.WriteString("      - name: Checkout .github and .agents folders\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", getActionPin("actions/checkout"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          persist-credentials: false\n")
+	if repository != "" {
+		fmt.Fprintf(&sb, "          repository: %s\n", repository)
+	}
+	sb.WriteString("          sparse-checkout: |\n")
+	sb.WriteString("            .github\n")
+	sb.WriteString("            .agents\n")
+	sb.WriteString("          sparse-checkout-cone-mode: true\n")
+	sb.WriteString("          fetch-depth: 1\n")
+
+	return []string{sb.String()}
+}
+
 // generateDefaultCheckoutStep emits the default workspace checkout, applying any
 // user-supplied overrides (token, fetch-depth, ref, etc.) on top of the required
 // security defaults (persist-credentials: false).

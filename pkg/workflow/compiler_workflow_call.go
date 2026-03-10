@@ -16,6 +16,12 @@ type workflowCallOutputEntry struct {
 	Value       string `yaml:"value"`
 }
 
+// hasWorkflowCallTrigger checks if the on section contains a workflow_call trigger.
+// Used to detect cross-repo reusable workflow usage for checkout and error handling.
+func hasWorkflowCallTrigger(onSection string) bool {
+	return strings.Contains(onSection, "workflow_call")
+}
+
 // injectWorkflowCallOutputs adds on.workflow_call.outputs declarations for safe-output results
 // when the workflow uses workflow_call as a trigger.
 //

@@ -60,6 +60,19 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		compilerActivationJobLog.Printf("Skipped validate-secret step (engine does not require secret validation)")
 	}
 
+	// Add cross-repo setup guidance when workflow_call is a trigger.
+	// This step only runs when secret validation fails in a workflow_call context,
+	// providing actionable guidance to the caller team about configuring secrets.
+	if hasWorkflowCallTrigger(data.On) {
+		compilerActivationJobLog.Print("Adding cross-repo setup guidance step for workflow_call trigger")
+		steps = append(steps, "      - name: Cross-repo setup guidance\n")
+		steps = append(steps, "        if: failure() && github.event_name == 'workflow_call'\n")
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          echo \"::error::COPILOT_GITHUB_TOKEN must be configured in the CALLER repository's secrets.\"\n")
+		steps = append(steps, "          echo \"::error::For cross-repo workflow_call, secrets must be set in the repository that triggers the workflow.\"\n")
+		steps = append(steps, "          echo \"::error::See: https://github.github.com/gh-aw/patterns/central-repo-ops/#cross-repo-setup\"\n")
+	}
+
 	// Checkout .github and .agents folders for accessing workflow configurations and runtime imports
 	// This is needed for prompt generation which may reference runtime imports from .github folder
 	// Always add this checkout in activation job since it needs access to workflow files for runtime imports
@@ -422,19 +435,21 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// but the activation job will always have it for GitHub API access and runtime imports.
 	// The agent job uses only the user-specified permissions (no automatic contents:read augmentation).
 
+	// For workflow_call triggers, checkout the callee repository using a conditional expression.
+	// github.action_repository points to the callee (platform) repo during workflow_call;
+	// for other event types the explicit event_name check short-circuits to falsy and we
+	// fall back to github.repository. This supports mixed triggers (e.g., workflow_call + workflow_dispatch).
+	if data != nil && hasWorkflowCallTrigger(data.On) {
+		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
+		return GenerateGitHubFolderCheckoutStep(
+			"${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}",
+			GetActionPin,
+		)
+	}
+
 	// For activation job, always add sparse checkout of .github and .agents folders
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return []string{
-		"      - name: Checkout .github and .agents folders\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
-		"        with:\n",
-		"          sparse-checkout: |\n",
-		"            .github\n",
-		"            .agents\n",
-		"          sparse-checkout-cone-mode: true\n",
-		"          fetch-depth: 1\n",
-		"          persist-credentials: false\n",
-	}
+	return GenerateGitHubFolderCheckoutStep("", GetActionPin)
 }

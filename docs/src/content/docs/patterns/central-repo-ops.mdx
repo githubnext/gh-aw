@@ -374,10 +374,10 @@ jobs:
 ```
 
 > [!NOTE]
-> Cross-repository `workflow_call` requires the caller and the callee to be in the **same organization**. The called workflow's `on.workflow_call` section must be present (added in the orchestrator step above). The caller must have access to any secrets it forwards.
+> Cross-repository `workflow_call` requires the caller and the callee to be in the **same organization** or the callee repository must be public. The called workflow's `on.workflow_call` section must be present (added in the orchestrator step above).
 
-> [!WARNING]
-> Cross-repository calls do not support `secrets: inherit`. You must explicitly list each secret forwarded from the calling repository.
+> [!TIP]
+> Cross-repository calls support `secrets: inherit` — the caller's secrets (including `COPILOT_GITHUB_TOKEN`) are passed through automatically. Premium Copilot requests bill to the caller's token, not the platform's.
 
 ### Trade-offs: Schedule Only vs Trigger File
 
@@ -391,6 +391,54 @@ jobs:
 | **When to use** | Simple recurring jobs with no event dependency | Jobs that should react to repository activity or need flexible scheduling |
 
 The schedule-only approach is perfectly fine for a standalone nightly or weekly orchestrator. Move to the trigger file pattern when you need to react to repository events, pass extra context to the agent, or decouple trigger changes from the compilation cycle.
+
+## Cross-Repository Trigger File
+
+<a id="cross-repo-setup"></a>
+
+A trigger file can live in a **different repository** (for example, in each application repo) and call back into the agentic workflow hosted in a central platform repo. This pattern is useful for multi-tenant platforms where each application repo triggers a shared agentic workflow.
+
+```yaml title=".github/workflows/platform-relay.yml (in application repo)"
+name: Platform Relay
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  relay:
+    uses: my-org/platform-repo/.github/workflows/platform-gateway.lock.yml@main
+    with:
+      issue_number: ${{ github.event.issue.number }}
+      source_repo: ${{ github.repository }}
+    secrets: inherit
+```
+
+### Repository Visibility
+
+The callee (platform) repository must meet one of these requirements:
+
+- **Public** — accessible to anyone
+- **Internal** — accessible within the organization
+- **Private with Actions access** — in repository **Settings → Actions → General**, under *Access*, select "Accessible from repositories in the [organization] organization"
+
+### Secrets Configuration
+
+`COPILOT_GITHUB_TOKEN` must be configured in the **caller** repository's secrets. When using `secrets: inherit`, all caller secrets are forwarded to the platform workflow automatically. This means:
+
+- Premium Copilot requests bill to the **caller's** token, not the platform's
+- Each application team manages their own `COPILOT_GITHUB_TOKEN`
+- The platform repo does not need to hold tokens for all callers
+
+### How It Works
+
+When the compiler detects `workflow_call` in the `on:` section, it generates a cross-repo-aware checkout step in the activation job. Instead of always checking out `github.repository` (which is the caller in a `workflow_call` context), the step uses a conditional expression:
+
+```yaml
+repository: ${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}
+```
+
+This ensures the activation job checks out the **platform repo's** `.github` folder — where the workflow markdown and runtime imports live — regardless of which application repo triggered the workflow. For non-`workflow_call` events, the expression falls back to the current repository.
 
 ## Best Practices
 

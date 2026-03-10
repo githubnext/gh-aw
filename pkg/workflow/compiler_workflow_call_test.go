@@ -302,3 +302,61 @@ Create an issue and add a comment.
 	assert.Contains(t, yamlOutput, "comment_id: ${{ steps.process_safe_outputs.outputs.comment_id }}",
 		"safe_outputs job should expose comment_id")
 }
+
+func TestHasWorkflowCallTrigger(t *testing.T) {
+	tests := []struct {
+		name      string
+		onSection string
+		expected  bool
+	}{
+		{
+			name: "workflow_call present in map format",
+			onSection: `"on":
+  workflow_call:`,
+			expected: true,
+		},
+		{
+			name: "workflow_call present with inputs",
+			onSection: `"on":
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: number`,
+			expected: true,
+		},
+		{
+			name: "workflow_call absent - push and workflow_dispatch only",
+			onSection: `"on":
+  push:
+  workflow_dispatch:`,
+			expected: false,
+		},
+		{
+			name: "workflow_call with other triggers - issue_comment and workflow_call",
+			onSection: `"on":
+  issue_comment:
+    types: [created]
+  workflow_call:`,
+			expected: true,
+		},
+		{
+			name:      "empty string",
+			onSection: "",
+			expected:  false,
+		},
+		{
+			name: "workflow_dispatch only - not workflow_call",
+			onSection: `"on":
+  workflow_dispatch:`,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasWorkflowCallTrigger(tt.onSection)
+			assert.Equal(t, tt.expected, result, "hasWorkflowCallTrigger() result mismatch for %q", tt.name)
+		})
+	}
+}
