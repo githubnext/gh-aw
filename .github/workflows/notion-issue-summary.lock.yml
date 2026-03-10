@@ -880,6 +880,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_GROUP_REPORTS: "false"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_TIMEOUT_MINUTES: "5"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1045,6 +1046,7 @@ jobs:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/notion-issue-summary"
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_HOME: /opt/gh-aw
+      GH_AW_SAFE_OUTPUT_JOBS: "{\"notion_add_comment\":\"\"}"
       GH_AW_WORKFLOW_ID: "notion-issue-summary"
       GH_AW_WORKFLOW_NAME: "Issue Summary to Notion"
     outputs:

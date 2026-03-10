@@ -82,6 +82,42 @@ This prevents conclusion jobs from colliding when multiple agents run the same w
 
 This concurrency group is set automatically during compilation and requires no manual configuration.
 
+## Fan-Out Concurrency (`job-discriminator`)
+
+When multiple workflow instances are dispatched concurrently with different inputs (fan-out pattern), compiler-generated job-level concurrency groups are static across all runs — causing all but the latest dispatched run to be cancelled as they compete for the same slot.
+
+Use `concurrency.job-discriminator` to append a unique expression to compiler-generated job-level concurrency groups (`agent` and `output` jobs), making each dispatched run's group distinct:
+
+```yaml wrap
+concurrency:
+  job-discriminator: ${{ inputs.finding_id }}
+```
+
+This generates a unique job-level concurrency group per dispatched run, preventing fan-out cancellations while preserving the per-workflow concurrency group at the workflow level.
+
+Example usage:
+
+```yaml wrap
+concurrency:
+  job-discriminator: ${{ inputs.finding_id }}
+```
+
+Common expressions:
+
+| Scenario | Expression |
+|---|---|
+| Fan-out by a specific input | `${{ inputs.finding_id }}` |
+| Universal uniqueness (e.g. scheduled runs) | `${{ github.run_id }}` |
+| Dispatched or scheduled fallback | `${{ inputs.organization \|\| github.run_id }}` |
+
+:::note
+`job-discriminator` is a gh-aw extension and is stripped from the compiled lock file. It does not appear in the generated GitHub Actions YAML.
+:::
+
+:::note
+`job-discriminator` has no effect on workflows triggered by `workflow_dispatch`-only, `push`, or `pull_request` events, or when the engine provides an explicit job-level concurrency configuration.
+:::
+
 ## Related Documentation
 
 - [AI Engines](/gh-aw/reference/engines/) - Engine configuration and capabilities

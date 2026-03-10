@@ -2531,6 +2531,93 @@ func TestBuildCustomJobsMapConcurrencyAndContainer(t *testing.T) {
 	}
 }
 
+// TestBuildCustomJobsMapConcurrencyDefaultsCancelInProgress tests that map-form concurrency
+// without cancel-in-progress defaults to cancel-in-progress: false for non-agent jobs.
+func TestBuildCustomJobsMapConcurrencyDefaultsCancelInProgress(t *testing.T) {
+	tests := []struct {
+		name            string
+		concurrencyMap  map[string]any
+		wantCancelFalse bool
+		wantCancelTrue  bool
+	}{
+		{
+			name: "no cancel-in-progress defaults to false",
+			concurrencyMap: map[string]any{
+				"group": "my-group",
+			},
+			wantCancelFalse: true,
+			wantCancelTrue:  false,
+		},
+		{
+			name: "explicit cancel-in-progress true is preserved",
+			concurrencyMap: map[string]any{
+				"group":              "my-group",
+				"cancel-in-progress": true,
+			},
+			wantCancelFalse: false,
+			wantCancelTrue:  true,
+		},
+		{
+			name: "explicit cancel-in-progress false is preserved",
+			concurrencyMap: map[string]any{
+				"group":              "my-group",
+				"cancel-in-progress": false,
+			},
+			wantCancelFalse: true,
+			wantCancelTrue:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.jobManager = NewJobManager()
+
+			data := &WorkflowData{
+				Name:   "Test Workflow",
+				AI:     "copilot",
+				RunsOn: "runs-on: ubuntu-latest",
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on":     "ubuntu-latest",
+						"concurrency": tt.concurrencyMap,
+						"steps":       []any{map[string]any{"run": "echo 'test'"}},
+					},
+				},
+			}
+
+			err := compiler.buildCustomJobs(data, false)
+			if err != nil {
+				t.Fatalf("buildCustomJobs() returned error: %v", err)
+			}
+
+			job, exists := compiler.jobManager.GetJob("custom_job")
+			if !exists {
+				t.Fatal("Expected custom_job to be added")
+			}
+
+			if !strings.Contains(job.Concurrency, "concurrency:") {
+				t.Errorf("Expected 'concurrency:' header, got: %q", job.Concurrency)
+			}
+			if !strings.Contains(job.Concurrency, "group: my-group") {
+				t.Errorf("Expected 'group: my-group' in concurrency, got: %q", job.Concurrency)
+			}
+			if tt.wantCancelFalse && !strings.Contains(job.Concurrency, "cancel-in-progress: false") {
+				t.Errorf("Expected 'cancel-in-progress: false' in concurrency, got: %q", job.Concurrency)
+			}
+			if tt.wantCancelTrue && !strings.Contains(job.Concurrency, "cancel-in-progress: true") {
+				t.Errorf("Expected 'cancel-in-progress: true' in concurrency, got: %q", job.Concurrency)
+			}
+			if !tt.wantCancelFalse && strings.Contains(job.Concurrency, "cancel-in-progress: false") {
+				t.Errorf("Did not expect 'cancel-in-progress: false' in concurrency, got: %q", job.Concurrency)
+			}
+			if !tt.wantCancelTrue && strings.Contains(job.Concurrency, "cancel-in-progress: true") {
+				t.Errorf("Did not expect 'cancel-in-progress: true' in concurrency, got: %q", job.Concurrency)
+			}
+		})
+	}
+}
+
 // TestBuildCustomJobsAllNewFieldsViaWorkflowData tests all 7 new fields via direct WorkflowData
 func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 	compiler := NewCompiler()

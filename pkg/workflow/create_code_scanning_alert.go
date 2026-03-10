@@ -29,22 +29,32 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		if driver, exists := configMap["driver"]; exists {
 			if driverStr, ok := driver.(string); ok {
 				securityReportsConfig.Driver = driverStr
+				createCodeScanningAlertLog.Printf("Using custom SARIF driver name: %s", driverStr)
 			}
 		}
 
 		// Parse target-repo
 		securityReportsConfig.TargetRepoSlug = parseTargetRepoFromConfig(configMap)
+		if securityReportsConfig.TargetRepoSlug != "" {
+			createCodeScanningAlertLog.Printf("Target repo for code scanning alerts: %s", securityReportsConfig.TargetRepoSlug)
+		}
 
 		// Parse allowed-repos
 		securityReportsConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+		if len(securityReportsConfig.AllowedRepos) > 0 {
+			createCodeScanningAlertLog.Printf("Allowed repos for cross-repo alerts: %d configured", len(securityReportsConfig.AllowedRepos))
+		}
 
 		// Parse common base fields with default max of 0 (unlimited)
 		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig, 0)
 	} else {
 		// If configData is nil or not a map (e.g., "create-code-scanning-alert:" with no value),
 		// still set the default max (nil = unlimited)
+		createCodeScanningAlertLog.Print("No config map provided, using defaults (unlimited max)")
 		securityReportsConfig.Max = nil
 	}
 
+	createCodeScanningAlertLog.Printf("Parsed create-code-scanning-alert config: driver=%q, target-repo=%q, allowed-repos=%d",
+		securityReportsConfig.Driver, securityReportsConfig.TargetRepoSlug, len(securityReportsConfig.AllowedRepos))
 	return securityReportsConfig
 }

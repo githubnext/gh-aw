@@ -224,7 +224,8 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.HasDispatchItemNumber = extractDispatchItemNumber(frontmatter)
 	workflowData.Permissions = c.extractPermissions(frontmatter)
 	workflowData.Network = c.extractTopLevelYAMLSection(frontmatter, "network")
-	workflowData.Concurrency = c.extractTopLevelYAMLSection(frontmatter, "concurrency")
+	workflowData.ConcurrencyJobDiscriminator = extractConcurrencyJobDiscriminator(frontmatter)
+	workflowData.Concurrency = c.extractConcurrencySection(frontmatter)
 	workflowData.RunName = c.extractTopLevelYAMLSection(frontmatter, "run-name")
 	workflowData.Env = c.extractTopLevelYAMLSection(frontmatter, "env")
 	workflowData.Features = c.extractFeatures(frontmatter)
@@ -237,6 +238,68 @@ func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData 
 	workflowData.Environment = c.extractTopLevelYAMLSection(frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(frontmatter, "container")
 	workflowData.Cache = c.extractTopLevelYAMLSection(frontmatter, "cache")
+}
+
+// extractConcurrencyJobDiscriminator reads the job-discriminator value from the
+// frontmatter concurrency block without modifying the original map.
+// Returns the discriminator expression string or empty string if not present.
+func extractConcurrencyJobDiscriminator(frontmatter map[string]any) string {
+	concurrencyRaw, ok := frontmatter["concurrency"]
+	if !ok {
+		return ""
+	}
+	concurrencyMap, ok := concurrencyRaw.(map[string]any)
+	if !ok {
+		return ""
+	}
+	discriminator, ok := concurrencyMap["job-discriminator"]
+	if !ok {
+		return ""
+	}
+	discriminatorStr, ok := discriminator.(string)
+	if !ok {
+		return ""
+	}
+	return discriminatorStr
+}
+
+// extractConcurrencySection extracts the workflow-level concurrency YAML section,
+// stripping the gh-aw-specific job-discriminator field so it does not appear in
+// the compiled lock file (which must be valid GitHub Actions YAML).
+func (c *Compiler) extractConcurrencySection(frontmatter map[string]any) string {
+	concurrencyRaw, ok := frontmatter["concurrency"]
+	if !ok {
+		return ""
+	}
+	concurrencyMap, ok := concurrencyRaw.(map[string]any)
+	if !ok || len(concurrencyMap) == 0 {
+		// String or empty format: serialize as-is (no job-discriminator possible)
+		return c.extractTopLevelYAMLSection(frontmatter, "concurrency")
+	}
+
+	_, hasDiscriminator := concurrencyMap["job-discriminator"]
+	if !hasDiscriminator {
+		return c.extractTopLevelYAMLSection(frontmatter, "concurrency")
+	}
+
+	// Build a copy of the concurrency map without job-discriminator for serialization.
+	// Use len(concurrencyMap) for capacity: at most one entry (job-discriminator) will be
+	// omitted, so this is a slight over-allocation that avoids a subtle negative-capacity
+	// edge case if job-discriminator were the only key.
+	cleanMap := make(map[string]any, len(concurrencyMap))
+	for k, v := range concurrencyMap {
+		if k != "job-discriminator" {
+			cleanMap[k] = v
+		}
+	}
+	// When job-discriminator is the only field, there is no user-specified workflow-level
+	// group to emit; return empty so the compiler can generate the default concurrency.
+	if len(cleanMap) == 0 {
+		return ""
+	}
+	// Use a minimal temporary frontmatter containing only the concurrency key to avoid
+	// copying the entire (potentially large) frontmatter map.
+	return c.extractTopLevelYAMLSection(map[string]any{"concurrency": cleanMap}, "concurrency")
 }
 
 // extractDispatchItemNumber reports whether the frontmatter's on.workflow_dispatch

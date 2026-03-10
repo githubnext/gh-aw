@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -34,6 +35,17 @@ type RunOptions struct {
 	Inputs            []string // Workflow inputs in key=value format
 	Verbose           bool     // Enable verbose output
 	DryRun            bool     // Validate without actually triggering
+	JSON              bool     // Output results in JSON format
+}
+
+// WorkflowRunResult contains the result of a single workflow run trigger for JSON output
+type WorkflowRunResult struct {
+	Workflow string `json:"workflow"`
+	LockFile string `json:"lock_file"`
+	Status   string `json:"status"` // "triggered", "dry_run", "error"
+	RunID    int64  `json:"run_id,omitempty"`
+	RunURL   string `json:"run_url,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
@@ -555,6 +567,47 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully triggered %d workflow(s)", len(workflowNames))))
 		return nil
 	}
+
+	// When JSON output is requested, wrap runAllWorkflows to emit a JSON summary
+	if opts.JSON {
+		runAllWorkflowsInner := runAllWorkflows
+		runAllWorkflows = func() error {
+			// Build per-workflow results
+			var results []WorkflowRunResult
+			for _, workflowName := range workflowNames {
+				normalizedID := normalizeWorkflowID(workflowName)
+				lockFileName := normalizedID + ".lock.yml"
+				status := "triggered"
+				if opts.DryRun {
+					status = "dry_run"
+				}
+				results = append(results, WorkflowRunResult{
+					Workflow: normalizedID,
+					LockFile: lockFileName,
+					Status:   status,
+				})
+			}
+
+			// Execute the actual runs (text output still goes to stderr)
+			runErr := runAllWorkflowsInner()
+			if runErr != nil {
+				// Mark all as error when we can't distinguish which failed
+				for i := range results {
+					results[i].Status = "error"
+					results[i].Error = runErr.Error()
+				}
+			}
+
+			// Output JSON to stdout
+			jsonBytes, err := json.MarshalIndent(results, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+			fmt.Println(string(jsonBytes))
+			return runErr
+		}
+	}
+
 	// Execute workflows with optional repeat functionality
 	return ExecuteWithRepeat(RepeatOptions{
 		RepeatCount:   opts.RepeatCount,

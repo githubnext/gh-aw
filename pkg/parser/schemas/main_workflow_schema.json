@@ -1956,13 +1956,21 @@
             "cancel-in-progress": {
               "type": "boolean",
               "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts. Default: false (queue new runs). Set to true for agentic workflows where only the latest run matters (e.g., PR analysis that becomes stale when new commits are pushed)."
+            },
+            "job-discriminator": {
+              "type": "string",
+              "description": "Additional discriminator expression appended to compiler-generated job-level concurrency groups (agent, output jobs). Use this when multiple workflow instances are dispatched concurrently with different inputs (fan-out pattern) to prevent job-level concurrency groups from colliding. For example, '${{ inputs.finding_id }}' ensures each dispatched run gets a unique job-level group. Supports GitHub Actions expressions. This field is stripped from the compiled lock file (it is a gh-aw extension, not a GitHub Actions field).",
+              "examples": ["${{ inputs.finding_id }}", "${{ inputs.item_id }}", "${{ github.run_id }}"]
             }
           },
-          "required": ["group"],
+          "required": [],
           "examples": [
             {
               "group": "dev-workflow-${{ github.ref }}",
               "cancel-in-progress": true
+            },
+            {
+              "job-discriminator": "${{ inputs.finding_id }}"
             }
           ]
         }
@@ -3016,19 +3024,19 @@
                   "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
                 },
                 "repos": {
-                  "description": "Guard policy: repository access configuration. Restricts which repositories the agent can access. Use 'all' to allow all repos or an array of 'owner/repo' strings.",
+                  "description": "Guard policy: repository access configuration. Restricts which repositories the agent can access. Use 'all' to allow all repos, 'public' for public repositories only, or an array of repository patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*').",
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["all"],
-                      "description": "Allow access to all repositories"
+                      "enum": ["all", "public"],
+                      "description": "Allow access to all repositories ('all') or only public repositories ('public')"
                     },
                     {
                       "type": "array",
-                      "description": "Allow access to specific repositories",
+                      "description": "Allow access to specific repositories using patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*')",
                       "items": {
                         "type": "string",
-                        "description": "Repository slug in the format 'owner/repo'"
+                        "description": "Repository pattern in the format 'owner/repo', 'owner/*' (all repos under owner), or 'owner/prefix*' (repos with name prefix)"
                       },
                       "minItems": 1
                     }
@@ -7161,6 +7169,12 @@
           "type": "boolean",
           "description": "When true, creates a parent '[aw] Failed runs' issue that tracks all workflow failures as sub-issues. Helps organize failure tracking but may be unnecessary in smaller repositories. Defaults to false.",
           "default": false,
+          "examples": [false, true]
+        },
+        "report-failure-as-issue": {
+          "type": "boolean",
+          "description": "When false, disables creating failure tracking issues when workflows fail. Useful for workflows where failures are expected or handled elsewhere. Defaults to true.",
+          "default": true,
           "examples": [false, true]
         },
         "max-bot-mentions": {

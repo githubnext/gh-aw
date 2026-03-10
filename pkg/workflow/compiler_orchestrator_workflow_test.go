@@ -1575,3 +1575,141 @@ func TestExtractYAMLSections_HasDispatchItemNumber(t *testing.T) {
 		assert.False(t, workflowData.HasDispatchItemNumber, "should not set HasDispatchItemNumber for plain workflow")
 	})
 }
+
+// TestExtractConcurrencyJobDiscriminator tests extraction of job-discriminator from the concurrency block
+func TestExtractConcurrencyJobDiscriminator(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		want        string
+	}{
+		{
+			name: "job-discriminator present in concurrency object",
+			frontmatter: map[string]any{
+				"concurrency": map[string]any{
+					"group":             "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}",
+					"job-discriminator": "${{ inputs.finding_id }}",
+				},
+			},
+			want: "${{ inputs.finding_id }}",
+		},
+		{
+			name: "concurrency object without job-discriminator",
+			frontmatter: map[string]any{
+				"concurrency": map[string]any{
+					"group":              "gh-aw-${{ github.workflow }}",
+					"cancel-in-progress": false,
+				},
+			},
+			want: "",
+		},
+		{
+			name: "concurrency as string (no job-discriminator)",
+			frontmatter: map[string]any{
+				"concurrency": "gh-aw-${{ github.workflow }}",
+			},
+			want: "",
+		},
+		{
+			name:        "no concurrency key",
+			frontmatter: map[string]any{},
+			want:        "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractConcurrencyJobDiscriminator(tt.frontmatter)
+			assert.Equal(t, tt.want, got, "extractConcurrencyJobDiscriminator() mismatch")
+		})
+	}
+}
+
+// TestExtractConcurrencySection tests that job-discriminator is stripped from the serialized YAML
+func TestExtractConcurrencySection(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("job-discriminator is stripped from serialized YAML", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"concurrency": map[string]any{
+				"group":             "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}",
+				"job-discriminator": "${{ inputs.finding_id }}",
+			},
+		}
+		result := compiler.extractConcurrencySection(frontmatter)
+		assert.NotContains(t, result, "job-discriminator", "job-discriminator should be stripped from serialized concurrency YAML")
+		assert.Contains(t, result, "group:", "group field should remain in serialized YAML")
+		assert.Contains(t, result, "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}", "group value should be preserved")
+	})
+
+	t.Run("original frontmatter is not modified", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"concurrency": map[string]any{
+				"group":             "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}",
+				"job-discriminator": "${{ inputs.finding_id }}",
+			},
+		}
+		compiler.extractConcurrencySection(frontmatter)
+		// Original frontmatter should still have job-discriminator
+		concurrencyMap := frontmatter["concurrency"].(map[string]any)
+		_, hasDiscriminator := concurrencyMap["job-discriminator"]
+		assert.True(t, hasDiscriminator, "original frontmatter should not be modified")
+	})
+
+	t.Run("concurrency without job-discriminator passes through unchanged", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"concurrency": map[string]any{
+				"group":              "gh-aw-${{ github.workflow }}",
+				"cancel-in-progress": false,
+			},
+		}
+		result := compiler.extractConcurrencySection(frontmatter)
+		assert.Contains(t, result, "group:", "group field should be present")
+		assert.NotContains(t, result, "job-discriminator", "no job-discriminator should appear")
+	})
+
+	t.Run("job-discriminator only (no group) returns empty string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"concurrency": map[string]any{
+				"job-discriminator": "${{ inputs.finding_id }}",
+			},
+		}
+		result := compiler.extractConcurrencySection(frontmatter)
+		assert.Empty(t, result, "when only job-discriminator is present the workflow-level concurrency should be empty (compiler generates defaults)")
+	})
+}
+
+// TestExtractYAMLSections_ConcurrencyJobDiscriminator verifies that extractYAMLSections
+// populates WorkflowData.ConcurrencyJobDiscriminator from the frontmatter.
+func TestExtractYAMLSections_ConcurrencyJobDiscriminator(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("job-discriminator is extracted and stored", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		frontmatter := map[string]any{
+			"on": map[string]any{"workflow_dispatch": nil},
+			"concurrency": map[string]any{
+				"group":             "gh-aw-${{ github.workflow }}-${{ inputs.finding_id }}",
+				"job-discriminator": "${{ inputs.finding_id }}",
+			},
+		}
+		compiler.extractYAMLSections(frontmatter, workflowData)
+		assert.Equal(t, "${{ inputs.finding_id }}", workflowData.ConcurrencyJobDiscriminator,
+			"ConcurrencyJobDiscriminator should be populated from frontmatter")
+		assert.NotContains(t, workflowData.Concurrency, "job-discriminator",
+			"Concurrency YAML should not include job-discriminator")
+	})
+
+	t.Run("no job-discriminator leaves field empty", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		frontmatter := map[string]any{
+			"on": map[string]any{"workflow_dispatch": nil},
+			"concurrency": map[string]any{
+				"group": "gh-aw-${{ github.workflow }}",
+			},
+		}
+		compiler.extractYAMLSections(frontmatter, workflowData)
+		assert.Empty(t, workflowData.ConcurrencyJobDiscriminator,
+			"ConcurrencyJobDiscriminator should be empty when not in frontmatter")
+	})
+}

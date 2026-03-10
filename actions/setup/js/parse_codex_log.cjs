@@ -261,6 +261,17 @@ function convertToLogEntries(parsedData) {
 }
 
 /**
+ * Extract the model name from Codex log header lines.
+ * Codex logs include a line like "model: o4-mini" near the top.
+ * @param {string} logContent - The raw log content
+ * @returns {string|null} The model name, or null if not found
+ */
+function extractCodexModel(logContent) {
+  const match = logContent.match(/^model:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+/**
  * Parse codex log content and format as markdown
  * @param {string} logContent - The raw log content to parse
  * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
@@ -598,6 +609,37 @@ function parseCodexLog(logContent) {
   // Convert parsed data to logEntries format
   const logEntries = convertToLogEntries(parsedData);
 
+  // Always prepend a system init entry so the session preview is shown even for
+  // failed or sparse runs (matches behaviour of Claude, Copilot, and Gemini parsers).
+  const model = extractCodexModel(logContent);
+  logEntries.unshift({
+    type: "system",
+    subtype: "init",
+    model: model || undefined,
+  });
+
+  // When there are no tool calls or thinking entries, surface error messages in the
+  // preview so users can see why the session failed.
+  const hasConversationEntries = logEntries.some(e => e.type !== "system");
+  if (!hasConversationEntries && errorInfo.hasErrors) {
+    for (const message of errorInfo.messages) {
+      logEntries.push({
+        type: "assistant",
+        message: {
+          content: [{ type: "text", text: message }],
+        },
+      });
+    }
+    if (errorInfo.reconnectCount > 0) {
+      logEntries.push({
+        type: "assistant",
+        message: {
+          content: [{ type: "text", text: `Reconnect attempts: ${errorInfo.reconnectCount}/${errorInfo.maxReconnects}` }],
+        },
+      });
+    }
+  }
+
   // Check for MCP failures
   const mcpFailures = mcpInfo.servers.filter(server => server.status === "failed").map(server => server.name);
 
@@ -711,5 +753,6 @@ if (typeof module !== "undefined" && module.exports) {
     formatCodexBashCall,
     extractMCPInitialization,
     extractCodexErrorMessages,
+    extractCodexModel,
   };
 }

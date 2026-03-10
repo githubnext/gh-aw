@@ -17,6 +17,9 @@ permissions:
   pull-requests: read
   actions: read
 
+concurrency:
+  job-discriminator: ${{ inputs.organization || github.run_id }}
+
 engine: copilot
 strict: true
 timeout-minutes: 45

@@ -1118,7 +1118,7 @@ func TestRepoMemoryWikiPromptSection(t *testing.T) {
 	assert.Contains(t, wikiNote, "Markdown", "Wiki note should mention Markdown syntax")
 }
 
-// TestRepoMemoryNonWikiPromptSection tests that non-wiki mode has empty wiki note
+// TestRepoMemoryNonWikiPromptSection tests that non-wiki mode uses empty string expression for wiki note
 func TestRepoMemoryNonWikiPromptSection(t *testing.T) {
 	config := &RepoMemoryConfig{
 		Memories: []RepoMemoryEntry{
@@ -1135,7 +1135,9 @@ func TestRepoMemoryNonWikiPromptSection(t *testing.T) {
 	require.NotNil(t, section.EnvVars, "Expected env vars")
 
 	wikiNote := section.EnvVars["GH_AW_WIKI_NOTE"]
-	assert.Empty(t, wikiNote, "Non-wiki mode should have empty GH_AW_WIKI_NOTE")
+	// Non-wiki mode should use a GitHub expression that evaluates to empty string.
+	// This ensures __GH_AW_WIKI_NOTE__ is always substituted via expression interpolation.
+	assert.Equal(t, ghaEmptyStringExpr, wikiNote, "Non-wiki mode should use empty string expression for GH_AW_WIKI_NOTE")
 }
 
 // TestRepoMemoryWikiPushAllowedRepos tests that wiki mode sets REPO_MEMORY_ALLOWED_REPOS

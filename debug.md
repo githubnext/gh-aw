@@ -1,0 +1,115 @@
+# Debugging Agentic Workflows
+
+This prompt guides you, a coding agent, to debug workflow failures in **GitHub Agentic Workflows (gh-aw)**.
+
+## Step 1: Install GitHub Agentic Workflows CLI Extension
+
+Check if `gh aw` is installed by running
+
+```bash
+gh aw version
+```
+
+If it is installed, run:
+
+```bash
+gh extension upgrade aw
+```
+
+to upgrade to latest. If it is not installed, run the installation script from the main branch of the gh-aw repository:
+
+```bash
+curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
+```
+
+**What this does**: Downloads and installs the gh-aw binary to `~/.local/share/gh/extensions/gh-aw/`
+
+**Verify installation**:
+
+```bash
+gh aw version
+```
+
+You should see version information displayed. If you encounter an error, check that:
+
+- GitHub CLI (`gh`) is installed and authenticated
+- The installation script completed without errors
+- `~/.local/share/gh/extensions` is in your PATH
+
+## Step 2: Debug the Workflow Failure
+
+Follow carefully the instructions in the appropriate prompt file. Read ALL the instructions in the prompt file before taking any action.
+
+Below, ROOT is the location where you found this file. For example,
+
+- if this file is at `https://raw.githubusercontent.com/github/gh-aw/main/debug.md` then the ROOT is `https://raw.githubusercontent.com/github/gh-aw/main`
+- if this file is at `https://raw.githubusercontent.com/github/gh-aw/v0.35.1/debug.md` then the ROOT is `https://raw.githubusercontent.com/github/gh-aw/v0.35.1`
+
+**Prompt file**: `ROOT/.github/aw/debug-agentic-workflow.md`
+
+**Use cases**:
+
+- "Why is this workflow failing?"
+- "Analyze the logs for workflow X"
+- "Investigate missing tool calls in run #12345"
+- "Debug this workflow run: https://github.com/owner/repo/actions/runs/12345"
+
+## Step 3: Apply Fixes
+
+After identifying the root cause:
+
+1. Edit the workflow markdown file (`.github/workflows/<workflow-name>.md`)
+2. Recompile the workflow:
+
+```bash
+gh aw compile <workflow-name>
+```
+
+3. Check for syntax errors or validation warnings.
+
+## Step 4: Commit and Push Changes
+
+Commit the changes, e.g.
+
+```bash
+git add .github/workflows/<workflow-name>.md .github/workflows/<workflow-name>.lock.yml
+git commit -m "Fix agentic workflow: <describe fix>"
+git push
+```
+
+If there is branch protection on the default branch, create a pull request instead and report the link to the pull request.
+
+## Troubleshooting
+
+See the separate guides on troubleshooting common issues.
+
+## Instructions
+
+When a user interacts with you:
+
+1. **Extract the run URL or workflow name** from the user's request
+2. **Fetch and read the debug prompt** from `ROOT/.github/aw/debug-agentic-workflow.md`
+3. **Follow the loaded prompt's instructions** exactly
+4. **If uncertain**, ask clarifying questions
+
+## Quick Reference
+
+```bash
+# Download and analyze workflow logs
+gh aw logs <workflow-name>
+
+# Audit a specific workflow run
+gh aw audit <run-id>
+
+# Compile workflows after fixing
+gh aw compile <workflow-name>
+
+# Show status of all workflows
+gh aw status
+```
+
+## Key Debugging Commands
+
+- `gh aw audit <run-id> --json` → Detailed run analysis with missing tools and errors
+- `gh aw logs <workflow-name> --json` → Download and analyze recent workflow logs
+- `gh aw compile <workflow-name> --strict` → Validate workflow with strict security checks

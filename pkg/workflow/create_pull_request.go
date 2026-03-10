@@ -61,18 +61,12 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 	}
 
-	// Pre-process the expires field if it's a string (convert to int before unmarshaling)
-	if configData != nil {
-		if expires, exists := configData["expires"]; exists {
-			if _, ok := expires.(string); ok {
-				// Parse the string format and replace with int
-				expiresInt := parseExpiresFromConfig(configData)
-				if expiresInt > 0 {
-					configData["expires"] = expiresInt
-					createPRLog.Printf("Converted expires from relative time format to hours: %d", expiresInt)
-				}
-			}
-		}
+	// Pre-process the expires field (convert to hours before unmarshaling)
+	// Use preprocessExpiresField to handle all types: integers (days), strings (time specs), and boolean false
+	// This is consistent with how parseIssuesConfig and parseDiscussionsConfig handle expires
+	expiresDisabled := preprocessExpiresField(configData, createPRLog)
+	if expiresDisabled {
+		createPRLog.Print("Pull request expiration disabled")
 	}
 
 	// Pre-process templatable bool fields: convert literal booleans to strings so that

@@ -543,6 +543,7 @@ async function main() {
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
+    const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -617,6 +618,12 @@ async function main() {
       return;
     }
 
+    // Check if failure issue reporting is disabled
+    if (!reportFailureAsIssue) {
+      core.info("Failure issue reporting is disabled (report-failure-as-issue: false), skipping failure issue creation");
+      return;
+    }
+
     // Check if the failure was due to PR checkout (e.g., PR was merged and branch deleted)
     // If checkout_pr_success is "false", skip creating an issue as this is expected behavior
     if (agentConclusion === "failure" && checkoutPRSuccess === "false") {
@@ -647,12 +654,7 @@ async function main() {
 
     // Sanitize workflow name for title
     const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
-    // Detect pre-agent failure: agent never produced output (artifact was not downloaded).
-    // When the artifact download succeeds, GH_AW_AGENT_OUTPUT is set; when it fails the
-    // env var is absent, indicating the agent did not reach output-production.
-    const isPreAgentFailure = agentConclusion === "failure" && !process.env.GH_AW_AGENT_OUTPUT;
-    const failureStage = isPreAgentFailure ? " (pre-agent)" : "";
-    const issueTitle = `[aw] ${sanitizedWorkflowName} failed${failureStage}`;
+    const issueTitle = `[aw] ${sanitizedWorkflowName} failed`;
 
     core.info(`Checking for existing issue with title: "${issueTitle}"`);
 

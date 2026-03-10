@@ -1083,6 +1083,7 @@ jobs:
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔧 *Tool validation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools...\",\"runSuccess\":\"✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready.\",\"runFailure\":\"❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}\"}"
           GH_AW_GROUP_REPORTS: "false"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_TIMEOUT_MINUTES: "5"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

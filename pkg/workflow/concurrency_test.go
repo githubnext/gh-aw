@@ -474,6 +474,94 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			expected:    "",
 			description: "Rendered slash_command YAML (issue_comment + workflow_dispatch) should NOT get default concurrency (isIssueWorkflow detects it)",
 		},
+		{
+			name: "Job discriminator appended to default group for schedule workflow",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.finding_id }}"`,
+			description: "job-discriminator should be appended to the default group to prevent fan-out cancellations",
+		},
+		{
+			name: "Job discriminator appended when workflow_dispatch combined with schedule",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  workflow_dispatch:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ inputs.item_id }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.item_id }}"`,
+			description: "job-discriminator should be appended for mixed workflow_dispatch + schedule workflows",
+		},
+		{
+			name: "Job discriminator ignored when workflow has special triggers (no default group generated)",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  workflow_dispatch:",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
+			},
+			expected:    "",
+			description: "job-discriminator has no effect when no default job concurrency is generated (workflow_dispatch-only)",
+		},
+		{
+			name: "Job discriminator ignored when engine provides explicit concurrency",
+			workflowData: &WorkflowData{
+				On: "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig: &EngineConfig{
+					ID:          "copilot",
+					Concurrency: "concurrency:\n  group: \"engine-custom-group\"",
+				},
+				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
+			},
+			expected: `concurrency:
+  group: "engine-custom-group"`,
+			description: "job-discriminator does not modify explicitly set engine concurrency",
+		},
+		{
+			name: "Job discriminator using github.run_id for universal uniqueness (schedule)",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ github.run_id }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ github.run_id }}"`,
+			description: "github.run_id makes each run unique — useful when fan-out workflows all share the same schedule trigger",
+		},
+		{
+			name: "Job discriminator with claude engine and schedule trigger",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  schedule:\n    - cron: '0 9 1 * *'",
+				EngineConfig:                &EngineConfig{ID: "claude"},
+				ConcurrencyJobDiscriminator: "${{ inputs.organization || github.run_id }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-claude-${{ github.workflow }}-${{ inputs.organization || github.run_id }}"`,
+			description: "job-discriminator works with any engine; fallback to run_id handles scheduled (no-input) runs",
+		},
+		{
+			name: "Job discriminator ignored when push trigger (special trigger, no default group)",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  push:\n    branches: [main]",
+				EngineConfig:                &EngineConfig{ID: "copilot"},
+				ConcurrencyJobDiscriminator: "${{ github.run_id }}",
+			},
+			expected:    "",
+			description: "push is a special trigger — no default job concurrency is generated, so job-discriminator has no effect",
+		},
+		{
+			name: "Job discriminator with pull_request trigger (special trigger, no default group)",
+			workflowData: &WorkflowData{
+				On:                          "on:\n  pull_request:\n    types: [opened, synchronize]",
+				EngineConfig:                &EngineConfig{ID: "codex"},
+				ConcurrencyJobDiscriminator: "${{ github.run_id }}",
+			},
+			expected:    "",
+			description: "pull_request is a special trigger — job-discriminator has no effect",
+		},
 	}
 
 	for _, tt := range tests {

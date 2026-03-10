@@ -15,6 +15,8 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+concurrency:
+  job-discriminator: ${{ inputs.focus || github.run_id }}
 tracker-id: slide-deck-maintainer
 engine: copilot
 timeout-minutes: 45

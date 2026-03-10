@@ -320,6 +320,7 @@ export default defineConfig({
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
 						{ label: 'Safe Outputs (Pull Requests)', link: '/reference/safe-outputs-pull-requests/' },
 						{ label: 'Safe Outputs (Spec)', link: '/reference/safe-outputs-specification/' },
+						{ label: 'Safe Outputs (Staged Mode)', link: '/reference/staged-mode/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
 						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },
 						{ label: 'Templating', link: '/reference/templating/' },

@@ -1,10 +1,13 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_job")
@@ -436,6 +439,28 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 
 	// Note: Asset upload configuration is not needed here because upload_assets
 	// is now handled as a separate job (see buildUploadAssetsJob)
+
+	// Set GH_AW_SAFE_OUTPUT_JOBS so the handler manager can skip message types
+	// that are handled by custom safe jobs (defined in safe-outputs.jobs).
+	// Without this, the handler manager would fail with "No handler loaded" for those types.
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Jobs) > 0 {
+		customJobsMap := make(map[string]string, len(data.SafeOutputs.Jobs))
+		jobNames := make([]string, 0, len(data.SafeOutputs.Jobs))
+		for jobName := range data.SafeOutputs.Jobs {
+			jobNames = append(jobNames, jobName)
+		}
+		sort.Strings(jobNames) // deterministic ordering
+		for _, jobName := range jobNames {
+			normalizedName := stringutil.NormalizeSafeOutputIdentifier(jobName)
+			customJobsMap[normalizedName] = ""
+		}
+		jsonBytes, err := json.Marshal(customJobsMap)
+		if err != nil {
+			consolidatedSafeOutputsJobLog.Printf("Warning: failed to marshal custom safe job names: %v", err)
+		} else {
+			envVars["GH_AW_SAFE_OUTPUT_JOBS"] = fmt.Sprintf("%q", string(jsonBytes))
+		}
+	}
 
 	return envVars
 }

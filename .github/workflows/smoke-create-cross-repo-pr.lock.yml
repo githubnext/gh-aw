@@ -1243,6 +1243,7 @@ jobs:
           GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}\"}"
           GH_AW_GROUP_REPORTS: "false"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_TIMEOUT_MINUTES: "10"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

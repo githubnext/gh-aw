@@ -554,6 +554,12 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				case string:
 					job.Concurrency = "concurrency: " + v
 				case map[string]any:
+					// Default cancel-in-progress to false for non-agent jobs if not explicitly set.
+					// This prevents accidental cancellation of queued runs when multiple agents
+					// are running the same workflow concurrently.
+					if _, hasCancelInProgress := v["cancel-in-progress"]; !hasCancelInProgress {
+						v["cancel-in-progress"] = false
+					}
 					yamlBytes, err := yaml.Marshal(v)
 					if err != nil {
 						return fmt.Errorf("failed to convert concurrency to YAML for job '%s': %w", jobName, err)

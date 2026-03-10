@@ -200,6 +200,19 @@ describe("safe_output_helpers", () => {
         expect(result.contextType).toBe("pull request");
       });
 
+      it("should handle pull_request_target event", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          context: {
+            eventName: "pull_request_target",
+            payload: { pull_request: { number: 654 } },
+          },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(654);
+        expect(result.contextType).toBe("pull request");
+      });
+
       it("should fail when issue context but no issue in payload", () => {
         const result = helpers.resolveTarget({
           ...baseParams,
@@ -243,6 +256,19 @@ describe("safe_output_helpers", () => {
         const result = helpers.resolveTarget(baseParams);
         expect(result.success).toBe(true);
         expect(result.number).toBe(123);
+        expect(result.contextType).toBe("pull request");
+      });
+
+      it("should resolve triggering pull_request_target context", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          context: {
+            eventName: "pull_request_target",
+            payload: { pull_request: { number: 987 } },
+          },
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(987);
         expect(result.contextType).toBe("pull request");
       });
 
