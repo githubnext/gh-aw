@@ -2,6 +2,32 @@
 
 This prompt guides you, a coding agent, to debug workflow failures in **GitHub Agentic Workflows (gh-aw)**.
 
+## How to Use This Prompt
+
+There are two ways to invoke this debugging workflow:
+
+### Option A: Through Copilot
+
+If your repository is configured with the `agentic-workflows` agent, use Copilot Chat:
+
+```text
+/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+### Option B: Self-Contained (with URL)
+
+Share this file's URL with any AI assistant or coding agent:
+
+```text
+Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
+
+Run URL: https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+The agent will follow the steps below to install `gh aw`, analyze the logs, and apply fixes.
+
+---
+
 ## Step 1: Install GitHub Agentic Workflows CLI Extension
 
 Check if `gh aw` is installed by running
