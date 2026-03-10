@@ -309,7 +309,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //   - getActionPin: resolves an action reference to a pinned SHA form.
 //
 // Returns a slice of YAML lines (each ending with \n).
-func GenerateGitHubFolderCheckoutStep(repository string, getActionPin func(string) string) []string {
+func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository string, getActionPin func(string) string) []string {
 	checkoutManagerLog.Printf("Generating .github/.agents folder checkout: repository=%q", repository)
 	var sb strings.Builder
 

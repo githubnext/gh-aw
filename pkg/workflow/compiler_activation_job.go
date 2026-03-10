@@ -442,9 +442,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
+	cm := NewCheckoutManager(nil)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
-		return GenerateGitHubFolderCheckoutStep(
+		return cm.GenerateGitHubFolderCheckoutStep(
 			"${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}",
 			GetActionPin,
 		)
@@ -454,5 +455,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return GenerateGitHubFolderCheckoutStep("", GetActionPin)
+	return cm.GenerateGitHubFolderCheckoutStep("", GetActionPin)
 }

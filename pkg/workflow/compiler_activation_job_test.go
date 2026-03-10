@@ -174,7 +174,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GenerateGitHubFolderCheckoutStep(tt.repository, GetActionPin)
+			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, GetActionPin)
 
 			require.NotEmpty(t, result, "should return at least one YAML line")
 
