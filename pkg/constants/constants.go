@@ -594,8 +594,22 @@ const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe-output"
 const AgentOutputArtifactName = "agent-output"
 
+// AgentArtifactName is the name of the unified agent artifact that contains all agent job outputs,
+// including safe outputs, agent output, engine logs, and other agent-related files.
+const AgentArtifactName = "agent"
+
+// DetectionArtifactName is the artifact name for the threat detection log.
+const DetectionArtifactName = "detection"
+
+// LegacyDetectionArtifactName is the old artifact name used before the rename.
+// Kept for backward compatibility when downloading artifacts from older workflow runs.
+const LegacyDetectionArtifactName = "threat-detection.log"
+
 // AgentOutputFilename is the filename of the agent output JSON file
 const AgentOutputFilename = "agent_output.json"
+
+// SafeOutputsFilename is the filename of the raw safe outputs NDJSON file copied to /tmp/gh-aw/
+const SafeOutputsFilename = "safeoutputs.jsonl"
 
 // MCPServerID represents a built-in MCP server identifier.
 // This semantic type distinguishes MCP server IDs from arbitrary strings,
@@ -676,9 +690,11 @@ const (
 	GeminiEngine EngineName = "gemini"
 )
 
-// AgenticEngines lists all supported agentic engine names
-// Note: This remains a string slice for backward compatibility with existing code
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine)}
+// AgenticEngines lists all supported agentic engine names.
+// Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
+// catalog-derived list. This slice is maintained for backward compatibility and must
+// stay in sync with the built-in engines registered in NewEngineCatalog.
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -692,7 +708,10 @@ type EngineOption struct {
 	WhenNeeded         string   // Human-readable description of when this secret is needed
 }
 
-// EngineOptions provides the list of available AI engines for user selection
+// EngineOptions provides the list of available AI engines for user selection.
+// Each entry includes secret metadata used by the interactive add wizard.
+// Must stay in sync with the built-in engines registered in workflow.NewEngineCatalog;
+// the TestEngineCatalogMatchesSchema test in pkg/workflow catches catalog/schema drift.
 var EngineOptions = []EngineOption{
 	{
 		Value:       string(CopilotEngine),
@@ -719,6 +738,14 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{"CODEX_API_KEY"},
 		KeyURL:             "https://platform.openai.com/api-keys",
 		WhenNeeded:         "Codex/OpenAI engine workflows",
+	},
+	{
+		Value:       string(GeminiEngine),
+		Label:       "Gemini",
+		Description: "Google Gemini CLI coding agent",
+		SecretName:  "GEMINI_API_KEY",
+		KeyURL:      "https://aistudio.google.com/app/apikey",
+		WhenNeeded:  "Gemini engine workflows",
 	},
 }
 

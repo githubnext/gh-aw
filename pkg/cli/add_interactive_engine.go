@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 // selectAIEngineAndKey prompts the user to select an AI engine and provide API key
@@ -80,20 +81,25 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflow specifies engine: "+workflowSpecifiedEngine))
 	}
 
-	// Build engine options with notes about existing secrets and workflow specification
+	// Build engine options with notes about existing secrets and workflow specification.
+	// The list of engines is derived from the catalog to ensure all registered engines appear.
+	catalog := workflow.NewEngineCatalog(workflow.NewEngineRegistry())
 	var engineOptions []huh.Option[string]
-	for _, opt := range constants.EngineOptions {
-		label := fmt.Sprintf("%s - %s", opt.Label, opt.Description)
-		// Add markers for secret availability and workflow specification
-		if c.existingSecrets[opt.SecretName] {
+	for _, def := range catalog.All() {
+		opt := constants.GetEngineOption(def.ID)
+		label := fmt.Sprintf("%s - %s", def.DisplayName, def.Description)
+		// Add markers for secret availability and workflow specification.
+		// opt may be nil for catalog engines not yet represented in EngineOptions;
+		// in that case we conservatively show '[no secret]'.
+		if opt != nil && c.existingSecrets[opt.SecretName] {
 			label += " [secret exists]"
 		} else {
 			label += " [no secret]"
 		}
-		if opt.Value == workflowSpecifiedEngine {
+		if def.ID == workflowSpecifiedEngine {
 			label += " [specified in workflow]"
 		}
-		engineOptions = append(engineOptions, huh.NewOption(label, opt.Value))
+		engineOptions = append(engineOptions, huh.NewOption(label, def.ID))
 	}
 
 	var selectedEngine string

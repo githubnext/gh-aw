@@ -21,6 +21,7 @@ type engineSetupResult struct {
 	networkPermissions *NetworkPermissions
 	sandboxConfig      *SandboxConfig
 	importsResult      *parser.ImportsResult
+	configSteps        []map[string]any // steps returned by RenderConfig (may be nil)
 }
 
 // setupEngineAndImports configures the AI engine, processes imports, and validates network/sandbox settings.
@@ -35,6 +36,18 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
+
+	// Validate and register inline engine definitions (engine.runtime sub-object).
+	// Must happen before catalog resolution so the inline definition is visible to Resolve().
+	if engineConfig != nil && engineConfig.IsInlineDefinition {
+		if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
+			return nil, err
+		}
+		if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
+			return nil, err
+		}
+		c.registerInlineEngineDefinition(engineConfig)
+	}
 
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
@@ -199,18 +212,26 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		}
 	}
 
-	// Validate the engine setting
-	orchestratorEngineLog.Printf("Validating engine setting: %s", engineSetting)
-	if err := c.validateEngine(engineSetting); err != nil {
-		orchestratorEngineLog.Printf("Engine validation failed: %v", err)
+	// Validate the engine setting and resolve the runtime adapter via the catalog.
+	// This performs exact catalog lookup, prefix fallback, and returns a formatted
+	// validation error for unknown engines — replacing the separate validateEngine
+	// and getAgenticEngine calls.
+	orchestratorEngineLog.Printf("Resolving engine setting: %s", engineSetting)
+	resolvedEngine, err := c.engineCatalog.Resolve(engineSetting, engineConfig)
+	if err != nil {
+		orchestratorEngineLog.Printf("Engine resolution failed: %v", err)
 		return nil, err
 	}
+	agenticEngine := resolvedEngine.Runtime
 
-	// Get the agentic engine instance
-	agenticEngine, err := c.getAgenticEngine(engineSetting)
+	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
+	// Most engines return nil, nil here; engines like OpenCode use this to write
+	// provider/model config files before the execution steps run.
+	orchestratorEngineLog.Printf("Calling RenderConfig for engine: %s", engineSetting)
+	configSteps, err := agenticEngine.RenderConfig(resolvedEngine)
 	if err != nil {
-		orchestratorEngineLog.Printf("Failed to get agentic engine: %v", err)
-		return nil, err
+		orchestratorEngineLog.Printf("RenderConfig failed for engine %s: %v", engineSetting, err)
+		return nil, fmt.Errorf("engine %s RenderConfig failed: %w", engineSetting, err)
 	}
 
 	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
@@ -275,5 +296,6 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		networkPermissions: networkPermissions,
 		sandboxConfig:      sandboxConfig,
 		importsResult:      importsResult,
+		configSteps:        configSteps,
 	}, nil
 }

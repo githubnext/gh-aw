@@ -108,20 +108,28 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	return nil
 }
 
-// flattenUnifiedArtifact flattens the unified agent-artifacts directory structure
-// After artifact refactoring, files are stored directly in agent-artifacts/ without the tmp/gh-aw/ prefix
-// This function moves those files to the root output directory and removes the nested structure
-// For backward compatibility, it also handles the old structure (agent-artifacts/tmp/gh-aw/...)
+// flattenUnifiedArtifact flattens the unified agent artifact directory structure.
+// The artifact is uploaded with all paths under /tmp/gh-aw/, so the action strips the
+// common prefix and files land directly inside the artifact directory (new structure).
+// For backward compatibility, it also handles the old structure where the full
+// tmp/gh-aw/ path was preserved inside the artifact directory.
+// New artifact name: "agent"   (preferred)
+// Legacy artifact name: "agent-artifacts" (backward compat for older workflow runs)
 func flattenUnifiedArtifact(outputDir string, verbose bool) error {
-	agentArtifactsDir := filepath.Join(outputDir, "agent-artifacts")
+	// Prefer the new "agent" artifact name; fall back to legacy "agent-artifacts"
+	agentArtifactsDir := filepath.Join(outputDir, "agent")
+	if _, err := os.Stat(agentArtifactsDir); os.IsNotExist(err) {
+		// Try legacy name for backward compatibility with older workflow runs
+		agentArtifactsDir = filepath.Join(outputDir, "agent-artifacts")
+	}
 
-	// Check if agent-artifacts directory exists
+	// Check if the artifact directory exists
 	if _, err := os.Stat(agentArtifactsDir); os.IsNotExist(err) {
 		// No unified artifact, nothing to flatten
 		return nil
 	}
 
-	logsDownloadLog.Printf("Flattening unified agent-artifacts directory: %s", agentArtifactsDir)
+	logsDownloadLog.Printf("Flattening unified agent artifact directory: %s", agentArtifactsDir)
 
 	// Check for old nested structure (agent-artifacts/tmp/gh-aw/)
 	tmpGhAwPath := filepath.Join(agentArtifactsDir, "tmp", "gh-aw")
@@ -137,7 +145,7 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 		// Old structure: flatten from agent-artifacts/tmp/gh-aw/
 		sourcePath = tmpGhAwPath
 	} else {
-		// New structure: flatten from agent-artifacts/ directly
+		// New structure: flatten from artifact directory directly
 		sourcePath = agentArtifactsDir
 		logsDownloadLog.Printf("Found new artifact structure without tmp/gh-aw prefix")
 	}
@@ -190,17 +198,17 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
 	}
 
-	// Remove the now-empty agent-artifacts directory structure
+	// Remove the now-empty artifact directory structure
 	if err := os.RemoveAll(agentArtifactsDir); err != nil {
-		logsDownloadLog.Printf("Failed to remove agent-artifacts directory %s: %v", agentArtifactsDir, err)
+		logsDownloadLog.Printf("Failed to remove agent artifact directory %s: %v", agentArtifactsDir, err)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove agent-artifacts directory: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove agent artifact directory: %v", err)))
 		}
 		// Don't fail the entire operation if cleanup fails
 	} else {
-		logsDownloadLog.Printf("Removed agent-artifacts directory: %s", agentArtifactsDir)
+		logsDownloadLog.Printf("Removed agent artifact directory: %s", agentArtifactsDir)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened unified agent-artifacts and removed nested structure"))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Flattened unified agent artifact and removed nested structure"))
 		}
 	}
 

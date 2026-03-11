@@ -656,16 +656,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 }
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"${{ env.GH_AW_SAFE_OUTPUTS }}"})
-
-	yaml.WriteString("      - name: Upload Safe Outputs\n")
+	// Copy the raw safe-output NDJSON to a /tmp/gh-aw/ path so it can be included in the
+	// unified agent artifact together with all other /tmp/gh-aw/ outputs.
+	yaml.WriteString("      - name: Copy safe outputs\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
-	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
+	yaml.WriteString("        run: |\n")
+	fmt.Fprintf(yaml, "          mkdir -p /tmp/gh-aw\n")
+	fmt.Fprintf(yaml, "          cp \"$GH_AW_SAFE_OUTPUTS\" /tmp/gh-aw/%s 2>/dev/null || true\n", constants.SafeOutputsFilename)
 
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
@@ -717,17 +714,6 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');\n")
 	yaml.WriteString("            await main();\n")
-
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})
-
-	yaml.WriteString("      - name: Upload sanitized agent output\n")
-	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
-	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", constants.AgentOutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
 
 }
 

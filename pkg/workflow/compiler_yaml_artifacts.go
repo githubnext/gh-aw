@@ -32,12 +32,16 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 
 	compilerYamlArtifactsLog.Printf("Generating unified artifact upload with %d paths", len(paths))
 
+	// Record the unified upload so the step-order validator can verify it comes after
+	// secret redaction, covering all collected paths in a single check.
+	c.stepOrderTracker.RecordArtifactUpload("Upload agent artifacts", paths)
+
 	yaml.WriteString("      - name: Upload agent artifacts\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: agent-artifacts\n")
+	yaml.WriteString("          name: agent\n")
 
 	// Write paths as multi-line YAML string
 	yaml.WriteString("          path: |\n")

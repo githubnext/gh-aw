@@ -70,12 +70,19 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected 'Ingest agent output' step to be in generated workflow")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload Safe Outputs") {
-		t.Error("Expected 'Upload Safe Outputs' step to be in generated workflow")
+	// Upload Safe Outputs and Upload sanitized agent output are now merged into the
+	// unified 'agent' artifact — individual upload steps no longer exist.
+	if strings.Contains(lockContent, "- name: Upload Safe Outputs") {
+		t.Error("Upload Safe Outputs should be removed (merged into unified agent artifact)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
-		t.Error("Expected 'Upload sanitized agent output' step to be in generated workflow")
+	if strings.Contains(lockContent, "- name: Upload sanitized agent output") {
+		t.Error("Upload sanitized agent output should be removed (merged into unified agent artifact)")
+	}
+
+	// Instead, verify that the Copy safe outputs step is present
+	if !strings.Contains(lockContent, "- name: Copy safe outputs") {
+		t.Error("Expected 'Copy safe outputs' step to be in generated workflow")
 	}
 
 	// Verify job output declaration for GH_AW_SAFE_OUTPUTS
@@ -105,12 +112,15 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Claude workflow should NOT reference 'agent_outputs' artifact (Claude CLI no longer produces output.txt)")
 	}
 
-	// Verify that both artifacts are uploaded
-	if !strings.Contains(lockContent, "name: "+constants.SafeOutputArtifactName) {
-		t.Errorf("Expected GH_AW_SAFE_OUTPUTS artifact name to be '%s'", constants.SafeOutputArtifactName)
+	// Verify the unified agent artifact is used (not separate safe-output / agent-output artifacts)
+	if strings.Contains(lockContent, "name: safe-output\n") {
+		t.Errorf("Safe outputs should now be in the unified agent artifact, not a separate '%s' artifact", constants.SafeOutputArtifactName)
+	}
+	if !strings.Contains(lockContent, "name: agent\n") {
+		t.Error("Expected unified 'agent' artifact name in generated workflow")
 	}
 
-	t.Log("Claude workflow correctly includes both GH_AW_SAFE_OUTPUTS and engine output collection")
+	t.Log("Claude workflow correctly uses unified agent artifact for safe outputs")
 }
 
 func TestCodexEngineWithOutputSteps(t *testing.T) {
@@ -169,20 +179,31 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 		t.Error("Codex workflow should have 'Ingest agent output' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload Safe Outputs") {
-		t.Error("Codex workflow should have 'Upload Safe Outputs' step (GH_AW_SAFE_OUTPUTS functionality)")
+	// Upload Safe Outputs and Upload sanitized agent output are now merged into the
+	// unified 'agent' artifact — individual upload steps no longer exist.
+	if strings.Contains(lockContent, "- name: Upload Safe Outputs") {
+		t.Error("Upload Safe Outputs should be removed (merged into unified agent artifact)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
-		t.Error("Codex workflow should have 'Upload sanitized agent output' step (GH_AW_SAFE_OUTPUTS functionality)")
+	if strings.Contains(lockContent, "- name: Upload sanitized agent output") {
+		t.Error("Upload sanitized agent output should be removed (merged into unified agent artifact)")
+	}
+
+	// The Copy safe outputs step should be present instead
+	if !strings.Contains(lockContent, "- name: Copy safe outputs") {
+		t.Error("Codex workflow should have 'Copy safe outputs' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS") {
 		t.Error("Codex workflow should reference GH_AW_SAFE_OUTPUTS environment variable")
 	}
 
-	if !strings.Contains(lockContent, "name: "+constants.SafeOutputArtifactName) {
-		t.Errorf("Codex workflow should reference %s artifact (GH_AW_SAFE_OUTPUTS)", constants.SafeOutputArtifactName)
+	// Safe outputs are now in the unified agent artifact, not a separate safe-output artifact
+	if strings.Contains(lockContent, "name: safe-output\n") {
+		t.Errorf("Safe outputs should now be in the unified agent artifact, not a separate '%s' artifact", constants.SafeOutputArtifactName)
+	}
+	if !strings.Contains(lockContent, "name: agent\n") {
+		t.Error("Codex workflow should reference unified 'agent' artifact")
 	}
 
 	// Verify that job outputs section includes output for GH_AW_SAFE_OUTPUTS
@@ -195,14 +216,19 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 		t.Error("Codex workflow should have job output declaration for 'has_patch'")
 	}
 
-	// Verify that Codex workflow DOES have engine output collection steps
-	// (because GetDeclaredOutputFiles returns a non-empty list)
-	if !strings.Contains(lockContent, "- name: Upload engine output files") {
-		t.Error("Codex workflow should have 'Upload engine output files' step")
+	// Verify that Codex engine output files are now included in the unified agent artifact
+	// (no separate agent_outputs artifact upload step)
+	if strings.Contains(lockContent, "- name: Upload engine output files") {
+		t.Error("Codex workflow should NOT have separate 'Upload engine output files' step (merged into unified agent artifact)")
 	}
 
-	if !strings.Contains(lockContent, "name: agent_outputs") {
-		t.Error("Codex workflow should reference 'agent_outputs' artifact")
+	if strings.Contains(lockContent, "name: agent_outputs") {
+		t.Error("Codex workflow should NOT reference 'agent_outputs' artifact (merged into unified agent artifact)")
+	}
+
+	// Engine output paths should appear in the unified artifact paths
+	if !strings.Contains(lockContent, "name: agent\n") {
+		t.Error("Codex workflow should reference unified 'agent' artifact containing engine output files")
 	}
 
 	// Verify that the Codex execution step is still present
@@ -210,7 +236,7 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 		t.Error("Expected 'Execute Codex' step to be in generated workflow")
 	}
 
-	t.Log("Codex workflow correctly includes both GH_AW_SAFE_OUTPUTS functionality and engine output collection")
+	t.Log("Codex workflow correctly uses unified agent artifact for safe outputs and engine output files")
 }
 
 func TestEngineOutputFileDeclarations(t *testing.T) {
@@ -608,17 +634,28 @@ This workflow tests that the redacted URLs log file is included in artifact uplo
 	}
 	lockStr := string(lockContent)
 
-	// Verify that Upload engine output files step exists
-	if !strings.Contains(lockStr, "- name: Upload engine output files") {
-		t.Error("Expected 'Upload engine output files' step to be in generated workflow")
+	// Verify that Upload engine output files step NO LONGER exists (merged into unified artifact)
+	if strings.Contains(lockStr, "- name: Upload engine output files") {
+		t.Error("'Upload engine output files' step should be removed (merged into unified agent artifact)")
 	}
 
-	// Verify that the redacted URLs log path is included in the artifact paths
+	// Verify that the engine output path is present in the unified artifact upload paths.
+	// Copilot engine declares /tmp/gh-aw/sandbox/agent/logs/ as its output path.
+	if !strings.Contains(lockStr, "/tmp/gh-aw/sandbox/agent/logs/") {
+		t.Error("Expected Copilot engine output path '/tmp/gh-aw/sandbox/agent/logs/' to be in unified agent artifact upload paths")
+	}
+
+	// Verify that the redacted URLs log path is included in the unified artifact paths
 	if !strings.Contains(lockStr, RedactedURLsLogPath) {
-		t.Errorf("Expected '%s' to be included in artifact upload paths", RedactedURLsLogPath)
+		t.Errorf("Expected '%s' to be included in unified agent artifact upload paths", RedactedURLsLogPath)
 	}
 
-	t.Log("Successfully verified that redacted URLs log path is included in engine output collection")
+	// Verify the unified agent artifact name is used
+	if !strings.Contains(lockStr, "name: agent\n") {
+		t.Error("Expected unified 'agent' artifact name in generated workflow")
+	}
+
+	t.Log("Successfully verified that redacted URLs log path is included in the unified agent artifact")
 }
 
 func TestGeminiEngineOutputFilesGeneratedByCompiler(t *testing.T) {
@@ -659,20 +696,24 @@ This workflow tests that the Gemini engine error log wildcard is uploaded as an 
 	}
 	lockStr := string(lockContent)
 
-	// Verify that the compiler generates the Upload engine output files step
-	if !strings.Contains(lockStr, "- name: Upload engine output files") {
-		t.Error("Gemini workflow should have 'Upload engine output files' step generated by compiler")
+	// Verify that the compiler does NOT generate a separate Upload engine output files step
+	// (engine output paths are now merged into the unified agent artifact)
+	if strings.Contains(lockStr, "- name: Upload engine output files") {
+		t.Error("Gemini workflow should NOT have separate 'Upload engine output files' step (merged into unified agent artifact)")
 	}
 
-	// Verify that the Gemini error log wildcard path is included in the artifact upload
+	// Verify that the Gemini error log wildcard path is included in the unified artifact upload
 	if !strings.Contains(lockStr, "/tmp/gemini-client-error-*.json") {
-		t.Error("Gemini workflow should include '/tmp/gemini-client-error-*.json' in engine output artifact upload")
+		t.Error("Gemini workflow should include '/tmp/gemini-client-error-*.json' in unified agent artifact upload")
 	}
 
-	// Verify that the artifact name is agent_outputs
-	if !strings.Contains(lockStr, "name: agent_outputs") {
-		t.Error("Gemini engine output artifact should use 'agent_outputs' name")
+	// Verify that the unified agent artifact name is used (not separate agent_outputs)
+	if strings.Contains(lockStr, "name: agent_outputs") {
+		t.Error("Gemini engine output should be in unified 'agent' artifact, not separate 'agent_outputs'")
+	}
+	if !strings.Contains(lockStr, "name: agent\n") {
+		t.Error("Gemini workflow should use unified 'agent' artifact name")
 	}
 
-	t.Log("Successfully verified that Gemini engine error log wildcard is included in engine output collection")
+	t.Log("Successfully verified that Gemini engine error log wildcard is included in the unified agent artifact")
 }

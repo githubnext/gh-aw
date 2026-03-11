@@ -633,7 +633,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 		"name: Upload threat detection log",
 		"if: always()",
 		"uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f",
-		"name: threat-detection.log",
+		"name: " + constants.DetectionArtifactName,
 		"path: /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
 	}
@@ -668,8 +668,8 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 		t.Error("Expected inline detection steps to include upload detection log step")
 	}
 
-	if !strings.Contains(stepsString, "threat-detection.log") {
-		t.Error("Expected inline detection steps to include threat-detection.log artifact name")
+	if !strings.Contains(stepsString, "detection") {
+		t.Error("Expected inline detection steps to include detection artifact name")
 	}
 
 	// Verify it ignores missing files

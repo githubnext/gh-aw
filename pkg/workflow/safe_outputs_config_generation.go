@@ -121,6 +121,17 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				1, // default max
 			)
 		}
+		if data.SafeOutputs.ReplyToPullRequestReviewComment != nil {
+			additionalFields := newHandlerConfigBuilder().
+				AddTemplatableBool("footer", data.SafeOutputs.ReplyToPullRequestReviewComment.Footer).
+				Build()
+			safeOutputsConfig["reply_to_pull_request_review_comment"] = generateTargetConfigWithRepos(
+				data.SafeOutputs.ReplyToPullRequestReviewComment.SafeOutputTargetConfig,
+				data.SafeOutputs.ReplyToPullRequestReviewComment.Max,
+				10, // default max
+				additionalFields,
+			)
+		}
 		if data.SafeOutputs.ResolvePullRequestReviewThread != nil {
 			safeOutputsConfig["resolve_pull_request_review_thread"] = generateMaxConfig(
 				data.SafeOutputs.ResolvePullRequestReviewThread.Max,
