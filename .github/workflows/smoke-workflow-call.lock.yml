@@ -107,7 +107,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Cross-repo setup guidance
-        if: failure() && github.event_name == 'workflow_call'
+        if: failure() && steps.resolve-host-repo.outputs.target_repo != github.repository
         run: |
           echo "::error::COPILOT_GITHUB_TOKEN must be configured in the CALLER repository's secrets."
           echo "::error::For cross-repo workflow_call, secrets must be set in the repository that triggers the workflow."

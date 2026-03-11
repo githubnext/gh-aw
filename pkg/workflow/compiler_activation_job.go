@@ -80,12 +80,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	// Add cross-repo setup guidance when workflow_call is a trigger.
-	// This step only runs when secret validation fails in a workflow_call context,
+	// This step only runs when secret validation fails in a cross-repo context,
 	// providing actionable guidance to the caller team about configuring secrets.
+	// Use steps.resolve-host-repo.outputs.target_repo != github.repository instead of
+	// github.event_name == 'workflow_call': the latter never fires for event-driven relays
+	// (issue_comment/push → workflow_call) where the event_name is the originating event.
 	if hasWorkflowCallTrigger(data.On) {
 		compilerActivationJobLog.Print("Adding cross-repo setup guidance step for workflow_call trigger")
 		steps = append(steps, "      - name: Cross-repo setup guidance\n")
-		steps = append(steps, "        if: failure() && github.event_name == 'workflow_call'\n")
+		steps = append(steps, "        if: failure() && steps.resolve-host-repo.outputs.target_repo != github.repository\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          echo \"::error::COPILOT_GITHUB_TOKEN must be configured in the CALLER repository's secrets.\"\n")
 		steps = append(steps, "          echo \"::error::For cross-repo workflow_call, secrets must be set in the repository that triggers the workflow.\"\n")
