@@ -319,6 +319,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (repoSlug) {
       patchOptions.repoSlug = repoSlug;
     }
+    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
+    // Falls back to GITHUB_TOKEN if not set.
+    if (prConfig["github-token"]) {
+      patchOptions.token = prConfig["github-token"];
+    }
     const patchResult = await generateGitPatch(entry.branch, baseBranch, patchOptions);
 
     if (!patchResult.success) {
@@ -423,7 +428,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Incremental mode only includes commits since origin/branchName,
     // preventing patches that include already-existing commits
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
-    const patchResult = await generateGitPatch(entry.branch, baseBranch, { mode: "incremental" });
+    // Pass per-handler token so cross-repo PATs are used for git fetch when configured.
+    // Falls back to GITHUB_TOKEN if not set.
+    const pushPatchOptions = { mode: "incremental" };
+    if (pushConfig["github-token"]) {
+      pushPatchOptions.token = pushConfig["github-token"];
+    }
+    const patchResult = await generateGitPatch(entry.branch, baseBranch, pushPatchOptions);
 
     if (!patchResult.success) {
       // Patch generation failed or patch is empty
