@@ -181,64 +181,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	return nil
 }
 
-// generateJobName converts a workflow name to a valid YAML job identifier
-func (c *Compiler) generateJobName(workflowName string) string {
-	// Convert to lowercase and replace spaces and special characters with hyphens
-	jobName := strings.ToLower(workflowName)
-
-	// Replace spaces and common punctuation with hyphens
-	jobName = strings.ReplaceAll(jobName, " ", "-")
-	jobName = strings.ReplaceAll(jobName, ":", "-")
-	jobName = strings.ReplaceAll(jobName, ".", "-")
-	jobName = strings.ReplaceAll(jobName, ",", "-")
-	jobName = strings.ReplaceAll(jobName, "(", "-")
-	jobName = strings.ReplaceAll(jobName, ")", "-")
-	jobName = strings.ReplaceAll(jobName, "/", "-")
-	jobName = strings.ReplaceAll(jobName, "\\", "-")
-	jobName = strings.ReplaceAll(jobName, "@", "-")
-	jobName = strings.ReplaceAll(jobName, "'", "")
-	jobName = strings.ReplaceAll(jobName, "\"", "")
-
-	// Remove multiple consecutive hyphens
-	for strings.Contains(jobName, "--") {
-		jobName = strings.ReplaceAll(jobName, "--", "-")
-	}
-
-	// Remove leading/trailing hyphens
-	jobName = strings.Trim(jobName, "-")
-
-	// Ensure it's not empty and starts with a letter or underscore
-	if jobName == "" || (!strings.ContainsAny(string(jobName[0]), "abcdefghijklmnopqrstuvwxyz_")) {
-		jobName = "workflow-" + jobName
-	}
-
-	return jobName
-}
-
-// mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts
-func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConfig, includedContentJSON string) (map[string]*SafeJobConfig, error) {
-	if includedContentJSON == "" || includedContentJSON == "{}" {
-		return topSafeJobs, nil
-	}
-
-	// Parse the included content as frontmatter to extract safe-jobs
-	var includedContent map[string]any
-	if err := json.Unmarshal([]byte(includedContentJSON), &includedContent); err != nil {
-		return topSafeJobs, nil // Return original safe-jobs if parsing fails
-	}
-
-	// Extract safe-jobs from the included content
-	includedSafeJobs := extractSafeJobsFromFrontmatter(includedContent)
-
-	// Merge with conflict detection
-	mergedSafeJobs, err := mergeSafeJobs(topSafeJobs, includedSafeJobs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to merge safe-jobs: %w", err)
-	}
-
-	return mergedSafeJobs, nil
-}
-
 // mergeSafeJobsFromIncludedConfigs merges safe-jobs from included safe-outputs configurations
 func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*SafeJobConfig, includedConfigs []string) (map[string]*SafeJobConfig, error) {
 	compilerSafeOutputsLog.Printf("Merging safe-jobs from included configs: includedCount=%d", len(includedConfigs))
