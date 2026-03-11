@@ -36,6 +36,15 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
 
+	// Validate and register inline engine definitions (engine.runtime sub-object).
+	// Must happen before catalog resolution so the inline definition is visible to Resolve().
+	if engineConfig != nil && engineConfig.IsInlineDefinition {
+		if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
+			return nil, err
+		}
+		c.registerInlineEngineDefinition(engineConfig)
+	}
+
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 

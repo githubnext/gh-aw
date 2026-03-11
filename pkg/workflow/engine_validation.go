@@ -44,6 +44,80 @@ import (
 
 var engineValidationLog = newValidationLogger("engine")
 
+// validateEngineInlineDefinition validates an inline engine definition parsed from
+// engine.runtime + optional engine.provider in the workflow frontmatter.
+// Returns an error if:
+//   - The required runtime.id field is missing
+//   - The runtime.id does not match a known runtime adapter
+func (c *Compiler) validateEngineInlineDefinition(config *EngineConfig) error {
+	if !config.IsInlineDefinition {
+		return nil
+	}
+
+	engineValidationLog.Printf("Validating inline engine definition: runtimeID=%s", config.ID)
+
+	if config.ID == "" {
+		return fmt.Errorf("inline engine definition is missing required 'runtime.id' field.\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
+	// Validate that runtime.id maps to a known runtime adapter.
+	if !c.engineRegistry.IsValidEngine(config.ID) {
+		// Try prefix match for backward compatibility (e.g. "codex-experimental")
+		if matched, err := c.engineRegistry.GetEngineByPrefix(config.ID); err == nil {
+			engineValidationLog.Printf("Inline engine runtime.id %q matched via prefix to runtime %q", config.ID, matched.GetID())
+		} else {
+			validEngines := c.engineRegistry.GetSupportedEngines()
+			suggestions := parser.FindClosestMatches(config.ID, validEngines, 1)
+			enginesStr := strings.Join(validEngines, ", ")
+
+			errMsg := fmt.Sprintf("inline engine definition references unknown runtime.id: %s. Known runtime IDs are: %s.\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s",
+				config.ID, enginesStr, constants.DocsEnginesURL)
+			if len(suggestions) > 0 {
+				errMsg = fmt.Sprintf("inline engine definition references unknown runtime.id: %s. Known runtime IDs are: %s.\n\nDid you mean: %s?\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s",
+					config.ID, enginesStr, suggestions[0], constants.DocsEnginesURL)
+			}
+			return fmt.Errorf("%s", errMsg)
+		}
+	}
+
+	return nil
+}
+
+// registerInlineEngineDefinition registers an inline engine definition in the session
+// catalog. If the runtime ID already exists in the catalog (e.g. a built-in), the
+// existing display name and description are preserved while provider overrides are applied.
+func (c *Compiler) registerInlineEngineDefinition(config *EngineConfig) {
+	def := &EngineDefinition{
+		ID:          config.ID,
+		RuntimeID:   config.ID,
+		DisplayName: config.ID,
+		Description: "Inline engine definition from workflow frontmatter",
+	}
+
+	// Preserve display name and description from existing built-in entry if available.
+	if existing := c.engineCatalog.Get(config.ID); existing != nil {
+		def.DisplayName = existing.DisplayName
+		def.Description = existing.Description
+		def.Models = existing.Models
+		// Copy existing provider/auth as defaults; inline values below fully replace them
+		// when present (replacement, not merge).
+		def.Provider = existing.Provider
+		def.Auth = existing.Auth
+	}
+
+	// Apply inline provider overrides.
+	if config.InlineProviderID != "" {
+		def.Provider = ProviderSelection{Name: config.InlineProviderID}
+	}
+	if config.InlineProviderSecret != "" {
+		def.Auth = []AuthBinding{{Role: "api-key", Secret: config.InlineProviderSecret}}
+	}
+
+	engineValidationLog.Printf("Registering inline engine definition in session catalog: id=%s, runtimeID=%s, providerID=%s",
+		def.ID, def.RuntimeID, def.Provider.Name)
+	c.engineCatalog.Register(def)
+}
+
 // validateEngine validates that the given engine ID is supported
 func (c *Compiler) validateEngine(engineID string) error {
 	if engineID == "" {

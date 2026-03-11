@@ -61,9 +61,9 @@ func TestEngineCatalog_All(t *testing.T) {
 	}
 }
 
-// engineSchemaEnums parses the main workflow schema and extracts engine enum values
-// from both the string variant and the object id property of engine_config.
-func engineSchemaEnums(t *testing.T) []string {
+// engineSchemaOneOfVariants parses the main workflow schema and returns the
+// type identifiers of each variant in engine_config.oneOf for structural assertions.
+func engineSchemaOneOfVariants(t *testing.T) []map[string]any {
 	t.Helper()
 
 	schemaBytes, err := os.ReadFile("../parser/schemas/main_workflow_schema.json")
@@ -81,40 +81,63 @@ func engineSchemaEnums(t *testing.T) []string {
 	oneOf, ok := engineConfig["oneOf"].([]any)
 	require.True(t, ok, "engine_config should have oneOf")
 
-	// The first oneOf variant is the plain string enum
-	for _, variant := range oneOf {
-		v, ok := variant.(map[string]any)
-		if !ok {
-			continue
-		}
-		if v["type"] == "string" {
-			rawEnum, ok := v["enum"].([]any)
-			if !ok {
-				continue
-			}
-			enums := make([]string, 0, len(rawEnum))
-			for _, e := range rawEnum {
-				if s, ok := e.(string); ok {
-					enums = append(enums, s)
-				}
-			}
-			sort.Strings(enums)
-			return enums
+	variants := make([]map[string]any, 0, len(oneOf))
+	for _, v := range oneOf {
+		if m, ok := v.(map[string]any); ok {
+			variants = append(variants, m)
 		}
 	}
-	t.Fatal("could not find string enum in engine_config oneOf")
-	return nil
+	return variants
 }
 
-// TestEngineCatalogMatchesSchema asserts that the schema engine enum values exactly
-// match the catalog IDs. A failure here means the schema and catalog have drifted apart.
-func TestEngineCatalogMatchesSchema(t *testing.T) {
+// TestEngineCatalog_BuiltInsPresent verifies that the four built-in engines are always
+// registered in the catalog with stable IDs.
+func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	catalogIDs := catalog.IDs() // already sorted
-	schemaEnums := engineSchemaEnums(t)
+	expected := []string{"claude", "codex", "copilot", "gemini"}
+	catalogIDs := catalog.IDs()
+	for _, id := range expected {
+		assert.Contains(t, catalogIDs, id,
+			"built-in engine %q must always be present in the catalog", id)
+	}
+}
 
-	assert.Equal(t, catalogIDs, schemaEnums,
-		"schema engine enum must match catalog IDs exactly — run 'make build' after updating the schema")
+// TestEngineCatalogMatchesSchema asserts that the engine_config schema has the expected
+// structure: a plain-string variant (for built-ins and named catalog entries), an
+// object-with-id variant, and an inline-definition variant (object-with-runtime).
+// A failure here means the schema structure has changed unexpectedly.
+func TestEngineCatalogMatchesSchema(t *testing.T) {
+	variants := engineSchemaOneOfVariants(t)
+
+	require.Len(t, variants, 3, "engine_config oneOf should have exactly 3 variants: string, object-with-id, object-with-runtime")
+
+	// Variant 0: plain string (no enum — allows built-ins and custom named catalog entries)
+	assert.Equal(t, "string", variants[0]["type"],
+		"first variant should be type string")
+	assert.Nil(t, variants[0]["enum"],
+		"string variant must NOT have an enum so that named catalog entries are allowed")
+
+	// Variant 1: object with 'id' field for extended engine configuration
+	assert.Equal(t, "object", variants[1]["type"],
+		"second variant should be type object (extended config with id)")
+	props1, ok := variants[1]["properties"].(map[string]any)
+	require.True(t, ok, "second variant should have properties")
+	assert.Contains(t, props1, "id",
+		"second variant should have an 'id' property")
+	idProp, ok := props1["id"].(map[string]any)
+	require.True(t, ok, "id property should be a map")
+	assert.Nil(t, idProp["enum"],
+		"id property must NOT have an enum so that named catalog entries are allowed")
+
+	// Variant 2: object with 'runtime' sub-object for inline definitions
+	assert.Equal(t, "object", variants[2]["type"],
+		"third variant should be type object (inline definition with runtime)")
+	props2, ok := variants[2]["properties"].(map[string]any)
+	require.True(t, ok, "third variant should have properties")
+	assert.Contains(t, props2, "runtime",
+		"third variant should have a 'runtime' property for inline engine definitions")
+	assert.Contains(t, props2, "provider",
+		"third variant should have a 'provider' property for inline engine definitions")
 }

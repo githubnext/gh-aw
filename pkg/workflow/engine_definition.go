@@ -137,6 +137,11 @@ func (c *EngineCatalog) Register(def *EngineDefinition) {
 	c.definitions[def.ID] = def
 }
 
+// Get returns the EngineDefinition for the given ID, or nil if not found.
+func (c *EngineCatalog) Get(id string) *EngineDefinition {
+	return c.definitions[id]
+}
+
 // IDs returns a sorted list of all engine IDs in the catalog.
 func (c *EngineCatalog) IDs() []string {
 	ids := make([]string, 0, len(c.definitions))

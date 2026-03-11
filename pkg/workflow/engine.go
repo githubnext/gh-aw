@@ -26,6 +26,11 @@ type EngineConfig struct {
 	Args             []string
 	Firewall         *FirewallConfig // AWF firewall configuration
 	Agent            string          // Agent identifier for copilot --agent flag (copilot engine only)
+
+	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
+	IsInlineDefinition   bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
+	InlineProviderID     string // engine.provider.id  (e.g. "openai", "anthropic")
+	InlineProviderSecret string // engine.provider.auth.secret  (name of the GitHub Actions secret for the provider API key)
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -86,6 +91,44 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		if engineObj, ok := engine.(map[string]any); ok {
 			engineLog.Print("Found engine in object format, parsing configuration")
 			config := &EngineConfig{}
+
+			// Detect inline definition: engine.runtime sub-object present instead of engine.id
+			if runtime, hasRuntime := engineObj["runtime"]; hasRuntime {
+				engineLog.Print("Found inline engine definition (engine.runtime sub-object)")
+				config.IsInlineDefinition = true
+
+				if runtimeObj, ok := runtime.(map[string]any); ok {
+					if id, ok := runtimeObj["id"].(string); ok {
+						config.ID = id
+						engineLog.Printf("Inline engine runtime.id: %s", config.ID)
+					}
+					if version, hasVersion := runtimeObj["version"]; hasVersion {
+						config.Version = stringutil.ParseVersionValue(version)
+					}
+				}
+
+				// Extract optional provider sub-object
+				if provider, hasProvider := engineObj["provider"]; hasProvider {
+					if providerObj, ok := provider.(map[string]any); ok {
+						if id, ok := providerObj["id"].(string); ok {
+							config.InlineProviderID = id
+						}
+						if model, ok := providerObj["model"].(string); ok {
+							config.Model = model
+						}
+						if auth, hasAuth := providerObj["auth"]; hasAuth {
+							if authObj, ok := auth.(map[string]any); ok {
+								if secret, ok := authObj["secret"].(string); ok {
+									config.InlineProviderSecret = secret
+								}
+							}
+						}
+					}
+				}
+
+				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
+				return config.ID, config
+			}
 
 			// Extract required 'id' field
 			if id, hasID := engineObj["id"]; hasID {
