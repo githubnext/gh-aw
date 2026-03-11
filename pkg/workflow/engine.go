@@ -30,7 +30,15 @@ type EngineConfig struct {
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition   bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
 	InlineProviderID     string // engine.provider.id  (e.g. "openai", "anthropic")
-	InlineProviderSecret string // engine.provider.auth.secret  (name of the GitHub Actions secret for the provider API key)
+	// Deprecated: Use InlineProviderAuth instead. Kept for backwards compatibility when only
+	// engine.provider.auth.secret is specified without a strategy.
+	InlineProviderSecret string // engine.provider.auth.secret  (backwards compat: simple API key secret name)
+
+	// Extended inline auth fields (engine.provider.auth.* beyond the simple secret)
+	InlineProviderAuth *AuthDefinition // full auth definition parsed from engine.provider.auth
+
+	// Extended inline request shaping fields (engine.provider.request.*)
+	InlineProviderRequest *RequestShape // request shaping parsed from engine.provider.request
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -118,9 +126,15 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						}
 						if auth, hasAuth := providerObj["auth"]; hasAuth {
 							if authObj, ok := auth.(map[string]any); ok {
-								if secret, ok := authObj["secret"].(string); ok {
-									config.InlineProviderSecret = secret
-								}
+								authDef := parseAuthDefinition(authObj)
+								config.InlineProviderAuth = authDef
+								// Backwards compat: expose the simple secret field directly.
+								config.InlineProviderSecret = authDef.Secret
+							}
+						}
+						if request, hasRequest := providerObj["request"]; hasRequest {
+							if requestObj, ok := request.(map[string]any); ok {
+								config.InlineProviderRequest = parseRequestShape(requestObj)
 							}
 						}
 					}
@@ -350,4 +364,59 @@ func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig
 
 	_, config := c.ExtractEngineConfig(tempFrontmatter)
 	return config, nil
+}
+
+// parseAuthDefinition converts a raw auth config map (from engine.provider.auth) into
+// an AuthDefinition. It is backward-compatible: a map with only a "secret" key produces
+// an AuthDefinition with Strategy="" and Secret set (callers normalise Strategy to api-key).
+func parseAuthDefinition(authObj map[string]any) *AuthDefinition {
+	def := &AuthDefinition{}
+	if s, ok := authObj["strategy"].(string); ok {
+		def.Strategy = AuthStrategy(s)
+	}
+	if s, ok := authObj["secret"].(string); ok {
+		def.Secret = s
+	}
+	if s, ok := authObj["token-url"].(string); ok {
+		def.TokenURL = s
+	}
+	if s, ok := authObj["client-id"].(string); ok {
+		def.ClientIDRef = s
+	}
+	if s, ok := authObj["client-secret"].(string); ok {
+		def.ClientSecretRef = s
+	}
+	if s, ok := authObj["token-field"].(string); ok {
+		def.TokenField = s
+	}
+	if s, ok := authObj["header-name"].(string); ok {
+		def.HeaderName = s
+	}
+	return def
+}
+
+// parseRequestShape converts a raw request config map (from engine.provider.request) into
+// a RequestShape.
+func parseRequestShape(requestObj map[string]any) *RequestShape {
+	shape := &RequestShape{}
+	if s, ok := requestObj["path-template"].(string); ok {
+		shape.PathTemplate = s
+	}
+	if q, ok := requestObj["query"].(map[string]any); ok {
+		shape.Query = make(map[string]string, len(q))
+		for k, v := range q {
+			if vs, ok := v.(string); ok {
+				shape.Query[k] = vs
+			}
+		}
+	}
+	if b, ok := requestObj["body-inject"].(map[string]any); ok {
+		shape.BodyInject = make(map[string]string, len(b))
+		for k, v := range b {
+			if vs, ok := v.(string); ok {
+				shape.BodyInject[k] = vs
+			}
+		}
+	}
+	return shape
 }

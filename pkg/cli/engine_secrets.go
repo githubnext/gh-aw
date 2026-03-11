@@ -102,6 +102,53 @@ func getEngineSecretDescription(opt *constants.EngineOption) string {
 	}
 }
 
+// secretRequirementsFromAuthDefinition converts an AuthDefinition into SecretRequirement
+// entries so that auth-binding secrets are treated as required secrets (same as built-in
+// engine secrets). Returns nil when auth is nil.
+func secretRequirementsFromAuthDefinition(auth *workflow.AuthDefinition, engineName string) []SecretRequirement {
+	if auth == nil {
+		return nil
+	}
+
+	var reqs []SecretRequirement
+
+	switch auth.Strategy {
+	case workflow.AuthStrategyOAuthClientCreds:
+		// OAuth client-credentials flow: require client-id and client-secret secrets.
+		if auth.ClientIDRef != "" {
+			reqs = append(reqs, SecretRequirement{
+				Name:           auth.ClientIDRef,
+				WhenNeeded:     fmt.Sprintf("OAuth client ID for %s engine", engineName),
+				Description:    "GitHub Actions secret holding the OAuth 2.0 client ID used to obtain access tokens.",
+				IsEngineSecret: true,
+				EngineName:     engineName,
+			})
+		}
+		if auth.ClientSecretRef != "" {
+			reqs = append(reqs, SecretRequirement{
+				Name:           auth.ClientSecretRef,
+				WhenNeeded:     fmt.Sprintf("OAuth client secret for %s engine", engineName),
+				Description:    "GitHub Actions secret holding the OAuth 2.0 client secret used to obtain access tokens.",
+				IsEngineSecret: true,
+				EngineName:     engineName,
+			})
+		}
+	default:
+		// api-key, bearer, or unset strategy: require the direct secret.
+		if auth.Secret != "" {
+			reqs = append(reqs, SecretRequirement{
+				Name:           auth.Secret,
+				WhenNeeded:     fmt.Sprintf("API key or token for %s engine", engineName),
+				Description:    "GitHub Actions secret holding the API key or bearer token for provider authentication.",
+				IsEngineSecret: true,
+				EngineName:     engineName,
+			})
+		}
+	}
+
+	return reqs
+}
+
 // getMissingRequiredSecrets filters requirements to return only missing required secrets.
 // It skips optional secrets and checks both primary and alternative secret names.
 func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets map[string]bool) []SecretRequirement {

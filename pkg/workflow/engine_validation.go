@@ -109,13 +109,77 @@ func (c *Compiler) registerInlineEngineDefinition(config *EngineConfig) {
 	if config.InlineProviderID != "" {
 		def.Provider = ProviderSelection{Name: config.InlineProviderID}
 	}
-	if config.InlineProviderSecret != "" {
+
+	// Prefer the full AuthDefinition over the legacy simple-secret path.
+	if config.InlineProviderAuth != nil {
+		// Normalise strategy: treat empty strategy as api-key when a secret is set.
+		auth := config.InlineProviderAuth
+		if auth.Strategy == "" && auth.Secret != "" {
+			auth.Strategy = AuthStrategyAPIKey
+		}
+		def.Provider.Auth = auth
+		// Keep legacy AuthBinding in sync for callers that still read def.Auth.
+		if auth.Secret != "" {
+			def.Auth = []AuthBinding{{Role: string(auth.Strategy), Secret: auth.Secret}}
+		}
+	} else if config.InlineProviderSecret != "" {
 		def.Auth = []AuthBinding{{Role: "api-key", Secret: config.InlineProviderSecret}}
+	}
+
+	if config.InlineProviderRequest != nil {
+		def.Provider.Request = config.InlineProviderRequest
 	}
 
 	engineValidationLog.Printf("Registering inline engine definition in session catalog: id=%s, runtimeID=%s, providerID=%s",
 		def.ID, def.RuntimeID, def.Provider.Name)
 	c.engineCatalog.Register(def)
+}
+
+// validateEngineAuthDefinition validates AuthDefinition fields for an inline engine definition.
+// Returns an error describing the first (or all, in non-fail-fast mode) validation problems found.
+func (c *Compiler) validateEngineAuthDefinition(config *EngineConfig) error {
+	auth := config.InlineProviderAuth
+	if auth == nil {
+		return nil
+	}
+
+	engineValidationLog.Printf("Validating engine auth definition: strategy=%s", auth.Strategy)
+
+	switch auth.Strategy {
+	case AuthStrategyOAuthClientCreds:
+		// oauth-client-credentials requires tokenUrl, clientId, clientSecret.
+		if auth.TokenURL == "" {
+			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.token-url' to be set.\n\nExample:\nengine:\n  runtime:\n    id: codex\n  provider:\n    auth:\n      strategy: oauth-client-credentials\n      token-url: https://auth.example.com/oauth/token\n      client-id: MY_CLIENT_ID_SECRET\n      client-secret: MY_CLIENT_SECRET_SECRET\n\nSee: %s", constants.DocsEnginesURL)
+		}
+		if auth.ClientIDRef == "" {
+			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.client-id' to be set.\n\nSee: %s", constants.DocsEnginesURL)
+		}
+		if auth.ClientSecretRef == "" {
+			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.client-secret' to be set.\n\nSee: %s", constants.DocsEnginesURL)
+		}
+		// For oauth, header-name is required (the token must go somewhere).
+		if auth.HeaderName == "" {
+			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.header-name' to be set (e.g. 'api-key' or 'Authorization').\n\nSee: %s", constants.DocsEnginesURL)
+		}
+	case AuthStrategyAPIKey:
+		// api-key requires a header-name so the caller knows where to inject the key.
+		if auth.HeaderName == "" {
+			return fmt.Errorf("engine auth: strategy 'api-key' requires 'auth.header-name' to be set (e.g. 'api-key' or 'x-api-key').\n\nSee: %s", constants.DocsEnginesURL)
+		}
+	case AuthStrategyBearer, "":
+		// bearer strategy and unset strategy (simple backwards-compat secret) need no extra fields.
+	default:
+		validStrategies := []string{
+			string(AuthStrategyAPIKey),
+			string(AuthStrategyOAuthClientCreds),
+			string(AuthStrategyBearer),
+		}
+		return fmt.Errorf("engine auth: unknown strategy %q. Valid strategies are: %s.\n\nSee: %s",
+			auth.Strategy, strings.Join(validStrategies, ", "), constants.DocsEnginesURL)
+	}
+
+	engineValidationLog.Printf("Engine auth definition is valid: strategy=%s", auth.Strategy)
+	return nil
 }
 
 // validateEngine validates that the given engine ID is supported

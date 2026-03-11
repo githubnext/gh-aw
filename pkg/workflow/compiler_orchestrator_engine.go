@@ -42,6 +42,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
 			return nil, err
 		}
+		if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
+			return nil, err
+		}
 		c.registerInlineEngineDefinition(engineConfig)
 	}
 

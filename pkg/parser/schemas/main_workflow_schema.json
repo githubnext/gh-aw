@@ -7799,6 +7799,28 @@
           "provider": {
             "model": "claude-3-7-sonnet-20250219"
           }
+        },
+        {
+          "runtime": {
+            "id": "codex"
+          },
+          "provider": {
+            "id": "azure-openai",
+            "model": "gpt-4o",
+            "auth": {
+              "strategy": "oauth-client-credentials",
+              "token-url": "https://auth.example.com/oauth/token",
+              "client-id": "AZURE_CLIENT_ID",
+              "client-secret": "AZURE_CLIENT_SECRET",
+              "header-name": "api-key"
+            },
+            "request": {
+              "path-template": "/openai/deployments/{model}/chat/completions",
+              "query": {
+                "api-version": "2024-10-01-preview"
+              }
+            }
+          }
         }
       ],
       "oneOf": [
@@ -7978,6 +8000,72 @@
                       "type": "string",
                       "description": "Name of the GitHub Actions secret that contains the API key for this provider",
                       "examples": ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "CUSTOM_API_KEY"]
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "enum": ["api-key", "oauth-client-credentials", "bearer"],
+                      "description": "Authentication strategy for the provider (default: api-key when secret is set)"
+                    },
+                    "token-url": {
+                      "type": "string",
+                      "description": "OAuth 2.0 token endpoint URL. Required when strategy is 'oauth-client-credentials'.",
+                      "examples": ["https://auth.example.com/oauth/token"]
+                    },
+                    "client-id": {
+                      "type": "string",
+                      "description": "GitHub Actions secret name that holds the OAuth client ID. Required when strategy is 'oauth-client-credentials'.",
+                      "examples": ["OAUTH_CLIENT_ID"]
+                    },
+                    "client-secret": {
+                      "type": "string",
+                      "description": "GitHub Actions secret name that holds the OAuth client secret. Required when strategy is 'oauth-client-credentials'.",
+                      "examples": ["OAUTH_CLIENT_SECRET"]
+                    },
+                    "token-field": {
+                      "type": "string",
+                      "description": "JSON field name in the token response that contains the access token. Defaults to 'access_token'.",
+                      "examples": ["access_token", "token"]
+                    },
+                    "header-name": {
+                      "type": "string",
+                      "description": "HTTP header name to inject the API key or token into (e.g. 'api-key', 'x-api-key'). Required when strategy is not 'bearer'.",
+                      "examples": ["api-key", "x-api-key", "Authorization"]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "request": {
+                  "type": "object",
+                  "description": "Request shaping configuration for non-standard provider URL and body transformations",
+                  "properties": {
+                    "path-template": {
+                      "type": "string",
+                      "description": "URL path template with {model} and other variable placeholders (e.g. '/openai/deployments/{model}/chat/completions')",
+                      "examples": ["/openai/deployments/{model}/chat/completions"]
+                    },
+                    "query": {
+                      "type": "object",
+                      "description": "Static or template query-parameter values appended to every request",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "examples": [
+                        {
+                          "api-version": "2024-10-01-preview"
+                        }
+                      ]
+                    },
+                    "body-inject": {
+                      "type": "object",
+                      "description": "Key/value pairs injected into the JSON request body before sending",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "examples": [
+                        {
+                          "appKey": "{APP_KEY_SECRET}"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false

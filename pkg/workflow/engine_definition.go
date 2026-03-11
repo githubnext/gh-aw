@@ -36,9 +36,77 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
+// AuthStrategy identifies how an engine authenticates with its provider.
+type AuthStrategy string
+
+const (
+	// AuthStrategyAPIKey uses a direct API key sent via a header (default when Secret is set).
+	AuthStrategyAPIKey AuthStrategy = "api-key"
+	// AuthStrategyOAuthClientCreds exchanges client credentials for a bearer token before each call.
+	AuthStrategyOAuthClientCreds AuthStrategy = "oauth-client-credentials"
+	// AuthStrategyBearer sends a pre-obtained token as a standard Authorization: Bearer header.
+	AuthStrategyBearer AuthStrategy = "bearer"
+)
+
+// AuthDefinition describes how the engine authenticates with a provider backend.
+// It extends the simple AuthBinding model to support OAuth client-credentials flows,
+// custom header injection, and template-based secret references.
+//
+// For backwards compatibility, a plain auth.secret field without a strategy is treated as
+// AuthStrategyAPIKey.
+type AuthDefinition struct {
+	// Strategy selects the authentication flow (api-key, oauth-client-credentials, bearer).
+	// Defaults to api-key when Secret is non-empty and Strategy is unset.
+	Strategy AuthStrategy
+
+	// Secret is the env-var / GitHub Actions secret name that holds the raw API key or token.
+	// Required for api-key and bearer strategies.
+	Secret string
+
+	// TokenURL is the OAuth token endpoint (e.g. "https://auth.example.com/oauth/token").
+	// Required for oauth-client-credentials strategy.
+	TokenURL string
+
+	// ClientIDRef is the secret name that holds the OAuth client ID.
+	// Required for oauth-client-credentials strategy.
+	ClientIDRef string
+
+	// ClientSecretRef is the secret name that holds the OAuth client secret.
+	// Required for oauth-client-credentials strategy.
+	ClientSecretRef string
+
+	// TokenField is the JSON field name in the token response that contains the access token.
+	// Defaults to "access_token" when empty.
+	TokenField string
+
+	// HeaderName is the HTTP header to inject the token into (e.g. "api-key").
+	// Required when strategy is not bearer (bearer always uses Authorization header).
+	HeaderName string
+}
+
+// RequestShape describes non-standard URL and body transformations applied to each
+// API call before it is sent to the provider backend.
+type RequestShape struct {
+	// PathTemplate is a URL path template with {model} and other variable placeholders
+	// (e.g. "/openai/deployments/{model}/chat/completions").
+	PathTemplate string
+
+	// Query holds static or template query-parameter values appended to every request
+	// (e.g. {"api-version": "2024-10-01-preview"}).
+	Query map[string]string
+
+	// BodyInject holds key/value pairs injected into the JSON request body before sending
+	// (e.g. {"appKey": "{APP_KEY_SECRET}"}).
+	BodyInject map[string]string
+}
+
 // ProviderSelection identifies the AI provider for an engine (e.g. "anthropic", "openai").
+// It optionally carries advanced authentication and request-shaping configuration for
+// non-standard backends.
 type ProviderSelection struct {
-	Name string
+	Name    string
+	Auth    *AuthDefinition
+	Request *RequestShape
 }
 
 // ModelSelection specifies the default and supported models for an engine.
@@ -51,6 +119,30 @@ type ModelSelection struct {
 type AuthBinding struct {
 	Role   string
 	Secret string
+}
+
+// RequiredSecretNames returns the env-var names that must be provided at runtime for
+// this AuthDefinition. Returns an empty slice when Auth is nil.
+func (a *AuthDefinition) RequiredSecretNames() []string {
+	if a == nil {
+		return nil
+	}
+	var secrets []string
+	switch a.Strategy {
+	case AuthStrategyOAuthClientCreds:
+		if a.ClientIDRef != "" {
+			secrets = append(secrets, a.ClientIDRef)
+		}
+		if a.ClientSecretRef != "" {
+			secrets = append(secrets, a.ClientSecretRef)
+		}
+	default:
+		// api-key, bearer, or unset strategy – Secret is the raw credential.
+		if a.Secret != "" {
+			secrets = append(secrets, a.Secret)
+		}
+	}
+	return secrets
 }
 
 // EngineDefinition holds the declarative metadata for an AI engine.
