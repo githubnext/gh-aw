@@ -197,6 +197,19 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 			return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
 		}
 		engineConfig = extractedConfig
+
+		// If the imported engine is an inline definition (engine.runtime sub-object),
+		// validate and register it in the catalog. This mirrors the handling for inline
+		// definitions declared directly in the main workflow (above).
+		if engineConfig != nil && engineConfig.IsInlineDefinition {
+			if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
+				return nil, err
+			}
+			if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
+				return nil, err
+			}
+			c.registerInlineEngineDefinition(engineConfig)
+		}
 	}
 
 	// Apply the default AI engine setting if not specified

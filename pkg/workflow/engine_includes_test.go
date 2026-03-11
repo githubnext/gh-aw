@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
@@ -629,4 +631,67 @@ func TestExtractEngineConfigFromJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestImportedInlineEngineDefinition tests that an inline engine definition
+// (engine.runtime sub-object) in a shared/imported workflow is correctly
+// validated and registered when the importing workflow compiles.
+func TestImportedInlineEngineDefinition(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-inline-engine-import-*")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	// Shared file defines a custom engine via engine.runtime (inline definition)
+	sharedContent := `---
+engine:
+  runtime:
+    id: codex
+  provider:
+    id: openai
+    auth:
+      secret: CODEX_API_KEY
+---
+
+# Shared custom engine config
+`
+	sharedFile := filepath.Join(sharedDir, "custom-engine.md")
+	require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0644))
+
+	// Main workflow imports the shared file; it has no engine key of its own
+	mainContent := `---
+name: Test Imported Inline Engine
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+imports:
+  - shared/custom-engine.md
+---
+
+# Test Workflow
+
+Imports a custom inline engine definition from a shared workflow.
+`
+	mainFile := filepath.Join(workflowsDir, "test-imported-inline-engine.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(mainFile)
+	require.NoError(t, err, "compilation should succeed when inline engine is imported from shared workflow")
+
+	lockFile := filepath.Join(workflowsDir, "test-imported-inline-engine.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "lock file should be created")
+
+	// Lock file should reference codex execution (inline definition resolved to codex runtime)
+	lockStr := string(lockContent)
+	assert.Contains(t, lockStr, "Install Codex",
+		"lock file should contain Codex installation step")
+	assert.Contains(t, lockStr, `GH_AW_INFO_ENGINE_ID: "codex"`,
+		"lock file should set engine ID to codex")
+	assert.Contains(t, lockStr, "codex ${",
+		"lock file should contain codex exec invocation")
 }

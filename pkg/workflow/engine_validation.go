@@ -282,10 +282,20 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	if engineStr, ok := firstEngine.(string); ok {
 		return engineStr, nil
 	} else if engineObj, ok := firstEngine.(map[string]any); ok {
-		// Handle object format - return the ID
+		// Handle object format: either engine.id (named engine) or engine.runtime.id (inline definition)
 		if id, hasID := engineObj["id"]; hasID {
 			if idStr, ok := id.(string); ok {
 				return idStr, nil
+			}
+		}
+		// Handle inline definition with 'runtime' sub-object (engine.runtime.id)
+		if runtime, hasRuntime := engineObj["runtime"]; hasRuntime {
+			if runtimeObj, ok := runtime.(map[string]any); ok {
+				if id, hasID := runtimeObj["id"]; hasID {
+					if idStr, ok := id.(string); ok {
+						return idStr, nil
+					}
+				}
 			}
 		}
 	}
