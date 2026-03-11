@@ -7622,14 +7622,40 @@
       ]
     },
     "dependencies": {
-      "description": "List of APM package references to install (e.g., 'org/repo' or 'org/repo/path/to/skill').",
-      "examples": [["microsoft/apm-sample-package", "acme/custom-tools"]],
-      "type": "array",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
-        "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
-      }
+      "description": "APM package references to install. Supports array format (list of package slugs) or object format with packages and isolated fields.",
+      "examples": [["microsoft/apm-sample-package", "acme/custom-tools"], { "packages": ["microsoft/apm-sample-package"], "isolated": true }],
+      "oneOf": [
+        {
+          "type": "array",
+          "description": "Simple array of APM package references.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+            "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Object format with packages and optional isolated flag.",
+          "properties": {
+            "packages": {
+              "type": "array",
+              "description": "List of APM package references to install.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+$",
+                "description": "APM package reference in the format 'org/repo' or 'org/repo/path/to/skill'"
+              }
+            },
+            "isolated": {
+              "type": "boolean",
+              "description": "If true, agent restore step clears primitive dirs before unpacking."
+            }
+          },
+          "required": ["packages"],
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "additionalProperties": false,

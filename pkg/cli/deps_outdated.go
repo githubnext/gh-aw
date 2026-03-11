@@ -2,12 +2,10 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -136,71 +134,20 @@ func DisplayOutdatedDependencies(outdated []OutdatedDependency, totalDeps int) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(summary))
 }
 
-// findGoMod locates the go.mod file in the repository
-func findGoMod() (string, error) {
-	// Try current directory first
-	if _, err := os.Stat("go.mod"); err == nil {
-		return filepath.Abs("go.mod")
-	}
-
-	// Try git root
-	root, err := findGitRoot()
-	if err != nil {
-		return "", errors.New("not in a Go module (no go.mod found)")
-	}
-
-	goModPath := filepath.Join(root, "go.mod")
-	if _, err := os.Stat(goModPath); err != nil {
-		return "", errors.New("not in a Go module (no go.mod found)")
-	}
-
-	return goModPath, nil
-}
-
-// parseGoMod extracts dependency information from go.mod
+// parseGoMod extracts direct dependency information from go.mod.
+// Indirect dependencies are filtered out; use parseGoModFile for all dependencies.
 func parseGoMod(path string) ([]DependencyInfo, error) {
-	content, err := os.ReadFile(path)
+	all, err := parseGoModFile(path)
 	if err != nil {
 		return nil, err
 	}
 
 	var deps []DependencyInfo
-	lines := strings.Split(string(content), "\n")
-	inRequire := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// Track require block
-		if strings.HasPrefix(line, "require (") {
-			inRequire = true
-			continue
-		}
-		if inRequire && line == ")" {
-			inRequire = false
-			continue
-		}
-
-		// Parse dependency line
-		if inRequire || strings.HasPrefix(line, "require ") {
-			// Remove "require " prefix if present
-			line = strings.TrimPrefix(line, "require ")
-
-			// Skip lines with // indirect comment (indirect dependencies)
-			if strings.Contains(line, "// indirect") {
-				continue
-			}
-
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				deps = append(deps, DependencyInfo{
-					Path:    parts[0],
-					Version: parts[1],
-				})
-			}
+	for _, d := range all {
+		if !d.Indirect {
+			deps = append(deps, d.DependencyInfo)
 		}
 	}
-
 	return deps, nil
 }
 

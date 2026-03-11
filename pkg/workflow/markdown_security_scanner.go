@@ -30,6 +30,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var markdownSecurityLog = logger.New("workflow:markdown_security_scanner")
@@ -257,7 +258,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 					Category:    CategoryUnicodeAbuse,
 					Description: "contains invisible character: " + name,
 					Line:        lineNo,
-					Snippet:     truncateSnippet(line, 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 				})
 			}
 
@@ -266,7 +267,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 					Category:    CategoryUnicodeAbuse,
 					Description: "contains bidirectional override character: " + name,
 					Line:        lineNo,
-					Snippet:     truncateSnippet(line, 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 				})
 			}
 
@@ -278,7 +279,7 @@ func scanUnicodeAbuse(content string) []SecurityFinding {
 						Category:    CategoryUnicodeAbuse,
 						Description: fmt.Sprintf("contains control character U+%04X", r),
 						Line:        lineNo,
-						Snippet:     truncateSnippet(line, 80),
+						Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 					})
 				}
 			}
@@ -322,7 +323,7 @@ func scanHiddenContent(content string) []SecurityFinding {
 				Category:    CategoryHiddenContent,
 				Description: "HTML comment contains suspicious content (code, URLs, or executable instructions)",
 				Line:        commentLine,
-				Snippet:     truncateSnippet(strings.TrimSpace(commentBody), 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(commentBody), 80),
 			})
 		}
 	}
@@ -336,7 +337,7 @@ func scanHiddenContent(content string) []SecurityFinding {
 				Category:    CategoryHiddenContent,
 				Description: "HTML element uses CSS to hide content (display:none, visibility:hidden, opacity:0, etc.)",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 
@@ -346,7 +347,7 @@ func scanHiddenContent(content string) []SecurityFinding {
 				Category:    CategoryHiddenContent,
 				Description: "contains sequence of HTML entities that may be obfuscating text",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 	}
@@ -433,7 +434,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link uses a data: URI which can embed executable content",
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 
@@ -443,7 +444,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link URL is multiply-encoded (possible obfuscation)",
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 
@@ -453,7 +454,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link points to an IP address instead of a domain name",
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 
@@ -463,7 +464,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link uses a URL shortener which hides the true destination",
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 
@@ -473,7 +474,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link URL contains suspicious authentication parameters (token, key, secret)",
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 
@@ -484,7 +485,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown link uses dangerous protocol: " + strings.SplitN(lowerURL, ":", 2)[0],
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 		}
@@ -499,7 +500,7 @@ func scanObfuscatedLinks(content string) []SecurityFinding {
 					Category:    CategoryObfuscatedLinks,
 					Description: "markdown image uses a data: URI which can embed executable content",
 					Line:        lineNo,
-					Snippet:     truncateSnippet(m[0], 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(m[0]), 80),
 				})
 			}
 		}
@@ -574,7 +575,7 @@ func scanHTMLAbuse(content string) []SecurityFinding {
 					Category:    CategoryHTMLAbuse,
 					Description: check.desc,
 					Line:        lineNo,
-					Snippet:     truncateSnippet(line, 80),
+					Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 				})
 			}
 		}
@@ -585,7 +586,7 @@ func scanHTMLAbuse(content string) []SecurityFinding {
 				Category:    CategoryHTMLAbuse,
 				Description: "<style> tag can be used to hide content or mislead users",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 
@@ -595,7 +596,7 @@ func scanHTMLAbuse(content string) []SecurityFinding {
 				Category:    CategoryHTMLAbuse,
 				Description: "HTML element contains event handler attribute (onclick, onload, onerror, etc.)",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 	}
@@ -647,7 +648,7 @@ func scanEmbeddedFiles(content string) []SecurityFinding {
 				Category:    CategoryEmbeddedFiles,
 				Description: "SVG <foreignObject> element can embed arbitrary HTML/scripts",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 
@@ -657,7 +658,7 @@ func scanEmbeddedFiles(content string) []SecurityFinding {
 				Category:    CategoryEmbeddedFiles,
 				Description: "data URI with executable MIME type (text/html, application/javascript, image/svg+xml)",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 	}
@@ -725,7 +726,7 @@ func scanSocialEngineering(content string) []SecurityFinding {
 				Category:    CategorySocialEngineering,
 				Description: "contains prompt injection pattern (attempts to override AI agent instructions)",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 
@@ -740,7 +741,7 @@ func scanSocialEngineering(content string) []SecurityFinding {
 				Category:    CategorySocialEngineering,
 				Description: "contains large base64-encoded payload that may hide malicious content",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 60),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 60),
 			})
 		}
 
@@ -750,7 +751,7 @@ func scanSocialEngineering(content string) []SecurityFinding {
 				Category:    CategorySocialEngineering,
 				Description: "contains pipe-to-shell pattern (curl/wget piped to sh/bash) outside code block",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 
@@ -760,7 +761,7 @@ func scanSocialEngineering(content string) []SecurityFinding {
 				Category:    CategorySocialEngineering,
 				Description: "contains base64 decode-and-execute pattern",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 80),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 80),
 			})
 		}
 
@@ -770,7 +771,7 @@ func scanSocialEngineering(content string) []SecurityFinding {
 				Category:    CategorySocialEngineering,
 				Description: "contains long hex-encoded string that may be obfuscating a payload",
 				Line:        lineNo,
-				Snippet:     truncateSnippet(line, 60),
+				Snippet:     stringutil.Truncate(strings.TrimSpace(line), 60),
 			})
 		}
 	}
@@ -792,15 +793,6 @@ func isClosingCodeFence(trimmed, codeBlockDelimiter string) bool {
 	fenceChar := codeBlockDelimiter[0]
 	stripped := strings.TrimLeft(trimmed, string(fenceChar))
 	return strings.TrimSpace(stripped) == ""
-}
-
-// truncateSnippet shortens a string to maxLen, adding "..." if truncated
-func truncateSnippet(s string, maxLen int) string {
-	s = strings.TrimSpace(s)
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
 }
 
 // lineNumberAt returns the 1-based line number for byte offset pos in content
