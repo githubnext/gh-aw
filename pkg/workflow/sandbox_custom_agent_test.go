@@ -150,7 +150,6 @@ sandbox:
 
 		compiler := NewCompiler(
 			WithVersion("test"),
-			WithStrictMode(false),
 		)
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
@@ -222,7 +221,6 @@ sandbox:
 
 		compiler := NewCompiler(
 			WithVersion("test"),
-			WithStrictMode(false),
 		)
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
@@ -283,7 +281,6 @@ sandbox:
 
 		compiler := NewCompiler(
 			WithVersion("test"),
-			WithStrictMode(false),
 		)
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {

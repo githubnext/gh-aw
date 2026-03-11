@@ -42,19 +42,9 @@ func WithNoEmit(noEmit bool) CompilerOption {
 	return func(c *Compiler) { c.noEmit = noEmit }
 }
 
-// WithStrictMode configures whether to enable strict validation mode
-func WithStrictMode(strict bool) CompilerOption {
-	return func(c *Compiler) { c.strictMode = strict }
-}
-
 // WithFailFast configures whether to stop at first validation error
 func WithFailFast(failFast bool) CompilerOption {
 	return func(c *Compiler) { c.failFast = failFast }
-}
-
-// WithForceRefreshActionPins configures whether to force refresh of action pins
-func WithForceRefreshActionPins(force bool) CompilerOption {
-	return func(c *Compiler) { c.forceRefreshActionPins = force }
 }
 
 // WithWorkflowIdentifier sets the identifier for the current workflow being compiled

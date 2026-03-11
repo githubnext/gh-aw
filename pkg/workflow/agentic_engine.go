@@ -374,12 +374,6 @@ func (e *BaseEngine) RenderConfig(_ *ResolvedEngineTarget) ([]map[string]any, er
 	return nil, nil
 }
 
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-// This is a shared implementation inherited by all engines that embed BaseEngine
-func (e *BaseEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
-}
-
 // EngineRegistry manages available agentic engines
 type EngineRegistry struct {
 	engines map[string]CodingAgentEngine
@@ -467,34 +461,6 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 		}
 	}
 	return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
-}
-
-// GenerateSecretValidationStep creates a GitHub Actions step that validates required secrets are available
-// secretName: the name of the secret to validate (e.g., "ANTHROPIC_API_KEY")
-// engineName: the display name of the engine (e.g., "Claude Code")
-// docsURL: URL to the documentation page for setting up the secret
-func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHubActionStep {
-	stepLines := []string{
-		fmt.Sprintf("      - name: Validate %s secret", secretName),
-		"        run: |",
-		fmt.Sprintf("          if [ -z \"$%s\" ]; then", secretName),
-		fmt.Sprintf("            echo \"Error: %s secret is not set\"", secretName),
-		fmt.Sprintf("            echo \"The %s engine requires the %s secret to be configured.\"", engineName, secretName),
-		"            echo \"Please configure this secret in your repository settings.\"",
-		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
-		"            exit 1",
-		"          fi",
-		"          ",
-		"          # Log success in collapsible section",
-		"          echo \"<details>\"",
-		"          echo \"<summary>Agent Environment Validation</summary>\"",
-		"          echo \"\"",
-		fmt.Sprintf("          echo \"✅ %s: Configured\"", secretName),
-		"          echo \"</details>\"",
-		"        env:",
-		fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName),
-	}
-	return GitHubActionStep(stepLines)
 }
 
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one of multiple secrets is available

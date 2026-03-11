@@ -137,51 +137,6 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	}
 }
 
-func TestCodexEngineConvertStepToYAMLWithIdAndContinueOnError(t *testing.T) {
-	engine := NewCodexEngine()
-
-	// Test step with id and continue-on-error fields
-	stepMap := map[string]any{
-		"name":              "Test step with id and continue-on-error",
-		"id":                "test-step",
-		"continue-on-error": true,
-		"run":               "echo 'test'",
-	}
-
-	yaml, err := engine.convertStepToYAML(stepMap)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	// Check that id field is included
-	if !strings.Contains(yaml, "id: test-step") {
-		t.Errorf("Expected YAML to contain 'id: test-step', got:\n%s", yaml)
-	}
-
-	// Check that continue-on-error field is included
-	if !strings.Contains(yaml, "continue-on-error: true") {
-		t.Errorf("Expected YAML to contain 'continue-on-error: true', got:\n%s", yaml)
-	}
-
-	// Test with string continue-on-error
-	stepMap2 := map[string]any{
-		"name":              "Test step with string continue-on-error",
-		"id":                "test-step-2",
-		"continue-on-error": "false",
-		"uses":              "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
-	}
-
-	yaml2, err := engine.convertStepToYAML(stepMap2)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	// Check that continue-on-error field is included as string
-	if !strings.Contains(yaml2, "continue-on-error: \"false\"") {
-		t.Errorf("Expected YAML to contain 'continue-on-error: \"false\"', got:\n%s", yaml2)
-	}
-}
-
 func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 	engine := NewCodexEngine()
 
@@ -216,61 +171,6 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 
 	if !foundMCPConfigEnv {
 		t.Error("Expected GH_AW_MCP_CONFIG environment variable in codex execution steps")
-	}
-}
-
-func TestCodexEngineConvertStepToYAMLWithSection(t *testing.T) {
-	engine := NewCodexEngine()
-
-	// Test step with 'with' section to ensure keys are sorted
-	stepMap := map[string]any{
-		"name": "Test step with sorted with section",
-		"uses": "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
-		"with": map[string]any{
-			"zebra": "value-z",
-			"alpha": "value-a",
-			"beta":  "value-b",
-			"gamma": "value-g",
-		},
-	}
-
-	yaml, err := engine.convertStepToYAML(stepMap)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	// Verify that the with keys are in alphabetical order
-	lines := strings.Split(yaml, "\n")
-	withSection := false
-	withKeyOrder := []string{}
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "with:" {
-			withSection = true
-			continue
-		}
-		if withSection && strings.HasPrefix(strings.TrimSpace(line), "- ") {
-			// End of with section if we hit another top-level key
-			break
-		}
-		if withSection && strings.Contains(line, ":") {
-			// Extract the key (before the colon)
-			parts := strings.SplitN(strings.TrimSpace(line), ":", 2)
-			if len(parts) > 0 {
-				withKeyOrder = append(withKeyOrder, strings.TrimSpace(parts[0]))
-			}
-		}
-	}
-
-	expectedOrder := []string{"alpha", "beta", "gamma", "zebra"}
-	if len(withKeyOrder) != len(expectedOrder) {
-		t.Errorf("Expected %d with keys, got %d", len(expectedOrder), len(withKeyOrder))
-	}
-
-	for i, key := range expectedOrder {
-		if i >= len(withKeyOrder) || withKeyOrder[i] != key {
-			t.Errorf("Expected with key at position %d to be '%s', got '%s'. Full order: %v", i, key, withKeyOrder[i], withKeyOrder)
-		}
 	}
 }
 
