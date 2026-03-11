@@ -59,9 +59,8 @@ async function checkBotStatus(actor, owner, repo) {
   try {
     // GitHub Apps can appear as either <slug> or <slug>[bot].
     // Treat both forms as a bot identity; always query the API with the [bot] form.
-    const actorHasBotSuffix = actor.endsWith("[bot]");
-    const actorForApi = actorHasBotSuffix ? actor : `${actor}[bot]`;
-    const actorWithoutBotSuffix = actorHasBotSuffix ? actor.slice(0, -5) : actor;
+    const actorSlug = canonicalizeBotIdentifier(actor);
+    const actorForApi = actor.endsWith("[bot]") ? actor : `${actorSlug}[bot]`;
 
     core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
 
@@ -87,7 +86,7 @@ async function checkBotStatus(actor, owner, repo) {
           const slugPermission = await github.rest.repos.getCollaboratorPermissionLevel({
             owner,
             repo,
-            username: actorWithoutBotSuffix,
+            username: actorSlug,
           });
           core.info(`Bot '${actor}' is active (via slug form) with permission level: ${slugPermission.data.permission}`);
           return { isBot: true, isActive: true };
