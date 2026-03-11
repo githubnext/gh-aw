@@ -119,6 +119,9 @@ func (c *Compiler) registerInlineEngineDefinition(config *EngineConfig) {
 		}
 		def.Provider.Auth = auth
 		// Keep legacy AuthBinding in sync for callers that still read def.Auth.
+		// When an AuthDefinition is provided, always reset legacy bindings to avoid
+		// leaking stale secrets from existing engine definitions.
+		def.Auth = nil
 		if auth.Secret != "" {
 			def.Auth = []AuthBinding{{Role: string(auth.Strategy), Secret: auth.Secret}}
 		}
@@ -162,12 +165,18 @@ func (c *Compiler) validateEngineAuthDefinition(config *EngineConfig) error {
 			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.header-name' to be set (e.g. 'api-key' or 'Authorization').\n\nSee: %s", constants.DocsEnginesURL)
 		}
 	case AuthStrategyAPIKey:
-		// api-key requires a header-name so the caller knows where to inject the key.
+		// api-key requires a secret value and a header-name so the caller knows where to inject the key.
+		if auth.Secret == "" {
+			return fmt.Errorf("engine auth: strategy 'api-key' requires 'auth.secret' to be set.\n\nSee: %s", constants.DocsEnginesURL)
+		}
 		if auth.HeaderName == "" {
 			return fmt.Errorf("engine auth: strategy 'api-key' requires 'auth.header-name' to be set (e.g. 'api-key' or 'x-api-key').\n\nSee: %s", constants.DocsEnginesURL)
 		}
 	case AuthStrategyBearer, "":
-		// bearer strategy and unset strategy (simple backwards-compat secret) need no extra fields.
+		// bearer strategy and unset strategy (simple backwards-compat secret) require a secret value.
+		if auth.Secret == "" {
+			return fmt.Errorf("engine auth: strategy 'bearer' (or unset) requires 'auth.secret' to be set.\n\nSee: %s", constants.DocsEnginesURL)
+		}
 	default:
 		validStrategies := []string{
 			string(AuthStrategyAPIKey),

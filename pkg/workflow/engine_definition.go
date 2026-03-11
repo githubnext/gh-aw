@@ -125,7 +125,7 @@ type AuthBinding struct {
 // this AuthDefinition. Returns an empty slice when Auth is nil.
 func (a *AuthDefinition) RequiredSecretNames() []string {
 	if a == nil {
-		return nil
+		return []string{}
 	}
 	var secrets []string
 	switch a.Strategy {

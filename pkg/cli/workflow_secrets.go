@@ -71,7 +71,7 @@ func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 
 	// Get engine-specific secrets only (no system secrets, no optional)
 	// System secrets will be added separately to avoid duplication
-	reqs := getSecretRequirementsForEngine(engine, true, true)
+	reqs := getSecretRequirementsForEngine(engine, false, false)
 
 	// For inline engine definitions with an AuthDefinition, also include auth secrets.
 	if engineConfig != nil && engineConfig.InlineProviderAuth != nil {

@@ -28,7 +28,7 @@ func TestAuthDefinition_RequiredSecretNames(t *testing.T) {
 		{
 			name:     "nil auth returns empty",
 			auth:     nil,
-			expected: nil,
+			expected: []string{},
 		},
 		{
 			name: "api-key strategy returns Secret",
@@ -201,7 +201,61 @@ func TestValidateEngineAuthDefinition_MissingHeaderNameForAPIKey(t *testing.T) {
 	assert.Contains(t, err.Error(), "header-name", "error should mention missing header-name field")
 }
 
-// TestValidateEngineAuthDefinition_BearerNoHeaderRequired verifies that bearer strategy
+// TestValidateEngineAuthDefinition_APIKeyRequiresSecret verifies that api-key
+// strategy without a secret produces a clear error.
+func TestValidateEngineAuthDefinition_APIKeyRequiresSecret(t *testing.T) {
+	compiler := newTestCompiler(t)
+	config := &EngineConfig{
+		ID:                 "codex",
+		IsInlineDefinition: true,
+		InlineProviderAuth: &AuthDefinition{
+			Strategy:   AuthStrategyAPIKey,
+			HeaderName: "x-api-key",
+			// Secret intentionally omitted
+		},
+	}
+
+	err := compiler.validateEngineAuthDefinition(config)
+	require.Error(t, err, "api-key without secret should produce an error")
+	assert.Contains(t, err.Error(), "auth.secret", "error should mention missing secret field")
+}
+
+// TestValidateEngineAuthDefinition_BearerRequiresSecret verifies that bearer
+// strategy without a secret produces a clear error.
+func TestValidateEngineAuthDefinition_BearerRequiresSecret(t *testing.T) {
+	compiler := newTestCompiler(t)
+	config := &EngineConfig{
+		ID:                 "codex",
+		IsInlineDefinition: true,
+		InlineProviderAuth: &AuthDefinition{
+			Strategy: AuthStrategyBearer,
+			// Secret intentionally omitted
+		},
+	}
+
+	err := compiler.validateEngineAuthDefinition(config)
+	require.Error(t, err, "bearer without secret should produce an error")
+	assert.Contains(t, err.Error(), "auth.secret", "error should mention missing secret field")
+}
+
+// TestValidateEngineAuthDefinition_APIKeyValid verifies that a complete api-key definition
+// (secret + header-name) passes validation.
+func TestValidateEngineAuthDefinition_APIKeyValid(t *testing.T) {
+	compiler := newTestCompiler(t)
+	config := &EngineConfig{
+		ID:                 "codex",
+		IsInlineDefinition: true,
+		InlineProviderAuth: &AuthDefinition{
+			Strategy:   AuthStrategyAPIKey,
+			Secret:     "MY_API_KEY",
+			HeaderName: "x-api-key",
+		},
+	}
+
+	err := compiler.validateEngineAuthDefinition(config)
+	assert.NoError(t, err, "complete api-key definition should pass validation")
+}
+
 // does not require header-name (it uses the standard Authorization header by convention).
 func TestValidateEngineAuthDefinition_BearerNoHeaderRequired(t *testing.T) {
 	compiler := newTestCompiler(t)
@@ -356,14 +410,14 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.engineID, func(t *testing.T) {
 			def := catalog.Get(tt.engineID)
-			require.NotNil(t, def, "built-in engine %s should be in catalog", tt.engineID)
+			require.NotNilf(t, def, "built-in engine %s should be in catalog", tt.engineID)
 
 			// Provider.Auth should be nil for built-in engines (they use AuthBinding only).
 			assert.Nil(t, def.Provider.Auth,
 				"built-in engine %s should have no Provider.Auth (uses legacy AuthBinding)", tt.engineID)
 
 			if tt.wantAuthSecret != "" {
-				require.Len(t, def.Auth, 1, "engine %s should have exactly one AuthBinding", tt.engineID)
+				require.Lenf(t, def.Auth, 1, "engine %s should have exactly one AuthBinding", tt.engineID)
 				assert.Equal(t, tt.wantAuthSecret, def.Auth[0].Secret,
 					"engine %s AuthBinding.Secret should be unchanged", tt.engineID)
 			} else {

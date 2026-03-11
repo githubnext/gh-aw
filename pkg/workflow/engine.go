@@ -127,9 +127,17 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						if auth, hasAuth := providerObj["auth"]; hasAuth {
 							if authObj, ok := auth.(map[string]any); ok {
 								authDef := parseAuthDefinition(authObj)
-								config.InlineProviderAuth = authDef
-								// Backwards compat: expose the simple secret field directly.
-								config.InlineProviderSecret = authDef.Secret
+								// Only store an AuthDefinition when the user actually provided
+								// at least one recognised field.  An empty map (e.g. `auth: {}`)
+								// must not be treated as an explicit auth override.
+								if authDef.Strategy != "" || authDef.Secret != "" ||
+									authDef.TokenURL != "" || authDef.ClientIDRef != "" ||
+									authDef.ClientSecretRef != "" || authDef.HeaderName != "" ||
+									authDef.TokenField != "" {
+									config.InlineProviderAuth = authDef
+									// Backwards compat: expose the simple secret field directly.
+									config.InlineProviderSecret = authDef.Secret
+								}
 							}
 						}
 						if request, hasRequest := providerObj["request"]; hasRequest {
