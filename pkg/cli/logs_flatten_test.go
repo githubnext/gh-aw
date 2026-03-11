@@ -403,6 +403,34 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			expectedFiles: []string{"regular.txt"},
 		},
 		{
+			name: "new 'agent' artifact directory gets flattened",
+			setup: func(dir string) error {
+				// Create the new structure: agent/ (files directly, no tmp/gh-aw prefix)
+				artifactDir := filepath.Join(dir, "agent")
+				if err := os.MkdirAll(artifactDir, 0755); err != nil {
+					return err
+				}
+				// agent_output.json at root of artifact
+				if err := os.WriteFile(filepath.Join(artifactDir, "agent_output.json"), []byte("{}"), 0644); err != nil {
+					return err
+				}
+				// safeoutputs.jsonl at root
+				if err := os.WriteFile(filepath.Join(artifactDir, "safeoutputs.jsonl"), []byte("{}"), 0644); err != nil {
+					return err
+				}
+				// mcp-logs subdirectory
+				mcpLogsDir := filepath.Join(artifactDir, "mcp-logs")
+				if err := os.MkdirAll(mcpLogsDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(mcpLogsDir, "log.txt"), []byte("log"), 0644)
+			},
+			expectedFiles:   []string{"agent_output.json", "safeoutputs.jsonl", "mcp-logs/log.txt"},
+			expectedDirs:    []string{"mcp-logs"},
+			unexpectedDirs:  []string{"agent"},
+			unexpectedFiles: []string{"agent/agent_output.json"},
+		},
+		{
 			name: "agent-artifacts without tmp/gh-aw structure - flatten directly",
 			setup: func(dir string) error {
 				// Create agent-artifacts with new structure (files directly in agent-artifacts/)

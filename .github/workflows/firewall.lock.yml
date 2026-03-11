@@ -441,14 +441,6 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Upload engine output files
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/gh-aw/sandbox/agent/logs/
-            /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -489,9 +481,11 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: agent-artifacts
+          name: agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log

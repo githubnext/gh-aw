@@ -594,8 +594,15 @@ const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe-output"
 const AgentOutputArtifactName = "agent-output"
 
+// AgentArtifactName is the name of the unified agent artifact that contains all agent job outputs,
+// including safe outputs, agent output, engine logs, and other agent-related files.
+const AgentArtifactName = "agent"
+
 // AgentOutputFilename is the filename of the agent output JSON file
 const AgentOutputFilename = "agent_output.json"
+
+// SafeOutputsFilename is the filename of the raw safe outputs NDJSON file copied to /tmp/gh-aw/
+const SafeOutputsFilename = "safeoutputs.jsonl"
 
 // MCPServerID represents a built-in MCP server identifier.
 // This semantic type distinguishes MCP server IDs from arbitrary strings,

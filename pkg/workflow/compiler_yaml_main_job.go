@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // generateMainJobSteps generates the complete sequence of steps for the main agent execution job
@@ -341,9 +343,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateOutputCollectionStep(yaml, data)
 	}
 
-	// Add engine-declared output files collection (if any)
-	if len(engine.GetDeclaredOutputFiles()) > 0 {
-		c.generateEngineOutputCollection(yaml, engine)
+	// Merge engine-declared output files into the unified artifact instead of creating a
+	// separate agent_outputs artifact. The cleanup step is still generated so workspace files
+	// are removed after collection.
+	if enginePaths := getEngineArtifactPaths(engine); len(enginePaths) > 0 {
+		artifactPaths = append(artifactPaths, enginePaths...)
+		c.generateEngineOutputCleanup(yaml, engine)
 	}
 
 	// Extract and upload squid access logs (if any proxy tools were used)
@@ -410,6 +415,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This directory is used by workflows that instruct the agent to write files
 	// (e.g., smoke-claude status summaries)
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/agent/")
+
+	// Collect safe outputs and agent output paths for the unified artifact.
+	// These were previously uploaded as separate safe-output and agent-output artifacts.
+	if data.SafeOutputs != nil {
+		// Raw safe-output NDJSON (copied to /tmp/gh-aw/ by generateOutputCollectionStep)
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.SafeOutputsFilename)
+		// Processed agent output JSON produced by collect_ndjson_output.cjs
+		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.AgentOutputFilename)
+	}
 
 	// Add post-execution cleanup step for Copilot engine
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {

@@ -221,7 +221,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// Add step to download agent output artifact using shared helper
 		downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: constants.AgentOutputArtifactName,
+			ArtifactName: constants.AgentArtifactName,
 			DownloadPath: "/opt/gh-aw/safe-jobs/",
 			SetupEnvStep: false, // We'll handle env vars separately to add job-specific ones
 			StepName:     "Download agent output artifact",
