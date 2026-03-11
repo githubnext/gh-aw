@@ -915,7 +915,7 @@ func TestAdditionalCheckoutWithAppAuth(t *testing.T) {
 func TestCrossRepoTargetRepo(t *testing.T) {
 	t.Run("default is empty string (same-repo)", func(t *testing.T) {
 		cm := NewCheckoutManager(nil)
-		assert.Equal(t, "", cm.GetCrossRepoTargetRepo(), "new checkout manager should have no cross-repo target")
+		assert.Empty(t, cm.GetCrossRepoTargetRepo(), "new checkout manager should have no cross-repo target")
 	})
 
 	t.Run("activation job expression is stored and retrievable", func(t *testing.T) {

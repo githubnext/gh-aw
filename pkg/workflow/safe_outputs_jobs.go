@@ -61,7 +61,12 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		safeOutputsJobsLog.Print("Adding GitHub App token minting step with auto-computed permissions")
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, config.Permissions)...)
+		// For workflow_call relay workflows, scope the token to the platform repo.
+		var appTokenFallbackRepo string
+		if hasWorkflowCallTrigger(data.On) {
+			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo }}"
+		}
+		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, config.Permissions, appTokenFallbackRepo)...)
 	}
 
 	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)

@@ -11,6 +11,7 @@ type DispatchWorkflowConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	Workflows            []string          `yaml:"workflows,omitempty"`      // List of workflow names (without .md extension) to allow dispatching
 	WorkflowFiles        map[string]string `yaml:"workflow_files,omitempty"` // Map of workflow name to file extension (.lock.yml or .yml) - populated at compile time
+	TargetRepoSlug       string            `yaml:"target-repo,omitempty"`    // Target repository for cross-repo dispatch (owner/repo or GitHub Actions expression)
 }
 
 // parseDispatchWorkflowConfig handles dispatch-workflow configuration

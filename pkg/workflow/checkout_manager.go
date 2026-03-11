@@ -274,7 +274,9 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 			continue
 		}
 		checkoutManagerLog.Printf("Generating app token minting step for checkout index=%d repo=%q", i, entry.key.repository)
-		appSteps := c.buildGitHubAppTokenMintStep(entry.githubApp, permissions)
+		// Pass empty fallback so the app token defaults to github.event.repository.name.
+		// Checkout-specific cross-repo scoping is handled via the explicit repository field.
+		appSteps := c.buildGitHubAppTokenMintStep(entry.githubApp, permissions, "")
 		stepID := fmt.Sprintf("checkout-app-token-%d", i)
 		for _, step := range appSteps {
 			modified := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: "+stepID)
