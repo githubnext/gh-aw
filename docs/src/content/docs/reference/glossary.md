@@ -208,6 +208,30 @@ A time-based trigger format. Use short syntax like `daily` or `weekly on monday`
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports multiple engines, with GitHub Copilot as the default.
 
+### Inline Engine Definition
+
+An engine configuration format that specifies a runtime adapter and optional provider settings directly in workflow frontmatter, without requiring a named catalog entry. Uses a `runtime` object (with `id` and optional `version`) to identify the adapter and an optional `provider` object for model selection, authentication, and request shaping. Useful for connecting to self-hosted or third-party AI backends.
+
+```aw wrap
+engine:
+  runtime:
+    id: codex
+  provider:
+    id: azure-openai
+    model: gpt-4o
+    auth:
+      strategy: oauth-client-credentials
+      token-url: https://auth.example.com/oauth/token
+      client-id: AZURE_CLIENT_ID
+      client-secret: AZURE_CLIENT_SECRET
+    request:
+      path-template: /openai/deployments/{model}/chat/completions
+      query:
+        api-version: "2024-10-01-preview"
+```
+
+See [Engines Reference](/gh-aw/reference/engines/).
+
 ### Fuzzy Scheduling
 
 Natural language schedule syntax that automatically distributes workflow execution times to avoid load spikes. Instead of specifying exact times with cron expressions, fuzzy schedules like `daily`, `weekly`, or `daily on weekdays` are converted by the compiler into deterministic but scattered cron expressions. The compiler automatically adds `workflow_dispatch:` trigger for manual runs. Example: `schedule: daily on weekdays` compiles to something like `43 5 * * 1-5` with varied execution times across different workflows.
@@ -339,6 +363,18 @@ A category of features for automatically expiring workflow resources to reduce r
 ### Environment Variables (env)
 
 Configuration section in frontmatter defining environment variables for the workflow. Variables can reference GitHub context values, workflow inputs, or static values. Accessible via `${{ env.VARIABLE_NAME }}` syntax.
+
+### `GITHUB_AW`
+
+A system-injected environment variable set to `"true"` in every gh-aw engine execution step (both the agent run and the threat-detection run). Agents can check this variable to confirm they are running inside a GitHub Agentic Workflow. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+
+### `GH_AW_PHASE`
+
+A system-injected environment variable identifying the active execution phase. Set to `"agent"` during the main agent run and `"detection"` during the threat-detection safety check run that precedes it. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+
+### `GH_AW_VERSION`
+
+A system-injected environment variable containing the gh-aw compiler version that generated the workflow (e.g. `"0.40.1"`). Useful for writing conditional logic that depends on a minimum feature version. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
 
 ### Repo Memory
 
