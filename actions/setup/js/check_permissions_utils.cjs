@@ -61,6 +61,7 @@ async function checkBotStatus(actor, owner, repo) {
     // Treat both forms as a bot identity; always query the API with the [bot] form.
     const actorHasBotSuffix = actor.endsWith("[bot]");
     const actorForApi = actorHasBotSuffix ? actor : `${actor}[bot]`;
+    const actorWithoutBotSuffix = actorHasBotSuffix ? actor.slice(0, -5) : actor;
 
     core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
 
@@ -77,11 +78,29 @@ async function checkBotStatus(actor, owner, repo) {
       core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
       return { isBot: true, isActive: true };
     } catch (botError) {
-      // If we get a 404, the bot is not installed/active on this repository
+      // If we get a 404, the [bot]-suffixed form may not be listed as a collaborator.
+      // Fall back to checking the non-[bot] (slug) form, as some GitHub Apps appear
+      // under their plain slug name rather than the [bot]-suffixed form.
       // @ts-expect-error - Error handling with optional chaining
       if (botError?.status === 404) {
-        core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
-        return { isBot: true, isActive: false };
+        try {
+          const slugPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+            owner,
+            repo,
+            username: actorWithoutBotSuffix,
+          });
+          core.info(`Bot '${actor}' is active (via slug form) with permission level: ${slugPermission.data.permission}`);
+          return { isBot: true, isActive: true };
+        } catch (slugError) {
+          // @ts-expect-error - Error handling with optional chaining
+          if (slugError?.status === 404) {
+            core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
+            return { isBot: true, isActive: false };
+          }
+          const errorMessage = getErrorMessage(slugError);
+          core.warning(`Failed to check bot status: ${errorMessage}`);
+          return { isBot: true, isActive: false, error: errorMessage };
+        }
       }
       // For other errors, we'll treat as inactive to be safe
       const errorMessage = getErrorMessage(botError);

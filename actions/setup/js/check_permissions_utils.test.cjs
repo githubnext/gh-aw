@@ -458,5 +458,76 @@ describe("check_permissions_utils", () => {
       expect(result.isBot).toBe(true);
       expect(result.isActive).toBe(true);
     });
+
+    it("should fall back to slug form when [bot] form is not found as collaborator", async () => {
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(notFoundError) // [bot] form returns 404
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // slug form returns none
+
+      const result = await checkBotStatus("greptile-apps", "testowner", "testrepo");
+
+      expect(result).toEqual({ isBot: true, isActive: true });
+
+      // Verify [bot] form was tried first
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenNthCalledWith(1, {
+        owner: "testowner",
+        repo: "testrepo",
+        username: "greptile-apps[bot]",
+      });
+      // Verify slug form was tried as fallback
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenNthCalledWith(2, {
+        owner: "testowner",
+        repo: "testrepo",
+        username: "greptile-apps",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith("Bot 'greptile-apps' is active (via slug form) with permission level: none");
+    });
+
+    it("should fall back to slug form when actor has [bot] suffix and [bot] form is not found", async () => {
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(notFoundError) // [bot] form returns 404
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // slug form returns none
+
+      const result = await checkBotStatus("copilot[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({ isBot: true, isActive: true });
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenNthCalledWith(1, {
+        owner: "testowner",
+        repo: "testrepo",
+        username: "copilot[bot]",
+      });
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenNthCalledWith(2, {
+        owner: "testowner",
+        repo: "testrepo",
+        username: "copilot",
+      });
+      expect(mockCore.info).toHaveBeenCalledWith("Bot 'copilot[bot]' is active (via slug form) with permission level: none");
+    });
+
+    it("should return inactive when both [bot] and slug forms return 404", async () => {
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notFoundError);
+
+      const result = await checkBotStatus("unknown-app", "testowner", "testrepo");
+
+      expect(result).toEqual({ isBot: true, isActive: false });
+      expect(mockCore.warning).toHaveBeenCalledWith("Bot 'unknown-app' is not active/installed on testowner/testrepo");
+    });
+
+    it("should return inactive with error when slug form returns non-404 error", async () => {
+      const notFoundError = { status: 404, message: "Not Found" };
+      const rateLimit = new Error("API rate limit exceeded");
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(notFoundError) // [bot] form returns 404
+        .mockRejectedValueOnce(rateLimit); // slug form returns rate limit error
+
+      const result = await checkBotStatus("greptile-apps", "testowner", "testrepo");
+
+      expect(result).toEqual({ isBot: true, isActive: false, error: "API rate limit exceeded" });
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to check bot status: API rate limit exceeded");
+    });
   });
 });
