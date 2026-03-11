@@ -804,12 +804,12 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 			},
 		}
 
-		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(execSteps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(execSteps))
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 
-		stepContent := strings.Join([]string(execSteps[0]), "\n")
+		stepContent := strings.Join([]string(steps[0]), "\n")
 
 		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
 			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
