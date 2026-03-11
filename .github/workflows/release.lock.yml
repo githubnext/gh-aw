@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4b2b1455692142cdb61d59c9a0979e84af7b5adf88b385d7f58bf26654945b1c"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3155b8361ec225308d2372dc9c641de39df1a977eddec354f111ed129943c21e"}
 
 name: "Release"
 "on":
@@ -1221,20 +1221,15 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
 
-  release:
+  push_tag:
     needs:
       - activation
       - config
       - pre_activation
     runs-on: ubuntu-latest
     permissions:
-      attestations: write
       contents: write
-      id-token: write
-      packages: write
 
-    outputs:
-      release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1275,6 +1270,51 @@ jobs:
           load: false
           platforms: linux/amd64
           push: false
+      - name: Upload release binaries
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: release-binaries-${{ needs.config.outputs.release_tag }}
+          path: dist/
+          retention-days: 1
+
+  release:
+    needs:
+      - activation
+      - config
+      - pre_activation
+      - sync_actions
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+      packages: write
+
+    outputs:
+      release_id: ${{ steps.get_release.outputs.release_id }}
+    steps:
+      - name: Verify tag exists in gh-aw-actions
+        run: |
+          echo "Verifying tag $RELEASE_TAG exists in github/gh-aw-actions..."
+          if gh api "repos/github/gh-aw-actions/git/refs/tags/$RELEASE_TAG" --jq '.ref' > /dev/null 2>&1; then
+            echo "✓ Tag $RELEASE_TAG exists in github/gh-aw-actions"
+          else
+            echo "Error: Tag $RELEASE_TAG not found in github/gh-aw-actions after sync"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Download release binaries
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: release-binaries-${{ needs.config.outputs.release_tag }}
+          path: dist/
       - name: Create GitHub release
         id: get_release
         run: |
@@ -1435,4 +1475,15 @@ jobs:
           name: safe-output-items
           path: /tmp/safe-output-items.jsonl
           if-no-files-found: warn
+
+  sync_actions:
+    needs:
+      - activation
+      - config
+      - pre_activation
+      - push_tag
+    uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
+    with:
+      ref: ${{ needs.config.outputs.release_tag }}
+    secrets: inherit
 
