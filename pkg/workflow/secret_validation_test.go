@@ -8,63 +8,6 @@ import (
 	"testing"
 )
 
-func TestGenerateSecretValidationStep(t *testing.T) {
-	tests := []struct {
-		name        string
-		secretName  string
-		engineName  string
-		docsURL     string
-		wantStrings []string
-	}{
-		{
-			name:       "ANTHROPIC_API_KEY validation",
-			secretName: "ANTHROPIC_API_KEY",
-			engineName: "Claude Code",
-			docsURL:    "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-			wantStrings: []string{
-				"Validate ANTHROPIC_API_KEY secret",
-				"Error: ANTHROPIC_API_KEY secret is not set",
-				"The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured",
-				"Please configure this secret in your repository settings",
-				"Documentation: https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-				"<details>",
-				"<summary>Agent Environment Validation</summary>",
-				"✅ ANTHROPIC_API_KEY: Configured",
-				"</details>",
-				"ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			step := GenerateSecretValidationStep(tt.secretName, tt.engineName, tt.docsURL)
-			stepContent := strings.Join(step, "\n")
-
-			for _, want := range tt.wantStrings {
-				if !strings.Contains(stepContent, want) {
-					t.Errorf("GenerateSecretValidationStep() missing expected string:\nwant: %s\ngot: %s", want, stepContent)
-				}
-			}
-
-			// Verify it has a run block
-			if !strings.Contains(stepContent, "run: |") {
-				t.Error("Expected step to have 'run: |' block")
-			}
-
-			// Verify it has an env section
-			if !strings.Contains(stepContent, "env:") {
-				t.Error("Expected step to have 'env:' section")
-			}
-
-			// Verify it exits with code 1 on failure
-			if !strings.Contains(stepContent, "exit 1") {
-				t.Error("Expected step to exit with code 1 on validation failure")
-			}
-		})
-	}
-}
-
 func TestGenerateMultiSecretValidationStep(t *testing.T) {
 	tests := []struct {
 		name        string

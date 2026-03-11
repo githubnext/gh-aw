@@ -142,10 +142,25 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		// Claude/Custom format: direct shell variable reference
 		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 	}
-	// Close headers - no trailing comma since this is the last field
-	// Note: env block is NOT included for HTTP servers because the old MCP Gateway schema
-	// doesn't allow env in httpServerConfig. The variables are resolved via URL templates.
-	yaml.WriteString("                }\n")
+	yaml.WriteString("                }")
+
+	// Check if GitHub tool has guard-policies configured
+	// If so, generate a linked write-sink guard-policy for safeoutputs
+	var guardPolicies map[string]any
+	if workflowData != nil && workflowData.Tools != nil {
+		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+			guardPolicies = deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+		}
+	}
+
+	// Add guard-policies if configured
+	if len(guardPolicies) > 0 {
+		mcpBuiltinLog.Print("Adding guard-policies to safeoutputs (derived from GitHub guard-policy)")
+		yaml.WriteString(",\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("\n")
+	}
 
 	if isLast {
 		yaml.WriteString("              }\n")

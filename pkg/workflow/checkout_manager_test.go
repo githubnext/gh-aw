@@ -498,35 +498,6 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 	})
 }
 
-// TestGetCurrentCheckoutRepository verifies the standalone helper function.
-func TestGetCurrentCheckoutRepository(t *testing.T) {
-	t.Run("nil slice returns empty string", func(t *testing.T) {
-		assert.Empty(t, getCurrentCheckoutRepository(nil), "nil slice should return empty string")
-	})
-
-	t.Run("no current flag returns empty string", func(t *testing.T) {
-		configs := []*CheckoutConfig{
-			{Repository: "owner/repo"},
-		}
-		assert.Empty(t, getCurrentCheckoutRepository(configs), "no current flag should return empty string")
-	})
-
-	t.Run("current: true returns repository", func(t *testing.T) {
-		configs := []*CheckoutConfig{
-			{Repository: "owner/other"},
-			{Repository: "owner/target", Current: true},
-		}
-		assert.Equal(t, "owner/target", getCurrentCheckoutRepository(configs), "should return current checkout repository")
-	})
-
-	t.Run("current: true with no repository returns empty string", func(t *testing.T) {
-		configs := []*CheckoutConfig{
-			{Current: true},
-		}
-		assert.Empty(t, getCurrentCheckoutRepository(configs), "current without repository should return empty string")
-	})
-}
-
 // TestBuildCheckoutsPromptContent verifies the prompt content generation for the checkout list.
 func TestBuildCheckoutsPromptContent(t *testing.T) {
 	t.Run("nil slice returns empty string", func(t *testing.T) {

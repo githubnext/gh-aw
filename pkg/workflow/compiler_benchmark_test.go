@@ -189,8 +189,8 @@ Analyze the issue with strict validation enabled.
 
 	compiler := NewCompiler(
 		WithVersion("test"),
-		WithStrictMode(true),
 	)
+	compiler.SetStrictMode(true)
 
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
