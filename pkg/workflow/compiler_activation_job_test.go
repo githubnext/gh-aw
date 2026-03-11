@@ -253,3 +253,74 @@ func TestCheckoutDoesNotUseEventNameExpression(t *testing.T) {
 	assert.NotContains(t, combined, "github.action_repository",
 		"checkout must not use github.action_repository")
 }
+
+// TestActivationJobTargetRepoOutput verifies that the activation job exposes target_repo as an
+// output when a workflow_call trigger is present (without inlined imports), so that agent and
+// safe_outputs jobs can reference needs.activation.outputs.target_repo.
+func TestActivationJobTargetRepoOutput(t *testing.T) {
+tests := []struct {
+name             string
+onSection        string
+inlinedImports   bool
+expectTargetRepo bool
+}{
+{
+name: "workflow_call trigger - target_repo output added",
+onSection: `"on":
+  workflow_call:`,
+expectTargetRepo: true,
+},
+{
+name: "mixed triggers with workflow_call - target_repo output added",
+onSection: `"on":
+  issue_comment:
+    types: [created]
+  workflow_call:`,
+expectTargetRepo: true,
+},
+{
+name: "workflow_call with inlined-imports - no target_repo output",
+onSection: `"on":
+  workflow_call:`,
+inlinedImports:   true,
+expectTargetRepo: false,
+},
+{
+name: "no workflow_call - no target_repo output",
+onSection: `"on":
+  issues:
+    types: [opened]`,
+expectTargetRepo: false,
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+compiler := NewCompilerWithVersion("dev")
+compiler.SetActionMode(ActionModeDev)
+
+data := &WorkflowData{
+Name:           "test-workflow",
+On:             tt.onSection,
+InlinedImports: tt.inlinedImports,
+AI:             "copilot",
+}
+
+job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+require.NoError(t, err, "buildActivationJob should succeed")
+require.NotNil(t, job, "activation job should not be nil")
+
+if tt.expectTargetRepo {
+assert.Contains(t, job.Outputs, "target_repo",
+"activation job should expose target_repo output for downstream jobs")
+assert.Equal(t,
+"${{ steps.resolve-host-repo.outputs.target_repo }}",
+job.Outputs["target_repo"],
+"target_repo output should reference resolve-host-repo step")
+} else {
+assert.NotContains(t, job.Outputs, "target_repo",
+"activation job should not expose target_repo when workflow_call is absent or inlined-imports enabled")
+}
+})
+}
+}

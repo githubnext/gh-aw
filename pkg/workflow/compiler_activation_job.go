@@ -59,6 +59,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Expose the model output from the activation job so downstream jobs can reference it
 	outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 
+	// Expose the resolved platform (host) repository so agent and safe_outputs jobs can use
+	// needs.activation.outputs.target_repo for any checkout that must target the platform repo
+	// rather than github.repository (the caller's repo in cross-repo workflow_call scenarios).
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		outputs["target_repo"] = "${{ steps.resolve-host-repo.outputs.target_repo }}"
+	}
+
 	// Add secret validation step before context variable validation.
 	// This validates that the required engine secrets are available before any other checks.
 	secretValidationStep := engine.GetSecretValidationStep(data)
@@ -506,8 +513,9 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	cm := NewCheckoutManager(nil)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
+		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
 		return cm.GenerateGitHubFolderCheckoutStep(
-			"${{ steps.resolve-host-repo.outputs.target_repo }}",
+			cm.GetCrossRepoTargetRepo(),
 			GetActionPin,
 		)
 	}
