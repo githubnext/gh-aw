@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c18fdbf83211c18b0c1841b7350de90b0a4b88a7a5a0a0c2026345fc6054c691","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c93c3cce9fe58a74b02303d790120c6508d3d4d0bf95bb4fc24c36df3847efd0","strict":true}
 
 name: "Daily Project Performance Summary Generator (Using MCP Scripts)"
 "on":
@@ -309,7 +309,7 @@ jobs:
           pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
         name: Upload charts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           if-no-files-found: warn
           name: trending-charts
@@ -317,7 +317,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -1271,7 +1271,7 @@ jobs:
           }
           GH_AW_MCP_CONFIG_EOF
       - name: Download activation artifact
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: activation
           path: /tmp/gh-aw
@@ -1572,7 +1572,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: threat-detection.log
+          name: detection
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
       - name: Set detection conclusion
@@ -1630,7 +1630,7 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/
@@ -1749,7 +1749,7 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/
@@ -1804,7 +1804,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download cache-memory artifact (default)
         id: download_cache_default
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         continue-on-error: true
         with:
           name: cache-memory
@@ -1865,7 +1865,7 @@ jobs:
           echo "Git configured with standard GitHub Actions identity"
       - name: Download assets
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: safe-outputs-assets
           path: /tmp/gh-aw/safeoutputs/assets/
@@ -1877,7 +1877,7 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/

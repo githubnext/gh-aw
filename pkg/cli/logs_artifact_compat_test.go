@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -68,6 +69,19 @@ func TestArtifactNamingBackwardCompatibility(t *testing.T) {
 			artifactDirName:    "prompt",
 			fileNameInArtifact: "prompt.txt",
 			expectedFileName:   "prompt.txt",
+		},
+		// Detection artifact - renamed from threat-detection.log to detection
+		{
+			name:               "old threat-detection.log artifact (legacy)",
+			artifactDirName:    constants.LegacyDetectionArtifactName,
+			fileNameInArtifact: "detection.log",
+			expectedFileName:   "detection.log",
+		},
+		{
+			name:               "new detection artifact",
+			artifactDirName:    constants.DetectionArtifactName,
+			fileNameInArtifact: "detection.log",
+			expectedFileName:   "detection.log",
 		},
 	}
 

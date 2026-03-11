@@ -23,7 +23,7 @@
 #
 # Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"33d1d81a54077cb3f7e4fcb3ea7aabbb6d8e4c5125c45d8e660e0b48836c2dec","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"1feef98e4663997347faa40dfe7fecb604aa53af78558ad017282ea9a005851b","strict":true}
 
 name: "Tidy"
 "on":
@@ -334,7 +334,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           cache: npm
           cache-dependency-path: actions/setup/js/package-lock.json
@@ -791,7 +791,7 @@ jobs:
           }
           GH_AW_MCP_CONFIG_EOF
       - name: Download activation artifact
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: activation
           path: /tmp/gh-aw
@@ -1090,7 +1090,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: threat-detection.log
+          name: detection
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
       - name: Set detection conclusion
@@ -1146,7 +1146,7 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/
@@ -1327,7 +1327,7 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/
@@ -1339,7 +1339,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent
           path: /tmp/gh-aw/
