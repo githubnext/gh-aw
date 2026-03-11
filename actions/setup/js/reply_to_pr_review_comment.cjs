@@ -120,6 +120,7 @@ async function main(config = {}) {
           return {
             success: false,
             error: "Cannot reply to review comments outside of a pull request context",
+            skipped: true,
           };
         }
         targetPRNumber = triggeringPRNumber;

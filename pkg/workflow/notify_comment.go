@@ -431,8 +431,23 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	return job, nil
 }
 
+// systemSafeOutputJobNames contains job names that are built-in system jobs and should not be
+// treated as custom safe output job types in the GH_AW_SAFE_OUTPUT_JOBS mapping.
+// The safe output handler manager uses this mapping to determine which message types are
+// handled by custom job steps (and therefore should be silently skipped rather than flagged
+// as "no handler loaded").
+var systemSafeOutputJobNames = map[string]bool{
+	"safe_outputs":  true, // consolidated safe outputs job
+	"upload_assets": true, // upload assets job
+}
+
 // buildSafeOutputJobsEnvVars creates environment variables for safe output job URLs
-// Returns both a JSON mapping and the actual environment variable declarations
+// Returns both a JSON mapping and the actual environment variable declarations.
+// The mapping includes:
+//   - Built-in jobs with known URL outputs (e.g., create_issue → issue_url)
+//   - Custom safe-output jobs (from safe-outputs.jobs) with an empty URL key, so the handler
+//     manager knows those message types are handled by a dedicated job step and should be
+//     skipped gracefully rather than reported as "No handler loaded".
 func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 	// Map job names to their expected URL output keys
 	jobOutputMapping := make(map[string]string)
@@ -462,7 +477,13 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 		case "push_to_pull_request_branch":
 			urlKey = "commit_url"
 		default:
-			// Skip jobs that don't have URL outputs
+			if systemSafeOutputJobNames[jobName] {
+				// Skip known system jobs — they are not custom safe output types
+				continue
+			}
+			// Custom safe-output job: include in the mapping with an empty URL key so the
+			// handler manager can silently skip messages of this type.
+			jobOutputMapping[jobName] = ""
 			continue
 		}
 

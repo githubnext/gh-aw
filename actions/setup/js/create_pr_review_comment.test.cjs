@@ -234,6 +234,7 @@ describe("create_pr_review_comment.cjs", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Not in pull request context");
+    expect(result.skipped).toBe(true);
     expect(buffer.getBufferedCount()).toBe(0);
   });
 
@@ -409,6 +410,7 @@ describe("create_pr_review_comment.cjs", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Not in pull request context");
+    expect(result.skipped).toBe(true);
     expect(buffer.getBufferedCount()).toBe(0);
   });
 
