@@ -705,7 +705,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"- name: Download agent output artifact",
 		"id: download-agent-output",
 		"continue-on-error: true",
-		"uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3",
+		"uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
 		"name: agent",
 		"path: /tmp/gh-aw/",
 		"- name: Setup agent output environment variable",

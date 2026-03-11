@@ -20,6 +20,7 @@ package workflow
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -50,7 +51,7 @@ func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
 	// Find the opening delimiter
 	start := strings.Index(s, sep)
 	if start == -1 {
-		return nil, fmt.Errorf("no frontmatter opening delimiter found")
+		return nil, errors.New("no frontmatter opening delimiter found")
 	}
 	s = s[start+len(sep):]
 
@@ -61,11 +62,7 @@ func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
 	end := -1
 	switch {
 	case endLF >= 0 && endCRLF >= 0:
-		if endLF < endCRLF {
-			end = endLF
-		} else {
-			end = endCRLF
-		}
+		end = min(endLF, endCRLF)
 	case endLF >= 0:
 		end = endLF
 	case endCRLF >= 0:
@@ -73,7 +70,7 @@ func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
 	}
 
 	if end == -1 {
-		return nil, fmt.Errorf("no frontmatter closing delimiter found")
+		return nil, errors.New("no frontmatter closing delimiter found")
 	}
 	return []byte(strings.TrimSpace(s[:end])), nil
 }
