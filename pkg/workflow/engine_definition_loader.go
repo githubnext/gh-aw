@@ -2,7 +2,8 @@
 //
 // Built-in engine definitions are stored as shared agentic workflow Markdown files
 // embedded in the binary. Each file uses YAML frontmatter with a top-level "engine:"
-// key and is validated against schemas/engine_definition_schema.json before parsing.
+// key. The engine definition form is validated as part of the shared workflow schema
+// when files are processed as imports during compilation.
 //
 // # Embedded Resources
 //
@@ -19,17 +20,14 @@ package workflow
 
 import (
 	"embed"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var engineDefinitionLoaderLog = logger.New("workflow:engine_definition_loader")
@@ -37,72 +35,10 @@ var engineDefinitionLoaderLog = logger.New("workflow:engine_definition_loader")
 //go:embed data/engines/*.md
 var builtinEngineFS embed.FS
 
-//go:embed schemas/engine_definition_schema.json
-var engineDefinitionSchemaJSON []byte
-
 // engineDefinitionFile is the on-disk wrapper that holds the engine definition
 // under the top-level "engine" key.
 type engineDefinitionFile struct {
 	Engine EngineDefinition `yaml:"engine"`
-}
-
-// Compiled engine definition schema, initialised once.
-var (
-	engineDefSchemaOnce  sync.Once
-	engineDefSchema      *jsonschema.Schema
-	engineDefSchemaError error
-)
-
-// getEngineDefinitionSchema returns the compiled JSON schema used to validate
-// engine definition YAML files.
-func getEngineDefinitionSchema() (*jsonschema.Schema, error) {
-	engineDefSchemaOnce.Do(func() {
-		engineDefinitionLoaderLog.Print("Compiling engine definition schema (first time)")
-
-		var schemaDoc any
-		if err := json.Unmarshal(engineDefinitionSchemaJSON, &schemaDoc); err != nil {
-			engineDefSchemaError = fmt.Errorf("failed to parse engine definition schema JSON: %w", err)
-			return
-		}
-
-		compiler := jsonschema.NewCompiler()
-		schemaURL := "https://github.com/github/gh-aw/schemas/engine_definition_schema.json"
-		if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
-			engineDefSchemaError = fmt.Errorf("failed to add engine definition schema resource: %w", err)
-			return
-		}
-
-		schema, err := compiler.Compile(schemaURL)
-		if err != nil {
-			engineDefSchemaError = fmt.Errorf("failed to compile engine definition schema: %w", err)
-			return
-		}
-
-		engineDefSchema = schema
-		engineDefinitionLoaderLog.Print("Engine definition schema compiled successfully")
-	})
-
-	return engineDefSchema, engineDefSchemaError
-}
-
-// validateEngineDefinitionYAML validates raw YAML bytes against the engine definition
-// JSON schema.
-func validateEngineDefinitionYAML(data []byte, path string) error {
-	schema, err := getEngineDefinitionSchema()
-	if err != nil {
-		return fmt.Errorf("engine definition schema unavailable: %w", err)
-	}
-
-	var doc any
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return fmt.Errorf("failed to parse %s for schema validation: %w", path, err)
-	}
-
-	if err := schema.Validate(doc); err != nil {
-		return fmt.Errorf("engine definition file %s failed schema validation: %w", path, err)
-	}
-
-	return nil
 }
 
 // extractMarkdownFrontmatterYAML extracts the YAML content between the first pair of
@@ -148,9 +84,9 @@ func builtinEnginePath(engineID string) string {
 }
 
 // loadBuiltinEngineDefinitions reads all *.md files from the embedded data/engines/
-// directory, validates their frontmatter against the engine definition schema, parses
-// each EngineDefinition, and registers the file content in the parser's builtin virtual FS.
-// It panics on parse or validation errors to surface misconfigured built-in definitions early.
+// directory, parses each EngineDefinition from its frontmatter, and registers the file
+// content in the parser's builtin virtual FS.
+// It panics on parse errors to surface misconfigured built-in definitions early.
 func loadBuiltinEngineDefinitions() []*EngineDefinition {
 	engineDefinitionLoaderLog.Print("Loading built-in engine definitions from embedded Markdown files")
 
@@ -176,11 +112,6 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 		frontmatterYAML, fmErr := extractMarkdownFrontmatterYAML(data)
 		if fmErr != nil {
 			return fmt.Errorf("failed to extract frontmatter from %s: %w", path, fmErr)
-		}
-
-		// Validate the frontmatter YAML against the engine definition schema.
-		if validErr := validateEngineDefinitionYAML(frontmatterYAML, path); validErr != nil {
-			return validErr
 		}
 
 		// Parse the engine definition from the frontmatter.
