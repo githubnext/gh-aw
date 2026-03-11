@@ -179,7 +179,7 @@ type ResolvedEngineTarget struct {
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
 // pre-registers the four built-in engine definitions (claude, codex, copilot, gemini)
-// loaded from the embedded YAML files in data/engines/*.yml.
+// loaded from the embedded Markdown files in data/engines/*.md.
 func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 	catalog := &EngineCatalog{
 		definitions: make(map[string]*EngineDefinition),
