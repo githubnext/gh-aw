@@ -399,12 +399,12 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 
 	tests := []struct {
 		engineID       string
-		wantAuthSecret string // expected legacy AuthBinding secret (empty = no binding)
+		wantAuthSecret string // expected legacy AuthBinding secret
 	}{
 		{"claude", "ANTHROPIC_API_KEY"},
 		{"codex", "CODEX_API_KEY"},
-		{"copilot", ""}, // copilot has no API-key binding
-		{"gemini", ""},  // gemini has no API-key binding
+		{"copilot", "COPILOT_GITHUB_TOKEN"},
+		{"gemini", "GEMINI_API_KEY"},
 	}
 
 	for _, tt := range tests {
@@ -416,13 +416,9 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 			assert.Nil(t, def.Provider.Auth,
 				"built-in engine %s should have no Provider.Auth (uses legacy AuthBinding)", tt.engineID)
 
-			if tt.wantAuthSecret != "" {
-				require.Lenf(t, def.Auth, 1, "engine %s should have exactly one AuthBinding", tt.engineID)
-				assert.Equal(t, tt.wantAuthSecret, def.Auth[0].Secret,
-					"engine %s AuthBinding.Secret should be unchanged", tt.engineID)
-			} else {
-				assert.Empty(t, def.Auth, "engine %s should have no AuthBinding", tt.engineID)
-			}
+			require.Lenf(t, def.Auth, 1, "engine %s should have exactly one AuthBinding", tt.engineID)
+			assert.Equal(t, tt.wantAuthSecret, def.Auth[0].Secret,
+				"engine %s AuthBinding.Secret should be unchanged", tt.engineID)
 		})
 	}
 }

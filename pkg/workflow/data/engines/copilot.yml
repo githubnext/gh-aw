@@ -1,6 +1,10 @@
-id: copilot
-display-name: GitHub Copilot CLI
-description: Uses GitHub Copilot CLI with MCP server support
-runtime-id: copilot
-provider:
-  name: github
+engine:
+  id: copilot
+  display-name: GitHub Copilot CLI
+  description: Uses GitHub Copilot CLI with MCP server support
+  runtime-id: copilot
+  provider:
+    name: github
+  auth:
+    - role: api-key
+      secret: COPILOT_GITHUB_TOKEN

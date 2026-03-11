@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/github/gh-aw/schemas/engine_definition_schema.json",
+  "title": "Engine Definition Schema",
+  "description": "JSON Schema for validating built-in engine definition YAML files in data/engines/",
+  "type": "object",
+  "required": ["engine"],
+  "additionalProperties": false,
+  "properties": {
+    "engine": {
+      "type": "object",
+      "description": "Engine definition metadata",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique engine identifier used in workflow frontmatter (e.g. 'claude', 'copilot')",
+          "examples": ["claude", "codex", "copilot", "gemini"]
+        },
+        "display-name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable engine name shown in CLI prompts and documentation",
+          "examples": ["Claude Code", "GitHub Copilot CLI"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of the engine shown in CLI prompts and documentation"
+        },
+        "runtime-id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Runtime adapter identifier registered in the EngineRegistry. Defaults to 'id' when omitted.",
+          "examples": ["claude", "codex", "copilot", "gemini"]
+        },
+        "provider": {
+          "type": "object",
+          "description": "AI provider configuration",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Provider identifier (e.g. 'anthropic', 'openai', 'github', 'google')",
+              "examples": ["anthropic", "openai", "github", "google"]
+            },
+            "auth": {
+              "$ref": "#/$defs/auth_definition"
+            },
+            "request": {
+              "$ref": "#/$defs/request_shape"
+            }
+          }
+        },
+        "models": {
+          "type": "object",
+          "description": "Default and supported model selection",
+          "additionalProperties": false,
+          "properties": {
+            "default": {
+              "type": "string",
+              "description": "Default model identifier",
+              "examples": ["claude-sonnet-4", "gpt-4o"]
+            },
+            "supported": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of supported model identifiers"
+            }
+          }
+        },
+        "auth": {
+          "type": "array",
+          "description": "Authentication bindings mapping roles to secret names",
+          "items": {
+            "type": "object",
+            "required": ["role", "secret"],
+            "additionalProperties": false,
+            "properties": {
+              "role": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Authentication role identifier (e.g. 'api-key')",
+                "examples": ["api-key"]
+              },
+              "secret": {
+                "type": "string",
+                "minLength": 1,
+                "description": "GitHub Actions secret or environment variable name",
+                "examples": ["ANTHROPIC_API_KEY", "COPILOT_GITHUB_TOKEN", "GEMINI_API_KEY"]
+              }
+            }
+          }
+        },
+        "options": {
+          "type": "object",
+          "description": "Engine-specific options as key-value pairs"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "auth_definition": {
+      "type": "object",
+      "description": "Advanced authentication configuration for provider backends",
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["api-key", "oauth-client-credentials", "bearer"],
+          "description": "Authentication flow strategy"
+        },
+        "secret": {
+          "type": "string",
+          "description": "Env-var or GitHub Actions secret name holding the raw API key or token"
+        },
+        "token-url": {
+          "type": "string",
+          "description": "OAuth token endpoint URL (required for oauth-client-credentials strategy)"
+        },
+        "client-id-ref": {
+          "type": "string",
+          "description": "Secret name holding the OAuth client ID"
+        },
+        "client-secret-ref": {
+          "type": "string",
+          "description": "Secret name holding the OAuth client secret"
+        },
+        "token-field": {
+          "type": "string",
+          "description": "JSON field name in token response containing the access token (default: access_token)"
+        },
+        "header-name": {
+          "type": "string",
+          "description": "HTTP header name to inject the token into (e.g. 'api-key')"
+        }
+      }
+    },
+    "request_shape": {
+      "type": "object",
+      "description": "Non-standard URL and body transformations for provider API calls",
+      "additionalProperties": false,
+      "properties": {
+        "path-template": {
+          "type": "string",
+          "description": "URL path template with {model} and other variable placeholders"
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Static or template query parameters appended to every request"
+        },
+        "body-inject": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key-value pairs injected into the JSON request body before sending"
+        }
+      }
+    }
+  }
+}
