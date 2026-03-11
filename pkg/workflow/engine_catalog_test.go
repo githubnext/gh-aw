@@ -111,7 +111,7 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 func TestEngineCatalogMatchesSchema(t *testing.T) {
 	variants := engineSchemaOneOfVariants(t)
 
-	require.Len(t, variants, 3, "engine_config oneOf should have exactly 3 variants: string, object-with-id, object-with-runtime")
+	require.Len(t, variants, 4, "engine_config oneOf should have exactly 4 variants: string, object-with-id, object-with-runtime, engine-definition")
 
 	// Variant 0: plain string (no enum — allows built-ins and custom named catalog entries)
 	assert.Equal(t, "string", variants[0]["type"],
@@ -140,4 +140,13 @@ func TestEngineCatalogMatchesSchema(t *testing.T) {
 		"third variant should have a 'runtime' property for inline engine definitions")
 	assert.Contains(t, props2, "provider",
 		"third variant should have a 'provider' property for inline engine definitions")
+
+	// Variant 3: engine definition form used in builtin engine shared workflow files
+	assert.Equal(t, "object", variants[3]["type"],
+		"fourth variant should be type object (engine definition)")
+	props3, ok := variants[3]["properties"].(map[string]any)
+	require.True(t, ok, "fourth variant should have properties")
+	assert.Contains(t, props3, "id", "engine definition variant should have an 'id' property")
+	assert.Contains(t, props3, "display-name", "engine definition variant should have a 'display-name' property")
+	assert.Contains(t, props3, "auth", "engine definition variant should have an 'auth' property")
 }

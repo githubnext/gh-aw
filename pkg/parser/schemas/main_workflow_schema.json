@@ -8076,6 +8076,138 @@
           },
           "required": ["runtime"],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Engine definition: full declarative metadata for a named engine entry (used in builtin engine shared workflow files such as @builtin:engines/*.md)",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini')"
+            },
+            "display-name": {
+              "type": "string",
+              "description": "Human-readable display name for the engine"
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable description of the engine"
+            },
+            "runtime-id": {
+              "type": "string",
+              "description": "Runtime adapter identifier. Maps to the CodingAgentEngine registered in the engine registry. Defaults to id when omitted."
+            },
+            "provider": {
+              "type": "object",
+              "description": "Provider metadata for the engine",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Provider name (e.g. 'anthropic', 'github', 'google', 'openai')"
+                },
+                "auth": {
+                  "type": "object",
+                  "description": "Default authentication configuration for the provider",
+                  "properties": {
+                    "secret": {
+                      "type": "string",
+                      "description": "Name of the GitHub Actions secret that contains the API key"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "enum": ["api-key", "oauth-client-credentials", "bearer"],
+                      "description": "Authentication strategy"
+                    },
+                    "token-url": {
+                      "type": "string",
+                      "description": "OAuth 2.0 token endpoint URL"
+                    },
+                    "client-id": {
+                      "type": "string",
+                      "description": "GitHub Actions secret name for the OAuth client ID"
+                    },
+                    "client-secret": {
+                      "type": "string",
+                      "description": "GitHub Actions secret name for the OAuth client secret"
+                    },
+                    "token-field": {
+                      "type": "string",
+                      "description": "JSON field name in the token response containing the access token"
+                    },
+                    "header-name": {
+                      "type": "string",
+                      "description": "HTTP header name to inject the API key or token into"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "request": {
+                  "type": "object",
+                  "description": "Request shaping configuration",
+                  "properties": {
+                    "path-template": {
+                      "type": "string",
+                      "description": "URL path template with variable placeholders"
+                    },
+                    "query": {
+                      "type": "object",
+                      "description": "Static query parameters",
+                      "additionalProperties": { "type": "string" }
+                    },
+                    "body-inject": {
+                      "type": "object",
+                      "description": "Key/value pairs injected into the JSON request body",
+                      "additionalProperties": { "type": "string" }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "models": {
+              "type": "object",
+              "description": "Model selection configuration for the engine",
+              "properties": {
+                "default": {
+                  "type": "string",
+                  "description": "Default model identifier"
+                },
+                "supported": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "List of supported model identifiers"
+                }
+              },
+              "additionalProperties": false
+            },
+            "auth": {
+              "type": "array",
+              "description": "Authentication bindings — maps logical roles (e.g. 'api-key') to GitHub Actions secret names",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "description": "Logical authentication role (e.g. 'api-key', 'token')"
+                  },
+                  "secret": {
+                    "type": "string",
+                    "description": "Name of the GitHub Actions secret that provides credentials for this role"
+                  }
+                },
+                "required": ["role", "secret"],
+                "additionalProperties": false
+              }
+            },
+            "options": {
+              "type": "object",
+              "description": "Additional engine-specific options",
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "display-name"],
+          "additionalProperties": false
         }
       ]
     },

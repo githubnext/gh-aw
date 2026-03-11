@@ -131,16 +131,9 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	// Custom agent files use GitHub Copilot's format where 'tools' is an array, not an object
 	isAgentFile := isCustomAgentFile(filePath)
 
-	// Builtin engine files (@builtin:engines/*.md) are pre-validated against the engine
-	// definition schema at load time. Skip shared-workflow schema validation for them to
-	// avoid spurious warnings about engine definition fields (auth, display-name, etc.)
-	// that are not part of the shared workflow schema.
-	isBuiltinFile := strings.HasPrefix(filePath, BuiltinPathPrefix)
-
-	// Always try strict validation first (but skip for agent files which have a different schema,
-	// and skip for builtin files which use the engine definition schema, not workflow schema)
+	// Always try strict validation first (but skip for agent files which have a different schema)
 	var validationErr error
-	if !isAgentFile && !isBuiltinFile {
+	if !isAgentFile {
 		validationErr = ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
 	}
 
