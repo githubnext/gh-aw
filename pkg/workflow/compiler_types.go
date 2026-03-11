@@ -98,6 +98,7 @@ type Compiler struct {
 	actionTag               string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
 	jobManager              *JobManager         // Manages jobs and dependencies
 	engineRegistry          *EngineRegistry     // Registry of available agentic engines
+	engineCatalog           *EngineCatalog      // Catalog of engine definitions backed by the registry
 	fileTracker             FileTracker         // Optional file tracker for tracking created files
 	warningCount            int                 // Number of warnings encountered during compilation
 	stepOrderTracker        *StepOrderTracker   // Tracks step ordering for validation
@@ -136,6 +137,7 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		actionMode:        DetectActionMode(version), // Auto-detect action mode based on version
 		jobManager:        NewJobManager(),
 		engineRegistry:    GetGlobalEngineRegistry(),
+		engineCatalog:     NewEngineCatalog(GetGlobalEngineRegistry()),
 		stepOrderTracker:  NewStepOrderTracker(),
 		artifactManager:   NewArtifactManager(),
 		actionPinWarnings: make(map[string]bool), // Initialize warning cache

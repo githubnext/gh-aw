@@ -199,19 +199,17 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		}
 	}
 
-	// Validate the engine setting
-	orchestratorEngineLog.Printf("Validating engine setting: %s", engineSetting)
-	if err := c.validateEngine(engineSetting); err != nil {
-		orchestratorEngineLog.Printf("Engine validation failed: %v", err)
-		return nil, err
-	}
-
-	// Get the agentic engine instance
-	agenticEngine, err := c.getAgenticEngine(engineSetting)
+	// Validate the engine setting and resolve the runtime adapter via the catalog.
+	// This performs exact catalog lookup, prefix fallback, and returns a formatted
+	// validation error for unknown engines — replacing the separate validateEngine
+	// and getAgenticEngine calls.
+	orchestratorEngineLog.Printf("Resolving engine setting: %s", engineSetting)
+	resolvedEngine, err := c.engineCatalog.Resolve(engineSetting, engineConfig)
 	if err != nil {
-		orchestratorEngineLog.Printf("Failed to get agentic engine: %v", err)
+		orchestratorEngineLog.Printf("Engine resolution failed: %v", err)
 		return nil, err
 	}
+	agenticEngine := resolvedEngine.Runtime
 
 	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
 	if agenticEngine.IsExperimental() && c.verbose {
