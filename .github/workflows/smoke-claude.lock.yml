@@ -638,7 +638,7 @@ jobs:
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Install and pack APM dependencies
         id: apm_pack
-        uses: microsoft/apm-action@a2b2dd5f5436731dac58dc976a4f2e8b1d2b1e51 # v1.2.0
+        uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
         with:
           dependencies: |
             - microsoft/apm-sample-package
@@ -796,7 +796,7 @@ jobs:
           name: apm
           path: /tmp/gh-aw/apm-bundle
       - name: Restore APM dependencies
-        uses: microsoft/apm-action@a2b2dd5f5436731dac58dc976a4f2e8b1d2b1e51 # v1.2.0
+        uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
         with:
           bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
       - name: Determine automatic lockdown mode for GitHub MCP Server
