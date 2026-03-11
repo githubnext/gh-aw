@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
@@ -37,7 +38,7 @@ async function ensureAgentRunsIssue() {
       };
     }
   } catch (error) {
-    throw new Error(`Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`);
+    throw new Error(`${ERR_API}: Failed to search for existing no-op runs issue: ${getErrorMessage(error)}`);
   }
 
   // Create no-op runs issue if it doesn't exist
