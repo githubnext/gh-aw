@@ -293,7 +293,11 @@ mkdir -p "$CODEX_HOME/logs"
 	} else {
 		env["GH_AW_PHASE"] = "agent"
 	}
-	env["GH_AW_VERSION"] = GetVersion()
+	if IsRelease() {
+		env["GH_AW_VERSION"] = GetVersion()
+	} else {
+		env["GH_AW_VERSION"] = "dev"
+	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
