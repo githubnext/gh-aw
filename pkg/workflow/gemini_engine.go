@@ -82,84 +82,41 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 // GetSecretValidationStep returns the secret validation step for the Gemini engine.
 // Returns an empty step if custom command is specified.
 func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		geminiLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	return GenerateMultiSecretValidationStep(
+	return GetStandardSecretValidationStep(
+		geminiLog,
+		workflowData,
 		[]string{"GEMINI_API_KEY"},
 		"Gemini CLI",
 		"https://geminicli.com/docs/get-started/authentication/",
-		getEngineEnvOverrides(workflowData),
+		nil,
+		"",
 	)
 }
 
 func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	geminiLog.Printf("Generating installation steps for Gemini engine: workflow=%s", workflowData.Name)
 
-	// Skip installation if custom command is specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		geminiLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
-	}
-
-	var steps []GitHubActionStep
-
-	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"GEMINI_API_KEY"},
-		DocsURL:         "https://geminicli.com/docs/get-started/authentication/",
 		NpmPackage:      "@google/gemini-cli",
 		Version:         string(constants.DefaultGeminiVersion),
-		Name:            "Gemini CLI",
 		CliName:         "gemini",
 		InstallStepName: "Install Gemini CLI",
 	}
 
-	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
-
-	// Determine Gemini version
-	geminiVersion := config.Version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		geminiVersion = workflowData.EngineConfig.Version
-	}
-
-	// Add Node.js setup step first (before sandbox installation)
-	npmSteps := GenerateNpmInstallSteps(
-		config.NpmPackage,
-		geminiVersion,
-		config.InstallStepName,
-		config.CliName,
-		true, // Include Node.js setup
+	return BuildEngineInstallationSteps(
+		geminiLog,
+		workflowData,
+		func() []GitHubActionStep {
+			return BuildStandardNpmEngineInstallSteps(
+				config.NpmPackage,
+				config.Version,
+				config.InstallStepName,
+				config.CliName,
+				workflowData,
+			)
+		},
+		nil,
 	)
-
-	if len(npmSteps) > 0 {
-		steps = append(steps, npmSteps[0]) // Setup Node.js step
-	}
-
-	// Add AWF installation if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		// Install AWF after Node.js setup but before Gemini CLI installation
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-	}
-
-	// Add Gemini CLI installation step after sandbox installation
-	if len(npmSteps) > 1 {
-		steps = append(steps, npmSteps[1:]...) // Install Gemini CLI and subsequent steps
-	}
-
-	return steps
 }
 
 // GetDeclaredOutputFiles returns the output files that Gemini may produce.

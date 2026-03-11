@@ -287,6 +287,106 @@ func GetNpmBinPathSetup() string {
 	return `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
+// GetStandardSecretValidationStep is a shared helper for engine GetSecretValidationStep
+// implementations. It encapsulates the common control flow:
+//  1. Return GitHubActionStep{} (empty step) when a custom command is specified
+//  2. Return GitHubActionStep{} (empty step) when an optional extra condition is true
+//  3. Return GenerateMultiSecretValidationStep with the supplied engine-specific config
+//
+// Parameters:
+//   - log: Logger used for diagnostic messages
+//   - workflowData: Workflow data to check for custom command and env overrides
+//   - secrets: List of secret names to validate
+//   - engineName: Engine display name for validation messages (e.g., "Claude Code")
+//   - docsURL: Documentation URL shown when validation fails
+//   - extraSkip: Optional additional skip condition — return true to skip; pass nil to omit
+//   - extraSkipMsg: Message logged when extraSkip returns true
+func GetStandardSecretValidationStep(
+	log *logger.Logger,
+	workflowData *WorkflowData,
+	secrets []string,
+	engineName string,
+	docsURL string,
+	extraSkip func(*WorkflowData) bool,
+	extraSkipMsg string,
+) GitHubActionStep {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		log.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return GitHubActionStep{}
+	}
+	if extraSkip != nil && extraSkip(workflowData) {
+		log.Print(extraSkipMsg)
+		return GitHubActionStep{}
+	}
+	return GenerateMultiSecretValidationStep(
+		secrets,
+		engineName,
+		docsURL,
+		getEngineEnvOverrides(workflowData),
+	)
+}
+
+// BuildEngineInstallationSteps builds the standard installation step sequence for npm-based
+// engines. It handles the common orchestration that was previously duplicated across Claude,
+// Gemini, Copilot, and Codex:
+//
+//  1. Skip all steps (return empty) when a custom engine command is specified
+//  2. Call generateSteps() to produce an ordered slice of install steps
+//  3. Emit the first step (typically Node.js setup or a combined installer)
+//  4. Inject the AWF binary installation step between setup and CLI install (if firewall enabled)
+//  5. Emit remaining steps (typically CLI installation)
+//  6. Append any engine-specific post-install steps (e.g., Copilot plugin installation)
+//
+// Parameters:
+//   - log: Logger used for diagnostic messages
+//   - workflowData: Workflow data (engine config, firewall config, etc.)
+//   - generateSteps: Function that produces the ordered base install steps
+//   - postInstallSteps: Additional steps appended after all install steps (may be nil/empty)
+func BuildEngineInstallationSteps(
+	log *logger.Logger,
+	workflowData *WorkflowData,
+	generateSteps func() []GitHubActionStep,
+	postInstallSteps []GitHubActionStep,
+) []GitHubActionStep {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		log.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
+	allSteps := generateSteps()
+	var steps []GitHubActionStep
+
+	// Emit the first step (Node.js setup or combined installer) before AWF.
+	if len(allSteps) > 0 {
+		steps = append(steps, allSteps[0])
+	}
+
+	// Inject AWF installation after the setup step but before the CLI install step
+	// so that the AWF binary is available when the CLI installation runs inside the sandbox.
+	if isFirewallEnabled(workflowData) {
+		firewallConfig := getFirewallConfig(workflowData)
+		agentConfig := getAgentConfig(workflowData)
+		var awfVersion string
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+		}
+		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
+		if len(awfInstall) > 0 {
+			steps = append(steps, awfInstall)
+		}
+	}
+
+	// Emit remaining steps (CLI installation and any subsequent steps).
+	if len(allSteps) > 1 {
+		steps = append(steps, allSteps[1:]...)
+	}
+
+	// Append optional engine-specific post-install steps.
+	steps = append(steps, postInstallSteps...)
+
+	return steps
+}
+
 // EngineHasValidateSecretStep checks if the engine provides a validate-secret step.
 // This is used to determine whether the secret_verification_result job output should be added.
 //

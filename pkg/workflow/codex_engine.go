@@ -77,54 +77,40 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
 // Returns an empty step if custom command is specified.
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		codexEngineLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	return GenerateMultiSecretValidationStep(
+	return GetStandardSecretValidationStep(
+		codexEngineLog,
+		workflowData,
 		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
 		"Codex",
 		"https://github.github.com/gh-aw/reference/engines/#openai-codex",
-		getEngineEnvOverrides(workflowData),
+		nil,
+		"",
 	)
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
-	// Skip installation if custom command is specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		codexEngineLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
-	}
-
-	// Use base installation steps (npm install only; secret validation is in the activation job)
-	steps := GetBaseInstallationSteps(EngineInstallConfig{
-		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		DocsURL:    "https://github.github.com/gh-aw/reference/engines/#openai-codex",
+	config := EngineInstallConfig{
 		NpmPackage: "@openai/codex",
 		Version:    string(constants.DefaultCodexVersion),
-		Name:       "Codex",
 		CliName:    "codex",
-	}, workflowData)
-
-	// Add AWF installation step if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
 	}
 
-	return steps
+	return BuildEngineInstallationSteps(
+		codexEngineLog,
+		workflowData,
+		func() []GitHubActionStep {
+			return BuildStandardNpmEngineInstallSteps(
+				config.NpmPackage,
+				config.Version,
+				"Install Codex",
+				config.CliName,
+				workflowData,
+			)
+		},
+		nil,
+	)
 }
 
 // GetDeclaredOutputFiles returns the output files that Codex may produce

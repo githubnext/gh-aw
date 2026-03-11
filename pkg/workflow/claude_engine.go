@@ -64,84 +64,41 @@ func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 // GetSecretValidationStep returns the secret validation step for the Claude engine.
 // Returns an empty step if custom command is specified.
 func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		claudeLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	return GenerateMultiSecretValidationStep(
+	return GetStandardSecretValidationStep(
+		claudeLog,
+		workflowData,
 		[]string{"ANTHROPIC_API_KEY"},
 		"Claude Code",
 		"https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-		getEngineEnvOverrides(workflowData),
+		nil,
+		"",
 	)
 }
 
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
-	// Skip installation if custom command is specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		claudeLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
-	}
-
-	var steps []GitHubActionStep
-
-	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"ANTHROPIC_API_KEY"},
-		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 		NpmPackage:      "@anthropic-ai/claude-code",
 		Version:         string(constants.DefaultClaudeCodeVersion),
-		Name:            "Claude Code",
 		CliName:         "claude",
 		InstallStepName: "Install Claude Code CLI",
 	}
 
-	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
-
-	// Determine Claude version
-	claudeVersion := config.Version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		claudeVersion = workflowData.EngineConfig.Version
-	}
-
-	// Add Node.js setup step first (before sandbox installation)
-	npmSteps := GenerateNpmInstallSteps(
-		config.NpmPackage,
-		claudeVersion,
-		config.InstallStepName,
-		config.CliName,
-		true, // Include Node.js setup
+	return BuildEngineInstallationSteps(
+		claudeLog,
+		workflowData,
+		func() []GitHubActionStep {
+			return BuildStandardNpmEngineInstallSteps(
+				config.NpmPackage,
+				config.Version,
+				config.InstallStepName,
+				config.CliName,
+				workflowData,
+			)
+		},
+		nil,
 	)
-
-	if len(npmSteps) > 0 {
-		steps = append(steps, npmSteps[0]) // Setup Node.js step
-	}
-
-	// Add AWF installation if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		// Install AWF after Node.js setup but before Claude CLI installation
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-	}
-
-	// Add Claude CLI installation step after sandbox installation
-	if len(npmSteps) > 1 {
-		steps = append(steps, npmSteps[1:]...) // Install Claude CLI and subsequent steps
-	}
-
-	return steps
 }
 
 // GetDeclaredOutputFiles returns the output files that Claude may produce

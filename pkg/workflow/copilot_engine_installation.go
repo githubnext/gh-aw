@@ -26,19 +26,16 @@ var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if copilot-requests feature is enabled or custom command is specified.
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		copilotInstallLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
-		copilotInstallLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
-		return GitHubActionStep{}
-	}
-	return GenerateMultiSecretValidationStep(
+	return GetStandardSecretValidationStep(
+		copilotInstallLog,
+		workflowData,
 		[]string{"COPILOT_GITHUB_TOKEN"},
 		"GitHub Copilot CLI",
 		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
-		getEngineEnvOverrides(workflowData),
+		func(wd *WorkflowData) bool {
+			return isFeatureEnabled(constants.CopilotRequestsFeatureFlag, wd)
+		},
+		"Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token",
 	)
 }
 
@@ -55,82 +52,32 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	copilotInstallLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
 
-	// Skip installation if custom command is specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return []GitHubActionStep{}
+	// Build plugin installation steps (if any) to pass as post-install steps.
+	var pluginSteps []GitHubActionStep
+	if workflowData.PluginInfo != nil && len(workflowData.PluginInfo.Plugins) > 0 {
+		copilotInstallLog.Printf("Adding plugin installation steps: %d plugins", len(workflowData.PluginInfo.Plugins))
+		tokenToUse := workflowData.PluginInfo.CustomToken
+		pluginSteps = GeneratePluginInstallationSteps(workflowData.PluginInfo.Plugins, "copilot", tokenToUse)
 	}
 
-	var steps []GitHubActionStep
-
-	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"COPILOT_GITHUB_TOKEN"},
-		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
-		NpmPackage:      "@github/copilot",
 		Version:         string(constants.DefaultCopilotVersion),
-		Name:            "GitHub Copilot CLI",
-		CliName:         "copilot",
 		InstallStepName: "Install GitHub Copilot CLI",
 	}
 
-	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
-
-	// Determine Copilot version
-	copilotVersion := config.Version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		copilotVersion = workflowData.EngineConfig.Version
-	}
-
-	// Determine if Copilot should be installed globally
-	// Always install globally now (SRT removed)
-	installGlobally := true
-
-	// Generate install steps based on installation scope
-	var npmSteps []GitHubActionStep
-	if installGlobally {
-		// Use the new installer script for global installation
-		copilotInstallLog.Print("Using new installer script for Copilot installation")
-		npmSteps = GenerateCopilotInstallerSteps(copilotVersion, config.InstallStepName)
-	}
-
-	// Add Node.js setup step first (before sandbox installation)
-	if len(npmSteps) > 0 {
-		steps = append(steps, npmSteps[0]) // Setup Node.js step
-	}
-
-	// Add sandbox installation steps (AWF only)
-	if isFirewallEnabled(workflowData) {
-		// Install AWF after Node.js setup but before Copilot CLI installation
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-	}
-
-	// Add Copilot CLI installation step after sandbox installation
-	if len(npmSteps) > 1 {
-		steps = append(steps, npmSteps[1:]...) // Install Copilot CLI and subsequent steps
-	}
-
-	// Add plugin installation steps after Copilot CLI installation
-	if workflowData.PluginInfo != nil && len(workflowData.PluginInfo.Plugins) > 0 {
-		copilotInstallLog.Printf("Adding plugin installation steps: %d plugins", len(workflowData.PluginInfo.Plugins))
-		// Use plugin-specific token if provided
-		tokenToUse := workflowData.PluginInfo.CustomToken
-		pluginSteps := GeneratePluginInstallationSteps(workflowData.PluginInfo.Plugins, "copilot", tokenToUse)
-		steps = append(steps, pluginSteps...)
-	}
-
-	return steps
+	return BuildEngineInstallationSteps(
+		copilotInstallLog,
+		workflowData,
+		func() []GitHubActionStep {
+			version := config.Version
+			if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+				version = workflowData.EngineConfig.Version
+			}
+			copilotInstallLog.Print("Using new installer script for Copilot installation")
+			return GenerateCopilotInstallerSteps(version, config.InstallStepName)
+		},
+		pluginSteps,
+	)
 }
 
 // generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
