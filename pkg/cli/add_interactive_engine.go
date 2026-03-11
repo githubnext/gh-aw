@@ -139,6 +139,17 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
+	// If --skip-secret flag is set, skip secrets configuration entirely.
+	if c.SkipSecret {
+		opt := constants.GetEngineOption(engine)
+		if opt != nil {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping %s secret setup (--skip-secret flag set).", opt.SecretName)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping secret setup (--skip-secret flag set)."))
+		}
+		return nil
+	}
+
 	// If user doesn't have write access, skip secrets configuration.
 	// Users without write access cannot configure repository secrets.
 	if !c.hasWriteAccess {

@@ -132,6 +132,43 @@ func TestAddInteractiveConfig_collectAPIKey_noWriteAccess(t *testing.T) {
 	}
 }
 
+func TestAddInteractiveConfig_collectAPIKey_skipSecret(t *testing.T) {
+	tests := []struct {
+		name   string
+		engine string
+	}{
+		{
+			name:   "copilot engine - skips secret setup",
+			engine: "copilot",
+		},
+		{
+			name:   "claude engine - skips secret setup",
+			engine: "claude",
+		},
+		{
+			name:   "unknown engine - skips without error",
+			engine: "unknown-engine",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &AddInteractiveConfig{
+				EngineOverride:  tt.engine,
+				RepoOverride:    "owner/repo",
+				hasWriteAccess:  true,
+				SkipSecret:      true,
+				existingSecrets: make(map[string]bool),
+			}
+
+			// When SkipSecret is true, collectAPIKey should return nil without
+			// prompting or uploading any secrets, even with write access.
+			err := config.collectAPIKey(tt.engine)
+			require.NoError(t, err, "collectAPIKey should succeed when SkipSecret is true")
+		})
+	}
+}
+
 func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
 	config := &AddInteractiveConfig{
 		RepoOverride: "test-owner/test-repo",
