@@ -124,11 +124,14 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.ReplyToPullRequestReviewComment != nil {
 			additionalFields := make(map[string]any)
 			if data.SafeOutputs.ReplyToPullRequestReviewComment.Footer != nil {
-				switch *data.SafeOutputs.ReplyToPullRequestReviewComment.Footer {
-				case "true":
-					additionalFields["footer"] = true
-				case "false":
-					additionalFields["footer"] = false
+				footerValue := *data.SafeOutputs.ReplyToPullRequestReviewComment.Footer
+				// Allow boolean-like values (e.g., "true", "1") and templated expressions (e.g., "${{ ... }}").
+				if strings.HasPrefix(footerValue, "${{") && strings.HasSuffix(footerValue, "}}") {
+					additionalFields["footer"] = footerValue
+				} else if parsedBool, err := strconv.ParseBool(footerValue); err == nil {
+					additionalFields["footer"] = parsedBool
+				} else {
+					safeOutputsConfigLog.Printf("Unrecognized footer value %q; expected boolean or template, omitting footer", footerValue)
 				}
 			}
 			safeOutputsConfig["reply_to_pull_request_review_comment"] = generateTargetConfigWithRepos(
