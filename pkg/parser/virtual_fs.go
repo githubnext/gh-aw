@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -14,14 +16,24 @@ var (
 )
 
 // RegisterBuiltinVirtualFile registers an embedded file under a canonical builtin path.
-// Paths must start with BuiltinPathPrefix ("@builtin:"). The registration is
-// idempotent — registering the same path twice with the same content is safe.
+// Paths must start with BuiltinPathPrefix ("@builtin:"); it panics if they do not.
+// If the same path is registered twice with identical content the call is a no-op.
+// Registering the same path with different content panics to surface configuration errors early.
 // This function is safe for concurrent use.
 func RegisterBuiltinVirtualFile(path string, content []byte) {
+	if !strings.HasPrefix(path, BuiltinPathPrefix) {
+		panic(fmt.Sprintf("RegisterBuiltinVirtualFile: path %q does not start with %q", path, BuiltinPathPrefix))
+	}
 	builtinVirtualFilesMu.Lock()
 	defer builtinVirtualFilesMu.Unlock()
 	if builtinVirtualFiles == nil {
 		builtinVirtualFiles = make(map[string][]byte)
+	}
+	if existing, ok := builtinVirtualFiles[path]; ok {
+		if string(existing) != string(content) {
+			panic(fmt.Sprintf("RegisterBuiltinVirtualFile: path %q already registered with different content", path))
+		}
+		return // idempotent: same content, no-op
 	}
 	builtinVirtualFiles[path] = content
 }

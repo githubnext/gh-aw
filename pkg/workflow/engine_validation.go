@@ -300,7 +300,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		}
 	}
 
-	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string or object with 'id' field.\n\nExample (string):\nengine: copilot\n\nExample (object):\nengine:\n  id: copilot\n  model: gpt-4\n\nSee: %s", constants.DocsEnginesURL)
+	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string, object with 'id' field, or inline definition with 'runtime.id'.\n\nExample (string):\nengine: copilot\n\nExample (object with id):\nengine:\n  id: copilot\n  model: gpt-4\n\nExample (inline runtime definition):\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
 }
 
 // validatePluginSupport validates that plugins are only used with engines that support them

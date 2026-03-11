@@ -106,7 +106,7 @@ func validateEngineDefinitionYAML(data []byte, path string) error {
 }
 
 // extractMarkdownFrontmatterYAML extracts the YAML content between the first pair of
-// "---" delimiters in a Markdown file.
+// "---" delimiters in a Markdown file. Both LF and CRLF line endings are supported.
 func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
 	s := string(content)
 	const sep = "---"
@@ -118,8 +118,24 @@ func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
 	}
 	s = s[start+len(sep):]
 
-	// Find the closing delimiter
-	end := strings.Index(s, "\n"+sep)
+	// Find the closing delimiter, supporting both LF and CRLF line endings.
+	endLF := strings.Index(s, "\n"+sep)
+	endCRLF := strings.Index(s, "\r\n"+sep)
+
+	end := -1
+	switch {
+	case endLF >= 0 && endCRLF >= 0:
+		if endLF < endCRLF {
+			end = endLF
+		} else {
+			end = endCRLF
+		}
+	case endLF >= 0:
+		end = endLF
+	case endCRLF >= 0:
+		end = endCRLF
+	}
+
 	if end == -1 {
 		return nil, fmt.Errorf("no frontmatter closing delimiter found")
 	}
