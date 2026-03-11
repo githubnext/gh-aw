@@ -256,6 +256,72 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 	return nil
 }
 
+// deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
+// When the GitHub MCP server has a guard-policy with repos, the safeoutputs MCP must also have
+// a linked guard-policy. Each entry in the GitHub MCP server's "repos" must have a corresponding
+// entry in safeoutputs "accept" with the prefix "private:".
+//
+// This allows the gateway to read private data from the GitHub MCP server and still write to safeoutputs.
+// Returns nil if no GitHub guard policies are configured.
+func deriveSafeOutputsGuardPolicyFromGitHub(githubTool any) map[string]any {
+	githubPolicies := getGitHubGuardPolicies(githubTool)
+	if githubPolicies == nil {
+		return nil
+	}
+
+	// Extract the allow-only policy from GitHub guard policies
+	allowOnly, ok := githubPolicies["allow-only"].(map[string]any)
+	if !ok || allowOnly == nil {
+		return nil
+	}
+
+	// Extract repos from the allow-only policy
+	repos, hasRepos := allowOnly["repos"]
+	if !hasRepos {
+		return nil
+	}
+
+	// Convert repos to accept list with "private:" prefix
+	var acceptList []string
+
+	switch r := repos.(type) {
+	case string:
+		// Single string value (e.g., "all", "public", or a pattern)
+		if r == "all" || r == "public" {
+			// For "all" or "public", add "private:*" to accept all private repos
+			acceptList = []string{"private:*"}
+		} else {
+			// Single pattern - add with private: prefix
+			acceptList = []string{"private:" + r}
+		}
+	case []any:
+		// Array of patterns
+		acceptList = make([]string, 0, len(r))
+		for _, item := range r {
+			if pattern, ok := item.(string); ok {
+				acceptList = append(acceptList, "private:"+pattern)
+			}
+		}
+	case []string:
+		// Array of patterns (already strings)
+		acceptList = make([]string, 0, len(r))
+		for _, pattern := range r {
+			acceptList = append(acceptList, "private:"+pattern)
+		}
+	default:
+		// Unknown type, return nil
+		githubConfigLog.Printf("Unknown repos type in guard-policy: %T", repos)
+		return nil
+	}
+
+	// Build the write-sink policy for safeoutputs
+	return map[string]any{
+		"write-sink": map[string]any{
+			"accept": acceptList,
+		},
+	}
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
 	// Extract version setting from tool properties
