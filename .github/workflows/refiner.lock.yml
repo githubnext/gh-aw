@@ -843,13 +843,11 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Upload Safe Outputs
+      - name: Copy safe outputs
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: safe-output
-          path: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
+        run: |
+          mkdir -p /tmp/gh-aw
+          cp "$GH_AW_SAFE_OUTPUTS" /tmp/gh-aw/safeoutputs.jsonl 2>/dev/null || true
       - name: Ingest agent output
         id: collect_output
         if: always()
@@ -865,21 +863,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');
             await main();
-      - name: Upload sanitized agent output
-        if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: agent-output
-          path: ${{ env.GH_AW_AGENT_OUTPUT }}
-          if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/gh-aw/sandbox/agent/logs/
-            /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -920,13 +903,17 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: agent-artifacts
+          name: agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
+            /tmp/gh-aw/safeoutputs.jsonl
+            /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
           if-no-files-found: ignore
       # --- Threat Detection (inline) ---
@@ -1089,14 +1076,14 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
+          name: agent
+          path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         if: steps.download-agent-output.outcome == 'success'
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+          mkdir -p /tmp/gh-aw/
+          find "/tmp/gh-aw/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Process No-Op Messages
         id: noop
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1260,19 +1247,19 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
+          name: agent
+          path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         if: steps.download-agent-output.outcome == 'success'
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+          mkdir -p /tmp/gh-aw/
+          find "/tmp/gh-aw/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: agent-artifacts
+          name: agent
           path: /tmp/gh-aw/
       - name: Checkout repository
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))

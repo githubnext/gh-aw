@@ -453,6 +453,29 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			expectedFiles:   []string{"file.txt", "subdir/nested.txt"},
 			unexpectedFiles: []string{"agent-artifacts/file.txt"},
 		},
+		{
+			name: "new 'agent' artifact takes precedence over legacy 'agent-artifacts'",
+			setup: func(dir string) error {
+				// Create BOTH: new 'agent' and old 'agent-artifacts'
+				// Only 'agent' should be flattened; 'agent-artifacts' should remain untouched
+				agentDir := filepath.Join(dir, "agent")
+				if err := os.MkdirAll(agentDir, 0755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(agentDir, "new-file.txt"), []byte("new"), 0644); err != nil {
+					return err
+				}
+				legacyDir := filepath.Join(dir, "agent-artifacts")
+				if err := os.MkdirAll(legacyDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(legacyDir, "old-file.txt"), []byte("old"), 0644)
+			},
+			expectedFiles:   []string{"new-file.txt"},
+			unexpectedFiles: []string{"agent/new-file.txt"},
+			// agent-artifacts is NOT flattened when agent/ is present
+			unexpectedDirs: []string{"agent"},
+		},
 	}
 
 	for _, tt := range tests {
