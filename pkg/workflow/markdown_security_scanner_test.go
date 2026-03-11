@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -819,7 +820,7 @@ func TestFormatSecurityFindings_Multiple(t *testing.T) {
 	assert.Contains(t, result, "cannot be added", "should mention rejection")
 }
 
-func TestTruncateSnippet(t *testing.T) {
+func TestTruncateWithTrimSpace(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
@@ -842,14 +843,20 @@ func TestTruncateSnippet(t *testing.T) {
 			name:   "long string",
 			input:  "hello world this is a very long string that needs to be truncated",
 			maxLen: 20,
-			expect: "hello world this is ...",
+			expect: "hello world this ...",
+		},
+		{
+			name:   "string with leading/trailing whitespace",
+			input:  "  hello  ",
+			maxLen: 10,
+			expect: "hello",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := truncateSnippet(tt.input, tt.maxLen)
-			assert.Equal(t, tt.expect, result, "truncateSnippet should work correctly")
+			result := stringutil.Truncate(strings.TrimSpace(tt.input), tt.maxLen)
+			assert.Equal(t, tt.expect, result, "stringutil.Truncate(strings.TrimSpace()) should work correctly")
 		})
 	}
 }

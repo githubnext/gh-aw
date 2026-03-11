@@ -305,6 +305,12 @@ This workflow has minimal push-to-pull-request-branch configuration.
 	if !strings.Contains(lockContentStr, "contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')") {
 		t.Errorf("Generated workflow should have safe output type condition")
 	}
+
+	// Verify that the default max is 1 (not 0) when not explicitly set
+	if !strings.Contains(lockContentStr, `"push_to_pull_request_branch":{"max":1}`) &&
+		!strings.Contains(lockContentStr, `"push_to_pull_request_branch": {"max": 1}`) {
+		t.Errorf("Expected push_to_pull_request_branch default max to be 1, got content: %s", lockContentStr)
+	}
 }
 
 func TestPushToPullRequestBranchWithIfNoChangesError(t *testing.T) {

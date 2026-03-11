@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -347,4 +348,85 @@ func extractEngineIDFromFile(filePath string) string {
 	}
 
 	return "copilot" // Default engine
+}
+
+// normalizeWorkflowID extracts the workflow ID from a workflow identifier.
+// It handles both workflow IDs ("my-workflow") and full paths (".github/workflows/my-workflow.md").
+// Returns the workflow ID without .md or .lock.yml extension.
+//
+// Note: unlike stringutil.NormalizeWorkflowName (which operates on bare names),
+// this function also handles file system paths by extracting the basename first.
+func normalizeWorkflowID(workflowIDOrPath string) string {
+	// Get the base filename if it's a path
+	basename := filepath.Base(workflowIDOrPath)
+
+	// Remove .md or .lock.yml extension if present
+	return stringutil.NormalizeWorkflowName(basename)
+}
+
+// resolveWorkflowFile resolves a file or workflow name to an actual file path
+// Note: This function only looks for local workflows, not packages
+func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error) {
+	return resolveWorkflowFileInDir(fileOrWorkflowName, verbose, "")
+}
+
+func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowDir string) (string, error) {
+	// First, try to use it as a direct file path
+	if _, err := os.Stat(fileOrWorkflowName); err == nil {
+		workflowsLog.Printf("Found workflow file at path: %s", fileOrWorkflowName)
+		console.LogVerbose(verbose, "Found workflow file at path: "+fileOrWorkflowName)
+		// Return absolute path
+		absPath, err := filepath.Abs(fileOrWorkflowName)
+		if err != nil {
+			return fileOrWorkflowName, nil // fallback to original path
+		}
+		return absPath, nil
+	}
+
+	// If it's not a direct file path, try to resolve it as a workflow name
+	workflowsLog.Printf("File not found at %s, trying to resolve as workflow name", fileOrWorkflowName)
+
+	// Add .md extension if not present
+	workflowPath := fileOrWorkflowName
+	if !strings.HasSuffix(workflowPath, ".md") {
+		workflowPath += ".md"
+	}
+
+	workflowsLog.Printf("Looking for workflow file: %s", workflowPath)
+
+	// Use provided directory or default
+	workflowsDir := workflowDir
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
+
+	// Try to find the workflow in local sources only (not packages)
+	_, path, err := readWorkflowFile(workflowPath, workflowsDir)
+	if err != nil {
+		suggestions := []string{
+			fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
+			fmt.Sprintf("Create a new workflow with '%s new %s'", string(constants.CLIExtensionPrefix), fileOrWorkflowName),
+			"Check for typos in the workflow name",
+		}
+
+		// Add fuzzy match suggestions
+		similarNames := suggestWorkflowNames(fileOrWorkflowName)
+		if len(similarNames) > 0 {
+			suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+		}
+
+		return "", errors.New(console.FormatErrorWithSuggestions(
+			fmt.Sprintf("workflow '%s' not found in local .github/workflows", fileOrWorkflowName),
+			suggestions,
+		))
+	}
+
+	workflowsLog.Print("Found workflow in local .github/workflows")
+
+	// Return absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return path, nil // fallback to original path
+	}
+	return absPath, nil
 }

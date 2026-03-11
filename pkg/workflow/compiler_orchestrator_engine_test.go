@@ -189,8 +189,7 @@ strict: false
 			testFile := filepath.Join(tmpDir, "strict-"+tt.name+".md")
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-			var compiler *Compiler
-			compiler = NewCompiler()
+			compiler := NewCompiler()
 			if tt.cliStrict {
 				compiler.SetStrictMode(true)
 			}
