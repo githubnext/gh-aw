@@ -207,6 +207,9 @@ jobs:
     with:
       ref: ${{ needs.config.outputs.release_tag }}
     secrets: inherit
+    permissions:
+      contents: write
+      pull-requests: write
 
   release:
     needs: ["pre_activation", "activation", "config", "sync_actions"]
