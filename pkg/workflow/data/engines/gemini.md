@@ -1,3 +1,4 @@
+---
 engine:
   id: gemini
   display-name: Google Gemini CLI
@@ -8,3 +9,8 @@ engine:
   auth:
     - role: api-key
       secret: GEMINI_API_KEY
+---
+
+# Google Gemini CLI
+
+Shared engine configuration for Google Gemini CLI.

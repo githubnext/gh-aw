@@ -78,13 +78,15 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Track import path for runtime-import macro generation (only if no inputs).
 	// Imports with inputs must be inlined for compile-time substitution.
+	// Builtin paths (@builtin:…) are pure configuration — they carry no user-visible
+	// prompt content and must not generate runtime-import macros.
 	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
 
-	if len(item.inputs) == 0 {
-		// No inputs - use runtime-import macro
+	if len(item.inputs) == 0 && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
+		// No inputs and not a builtin - use runtime-import macro
 		acc.importPaths = append(acc.importPaths, importRelPath)
 		log.Printf("Added import path for runtime-import: %s", importRelPath)
-	} else {
+	} else if len(item.inputs) > 0 {
 		// Has inputs - must inline for compile-time substitution
 		log.Printf("Import %s has inputs - will be inlined for compile-time substitution", importRelPath)
 		markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)

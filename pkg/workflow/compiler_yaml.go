@@ -101,13 +101,22 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	}
 
 	// Add manifest of imported/included files if any exist
-	if len(data.ImportedFiles) > 0 || len(data.IncludedFiles) > 0 {
+	// Build a user-visible imports list by filtering out internal builtin engine paths
+	// (e.g. "@builtin:engines/copilot.md") which are implementation details.
+	var visibleImports []string
+	for _, file := range data.ImportedFiles {
+		if !strings.HasPrefix(file, parser.BuiltinPathPrefix) {
+			visibleImports = append(visibleImports, file)
+		}
+	}
+
+	if len(visibleImports) > 0 || len(data.IncludedFiles) > 0 {
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Resolved workflow manifest:\n")
 
-		if len(data.ImportedFiles) > 0 {
+		if len(visibleImports) > 0 {
 			yaml.WriteString("#   Imports:\n")
-			for _, file := range data.ImportedFiles {
+			for _, file := range visibleImports {
 				cleanFile := stringutil.StripANSI(file)
 				// Normalize to Unix paths (forward slashes) for cross-platform compatibility
 				cleanFile = filepath.ToSlash(cleanFile)

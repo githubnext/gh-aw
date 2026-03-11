@@ -56,6 +56,14 @@ func isRepositoryImport(importPath string) bool {
 }
 
 func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
+	// Handle builtin paths - these are embedded files that bypass filesystem resolution.
+	if strings.HasPrefix(filePath, BuiltinPathPrefix) {
+		if !BuiltinVirtualFileExists(filePath) {
+			return "", fmt.Errorf("builtin file not found: %s", filePath)
+		}
+		return filePath, nil
+	}
+
 	if isWorkflowSpec(filePath) {
 		return "", fmt.Errorf("remote imports not available in Wasm: %s", filePath)
 	}

@@ -100,6 +100,22 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		engineSetting = c.engineOverride
 	}
 
+	// When the engine is specified in short/string form ("engine: copilot") and no CLI
+	// override is active, inject the corresponding builtin shared-workflow .md as an
+	// import. This makes "engine: copilot" syntactic sugar for importing the builtin
+	// copilot.md, which carries the full engine definition. The engine field is removed
+	// from the frontmatter so the definition comes entirely from the import.
+	if c.engineOverride == "" && isStringFormEngine(result.Frontmatter) && engineSetting != "" {
+		builtinPath := builtinEnginePath(engineSetting)
+		if parser.BuiltinVirtualFileExists(builtinPath) {
+			orchestratorEngineLog.Printf("Injecting builtin engine import: %s", builtinPath)
+			addImportToFrontmatter(result.Frontmatter, builtinPath)
+			delete(result.Frontmatter, "engine")
+			engineSetting = ""
+			engineConfig = nil
+		}
+	}
+
 	// Process imports from frontmatter first (before @include directives)
 	orchestratorEngineLog.Printf("Processing imports from frontmatter")
 	importCache := c.getSharedImportCache()
@@ -311,4 +327,39 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		importsResult:      importsResult,
 		configSteps:        configSteps,
 	}, nil
+}
+
+// isStringFormEngine reports whether the "engine" field in the given frontmatter is a
+// plain string (e.g. "engine: copilot"), as opposed to an object with an "id" or
+// "runtime" sub-key.
+func isStringFormEngine(frontmatter map[string]any) bool {
+	engine, exists := frontmatter["engine"]
+	if !exists {
+		return false
+	}
+	_, isString := engine.(string)
+	return isString
+}
+
+// addImportToFrontmatter appends importPath to the "imports" slice in frontmatter.
+// It handles the case where "imports" may be absent, a []any, or a []string.
+func addImportToFrontmatter(frontmatter map[string]any, importPath string) {
+	existing, hasImports := frontmatter["imports"]
+	if !hasImports {
+		frontmatter["imports"] = []any{importPath}
+		return
+	}
+	switch v := existing.(type) {
+	case []any:
+		frontmatter["imports"] = append(v, importPath)
+	case []string:
+		newSlice := make([]any, len(v)+1)
+		for i, s := range v {
+			newSlice[i] = s
+		}
+		newSlice[len(v)] = importPath
+		frontmatter["imports"] = newSlice
+	default:
+		frontmatter["imports"] = []any{importPath}
+	}
 }

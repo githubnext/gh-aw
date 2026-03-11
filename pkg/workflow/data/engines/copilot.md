@@ -1,3 +1,4 @@
+---
 engine:
   id: copilot
   display-name: GitHub Copilot CLI
@@ -8,3 +9,8 @@ engine:
   auth:
     - role: api-key
       secret: COPILOT_GITHUB_TOKEN
+---
+
+# GitHub Copilot CLI
+
+Shared engine configuration for GitHub Copilot CLI.

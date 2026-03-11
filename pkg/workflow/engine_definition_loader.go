@@ -1,14 +1,20 @@
 // This file provides the built-in engine definition loader.
 //
-// Built-in engine definitions are stored as YAML files embedded in the binary.
-// Each file uses a top-level "engine:" key and is validated against
-// schemas/engine_definition_schema.json before the definition is registered.
+// Built-in engine definitions are stored as shared agentic workflow Markdown files
+// embedded in the binary. Each file uses YAML frontmatter with a top-level "engine:"
+// key and is validated against schemas/engine_definition_schema.json before parsing.
 //
 // # Embedded Resources
 //
-// Engine definition files live in data/engines/*.yml and are embedded at compile
-// time via the //go:embed directive below. Adding a new built-in engine requires
-// only a new .yml file in that directory — no Go code changes are needed.
+// Engine Markdown files live in data/engines/*.md and are embedded at compile time
+// via the //go:embed directive below. Adding a new built-in engine requires only a
+// new .md file in that directory — no Go code changes are needed.
+//
+// # Builtin Virtual FS
+//
+// Each embedded .md file is also registered in the parser's builtin virtual FS under
+// the path "@builtin:engines/<id>.md". This allows the compiler to inject the file
+// as an import when the short-form "engine: <id>" is encountered.
 package workflow
 
 import (
@@ -17,16 +23,18 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var engineDefinitionLoaderLog = logger.New("workflow:engine_definition_loader")
 
-//go:embed data/engines/*.yml
+//go:embed data/engines/*.md
 var builtinEngineFS embed.FS
 
 //go:embed schemas/engine_definition_schema.json
@@ -97,12 +105,38 @@ func validateEngineDefinitionYAML(data []byte, path string) error {
 	return nil
 }
 
-// loadBuiltinEngineDefinitions reads all *.yml files from the embedded
-// data/engines/ directory, validates them against the engine definition schema,
-// and returns a slice of parsed EngineDefinition values.
+// extractMarkdownFrontmatterYAML extracts the YAML content between the first pair of
+// "---" delimiters in a Markdown file.
+func extractMarkdownFrontmatterYAML(content []byte) ([]byte, error) {
+	s := string(content)
+	const sep = "---"
+
+	// Find the opening delimiter
+	start := strings.Index(s, sep)
+	if start == -1 {
+		return nil, fmt.Errorf("no frontmatter opening delimiter found")
+	}
+	s = s[start+len(sep):]
+
+	// Find the closing delimiter
+	end := strings.Index(s, "\n"+sep)
+	if end == -1 {
+		return nil, fmt.Errorf("no frontmatter closing delimiter found")
+	}
+	return []byte(strings.TrimSpace(s[:end])), nil
+}
+
+// builtinEnginePath returns the canonical builtin virtual-FS path for an engine id.
+func builtinEnginePath(engineID string) string {
+	return parser.BuiltinPathPrefix + "engines/" + engineID + ".md"
+}
+
+// loadBuiltinEngineDefinitions reads all *.md files from the embedded data/engines/
+// directory, validates their frontmatter against the engine definition schema, parses
+// each EngineDefinition, and registers the file content in the parser's builtin virtual FS.
 // It panics on parse or validation errors to surface misconfigured built-in definitions early.
 func loadBuiltinEngineDefinitions() []*EngineDefinition {
-	engineDefinitionLoaderLog.Print("Loading built-in engine definitions from embedded YAML files")
+	engineDefinitionLoaderLog.Print("Loading built-in engine definitions from embedded Markdown files")
 
 	var definitions []*EngineDefinition
 
@@ -113,7 +147,7 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 		if d.IsDir() {
 			return nil
 		}
-		if filepath.Ext(path) != ".yml" {
+		if filepath.Ext(path) != ".md" {
 			return nil
 		}
 
@@ -122,21 +156,33 @@ func loadBuiltinEngineDefinitions() []*EngineDefinition {
 			return fmt.Errorf("failed to read embedded engine file %s: %w", path, readErr)
 		}
 
-		if validErr := validateEngineDefinitionYAML(data, path); validErr != nil {
+		// Extract the frontmatter YAML from the Markdown file.
+		frontmatterYAML, fmErr := extractMarkdownFrontmatterYAML(data)
+		if fmErr != nil {
+			return fmt.Errorf("failed to extract frontmatter from %s: %w", path, fmErr)
+		}
+
+		// Validate the frontmatter YAML against the engine definition schema.
+		if validErr := validateEngineDefinitionYAML(frontmatterYAML, path); validErr != nil {
 			return validErr
 		}
 
+		// Parse the engine definition from the frontmatter.
 		var wrapper engineDefinitionFile
-		if parseErr := yaml.Unmarshal(data, &wrapper); parseErr != nil {
+		if parseErr := yaml.Unmarshal(frontmatterYAML, &wrapper); parseErr != nil {
 			return fmt.Errorf("failed to parse embedded engine file %s: %w", path, parseErr)
 		}
 
 		def := wrapper.Engine
 
-		// Default runtime-id to engine id when omitted
+		// Default runtime-id to engine id when omitted.
 		if def.RuntimeID == "" {
 			def.RuntimeID = def.ID
 		}
+
+		// Register the full .md content in the parser's builtin virtual FS so the
+		// file can be resolved and read during import processing.
+		parser.RegisterBuiltinVirtualFile(builtinEnginePath(def.ID), data)
 
 		engineDefinitionLoaderLog.Printf("Loaded built-in engine definition: id=%s runtime-id=%s", def.ID, def.RuntimeID)
 		definitions = append(definitions, &def)

@@ -1,3 +1,4 @@
+---
 engine:
   id: codex
   display-name: Codex
@@ -8,3 +9,8 @@ engine:
   auth:
     - role: api-key
       secret: CODEX_API_KEY
+---
+
+# Codex
+
+Shared engine configuration for OpenAI Codex CLI.

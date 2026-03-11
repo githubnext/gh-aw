@@ -116,6 +116,16 @@ func isRepositoryImport(importPath string) bool {
 func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Resolving include path: file_path=%s, base_dir=%s", filePath, baseDir)
 
+	// Handle builtin paths - these are embedded files that bypass filesystem resolution.
+	// No security check is needed since the content is compiled into the binary.
+	if strings.HasPrefix(filePath, BuiltinPathPrefix) {
+		if !BuiltinVirtualFileExists(filePath) {
+			return "", fmt.Errorf("builtin file not found: %s", filePath)
+		}
+		remoteLog.Printf("Resolved builtin path: %s", filePath)
+		return filePath, nil
+	}
+
 	// Check if this is a workflowspec (contains owner/repo/path format)
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 	if isWorkflowSpec(filePath) {

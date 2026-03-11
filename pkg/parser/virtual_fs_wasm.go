@@ -33,6 +33,13 @@ func VirtualFileExists(path string) bool {
 func init() {
 	// Override readFileFunc in wasm builds to check virtual files first.
 	readFileFunc = func(path string) ([]byte, error) {
+		// Check builtin virtual files first (embedded engine .md files etc.)
+		builtinVirtualFilesMu.RLock()
+		builtinContent, builtinOK := builtinVirtualFiles[path]
+		builtinVirtualFilesMu.RUnlock()
+		if builtinOK {
+			return builtinContent, nil
+		}
 		if virtualFiles != nil {
 			if content, ok := virtualFiles[path]; ok {
 				return content, nil

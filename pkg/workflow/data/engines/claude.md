@@ -1,3 +1,4 @@
+---
 engine:
   id: claude
   display-name: Claude Code
@@ -8,3 +9,8 @@ engine:
   auth:
     - role: api-key
       secret: ANTHROPIC_API_KEY
+---
+
+# Claude Code
+
+Shared engine configuration for Claude Code.
