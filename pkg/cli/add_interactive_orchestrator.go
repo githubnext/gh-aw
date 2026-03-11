@@ -24,6 +24,7 @@ type AddInteractiveConfig struct {
 	NoStopAfter     bool
 	StopAfter       string
 	SkipWorkflowRun bool
+	SkipSecret      bool   // Skip the API secret prompt (useful when secret is set at org level)
 	RepoOverride    string // owner/repo format, if user provides it
 
 	// isPublicRepo tracks whether the target repository is public
@@ -48,7 +49,7 @@ type AddInteractiveConfig struct {
 
 // RunAddInteractive runs the interactive add workflow
 // This walks the user through adding an agentic workflow to their repository
-func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool, engineOverride string, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool, engineOverride string, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string, skipSecret bool) error {
 	addInteractiveLog.Print("Starting interactive add workflow")
 
 	// Assert this function is not running in automated unit tests or CI
@@ -64,6 +65,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 		WorkflowDir:     workflowDir,
 		NoStopAfter:     noStopAfter,
 		StopAfter:       stopAfter,
+		SkipSecret:      skipSecret,
 	}
 
 	// Step 1: Welcome message
@@ -120,7 +122,7 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 
 	// Step 8: Confirm with user
 	var secretName, secretValue string
-	if config.hasWriteAccess {
+	if config.hasWriteAccess && !config.SkipSecret {
 		secretName, secretValue, err = config.getSecretInfo()
 		if err != nil {
 			return err
