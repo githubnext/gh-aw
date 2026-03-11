@@ -186,6 +186,72 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Code Push Failed");
       expect(result).toContain("Branch not found");
     });
+
+    // ──────────────────────────────────────────────────────
+    // Patch Apply Failed (merge conflict)
+    // ──────────────────────────────────────────────────────
+
+    it("shows patch apply failed section for create_pull_request patch apply error", () => {
+      const errors = "create_pull_request:Failed to apply patch";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🔀 Patch Apply Failed");
+      expect(result).toContain("merge conflict");
+      expect(result).toContain("`create_pull_request`");
+      expect(result).toContain("Failed to apply patch");
+      // Should NOT show generic "Code Push Failed" for pure patch apply errors
+      expect(result).not.toContain("Code Push Failed");
+    });
+
+    it("shows patch apply failed section for push_to_pull_request_branch patch apply error", () => {
+      const errors = "push_to_pull_request_branch:Failed to apply patch";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🔀 Patch Apply Failed");
+      expect(result).toContain("`push_to_pull_request_branch`");
+      expect(result).not.toContain("Code Push Failed");
+    });
+
+    it("includes PR link in patch apply failed section when PR is provided", () => {
+      const errors = "create_pull_request:Failed to apply patch";
+      const pullRequest = { number: 77, html_url: "https://github.com/owner/repo/pull/77" };
+      const result = buildCodePushFailureContext(errors, pullRequest);
+      expect(result).toContain("🔀 Patch Apply Failed");
+      expect(result).toContain("#77");
+      expect(result).toContain("https://github.com/owner/repo/pull/77");
+    });
+
+    it("includes patch download instructions with run ID when runUrl is provided", () => {
+      const errors = "create_pull_request:Failed to apply patch";
+      const runUrl = "https://github.com/owner/repo/actions/runs/12345678";
+      const result = buildCodePushFailureContext(errors, null, runUrl);
+      expect(result).toContain("🔀 Patch Apply Failed");
+      expect(result).toContain("gh run download 12345678");
+      expect(result).toContain("agent-artifacts");
+      expect(result).toContain("git am --3way");
+      expect(result).toContain(runUrl);
+    });
+
+    it("shows generic download instructions when runUrl is not provided", () => {
+      const errors = "create_pull_request:Failed to apply patch";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🔀 Patch Apply Failed");
+      expect(result).toContain("git am --3way");
+      // No specific run ID in instructions
+      expect(result).not.toContain("gh run download");
+    });
+
+    it("shows both patch apply failed and generic sections when mixed", () => {
+      const errors = ["create_pull_request:Failed to apply patch", "push_to_pull_request_branch:Branch not found"].join("\n");
+      const result = buildCodePushFailureContext(errors);
+      expect(result).toContain("🔀 Patch Apply Failed");
+      expect(result).toContain("Code Push Failed");
+      expect(result).toContain("Branch not found");
+    });
+
+    it("does not show patch apply section for generic errors", () => {
+      const errors = "push_to_pull_request_branch:Branch not found";
+      const result = buildCodePushFailureContext(errors);
+      expect(result).not.toContain("🔀 Patch Apply Failed");
+    });
   });
 
   // ──────────────────────────────────────────────────────

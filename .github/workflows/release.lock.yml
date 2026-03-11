@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4b2b1455692142cdb61d59c9a0979e84af7b5adf88b385d7f58bf26654945b1c"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c786595ddce61f885cd01de8a360d660b592fbe50308aca12685f782f573718a"}
 
 name: "Release"
 "on":
@@ -666,7 +666,7 @@ jobs:
           }
           GH_AW_MCP_CONFIG_EOF
       - name: Download activation artifact
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: activation
           path: /tmp/gh-aw
@@ -765,13 +765,11 @@ jobs:
       - name: Append agent step summary
         if: always()
         run: bash /opt/gh-aw/actions/append_agent_step_summary.sh
-      - name: Upload Safe Outputs
+      - name: Copy safe outputs
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: safe-output
-          path: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
+        run: |
+          mkdir -p /tmp/gh-aw
+          cp "$GH_AW_SAFE_OUTPUTS" /tmp/gh-aw/safeoutputs.jsonl 2>/dev/null || true
       - name: Ingest agent output
         id: collect_output
         if: always()
@@ -787,21 +785,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');
             await main();
-      - name: Upload sanitized agent output
-        if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: agent-output
-          path: ${{ env.GH_AW_AGENT_OUTPUT }}
-          if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/gh-aw/sandbox/agent/logs/
-            /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -842,13 +825,17 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: agent-artifacts
+          name: agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/sandbox/agent/logs/
+            /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
+            /tmp/gh-aw/safeoutputs.jsonl
+            /tmp/gh-aw/agent_output.json
           if-no-files-found: ignore
       # --- Threat Detection (inline) ---
       - name: Check if detection needed
@@ -951,7 +938,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: threat-detection.log
+          name: detection
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
       - name: Set detection conclusion
@@ -1005,16 +992,16 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
+          name: agent
+          path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         if: steps.download-agent-output.outcome == 'success'
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+          mkdir -p /tmp/gh-aw/
+          find "/tmp/gh-aw/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Process No-Op Messages
         id: noop
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1221,20 +1208,15 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
             await main();
 
-  release:
+  push_tag:
     needs:
       - activation
       - config
       - pre_activation
     runs-on: ubuntu-latest
     permissions:
-      attestations: write
       contents: write
-      id-token: write
-      packages: write
 
-    outputs:
-      release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1264,9 +1246,9 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx (pre-validation)
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - name: Build Docker image (validation only)
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
           build-args: |
             BINARY=dist/linux-amd64
@@ -1275,6 +1257,51 @@ jobs:
           load: false
           platforms: linux/amd64
           push: false
+      - name: Upload release binaries
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: release-binaries-${{ needs.config.outputs.release_tag }}
+          path: dist/
+          retention-days: 1
+
+  release:
+    needs:
+      - activation
+      - config
+      - pre_activation
+      - sync_actions
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+      packages: write
+
+    outputs:
+      release_id: ${{ steps.get_release.outputs.release_id }}
+    steps:
+      - name: Verify tag exists in gh-aw-actions
+        run: |
+          echo "Verifying tag $RELEASE_TAG exists in github/gh-aw-actions..."
+          if gh api "repos/github/gh-aw-actions/git/refs/tags/$RELEASE_TAG" --jq '.ref' > /dev/null 2>&1; then
+            echo "✓ Tag $RELEASE_TAG exists in github/gh-aw-actions"
+          else
+            echo "Error: Tag $RELEASE_TAG not found in github/gh-aw-actions after sync"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Download release binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-binaries-${{ needs.config.outputs.release_tag }}
+          path: dist/
       - name: Create GitHub release
         id: get_release
         run: |
@@ -1297,13 +1324,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
@@ -1317,7 +1344,7 @@ jobs:
           fi
           echo "✓ No secrets detected in SBOM files"
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: sbom-artifacts
           path: |
@@ -1335,16 +1362,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
           username: ${{ github.actor }}
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -1355,7 +1382,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
           build-args: |
             BINARY=dist/linux-amd64
@@ -1402,16 +1429,16 @@ jobs:
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: agent-output
-          path: /tmp/gh-aw/safeoutputs/
+          name: agent
+          path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         if: steps.download-agent-output.outcome == 'success'
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+          mkdir -p /tmp/gh-aw/
+          find "/tmp/gh-aw/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1435,4 +1462,15 @@ jobs:
           name: safe-output-items
           path: /tmp/safe-output-items.jsonl
           if-no-files-found: warn
+
+  sync_actions:
+    needs:
+      - activation
+      - config
+      - pre_activation
+      - push_tag
+    uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
+    with:
+      ref: ${{ needs.config.outputs.release_tag }}
+    secrets: inherit
 

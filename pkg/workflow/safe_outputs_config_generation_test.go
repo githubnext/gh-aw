@@ -546,3 +546,65 @@ func TestGenerateSafeOutputsConfigEmptyRepoMemory(t *testing.T) {
 	_, hasPushRepoMemory := parsed["push_repo_memory"]
 	assert.False(t, hasPushRepoMemory, "push_repo_memory should not be present when Memories slice is empty")
 }
+
+// TestGenerateSafeOutputsConfigReplyToPullRequestReviewComment verifies that
+// reply_to_pull_request_review_comment appears in config.json when configured.
+// Previously this key was missing from generateSafeOutputsConfig, causing the
+// safe-outputs MCP server to skip the tool at runtime.
+func TestGenerateSafeOutputsConfigReplyToPullRequestReviewComment(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("25")},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	replyConfig, ok := parsed["reply_to_pull_request_review_comment"].(map[string]any)
+	require.True(t, ok, "Expected reply_to_pull_request_review_comment key in config.json")
+	assert.InDelta(t, float64(25), replyConfig["max"], 0.0001, "max should be 25")
+}
+
+// TestGenerateSafeOutputsConfigReplyToPullRequestReviewCommentWithTarget verifies that
+// target, target-repo, allowed_repos, and footer are forwarded to config.json.
+func TestGenerateSafeOutputsConfigReplyToPullRequestReviewCommentWithTarget(t *testing.T) {
+	footerTrue := "true"
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "pull_request",
+					TargetRepoSlug: "org/other-repo",
+					AllowedRepos:   []string{"org/other-repo"},
+				},
+				Footer: &footerTrue,
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	replyConfig, ok := parsed["reply_to_pull_request_review_comment"].(map[string]any)
+	require.True(t, ok, "Expected reply_to_pull_request_review_comment key in config.json")
+	assert.InDelta(t, float64(10), replyConfig["max"], 0.0001, "max should be 10")
+	assert.Equal(t, "pull_request", replyConfig["target"], "target should be set")
+	assert.Equal(t, "org/other-repo", replyConfig["target-repo"], "target-repo should be set")
+
+	allowedRepos, ok := replyConfig["allowed_repos"].([]any)
+	require.True(t, ok, "allowed_repos should be an array")
+	assert.Len(t, allowedRepos, 1, "Should have 1 allowed repo")
+	assert.Equal(t, "org/other-repo", allowedRepos[0], "allowed_repos entry should match")
+
+	assert.Equal(t, true, replyConfig["footer"], "footer should be true")
+}

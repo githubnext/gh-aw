@@ -49,43 +49,33 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 	return yaml.String(), true
 }
 
-// generateEngineOutputCollection generates a step that collects engine-declared output files as artifacts
-func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine) {
+// getEngineArtifactPaths returns the file paths declared by the engine that should be
+// included in the unified agent artifact. The redacted URLs log is always appended.
+// Returns nil if the engine declares no output files.
+func getEngineArtifactPaths(engine CodingAgentEngine) []string {
 	outputFiles := engine.GetDeclaredOutputFiles()
 	if len(outputFiles) == 0 {
-		engineOutputLog.Print("No engine output files to collect")
+		return nil
+	}
+	// Always include the redacted URLs log alongside engine output files.
+	// This file is created during content sanitization when URLs were redacted.
+	outputFiles = append(outputFiles, RedactedURLsLogPath)
+	return outputFiles
+}
+
+// generateEngineOutputCleanup generates the workspace cleanup step for engine-declared output
+// files. It does NOT upload an artifact — paths are added to the unified agent artifact instead.
+func (c *Compiler) generateEngineOutputCleanup(yaml *strings.Builder, engine CodingAgentEngine) {
+	outputFiles := engine.GetDeclaredOutputFiles()
+	if len(outputFiles) == 0 {
+		engineOutputLog.Print("No engine output files to clean up")
 		return
 	}
 
-	// Add redacted URLs log file to the output files list
-	// This file is created during content sanitization if any URLs were redacted
-	outputFiles = append(outputFiles, RedactedURLsLogPath)
+	engineOutputLog.Printf("Generating engine output cleanup for %d files", len(outputFiles))
 
-	engineOutputLog.Printf("Generating engine output collection step for %d files", len(outputFiles))
-
-	// Note: Secret redaction is now handled earlier in the compilation flow,
-	// before any artifact uploads. This ensures all files are scanned before upload.
-
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload engine output files", outputFiles)
-
-	// Create a single upload step that handles all declared output files
-	// The action will ignore missing files automatically with if-no-files-found: ignore
-	yaml.WriteString("      - name: Upload engine output files\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: agent_outputs\n")
-
-	// Create the path list for all declared output files
-	yaml.WriteString("          path: |\n")
-	for _, file := range outputFiles {
-		yaml.WriteString("            " + file + "\n")
-	}
-
-	yaml.WriteString("          if-no-files-found: ignore\n")
-
-	// Add cleanup step to remove output files after upload
-	// Only clean files under the workspace, ignore files in /tmp/gh-aw/
+	// Add cleanup step to remove workspace output files after they have been collected.
+	// Only files outside /tmp/gh-aw/ need explicit removal.
 	cleanupYaml, hasCleanup := generateCleanupStep(outputFiles)
 	if hasCleanup {
 		yaml.WriteString(cleanupYaml)

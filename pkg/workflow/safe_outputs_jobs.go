@@ -386,9 +386,9 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 // GH_AW_AGENT_OUTPUT is only set when the artifact was actually downloaded successfully.
 func buildAgentOutputDownloadSteps() []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName:     "agent-output",                // Use hyphenated name without extension
+		ArtifactName:     constants.AgentArtifactName,   // Unified agent artifact
 		ArtifactFilename: constants.AgentOutputFilename, // Filename inside the artifact directory
-		DownloadPath:     "/tmp/gh-aw/safeoutputs/",
+		DownloadPath:     "/tmp/gh-aw/",
 		SetupEnvStep:     true,
 		EnvVarName:       "GH_AW_AGENT_OUTPUT",
 		StepName:         "Download agent output artifact",

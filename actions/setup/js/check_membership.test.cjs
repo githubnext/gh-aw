@@ -50,6 +50,7 @@ describe("check_membership.cjs", () => {
     delete global.github;
     delete global.context;
     delete process.env.GH_AW_REQUIRED_ROLES;
+    delete process.env.GH_AW_ALLOWED_BOTS;
   });
 
   const runScript = async () => {
@@ -312,6 +313,88 @@ describe("check_membership.cjs", () => {
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository");
+    });
+  });
+
+  describe("bots allowlist", () => {
+    beforeEach(() => {
+      process.env.GH_AW_REQUIRED_ROLES = "write";
+      mockContext.actor = "greptile-apps";
+    });
+
+    it("should authorize a bot in the allowlist when [bot] form is active on the repo", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({ data: { permission: "none" } }) // initial permission check
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
+    });
+
+    it("should authorize a bot in the allowlist when [bot] form returns 404 but slug form is active", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
+
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({ data: { permission: "none" } }) // initial permission check (slug form)
+        .mockRejectedValueOnce(notFoundError) // bot status [bot] form → 404
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status slug fallback → none
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Actor 'greptile-apps' is in the allowed bots list");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
+    });
+
+    it("should deny a bot in the allowlist when both [bot] and slug forms return 404", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
+
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({ data: { permission: "none" } }) // initial permission check
+        .mockRejectedValue(notFoundError); // bot status checks all return 404
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith("Bot 'greptile-apps' is in the allowed list but not active/installed on testorg/testrepo");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "bot_not_active");
+    });
+
+    it("should deny a bot not in the allowlist", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "some-other-bot";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "none" },
+      });
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
+
+    it("should authorize a bot with [bot] suffix in the allowlist via slug fallback", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "copilot";
+      mockContext.actor = "copilot[bot]";
+
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({ data: { permission: "none" } }) // initial permission check
+        .mockRejectedValueOnce(notFoundError) // bot status [bot] form → 404
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status slug fallback → none
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
     });
   });
 });
