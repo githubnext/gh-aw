@@ -598,6 +598,13 @@ const AgentOutputArtifactName = "agent-output"
 // including safe outputs, agent output, engine logs, and other agent-related files.
 const AgentArtifactName = "agent"
 
+// DetectionArtifactName is the artifact name for the threat detection log.
+const DetectionArtifactName = "detection"
+
+// LegacyDetectionArtifactName is the old artifact name used before the rename.
+// Kept for backward compatibility when downloading artifacts from older workflow runs.
+const LegacyDetectionArtifactName = "threat-detection.log"
+
 // AgentOutputFilename is the filename of the agent output JSON file
 const AgentOutputFilename = "agent_output.json"
 
