@@ -28,8 +28,8 @@ type EngineConfig struct {
 	Agent            string          // Agent identifier for copilot --agent flag (copilot engine only)
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
-	IsInlineDefinition   bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
-	InlineProviderID     string // engine.provider.id  (e.g. "openai", "anthropic")
+	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
+	InlineProviderID   string // engine.provider.id  (e.g. "openai", "anthropic")
 	// Deprecated: Use InlineProviderAuth instead. Kept for backwards compatibility when only
 	// engine.provider.auth.secret is specified without a strategy.
 	InlineProviderSecret string // engine.provider.auth.secret  (backwards compat: simple API key secret name)
