@@ -83,7 +83,7 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		var awfStepStr string
 		for _, step := range steps {
 			stepStr := strings.Join(step, "\n")
-			if strings.Contains(stepStr, "Install awf binary") {
+			if strings.Contains(stepStr, "Install AWF binary") {
 				foundAWFStep = true
 				awfStepStr = stepStr
 				break
@@ -131,7 +131,7 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		var awfStepStr string
 		for _, step := range steps {
 			stepStr := strings.Join(step, "\n")
-			if strings.Contains(stepStr, "Install awf binary") {
+			if strings.Contains(stepStr, "Install AWF binary") {
 				foundAWFStep = true
 				awfStepStr = stepStr
 				break
@@ -177,7 +177,7 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 		// Should NOT find the AWF installation step
 		for _, step := range steps {
 			stepStr := strings.Join(step, "\n")
-			if strings.Contains(stepStr, "Install awf binary") {
+			if strings.Contains(stepStr, "Install AWF binary") {
 				t.Error("Should not include AWF installation step when firewall is disabled")
 			}
 		}

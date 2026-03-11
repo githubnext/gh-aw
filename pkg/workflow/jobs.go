@@ -116,6 +116,15 @@ func (jm *JobManager) ValidateDuplicateSteps() error {
 		seen := make(map[string]int)
 
 		for i, step := range job.Steps {
+			// job.Steps entries may be either complete step blocks (multi-line) or
+			// individual YAML line fragments. Only elements that begin with the step
+			// leader "- " represent a new step definition; property lines (e.g.,
+			// "continue-on-error:", "name:" inside a "with:" block) start with
+			// plain indentation and should not be treated as step definitions.
+			if !strings.HasPrefix(strings.TrimSpace(step), "-") {
+				continue
+			}
+
 			// Extract step name from YAML for comparison
 			stepName := extractStepName(step)
 			if stepName == "" {

@@ -403,6 +403,34 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			expectedFiles: []string{"regular.txt"},
 		},
 		{
+			name: "new 'agent' artifact directory gets flattened",
+			setup: func(dir string) error {
+				// Create the new structure: agent/ (files directly, no tmp/gh-aw prefix)
+				artifactDir := filepath.Join(dir, "agent")
+				if err := os.MkdirAll(artifactDir, 0755); err != nil {
+					return err
+				}
+				// agent_output.json at root of artifact
+				if err := os.WriteFile(filepath.Join(artifactDir, "agent_output.json"), []byte("{}"), 0644); err != nil {
+					return err
+				}
+				// safeoutputs.jsonl at root
+				if err := os.WriteFile(filepath.Join(artifactDir, "safeoutputs.jsonl"), []byte("{}"), 0644); err != nil {
+					return err
+				}
+				// mcp-logs subdirectory
+				mcpLogsDir := filepath.Join(artifactDir, "mcp-logs")
+				if err := os.MkdirAll(mcpLogsDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(mcpLogsDir, "log.txt"), []byte("log"), 0644)
+			},
+			expectedFiles:   []string{"agent_output.json", "safeoutputs.jsonl", "mcp-logs/log.txt"},
+			expectedDirs:    []string{"mcp-logs"},
+			unexpectedDirs:  []string{"agent"},
+			unexpectedFiles: []string{"agent/agent_output.json"},
+		},
+		{
 			name: "agent-artifacts without tmp/gh-aw structure - flatten directly",
 			setup: func(dir string) error {
 				// Create agent-artifacts with new structure (files directly in agent-artifacts/)
@@ -424,6 +452,29 @@ func TestFlattenUnifiedArtifact(t *testing.T) {
 			expectedDirs:    []string{"subdir"},
 			expectedFiles:   []string{"file.txt", "subdir/nested.txt"},
 			unexpectedFiles: []string{"agent-artifacts/file.txt"},
+		},
+		{
+			name: "new 'agent' artifact takes precedence over legacy 'agent-artifacts'",
+			setup: func(dir string) error {
+				// Create BOTH: new 'agent' and old 'agent-artifacts'
+				// Only 'agent' should be flattened; 'agent-artifacts' should remain untouched
+				agentDir := filepath.Join(dir, "agent")
+				if err := os.MkdirAll(agentDir, 0755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(agentDir, "new-file.txt"), []byte("new"), 0644); err != nil {
+					return err
+				}
+				legacyDir := filepath.Join(dir, "agent-artifacts")
+				if err := os.MkdirAll(legacyDir, 0755); err != nil {
+					return err
+				}
+				return os.WriteFile(filepath.Join(legacyDir, "old-file.txt"), []byte("old"), 0644)
+			},
+			expectedFiles:   []string{"new-file.txt"},
+			unexpectedFiles: []string{"agent/new-file.txt"},
+			// agent-artifacts is NOT flattened when agent/ is present
+			unexpectedDirs: []string{"agent"},
 		},
 	}
 

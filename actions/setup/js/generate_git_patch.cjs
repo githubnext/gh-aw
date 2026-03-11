@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { execGitSync } = require("./git_helpers.cjs");
+const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
@@ -143,25 +143,12 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // We must explicitly fetch origin/branchName and fail if it doesn't exist.
 
           debugLog(`Strategy 1 (incremental): Fetching origin/${branchName}`);
-          // Configure git authentication using GITHUB_TOKEN and GITHUB_SERVER_URL.
-          // This ensures the fetch works on GitHub Enterprise Server (GHES) where
-          // the default credential helper may not be configured for the enterprise endpoint.
-          // SECURITY: The auth header is passed via GIT_CONFIG_* environment variables so it
-          // is never written to .git/config on disk. This prevents an attacker monitoring file
-          // changes from reading the secret.
-          const githubToken = process.env.GITHUB_TOKEN;
-          const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-          const extraHeaderKey = `http.${githubServerUrl}/.extraheader`;
-
-          // Build environment for the fetch command with git config passed via env vars.
-          const fetchEnv = { ...process.env };
-          if (githubToken) {
-            const tokenBase64 = Buffer.from(`x-access-token:${githubToken}`).toString("base64");
-            fetchEnv.GIT_CONFIG_COUNT = "1";
-            fetchEnv.GIT_CONFIG_KEY_0 = extraHeaderKey;
-            fetchEnv.GIT_CONFIG_VALUE_0 = `Authorization: basic ${tokenBase64}`;
-            debugLog(`Strategy 1 (incremental): Configured git auth for ${githubServerUrl} via environment variables`);
-          }
+          // Configure git authentication via GIT_CONFIG_* environment variables.
+          // This ensures the fetch works when .git/config credentials are unavailable
+          // (e.g. after clean_git_credentials.sh) and on GitHub Enterprise Server (GHES).
+          // SECURITY: The auth header is passed via env vars so it is never written to
+          // .git/config on disk, preventing file-monitoring attacks.
+          const fetchEnv = { ...process.env, ...getGitAuthEnv() };
 
           try {
             // Explicitly fetch origin/branchName to ensure we have the latest

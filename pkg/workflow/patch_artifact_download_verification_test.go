@@ -71,9 +71,9 @@ in the consolidated safe_outputs job when create-pull-request is enabled.
 		t.Fatal("Expected 'Download patch artifact' step in safe_outputs job")
 	}
 
-	// 3. Verify artifact is downloaded from unified agent-artifacts
-	if !strings.Contains(lockContentStr, "name: agent-artifacts") {
-		t.Error("Expected patch to be downloaded from 'agent-artifacts' unified artifact")
+	// 3. Verify artifact is downloaded from unified agent artifact
+	if !strings.Contains(lockContentStr, "name: agent\n") {
+		t.Error("Expected patch to be downloaded from unified 'agent' artifact")
 	}
 
 	// 4. Verify correct download path
@@ -160,9 +160,9 @@ push-to-pull-request-branch is enabled.
 		t.Fatal("Expected 'Download patch artifact' step when push-to-pull-request-branch is enabled")
 	}
 
-	// Verify artifact is downloaded from unified agent-artifacts
-	if !strings.Contains(lockContentStr, "name: agent-artifacts") {
-		t.Error("Expected patch to be downloaded from 'agent-artifacts' unified artifact")
+	// Verify artifact is downloaded from unified agent artifact
+	if !strings.Contains(lockContentStr, "name: agent\n") {
+		t.Error("Expected patch to be downloaded from unified 'agent' artifact")
 	}
 	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/") {
 		t.Error("Expected patch artifact to be downloaded to '/tmp/gh-aw/'")

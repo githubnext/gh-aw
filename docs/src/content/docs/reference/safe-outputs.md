@@ -1274,6 +1274,22 @@ Use GitHub App tokens for enhanced security: on-demand token minting, automatic 
 
 See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
 
+### Environment Protection (`environment:`)
+
+Specifies the deployment environment for all compiler-generated safe-output jobs (`safe_outputs`, `conclusion`, `pre_activation`, custom safe-jobs). This makes environment-scoped secrets accessible in those jobs — for example, GitHub App credentials stored as environment secrets.
+
+The top-level `environment:` field is automatically propagated to all safe-output jobs. Use `safe-outputs.environment:` to override this independently:
+
+```yaml wrap
+safe-outputs:
+  environment: dev   # overrides top-level environment for safe-output jobs only
+  github-app:
+    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
+```
+
+Accepts a plain string or an object with `name` and optional `url`, consistent with the top-level `environment:` syntax.
+
 ### Text Sanitization (`allowed-domains:`, `allowed-github-references:`)
 
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.

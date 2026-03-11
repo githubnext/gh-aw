@@ -277,8 +277,8 @@ This workflow should generate a unified artifact upload step that includes the p
 	}
 
 	// Verify the unified artifact name
-	if !strings.Contains(lockYAML, "name: agent-artifacts") {
-		t.Error("Expected artifact name to be 'agent-artifacts'")
+	if !strings.Contains(lockYAML, "name: agent\n") {
+		t.Error("Expected artifact name to be 'agent'")
 	}
 
 	// Verify the prompt path is included in the unified upload
