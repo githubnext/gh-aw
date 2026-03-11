@@ -608,14 +608,27 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 			checkJSONKeys: []string{"push_to_pull_request_branch"},
 		},
 		{
-			name:          "skips jobs without URL outputs",
-			jobNames:      []string{"create_issue", "detection", "some_custom_job"},
+			name:          "includes custom jobs and skips system jobs",
+			jobNames:      []string{"create_issue", "safe_outputs", "some_custom_job"},
 			expectJSON:    true,
 			expectEnvVars: 1,
 			checkEnvVars: []string{
 				"GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}",
 			},
-			checkJSONKeys: []string{"create_issue"},
+			checkJSONKeys: []string{"create_issue", "some_custom_job"},
+		},
+		{
+			name:          "custom-only jobs produce JSON without URL env vars",
+			jobNames:      []string{"safe_outputs", "send_slack_message"},
+			expectJSON:    true,
+			expectEnvVars: 0,
+			checkJSONKeys: []string{"send_slack_message"},
+		},
+		{
+			name:          "system jobs are excluded from JSON",
+			jobNames:      []string{"safe_outputs", "upload_assets"},
+			expectJSON:    false,
+			expectEnvVars: 0,
 		},
 		{
 			name:          "handles empty job list",

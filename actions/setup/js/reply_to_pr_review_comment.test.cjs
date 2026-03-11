@@ -130,6 +130,7 @@ describe("reply_to_pr_review_comment", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("pull request context");
+    expect(result.skipped).toBe(true);
   });
 
   it("should work when triggered from issue_comment on a PR", async () => {

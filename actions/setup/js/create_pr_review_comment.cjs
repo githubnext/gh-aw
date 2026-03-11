@@ -118,6 +118,7 @@ async function main(config = {}) {
       return {
         success: false,
         error: "Not in pull request context",
+        skipped: true,
       };
     }
 
