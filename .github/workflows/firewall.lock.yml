@@ -282,7 +282,7 @@ jobs:
             await main();
       - name: Install GitHub Copilot CLI
         run: /opt/gh-aw/actions/install_copilot_cli.sh latest
-      - name: Install awf binary
+      - name: Install AWF binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown

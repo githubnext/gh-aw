@@ -285,7 +285,7 @@ jobs:
           package-manager-cache: false
       - name: Install Codex
         run: npm install -g @openai/codex@latest
-      - name: Install awf binary
+      - name: Install AWF binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown

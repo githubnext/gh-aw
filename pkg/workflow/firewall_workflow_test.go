@@ -46,7 +46,7 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 
 		// Check AWF installation step (2nd step, index 1)
 		awfStepStr := strings.Join(steps[1], "\n")
-		if !strings.Contains(awfStepStr, "Install awf binary") {
+		if !strings.Contains(awfStepStr, "Install AWF binary") {
 			t.Error("Second step should install AWF binary")
 		}
 	})
