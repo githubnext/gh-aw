@@ -144,6 +144,25 @@ tools:
     min-integrity: approved
 ```
 
+### Safe Outputs Integration
+
+When you configure `repos` as an array of specific repository patterns, the compiler automatically derives a linked guard-policy for the [safe outputs](/gh-aw/reference/safe-outputs/) MCP server. Each entry in the `repos` list is added as a `private` accept entry in the safeoutputs policy, allowing the MCP gateway to read private repository data through the GitHub tools and still write outputs via safeoutputs.
+
+This derivation happens at compile time and requires no additional configuration. If you use `repos: "all"` or `repos: "public"`, no safeoutputs guard-policy is derived.
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+    repos:
+      - "myorg/private-repo"   # automatically added to safeoutputs guard-policy
+      - "myorg/another-repo"   # automatically added to safeoutputs guard-policy
+    min-integrity: approved
+safe-outputs:
+  create-issue:                # safe outputs can write to the guard-policy repos
+```
+
 ## Lockdown Mode for Public Repositories
 
 Lockdown Mode is a security feature that filters public repository content to only show issues, PRs, and comments from users with push access. Automatically enabled for public repositories when using custom tokens. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete documentation.

@@ -346,6 +346,19 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
 	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+
+	// Check if GitHub tool has guard-policies configured
+	// If so, generate a linked write-sink guard-policy for safeoutputs
+	if workflowData != nil && workflowData.Tools != nil {
+		if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+			guardPolicies := deriveSafeOutputsGuardPolicyFromGitHub(githubTool)
+			if len(guardPolicies) > 0 {
+				mcpRendererLog.Print("Adding guard-policies to safeoutputs TOML (derived from GitHub guard-policy)")
+				// Render guard-policies in TOML format
+				renderGuardPoliciesToml(yaml, guardPolicies, constants.SafeOutputsMCPServerID.String())
+			}
+		}
+	}
 }
 
 // RenderMCPScriptsMCP generates the MCP Scripts server configuration
@@ -896,6 +909,40 @@ func renderGuardPoliciesJSON(yaml *strings.Builder, policies map[string]any, ind
 	}
 
 	fmt.Fprintf(yaml, "%s\"guard-policies\": %s\n", indent, string(jsonBytes))
+}
+
+// renderGuardPoliciesToml renders a "guard-policies" section in TOML format for a given server.
+// The policies map contains policy names (e.g., "write-sink") mapped to their configurations.
+func renderGuardPoliciesToml(yaml *strings.Builder, policies map[string]any, serverID string) {
+	if len(policies) == 0 {
+		return
+	}
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"]\n")
+
+	// Iterate over each policy (e.g., "write-sink")
+	for policyName, policyConfig := range policies {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"." + policyName + "]\n")
+
+		// Extract policy fields (e.g., "accept")
+		if configMap, ok := policyConfig.(map[string]any); ok {
+			for fieldName, fieldValue := range configMap {
+				// Handle array values (e.g., accept = ["private:github/gh-aw*"])
+				if arrayValue, ok := fieldValue.([]string); ok {
+					yaml.WriteString("          " + fieldName + " = [")
+					for i, item := range arrayValue {
+						if i > 0 {
+							yaml.WriteString(", ")
+						}
+						yaml.WriteString("\"" + item + "\"")
+					}
+					yaml.WriteString("]\n")
+				}
+			}
+		}
+	}
 }
 
 // RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.

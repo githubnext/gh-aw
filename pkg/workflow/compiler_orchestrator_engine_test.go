@@ -190,10 +190,9 @@ strict: false
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 			var compiler *Compiler
+			compiler = NewCompiler()
 			if tt.cliStrict {
-				compiler = NewCompiler(WithStrictMode(true))
-			} else {
-				compiler = NewCompiler()
+				compiler.SetStrictMode(true)
 			}
 
 			content := []byte(testContent)

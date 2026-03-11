@@ -849,18 +849,6 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	return cfg, nil
 }
 
-// getCurrentCheckoutRepository returns the repository of the checkout marked as current (current: true).
-// Returns an empty string if no checkout has current: true or if the current checkout
-// uses the default repository (empty Repository field).
-func getCurrentCheckoutRepository(checkouts []*CheckoutConfig) string {
-	for _, cfg := range checkouts {
-		if cfg != nil && cfg.Current {
-			return cfg.Repository
-		}
-	}
-	return ""
-}
-
 // buildCheckoutsPromptContent returns a markdown bullet list describing all user-configured
 // checkouts for inclusion in the GitHub context prompt.
 // Returns an empty string when no checkouts are configured.
