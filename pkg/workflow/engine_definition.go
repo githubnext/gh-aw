@@ -57,31 +57,31 @@ const (
 type AuthDefinition struct {
 	// Strategy selects the authentication flow (api-key, oauth-client-credentials, bearer).
 	// Defaults to api-key when Secret is non-empty and Strategy is unset.
-	Strategy AuthStrategy
+	Strategy AuthStrategy `yaml:"strategy,omitempty"`
 
 	// Secret is the env-var / GitHub Actions secret name that holds the raw API key or token.
 	// Required for api-key and bearer strategies.
-	Secret string
+	Secret string `yaml:"secret,omitempty"`
 
 	// TokenURL is the OAuth token endpoint (e.g. "https://auth.example.com/oauth/token").
 	// Required for oauth-client-credentials strategy.
-	TokenURL string
+	TokenURL string `yaml:"token-url,omitempty"`
 
 	// ClientIDRef is the secret name that holds the OAuth client ID.
 	// Required for oauth-client-credentials strategy.
-	ClientIDRef string
+	ClientIDRef string `yaml:"client-id-ref,omitempty"`
 
 	// ClientSecretRef is the secret name that holds the OAuth client secret.
 	// Required for oauth-client-credentials strategy.
-	ClientSecretRef string
+	ClientSecretRef string `yaml:"client-secret-ref,omitempty"`
 
 	// TokenField is the JSON field name in the token response that contains the access token.
 	// Defaults to "access_token" when empty.
-	TokenField string
+	TokenField string `yaml:"token-field,omitempty"`
 
 	// HeaderName is the HTTP header to inject the token into (e.g. "api-key").
 	// Required when strategy is not bearer (bearer always uses Authorization header).
-	HeaderName string
+	HeaderName string `yaml:"header-name,omitempty"`
 }
 
 // RequestShape describes non-standard URL and body transformations applied to each
@@ -89,36 +89,36 @@ type AuthDefinition struct {
 type RequestShape struct {
 	// PathTemplate is a URL path template with {model} and other variable placeholders
 	// (e.g. "/openai/deployments/{model}/chat/completions").
-	PathTemplate string
+	PathTemplate string `yaml:"path-template,omitempty"`
 
 	// Query holds static or template query-parameter values appended to every request
 	// (e.g. {"api-version": "2024-10-01-preview"}).
-	Query map[string]string
+	Query map[string]string `yaml:"query,omitempty"`
 
 	// BodyInject holds key/value pairs injected into the JSON request body before sending
 	// (e.g. {"appKey": "{APP_KEY_SECRET}"}).
-	BodyInject map[string]string
+	BodyInject map[string]string `yaml:"body-inject,omitempty"`
 }
 
 // ProviderSelection identifies the AI provider for an engine (e.g. "anthropic", "openai").
 // It optionally carries advanced authentication and request-shaping configuration for
 // non-standard backends.
 type ProviderSelection struct {
-	Name    string
-	Auth    *AuthDefinition
-	Request *RequestShape
+	Name    string          `yaml:"name,omitempty"`
+	Auth    *AuthDefinition `yaml:"auth,omitempty"`
+	Request *RequestShape   `yaml:"request,omitempty"`
 }
 
 // ModelSelection specifies the default and supported models for an engine.
 type ModelSelection struct {
-	Default   string
-	Supported []string
+	Default   string   `yaml:"default,omitempty"`
+	Supported []string `yaml:"supported,omitempty"`
 }
 
 // AuthBinding maps a logical authentication role to a secret name.
 type AuthBinding struct {
-	Role   string
-	Secret string
+	Role   string `yaml:"role"`
+	Secret string `yaml:"secret"`
 }
 
 // RequiredSecretNames returns the env-var names that must be provided at runtime for
@@ -149,14 +149,16 @@ func (a *AuthDefinition) RequiredSecretNames() []string {
 // It is separate from the runtime adapter (CodingAgentEngine) to allow the catalog
 // layer to carry identity and provider information without coupling to implementation.
 type EngineDefinition struct {
-	ID          string
-	DisplayName string
-	Description string
-	RuntimeID   string // maps to the CodingAgentEngine registered in EngineRegistry
-	Provider    ProviderSelection
-	Models      ModelSelection
-	Auth        []AuthBinding
-	Options     map[string]any
+	ID          string `yaml:"id"`
+	DisplayName string `yaml:"display-name,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	// RuntimeID maps to the CodingAgentEngine registered in EngineRegistry.
+	// Defaults to ID when omitted.
+	RuntimeID string            `yaml:"runtime-id,omitempty"`
+	Provider  ProviderSelection `yaml:"provider,omitempty"`
+	Models    ModelSelection    `yaml:"models,omitempty"`
+	Auth      []AuthBinding     `yaml:"auth,omitempty"`
+	Options   map[string]any    `yaml:"options,omitempty"`
 }
 
 // EngineCatalog is a collection of EngineDefinition entries backed by an EngineRegistry
@@ -176,50 +178,17 @@ type ResolvedEngineTarget struct {
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
-// pre-registers the four built-in engine definitions (claude, codex, copilot, gemini).
+// pre-registers the four built-in engine definitions (claude, codex, copilot, gemini)
+// loaded from the embedded YAML files in data/engines/*.yml.
 func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 	catalog := &EngineCatalog{
 		definitions: make(map[string]*EngineDefinition),
 		registry:    registry,
 	}
 
-	catalog.Register(&EngineDefinition{
-		ID:          "claude",
-		DisplayName: "Claude Code",
-		Description: "Uses Claude Code with full MCP tool support and allow-listing",
-		RuntimeID:   "claude",
-		Provider:    ProviderSelection{Name: "anthropic"},
-		Auth: []AuthBinding{
-			{Role: "api-key", Secret: "ANTHROPIC_API_KEY"},
-		},
-	})
-
-	catalog.Register(&EngineDefinition{
-		ID:          "codex",
-		DisplayName: "Codex",
-		Description: "Uses OpenAI Codex CLI with MCP server support",
-		RuntimeID:   "codex",
-		Provider:    ProviderSelection{Name: "openai"},
-		Auth: []AuthBinding{
-			{Role: "api-key", Secret: "CODEX_API_KEY"},
-		},
-	})
-
-	catalog.Register(&EngineDefinition{
-		ID:          "copilot",
-		DisplayName: "GitHub Copilot CLI",
-		Description: "Uses GitHub Copilot CLI with MCP server support",
-		RuntimeID:   "copilot",
-		Provider:    ProviderSelection{Name: "github"},
-	})
-
-	catalog.Register(&EngineDefinition{
-		ID:          "gemini",
-		DisplayName: "Google Gemini CLI",
-		Description: "Google Gemini CLI with headless mode and LLM gateway support",
-		RuntimeID:   "gemini",
-		Provider:    ProviderSelection{Name: "google"},
-	})
+	for _, def := range loadBuiltinEngineDefinitions() {
+		catalog.Register(def)
+	}
 
 	return catalog
 }
