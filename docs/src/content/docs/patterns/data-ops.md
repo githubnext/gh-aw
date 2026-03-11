@@ -5,26 +5,9 @@ sidebar:
   badge: { text: 'Hybrid', variant: 'caution' }
 ---
 
-DataOps combines deterministic data extraction with agentic analysis. Shell commands in `steps:` collect and prepare data, then the AI agent in the markdown body analyzes results and produces safe outputs like discussions or comments.
-
-## When to Use DataOps
-
-- **Data aggregation** - Collect metrics from APIs, logs, or repositories
-- **Report generation** - Analyze data and produce human-readable summaries
-- **Trend analysis** - Process historical data and identify patterns
-- **Auditing** - Gather evidence and generate audit reports
+DataOps combines deterministic data extraction with agentic analysis: shell commands in `steps:` reliably collect and prepare data (fast, cacheable, reproducible), then the AI agent reads the results and generates insights. Use this pattern for data aggregation, report generation, trend analysis, and auditing.
 
 ## The DataOps Pattern
-
-### Separation of Concerns
-
-DataOps separates two distinct phases:
-
-1. **Deterministic extraction** (`steps:`) - Shell commands that reliably fetch, filter, and structure data. These run before the agent and produce predictable, reproducible results.
-
-2. **Agentic analysis** (markdown body) - The AI agent reads the prepared data, interprets patterns, and generates insights. The agent has access to the data files created by the steps.
-
-This separation ensures data collection is fast, reliable, and cacheable, while the AI focuses on interpretation and communication.
 
 ### Basic Structure
 
@@ -126,51 +109,11 @@ timeout-minutes: 10
 
 # Weekly Pull Request Summary
 
-Generate a summary of pull request activity for the repository.
-
-## Available Data
-
-The following data has been prepared for your analysis:
-
+Analyze the prepared data:
 - `/tmp/gh-aw/pr-data/recent-prs.json` - Last 100 PRs with full metadata
 - `/tmp/gh-aw/pr-data/stats.json` - Pre-computed statistics
 
-## Your Task
-
-1. **Read the prepared data** from the files above
-2. **Analyze the statistics** to identify:
-   - Overall activity levels
-   - Merge rate and velocity
-   - Most active contributors
-   - Code churn (additions vs deletions)
-3. **Generate a summary report** as a GitHub discussion with:
-   - Key metrics in a clear format
-   - Notable trends or observations
-   - Top contributors acknowledgment
-
-## Report Format
-
-Create a discussion with this structure:
-
-```markdown
-# Weekly PR Summary - [Date Range]
-
-## Key Metrics
-- **Total PRs**: X
-- **Merged**: X (Y%)
-- **Open**: X
-- **Code Changes**: +X / -Y lines across Z files
-
-## Top Contributors
-1. @author1 - X PRs
-2. @author2 - Y PRs
-...
-
-## Observations
-[Brief insights about activity patterns]
-```
-
-Keep the report concise and factual. Focus on the numbers and let them tell the story.
+Create a discussion summarizing: total PRs, merge rate, code changes (+/- lines), top contributors, and any notable trends. Keep it concise and factual.
 ````
 
 ## Data Caching
@@ -231,15 +174,11 @@ Analyze the combined data at `/tmp/gh-aw/combined.json` covering:
 
 ## Best Practices
 
-**Keep steps deterministic** - Avoid randomness or time-dependent logic in steps. The same inputs should produce the same outputs.
-
-**Pre-compute aggregations** - Use `jq`, `awk`, or Python in steps to compute statistics. This reduces agent token usage and improves reliability.
-
-**Structure data clearly** - Output JSON with clear field names. Include a summary file alongside raw data.
-
-**Document data locations** - Tell the agent exactly where to find the prepared data and what format to expect.
-
-**Use safe outputs** - Always use `safe-outputs` for agent actions. Discussions are ideal for reports since they support threading and reactions.
+- **Keep steps deterministic** - Same inputs should produce the same outputs; avoid randomness or time-dependent logic.
+- **Pre-compute aggregations** - Use `jq`, `awk`, or Python to compute statistics upfront, reducing agent token usage.
+- **Structure data clearly** - Output JSON with clear field names; include a summary file alongside raw data.
+- **Document data locations** - Tell the agent where to find the data and what format to expect.
+- **Use safe outputs** - Discussions are ideal for reports (support threading and reactions).
 
 ## Additional Resources
 
