@@ -138,23 +138,38 @@ func parseRolesValue(rolesValue any, fieldName string) []string {
 	return nil
 }
 
-// extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers
+// extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers.
+// For workflows with workflow_run triggers, github-actions[bot] is automatically added because
+// workflow_run events set github.actor to 'github-actions[bot]', which would otherwise always
+// fail the role check. The repo-safety condition on the pre_activation job already ensures the
+// triggering workflow is from the same repository and not a fork.
 func (c *Compiler) extractBots(frontmatter map[string]any) []string {
+	var bots []string
+
 	// Check on.bots
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if botsValue, hasBots := onMap["bots"]; hasBots {
-				bots := parseBotsValue(botsValue, "on.bots")
-				if bots != nil {
-					return bots
+				extracted := parseBotsValue(botsValue, "on.bots")
+				if extracted != nil {
+					bots = extracted
 				}
 			}
 		}
 	}
 
-	// No bots specified, return empty array
-	roleLog.Print("No bots specified")
-	return []string{}
+	// For workflow_run triggers, automatically add github-actions[bot] to the allowed bots list
+	// since workflow_run events always set github.actor to 'github-actions[bot]'.
+	if c.hasWorkflowRunTrigger(frontmatter) && !slices.Contains(bots, "github-actions[bot]") {
+		roleLog.Print("workflow_run trigger detected: automatically adding github-actions[bot] to allowed bots")
+		bots = append(bots, "github-actions[bot]")
+	}
+
+	if len(bots) == 0 {
+		roleLog.Print("No bots specified")
+	}
+
+	return bots
 }
 
 // parseBotsValue parses a bots value from frontmatter (supports string, []any, []string)

@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -194,6 +195,146 @@ Test workflow content with bot and default roles.`
 	if !strings.Contains(compiledStr, "GH_AW_ALLOWED_BOTS: dependabot[bot]") {
 		t.Errorf("Expected compiled workflow to contain GH_AW_ALLOWED_BOTS environment variable")
 	}
+}
+
+// TestWorkflowRunAutoBot tests that github-actions[bot] is automatically added to bots
+// when the workflow has a workflow_run trigger, fixing the pre_activation role check failure.
+func TestWorkflowRunAutoBot(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "workflow-run-auto-bot-test")
+
+	compiler := NewCompiler()
+
+	t.Run("workflow_run_adds_github_actions_bot", func(t *testing.T) {
+		frontmatter := `---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+engine: copilot
+---
+
+# Test Workflow
+Test workflow content.`
+
+		workflowPath := filepath.Join(tmpDir, "workflow-run.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		// Parse the workflow
+		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+		if err != nil {
+			t.Fatalf("Failed to parse workflow: %v", err)
+		}
+
+		// github-actions[bot] should be automatically added
+		if !slices.Contains(workflowData.Bots, "github-actions[bot]") {
+			t.Errorf("Expected github-actions[bot] to be automatically added to bots for workflow_run trigger, got: %v", workflowData.Bots)
+		}
+	})
+
+	t.Run("workflow_run_compiled_includes_github_actions_bot_env_var", func(t *testing.T) {
+		frontmatter := `---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+engine: copilot
+---
+
+# Test Workflow
+Test workflow content.`
+
+		workflowPath := filepath.Join(tmpDir, "workflow-run-compile.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		err = compiler.CompileWorkflow(workflowPath)
+		if err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		outputPath := filepath.Join(tmpDir, "workflow-run-compile.lock.yml")
+		compiledContent, err := os.ReadFile(outputPath)
+		if err != nil {
+			t.Fatalf("Failed to read compiled workflow: %v", err)
+		}
+
+		compiledStr := string(compiledContent)
+
+		// The compiled workflow should include github-actions[bot] in GH_AW_ALLOWED_BOTS
+		if !strings.Contains(compiledStr, "GH_AW_ALLOWED_BOTS: github-actions[bot]") {
+			t.Errorf("Expected compiled workflow to include github-actions[bot] in GH_AW_ALLOWED_BOTS, got content:\n%s", compiledStr)
+		}
+	})
+
+	t.Run("workflow_run_with_existing_bots_does_not_duplicate", func(t *testing.T) {
+		frontmatter := `---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  bots: ["github-actions[bot]", "dependabot[bot]"]
+engine: copilot
+---
+
+# Test Workflow
+Test workflow content.`
+
+		workflowPath := filepath.Join(tmpDir, "workflow-run-existing-bots.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+		if err != nil {
+			t.Fatalf("Failed to parse workflow: %v", err)
+		}
+
+		// Verify github-actions[bot] is present and no duplicate was added
+		if !slices.Contains(workflowData.Bots, "github-actions[bot]") {
+			t.Errorf("Expected github-actions[bot] to be present in bots: %v", workflowData.Bots)
+		}
+		// Total bots should be exactly 2 (no duplicate)
+		if len(workflowData.Bots) != 2 {
+			t.Errorf("Expected exactly 2 bots (no duplicate), got %d: %v", len(workflowData.Bots), workflowData.Bots)
+		}
+	})
+
+	t.Run("non_workflow_run_does_not_add_github_actions_bot", func(t *testing.T) {
+		frontmatter := `---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+---
+
+# Test Workflow
+Test workflow content.`
+
+		workflowPath := filepath.Join(tmpDir, "not-workflow-run.md")
+		err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+		if err != nil {
+			t.Fatalf("Failed to parse workflow: %v", err)
+		}
+
+		// github-actions[bot] should NOT be added for non-workflow_run triggers
+		if slices.Contains(workflowData.Bots, "github-actions[bot]") {
+			t.Errorf("Expected github-actions[bot] NOT to be added for non-workflow_run trigger, but it was in: %v", workflowData.Bots)
+		}
+	})
 }
 
 // TestBotsWithRolesAll tests that bots field works even when roles: all is set

@@ -324,6 +324,7 @@ on:
 - Combine with `on.roles:` for comprehensive access control
 - Applies to all workflow triggers (`pull_request`, `issues`, etc.)
 - When `on.roles: all` is set, bot filtering is not enforced
+- For `workflow_run` triggers, `github-actions[bot]` is **automatically** added to the allowed bots list since GitHub Actions always sets `github.actor` to `github-actions[bot]` for these events
 
 **Common bot names**:
 
