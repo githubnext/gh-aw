@@ -148,6 +148,11 @@ type WorkflowExecutor interface {
 	// before secret redaction runs. Engines that copy session or firewall state files should
 	// override this; the default implementation returns an empty slice.
 	GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep
+
+	// GetAPMTarget returns the APM target value to use when packing dependencies with
+	// microsoft/apm-action. Supported values are "copilot", "claude", and "all".
+	// The default implementation returns "all" (packs all primitive types).
+	GetAPMTarget() string
 }
 
 // MCPConfigProvider handles MCP (Model Context Protocol) configuration
@@ -335,6 +340,12 @@ func (e *BaseEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubA
 // Engines that need to copy session or firewall state files before secret redaction should override this.
 func (e *BaseEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
 	return []GitHubActionStep{}
+}
+
+// GetAPMTarget returns "all" by default (packs all primitive types).
+// CopilotEngine overrides this to return "copilot"; ClaudeEngine overrides to return "claude".
+func (e *BaseEngine) GetAPMTarget() string {
+	return "all"
 }
 
 // ParseLogMetrics provides a default no-op implementation for log parsing

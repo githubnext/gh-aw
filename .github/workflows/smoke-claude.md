@@ -49,6 +49,8 @@ tools:
   serena:
     languages:
       go: {}
+dependencies:
+  - microsoft/apm-sample-package
 runtimes:
   go:
     version: "1.25"

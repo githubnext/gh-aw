@@ -35,7 +35,7 @@
 #
 # inlined-imports: true
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ce1db450f8ac78040e972a4a41fe2c780e51d97c7d931f9ec7f883a6ae8006d7","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"cf65ca18529a16d3f7278e9f39c60eee12cb0abe10843fcb1411350b7bba20b5","strict":true}
 
 name: "Smoke Claude"
 "on":
@@ -636,6 +636,24 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
+      - name: Install and pack APM dependencies
+        id: apm_pack
+        uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
+        with:
+          dependencies: |
+            - microsoft/apm-sample-package
+          isolated: 'true'
+          pack: 'true'
+          archive: 'true'
+          target: claude
+          working-directory: /tmp/gh-aw/apm-workspace
+      - name: Upload APM bundle artifact
+        if: success()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: apm
+          path: ${{ steps.apm_pack.outputs.bundle-path }}
+          retention-days: 1
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -772,6 +790,15 @@ jobs:
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@latest
+      - name: Download APM bundle artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: apm
+          path: /tmp/gh-aw/apm-bundle
+      - name: Restore APM dependencies
+        uses: microsoft/apm-action@5eac264e08ed8db603fe2c40983794f94cab49d8 # v1.3.1
+        with:
+          bundle: /tmp/gh-aw/apm-bundle/*.tar.gz
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

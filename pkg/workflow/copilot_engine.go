@@ -55,6 +55,11 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return string(constants.DefaultCopilotDetectionModel)
 }
 
+// GetAPMTarget returns "copilot" so that apm-action packs Copilot-specific primitives.
+func (e *CopilotEngine) GetAPMTarget() string {
+	return "copilot"
+}
+
 // GetModelEnvVarName returns the native environment variable name that the Copilot CLI uses
 // for model selection. Setting COPILOT_MODEL is equivalent to passing --model to the CLI.
 func (e *CopilotEngine) GetModelEnvVarName() string {

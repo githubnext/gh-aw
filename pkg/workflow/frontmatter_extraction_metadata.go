@@ -360,8 +360,9 @@ func extractPluginsFromFrontmatter(frontmatter map[string]any) *PluginInfo {
 }
 
 // extractAPMDependenciesFromFrontmatter extracts APM (Agent Package Manager) dependency
-// configuration from frontmatter. Supports array format only:
+// configuration from frontmatter. Supports two formats:
 //   - Array format: ["org/pkg1", "org/pkg2"]
+//   - Object format: {packages: ["org/pkg1", "org/pkg2"], isolated: true}
 //
 // Returns nil if no dependencies field is present or if the field contains no packages.
 func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDependenciesInfo {
@@ -370,22 +371,41 @@ func extractAPMDependenciesFromFrontmatter(frontmatter map[string]any) *APMDepen
 		return nil
 	}
 
-	depsArray, ok := value.([]any)
-	if !ok {
-		return nil
-	}
-
 	var packages []string
-	for _, item := range depsArray {
-		if s, ok := item.(string); ok && s != "" {
-			packages = append(packages, s)
+	var isolated bool
+
+	switch v := value.(type) {
+	case []any:
+		// Array format: dependencies: [pkg1, pkg2]
+		for _, item := range v {
+			if s, ok := item.(string); ok && s != "" {
+				packages = append(packages, s)
+			}
 		}
+	case map[string]any:
+		// Object format: dependencies: {packages: [...], isolated: true}
+		if pkgsAny, ok := v["packages"]; ok {
+			if pkgsArray, ok := pkgsAny.([]any); ok {
+				for _, item := range pkgsArray {
+					if s, ok := item.(string); ok && s != "" {
+						packages = append(packages, s)
+					}
+				}
+			}
+		}
+		if iso, ok := v["isolated"]; ok {
+			if isoBool, ok := iso.(bool); ok {
+				isolated = isoBool
+			}
+		}
+	default:
+		return nil
 	}
 
 	if len(packages) == 0 {
 		return nil
 	}
 
-	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter", len(packages))
-	return &APMDependenciesInfo{Packages: packages}
+	frontmatterMetadataLog.Printf("Extracted %d APM dependency packages from frontmatter (isolated=%v)", len(packages), isolated)
+	return &APMDependenciesInfo{Packages: packages, Isolated: isolated}
 }

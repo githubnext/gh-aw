@@ -326,6 +326,28 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&steps, data, preActivationJobCreated, customJobsBeforeActivation)
 
+	// Generate APM pack step if dependencies are specified.
+	// The pack step runs after prompt generation and uploads as a separate "apm" artifact.
+	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
+		compilerActivationJobLog.Printf("Adding APM pack step: %d packages", len(data.APMDependencies.Packages))
+		apmTarget := engine.GetAPMTarget()
+		apmPackStep := GenerateAPMPackStep(data.APMDependencies, apmTarget, data)
+		for _, line := range apmPackStep {
+			steps = append(steps, line+"\n")
+		}
+		// Upload the packed APM bundle as a separate artifact for the agent job to download.
+		// The path comes from the apm_pack step output `bundle-path`, which microsoft/apm-action
+		// sets to the location of the packed .tar.gz archive.
+		compilerActivationJobLog.Print("Adding APM bundle artifact upload step")
+		steps = append(steps, "      - name: Upload APM bundle artifact\n")
+		steps = append(steps, "        if: success()\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          name: apm\n")
+		steps = append(steps, "          path: ${{ steps.apm_pack.outputs.bundle-path }}\n")
+		steps = append(steps, "          retention-days: 1\n")
+	}
+
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
 	steps = append(steps, "      - name: Upload activation artifact\n")

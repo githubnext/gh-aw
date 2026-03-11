@@ -231,8 +231,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add APM (Agent Package Manager) setup step if dependencies are specified
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		compilerYamlLog.Printf("Adding APM setup step: %d packages", len(data.APMDependencies.Packages))
-		apmStep := GenerateAPMDependenciesStep(data.APMDependencies, data)
+		// Download the pre-packed APM bundle from the separate "apm" artifact
+		compilerYamlLog.Printf("Adding APM bundle download step: %d packages", len(data.APMDependencies.Packages))
+		yaml.WriteString("      - name: Download APM bundle artifact\n")
+		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          name: apm\n")
+		yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
+
+		// Restore APM dependencies from bundle
+		compilerYamlLog.Printf("Adding APM restore step")
+		apmStep := GenerateAPMRestoreStep(data.APMDependencies, data)
 		for _, line := range apmStep {
 			yaml.WriteString(line + "\n")
 		}
