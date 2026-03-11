@@ -420,24 +420,28 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
 
     context += "\nTo manually apply the patch:\n\n";
     if (runId) {
-      context += `\`\`\`sh\n`;
-      context += `# Download the patch artifact from the workflow run\n`;
-      context += `gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}\n\n`;
-      context += `# List available patches\n`;
-      context += `ls /tmp/agent-artifacts-${runId}/*.patch\n\n`;
-      context += `# Create a new branch (adjust as needed)\n`;
-      context += `git checkout -b aw/manual-apply\n\n`;
-      context += `# Apply the patch (--3way handles cross-repo patches)\n`;
-      context += `git am --3way /tmp/agent-artifacts-${runId}/YOUR_PATCH_FILE.patch\n\n`;
-      context += `# If there are conflicts, resolve them and continue:\n`;
-      context += `# git am --3way --continue\n\n`;
-      context += `# Push and create a pull request\n`;
-      context += `git push origin aw/manual-apply\n`;
-      context += `gh pr create --base main --head aw/manual-apply\n`;
-      context += `\`\`\`\n`;
-      if (runUrl) {
-        context += `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n`;
-      }
+      context += `\`\`\`sh
+# Download the patch artifact from the workflow run
+gh run download ${runId} -n agent-artifacts -D /tmp/agent-artifacts-${runId}
+
+# List available patches
+ls /tmp/agent-artifacts-${runId}/*.patch
+
+# Create a new branch (adjust as needed)
+git checkout -b aw/manual-apply
+
+# Apply the patch (--3way handles cross-repo patches)
+git am --3way /tmp/agent-artifacts-${runId}/YOUR_PATCH_FILE.patch
+
+# If there are conflicts, resolve them and continue (or abort):
+# git am --continue
+# git am --abort
+
+# Push and create a pull request
+git push origin aw/manual-apply
+gh pr create --head aw/manual-apply
+\`\`\`
+${runUrl ? `\nThe patch artifact is available at: [View run and download artifacts](${runUrl})\n` : ""}`;
     } else {
       context += "Download the patch artifact from the workflow run, then apply it with `git am --3way <patch-file>`.\n";
     }
