@@ -270,53 +270,14 @@ type DependencyInfoWithIndirect struct {
 	Indirect bool
 }
 
-// parseGoModWithIndirect parses go.mod including indirect dependencies
+// parseGoModWithIndirect parses go.mod including indirect dependencies.
+// This is a thin wrapper around parseGoModFile for backward compatibility.
 func parseGoModWithIndirect(path string) ([]DependencyInfoWithIndirect, error) {
 	depsReportLog.Printf("Parsing go.mod file: %s", path)
-
-	content, err := os.ReadFile(path)
+	deps, err := parseGoModFile(path)
 	if err != nil {
 		return nil, err
 	}
-
-	var deps []DependencyInfoWithIndirect
-	lines := strings.Split(string(content), "\n")
-	inRequire := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// Track require block
-		if strings.HasPrefix(line, "require (") {
-			inRequire = true
-			continue
-		}
-		if inRequire && line == ")" {
-			inRequire = false
-			continue
-		}
-
-		// Parse dependency line
-		if inRequire || strings.HasPrefix(line, "require ") {
-			// Remove "require " prefix if present
-			line = strings.TrimPrefix(line, "require ")
-
-			// Check if indirect before splitting (preserve the comment)
-			indirect := strings.Contains(line, "// indirect")
-
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				deps = append(deps, DependencyInfoWithIndirect{
-					DependencyInfo: DependencyInfo{
-						Path:    parts[0],
-						Version: parts[1],
-					},
-					Indirect: indirect,
-				})
-			}
-		}
-	}
-
 	depsReportLog.Printf("Parsed go.mod: %d total dependencies", len(deps))
 	return deps, nil
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/envutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/sourcegraph/conc/pool"
 )
@@ -807,17 +808,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	return results
 }
 
-// normalizeSafeOutputType converts dashes to underscores for matching
-// This allows users to use either "missing-tool" or "missing_tool" interchangeably
-func normalizeSafeOutputType(safeOutputType string) string {
-	return strings.ReplaceAll(safeOutputType, "-", "_")
-}
-
 // runContainsSafeOutputType checks if a run's agent_output.json contains a specific safe output type
 func runContainsSafeOutputType(runDir string, safeOutputType string, verbose bool) (bool, error) {
 	logsOrchestratorLog.Printf("Checking run for safe output type: dir=%s, type=%s", runDir, safeOutputType)
 	// Normalize the type for comparison (convert dashes to underscores)
-	normalizedType := normalizeSafeOutputType(safeOutputType)
+	normalizedType := stringutil.NormalizeSafeOutputIdentifier(safeOutputType)
 
 	// Look for agent_output.json in the run directory
 	agentOutputPath := filepath.Join(runDir, constants.AgentOutputFilename)
@@ -861,7 +856,7 @@ func runContainsSafeOutputType(runDir string, safeOutputType string, verbose boo
 		}
 
 		// Normalize the item type for comparison
-		normalizedItemType := normalizeSafeOutputType(item.Type)
+		normalizedItemType := stringutil.NormalizeSafeOutputIdentifier(item.Type)
 
 		if normalizedItemType == normalizedType {
 			return true, nil
