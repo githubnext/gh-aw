@@ -246,6 +246,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   /** @type {Array<{type: string, error: string}>} */
   const codePushFailures = [];
 
+  // Track when a code-push operation falls back to creating a review issue instead.
+  // When set, subsequent add_comment messages will receive a correction note prepended
+  // to their body so the posted comment accurately reflects the actual outcome.
+  /** @type {{type: string, issueNumber: number, issueUrl: string}|null} */
+  let codePushFallbackInfo = null;
+
   // Load custom safe output job types (from GH_AW_SAFE_OUTPUT_JOBS env var)
   // These are processed by dedicated custom job steps, not by this handler manager
   const customJobTypes = loadCustomSafeOutputJobTypes();
@@ -332,8 +338,18 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Record the temp ID map size before processing to detect new IDs
       const tempIdMapSizeBefore = temporaryIdMap.size;
 
+      // If a previous code-push operation fell back to a review issue, prepend a correction
+      // note to add_comment bodies so the posted comment accurately reflects the outcome.
+      // The note is placed before the AI-generated body so users see the clarification immediately.
+      let effectiveMessage = message;
+      if (messageType === "add_comment" && codePushFallbackInfo) {
+        const fallbackNote = `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.issueNumber}](${codePushFallbackInfo.issueUrl})\n\n`;
+        effectiveMessage = { ...message, body: fallbackNote + (message.body || "") };
+        core.info(`Prepending fallback correction note to add_comment body (fallback issue: #${codePushFallbackInfo.issueNumber})`);
+      }
+
       // Call the message handler with the individual message and resolved temp IDs
-      const result = await messageHandler(message, resolvedTemporaryIds, temporaryIdMap);
+      const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
       // Check if the handler explicitly returned a failure
       if (result && result.success === false && !result.deferred) {
@@ -358,7 +374,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         core.info(`⏸ Message ${i + 1} (${messageType}) deferred - will retry after first pass`);
         deferredMessages.push({
           type: messageType,
-          message: message,
+          message: effectiveMessage,
           messageIndex: i,
           handler: messageHandler,
         });
@@ -380,6 +396,13 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           number: result.number,
         });
         core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
+      }
+
+      // Track when a code-push operation falls back to a review issue so subsequent
+      // add_comment messages can include a correction note.
+      if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true && result.issue_number != null && result.issue_url) {
+        codePushFallbackInfo = { type: messageType, issueNumber: result.issue_number, issueUrl: result.issue_url };
+        core.info(`Code push '${messageType}' fell back to review issue #${result.issue_number} — add_comment messages will be annotated`);
       }
 
       // Check if this output was created with unresolved temporary IDs
