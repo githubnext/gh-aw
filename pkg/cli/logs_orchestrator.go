@@ -222,9 +222,11 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 					var engineMatches bool
 					if detectedEngine != nil {
-						// Get the engine ID to compare with the filter
+						// Get the engine ID to compare with the filter.
+						// Use the registry's supported engines list instead of a separate constant
+						// to ensure all registered engines (including gemini) are considered.
 						registry := workflow.GetGlobalEngineRegistry()
-						for _, supportedEngine := range constants.AgenticEngines {
+						for _, supportedEngine := range registry.GetSupportedEngines() {
 							if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
 								engineMatches = (supportedEngine == engine)
 								break
@@ -236,9 +238,10 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 						if verbose {
 							engineName := "unknown"
 							if detectedEngine != nil {
-								// Try to get a readable name for the detected engine
+								// Try to get a readable name for the detected engine.
+								// Use the registry's supported engines list instead of a separate constant.
 								registry := workflow.GetGlobalEngineRegistry()
-								for _, supportedEngine := range constants.AgenticEngines {
+								for _, supportedEngine := range registry.GetSupportedEngines() {
 									if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
 										engineName = supportedEngine
 										break

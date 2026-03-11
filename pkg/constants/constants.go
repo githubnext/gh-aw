@@ -676,9 +676,11 @@ const (
 	GeminiEngine EngineName = "gemini"
 )
 
-// AgenticEngines lists all supported agentic engine names
-// Note: This remains a string slice for backward compatibility with existing code
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine)}
+// AgenticEngines lists all supported agentic engine names.
+// Note: This remains a string slice for backward compatibility with existing code.
+// The authoritative source of truth is the EngineCatalog in pkg/workflow; this list
+// is kept in sync with it and includes all four built-in engines.
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -692,7 +694,9 @@ type EngineOption struct {
 	WhenNeeded         string   // Human-readable description of when this secret is needed
 }
 
-// EngineOptions provides the list of available AI engines for user selection
+// EngineOptions provides the list of available AI engines for user selection.
+// Note: The authoritative source of truth is the EngineCatalog in pkg/workflow.
+// This list is derived from the catalog and kept in sync with it.
 var EngineOptions = []EngineOption{
 	{
 		Value:       string(CopilotEngine),
@@ -719,6 +723,14 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{"CODEX_API_KEY"},
 		KeyURL:             "https://platform.openai.com/api-keys",
 		WhenNeeded:         "Codex/OpenAI engine workflows",
+	},
+	{
+		Value:       string(GeminiEngine),
+		Label:       "Google Gemini CLI",
+		Description: "Google Gemini CLI with headless mode and LLM gateway support",
+		SecretName:  "GEMINI_API_KEY",
+		KeyURL:      "https://aistudio.google.com/apikey",
+		WhenNeeded:  "Gemini engine workflows",
 	},
 }
 

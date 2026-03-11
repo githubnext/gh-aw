@@ -83,7 +83,10 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot"}
+	// All four built-in engines must be present, including gemini.
+	// The authoritative source of truth is the EngineCatalog in pkg/workflow;
+	// this list must stay in sync with it.
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -103,6 +106,9 @@ func TestAgenticEngines(t *testing.T) {
 	}
 	if string(CopilotEngine) != "copilot" {
 		t.Errorf("CopilotEngine constant = %q, want %q", CopilotEngine, "copilot")
+	}
+	if string(GeminiEngine) != "gemini" {
+		t.Errorf("GeminiEngine constant = %q, want %q", GeminiEngine, "gemini")
 	}
 }
 
@@ -600,6 +606,7 @@ func TestGetAllEngineSecretNames(t *testing.T) {
 		"COPILOT_GITHUB_TOKEN",
 		"ANTHROPIC_API_KEY",
 		"OPENAI_API_KEY",
+		"GEMINI_API_KEY",
 	}
 
 	for _, expected := range expectedSecrets {
