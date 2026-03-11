@@ -477,13 +477,11 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 		case "push_to_pull_request_branch":
 			urlKey = "commit_url"
 		default:
-			if systemSafeOutputJobNames[jobName] {
-				// Skip known system jobs — they are not custom safe output types
-				continue
+			if !systemSafeOutputJobNames[jobName] {
+				// Custom safe-output job: include in the mapping with an empty URL key so the
+				// handler manager can silently skip messages of this type.
+				jobOutputMapping[jobName] = ""
 			}
-			// Custom safe-output job: include in the mapping with an empty URL key so the
-			// handler manager can silently skip messages of this type.
-			jobOutputMapping[jobName] = ""
 			continue
 		}
 
