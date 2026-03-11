@@ -37,8 +37,8 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 	}
 
 	// Construct the raw GitHub URL
-	url := fmt.Sprintf("https://raw.githubusercontent.com/github/gh-aw/%s/.github/agents/agentic-workflows.agent.md", ref)
-	agentDownloadLog.Printf("Downloading from URL: %s", url)
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/github/gh-aw/%s/.github/agents/agentic-workflows.agent.md", ref)
+	agentDownloadLog.Printf("Downloading from URL: %s", rawURL)
 
 	// Create HTTP client with timeout
 	client := &http.Client{
@@ -46,7 +46,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 	}
 
 	// Download the file
-	resp, err := client.Get(url)
+	resp, err := client.Get(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to download agent file: %w", err)
 	}
