@@ -212,6 +212,15 @@ type AgentFileProvider interface {
 	GetAgentManifestPathPrefixes() []string
 }
 
+// ConfigRenderer is an optional hook that runtimes may implement to emit generated
+// config files or metadata before execution steps run.
+type ConfigRenderer interface {
+	// RenderConfig optionally generates runtime config files or metadata.
+	// Returns a slice of GitHub Actions steps that write config to disk.
+	// Implementations that don't need config files should return nil, nil.
+	RenderConfig(target *ResolvedEngineTarget) ([]map[string]any, error)
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
@@ -223,6 +232,7 @@ type CodingAgentEngine interface {
 	LogParser
 	SecurityProvider
 	ModelEnvVarProvider
+	ConfigRenderer
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -356,6 +366,12 @@ func (e *BaseEngine) GetAgentManifestFiles() []string {
 // Engines with a dedicated config directory (e.g. .claude/) should override this.
 func (e *BaseEngine) GetAgentManifestPathPrefixes() []string {
 	return nil
+}
+
+// RenderConfig returns nil by default — engines that need to write config files before
+// execution (e.g. provider/model config files) should override this method.
+func (e *BaseEngine) RenderConfig(_ *ResolvedEngineTarget) ([]map[string]any, error) {
+	return nil, nil
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization

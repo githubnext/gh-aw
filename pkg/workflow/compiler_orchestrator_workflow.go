@@ -193,6 +193,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
 		InlinedImports:        inlinedImports,
+		EngineConfigSteps:     engineSetup.configSteps,
 	}
 
 	// Populate checkout configs from parsed frontmatter.

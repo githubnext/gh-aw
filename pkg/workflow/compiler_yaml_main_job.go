@@ -274,6 +274,20 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString(line)
 	}
 
+	// Emit engine config steps (from RenderConfig) before the AI execution step.
+	// These steps write runtime config files to disk (e.g. provider/model config files).
+	// Most engines return no steps here; only engines that require config files use this.
+	if len(data.EngineConfigSteps) > 0 {
+		compilerYamlLog.Printf("Adding %d engine config steps for %s", len(data.EngineConfigSteps), engine.GetID())
+		for _, step := range data.EngineConfigSteps {
+			stepYAML, err := ConvertStepToYAML(step)
+			if err != nil {
+				return fmt.Errorf("failed to render engine config step: %w", err)
+			}
+			yaml.WriteString(stepYAML)
+		}
+	}
+
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)

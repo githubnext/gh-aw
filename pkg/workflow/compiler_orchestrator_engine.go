@@ -21,6 +21,7 @@ type engineSetupResult struct {
 	networkPermissions *NetworkPermissions
 	sandboxConfig      *SandboxConfig
 	importsResult      *parser.ImportsResult
+	configSteps        []map[string]any // steps returned by RenderConfig (may be nil)
 }
 
 // setupEngineAndImports configures the AI engine, processes imports, and validates network/sandbox settings.
@@ -223,6 +224,16 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	agenticEngine := resolvedEngine.Runtime
 
+	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
+	// Most engines return nil, nil here; engines like OpenCode use this to write
+	// provider/model config files before the execution steps run.
+	orchestratorEngineLog.Printf("Calling RenderConfig for engine: %s", engineSetting)
+	configSteps, err := agenticEngine.RenderConfig(resolvedEngine)
+	if err != nil {
+		orchestratorEngineLog.Printf("RenderConfig failed for engine %s: %v", engineSetting, err)
+		return nil, fmt.Errorf("engine %s RenderConfig failed: %w", engineSetting, err)
+	}
+
 	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
 	if agenticEngine.IsExperimental() && c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental engine: "+agenticEngine.GetDisplayName()))
@@ -285,5 +296,6 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		networkPermissions: networkPermissions,
 		sandboxConfig:      sandboxConfig,
 		importsResult:      importsResult,
+		configSteps:        configSteps,
 	}, nil
 }
