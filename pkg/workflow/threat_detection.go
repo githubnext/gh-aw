@@ -461,7 +461,7 @@ func (c *Compiler) buildUploadDetectionLogStep() []string {
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
-		"          name: threat-detection.log\n",
+		"          name: detection\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
 	}

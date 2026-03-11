@@ -968,7 +968,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: threat-detection.log
+          name: detection
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
       - name: Set detection conclusion
