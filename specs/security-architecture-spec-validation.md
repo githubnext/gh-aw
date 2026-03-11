@@ -345,7 +345,7 @@ activation:
 **Implementation Validation** (`security-guard.lock.yml`, line 145):
 
 ```yaml
-- name: Install awf binary
+- name: Install AWF binary
   run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2  # ✅ AWF firewall
 ```
 

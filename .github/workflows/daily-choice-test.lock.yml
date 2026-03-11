@@ -304,7 +304,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install awf binary
+      - name: Install AWF binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.23.0
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@latest
