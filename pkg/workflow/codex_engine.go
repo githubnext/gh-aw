@@ -171,10 +171,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 	modelParam := fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
 
-	// Build search parameter if web-search tool is present
-	webSearchParam := ""
+	// Build search parameter based on whether web-search tool is present
+	// Codex CLI enables web search by default, so we must explicitly disable it
+	// when the workflow doesn't include the web-search tool
+	webSearchParam := " --no-search"
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebSearch != nil {
-		webSearchParam = "--search "
+		webSearchParam = " --search"
 	}
 
 	// See https://github.com/github/gh-aw/issues/892

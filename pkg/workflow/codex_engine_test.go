@@ -804,15 +804,60 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 			},
 		}
 
-		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(execSteps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(execSteps))
 		}
 
-		stepContent := strings.Join([]string(steps[0]), "\n")
+		stepContent := strings.Join([]string(execSteps[0]), "\n")
 
 		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
 			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
+		}
+	})
+}
+
+func TestCodexEngineWebSearchDisabledByDefault(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("web search disabled when web-search tool is not present", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "--no-search") {
+			t.Errorf("Expected --no-search flag when web-search tool is not present, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, " --search ") {
+			t.Errorf("Expected no --search flag when web-search tool is not present, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("web search enabled when web-search tool is present", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			ParsedTools: &ToolsConfig{
+				WebSearch: &WebSearchToolConfig{},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "--search") {
+			t.Errorf("Expected --search flag when web-search tool is present, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "--no-search") {
+			t.Errorf("Expected no --no-search flag when web-search tool is present, got:\n%s", stepContent)
 		}
 	})
 }
