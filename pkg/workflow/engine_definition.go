@@ -29,6 +29,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -134,6 +135,36 @@ func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 // Register adds or replaces an EngineDefinition in the catalog.
 func (c *EngineCatalog) Register(def *EngineDefinition) {
 	c.definitions[def.ID] = def
+}
+
+// IDs returns a sorted list of all engine IDs in the catalog.
+func (c *EngineCatalog) IDs() []string {
+	ids := make([]string, 0, len(c.definitions))
+	for id := range c.definitions {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// DisplayNames returns a list of engine display names in sorted ID order.
+func (c *EngineCatalog) DisplayNames() []string {
+	ids := c.IDs()
+	names := make([]string, 0, len(ids))
+	for _, id := range ids {
+		names = append(names, c.definitions[id].DisplayName)
+	}
+	return names
+}
+
+// All returns all engine definitions in sorted ID order.
+func (c *EngineCatalog) All() []*EngineDefinition {
+	ids := c.IDs()
+	defs := make([]*EngineDefinition, 0, len(ids))
+	for _, id := range ids {
+		defs = append(defs, c.definitions[id])
+	}
+	return defs
 }
 
 // Resolve returns a ResolvedEngineTarget for the given engine ID and config.
