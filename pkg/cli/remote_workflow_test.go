@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1588,11 +1589,13 @@ safe-outputs:
 	}
 
 	// force=true should not error (even though there would normally be a conflict).
-	// Since there is no real network in unit tests, the download will fail; but the
-	// conflict check itself must NOT return an error.
-	// We simply verify the function is able to proceed past the conflict check.
-	// (The download failure is handled with a best-effort continue, so err==nil overall.)
-	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, dir, false, true, nil)
+	// The conflict check is bypassed; the download fails immediately via the injected
+	// mock downloader (avoids real network calls in unit tests).
+	// Download failures are best-effort, so the function returns nil overall.
+	mockDownloader := func(_, _, _, _ string) ([]byte, error) {
+		return nil, errors.New("download not available in unit tests")
+	}
+	err := fetchAndSaveRemoteDispatchWorkflows(content, spec, dir, false, true, nil, mockDownloader)
 	assert.NoError(t, err, "force=true should bypass conflict detection and return nil (download fails silently)")
 }
 

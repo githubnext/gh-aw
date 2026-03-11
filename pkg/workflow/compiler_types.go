@@ -498,6 +498,7 @@ type SafeOutputsConfig struct {
 	Footer                          *bool                                  `yaml:"footer,omitempty"`                    // Global footer control - when false, omits visible footer from all safe outputs (XML markers still included)
 	GroupReports                    bool                                   `yaml:"group-reports,omitempty"`             // If true, create parent "Failed runs" issue for agent failures (default: false)
 	ReportFailureAsIssue            *bool                                  `yaml:"report-failure-as-issue,omitempty"`   // If false, disables creating failure tracking issues when workflows fail (default: true)
+	FailureIssueRepo                string                                 `yaml:"failure-issue-repo,omitempty"`        // Repository to create failure issues in (format: "owner/repo"), defaults to current repo
 	MaxBotMentions                  *string                                `yaml:"max-bot-mentions,omitempty"`          // Maximum bot trigger references (e.g. 'fixes #123') allowed before filtering. Default: 10. Supports integer or GitHub Actions expression.
 	Steps                           []any                                  `yaml:"steps,omitempty"`                     // User-provided steps injected after setup/checkout and before safe-output code
 	IDToken                         *string                                `yaml:"id-token,omitempty"`                  // Override id-token permission: "write" to force-add, "none" to disable auto-detection

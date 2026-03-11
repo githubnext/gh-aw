@@ -469,6 +469,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle failure-issue-repo (repository for failure issues, format: "owner/repo")
+			if failureIssueRepo, exists := outputMap["failure-issue-repo"]; exists {
+				if failureIssueRepoStr, ok := failureIssueRepo.(string); ok && failureIssueRepoStr != "" {
+					config.FailureIssueRepo = failureIssueRepoStr
+					safeOutputsConfigLog.Printf("Failure issue repo: %s", failureIssueRepoStr)
+				}
+			}
+
 			// Handle max-bot-mentions (templatable integer)
 			if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
 				safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
