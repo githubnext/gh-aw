@@ -173,4 +173,98 @@ describe("git_helpers.cjs", () => {
       }
     });
   });
+
+  describe("getGitAuthEnv", () => {
+    let originalEnv;
+
+    beforeEach(() => {
+      originalEnv = { ...process.env };
+    });
+
+    afterEach(() => {
+      for (const key of Object.keys(process.env)) {
+        if (!(key in originalEnv)) {
+          delete process.env[key];
+        }
+      }
+      Object.assign(process.env, originalEnv);
+    });
+
+    it("should export getGitAuthEnv function", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      expect(typeof getGitAuthEnv).toBe("function");
+    });
+
+    it("should return GIT_CONFIG_* env vars when token is provided", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      const env = getGitAuthEnv("my-test-token");
+
+      expect(env).toHaveProperty("GIT_CONFIG_COUNT", "1");
+      expect(env).toHaveProperty("GIT_CONFIG_KEY_0");
+      expect(env).toHaveProperty("GIT_CONFIG_VALUE_0");
+      expect(env.GIT_CONFIG_VALUE_0).toContain("Authorization: basic");
+    });
+
+    it("should use GITHUB_TOKEN env var when no token is passed", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      process.env.GITHUB_TOKEN = "env-test-token";
+
+      const env = getGitAuthEnv();
+
+      expect(env).toHaveProperty("GIT_CONFIG_COUNT", "1");
+      expect(env.GIT_CONFIG_VALUE_0).toBeDefined();
+      // Value should be base64 of "x-access-token:env-test-token"
+      const expected = Buffer.from("x-access-token:env-test-token").toString("base64");
+      expect(env.GIT_CONFIG_VALUE_0).toContain(expected);
+    });
+
+    it("should prefer the provided token over GITHUB_TOKEN", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      process.env.GITHUB_TOKEN = "env-token";
+
+      const env = getGitAuthEnv("override-token");
+
+      const expectedBase64 = Buffer.from("x-access-token:override-token").toString("base64");
+      expect(env.GIT_CONFIG_VALUE_0).toContain(expectedBase64);
+      // Should NOT contain the env token
+      const envBase64 = Buffer.from("x-access-token:env-token").toString("base64");
+      expect(env.GIT_CONFIG_VALUE_0).not.toContain(envBase64);
+    });
+
+    it("should return empty object when no token is available", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      delete process.env.GITHUB_TOKEN;
+
+      const env = getGitAuthEnv();
+
+      expect(env).toEqual({});
+    });
+
+    it("should scope extraheader to GITHUB_SERVER_URL", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      process.env.GITHUB_SERVER_URL = "https://github.example.com";
+
+      const env = getGitAuthEnv("test-token");
+
+      expect(env.GIT_CONFIG_KEY_0).toBe("http.https://github.example.com/.extraheader");
+    });
+
+    it("should default server URL to https://github.com", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      delete process.env.GITHUB_SERVER_URL;
+
+      const env = getGitAuthEnv("test-token");
+
+      expect(env.GIT_CONFIG_KEY_0).toBe("http.https://github.com/.extraheader");
+    });
+
+    it("should strip trailing slash from server URL", async () => {
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+      process.env.GITHUB_SERVER_URL = "https://github.example.com/";
+
+      const env = getGitAuthEnv("test-token");
+
+      expect(env.GIT_CONFIG_KEY_0).toBe("http.https://github.example.com/.extraheader");
+    });
+  });
 });
