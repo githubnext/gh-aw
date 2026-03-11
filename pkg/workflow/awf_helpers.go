@@ -24,6 +24,7 @@ package workflow
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -190,6 +191,26 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--enable-api-proxy")
 	awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
 
+	// If engine.env sets OPENAI_BASE_URL, extract the hostname and pass it as
+	// --openai-api-target so the API proxy forwards to the custom endpoint instead
+	// of the default api.openai.com. This allows use of internal LLM routers,
+	// Azure OpenAI, or any OpenAI-compatible API.
+	engineEnv := getEngineEnvOverrides(config.WorkflowData)
+	if engineEnv != nil {
+		if openaiBaseURL, ok := engineEnv["OPENAI_BASE_URL"]; ok && openaiBaseURL != "" {
+			if host := extractHostname(openaiBaseURL); host != "" {
+				awfArgs = append(awfArgs, "--openai-api-target", host)
+				awfHelpersLog.Printf("Set --openai-api-target to %s from OPENAI_BASE_URL", host)
+			}
+		}
+		if anthropicBaseURL, ok := engineEnv["ANTHROPIC_BASE_URL"]; ok && anthropicBaseURL != "" {
+			if host := extractHostname(anthropicBaseURL); host != "" {
+				awfArgs = append(awfArgs, "--anthropic-api-target", host)
+				awfHelpersLog.Printf("Set --anthropic-api-target to %s from ANTHROPIC_BASE_URL", host)
+			}
+		}
+	}
+
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 	sslBumpArgs := getSSLBumpArgs(firewallConfig)
 	awfArgs = append(awfArgs, sslBumpArgs...)
@@ -226,6 +247,28 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 
 	awfHelpersLog.Print("Using standard AWF command")
 	return string(constants.AWFDefaultCommand)
+}
+
+// extractHostname parses a URL and returns just the hostname (without scheme, path, or port).
+// Returns an empty string if the URL is invalid or has no host, and logs a warning for non-empty invalid inputs.
+func extractHostname(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		if rawURL != "" {
+			awfHelpersLog.Printf("Warning: failed to parse URL %q for hostname extraction: %v", rawURL, err)
+		}
+		return ""
+	}
+
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		if rawURL != "" {
+			awfHelpersLog.Printf("Warning: URL %q has no hostname component; skipping API target configuration", rawURL)
+		}
+		return ""
+	}
+
+	return hostname
 }
 
 // WrapCommandInShell wraps an engine command in a shell invocation for AWF execution.
