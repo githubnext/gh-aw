@@ -149,7 +149,7 @@ Check if similar steps use consistent naming patterns:
 **Good patterns to look for:**
 - `Checkout <target>` - e.g., "Checkout actions folder", "Checkout repository"
 - `Setup <component>` - e.g., "Setup Scripts", "Setup environment"
-- `Install <tool>` - e.g., "Install GitHub Copilot CLI", "Install awf binary"
+- `Install <tool>` - e.g., "Install GitHub Copilot CLI", "Install AWF binary"
 - `Create <artifact>` - e.g., "Create prompt", "Create gh-aw temp directory"
 - `Upload <artifact>` - e.g., "Upload Safe Outputs", "Upload sanitized agent output"
 - `Download <artifact>` - e.g., "Download container images"

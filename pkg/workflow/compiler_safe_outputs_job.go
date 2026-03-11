@@ -464,7 +464,7 @@ func buildDetectionSuccessCondition() ConditionNode {
 // the manifest is available to the audit command even if some safe output steps fail.
 func buildSafeOutputItemsManifestUploadStep() []string {
 	return []string{
-		"      - name: Upload safe output items manifest\n",
+		"      - name: Upload Safe Output Items Manifest\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
