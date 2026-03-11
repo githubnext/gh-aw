@@ -703,6 +703,42 @@ describe("git patch integration tests", () => {
       }
     });
 
+    it("should use options.token instead of GITHUB_TOKEN when provided", async () => {
+      // Set up a feature branch with a commit to push
+      execGit(["checkout", "-b", "token-option-test"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "token-test.txt"), "token option test\n");
+      execGit(["add", "token-test.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Token option base commit"], { cwd: workingRepo });
+      execGit(["push", "-u", "origin", "token-option-test"], { cwd: workingRepo });
+
+      // Add a second commit that will become the incremental patch
+      fs.writeFileSync(path.join(workingRepo, "token-test2.txt"), "token option test 2\n");
+      execGit(["add", "token-test2.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Token option new commit"], { cwd: workingRepo });
+
+      // Delete the tracking ref so generateGitPatch has to re-fetch
+      execGit(["update-ref", "-d", "refs/remotes/origin/token-option-test"], { cwd: workingRepo });
+
+      const restore = setTestEnv(workingRepo);
+      try {
+        // Pass a custom token via options.token — the local git server ignores auth so the
+        // fetch still succeeds, but we verify no credentials are written to disk.
+        const result = await generateGitPatch("token-option-test", "main", {
+          mode: "incremental",
+          token: "ghs_custom_token_for_cross_repo",
+        });
+
+        expect(result.success).toBe(true);
+
+        // Verify the extraheader was never written to git config (auth is passed via env vars only)
+        const configCheck = spawnSync("git", ["config", "--local", "--get", "http.https://github.example.com/.extraheader"], { cwd: workingRepo, encoding: "utf8" });
+        // exit status 1 means the key does not exist — that is what we want
+        expect(configCheck.status).toBe(1);
+      } finally {
+        restore();
+      }
+    });
+
     it("should include all commits in full mode even when origin/branch exists", async () => {
       // Create a feature branch with first commit
       execGit(["checkout", "-b", "full-mode-branch"], { cwd: workingRepo });
