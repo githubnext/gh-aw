@@ -239,7 +239,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			safeOutputsConfig["push_to_pull_request_branch"] = generateMaxWithTargetConfig(
 				data.SafeOutputs.PushToPullRequestBranch.Max,
-				0, // default: unlimited
+				1, // default max: 1
 				data.SafeOutputs.PushToPullRequestBranch.Target,
 			)
 		}
