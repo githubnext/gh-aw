@@ -267,8 +267,13 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	} else {
 		env["GH_AW_PHASE"] = "agent"
 	}
-	// Include the compiler version so agents can identify which gh-aw version generated the workflow
-	env["GH_AW_VERSION"] = GetVersion()
+	// Include the compiler version so agents can identify which gh-aw version generated the workflow.
+	// Only emit the real version in release builds; otherwise use "dev".
+	if IsRelease() {
+		env["GH_AW_VERSION"] = GetVersion()
+	} else {
+		env["GH_AW_VERSION"] = "dev"
+	}
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
