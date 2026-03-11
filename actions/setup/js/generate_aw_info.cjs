@@ -64,6 +64,7 @@ async function main(core, ctx) {
     sha: ctx.sha,
     actor: ctx.actor,
     event_name: ctx.eventName,
+    target_repo: process.env.GH_AW_INFO_TARGET_REPO || "",
     staged: process.env.GH_AW_INFO_STAGED === "true",
     allowed_domains: allowedDomains,
     firewall_enabled: process.env.GH_AW_INFO_FIREWALL_ENABLED === "true",

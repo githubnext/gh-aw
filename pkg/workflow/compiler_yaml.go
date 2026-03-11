@@ -646,6 +646,11 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
 	// Use effectiveStrictMode to infer strictness from the source (frontmatter), not just the CLI flag.
 	fmt.Fprintf(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", c.effectiveStrictMode(data.RawFrontmatter))
+	// When a workflow_call trigger is present, pass the target_repo resolved by the
+	// resolve-host-repo step so it can be stored in aw_info.json for observability.
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		yaml.WriteString("          GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}\n")
+	}
 	// Include lockdown validation env vars when lockdown is explicitly enabled.
 	// validateLockdownRequirements is called from generate_aw_info.cjs and uses these vars.
 	githubTool, hasGitHub := data.Tools["github"]

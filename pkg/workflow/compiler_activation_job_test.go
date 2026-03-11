@@ -12,7 +12,10 @@ import (
 
 // workflowCallRepo is the expression injected into the repository: field of the
 // activation-job checkout step when a workflow_call trigger is detected.
-const workflowCallRepo = "${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}"
+// The resolve-host-repo step (which runs before checkout) parses GITHUB_WORKFLOW_REF
+// at runtime to determine the platform repo, correctly handling both pure workflow_call
+// relays and event-driven relays (e.g. on: issue_comment) where event_name != 'workflow_call'.
+const workflowCallRepo = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 
 func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 	tests := []struct {
@@ -165,7 +168,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 			wantRepoValue:  "org/platform-repo",
 		},
 		{
-			name:           "GitHub Actions expression for cross-repo",
+			name:           "step output expression for cross-repo",
 			repository:     workflowCallRepo,
 			wantRepository: true,
 			wantRepoValue:  workflowCallRepo,
@@ -199,4 +202,54 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGenerateResolveHostRepoStep verifies that the resolve-host-repo step is correctly
+// generated and does not contain the broken event_name-based expression.
+func TestGenerateResolveHostRepoStep(t *testing.T) {
+	c := NewCompilerWithVersion("dev")
+	c.SetActionMode(ActionModeDev)
+
+	result := c.generateResolveHostRepoStep()
+
+	assert.Contains(t, result, "resolve-host-repo",
+		"step should have the correct id")
+	assert.Contains(t, result, "Resolve host repo for activation checkout",
+		"step should have the correct name")
+	assert.Contains(t, result, "actions/github-script",
+		"step should use actions/github-script")
+	assert.Contains(t, result, "resolve_host_repo.cjs",
+		"step should require resolve_host_repo.cjs")
+
+	// Verify the broken event_name expression is NOT present
+	assert.NotContains(t, result, "github.event_name == 'workflow_call'",
+		"step must not use the broken event_name-based expression")
+	assert.NotContains(t, result, "github.action_repository",
+		"step must not use github.action_repository (unreliable for event-driven relays)")
+}
+
+// TestCheckoutDoesNotUseEventNameExpression verifies that the checkout step for
+// workflow_call triggers uses the resolve-host-repo step output instead of the
+// broken event_name == 'workflow_call' expression.
+func TestCheckoutDoesNotUseEventNameExpression(t *testing.T) {
+	c := NewCompilerWithVersion("dev")
+	c.SetActionMode(ActionModeDev)
+
+	data := &WorkflowData{
+		On: `"on":
+  workflow_call:`,
+	}
+
+	result := c.generateCheckoutGitHubFolderForActivation(data)
+	combined := strings.Join(result, "")
+
+	// Must use the step output, not the broken expression
+	assert.Contains(t, combined, "steps.resolve-host-repo.outputs.target_repo",
+		"checkout must reference the resolve-host-repo step output")
+
+	// Must NOT use the old broken event_name expression
+	assert.NotContains(t, combined, "github.event_name == 'workflow_call'",
+		"checkout must not use the broken event_name-based expression")
+	assert.NotContains(t, combined, "github.action_repository",
+		"checkout must not use github.action_repository")
 }
