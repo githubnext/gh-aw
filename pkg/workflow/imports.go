@@ -687,6 +687,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if !result.GroupReports && importedConfig.GroupReports {
 		result.GroupReports = true
 	}
+	if result.FailureIssueRepo == "" && importedConfig.FailureIssueRepo != "" {
+		result.FailureIssueRepo = importedConfig.FailureIssueRepo
+	}
 	if result.MaxBotMentions == nil && importedConfig.MaxBotMentions != nil {
 		result.MaxBotMentions = importedConfig.MaxBotMentions
 	}

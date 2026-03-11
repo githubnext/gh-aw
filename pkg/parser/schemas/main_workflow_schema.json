@@ -7198,6 +7198,12 @@
           "default": true,
           "examples": [false, true]
         },
+        "failure-issue-repo": {
+          "type": "string",
+          "description": "Repository to create failure tracking issues in, in the format 'owner/repo'. Useful when the current repository has issues disabled. Defaults to the current repository.",
+          "pattern": "^[^/]+/[^/]+$",
+          "examples": ["github/docs-engineering", "myorg/infra-alerts"]
+        },
         "max-bot-mentions": {
           "description": "Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456') allowed in output before all of them are neutralized. Default: 10. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').",
           "oneOf": [

@@ -77,10 +77,14 @@ async function findPullRequestForCurrentBranch() {
 /**
  * Search for or create the parent issue for all agentic workflow failures
  * @param {number|null} previousParentNumber - Previous parent issue number if creating due to limit
+ * @param {string} [ownerOverride] - Repository owner override (from failure-issue-repo config)
+ * @param {string} [repoOverride] - Repository name override (from failure-issue-repo config)
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
  */
-async function ensureParentIssue(previousParentNumber = null) {
-  const { owner, repo } = context.repo;
+async function ensureParentIssue(previousParentNumber = null, ownerOverride, repoOverride) {
+  const { owner: contextOwner, repo: contextRepo } = context.repo;
+  const owner = ownerOverride || contextOwner;
+  const repo = repoOverride || contextRepo;
   const parentTitle = "[aw] Failed runs";
   const parentLabel = "agentic-workflows";
 
@@ -696,7 +700,18 @@ async function main() {
       return;
     }
 
-    const { owner, repo } = context.repo;
+    // Determine the target repository for failure issues
+    // If GH_AW_FAILURE_ISSUE_REPO is set, use that repo instead of the current repo
+    const failureIssueRepo = process.env.GH_AW_FAILURE_ISSUE_REPO || "";
+    let owner, repo;
+    if (failureIssueRepo && failureIssueRepo.includes("/")) {
+      const parts = failureIssueRepo.split("/");
+      owner = parts[0];
+      repo = parts[1];
+      core.info(`Using configured failure issue repo: ${owner}/${repo}`);
+    } else {
+      ({ owner, repo } = context.repo);
+    }
 
     // Try to find a pull request for the current branch
     const pullRequest = await findPullRequestForCurrentBranch();
@@ -708,7 +723,7 @@ async function main() {
     let parentIssue;
     if (groupReports) {
       try {
-        parentIssue = await ensureParentIssue();
+        parentIssue = await ensureParentIssue(null, owner, repo);
       } catch (error) {
         core.warning(`Could not create parent issue, proceeding without parent: ${getErrorMessage(error)}`);
         // Continue without parent issue

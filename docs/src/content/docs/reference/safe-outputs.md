@@ -1232,6 +1232,18 @@ safe-outputs:
 
 This mirrors the `noop.report-as-issue` pattern. Use this to silence noisy failure reports for workflows where failures are expected or handled externally.
 
+### Failure Issue Repository (`failure-issue-repo:`)
+
+Redirects failure tracking issues to a different repository. Useful when the current repository has issues disabled (e.g. `github/docs-internal`).
+
+```yaml wrap
+safe-outputs:
+  failure-issue-repo: github/docs-engineering
+  create-issue:
+```
+
+The value must be in `owner/repo` format. The `GITHUB_TOKEN` used must have permission to create issues in the target repository. When not set, failure issues are created in the current repository.
+
 ### Group Reports (`group-reports:`)
 
 Controls whether failed workflow runs are grouped under a parent "[aw] Failed runs" issue. This is opt-in and defaults to `false`.

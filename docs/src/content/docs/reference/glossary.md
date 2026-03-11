@@ -139,6 +139,17 @@ safe-outputs:
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
+### Failure Issue Repository (`failure-issue-repo:`)
+
+A `safe-outputs` option that redirects failure tracking issues to a different repository. Useful when the workflow's repository has issues disabled:
+
+```yaml
+safe-outputs:
+  failure-issue-repo: github/docs-engineering
+```
+
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+
 ### Upload Assets
 
 A safe output capability for uploading generated files (screenshots, charts, reports) to an orphaned git branch for persistent storage. The AI calls the `upload_asset` tool to register files, which are committed to a dedicated assets branch by a separate permission-controlled job. Assets are accessible via GitHub raw URLs. Commonly used for visual testing artifacts, data visualizations, and generated documentation.
