@@ -11,6 +11,6 @@ engine:
       secret: CODEX_API_KEY
 ---
 
-# Codex
+<!-- # Codex
 
-Shared engine configuration for OpenAI Codex CLI.
+Shared engine configuration for OpenAI Codex CLI. -->

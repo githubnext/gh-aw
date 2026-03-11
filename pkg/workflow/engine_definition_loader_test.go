@@ -144,4 +144,3 @@ func TestBuiltinEngineStringFormInjection_CLIOverrideNotInjected(t *testing.T) {
 	assert.NotContains(t, string(lockContent), `GH_AW_INFO_ENGINE_ID: "copilot"`,
 		"lock file should not contain the overridden copilot engine ID")
 }
-

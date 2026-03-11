@@ -11,6 +11,6 @@ engine:
       secret: COPILOT_GITHUB_TOKEN
 ---
 
-# GitHub Copilot CLI
+<!-- # GitHub Copilot CLI
 
-Shared engine configuration for GitHub Copilot CLI.
+Shared engine configuration for GitHub Copilot CLI. -->

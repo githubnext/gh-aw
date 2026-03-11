@@ -9,8 +9,8 @@ import (
 // Keys use the "@builtin:" path prefix (e.g. "@builtin:engines/copilot.md").
 // The map is populated once and then read-only; concurrent reads are safe.
 var (
-	builtinVirtualFiles     map[string][]byte
-	builtinVirtualFilesMu   sync.RWMutex
+	builtinVirtualFiles   map[string][]byte
+	builtinVirtualFilesMu sync.RWMutex
 )
 
 // RegisterBuiltinVirtualFile registers an embedded file under a canonical builtin path.

@@ -98,6 +98,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 			c.IncrementWarningCount()
 		}
 		engineSetting = c.engineOverride
+		// Update engineConfig.ID so that downstream code (e.g. generateCreateAwInfo) uses
+		// the override engine ID, not the one parsed from the frontmatter.
+		if engineConfig != nil {
+			engineConfig.ID = c.engineOverride
+		}
 	}
 
 	// When the engine is specified in short/string form ("engine: copilot") and no CLI

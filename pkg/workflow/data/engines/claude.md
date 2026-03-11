@@ -11,6 +11,6 @@ engine:
       secret: ANTHROPIC_API_KEY
 ---
 
-# Claude Code
+<!-- # Claude Code
 
-Shared engine configuration for Claude Code.
+Shared engine configuration for Claude Code. -->

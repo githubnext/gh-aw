@@ -11,6 +11,6 @@ engine:
       secret: GEMINI_API_KEY
 ---
 
-# Google Gemini CLI
+<!-- # Google Gemini CLI
 
-Shared engine configuration for Google Gemini CLI.
+Shared engine configuration for Google Gemini CLI. -->
