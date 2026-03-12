@@ -125,7 +125,7 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 				intVal := int(v)
 				// Warn if truncation occurs
 				if v != float64(intVal) {
-					safeOutputsConfigLog.Printf("mentions.max: float value %.2f truncated to integer %d", v, intVal)
+					safeOutputMessagesLog.Printf("mentions.max: float value %.2f truncated to integer %d", v, intVal)
 				}
 				if intVal >= 1 {
 					config.Max = &intVal
