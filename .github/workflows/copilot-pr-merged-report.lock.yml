@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"476bd0bfa5dd66057d8a5211101da6d6bf861f660f6733e9a678f12075cb93b9"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"754e064128a0338fe1c412f4a91f45096dfaf541ad245d2b3d777300ca200916"}
 
 name: "Daily Copilot PR Merged Report"
 "on":
@@ -174,10 +174,10 @@ jobs:
           {{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/jqschema.md}}
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/jqschema.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}

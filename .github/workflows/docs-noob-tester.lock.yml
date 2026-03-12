@@ -26,8 +26,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/docs-server-lifecycle.md
+#     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"e8b3b6fdeb5e2a00c46175267f7a516ef828264d884f2aa2b29474d0ce2b2592","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"67d7121754cd87f039eff5782dd31356426aed9c72c09881a79957f3ab7b9580","strict":true}
 
 name: "Documentation Noob Tester"
 "on":
@@ -168,6 +169,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/docs-server-lifecycle.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/docs-noob-tester.md}}

@@ -9,6 +9,8 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: '[dependabot-burner] '
+imports:
+  - shared/reporting.md
 ---
 # Dependabot Burner
 

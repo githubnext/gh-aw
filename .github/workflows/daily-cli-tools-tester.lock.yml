@@ -23,7 +23,11 @@
 #
 # Daily exploratory testing of audit, logs, and compile tools in gh-aw CLI
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"58157c3361534be3a0e560ec4352c03e1c40abb58017d361979084761537bfc0","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"b9a8666bdce8efad76dc16f0410edce4380322e346d19a697bcb9a2695b93e26","strict":true}
 
 name: "Daily CLI Tools Exploratory Tester"
 "on":
@@ -164,6 +168,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/daily-cli-tools-tester.md}}

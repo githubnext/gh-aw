@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"4bbea2b61e80620b1e1f893a467daafe3523322361acb781532709b8e7e2be1d","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"f2b6098d37f2490aa73983346ec72a1b9b929981244ae63b5af8099ce04a78b8","strict":true}
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":
@@ -178,10 +178,10 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/jqschema.md}}
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/jqschema.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}

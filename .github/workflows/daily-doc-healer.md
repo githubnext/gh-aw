@@ -48,6 +48,8 @@ tools:
 
 timeout-minutes: 45
 
+imports:
+  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

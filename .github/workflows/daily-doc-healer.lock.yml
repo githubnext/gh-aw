@@ -23,7 +23,11 @@
 #
 # Self-healing companion to the Daily Documentation Updater that detects documentation gaps missed by DDUw and proposes corrections
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"ea22cf3cae7f01b85d1c7223dfff4219798b9c1821418b55b53182a2c992c638","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"535fc3da48a2fd7b03e26162c792c6242dd96d231e18ab602c9a5bdb55885f58","strict":true}
 
 name: "Daily Documentation Healer"
 "on":
@@ -168,6 +172,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/daily-doc-healer.md}}

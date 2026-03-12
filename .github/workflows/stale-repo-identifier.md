@@ -28,6 +28,7 @@ imports:
   - shared/python-dataviz.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md
+  - shared/reporting.md
 
 network:
   allowed:

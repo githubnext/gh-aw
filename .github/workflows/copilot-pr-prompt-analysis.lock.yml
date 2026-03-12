@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"56f6338bcbf866f2e3bfb38458b14a063fc5cbf78c88e3980396609a23234e26","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d2adad35b52f026f410211a01c25a088c742c6aa9ac08d9f892a3edea90ab43e","strict":true}
 
 name: "Copilot PR Prompt Pattern Analysis"
 "on":
@@ -173,10 +173,10 @@ jobs:
           {{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/jqschema.md}}
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/shared/jqschema.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}

@@ -27,9 +27,10 @@
 #   Imports:
 #     - shared/jqschema.md
 #     - shared/python-dataviz.md
+#     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"8e8a53886ad3b807219d2ed4558a5dd2cdcdf8765063844bc506ed85bd3292c4","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"81ee8256fb86f62abaafaa11595bb9a12c84a9485f69bdb47907e2d9710bd05c","strict":true}
 
 name: "Stale Repository Identifier"
 "on":
@@ -194,6 +195,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/stale-repo-identifier.md}}

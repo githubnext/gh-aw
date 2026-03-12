@@ -35,6 +35,8 @@ tools:
   web-fetch:
   bash: [":*"]
 
+imports:
+  - shared/reporting.md
 ---
 # Dependabot Dependency Checker
 

@@ -38,6 +38,9 @@ tools:
 
 timeout-minutes: 30
 
+imports:
+  - shared/reporting.md
+
 features:
   copilot-requests: true
 ---

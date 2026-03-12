@@ -23,7 +23,11 @@
 #
 # Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"25006728692ed67f0a5eff4aa4ad386e376932f4bc29965fa0689ccf517cdc4d","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"d5cfbfec6f95ccf30cbb45edc2cfd763005fc520faea690657451dfc50489028","strict":true}
 
 name: "Dependabot Dependency Checker"
 "on":
@@ -163,6 +167,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/dependabot-go-checker.md}}

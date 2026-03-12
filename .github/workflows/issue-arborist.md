@@ -15,6 +15,7 @@ network:
     - github
 imports:
   - shared/jqschema.md
+  - shared/reporting.md
 tools:
   github:
     lockdown: true

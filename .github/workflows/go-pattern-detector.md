@@ -51,6 +51,7 @@ timeout-minutes: 10
 
 imports:
   - shared/mcp/ast-grep.md
+  - shared/reporting.md
 
 safe-outputs:
   create-issue:

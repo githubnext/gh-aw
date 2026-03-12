@@ -22,7 +22,11 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6e0fca12f8bed9a8517bf5358ecc83c96dbcf89f2da3aed33ce0d75a66a7695d","strict":true}
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
+#
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"3385b9d23f6b393c771300b0c3cfd146abde6b5bf351064a62425da228008c44","strict":true}
 
 name: "Dependabot Burner"
 "on":
@@ -165,6 +169,9 @@ jobs:
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           </system>
+          GH_AW_PROMPT_EOF
+          cat << 'GH_AW_PROMPT_EOF'
+          {{#runtime-import .github/workflows/shared/reporting.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
           {{#runtime-import .github/workflows/dependabot-burner.md}}
