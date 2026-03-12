@@ -239,12 +239,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add APM (Agent Package Manager) setup step if dependencies are specified
 	if data.APMDependencies != nil && len(data.APMDependencies.Packages) > 0 {
-		// Download the pre-packed APM bundle from the separate "apm" artifact
+		// Download the pre-packed APM bundle from the separate "apm" artifact.
+		// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 		compilerYamlLog.Printf("Adding APM bundle download step: %d packages", len(data.APMDependencies.Packages))
+		apmArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.APMArtifactName
 		yaml.WriteString("      - name: Download APM bundle artifact\n")
 		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		yaml.WriteString("        with:\n")
-		yaml.WriteString("          name: apm\n")
+		fmt.Fprintf(yaml, "          name: %s\n", apmArtifactName)
 		yaml.WriteString("          path: /tmp/gh-aw/apm-bundle\n")
 
 		// Restore APM dependencies from bundle
@@ -271,12 +273,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
-	// Download activation artifact from activation job (contains aw_info.json and prompt.txt)
+	// Download activation artifact from activation job (contains aw_info.json and prompt.txt).
+	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	compilerYamlLog.Print("Adding activation artifact download step")
+	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: activation\n")
+	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
 	// Collect artifact paths for unified upload at the end
@@ -476,8 +480,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
-	// Generate single unified artifact upload with all collected paths
-	c.generateUnifiedArtifactUpload(yaml, artifactPaths)
+	// Generate single unified artifact upload with all collected paths.
+	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
+	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
+	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
 
 	// Add inline threat detection steps after all agent artifact uploads.
 	// Detection runs inside the agent job using sandbox.agent with fully blocked network.

@@ -187,7 +187,7 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	}
 
 	// Add artifact download steps before the custom action step
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
+	steps = append(steps, buildAgentOutputDownloadSteps("")...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -286,7 +286,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	var steps []string
 
 	// Add artifact download steps before the GitHub Script step
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
+	steps = append(steps, buildAgentOutputDownloadSteps("")...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
@@ -389,10 +389,11 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 // buildAgentOutputDownloadSteps creates steps to download the agent output artifact
 // and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs.
 // GH_AW_AGENT_OUTPUT is only set when the artifact was actually downloaded successfully.
-func buildAgentOutputDownloadSteps() []string {
+// prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
+func buildAgentOutputDownloadSteps(prefix string) []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName:     constants.AgentArtifactName,   // Unified agent artifact
-		ArtifactFilename: constants.AgentOutputFilename, // Filename inside the artifact directory
+		ArtifactName:     prefix + constants.AgentArtifactName, // Unified agent artifact (prefixed in workflow_call)
+		ArtifactFilename: constants.AgentOutputFilename,        // Filename inside the artifact directory
 		DownloadPath:     "/tmp/gh-aw/",
 		SetupEnvStep:     true,
 		EnvVarName:       "GH_AW_AGENT_OUTPUT",

@@ -536,6 +536,9 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 	// Use backward-compatible paths only when there's a single cache with ID "default"
 	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
 
+	// In workflow_call context, apply the per-invocation prefix to avoid artifact name clashes.
+	prefix := artifactPrefixExprForDownstreamJob(data)
+
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		// Skip restore-only caches
 		if cache.RestoreOnly {
@@ -560,11 +563,11 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        with:\n")
-		// Always use the new artifact name and path format
+		// Always use the new artifact name and path format, with prefix in workflow_call context
 		if useBackwardCompatiblePaths {
-			builder.WriteString("          name: cache-memory\n")
+			fmt.Fprintf(builder, "          name: %scache-memory\n", prefix)
 		} else {
-			fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
+			fmt.Fprintf(builder, "          name: %scache-memory-%s\n", prefix, cache.ID)
 		}
 		fmt.Fprintf(builder, "          path: %s\n", cacheDir)
 		// Add retention-days if configured
@@ -711,19 +714,23 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	var steps []string
 
 	// Build steps for each cache
+	// In workflow_call context, use the per-invocation prefix from the agent job.
+	cacheArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		// Skip restore-only caches
 		if cache.RestoreOnly {
 			continue
 		}
 
-		// Determine artifact name and cache directory
+		// Determine artifact name and cache directory.
+		// Apply the workflow_call prefix to ensure we download the correct invocation's artifact.
 		var artifactName, cacheDir string
 		if cache.ID == "default" {
-			artifactName = "cache-memory"
+			artifactName = cacheArtifactPrefix + "cache-memory"
 			cacheDir = "/tmp/gh-aw/cache-memory"
 		} else {
-			artifactName = "cache-memory-" + cache.ID
+			artifactName = cacheArtifactPrefix + "cache-memory-" + cache.ID
 			cacheDir = "/tmp/gh-aw/cache-memory-" + cache.ID
 		}
 

@@ -107,12 +107,14 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Step 2: Configure Git credentials
 	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
 
-	// Step 3: Download assets artifact if it exists
+	// Step 3: Download assets artifact if it exists.
+	// In workflow_call context, use the per-invocation prefix from the agent job to match the uploaded artifact name.
+	assetsArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	preSteps = append(preSteps, "      - name: Download assets\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, "          name: safe-outputs-assets\n")
+	preSteps = append(preSteps, fmt.Sprintf("          name: %ssafe-outputs-assets\n", assetsArtifactPrefix))
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")
 
 	// Step 4: List files
@@ -162,7 +164,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 }
 
 // generateSafeOutputsAssetsArtifactUpload generates a step to upload safe-outputs assets as a separate artifact
-// This artifact is then downloaded by the upload_assets job to publish files to orphaned branches
+// This artifact is then downloaded by the upload_assets job to publish files to orphaned branches.
+// In workflow_call context, the artifact name is prefixed to avoid clashes.
 func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
 		return
@@ -170,12 +173,15 @@ func generateSafeOutputsAssetsArtifactUpload(builder *strings.Builder, data *Wor
 
 	publishAssetsLog.Print("Generating safe-outputs assets artifact upload step")
 
+	// In workflow_call context, apply the per-invocation prefix to avoid artifact name clashes.
+	prefix := artifactPrefixExprForDownstreamJob(data)
+
 	builder.WriteString("      # Upload safe-outputs assets for upload_assets job\n")
 	builder.WriteString("      - name: Upload Safe Outputs assets\n")
 	builder.WriteString("        if: always()\n")
 	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
-	builder.WriteString("          name: safe-outputs-assets\n")
+	fmt.Fprintf(builder, "          name: %ssafe-outputs-assets\n", prefix)
 	builder.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
 	builder.WriteString("          retention-days: 1\n")
 	builder.WriteString("          if-no-files-found: ignore\n")

@@ -611,6 +611,20 @@ const AgentOutputFilename = "agent_output.json"
 // SafeOutputsFilename is the filename of the raw safe outputs NDJSON file copied to /tmp/gh-aw/
 const SafeOutputsFilename = "safeoutputs.jsonl"
 
+// ArtifactPrefixOutputName is the job output name that exposes the artifact name prefix.
+// In workflow_call context, the prefix is a stable hash derived from the workflow inputs,
+// ensuring artifact names are unique when the same workflow is called multiple times in
+// the same workflow run (e.g. multiple jobs each calling the same reusable workflow).
+// Empty string in non-workflow_call context.
+const ArtifactPrefixOutputName = "artifact_prefix"
+
+// ActivationArtifactName is the artifact name for the activation job output
+// (aw_info.json and prompt.txt).
+const ActivationArtifactName = "activation"
+
+// APMArtifactName is the artifact name for the APM (Agent Package Manager) bundle.
+const APMArtifactName = "apm"
+
 // MCPServerID represents a built-in MCP server identifier.
 // This semantic type distinguishes MCP server IDs from arbitrary strings,
 // preventing accidental mixing of server identifiers with other string types.

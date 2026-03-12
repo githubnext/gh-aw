@@ -24,13 +24,16 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 // generateUnifiedArtifactUpload generates a single step that uploads all agent job artifacts
 // This consolidates multiple individual upload steps into one, improving workflow readability
 // and reliability. The step always runs (even on cancellation) and ignores missing files.
-func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []string) {
+// prefix is prepended to the artifact name to avoid clashes in workflow_call context.
+func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []string, prefix string) {
 	if len(paths) == 0 {
 		compilerYamlArtifactsLog.Print("No paths to upload, skipping unified artifact upload")
 		return
 	}
 
 	compilerYamlArtifactsLog.Printf("Generating unified artifact upload with %d paths", len(paths))
+
+	artifactName := prefix + "agent"
 
 	// Record the unified upload so the step-order validator can verify it comes after
 	// secret redaction, covering all collected paths in a single check.
@@ -41,7 +44,7 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	yaml.WriteString("        continue-on-error: true\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: agent\n")
+	fmt.Fprintf(yaml, "          name: %s\n", artifactName)
 
 	// Write paths as multi-line YAML string
 	yaml.WriteString("          path: |\n")

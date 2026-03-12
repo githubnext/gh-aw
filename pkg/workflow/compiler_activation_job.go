@@ -46,6 +46,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, c.generateResolveHostRepoStep())
 	}
 
+	// In workflow_call context, compute a unique artifact prefix from a hash of the
+	// workflow inputs. This prefix is applied to all artifact names so that multiple
+	// callers of the same reusable workflow can run concurrently in the same workflow
+	// run without artifact name collisions.
+	if hasWorkflowCallTrigger(data.On) {
+		compilerActivationJobLog.Print("Adding artifact prefix computation step for workflow_call trigger")
+		steps = append(steps, generateArtifactPrefixStep()...)
+		outputs[constants.ArtifactPrefixOutputName] = "${{ steps.artifact-prefix.outputs.prefix }}"
+	}
+
 	// Generate agentic run info immediately after setup so aw_info.json is ready as early as possible.
 	// This ensures it is available for prompt generation and can be uploaded together with prompt.txt.
 	engine, err := c.getAgenticEngine(data.AI)
@@ -361,22 +371,26 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// The path comes from the apm_pack step output `bundle-path`, which microsoft/apm-action
 		// sets to the location of the packed .tar.gz archive.
 		compilerActivationJobLog.Print("Adding APM bundle artifact upload step")
+		apmArtifactName := artifactPrefixExprForActivationJob(data) + constants.APMArtifactName
 		steps = append(steps, "      - name: Upload APM bundle artifact\n")
 		steps = append(steps, "        if: success()\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          name: apm\n")
+		steps = append(steps, fmt.Sprintf("          name: %s\n", apmArtifactName))
 		steps = append(steps, "          path: ${{ steps.apm_pack.outputs.bundle-path }}\n")
 		steps = append(steps, "          retention-days: 1\n")
 	}
 
-	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download
+	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.
+	// In workflow_call context the artifact is prefixed to avoid name clashes when multiple callers
+	// invoke the same reusable workflow within the same parent workflow run.
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
+	activationArtifactName := artifactPrefixExprForActivationJob(data) + constants.ActivationArtifactName
 	steps = append(steps, "      - name: Upload activation artifact\n")
 	steps = append(steps, "        if: success()\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: activation\n")
+	steps = append(steps, fmt.Sprintf("          name: %s\n", activationArtifactName))
 	steps = append(steps, "          path: |\n")
 	steps = append(steps, "            /tmp/gh-aw/aw_info.json\n")
 	steps = append(steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")

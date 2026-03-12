@@ -108,6 +108,43 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	return nil
 }
 
+// findArtifactDir looks for an artifact directory by its base name (suffix) in outputDir.
+// It handles three cases:
+//  1. Exact match: "agent" → outputDir/agent
+//  2. Legacy name: for "agent", also checks "agent-artifacts"
+//  3. Prefixed name (workflow_call): "*-agent" → outputDir/<hash>-agent
+//
+// Returns the first matching directory path, or empty string if none found.
+func findArtifactDir(outputDir, baseName string, legacyName string) string {
+	// First, try exact match
+	exactPath := filepath.Join(outputDir, baseName)
+	if _, err := os.Stat(exactPath); err == nil {
+		return exactPath
+	}
+
+	// Try legacy name if provided
+	if legacyName != "" {
+		legacyPath := filepath.Join(outputDir, legacyName)
+		if _, err := os.Stat(legacyPath); err == nil {
+			return legacyPath
+		}
+	}
+
+	// Scan for prefixed names (workflow_call context): any directory ending with "-{baseName}"
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return ""
+	}
+	suffix := "-" + baseName
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasSuffix(entry.Name(), suffix) {
+			return filepath.Join(outputDir, entry.Name())
+		}
+	}
+
+	return ""
+}
+
 // flattenUnifiedArtifact flattens the unified agent artifact directory structure.
 // The artifact is uploaded with all paths under /tmp/gh-aw/, so the action strips the
 // common prefix and files land directly inside the artifact directory (new structure).
@@ -115,16 +152,10 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 // tmp/gh-aw/ path was preserved inside the artifact directory.
 // New artifact name: "agent"   (preferred)
 // Legacy artifact name: "agent-artifacts" (backward compat for older workflow runs)
+// In workflow_call context, the artifact may be prefixed: "<hash>-agent"
 func flattenUnifiedArtifact(outputDir string, verbose bool) error {
-	// Prefer the new "agent" artifact name; fall back to legacy "agent-artifacts"
-	agentArtifactsDir := filepath.Join(outputDir, "agent")
-	if _, err := os.Stat(agentArtifactsDir); os.IsNotExist(err) {
-		// Try legacy name for backward compatibility with older workflow runs
-		agentArtifactsDir = filepath.Join(outputDir, "agent-artifacts")
-	}
-
-	// Check if the artifact directory exists
-	if _, err := os.Stat(agentArtifactsDir); os.IsNotExist(err) {
+	agentArtifactsDir := findArtifactDir(outputDir, "agent", "agent-artifacts")
+	if agentArtifactsDir == "" {
 		// No unified artifact, nothing to flatten
 		return nil
 	}
@@ -217,12 +248,13 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 
 // flattenActivationArtifact flattens the activation artifact directory structure
 // The activation artifact contains aw_info.json and aw-prompts/prompt.txt
-// This function moves those files to the root output directory and removes the nested structure
+// This function moves those files to the root output directory and removes the nested structure.
+// In workflow_call context, the artifact may be prefixed: "<hash>-activation"
 func flattenActivationArtifact(outputDir string, verbose bool) error {
-	activationDir := filepath.Join(outputDir, "activation")
+	activationDir := findArtifactDir(outputDir, "activation", "")
 
 	// Check if activation directory exists
-	if _, err := os.Stat(activationDir); os.IsNotExist(err) {
+	if activationDir == "" {
 		// No activation artifact, nothing to flatten
 		return nil
 	}

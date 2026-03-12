@@ -49,16 +49,18 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens)...)
 	}
 
-	// Add artifact download steps after setup
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
+	// Add artifact download steps after setup.
+	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
+	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
+	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
 
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
 	// Both of these safe outputs require the patch file to apply changes
-	// Download from unified agent artifact
+	// Download from unified agent artifact (prefixed in workflow_call context)
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		consolidatedSafeOutputsJobLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: constants.AgentArtifactName,
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
 			DownloadPath: "/tmp/gh-aw/",
 			SetupEnvStep: false, // No environment variable needed, the script checks the file directly
 			StepName:     "Download patch artifact",
@@ -264,13 +266,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 
 		// Add artifact download steps count
-		insertIndex += len(buildAgentOutputDownloadSteps())
+		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix))
 
 		// Add patch download steps if present
-		// Download from unified agent artifact
+		// Download from unified agent artifact (prefixed in workflow_call context)
 		if usesPatchesAndCheckouts(data.SafeOutputs) {
 			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-				ArtifactName: constants.AgentArtifactName,
+				ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
 				DownloadPath: "/tmp/gh-aw/",
 				SetupEnvStep: false,
 				StepName:     "Download patch artifact",
@@ -300,7 +302,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// In staged mode, no items are actually created in GitHub so there is nothing to record.
 	isStaged := c.trialMode || data.SafeOutputs.Staged
 	if !isStaged {
-		steps = append(steps, buildSafeOutputItemsManifestUploadStep()...)
+		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix)...)
 	}
 
 	// Build the job condition
@@ -471,13 +473,14 @@ func buildDetectionSuccessCondition() ConditionNode {
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
 // items manifest as a GitHub Actions artifact. The step always runs (if: always()) so
 // the manifest is available to the audit command even if some safe output steps fail.
-func buildSafeOutputItemsManifestUploadStep() []string {
+// prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
+func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload Safe Output Items Manifest\n",
 		"        if: always()\n",
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
-		"          name: safe-output-items\n",
+		fmt.Sprintf("          name: %ssafe-output-items\n", prefix),
 		"          path: /tmp/safe-output-items.jsonl\n",
 		"          if-no-files-found: warn\n",
 	}
