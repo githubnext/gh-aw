@@ -446,6 +446,149 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
     delete global.github;
   });
 
+  it("should use target-repo for cross-repo PR review submission", async () => {
+    const fetchedPR = {
+      number: 1,
+      head: { sha: "consumer-sha" },
+      user: { login: "author" },
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "provider-org", repo: "provider-repo" },
+      payload: {},
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: fetchedPR }),
+        },
+      },
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      target: "1",
+      "target-repo": "consumer-org/consumer-repo",
+      _prReviewBuffer: localBuffer,
+    });
+
+    const message = {
+      type: "submit_pull_request_review",
+      body: "LGTM",
+      event: "APPROVE",
+    };
+
+    const result = await localHandler(message, {});
+
+    expect(result.success).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.repo).toBe("consumer-org/consumer-repo");
+    expect(ctx.pullRequestNumber).toBe(1);
+    expect(ctx.pullRequest.head.sha).toBe("consumer-sha");
+    // Ensure API was called on consumer-repo, not provider-repo
+    expect(global.github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "consumer-org",
+      repo: "consumer-repo",
+      pull_number: 1,
+    });
+
+    delete global.context;
+    delete global.github;
+  });
+
+  it("should use target-repo with allowed-repos for cross-repo review", async () => {
+    const fetchedPR = {
+      number: 7,
+      head: { sha: "allowed-sha" },
+      user: { login: "author" },
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "provider-org", repo: "provider-repo" },
+      payload: {},
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: fetchedPR }),
+        },
+      },
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      target: "7",
+      "target-repo": "consumer-org/consumer-repo",
+      allowed_repos: ["consumer-org/other-repo"],
+      _prReviewBuffer: localBuffer,
+    });
+
+    // Message with explicit repo matching an allowed repo
+    const message = {
+      type: "submit_pull_request_review",
+      body: "Looks good",
+      event: "APPROVE",
+      repo: "consumer-org/other-repo",
+    };
+
+    const result = await localHandler(message, {});
+
+    expect(result.success).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.repo).toBe("consumer-org/other-repo");
+    expect(global.github.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "consumer-org",
+      repo: "other-repo",
+      pull_number: 7,
+    });
+
+    delete global.context;
+    delete global.github;
+  });
+
+  it("should reject cross-repo review when repo is not in allowed list", async () => {
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "provider-org", repo: "provider-repo" },
+      payload: {},
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      target: "1",
+      "target-repo": "consumer-org/consumer-repo",
+      _prReviewBuffer: localBuffer,
+    });
+
+    // Message with explicit repo that is not allowed
+    const message = {
+      type: "submit_pull_request_review",
+      body: "Attempting to review disallowed repo",
+      event: "APPROVE",
+      repo: "attacker-org/attacker-repo",
+    };
+
+    const result = await localHandler(message, {});
+
+    // Metadata is stored successfully (success refers to buffering, not final submission)
+    expect(result.success).toBe(true);
+    expect(localBuffer.hasReviewMetadata()).toBe(true);
+
+    // Review context should NOT be set because the disallowed repo was rejected
+    // submitReview() will subsequently fail with "No review context available"
+    expect(localBuffer.getReviewContext()).toBeNull();
+
+    delete global.context;
+  });
+
   it("should not override existing review context from comments", async () => {
     // Pre-set context as if a comment handler already set it
     buffer.setReviewContext({
