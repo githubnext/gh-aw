@@ -609,8 +609,14 @@ async function main(config = {}) {
       .map(label => String(label).trim())
       .filter(label => label);
 
-    // Use draft setting from message if provided, otherwise use config default
-    const draft = pullRequestItem.draft !== undefined ? pullRequestItem.draft : draftDefault;
+    // Configuration enforces draft as a policy, not a fallback (consistent with autoMerge/allowEmpty)
+    const draft = draftDefault;
+    if (pullRequestItem.draft !== undefined && pullRequestItem.draft !== draftDefault) {
+      core.warning(
+        `Agent requested draft: ${pullRequestItem.draft}, but configuration enforces draft: ${draftDefault}. ` +
+          `Configuration takes precedence for security. To change this, update safe-outputs.create-pull-request.draft in the workflow file.`
+      );
+    }
 
     core.info(`Creating pull request with title: ${title}`);
     core.info(`Labels: ${JSON.stringify(labels)}`);

@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"c786595ddce61f885cd01de8a360d660b592fbe50308aca12685f782f573718a"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2cb0f21ae34ffe6602495148ee30ff8a2a3da4803213b7d294805b71dfa02051"}
 
 name: "Release"
 "on":
@@ -1469,6 +1469,10 @@ jobs:
       - config
       - pre_activation
       - push_tag
+    permissions:
+      contents: write
+      pull-requests: write
+
     uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
     with:
       ref: ${{ needs.config.outputs.release_tag }}

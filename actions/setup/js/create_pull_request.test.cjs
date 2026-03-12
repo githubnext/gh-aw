@@ -7,6 +7,131 @@ import * as os from "os";
 
 const require = createRequire(import.meta.url);
 
+describe("create_pull_request - draft policy enforcement", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-draft-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    // Clear module cache so globals are picked up fresh
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  /** Returns the `core.warning` calls related to draft config override attempts. */
+  function getDraftOverrideWarnings() {
+    return global.core.warning.mock.calls.filter(args => String(args[0]).includes("Agent requested draft"));
+  }
+
+  it("should enforce draft: false from config even when agent requests draft: true", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ draft: "false", allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", draft: true }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ draft: false }));
+  });
+
+  it("should enforce draft: true from config even when agent requests draft: false", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ draft: "true", allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", draft: false }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ draft: true }));
+  });
+
+  it("should log a warning when agent attempts to override draft config", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ draft: "false", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body", draft: true }, {});
+
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Agent requested draft: true, but configuration enforces draft: false"));
+  });
+
+  it("should not log a warning when agent draft matches config", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ draft: "false", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body", draft: false }, {});
+
+    expect(getDraftOverrideWarnings()).toHaveLength(0);
+  });
+
+  it("should not log a warning when agent does not specify draft", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ draft: "false", allow_empty: true });
+
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(getDraftOverrideWarnings()).toHaveLength(0);
+  });
+});
+
 describe("create_pull_request - fallback-as-issue configuration", () => {
   describe("configuration parsing", () => {
     it("should default fallback_as_issue to true when not specified", () => {

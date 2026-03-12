@@ -972,6 +972,100 @@ describe("Safe Output Handler Manager", () => {
       expect(result.codePushFailures).toBeDefined();
       expect(result.codePushFailures).toHaveLength(0);
     });
+
+    it("should prepend fallback note to add_comment body when create_pull_request falls back to issue", async () => {
+      const messages = [
+        {
+          type: "create_pull_request",
+          title: "My Fix PR",
+          body: "This fixes the issue.",
+        },
+        {
+          type: "add_comment",
+          body: "A fix PR has been created. Please review and merge.",
+        },
+      ];
+
+      const prHandler = vi.fn().mockResolvedValue({
+        success: true,
+        fallback_used: true,
+        issue_number: 42,
+        issue_url: "https://github.com/owner/repo/issues/42",
+        repo: "owner/repo",
+      });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["create_pull_request", prHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      // The add_comment handler must have been called with the modified body
+      expect(commentHandler).toHaveBeenCalledTimes(1);
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("A fix PR has been created. Please review and merge.");
+      expect(calledMessage.body).toContain("pull request was not created");
+      expect(calledMessage.body).toContain("#42");
+      expect(calledMessage.body).toContain("https://github.com/owner/repo/issues/42");
+      // Note should be prepended before the original body
+      const noteIndex = calledMessage.body.indexOf("pull request was not created");
+      const bodyIndex = calledMessage.body.indexOf("A fix PR has been created");
+      expect(noteIndex).toBeLessThan(bodyIndex);
+    });
+
+    it("should prepend fallback note to add_comment body when push_to_pull_request_branch falls back to issue", async () => {
+      const messages = [
+        { type: "push_to_pull_request_branch", branch: "fix-branch" },
+        { type: "add_comment", body: "Changes pushed." },
+      ];
+
+      const pushHandler = vi.fn().mockResolvedValue({
+        success: true,
+        fallback_used: true,
+        issue_number: 7,
+        issue_url: "https://github.com/owner/repo/issues/7",
+      });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", pushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("pull request was not created");
+      expect(calledMessage.body).toContain("#7");
+    });
+
+    it("should NOT prepend fallback note when create_pull_request succeeds normally", async () => {
+      const messages = [
+        { type: "create_pull_request", title: "My Fix PR" },
+        { type: "add_comment", body: "A fix PR has been created." },
+      ];
+
+      const prHandler = vi.fn().mockResolvedValue({
+        success: true,
+        pull_request_number: 5,
+        pull_request_url: "https://github.com/owner/repo/pull/5",
+        repo: "owner/repo",
+      });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["create_pull_request", prHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toBe("A fix PR has been created.");
+      expect(calledMessage.body).not.toContain("pull request was not created");
+    });
   });
 
   describe("output emission via emitSafeOutputActionOutputs", () => {

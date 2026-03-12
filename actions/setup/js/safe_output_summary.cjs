@@ -30,17 +30,45 @@ function generateSafeOutputSummary(options) {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
-  // Choose emoji and status based on success
-  const emoji = success ? "✅" : "❌";
-  const status = success ? "Success" : "Failed";
+  // Detect fallback-to-issue outcome for code-push types
+  const isFallback = success && result && result.fallback_used === true;
+
+  // Choose emoji and status based on success and fallback
+  const emoji = isFallback ? "⚠️" : success ? "✅" : "❌";
+  const status = isFallback ? "Fallback Issue Created" : success ? "Success" : "Failed";
 
   // Start building the summary
   let summary = `<details>\n<summary>${emoji} ${displayType} - ${status} (Message ${messageIndex})</summary>\n\n`;
 
   // Add message details
-  summary += `### ${displayType}\n\n`;
+  const sectionTitle = isFallback ? `### ${displayType} — Fallback Issue\n\n` : `### ${displayType}\n\n`;
+  summary += sectionTitle;
 
-  if (success && result) {
+  if (isFallback) {
+    // Explain why the fallback occurred and show the created issue
+    summary += `> ℹ️ Pull request creation was blocked due to protected file changes. A review issue was created instead.\n\n`;
+    if (result.issue_url) {
+      summary += `**Fallback Issue:** ${result.issue_url}\n\n`;
+    }
+    if (result.issue_number != null && result.repo) {
+      summary += `**Location:** ${result.repo}#${result.issue_number}\n\n`;
+    }
+    if (result.branch_name) {
+      summary += `**Branch:** \`${result.branch_name}\`\n\n`;
+    }
+
+    // Add original message details if available
+    if (message) {
+      if (message.title) {
+        summary += `**Title:** ${message.title}\n\n`;
+      }
+      if (message.body && typeof message.body === "string") {
+        const maxBodyLength = 500;
+        const bodyPreview = message.body.length > maxBodyLength ? message.body.substring(0, maxBodyLength) + "..." : message.body;
+        summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
+      }
+    }
+  } else if (success && result) {
     // Add result-specific information based on type
     if (result.url) {
       summary += `**URL:** ${result.url}\n\n`;

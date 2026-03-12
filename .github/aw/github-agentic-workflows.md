@@ -284,6 +284,11 @@ The YAML frontmatter supports these fields:
     - `ref:` - Branch, tag, or SHA to check out (defaults to triggering ref)
     - `path:` - Relative path within `GITHUB_WORKSPACE` (defaults to workspace root)
     - `fetch-depth:` - Number of commits to fetch; `0` = full history, `1` = shallow (default)
+    - `fetch:` - Additional Git refs to fetch after checkout (array of patterns)
+      - `"*"` - fetch all remote branches
+      - `"refs/pulls/open/*"` - all open pull-request refs
+      - Branch names, glob patterns (e.g., `"feature/*"`)
+      - Example: `fetch: ["*"]`, `fetch: ["refs/pulls/open/*"]`
     - `sparse-checkout:` - Newline-separated glob patterns for sparse checkout
     - `submodules:` - Submodule handling: `"recursive"`, `"true"`, or `"false"`
     - `lfs:` - Download Git LFS objects (boolean, default: `false`)
@@ -788,6 +793,22 @@ The YAML frontmatter supports these fields:
         github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
     ```
     Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
+
+    **Compile-time warnings for `target: "*"`**: When `target: "*"` is set, the compiler emits warnings if:
+    1. The checkout configuration does not include a wildcard fetch pattern — add `fetch: ["*"]` with `fetch-depth: 0` so the agent can access all PR branches at runtime
+    2. No constraints are provided — add `title-prefix` or `labels` to restrict which PRs can receive pushes
+
+    Example with all recommended settings:
+    ```yaml
+    checkout:
+      fetch: ["*"]
+      fetch-depth: 0
+    safe-outputs:
+      push-to-pull-request-branch:
+        target: "*"
+        title-prefix: "[bot] "   # restrict to PRs with this title prefix
+        labels: [automated]      # restrict to PRs carrying all these labels
+    ```
   - `update-discussion:` - Update discussion title, body, or labels
     ```yaml
     safe-outputs:
