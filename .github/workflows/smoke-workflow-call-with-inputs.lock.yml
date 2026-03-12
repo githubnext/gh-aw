@@ -94,9 +94,7 @@ jobs:
         id: artifact-prefix
         env:
           INPUTS_JSON: ${{ toJSON(inputs) }}
-        run: |
-          PREFIX=$(printf '%s' "$INPUTS_JSON" | sha256sum | cut -c1-8)
-          echo "prefix=${PREFIX}-" >> "$GITHUB_OUTPUT"
+        run: bash /opt/gh-aw/actions/compute_artifact_prefix.sh
       - name: Generate agentic run info
         id: generate_aw_info
         env:
