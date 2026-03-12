@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -156,6 +157,32 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "      });\n")
 }
 
+// versionToGitRef converts a compiler version string to a valid git ref for use
+// in actions/checkout ref: fields.
+//
+// The version string is typically produced by `git describe --tags --always --dirty`
+// and may contain suffixes that are not valid git refs. This function normalises it:
+//   - "dev" or empty → "" (no ref, checkout will use the repository default branch)
+//   - "v1.2.3-60-ge284d1e" → "e284d1e" (extract SHA from git-describe output)
+//   - "v1.2.3-60-ge284d1e-dirty" → "e284d1e" (strip -dirty, then extract SHA)
+//   - "v1.2.3-dirty" → "v1.2.3" (strip -dirty, valid tag)
+//   - "v1.2.3" → "v1.2.3" (valid tag, used as-is)
+//   - "e284d1e" → "e284d1e" (plain short SHA, used as-is)
+func versionToGitRef(version string) string {
+	if version == "" || version == "dev" {
+		return ""
+	}
+	// Strip optional -dirty suffix (appended by `git describe --dirty`)
+	clean := strings.TrimSuffix(version, "-dirty")
+	// If the version looks like `git describe` output with -N-gSHA, extract the SHA.
+	// Pattern: anything ending with -<digits>-g<hexchars>
+	shaRe := regexp.MustCompile(`-\d+-g([0-9a-f]+)$`)
+	if m := shaRe.FindStringSubmatch(clean); m != nil {
+		return m[1]
+	}
+	return clean
+}
+
 // generateCheckoutActionsFolder generates the checkout step for the actions folder
 // when running in dev mode and not using the action-tag feature. This is used to
 // checkout the local actions before running the setup action.
@@ -175,31 +202,53 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		}
 	}
 
+	// Derive a clean git ref from the compiler's version string.
+	// Required so that cross-repo callers checkout github/gh-aw at the correct
+	// commit rather than the default branch, which may be missing JS modules
+	// that were added after the latest tag.
+	ref := versionToGitRef(c.version)
+
 	// Script mode: checkout .github folder from github/gh-aw to /tmp/gh-aw/actions-source/
 	if c.actionMode.IsScript() {
-		return []string{
+		lines := []string{
 			"      - name: Checkout actions folder\n",
 			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
 			"        with:\n",
 			"          repository: github/gh-aw\n",
+		}
+		if ref != "" {
+			lines = append(lines, fmt.Sprintf("          ref: %s\n", ref))
+		}
+		lines = append(lines,
 			"          sparse-checkout: |\n",
 			"            actions\n",
 			"          path: /tmp/gh-aw/actions-source\n",
 			"          fetch-depth: 1\n",
 			"          persist-credentials: false\n",
-		}
+		)
+		return lines
 	}
 
-	// Dev mode: checkout local actions folder
+	// Dev mode: checkout actions folder from github/gh-aw so that cross-repo
+	// callers (e.g. event-driven relays) can find the actions/ directory.
+	// Without repository: the runner defaults to the caller's repo, which has
+	// no actions/ directory, causing Setup Scripts to fail immediately.
 	if c.actionMode.IsDev() {
-		return []string{
+		lines := []string{
 			"      - name: Checkout actions folder\n",
 			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
 			"        with:\n",
+			"          repository: github/gh-aw\n",
+		}
+		if ref != "" {
+			lines = append(lines, fmt.Sprintf("          ref: %s\n", ref))
+		}
+		lines = append(lines,
 			"          sparse-checkout: |\n",
 			"            actions\n",
 			"          persist-credentials: false\n",
-		}
+		)
+		return lines
 	}
 
 	// Release mode or other modes: no checkout needed
