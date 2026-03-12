@@ -5,17 +5,7 @@ sidebar:
   order: 5
 ---
 
-Custom safe outputs extend GitHub Agentic Workflows beyond built-in GitHub operations. While built-in safe outputs handle GitHub issues, PRs, and discussions, custom safe outputs let you integrate with third-party services like Notion, Slack, databases, or any external API.
-
-## When to Use Custom Safe Outputs
-
-Use custom safe outputs when you need to:
-
-- Send data to external services (Slack, Discord, Notion, Jira)
-- Trigger deployments or CI/CD pipelines
-- Update databases or external storage
-- Call custom APIs that require authentication
-- Perform any write operation that built-in safe outputs don't cover
+Custom safe outputs extend built-in GitHub operations to integrate with third-party services — Slack, Discord, Notion, Jira, databases, or any external API requiring authentication. Use them for any write operation that built-in safe outputs don't cover.
 
 ## Quick Start
 
@@ -95,30 +85,9 @@ Custom safe outputs separate read and write operations: agents use read-only Mod
 
 ## Creating a Custom Safe Output
 
-### Step 1: Define the MCP Server (Read-Only)
+### Step 1: Define the Shared Configuration
 
-Create a shared configuration with read-only MCP tools:
-
-```yaml wrap
----
-mcp-servers:
-  notion:
-    container: "mcp/notion"
-    env:
-      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-    allowed:
-      - "search_pages"
-      - "get_page"
-      - "get_database"
-      - "query_database"
----
-```
-
-Use `container:` for Docker servers or `command:`/`args:` for npx. List only read-only tools in `allowed`.
-
-### Step 2: Define the Custom Job (Write Operations)
-
-Add a custom job under `safe-outputs.jobs` for write operations:
+In a shared file, define the read-only MCP server and the custom job together:
 
 ```yaml wrap
 ---
@@ -218,9 +187,9 @@ safe-outputs:
 ---
 ```
 
-All jobs require `description` and `inputs`. Use `output` for success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling.
+Use `container:` for Docker servers or `command:`/`args:` for npx. List only read-only tools in `allowed`. All jobs require `description` and `inputs`. Use `output` for success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling.
 
-### Step 3: Use in Workflow
+### Step 2: Use in Workflow
 
 Import the configuration:
 
@@ -317,14 +286,13 @@ Custom safe-output jobs receive the agent's data through the `GH_AW_AGENT_OUTPUT
 
 The `type` field matches your job name with dashes converted to underscores (e.g., job `webhook-notify` → type `webhook_notify`).
 
-#### Bash Example
+#### Example
 
 ```yaml
 steps:
   - name: Process output
     run: |
       if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
-        # Extract specific field from matching items
         MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "my_job") | .message')
         echo "Message: $MESSAGE"
       else
@@ -333,45 +301,7 @@ steps:
       fi
 ```
 
-#### JavaScript Example
-
-```yaml
-steps:
-  - name: Process output
-    uses: actions/github-script@v8
-    with:
-      script: |
-        const fs = require('fs');
-        const outputFile = process.env.GH_AW_AGENT_OUTPUT;
-        
-        if (!outputFile) {
-          core.info('No GH_AW_AGENT_OUTPUT environment variable found');
-          return;
-        }
-        
-        // Read and parse the JSON file
-        const fileContent = fs.readFileSync(outputFile, 'utf8');
-        const agentOutput = JSON.parse(fileContent);
-        
-        // Filter for items matching this job (job-name → job_name)
-        const items = agentOutput.items.filter(item => item.type === 'my_job');
-        
-        // Process each item
-        for (const item of items) {
-          const message = item.message;
-          core.info(`Processing: ${message}`);
-          // Your logic here
-        }
-```
-
-### Understanding `inputs:`
-
-The `inputs:` field in your job definition serves **two purposes**:
-
-1. **Tool Discovery**: Defines the MCP tool schema that the AI agent sees
-2. **Validation**: Describes what fields the agent should provide in its output
-
-The agent uses the `inputs:` schema to understand what parameters to include when calling your custom job. The actual values are written to the `GH_AW_AGENT_OUTPUT` JSON file, which your job must read and parse.
+The `inputs:` schema serves as both the MCP tool definition visible to the agent and validation for the output fields written to `GH_AW_AGENT_OUTPUT`.
 
 ## Importing Custom Jobs
 
@@ -422,16 +352,7 @@ Store secrets in GitHub Secrets and pass via environment variables. Limit job pe
 
 ## Staged Mode Support
 
-Check `GH_AW_SAFE_OUTPUTS_STAGED` to preview operations without executing:
-
-```javascript
-if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true') {
-  core.info('🎭 Staged mode: would send notification');
-  await core.summary.addRaw('## Preview\nWould send: ' + process.env.MESSAGE).write();
-  return;
-}
-// Actually send the notification
-```
+When `GH_AW_SAFE_OUTPUTS_STAGED === 'true'`, skip the real operation and display a preview using `core.summary`. See [Staged Mode](/gh-aw/reference/staged-mode/#staged-mode-for-custom-safe-output-jobs) for a complete example.
 
 ## Troubleshooting
 
