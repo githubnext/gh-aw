@@ -60,12 +60,7 @@ func FilterMapKeys[K comparable, V any](m map[K]V, predicate func(K, V) bool) []
 // Returns false for nil or empty slices.
 // This is a pure function that does not modify the input slice.
 func Any[T any](slice []T, predicate func(T) bool) bool {
-	for _, item := range slice {
-		if predicate(item) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(slice, predicate)
 }
 
 // Deduplicate returns a new slice with duplicate elements removed.
