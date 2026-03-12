@@ -1,7 +1,7 @@
 {
   "channels": {
     "stable": {
-      "version": "v0.40.1",
+      "version": "v0.57.2",
       "engines": {
         "copilot": "latest"
       }
