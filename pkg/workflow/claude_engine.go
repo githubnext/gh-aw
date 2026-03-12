@@ -21,15 +21,16 @@ type ClaudeEngine struct {
 func NewClaudeEngine() *ClaudeEngine {
 	return &ClaudeEngine{
 		BaseEngine: BaseEngine{
-			id:                     "claude",
-			displayName:            "Claude Code",
-			description:            "Uses Claude Code with full MCP tool support and allow-listing",
-			experimental:           false,
-			supportsToolsAllowlist: true,
-			supportsMaxTurns:       true, // Claude supports max-turns feature
-			supportsWebFetch:       true, // Claude has built-in WebFetch support
-			supportsWebSearch:      true, // Claude has built-in WebSearch support
-			llmGatewayPort:         constants.ClaudeLLMGatewayPort,
+			id:                       "claude",
+			displayName:              "Claude Code",
+			description:              "Uses Claude Code with full MCP tool support and allow-listing",
+			experimental:             false,
+			supportsToolsAllowlist:   true,
+			supportsMaxTurns:         true, // Claude supports max-turns feature
+			supportsMaxContinuations: true, // Claude supports auto-mode via multi-run continuations
+			supportsWebFetch:         true, // Claude has built-in WebFetch support
+			supportsWebSearch:        true, // Claude has built-in WebSearch support
+			llmGatewayPort:           constants.ClaudeLLMGatewayPort,
 		},
 	}
 }
@@ -272,12 +273,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This handles already-quoted arguments correctly and prevents double-escaping
 	claudeCommand := shellJoinArgs(commandParts)
 
+	// Determine if this is a detection job (no safe outputs = detection job)
+	// Used to skip auto-mode and configure model environment variables
+	isDetectionJob := workflowData.SafeOutputs == nil
+
 	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
 	// via shell expansion so users can set a default via GitHub Actions variables.
 	// When model IS configured, ANTHROPIC_MODEL is set in the env block (see below) and the
 	// Claude CLI reads it natively - no --model flag in the shell command needed.
 	if !modelConfigured {
-		isDetectionJob := workflowData.SafeOutputs == nil
 		var modelEnvVar string
 		if isDetectionJob {
 			modelEnvVar = constants.EnvVarModelDetectionClaude
@@ -341,6 +345,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
           # Execute Claude Code CLI with prompt from file
           %s 2>&1 | tee -a %s`, AgentStepSummaryPath, claudeCommand, logFile)
 		}
+	}
+
+	// Apply auto-mode loop when max-continuations > 1 (not for detection jobs)
+	// This enables Claude to run multiple times autonomously, similar to Copilot's --autopilot.
+	// Each continuation re-runs the full Claude invocation with the same prompt.
+	// Never apply to detection jobs; auto-mode is only meaningful for the agent run.
+	if !isDetectionJob && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxContinuations > 1 {
+		maxCont := workflowData.EngineConfig.MaxContinuations
+		claudeLog.Printf("Enabling auto-mode with max-continuations=%d", maxCont)
+		command = fmt.Sprintf("for GH_AW_CONTINUATION in $(seq 1 %d); do\n  echo \"=== Claude auto-mode: starting continuation ${GH_AW_CONTINUATION}/%d ===\" | tee -a %s\n  %s\ndone",
+			maxCont, maxCont, logFile, strings.ReplaceAll(command, "\n", "\n  "))
 	}
 
 	// Build environment variables map
@@ -430,7 +445,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env[constants.ClaudeCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
 		// No model configured - use fallback GitHub variable with shell expansion
-		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
 			env[constants.EnvVarModelDetectionClaude] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionClaude)
 		} else {

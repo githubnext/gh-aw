@@ -7887,7 +7887,7 @@
             "max-continuations": {
               "type": "integer",
               "minimum": 1,
-              "description": "Maximum number of continuations for multi-run autopilot mode. Default is 1 (single run, no autopilot). Values greater than 1 enable --autopilot mode for the copilot engine with --max-autopilot-continues set to this value. Note: Only supported by the copilot engine."
+              "description": "Maximum number of continuations for multi-run autopilot mode. Default is 1 (single run, no autopilot). Values greater than 1 enable --autopilot mode for the copilot engine with --max-autopilot-continues set to this value, or auto-mode for the claude engine which re-runs Claude up to this many times. Note: Only supported by the copilot and claude engines."
             },
             "concurrency": {
               "oneOf": [

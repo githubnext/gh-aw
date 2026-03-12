@@ -513,3 +513,91 @@ func TestClaudeEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 	})
 }
+
+func TestClaudeEngineAutoMode(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Verify that Claude engine supports max-continuations (auto-mode)
+	if !engine.SupportsMaxContinuations() {
+		t.Error("Claude engine should support max-continuations (auto-mode)")
+	}
+
+	t.Run("single continuation - no loop", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:        "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{},
+			EngineConfig: &EngineConfig{
+				ID:               "claude",
+				MaxContinuations: 1,
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Single continuation should NOT include the auto-mode loop
+		if strings.Contains(stepContent, "GH_AW_CONTINUATION") {
+			t.Errorf("Expected no auto-mode loop for max-continuations=1, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "seq 1") {
+			t.Errorf("Expected no seq loop for max-continuations=1, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("multiple continuations - auto-mode loop", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:        "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{},
+			EngineConfig: &EngineConfig{
+				ID:               "claude",
+				MaxContinuations: 3,
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Multiple continuations should include the auto-mode loop
+		if !strings.Contains(stepContent, "GH_AW_CONTINUATION") {
+			t.Errorf("Expected auto-mode loop variable GH_AW_CONTINUATION for max-continuations=3, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "seq 1 3") {
+			t.Errorf("Expected 'seq 1 3' for max-continuations=3, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "Claude auto-mode") {
+			t.Errorf("Expected 'Claude auto-mode' label in loop, got:\n%s", stepContent)
+		}
+		// The claude command should still be present inside the loop
+		if !strings.Contains(stepContent, "claude --print") {
+			t.Errorf("Expected claude command inside the loop, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("detection job does not get auto-mode loop", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:        "test-workflow",
+			SafeOutputs: nil, // nil = detection job
+			EngineConfig: &EngineConfig{
+				ID:               "claude",
+				MaxContinuations: 5,
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Detection jobs should NOT use auto-mode even with max-continuations > 1
+		if strings.Contains(stepContent, "GH_AW_CONTINUATION") {
+			t.Errorf("Expected no auto-mode loop for detection job, got:\n%s", stepContent)
+		}
+	})
+}
