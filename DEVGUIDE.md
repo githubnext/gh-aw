@@ -259,7 +259,7 @@ The project has several test targets optimized for different scenarios:
 **Solution**: Run `make deps-dev` to install development dependencies.
 
 #### "Node.js version X is not supported"
-**Solution**: Install Node.js 20+ (see [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites)).
+**Solution**: Use the Dev Container or GitHub Codespace — generic dev environments are not supported (see [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites)).
 
 #### Test failures after `git pull`
 **Solution**: Rebuild dependencies and binary:
