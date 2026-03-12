@@ -446,6 +446,52 @@ Check logs (`gh aw logs`), audit run (`gh aw audit <run-id>`), inspect `.lock.ym
 
 Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, check MCP config (`gh aw mcp inspect`), and review logs.
 
+### Enable Debug Logging
+
+The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command. This reveals what the CLI is doing internally — compilation steps, MCP setup, tool configuration, and more.
+
+**Enable all debug logs:**
+
+```bash
+DEBUG=* gh aw compile
+```
+
+**Enable logs for a specific package:**
+
+```bash
+DEBUG=cli:* gh aw audit 123456
+DEBUG=workflow:* gh aw compile my-workflow
+DEBUG=parser:* gh aw compile my-workflow
+```
+
+**Enable logs for multiple packages at once:**
+
+```bash
+DEBUG=workflow:*,cli:* gh aw compile my-workflow
+```
+
+**Exclude specific loggers:**
+
+```bash
+DEBUG=*,-workflow:test gh aw compile my-workflow
+```
+
+**Disable colors (useful when piping output):**
+
+```bash
+DEBUG_COLORS=0 DEBUG=* gh aw compile my-workflow 2>&1 | tee debug.log
+```
+
+> [!TIP]
+> Debug output goes to `stderr`. Pipe with `2>&1 | tee debug.log` to capture it to a file while still seeing it in your terminal.
+
+Each log line shows:
+- **Namespace** – the package and component that emitted it (e.g., `workflow:compiler`)
+- **Message** – what the CLI was doing at that moment
+- **Time elapsed** – time since the previous log entry (e.g., `+125ms`), which helps identify slow steps
+
+Log namespaces follow a `pkg:filename` convention. Common namespaces include `cli:compile_command`, `workflow:compiler`, `workflow:expression_extraction`, and `parser:frontmatter`. Wildcards (`*`) match any suffix, so `workflow:*` captures all workflow-package logs.
+
 ## Operational Runbooks
 
 See [Workflow Health Monitoring Runbook](https://github.com/github/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) for diagnosing errors.
