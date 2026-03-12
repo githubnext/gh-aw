@@ -23,7 +23,7 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"2cb0f21ae34ffe6602495148ee30ff8a2a3da4803213b7d294805b71dfa02051"}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"428f3e9aff78adeee742559a6ddbdbf1afcaa0433964d578ec1562f99d4546af"}
 
 name: "Release"
 "on":
@@ -1269,7 +1269,7 @@ jobs:
       - activation
       - config
       - pre_activation
-      - sync_actions
+      - push_tag
     runs-on: ubuntu-latest
     permissions:
       attestations: write
@@ -1280,18 +1280,6 @@ jobs:
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
-      - name: Verify tag exists in gh-aw-actions
-        run: |
-          echo "Verifying tag $RELEASE_TAG exists in github/gh-aw-actions..."
-          if gh api "repos/github/gh-aw-actions/git/refs/tags/$RELEASE_TAG" --jq '.ref' > /dev/null 2>&1; then
-            echo "✓ Tag $RELEASE_TAG exists in github/gh-aw-actions"
-          else
-            echo "Error: Tag $RELEASE_TAG not found in github/gh-aw-actions after sync"
-            exit 1
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -1462,19 +1450,4 @@ jobs:
           name: safe-output-items
           path: /tmp/safe-output-items.jsonl
           if-no-files-found: warn
-
-  sync_actions:
-    needs:
-      - activation
-      - config
-      - pre_activation
-      - push_tag
-    permissions:
-      contents: write
-      pull-requests: write
-
-    uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
-    with:
-      ref: ${{ needs.config.outputs.release_tag }}
-    secrets: inherit
 

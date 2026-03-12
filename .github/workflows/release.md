@@ -201,18 +201,8 @@ jobs:
           path: dist/
           retention-days: 1
 
-  sync_actions:
-    needs: ["pre_activation", "activation", "config", "push_tag"]
-    uses: github/gh-aw-actions/.github/workflows/sync-actions.yml@main
-    with:
-      ref: ${{ needs.config.outputs.release_tag }}
-    secrets: inherit
-    permissions:
-      contents: write
-      pull-requests: write
-
   release:
-    needs: ["pre_activation", "activation", "config", "sync_actions"]
+    needs: ["pre_activation", "activation", "config", "push_tag"]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -222,19 +212,6 @@ jobs:
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     steps:
-      - name: Verify tag exists in gh-aw-actions
-        env:
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Verifying tag $RELEASE_TAG exists in github/gh-aw-actions..."
-          if gh api "repos/github/gh-aw-actions/git/refs/tags/$RELEASE_TAG" --jq '.ref' > /dev/null 2>&1; then
-            echo "✓ Tag $RELEASE_TAG exists in github/gh-aw-actions"
-          else
-            echo "Error: Tag $RELEASE_TAG not found in github/gh-aw-actions after sync"
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v6.0.2
         with:
