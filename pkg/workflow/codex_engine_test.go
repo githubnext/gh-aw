@@ -716,3 +716,44 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 	})
 }
+
+func TestCodexEngineWebSearch(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("web search disabled by default when tool not specified", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "--no-search") {
+			t.Errorf("Expected --no-search flag when web-search tool is not specified, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, " --search") {
+			t.Errorf("Expected no --search flag when web-search tool is not specified, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("web search enabled when tool is specified", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			ParsedTools: &ToolsConfig{
+				WebSearch: &WebSearchToolConfig{},
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, "--search") {
+			t.Errorf("Expected --search flag when web-search tool is specified, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "--no-search") {
+			t.Errorf("Expected no --no-search flag when web-search tool is specified, got:\n%s", stepContent)
+		}
+	})
+}
