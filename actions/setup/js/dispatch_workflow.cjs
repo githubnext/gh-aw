@@ -26,9 +26,23 @@ async function main(config = {}) {
   const { defaultTargetRepo } = resolveTargetRepoConfig(config);
 
   // Resolve the dispatch destination repository from target-repo config, falling back to context.repo
-  const resolvedRepoSlug = defaultTargetRepo || `${context.repo.owner}/${context.repo.repo}`;
-  const repo = parseRepoSlug(resolvedRepoSlug) || context.repo;
-  const isCrossRepoDispatch = resolvedRepoSlug !== `${context.repo.owner}/${context.repo.repo}`;
+  const contextRepoSlug = `${context.repo.owner}/${context.repo.repo}`;
+  const normalizedTargetRepo = (defaultTargetRepo ?? "").toString().trim();
+
+  let resolvedRepoSlug = contextRepoSlug;
+  let repo = context.repo;
+
+  if (normalizedTargetRepo) {
+    const parsedRepo = parseRepoSlug(normalizedTargetRepo);
+    if (!parsedRepo) {
+      core.warning(`Invalid 'target-repo' configuration value '${normalizedTargetRepo}'; falling back to workflow context repository ${contextRepoSlug}.`);
+    } else {
+      resolvedRepoSlug = normalizedTargetRepo;
+      repo = parsedRepo;
+    }
+  }
+
+  const isCrossRepoDispatch = resolvedRepoSlug !== contextRepoSlug;
 
   core.info(`Dispatch workflow configuration: max=${maxCount}`);
   if (allowedWorkflows.length > 0) {
