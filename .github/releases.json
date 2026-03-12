@@ -1,0 +1,16 @@
+{
+  "channels": {
+    "stable": {
+      "version": "v0.40.1",
+      "engines": {
+        "copilot": "latest"
+      }
+    },
+    "latest": {
+      "version": "latest",
+      "engines": {
+        "copilot": "latest"
+      }
+    }
+  }
+}

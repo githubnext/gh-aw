@@ -351,19 +351,51 @@ else
     exit 1
 fi
 
-# Test 11: Verify "latest" version functionality
+# Test 11: Verify channel-based version resolution
 echo ""
-echo "Test 11: Verify 'latest' version functionality"
+echo "Test 11: Verify channel-based version resolution"
 
-# Check for "latest" as default version
-if grep -q "using 'latest'" "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Script uses 'latest' as default version"
+# Check for DEFAULT_CHANNEL variable set to "stable"
+if grep -q 'DEFAULT_CHANNEL="stable"' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script defaults to 'stable' channel"
 else
-    echo "  ✗ FAIL: Script does not use 'latest' as default version"
+    echo "  ✗ FAIL: Script does not default to 'stable' channel"
     exit 1
 fi
 
-# Check for latest URL construction
+# Check for resolve_channel_version function
+if grep -q "resolve_channel_version()" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: resolve_channel_version function exists"
+else
+    echo "  ✗ FAIL: resolve_channel_version function not found"
+    exit 1
+fi
+
+# Check for RELEASES_JSON_URL variable
+if grep -q 'RELEASES_JSON_URL=' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: RELEASES_JSON_URL variable exists"
+else
+    echo "  ✗ FAIL: RELEASES_JSON_URL variable not found"
+    exit 1
+fi
+
+# Check that releases.json URL uses raw.githubusercontent.com (no token required)
+if grep -q 'raw.githubusercontent.com' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Releases config fetched from raw.githubusercontent.com (no token)"
+else
+    echo "  ✗ FAIL: Releases config URL not using raw.githubusercontent.com"
+    exit 1
+fi
+
+# Check for semver detection logic (bash regex: ^v[0-9]+\.[0-9]+\.[0-9]+)
+if grep -qF '^v[0-9]+\.[0-9]+\.[0-9]+' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Semver detection regex exists"
+else
+    echo "  ✗ FAIL: Semver detection regex not found"
+    exit 1
+fi
+
+# Check for latest URL construction (still needed for "latest" channel)
 if grep -q 'releases/latest/download' "$PROJECT_ROOT/install-gh-aw.sh"; then
     echo "  ✓ PASS: Latest release URL pattern is correct"
 else

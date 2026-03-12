@@ -42,17 +42,21 @@ func TestSetupCLIAction(t *testing.T) {
 		}
 	})
 
-	// Test that script can fetch latest version when INPUT_VERSION is not provided
-	t.Run("can_fetch_latest_without_input_version", func(t *testing.T) {
-		// This test would actually try to fetch from GitHub API
-		// We just verify the script doesn't immediately fail
+	// Test that script resolves "stable" channel by default when INPUT_VERSION is not provided
+	t.Run("defaults_to_stable_channel", func(t *testing.T) {
+		// This test would actually try to fetch from GitHub
+		// We just verify the script has the correct default channel logic
 		content, err := os.ReadFile(installScript)
 		if err != nil {
 			t.Fatalf("Failed to read install.sh: %v", err)
 		}
-		// Verify script has fallback to fetch latest
-		if !strings.Contains(string(content), "No version specified") || !strings.Contains(string(content), "using 'latest'") {
-			t.Errorf("Script should support fetching latest release when no version is provided")
+		// Verify script defaults to "stable" channel
+		if !strings.Contains(string(content), `DEFAULT_CHANNEL="stable"`) {
+			t.Errorf("Script should default to 'stable' channel when no version is provided")
+		}
+		// Verify script has channel resolution function
+		if !strings.Contains(string(content), "resolve_channel_version") {
+			t.Errorf("Script should have resolve_channel_version function")
 		}
 	})
 

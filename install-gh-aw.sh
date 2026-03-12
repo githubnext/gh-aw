@@ -2,13 +2,17 @@
 
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
-# Usage: ./install-gh-aw.sh [version] [options]
-# If no version is specified, it will use "latest" (GitHub automatically resolves to the latest release)
+# Usage: ./install-gh-aw.sh [version|channel] [options]
+# If no version is specified, it will resolve the "stable" channel from .github/releases.json
+# A semver version (e.g. v1.0.0) is used directly; a channel name (e.g. "stable", "latest")
+# is resolved via .github/releases.json fetched from the raw GitHub URL (no token required).
 # Note: Checksum validation is currently skipped by default (will be enabled in future releases)
 # 
 # Examples:
-#   ./install-gh-aw.sh                           # Install latest version
-#   ./install-gh-aw.sh v1.0.0                    # Install specific version
+#   ./install-gh-aw.sh                           # Install stable channel (default)
+#   ./install-gh-aw.sh stable                    # Install stable channel explicitly
+#   ./install-gh-aw.sh latest                    # Install latest channel
+#   ./install-gh-aw.sh v1.0.0                    # Install specific semver version directly
 #   ./install-gh-aw.sh --skip-checksum           # Skip checksum validation
 #
 # Options:
@@ -224,15 +228,71 @@ fetch_release_data() {
     return 1
 }
 
-# Get version (use provided version or default to "latest")
+# Get version (use provided version/channel, or default to "stable" channel)
 # VERSION is already set from argument parsing
 REPO="github/gh-aw"
+RELEASES_JSON_URL="https://raw.githubusercontent.com/$REPO/main/.github/releases.json"
+DEFAULT_CHANNEL="stable"
+
+# Resolve a channel name to a version using the releases.json config file.
+# The file is fetched from the raw GitHub URL without authentication.
+resolve_channel_version() {
+    local channel=$1
+    print_info "Resolving version for channel '$channel' from releases config..." >&2
+
+    local releases_data
+    releases_data=$(curl -sf "$RELEASES_JSON_URL" 2>/dev/null)
+    local curl_exit=$?
+
+    if [ $curl_exit -ne 0 ] || [ -z "$releases_data" ]; then
+        print_warning "Failed to fetch releases config from $RELEASES_JSON_URL" >&2
+        return 1
+    fi
+
+    local version=""
+    if [ "$HAS_JQ" = true ]; then
+        version=$(echo "$releases_data" | jq -r ".channels[\"$channel\"].version // empty" 2>/dev/null)
+    elif command -v python3 &>/dev/null; then
+        version=$(echo "$releases_data" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('channels',{}).get('$channel',{}).get('version',''))" 2>/dev/null)
+    elif command -v python &>/dev/null; then
+        version=$(echo "$releases_data" | python -c "import sys,json; d=json.load(sys.stdin); print(d.get('channels',{}).get('$channel',{}).get('version',''))" 2>/dev/null)
+    else
+        # Grep/awk fallback: find the channel block and extract its version field
+        version=$(echo "$releases_data" | grep -A 10 "\"$channel\":" | grep '"version":' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+    fi
+
+    if [ -z "$version" ]; then
+        print_warning "Channel '$channel' not found in releases config" >&2
+        return 1
+    fi
+
+    echo "$version"
+    return 0
+}
 
 if [ -z "$VERSION" ]; then
-    print_info "No version specified, using 'latest'..."
-    VERSION="latest"
-else
+    print_info "No version specified, resolving from '$DEFAULT_CHANNEL' channel..."
+    resolved=$(resolve_channel_version "$DEFAULT_CHANNEL")
+    if [ $? -eq 0 ] && [ -n "$resolved" ]; then
+        VERSION="$resolved"
+        print_info "Resolved version: $VERSION (from '$DEFAULT_CHANNEL' channel)"
+    else
+        print_warning "Failed to resolve '$DEFAULT_CHANNEL' channel, falling back to 'latest'..."
+        VERSION="latest"
+    fi
+elif [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    # Semver detected (no end anchor so pre-release suffixes like -beta.1 also match)
     print_info "Using specified version: $VERSION"
+else
+    print_info "Resolving version from channel '$VERSION'..."
+    resolved=$(resolve_channel_version "$VERSION")
+    if [ $? -eq 0 ] && [ -n "$resolved" ]; then
+        print_info "Resolved version: $resolved (from '$VERSION' channel)"
+        VERSION="$resolved"
+    else
+        print_warning "Failed to resolve channel '$VERSION'. Trying as direct version..."
+        print_info "Using: $VERSION"
+    fi
 fi
 
 # Try gh extension install if requested (and gh is available)
