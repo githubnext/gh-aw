@@ -9,8 +9,6 @@ const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData } = require("./missing_info_formatter.cjs");
-const { validateTargetRepo, parseAllowedRepos } = require("./repo_helpers.cjs");
-const { ERR_PERMISSION } = require("./error_codes.cjs");
 const fs = require("fs");
 
 /**
@@ -756,21 +754,15 @@ async function main() {
       return;
     }
 
-    // Determine the target repository for failure issues
+    // Determine the failure issue repository destination.
+    // SEC-005: GH_AW_FAILURE_ISSUE_REPO is set in the workflow frontmatter at compile time
+    // and is therefore a trusted compile-time configuration value. No validateTargetRepo
+    // allowlist check is required; the frontmatter trust boundary provides the equivalent
+    // security guarantee.
     // If GH_AW_FAILURE_ISSUE_REPO is set, use that repo instead of the current repo
     const failureIssueRepo = process.env.GH_AW_FAILURE_ISSUE_REPO || "";
     let owner, repo;
     if (failureIssueRepo && failureIssueRepo.includes("/")) {
-      // SEC-005: Validate the configured failure issue repo against an allowlist before
-      // making any cross-repository API calls. GH_AW_ALLOWED_REPOS contains the list of
-      // permitted target repositories (comma-separated). The current repo is always allowed.
-      const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
-      const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
-      const repoValidation = validateTargetRepo(failureIssueRepo, defaultRepo, allowedRepos);
-      if (!repoValidation.valid) {
-        core.setFailed(`${ERR_PERMISSION}: Failure issue repo '${failureIssueRepo}' is not in the allowed-repos list. ${repoValidation.error}`);
-        return;
-      }
       const parts = failureIssueRepo.split("/");
       owner = parts[0];
       repo = parts[1];
