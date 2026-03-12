@@ -697,7 +697,7 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 // include directory creation to handle cases where artifact doesn't exist,
 // and that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds.
 func TestBuildAgentOutputDownloadSteps(t *testing.T) {
-	steps := buildAgentOutputDownloadSteps()
+	steps := buildAgentOutputDownloadSteps("")
 	stepsStr := strings.Join(steps, "")
 
 	// Verify expected steps are present

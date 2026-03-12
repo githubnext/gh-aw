@@ -1,0 +1,53 @@
+name: Smoke Multi Caller
+
+# Demonstrates that the same reusable workflow can be called multiple times
+# in a single parent workflow without artifact name conflicts.
+#
+# This tests the fix for: https://github.com/github/gh-aw/issues/20657
+# Each invocation gets a unique artifact prefix derived from a hash of its inputs,
+# so artifacts like "activation", "agent", etc. do not clash.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  # First invocation of the reusable workflow
+  task-a:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'smoke-multi-caller'
+    uses: ./.github/workflows/smoke-workflow-call-with-inputs.lock.yml
+    with:
+      task-description: 'task-a - first invocation'
+    secrets: inherit
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+  # Second invocation of the same reusable workflow, with different inputs.
+  # Without the artifact prefix fix, this would fail with a 409 Conflict on
+  # artifact names ("activation", "agent", etc.) because GitHub Actions artifact
+  # names must be unique per workflow run.
+  task-b:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'smoke-multi-caller'
+    uses: ./.github/workflows/smoke-workflow-call-with-inputs.lock.yml
+    with:
+      task-description: 'task-b - second invocation'
+    secrets: inherit
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+  # Third invocation running after task-a and task-b to show sequential + parallel combinations
+  task-c:
+    needs: [task-a, task-b]
+    uses: ./.github/workflows/smoke-workflow-call-with-inputs.lock.yml
+    with:
+      task-description: 'task-c - third invocation (after a and b)'
+    secrets: inherit
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
