@@ -280,6 +280,86 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("Integrity:");
       expect(summary).toContain("low");
     });
+
+    it("should show fallback issue status when create_pull_request falls back to issue", () => {
+      const options = {
+        type: "create_pull_request",
+        messageIndex: 1,
+        success: true,
+        result: {
+          fallback_used: true,
+          issue_number: 42,
+          issue_url: "https://github.com/owner/repo/issues/42",
+          branch_name: "fix-branch",
+          repo: "owner/repo",
+        },
+        message: {
+          title: "Fix: upgrade dependencies",
+          body: "This upgrades the dependencies.",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      // Should use warning emoji and "Fallback Issue Created" status
+      expect(summary).toContain("⚠️");
+      expect(summary).toContain("Fallback Issue Created");
+      expect(summary).toContain("Message 1");
+      // Should NOT show "Success"
+      expect(summary).not.toContain("✅");
+      // Should show fallback explanation
+      expect(summary).toContain("protected file");
+      expect(summary).toContain("https://github.com/owner/repo/issues/42");
+      expect(summary).toContain("owner/repo#42");
+      expect(summary).toContain("fix-branch");
+      expect(summary).toContain("Fix: upgrade dependencies");
+    });
+
+    it("should show fallback issue status when push_to_pull_request_branch falls back to issue", () => {
+      const options = {
+        type: "push_to_pull_request_branch",
+        messageIndex: 2,
+        success: true,
+        result: {
+          fallback_used: true,
+          issue_number: 99,
+          issue_url: "https://github.com/owner/repo/issues/99",
+        },
+        message: {
+          body: "Pushing to PR branch.",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("⚠️");
+      expect(summary).toContain("Fallback Issue Created");
+      expect(summary).toContain("https://github.com/owner/repo/issues/99");
+      expect(summary).not.toContain("✅");
+    });
+
+    it("should show normal success for create_pull_request when no fallback", () => {
+      const options = {
+        type: "create_pull_request",
+        messageIndex: 1,
+        success: true,
+        result: {
+          pull_request_number: 5,
+          pull_request_url: "https://github.com/owner/repo/pull/5",
+          url: "https://github.com/owner/repo/pull/5",
+          repo: "owner/repo",
+          number: 5,
+        },
+        message: { title: "My PR" },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("✅");
+      expect(summary).toContain("Success");
+      expect(summary).not.toContain("⚠️");
+      expect(summary).not.toContain("Fallback");
+    });
   });
 
   describe("writeSafeOutputSummaries", () => {
