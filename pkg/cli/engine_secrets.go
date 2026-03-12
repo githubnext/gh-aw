@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -159,16 +160,9 @@ func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets
 			continue
 		}
 
-		exists := existingSecrets[req.Name]
-		if !exists {
-			// Check alternatives
-			for _, alt := range req.AlternativeEnvVars {
-				if existingSecrets[alt] {
-					exists = true
-					break
-				}
-			}
-		}
+		exists := existingSecrets[req.Name] || sliceutil.Any(req.AlternativeEnvVars, func(alt string) bool {
+			return existingSecrets[alt]
+		})
 		if !exists {
 			missing = append(missing, req)
 		}
@@ -574,16 +568,9 @@ func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 
 	for _, req := range requirements {
 		// Check if secret exists
-		exists := existingSecrets[req.Name]
-		if !exists {
-			// Check alternatives
-			for _, alt := range req.AlternativeEnvVars {
-				if existingSecrets[alt] {
-					exists = true
-					break
-				}
-			}
-		}
+		exists := existingSecrets[req.Name] || sliceutil.Any(req.AlternativeEnvVars, func(alt string) bool {
+			return existingSecrets[alt]
+		})
 
 		if !exists {
 			if req.Optional {

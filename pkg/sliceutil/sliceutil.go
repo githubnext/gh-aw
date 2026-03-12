@@ -56,6 +56,18 @@ func FilterMapKeys[K comparable, V any](m map[K]V, predicate func(K, V) bool) []
 	return result
 }
 
+// Any returns true if at least one element in the slice satisfies the predicate.
+// Returns false for nil or empty slices.
+// This is a pure function that does not modify the input slice.
+func Any[T any](slice []T, predicate func(T) bool) bool {
+	for _, item := range slice {
+		if predicate(item) {
+			return true
+		}
+	}
+	return false
+}
+
 // Deduplicate returns a new slice with duplicate elements removed.
 // The order of first occurrence is preserved.
 // This is a pure function that does not modify the input slice.
