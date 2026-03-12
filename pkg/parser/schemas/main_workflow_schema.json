@@ -7971,6 +7971,30 @@
               "type": "string",
               "description": "Agent identifier to pass to copilot --agent flag (copilot engine only). Specifies which custom agent to use for the workflow."
             },
+            "enterprise": {
+              "type": "object",
+              "description": "GitHub Enterprise Cloud (GHEC) or Server (GHES) configuration for the Copilot engine. Configures AWF to route API traffic to the correct enterprise endpoint.",
+              "properties": {
+                "server-url": {
+                  "type": "string",
+                  "description": "GitHub Enterprise Server URL (e.g., 'https://acme.ghe.com' for GHEC or 'https://github.company.com' for GHES). AWF automatically detects GHEC (*.ghe.com) and GHES (custom domains) and routes to the appropriate Copilot API endpoint.",
+                  "examples": [
+                    "https://acme.ghe.com",
+                    "https://github.company.com"
+                  ]
+                },
+                "copilot-api-target": {
+                  "type": "string",
+                  "description": "Manual override for the Copilot API endpoint hostname (e.g., 'api.acme.ghe.com' or 'api.enterprise.githubcopilot.com'). Use this when automatic detection via server-url doesn't work for your setup. Takes precedence over server-url.",
+                  "examples": [
+                    "api.acme.ghe.com",
+                    "api.enterprise.githubcopilot.com",
+                    "api.custom.endpoint.com"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
             "args": {
               "type": "array",
               "items": {
