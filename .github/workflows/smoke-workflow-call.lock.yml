@@ -57,6 +57,7 @@ jobs:
       comment_repo: ""
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+      target_ref: ${{ steps.resolve-host-repo.outputs.target_ref }}
       target_repo: ${{ steps.resolve-host-repo.outputs.target_repo }}
     steps:
       - name: Checkout actions folder
@@ -123,6 +124,7 @@ jobs:
         with:
           persist-credentials: false
           repository: ${{ steps.resolve-host-repo.outputs.target_repo }}
+          ref: ${{ steps.resolve-host-repo.outputs.target_ref }}
           sparse-checkout: |
             .github
             .agents

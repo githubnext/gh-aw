@@ -934,10 +934,54 @@ func TestCrossRepoTargetRepo(t *testing.T) {
 		cm := NewCheckoutManager(nil)
 		cm.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
 
-		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), "", GetActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.Contains(t, combined, "repository: ${{ needs.activation.outputs.target_repo }}",
 			"checkout step should use the cross-repo target")
+	})
+}
+
+// TestCrossRepoTargetRef verifies the SetCrossRepoTargetRef/GetCrossRepoTargetRef lifecycle
+// and that GenerateGitHubFolderCheckoutStep emits a ref: field when a ref is provided.
+func TestCrossRepoTargetRef(t *testing.T) {
+	t.Run("default is empty string", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		assert.Empty(t, cm.GetCrossRepoTargetRef(), "new checkout manager should have no cross-repo ref")
+	})
+
+	t.Run("activation job ref expression is stored and retrievable", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
+		assert.Equal(t, "${{ steps.resolve-host-repo.outputs.target_ref }}", cm.GetCrossRepoTargetRef())
+	})
+
+	t.Run("downstream job ref expression (needs.activation.outputs) is stored and retrievable", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		cm.SetCrossRepoTargetRef("${{ needs.activation.outputs.target_ref }}")
+		assert.Equal(t, "${{ needs.activation.outputs.target_ref }}", cm.GetCrossRepoTargetRef())
+	})
+
+	t.Run("GenerateGitHubFolderCheckoutStep emits ref: when ref is provided", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
+		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
+
+		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), cm.GetCrossRepoTargetRef(), GetActionPin)
+		combined := strings.Join(lines, "")
+
+		assert.Contains(t, combined, "repository: ${{ steps.resolve-host-repo.outputs.target_repo }}",
+			"checkout step should include repository field")
+		assert.Contains(t, combined, "ref: ${{ steps.resolve-host-repo.outputs.target_ref }}",
+			"checkout step should include ref field")
+	})
+
+	t.Run("GenerateGitHubFolderCheckoutStep omits ref: when ref is empty", func(t *testing.T) {
+		cm := NewCheckoutManager(nil)
+
+		lines := cm.GenerateGitHubFolderCheckoutStep("org/repo", "", GetActionPin)
+		combined := strings.Join(lines, "")
+
+		assert.NotContains(t, combined, "ref:", "checkout step should not include ref field when empty")
 	})
 }
