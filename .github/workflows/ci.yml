@@ -1625,6 +1625,62 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  health-smoke-copilot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: ci-${{ github.ref }}-health-smoke-copilot
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Run health on smoke-copilot
+        id: health_check
+        run: |
+          set -e
+          ./gh-aw health smoke-copilot --json > health_output.json
+          echo "Health command output:"
+          cat health_output.json
+
+          # Validate JSON structure
+          if ! jq -e '.total_runs' health_output.json > /dev/null 2>&1; then
+            echo "❌ total_runs field missing from health JSON output"
+            exit 1
+          fi
+          TOTAL_RUNS=$(jq '.total_runs' health_output.json)
+          echo "✅ total_runs: $TOTAL_RUNS"
+
+          if ! jq -e '.success_rate' health_output.json > /dev/null 2>&1; then
+            echo "❌ success_rate field missing from health JSON output"
+            exit 1
+          fi
+          SUCCESS_RATE=$(jq '.success_rate' health_output.json)
+          echo "✅ success_rate: $SUCCESS_RATE"
+
+          if ! jq -e '.workflow_name' health_output.json > /dev/null 2>&1; then
+            echo "❌ workflow_name field missing from health JSON output"
+            exit 1
+          fi
+          WORKFLOW_NAME=$(jq -r '.workflow_name' health_output.json)
+          echo "✅ workflow_name: $WORKFLOW_NAME"
+
+          echo "✅ All health JSON structure validations passed"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   mcp-server-compile-test:
     runs-on: ubuntu-latest
     permissions:
