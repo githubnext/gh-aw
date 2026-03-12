@@ -179,7 +179,14 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 				"workflow":  args.WorkflowName,
 			}
 
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+err.Error(), errorData)
+			// Extract the user-facing message from stderr, filtering out debug log lines
+			// (e.g. "workflow:script_registry Creating new script registry +151ns")
+			// to avoid leaking internal diagnostic output in the MCP error response.
+			mainMsg := extractLastConsoleMessage(stderr)
+			if mainMsg == "" {
+				mainMsg = err.Error()
+			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+mainMsg, errorData)
 		}
 
 		// Check output size and apply guardrail if needed
