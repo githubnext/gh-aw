@@ -24,8 +24,9 @@ type EngineConfig struct {
 	Env              map[string]string
 	Config           string
 	Args             []string
-	Firewall         *FirewallConfig // AWF firewall configuration
-	Agent            string          // Agent identifier for copilot --agent flag (copilot engine only)
+	Firewall         *FirewallConfig    // AWF firewall configuration
+	Agent            string             // Agent identifier for copilot --agent flag (copilot engine only)
+	Enterprise       *EnterpriseConfig  // Enterprise/GHE configuration (copilot engine only)
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
@@ -39,6 +40,32 @@ type EngineConfig struct {
 
 	// Extended inline request shaping fields (engine.provider.request.*)
 	InlineProviderRequest *RequestShape // request shaping parsed from engine.provider.request
+}
+
+// EnterpriseConfig represents GitHub Enterprise Cloud (GHEC) or Server (GHES) configuration
+// for the Copilot engine. This configuration is passed to AWF to route API traffic correctly.
+//
+// Examples:
+//
+//  1. GHEC - Automatic detection (recommended):
+//     enterprise:
+//       server-url: "https://acme.ghe.com"
+//     Result: AWF automatically routes to api.acme.ghe.com
+//
+//  2. GHES - Automatic detection (recommended):
+//     enterprise:
+//       server-url: "https://github.company.com"
+//     Result: AWF automatically routes to api.enterprise.githubcopilot.com
+//
+//  3. Manual override (for custom configurations):
+//     enterprise:
+//       copilot-api-target: "api.custom.endpoint.com"
+//     Result: AWF uses specified endpoint directly
+//
+// Priority: copilot-api-target > server-url detection > GitHub Actions GITHUB_SERVER_URL > default (api.githubcopilot.com)
+type EnterpriseConfig struct {
+	ServerURL         string `yaml:"server-url,omitempty"`          // GitHub Enterprise Server URL (e.g., "https://acme.ghe.com" or "https://github.company.com")
+	CopilotAPITarget  string `yaml:"copilot-api-target,omitempty"`  // Manual override for Copilot API endpoint (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -311,6 +338,32 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 					config.Firewall = firewallConfig
 					engineLog.Print("Extracted firewall configuration")
+				}
+			}
+
+			// Extract optional 'enterprise' field (object format - copilot engine only)
+			if enterprise, hasEnterprise := engineObj["enterprise"]; hasEnterprise {
+				if enterpriseObj, ok := enterprise.(map[string]any); ok {
+					enterpriseConfig := &EnterpriseConfig{}
+
+					// Extract server-url field
+					if serverURL, hasServerURL := enterpriseObj["server-url"]; hasServerURL {
+						if serverURLStr, ok := serverURL.(string); ok {
+							enterpriseConfig.ServerURL = serverURLStr
+							engineLog.Printf("Extracted enterprise server-url: %s", serverURLStr)
+						}
+					}
+
+					// Extract copilot-api-target field (manual override)
+					if copilotAPITarget, hasCopilotAPITarget := enterpriseObj["copilot-api-target"]; hasCopilotAPITarget {
+						if copilotAPITargetStr, ok := copilotAPITarget.(string); ok {
+							enterpriseConfig.CopilotAPITarget = copilotAPITargetStr
+							engineLog.Printf("Extracted enterprise copilot-api-target: %s", copilotAPITargetStr)
+						}
+					}
+
+					config.Enterprise = enterpriseConfig
+					engineLog.Print("Extracted enterprise configuration")
 				}
 			}
 
